@@ -1,6 +1,5 @@
 "use client";
 
-import { Card, CardContent } from "@/components/ui/card";
 import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -8,6 +7,8 @@ interface StatsCardProps {
     title: string;
     value: string | number;
     icon: LucideIcon;
+    description?: string;
+    variant?: "default" | "financial" | "destructive" | "patients" | "visits"; // Added new variants
     trend?: {
         value: number;
         isPositive: boolean;
@@ -15,33 +16,59 @@ interface StatsCardProps {
     className?: string;
 }
 
-export function StatsCard({ title, value, icon: Icon, trend, className }: StatsCardProps) {
+export function StatsCard({ title, value, icon: Icon, description, variant = "default", trend, className }: StatsCardProps) {
+
+    // Background colors for the "Yellow/Pink/Green" pastel look
+    const getVariantStyles = () => {
+        switch (variant) {
+            case "patients": // Yellow Card
+                return "bg-pastel-yellow border-none";
+            case "visits": // Pink Card
+                return "bg-pastel-rose border-none";
+            case "financial": // Keeping consistent with yellow/gold but cleaner
+                return "bg-white border border-border shadow-sm";
+            default: // Default White Card
+                return "bg-white border border-border shadow-sm";
+        }
+    };
+
     return (
-        <Card className={`group relative overflow-hidden ${className}`}>
-            <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                        <p className="text-sm font-medium text-zinc-400 mb-1">
-                            {title}
-                        </p>
-                        <h3 className="text-3xl font-black text-foreground tracking-tight group-hover:scale-105 transition-transform duration-300">
-                            {value}
-                        </h3>
-                        {trend && (
-                            <p className={`text-xs mt-2 font-semibold ${trend.isPositive ? "text-emerald-400" : "text-pink-400"
-                                }`}>
-                                {trend.isPositive ? "↑" : "↓"} {Math.abs(trend.value)}%
-                            </p>
-                        )}
-                    </div>
-                    <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 rounded-xl blur-xl group-hover:blur-2xl transition-all duration-300 opacity-0 group-hover:opacity-100" />
-                        <div className="relative w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500/20 to-cyan-500/10 flex items-center justify-center group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 backdrop-blur-sm border border-white/10">
-                            <Icon className="w-6 h-6 text-emerald-400 group-hover:text-emerald-300 transition-colors" />
-                        </div>
+        <div className={cn(
+            "rounded-[24px] p-6 flex flex-col justify-between h-full transition-all hover:shadow-md",
+            getVariantStyles(),
+            className
+        )}>
+            <div className="flex items-start justify-between mb-4">
+                <div>
+                    <h3 className="text-sm font-semibold text-zinc-600 mb-1">
+                        {title}
+                    </h3>
+                    <div className="text-3xl font-bold text-zinc-900 tracking-tight">
+                        {value}
                     </div>
                 </div>
-            </CardContent>
-        </Card>
+                <div className="p-2 bg-white/50 rounded-full backdrop-blur-sm">
+                    <Icon className="w-5 h-5 text-zinc-700" />
+                </div>
+            </div>
+
+            {/* Description or Trend */}
+            <div className="mt-auto">
+                {description && (
+                    <p className="text-xs text-zinc-500 line-clamp-2">
+                        {description}
+                    </p>
+                )}
+
+                {trend && (
+                    <div className="flex items-center gap-1 text-xs font-semibold mt-2">
+                        <span className={trend.isPositive ? "text-emerald-600" : "text-rose-500"}>
+                            {trend.isPositive ? "↑" : "↓"} {trend.value}%
+                        </span>
+                        <span className="text-zinc-400 font-medium">vs last month</span>
+                    </div>
+                )}
+            </div>
+        </div>
     );
 }

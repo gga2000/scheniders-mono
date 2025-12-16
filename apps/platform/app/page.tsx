@@ -1,4 +1,4 @@
-"use client";
+"use client"; // Force recompile
 
 import { useState } from "react";
 import { StatsGrid } from "@/components/dashboard/stats-grid";
@@ -40,42 +40,26 @@ export default function Home() {
   return (
     <div className="min-h-screen p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
-        <header className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="glass-card p-3 rounded-xl">
-              <Package className="h-8 w-8 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold">Schenider Team</h1>
-              <p className="text-zinc-400">لوحة تحكم إدارة الطلبات</p>
-            </div>
+        {/* Page Title Section */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-zinc-900 to-zinc-600 bg-clip-text text-transparent">
+              Good morning, Dr. Ali
+            </h1>
+            <p className="text-zinc-500 font-medium mt-1">
+              Here is what's happening today.
+            </p>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-3">
-            <Link href="/analytics">
-              <Button
-                size="lg"
-                variant="outline"
-                className="gap-2"
-              >
-                <BarChart3 className="h-5 w-5" />
-                التحليلات
-              </Button>
-            </Link>
-
-            <Button
-              size="lg"
-              variant="primary"
-              onClick={() => setIsCreateModalOpen(true)}
-              className="gap-2 shadow-lg shadow-primary/20"
-            >
-              <Plus className="h-5 w-5" />
-              طلب جديد
-            </Button>
-          </div>
-        </header>
+          {/* Quick Action - Create Order is still useful here */}
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="flex items-center gap-2 px-6 py-3 rounded-full bg-zinc-900 text-white shadow-lg shadow-zinc-900/10 hover:bg-zinc-800 hover:scale-105 transition-all font-medium"
+          >
+            <Plus className="h-4 w-4" />
+            New Order
+          </button>
+        </div>
 
         {/* Stats Grid */}
         <StatsGrid stats={stats} />

@@ -16,55 +16,62 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Midnight Glass Design System Colors
-        background: "var(--color-background)",
-        foreground: "var(--color-foreground)",
-        
-        // Surface colors
-        surface: "var(--color-surface)",
-        "surface-solid": "var(--color-surface-solid)",
-        
-        // Brand colors
+        // Intelly Pastel Design System Colors
+        background: "#FDFBF7", // Cream/Beige
+        foreground: "#1E1E1E", // Dark Grey/Black text
+
+        sidebar: {
+          DEFAULT: "#1E1E1E",
+          foreground: "#FFFFFF",
+        },
+
+        // Pastel Accents
+        pastel: {
+          rose: "#F4C7CF",
+          yellow: "#FBE38E",
+          green: "#C0EBA6",
+          blue: "#A6C8FF",
+          purple: "#E4C1F9",
+        },
+
+        // Semantic Colors re-mapped to Pastel Theme
         primary: {
-          DEFAULT: "var(--color-primary)",
-          hover: "var(--color-primary-hover)",
-          foreground: "var(--color-primary-foreground)",
+          DEFAULT: "#1E1E1E", // Primary actions are often dark in this theme
+          foreground: "#FFFFFF",
         },
         destructive: {
-          DEFAULT: "var(--color-destructive)",
-          hover: "var(--color-destructive-hover)",
-          foreground: "var(--color-destructive-foreground)",
+          DEFAULT: "#F4C7CF", // Pastel Rose for negative/warn
+          foreground: "#1E1E1E",
         },
         financial: {
-          DEFAULT: "var(--color-financial)",
-          hover: "var(--color-financial-hover)",
-          foreground: "var(--color-financial-foreground)",
+          DEFAULT: "#FBE38E", // Pastel Yellow
+          foreground: "#1E1E1E",
         },
-        
-        // Zinc scale
+
+        // Neutral scale (Warm Greys)
         zinc: {
-          50: "var(--color-zinc-50)",
-          100: "var(--color-zinc-100)",
-          200: "var(--color-zinc-200)",
-          300: "var(--color-zinc-300)",
-          400: "var(--color-zinc-400)",
-          500: "var(--color-zinc-500)",
-          600: "var(--color-zinc-600)",
-          700: "var(--color-zinc-700)",
-          800: "var(--color-zinc-800)",
-          900: "var(--color-zinc-900)",
-          950: "var(--color-zinc-950)",
+          50: "#FAFAF9",
+          100: "#F5F5F4",
+          200: "#E7E5E4",
+          300: "#D6D3D1",
+          400: "#A8A29E",
+          500: "#78716C",
+          600: "#57534E",
+          700: "#44403C",
+          800: "#292524",
+          900: "#1C1917",
+          950: "#0C0A09",
         },
-        
+
         // Border colors
-        border: "var(--color-border)",
-        "border-hover": "var(--color-border-hover)",
-        
-        // Status colors
-        success: "var(--color-success)",
-        warning: "var(--color-warning)",
-        error: "var(--color-error)",
-        info: "var(--color-info)",
+        border: "#E7E5E4",
+        "border-hover": "#D6D3D1",
+
+        // Keep status colors for utility
+        success: "#C0EBA6",
+        warning: "#FBE38E",
+        error: "#F4C7CF",
+        info: "#A6C8FF",
       },
       fontFamily: {
         sans: ["var(--font-geist-sans)", "sans-serif"],
