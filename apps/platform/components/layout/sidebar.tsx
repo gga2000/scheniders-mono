@@ -9,14 +9,16 @@ import {
     Users,
     Wallet,
     CalendarDays,
-    FileText
+    FileText,
+    ChevronLeft,
+    ChevronRight
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAV_ITEMS = [
     { label: "Dashboard", icon: LayoutDashboard, href: "/" },
-    { label: "Orders", icon: Package, href: "/orders" }, // Assuming orders table is here or main
+    { label: "Orders", icon: Package, href: "/orders" },
     { label: "Patients", icon: Users, href: "/customers" },
     { label: "Schedules", icon: CalendarDays, href: "/schedule" },
     { label: "Billing", icon: Wallet, href: "/billing" },
@@ -24,24 +26,58 @@ const NAV_ITEMS = [
     { label: "Settings", icon: Settings, href: "/settings" },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+    collapsed: boolean;
+    setCollapsed: (v: boolean) => void;
+}
+
+export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
     const pathname = usePathname();
 
     return (
-        <aside className="fixed left-4 top-4 bottom-4 w-64 bg-[#1E1E1E] rounded-[32px] flex flex-col p-6 text-white shadow-2xl z-50">
-            {/* 1. Logo Section */}
-            <div className="flex items-center gap-3 mb-10 px-2">
-                <div className="w-8 h-8 rounded-xl bg-white text-black flex items-center justify-center">
+        <aside
+            className={cn(
+                "fixed left-4 top-4 bottom-4 bg-[#1E1E1E] rounded-[32px] flex flex-col py-6 text-white shadow-2xl z-50",
+                "transition-all duration-500 ease-in-out",
+                collapsed ? "w-[72px]" : "w-64 px-6"
+            )}
+        >
+            {/* Collapse Toggle Button - Rebuilt from scratch */}
+            <button
+                onClick={() => setCollapsed(!collapsed)}
+                className="absolute -right-3 top-16 z-10 w-8 h-8 rounded-full bg-[#E4B5D1] hover:bg-[#d9a0c4] flex items-center justify-center transition-all duration-300 shadow-md hover:shadow-lg border-[3px] border-[#1E1E1E]"
+                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+                {collapsed ? (
+                    <ChevronRight className="w-4 h-4 text-zinc-800" strokeWidth={2.5} />
+                ) : (
+                    <ChevronLeft className="w-4 h-4 text-zinc-800" strokeWidth={2.5} />
+                )}
+            </button>
+
+            {/* Logo Section */}
+            <div className={cn(
+                "flex items-center mb-8 transition-all duration-500",
+                collapsed ? "justify-center flex-col gap-2" : "gap-3 px-2"
+            )}>
+                <div className="w-9 h-9 rounded-xl bg-white text-black flex items-center justify-center flex-shrink-0 shadow-sm">
                     <Package className="w-5 h-5" />
                 </div>
-                <span className="text-2xl font-bold tracking-tight">Schenider</span>
+                <span className={cn(
+                    "font-bold tracking-tight transition-all duration-500 overflow-hidden",
+                    collapsed ? "text-[0px] w-0 opacity-0" : "text-xl opacity-100"
+                )}>
+                    Schenider
+                </span>
             </div>
 
-            {/* 2. Navigation */}
-            <nav className="flex-1 space-y-2 overflow-y-auto no-scrollbar">
-                <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4 px-2">
-                    General
-                </div>
+            {/* Navigation */}
+            <nav className="flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden scrollbar-hide px-2">
+                {!collapsed && (
+                    <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-3 px-1 transition-opacity duration-300">
+                        General
+                    </div>
+                )}
 
                 {NAV_ITEMS.map((item) => {
                     const isActive = pathname === item.href;
@@ -50,31 +86,56 @@ export function Sidebar() {
                             key={item.href}
                             href={item.href}
                             className={cn(
-                                "flex items-center gap-4 px-4 py-3.5 rounded-[20px] transition-all duration-300 group",
+                                "flex items-center py-3 rounded-2xl transition-all duration-300 group relative overflow-hidden",
+                                collapsed
+                                    ? "justify-center w-full"
+                                    : "gap-3 px-3",
                                 isActive
-                                    ? "bg-white/10 text-white font-medium"
-                                    : "text-zinc-500 hover:text-white hover:bg-white/5"
+                                    ? "bg-white/10 text-white"
+                                    : "text-zinc-500 hover:text-white hover:bg-white/[0.03]"
                             )}
+                            title={collapsed ? item.label : undefined}
                         >
                             <item.icon className={cn(
-                                "w-5 h-5 transition-colors",
+                                "w-[22px] h-[22px] transition-colors flex-shrink-0",
                                 isActive ? "text-white" : "text-zinc-500 group-hover:text-white"
                             )} />
-                            <span>{item.label}</span>
 
-                            {isActive && (
-                                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-pastel-rose shadow-[0_0_8px_rgba(244,199,207,0.8)]" />
+                            <span className={cn(
+                                "font-medium text-[15px] transition-all duration-500 whitespace-nowrap",
+                                collapsed ? "w-0 opacity-0 hidden" : "opacity-100"
+                            )}>
+                                {item.label}
+                            </span>
+
+                            {isActive && !collapsed && (
+                                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-pastel-rose shadow-[0_0_10px_rgba(244,199,207,0.6)]" />
+                            )}
+
+                            {isActive && collapsed && (
+                                <div className="absolute right-1.5 top-1.5 w-1.5 h-1.5 rounded-full bg-pastel-rose shadow-[0_0_10px_rgba(244,199,207,0.6)]" />
                             )}
                         </Link>
                     );
                 })}
             </nav>
 
-            {/* 3. Bottom Actions */}
-            <div className="mt-auto pt-6 border-t border-white/5 space-y-2">
-                <button className="flex items-center gap-4 px-4 py-3.5 rounded-[20px] text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 w-full transition-all">
-                    <LogOut className="w-5 h-5" />
-                    <span>Log out</span>
+            {/* Bottom Section */}
+            <div className="pt-4 border-t border-white/5 px-2">
+                <button
+                    className={cn(
+                        "flex items-center py-3 rounded-2xl text-zinc-500 hover:text-rose-400 hover:bg-rose-500/5 w-full transition-all duration-300",
+                        collapsed ? "justify-center" : "gap-3 px-3"
+                    )}
+                    title={collapsed ? "Log out" : undefined}
+                >
+                    <LogOut className="w-[22px] h-[22px] flex-shrink-0" />
+                    <span className={cn(
+                        "font-medium text-[15px] transition-all duration-500 whitespace-nowrap",
+                        collapsed ? "w-0 opacity-0 hidden" : "opacity-100"
+                    )}>
+                        Log out
+                    </span>
                 </button>
             </div>
         </aside>

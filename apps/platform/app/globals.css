@@ -40,6 +40,16 @@ body {
   text-wrap: balance;
 }
 
+/* Scrollbar Utilities */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Custom Scrollbar for Sidebar mostly */
 ::-webkit-scrollbar {
   width: 6px;
