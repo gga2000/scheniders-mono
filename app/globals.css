@@ -1,12 +1,52 @@
 @import "tailwindcss";
 
-/* Project Intelly Pastel Design System */
+/* ============================================
+   Intelly Pastel Design System
+   A warm, professional, medical dashboard aesthetic
+   ============================================ */
+
 :root {
-  /* Colors */
-  --background: #FDFBF7;
-  /* Cream */
-  --foreground: #1E1E1E;
-  /* Dark Grey */
+  /* Core Palette */
+  --background: #F5F0E8;          /* Warm beige - main background */
+  --background-soft: #FAF8F5;     /* Slightly lighter beige */
+  --foreground: #1E1E1E;          /* Near black - primary text */
+  --foreground-muted: #6B6B6B;    /* Medium gray - secondary text */
+  --foreground-subtle: #9A9A9A;   /* Light gray - tertiary text */
+
+  /* Pastel Accent Colors */
+  --pastel-yellow: #FBE38E;       /* Stats, Financial, Highlights */
+  --pastel-yellow-light: #FDF5D4;
+  --pastel-pink: #F4C7CF;         /* Alerts, Warnings, Critical */
+  --pastel-pink-light: #FCEEF1;
+  --pastel-green: #C0EBA6;        /* Success, Ready, Confirmed */
+  --pastel-green-light: #E8F8E0;
+  --pastel-mint: #B8E8E0;         /* Info, Calendar, Neutral */
+  --pastel-mint-light: #E5F6F3;
+  --pastel-purple: #E4C1F9;       /* Special, Accent */
+  --pastel-purple-light: #F5E8FC;
+
+  /* Card & Surface Colors */
+  --card-bg: #FFFFFF;
+  --card-bg-hover: #FEFEFE;
+  --card-border: #E8E4DC;
+  --card-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
+  --card-shadow-hover: 0 4px 12px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04);
+  --card-radius: 24px;
+  --card-radius-sm: 16px;
+  --card-radius-xs: 12px;
+
+  /* Interactive Elements */
+  --button-primary: #1E1E1E;
+  --button-primary-hover: #2D2D2D;
+  --button-success: #22C55E;
+  --button-success-hover: #16A34A;
+
+  /* Status Colors */
+  --status-new: var(--pastel-yellow);
+  --status-contacted: var(--pastel-mint);
+  --status-confirmed: var(--pastel-green);
+  --status-delivered: var(--pastel-purple);
+  --status-rejected: var(--pastel-pink);
 
   /* Fonts */
   --font-sans: var(--font-geist-sans);
@@ -20,27 +60,77 @@
   --font-mono: var(--font-mono);
 }
 
-/* 1. Clean Light Background */
+/* ============================================
+   Base Styles
+   ============================================ */
+
 body {
   background-color: var(--background);
   color: var(--foreground);
   min-height: 100vh;
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* 2. Selection */
 ::selection {
-  background-color: #FBE38E;
-  /* Pastel Yellow */
-  color: #1E1E1E;
+  background-color: var(--pastel-yellow);
+  color: var(--foreground);
 }
 
-/* 3. Utility Classes */
+/* ============================================
+   Utility Classes
+   ============================================ */
+
 .text-balance {
   text-wrap: balance;
 }
 
-/* Scrollbar Utilities */
+/* Pastel Card Variants */
+.pastel-card {
+  background: var(--card-bg);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  transition: all 0.3s ease;
+}
+
+.pastel-card:hover {
+  box-shadow: var(--card-shadow-hover);
+  transform: translateY(-2px);
+}
+
+.pastel-card-yellow {
+  background: linear-gradient(135deg, var(--pastel-yellow) 0%, var(--pastel-yellow-light) 100%);
+}
+
+.pastel-card-pink {
+  background: linear-gradient(135deg, var(--pastel-pink) 0%, var(--pastel-pink-light) 100%);
+}
+
+.pastel-card-green {
+  background: linear-gradient(135deg, var(--pastel-green) 0%, var(--pastel-green-light) 100%);
+}
+
+.pastel-card-mint {
+  background: linear-gradient(135deg, var(--pastel-mint) 0%, var(--pastel-mint-light) 100%);
+}
+
+.pastel-card-purple {
+  background: linear-gradient(135deg, var(--pastel-purple) 0%, var(--pastel-purple-light) 100%);
+}
+
+/* Glass card for dark elements (sidebar compatibility) */
+.glass-card {
+  background: rgba(30, 30, 30, 0.9);
+  backdrop-filter: blur(20px);
+  border-radius: var(--card-radius);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================
+   Scrollbar Styling
+   ============================================ */
+
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -50,7 +140,6 @@ body {
   display: none;
 }
 
-/* Custom Scrollbar for Sidebar mostly */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -61,26 +150,82 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #E7E5E4;
-  /* zinc-200 */
+  background: var(--card-border);
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: #D6D3D1;
-  /* zinc-300 */
 }
 
-/* Global Smooth Transitions */
+/* ============================================
+   Animation & Transitions
+   ============================================ */
+
 * {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 200ms;
 }
 
-/* Focus States */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-soft {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+/* ============================================
+   Focus States
+   ============================================ */
+
 *:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--pastel-yellow);
   outline-offset: 2px;
   border-radius: 0.375rem;
+}
+
+/* ============================================
+   Typography Helpers
+   ============================================ */
+
+.heading-primary {
+  font-weight: 700;
+  color: var(--foreground);
+  letter-spacing: -0.02em;
+}
+
+.heading-secondary {
+  font-weight: 600;
+  color: var(--foreground);
+  letter-spacing: -0.01em;
+}
+
+.text-muted {
+  color: var(--foreground-muted);
+}
+
+.text-subtle {
+  color: var(--foreground-subtle);
 }

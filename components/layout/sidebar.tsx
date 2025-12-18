@@ -7,11 +7,11 @@ import {
     LogOut,
     Package,
     Users,
-    Wallet,
-    CalendarDays,
-    FileText,
+    Printer,
+    ShoppingBag,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    DollarSign,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -19,10 +19,10 @@ import { usePathname } from "next/navigation";
 const NAV_ITEMS = [
     { label: "Dashboard", icon: LayoutDashboard, href: "/" },
     { label: "Orders", icon: Package, href: "/orders" },
-    { label: "Patients", icon: Users, href: "/customers" },
-    { label: "Schedules", icon: CalendarDays, href: "/schedule" },
-    { label: "Billing", icon: Wallet, href: "/billing" },
-    { label: "Documents", icon: FileText, href: "/documents" },
+    { label: "Customers", icon: Users, href: "/customers" },
+    { label: "Products", icon: ShoppingBag, href: "/products" },
+    { label: "Finances", icon: DollarSign, href: "/finances" },
+    { label: "Printing", icon: Printer, href: "/printing" },
     { label: "Settings", icon: Settings, href: "/settings" },
 ];
 

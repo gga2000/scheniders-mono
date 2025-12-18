@@ -21,6 +21,7 @@ export interface LightFunnelsWebhook {
         name: string;
         quantity: number;
         price: number;
+        sku?: string; // Product SKU for matching
     }>;
     total: number;
     created_at?: string;
@@ -135,11 +136,12 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
             };
         }
 
-        // Map items
+        // Map items with SKU for product matching
         const items: OrderItem[] = webhook.items.map((item) => ({
             name: item.name,
             quantity: item.quantity,
             price: item.price,
+            sku: item.sku || undefined, // SKU from LightFunnels for matching
         }));
 
         // Prepare order data

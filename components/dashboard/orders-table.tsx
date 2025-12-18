@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import type { Order } from "@/lib/supabase";
 import { OrderDetailsModal } from "@/components/orders/order-details-modal";
-import { OrderCard } from "@/components/dashboard/order-card"; // Import the new Card
+import { OrderCard } from "@/components/dashboard/order-card";
+import { Search, Filter } from "lucide-react";
 
 interface OrdersTableProps {
     orders: Order[];
@@ -50,47 +49,63 @@ export function OrdersTable({ orders, onUpdateStatus, onUpdateOrder }: OrdersTab
         setLoading(null);
     };
 
+    const filterOptions = [
+        { id: "all", label: "الكل", labelEn: "All" },
+        { id: "new", label: "جديد", labelEn: "New" },
+        { id: "contacted", label: "تم الاتصال", labelEn: "Contacted" },
+        { id: "confirmed", label: "مؤكد", labelEn: "Confirmed" },
+        { id: "delivered", label: "تم التوصيل", labelEn: "Delivered" },
+        { id: "rejected", label: "مرفوض", labelEn: "Rejected" },
+    ];
+
     return (
         <>
             <div className="space-y-6">
-                {/* Header with filters */}
-                <div className="glass-card p-6 flex flex-col gap-6">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-2xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
-                            الطلبات
-                        </h2>
-                        <div className="text-sm font-mono text-zinc-400">
-                            {filteredOrders.length} / {orders.length}
+                {/* Header Card - Pastel White */}
+                <div className="pastel-card p-6">
+                    {/* Title Row */}
+                    <div className="flex items-center justify-between mb-6">
+                        <div>
+                            <h2 className="text-2xl font-bold text-foreground tracking-tight">
+                                الطلبات
+                            </h2>
+                            <p className="text-sm text-muted mt-1">
+                                Manage and track all orders
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--background)] border border-[var(--card-border)]">
+                            <span className="text-lg font-bold text-foreground">{filteredOrders.length}</span>
+                            <span className="text-sm text-subtle">/</span>
+                            <span className="text-sm text-subtle">{orders.length}</span>
                         </div>
                     </div>
 
                     {/* Search and Filters */}
                     <div className="flex flex-col xl:flex-row gap-4">
-                        <input
-                            type="text"
-                            placeholder="بحث بالاسم أو رقم الهاتف..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="flex-1 px-4 py-2.5 bg-black/20 border border-white/10 rounded-lg text-foreground placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all"
-                        />
+                        {/* Search Input */}
+                        <div className="relative flex-1">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--foreground-subtle)]" />
+                            <input
+                                type="text"
+                                placeholder="بحث بالاسم أو رقم الهاتف..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-12 pr-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all"
+                            />
+                        </div>
 
+                        {/* Filter Pills */}
                         <div className="flex gap-2 overflow-x-auto pb-2 xl:pb-0 scrollbar-hide">
-                            {[
-                                { id: "all", label: "الكل" },
-                                { id: "new", label: "جديد" },
-                                { id: "contacted", label: "تم الاتصال" },
-                                { id: "confirmed", label: "مؤكد" },
-                                { id: "delivered", label: "تم التوصيل" },
-                                { id: "rejected", label: "مرفوض" },
-                            ].map((item) => (
+                            {filterOptions.map((item) => (
                                 <button
                                     key={item.id}
                                     onClick={() => setFilter(item.id as Order["status"] | "all")}
                                     className={`
-                                        px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all
+                                        px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all
                                         ${filter === item.id
-                                            ? "bg-white/10 text-white shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1)] border border-white/10"
-                                            : "text-zinc-500 hover:text-zinc-200 hover:bg-white/5"}
+                                            ? "bg-[var(--foreground)] text-white shadow-md"
+                                            : "bg-[var(--background)] text-[var(--foreground-muted)] hover:bg-[var(--card-border)] border border-[var(--card-border)]"
+                                        }
                                     `}
                                 >
                                     {item.label}
@@ -100,24 +115,33 @@ export function OrdersTable({ orders, onUpdateStatus, onUpdateOrder }: OrdersTab
                     </div>
                 </div>
 
-                {/* Orders Grid/List */}
+                {/* Orders List */}
                 <div className="flex flex-col gap-4">
                     {filteredOrders.length === 0 ? (
-                        <div className="glass-card p-12 text-center text-zinc-500">
-                            لا توجد طلبات تطابق بحثك
+                        <div className="pastel-card p-12 text-center">
+                            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--background)] flex items-center justify-center">
+                                <Filter className="h-8 w-8 text-[var(--foreground-subtle)]" />
+                            </div>
+                            <p className="text-lg font-medium text-foreground mb-1">لا توجد طلبات</p>
+                            <p className="text-sm text-muted">لا توجد طلبات تطابق بحثك</p>
                         </div>
                     ) : (
-                        filteredOrders.map((order) => (
-                            <OrderCard
+                        filteredOrders.map((order, index) => (
+                            <div
                                 key={order.id}
-                                order={order}
-                                loadingId={loading}
-                                onStatusUpdate={handleStatusUpdate}
-                                onViewDetails={(o) => {
-                                    setSelectedOrder(o);
-                                    setIsModalOpen(true);
-                                }}
-                            />
+                                className="animate-fade-in-up"
+                                style={{ animationDelay: `${index * 50}ms` }}
+                            >
+                                <OrderCard
+                                    order={order}
+                                    loadingId={loading}
+                                    onStatusUpdate={handleStatusUpdate}
+                                    onViewDetails={(o) => {
+                                        setSelectedOrder(o);
+                                        setIsModalOpen(true);
+                                    }}
+                                />
+                            </div>
                         ))
                     )}
                 </div>
@@ -132,6 +156,7 @@ export function OrdersTable({ orders, onUpdateStatus, onUpdateOrder }: OrdersTab
                     setSelectedOrder(null);
                 }}
                 onUpdate={onUpdateOrder}
+                onStatusUpdate={onUpdateStatus}
             />
         </>
     );

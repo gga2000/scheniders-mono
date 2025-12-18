@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Sidebar } from "./sidebar";
+import { TopBar } from "./global-search";
+import { AnimatePresence } from "framer-motion";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -13,15 +15,19 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
             {/* Main Content Area with smooth transition */}
             <main
-                className="flex-1 p-6 min-w-0 transition-all duration-500 ease-in-out"
+                className="flex-1 min-w-0 transition-all duration-500 ease-in-out overflow-hidden"
                 style={{
-                    marginLeft: isCollapsed ? "88px" : "272px", // 72px sidebar + 16px margin vs 256px + 16px
-                    paddingTop: "1.5rem"
+                    marginLeft: isCollapsed ? "88px" : "272px",
                 }}
             >
-                <div className="max-w-[1400px] mx-auto">
-                    {children}
-                </div>
+                {/* Top Bar with Global Search */}
+                <TopBar />
+
+                <AnimatePresence mode="wait">
+                    <div className="max-w-[1800px] mx-auto">
+                        {children}
+                    </div>
+                </AnimatePresence>
             </main>
         </div>
     );
