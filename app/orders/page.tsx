@@ -8,6 +8,7 @@ import { OrderDetailsModal } from "@/components/orders/order-details-modal";
 import { CreateOrderModal } from "@/components/orders/create-order-modal";
 import { KanbanBoard } from "@/components/orders/kanban-board";
 import { FloatingActionBar } from "@/components/orders/floating-action-bar";
+import { WorkflowTabs } from "@/components/orders/workflow-tabs";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layout/page-transition";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -74,9 +75,22 @@ export default function OrdersPage() {
     const [showPresets, setShowPresets] = useState(false);
     const [newPresetName, setNewPresetName] = useState("");
     const [viewMode, setViewMode] = useState<"cards" | "table" | "kanban">("cards");
+    const [workflowMode, setWorkflowMode] = useState(() => {
+        if (typeof window !== "undefined") {
+            return localStorage.getItem("ordersWorkflowMode") === "true";
+        }
+        return false;
+    });
     const [notificationsEnabled, setNotificationsEnabled] = useState(
         typeof window !== "undefined" && notificationService.isEnabled()
     );
+
+    // Toggle workflow mode
+    const toggleWorkflowMode = () => {
+        const newMode = !workflowMode;
+        setWorkflowMode(newMode);
+        localStorage.setItem("ordersWorkflowMode", String(newMode));
+    };
 
     // Toggle notifications
     const toggleNotifications = async () => {
@@ -215,31 +229,63 @@ export default function OrdersPage() {
                         </div>
 
                         <div className="flex items-center gap-3">
-                            {/* View Mode Toggle */}
+                            {/* Workflow Mode Toggle */}
                             <div className="flex items-center bg-[var(--background)] border border-[var(--card-border)] rounded-xl p-1">
-                                {[
-                                    { mode: "cards" as const, icon: LayoutGrid, label: "Cards" },
-                                    { mode: "table" as const, icon: Table, label: "Table" },
-                                    { mode: "kanban" as const, icon: Columns, label: "Kanban" },
-                                ].map((v) => {
-                                    const Icon = v.icon;
-                                    return (
-                                        <button
-                                            key={v.mode}
-                                            onClick={() => setViewMode(v.mode)}
-                                            title={v.label}
-                                            className={cn(
-                                                "p-2 rounded-lg transition-all",
-                                                viewMode === v.mode
-                                                    ? "bg-[var(--foreground)] text-white shadow-sm"
-                                                    : "text-muted hover:text-foreground hover:bg-[var(--card-border)]"
-                                            )}
-                                        >
-                                            <Icon className="w-4 h-4" />
-                                        </button>
-                                    );
-                                })}
+                                <button
+                                    onClick={() => {
+                                        if (workflowMode) toggleWorkflowMode();
+                                    }}
+                                    className={cn(
+                                        "px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+                                        !workflowMode
+                                            ? "bg-[var(--foreground)] text-white shadow-sm"
+                                            : "text-muted hover:text-foreground"
+                                    )}
+                                >
+                                    📋 Simple
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (!workflowMode) toggleWorkflowMode();
+                                    }}
+                                    className={cn(
+                                        "px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+                                        workflowMode
+                                            ? "bg-[var(--foreground)] text-white shadow-sm"
+                                            : "text-muted hover:text-foreground"
+                                    )}
+                                >
+                                    🔄 Workflow
+                                </button>
                             </div>
+
+                            {/* View Mode Toggle (only show in simple mode) */}
+                            {!workflowMode && (
+                                <div className="flex items-center bg-[var(--background)] border border-[var(--card-border)] rounded-xl p-1">
+                                    {[
+                                        { mode: "cards" as const, icon: LayoutGrid, label: "Cards" },
+                                        { mode: "table" as const, icon: Table, label: "Table" },
+                                        { mode: "kanban" as const, icon: Columns, label: "Kanban" },
+                                    ].map((v) => {
+                                        const Icon = v.icon;
+                                        return (
+                                            <button
+                                                key={v.mode}
+                                                onClick={() => setViewMode(v.mode)}
+                                                title={v.label}
+                                                className={cn(
+                                                    "p-2 rounded-lg transition-all",
+                                                    viewMode === v.mode
+                                                        ? "bg-[var(--foreground)] text-white shadow-sm"
+                                                        : "text-muted hover:text-foreground hover:bg-[var(--card-border)]"
+                                                )}
+                                            >
+                                                <Icon className="w-4 h-4" />
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
 
                             {/* Notification Toggle */}
                             <button
@@ -704,93 +750,109 @@ export default function OrdersPage() {
                             <span className="text-sm text-muted">Select all</span>
                         </div>
 
-                        {/* Cards View */}
-                        {viewMode === "cards" && (
-                            <StaggerContainer className="space-y-3">
-                                {filteredOrders.length === 0 ? (
-                                    <div className="pastel-card p-12 text-center">
-                                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--background)] flex items-center justify-center">
-                                            <Package className="h-8 w-8 text-[var(--foreground-subtle)]" />
-                                        </div>
-                                        <p className="text-lg font-medium text-foreground mb-1">No orders found</p>
-                                        <p className="text-sm text-muted">Try adjusting your search or filters</p>
-                                    </div>
-                                ) : (
-                                    filteredOrders.map((order) => (
-                                        <StaggerItem key={order.id}>
-                                            <OrderCard
-                                                order={order}
-                                                loadingId={loadingId}
-                                                onStatusUpdate={handleStatusUpdate}
-                                                onViewDetails={(o) => {
-                                                    setSelectedOrder(o);
-                                                    setIsModalOpen(true);
-                                                }}
-                                                isBlacklisted={isBlacklisted(order.phone)}
-                                            />
-                                        </StaggerItem>
-                                    ))
-                                )}
-                            </StaggerContainer>
-                        )}
-
-                        {/* Table View */}
-                        {viewMode === "table" && (
-                            <div className="pastel-card overflow-hidden">
-                                <table className="w-full">
-                                    <thead className="bg-[var(--background)] border-b border-[var(--card-border)]">
-                                        <tr>
-                                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">Order</th>
-                                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">Customer</th>
-                                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">City</th>
-                                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">Amount</th>
-                                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">Status</th>
-                                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">Date</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-[var(--card-border)]">
-                                        {filteredOrders.map((order) => (
-                                            <tr
-                                                key={order.id}
-                                                onClick={() => { setSelectedOrder(order); setIsModalOpen(true); }}
-                                                className="hover:bg-[var(--background)] cursor-pointer transition-colors"
-                                            >
-                                                <td className="px-4 py-3 font-mono text-sm">#{order.order_id}</td>
-                                                <td className="px-4 py-3 text-sm font-medium">{order.customer_name}</td>
-                                                <td className="px-4 py-3 text-sm text-muted">{order.city || "-"}</td>
-                                                <td className="px-4 py-3 font-mono text-sm">{formatIQD(Number(order.price))}</td>
-                                                <td className="px-4 py-3">
-                                                    <span className={cn(
-                                                        "px-2 py-1 text-xs font-bold rounded-full uppercase",
-                                                        order.status === "new" && "bg-orange-100 text-orange-700",
-                                                        order.status === "contacted" && "bg-yellow-100 text-yellow-700",
-                                                        order.status === "confirmed" && "bg-green-100 text-green-700",
-                                                        order.status === "delivered" && "bg-teal-100 text-teal-700",
-                                                        order.status === "rejected" && "bg-rose-100 text-rose-700",
-                                                    )}>
-                                                        {order.status}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-muted">{new Date(order.created_at).toLocaleDateString()}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-
-                        {/* Kanban View */}
-                        {viewMode === "kanban" && (
-                            <KanbanBoard
+                        {/* Workflow Mode */}
+                        {workflowMode ? (
+                            <WorkflowTabs
                                 orders={filteredOrders}
-                                onStatusChange={async (orderId, newStatus) => {
-                                    await updateOrderStatus(orderId, newStatus);
-                                }}
+                                onStatusUpdate={updateOrderStatus}
+                                onUpdate={updateOrder}
                                 onViewDetails={(order) => {
                                     setSelectedOrder(order);
                                     setIsModalOpen(true);
                                 }}
+                                isBlacklisted={isBlacklisted}
                             />
+                        ) : (
+                            <>
+                                {/* Cards View */}
+                                {viewMode === "cards" && (
+                                    <StaggerContainer className="space-y-3">
+                                        {filteredOrders.length === 0 ? (
+                                            <div className="pastel-card p-12 text-center">
+                                                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--background)] flex items-center justify-center">
+                                                    <Package className="h-8 w-8 text-[var(--foreground-subtle)]" />
+                                                </div>
+                                                <p className="text-lg font-medium text-foreground mb-1">No orders found</p>
+                                                <p className="text-sm text-muted">Try adjusting your search or filters</p>
+                                            </div>
+                                        ) : (
+                                            filteredOrders.map((order) => (
+                                                <StaggerItem key={order.id}>
+                                                    <OrderCard
+                                                        order={order}
+                                                        loadingId={loadingId}
+                                                        onStatusUpdate={handleStatusUpdate}
+                                                        onViewDetails={(o) => {
+                                                            setSelectedOrder(o);
+                                                            setIsModalOpen(true);
+                                                        }}
+                                                        isBlacklisted={isBlacklisted(order.phone)}
+                                                    />
+                                                </StaggerItem>
+                                            ))
+                                        )}
+                                    </StaggerContainer>
+                                )}
+
+                                {/* Table View */}
+                                {viewMode === "table" && (
+                                    <div className="pastel-card overflow-hidden">
+                                        <table className="w-full">
+                                            <thead className="bg-[var(--background)] border-b border-[var(--card-border)]">
+                                                <tr>
+                                                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">Order</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">Customer</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">City</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">Amount</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">Status</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">Date</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-[var(--card-border)]">
+                                                {filteredOrders.map((order) => (
+                                                    <tr
+                                                        key={order.id}
+                                                        onClick={() => { setSelectedOrder(order); setIsModalOpen(true); }}
+                                                        className="hover:bg-[var(--background)] cursor-pointer transition-colors"
+                                                    >
+                                                        <td className="px-4 py-3 font-mono text-sm">#{order.order_id}</td>
+                                                        <td className="px-4 py-3 text-sm font-medium">{order.customer_name}</td>
+                                                        <td className="px-4 py-3 text-sm text-muted">{order.city || "-"}</td>
+                                                        <td className="px-4 py-3 font-mono text-sm">{formatIQD(Number(order.price))}</td>
+                                                        <td className="px-4 py-3">
+                                                            <span className={cn(
+                                                                "px-2 py-1 text-xs font-bold rounded-full uppercase",
+                                                                order.status === "new" && "bg-orange-100 text-orange-700",
+                                                                order.status === "contacted" && "bg-yellow-100 text-yellow-700",
+                                                                order.status === "confirmed" && "bg-green-100 text-green-700",
+                                                                order.status === "delivered" && "bg-teal-100 text-teal-700",
+                                                                order.status === "rejected" && "bg-rose-100 text-rose-700",
+                                                            )}>
+                                                                {order.status}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm text-muted">{new Date(order.created_at).toLocaleDateString()}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+
+                                {/* Kanban View */}
+                                {viewMode === "kanban" && (
+                                    <KanbanBoard
+                                        orders={filteredOrders}
+                                        onStatusChange={async (orderId, newStatus) => {
+                                            await updateOrderStatus(orderId, newStatus);
+                                        }}
+                                        onViewDetails={(order) => {
+                                            setSelectedOrder(order);
+                                            setIsModalOpen(true);
+                                        }}
+                                    />
+                                )}
+                            </>
                         )}
                     </div>
                 </div>
