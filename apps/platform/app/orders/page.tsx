@@ -32,6 +32,11 @@ import {
     Columns,
     Bell,
     BellOff,
+    List,
+    GitBranch,
+    Eye,
+    EyeOff,
+    SlidersHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
@@ -71,7 +76,20 @@ export default function OrdersPage() {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
     const [showFilters, setShowFilters] = useState(false);
-    const [showStats, setShowStats] = useState(true);
+    const [showSearchBar, setShowSearchBar] = useState(() => {
+        if (typeof window !== "undefined") {
+            return localStorage.getItem("ordersShowSearchBar") !== "false";
+        }
+        return true;
+    });
+    // Two-stage analytics: 0 = all hidden, 1 = top stats shown, 2 = all shown
+    const [analyticsLevel, setAnalyticsLevel] = useState<0 | 1 | 2>(() => {
+        if (typeof window !== "undefined") {
+            const saved = localStorage.getItem("ordersAnalyticsLevel");
+            return (saved ? parseInt(saved) : 0) as 0 | 1 | 2;
+        }
+        return 0; // Default hidden
+    });
     const [showPresets, setShowPresets] = useState(false);
     const [newPresetName, setNewPresetName] = useState("");
     const [viewMode, setViewMode] = useState<"cards" | "table" | "kanban">("cards");
@@ -242,7 +260,8 @@ export default function OrdersPage() {
                                             : "text-muted hover:text-foreground"
                                     )}
                                 >
-                                    📋 Simple
+                                    <List className="w-4 h-4" />
+                                    Simple
                                 </button>
                                 <button
                                     onClick={() => {
@@ -255,7 +274,8 @@ export default function OrdersPage() {
                                             : "text-muted hover:text-foreground"
                                     )}
                                 >
-                                    🔄 Workflow
+                                    <GitBranch className="w-4 h-4" />
+                                    Workflow
                                 </button>
                             </div>
 
@@ -324,7 +344,7 @@ export default function OrdersPage() {
 
                     {/* Collapsible Analytics Panel */}
                     <AnimatePresence>
-                        {showStats && (
+                        {analyticsLevel >= 1 && (
                             <motion.div
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: "auto" }}
@@ -378,55 +398,57 @@ export default function OrdersPage() {
                                         </div>
                                     </div>
 
-                                    {/* Revenue Trends & Velocity Metrics Row */}
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                        {/* 7-Day Revenue Sparkline */}
-                                        <div className="pastel-card p-4">
-                                            <p className="text-xs text-muted font-medium uppercase tracking-wide mb-3">7-Day Revenue Trend</p>
-                                            <div className="flex items-end gap-1 h-16">
-                                                {stats.revenueTrends.map((day, i) => {
-                                                    const maxRevenue = Math.max(...stats.revenueTrends.map(d => d.revenue), 1);
-                                                    const heightPercent = (day.revenue / maxRevenue) * 100;
-                                                    return (
-                                                        <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                                                            <div
-                                                                className={cn(
-                                                                    "w-full rounded-t-sm transition-all",
-                                                                    i === 6 ? "bg-green-500" : "bg-green-200"
-                                                                )}
-                                                                style={{ height: `${Math.max(heightPercent, 4)}%` }}
-                                                                title={`${formatIQD(day.revenue)}`}
-                                                            />
-                                                            <span className="text-[10px] text-muted">{day.date}</span>
-                                                        </div>
-                                                    );
-                                                })}
+                                    {/* Revenue Trends & Velocity Metrics Row (only at level 2) */}
+                                    {analyticsLevel >= 2 && (
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                            {/* 7-Day Revenue Sparkline */}
+                                            <div className="pastel-card p-4">
+                                                <p className="text-xs text-muted font-medium uppercase tracking-wide mb-3">7-Day Revenue Trend</p>
+                                                <div className="flex items-end gap-1 h-16">
+                                                    {stats.revenueTrends.map((day, i) => {
+                                                        const maxRevenue = Math.max(...stats.revenueTrends.map(d => d.revenue), 1);
+                                                        const heightPercent = (day.revenue / maxRevenue) * 100;
+                                                        return (
+                                                            <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                                                                <div
+                                                                    className={cn(
+                                                                        "w-full rounded-t-sm transition-all",
+                                                                        i === 6 ? "bg-green-500" : "bg-green-200"
+                                                                    )}
+                                                                    style={{ height: `${Math.max(heightPercent, 4)}%` }}
+                                                                    title={`${formatIQD(day.revenue)}`}
+                                                                />
+                                                                <span className="text-[10px] text-muted">{day.date}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
-                                        </div>
 
-                                        {/* Velocity Metrics */}
-                                        <div className="pastel-card p-4">
-                                            <p className="text-xs text-muted font-medium uppercase tracking-wide mb-3">Processing Speed</p>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div>
-                                                    <p className="text-lg font-bold text-foreground">{stats.velocityMetrics.avgNewToConfirmed}</p>
-                                                    <p className="text-xs text-muted">New → Confirmed</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-lg font-bold text-foreground">{stats.velocityMetrics.avgConfirmedToDelivered}</p>
-                                                    <p className="text-xs text-muted">Confirmed → Delivered</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-lg font-bold text-teal-600">{stats.velocityMetrics.totalProcessed}</p>
-                                                    <p className="text-xs text-muted">Delivered</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-lg font-bold text-amber-600">{stats.velocityMetrics.pendingCount}</p>
-                                                    <p className="text-xs text-muted">In Pipeline</p>
+                                            {/* Velocity Metrics */}
+                                            <div className="pastel-card p-4">
+                                                <p className="text-xs text-muted font-medium uppercase tracking-wide mb-3">Processing Speed</p>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <p className="text-lg font-bold text-foreground">{stats.velocityMetrics.avgNewToConfirmed}</p>
+                                                        <p className="text-xs text-muted">New → Confirmed</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-lg font-bold text-foreground">{stats.velocityMetrics.avgConfirmedToDelivered}</p>
+                                                        <p className="text-xs text-muted">Confirmed → Delivered</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-lg font-bold text-teal-600">{stats.velocityMetrics.totalProcessed}</p>
+                                                        <p className="text-xs text-muted">Delivered</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-lg font-bold text-amber-600">{stats.velocityMetrics.pendingCount}</p>
+                                                        <p className="text-xs text-muted">In Pipeline</p>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
                             </motion.div>
                         )}
@@ -434,301 +456,326 @@ export default function OrdersPage() {
 
                     {/* Toggle Stats Button */}
                     <button
-                        onClick={() => setShowStats(!showStats)}
+                        onClick={() => {
+                            const newLevel = ((analyticsLevel + 1) % 3) as 0 | 1 | 2;
+                            setAnalyticsLevel(newLevel);
+                            localStorage.setItem("ordersAnalyticsLevel", String(newLevel));
+                        }}
                         className="flex items-center gap-2 px-3 py-1.5 mx-auto text-xs text-muted hover:text-foreground transition-colors"
                     >
                         <BarChart3 className="w-3.5 h-3.5" />
-                        {showStats ? "Hide Analytics" : "Show Analytics"}
-                        {showStats ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                        {analyticsLevel === 0 ? "Show Stats" : analyticsLevel === 1 ? "Show Details" : "Hide Analytics"}
+                        {analyticsLevel === 2 ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                    </button>
+
+                    {/* Toggle Filters Button */}
+                    <button
+                        onClick={() => {
+                            const newValue = !showSearchBar;
+                            setShowSearchBar(newValue);
+                            localStorage.setItem("ordersShowSearchBar", String(newValue));
+                        }}
+                        className="flex items-center gap-2 px-3 py-1.5 mx-auto text-xs text-muted hover:text-foreground transition-colors"
+                    >
+                        <SlidersHorizontal className="w-3.5 h-3.5" />
+                        {showSearchBar ? "Hide Filters" : "Show Filters"}
+                        {showSearchBar ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                     </button>
 
                     {/* Filters & Search Bar */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.4, delay: 0.2 }}
-                        className="pastel-card p-6 space-y-4"
-                    >
-                        <div className="flex flex-col lg:flex-row gap-4">
-                            <div className="relative flex-1">
-                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--foreground-subtle)]" />
-                                <input
-                                    type="text"
-                                    placeholder="Search by name, phone, or order ID..."
-                                    value={filters.searchQuery || ""}
-                                    onChange={(e) => setFilters({ ...filters, searchQuery: e.target.value || undefined })}
-                                    className="w-full pl-12 pr-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all"
-                                />
-                            </div>
-                            <div className="relative">
-                                <select
-                                    value={sortBy}
-                                    onChange={(e) => setSortBy(e.target.value as "date" | "amount" | "status")}
-                                    className="appearance-none px-4 py-3 pr-10 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all cursor-pointer"
-                                >
-                                    <option value="date">Sort by Date</option>
-                                    <option value="amount">Sort by Amount</option>
-                                    <option value="status">Sort by Status</option>
-                                </select>
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
-                            </div>
-                        </div>
-
-                        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                            {filterOptions.map((option) => (
-                                <button
-                                    key={option.id}
-                                    onClick={() => setFilters({ ...filters, status: option.id as Order["status"] | "all" })}
-                                    className={cn(
-                                        "px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2",
-                                        filters.status === option.id || (option.id === "all" && !filters.status)
-                                            ? "bg-[var(--foreground)] text-white shadow-md"
-                                            : "bg-[var(--background)] text-[var(--foreground-muted)] hover:bg-[var(--card-border)] border border-[var(--card-border)]"
-                                    )}
-                                >
-                                    {option.label}
-                                    <span className={cn(
-                                        "px-2 py-0.5 rounded-full text-xs font-bold",
-                                        filters.status === option.id || (option.id === "all" && !filters.status)
-                                            ? "bg-white/20 text-white"
-                                            : "bg-[var(--card-border)] text-muted"
-                                    )}>
-                                        {option.count}
-                                    </span>
-                                </button>
-                            ))}
-
-                            {/* Advanced Filters Toggle */}
-                            <button
-                                onClick={() => setShowFilters(!showFilters)}
-                                className={cn(
-                                    "px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 border",
-                                    showFilters || hasActiveFilters
-                                        ? "bg-blue-100 text-blue-700 border-blue-200"
-                                        : "bg-[var(--background)] text-[var(--foreground-muted)] border-[var(--card-border)] hover:bg-[var(--card-border)]"
-                                )}
+                    <AnimatePresence>
+                        {showSearchBar && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ duration: 0.3 }}
+                                className="overflow-hidden"
                             >
-                                <Filter className="w-3.5 h-3.5" />
-                                Filters
-                                {hasActiveFilters && (
-                                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                                )}
-                            </button>
-                        </div>
-
-                        {/* Advanced Filters Panel */}
-                        <AnimatePresence>
-                            {showFilters && (
-                                <motion.div
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: "auto" }}
-                                    exit={{ opacity: 0, height: 0 }}
-                                    className="overflow-hidden"
-                                >
-                                    <div className="pt-4 border-t border-[var(--card-border)] space-y-4">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                            {/* Date From */}
-                                            <div>
-                                                <label className="text-xs text-muted font-medium block mb-1.5">From Date</label>
-                                                <div className="relative">
-                                                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                                                    <input
-                                                        type="date"
-                                                        value={filters.dateFrom || ""}
-                                                        onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value || undefined })}
-                                                        className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            {/* Date To */}
-                                            <div>
-                                                <label className="text-xs text-muted font-medium block mb-1.5">To Date</label>
-                                                <div className="relative">
-                                                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                                                    <input
-                                                        type="date"
-                                                        value={filters.dateTo || ""}
-                                                        onChange={(e) => setFilters({ ...filters, dateTo: e.target.value || undefined })}
-                                                        className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            {/* City Filter */}
-                                            <div>
-                                                <label className="text-xs text-muted font-medium block mb-1.5">City</label>
-                                                <div className="relative">
-                                                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                                                    <select
-                                                        value={filters.city || ""}
-                                                        onChange={(e) => setFilters({ ...filters, city: e.target.value || undefined })}
-                                                        className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all appearance-none cursor-pointer"
-                                                    >
-                                                        <option value="">All Cities</option>
-                                                        {availableCities.map((city) => (
-                                                            <option key={city} value={city}>{city}</option>
-                                                        ))}
-                                                    </select>
-                                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
-                                                </div>
-                                            </div>
-
-                                            {/* Product Filter */}
-                                            <div>
-                                                <label className="text-xs text-muted font-medium block mb-1.5">Product</label>
-                                                <div className="relative">
-                                                    <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                                                    <select
-                                                        value={filters.product || ""}
-                                                        onChange={(e) => setFilters({ ...filters, product: e.target.value || undefined })}
-                                                        className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all appearance-none cursor-pointer"
-                                                    >
-                                                        <option value="">All Products</option>
-                                                        {availableProducts.map((product) => (
-                                                            <option key={product} value={product}>{product}</option>
-                                                        ))}
-                                                    </select>
-                                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
-                                                </div>
-                                            </div>
+                                <div className="pastel-card p-6 space-y-4">
+                                    <div className="flex flex-col lg:flex-row gap-4">
+                                        <div className="relative flex-1">
+                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--foreground-subtle)]" />
+                                            <input
+                                                type="text"
+                                                placeholder="Search by name, phone, or order ID..."
+                                                value={filters.searchQuery || ""}
+                                                onChange={(e) => setFilters({ ...filters, searchQuery: e.target.value || undefined })}
+                                                className="w-full pl-12 pr-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all"
+                                            />
                                         </div>
-                                        {/* Filter Actions Row */}
-                                        <div className="flex flex-wrap items-center gap-3">
-                                            {/* Clear Filters Button */}
-                                            {hasActiveFilters && (
-                                                <button
-                                                    onClick={clearFilters}
-                                                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-all"
-                                                >
-                                                    <X className="w-3.5 h-3.5" />
-                                                    Clear all filters
-                                                </button>
-                                            )}
+                                        <div className="relative">
+                                            <select
+                                                value={sortBy}
+                                                onChange={(e) => setSortBy(e.target.value as "date" | "amount" | "status")}
+                                                className="appearance-none px-4 py-3 pr-10 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all cursor-pointer"
+                                            >
+                                                <option value="date">Sort by Date</option>
+                                                <option value="amount">Sort by Amount</option>
+                                                <option value="status">Sort by Status</option>
+                                            </select>
+                                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
+                                        </div>
+                                    </div>
 
-                                            {/* Toggle Presets */}
+                                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                                        {filterOptions.map((option) => (
                                             <button
-                                                onClick={() => setShowPresets(!showPresets)}
+                                                key={option.id}
+                                                onClick={() => setFilters({ ...filters, status: option.id as Order["status"] | "all" })}
                                                 className={cn(
-                                                    "flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-all",
-                                                    showPresets || filterPresets.length > 0
-                                                        ? "text-purple-600 hover:text-purple-700 hover:bg-purple-50"
-                                                        : "text-muted hover:text-foreground hover:bg-gray-50"
+                                                    "px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2",
+                                                    filters.status === option.id || (option.id === "all" && !filters.status)
+                                                        ? "bg-[var(--foreground)] text-white shadow-md"
+                                                        : "bg-[var(--background)] text-[var(--foreground-muted)] hover:bg-[var(--card-border)] border border-[var(--card-border)]"
                                                 )}
                                             >
-                                                <Bookmark className="w-3.5 h-3.5" />
-                                                Presets {filterPresets.length > 0 && `(${filterPresets.length})`}
+                                                {option.label}
+                                                <span className={cn(
+                                                    "px-2 py-0.5 rounded-full text-xs font-bold",
+                                                    filters.status === option.id || (option.id === "all" && !filters.status)
+                                                        ? "bg-white/20 text-white"
+                                                        : "bg-[var(--card-border)] text-muted"
+                                                )}>
+                                                    {option.count}
+                                                </span>
                                             </button>
-                                        </div>
+                                        ))}
 
-                                        {/* Filter Presets Panel */}
-                                        <AnimatePresence>
-                                            {showPresets && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, height: 0 }}
-                                                    animate={{ opacity: 1, height: "auto" }}
-                                                    exit={{ opacity: 0, height: 0 }}
-                                                    className="overflow-hidden"
-                                                >
-                                                    <div className="pt-3 border-t border-dashed border-[var(--card-border)] space-y-3">
-                                                        {/* Save Current Filter */}
-                                                        {hasActiveFilters && (
-                                                            <div className="flex gap-2">
-                                                                <input
-                                                                    type="text"
-                                                                    placeholder="Name this filter..."
-                                                                    value={newPresetName}
-                                                                    onChange={(e) => setNewPresetName(e.target.value)}
-                                                                    className="flex-1 px-3 py-2 text-sm bg-white border border-[var(--card-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-200"
-                                                                />
-                                                                <button
-                                                                    onClick={() => {
-                                                                        if (newPresetName.trim()) {
-                                                                            saveFilterPreset(newPresetName.trim());
-                                                                            setNewPresetName("");
-                                                                        }
-                                                                    }}
-                                                                    disabled={!newPresetName.trim()}
-                                                                    className="flex items-center gap-1.5 px-3 py-2 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-all disabled:opacity-50"
-                                                                >
-                                                                    <Save className="w-3.5 h-3.5" />
-                                                                    Save
-                                                                </button>
-                                                            </div>
-                                                        )}
-
-                                                        {/* Saved Presets List */}
-                                                        {filterPresets.length > 0 ? (
-                                                            <div className="flex flex-wrap gap-2">
-                                                                {filterPresets.map((preset) => (
-                                                                    <div
-                                                                        key={preset.id}
-                                                                        className="flex items-center gap-1 pl-3 pr-1 py-1.5 bg-purple-50 border border-purple-100 rounded-lg group"
-                                                                    >
-                                                                        <button
-                                                                            onClick={() => loadFilterPreset(preset.id)}
-                                                                            className="text-sm text-purple-700 hover:text-purple-900 font-medium"
-                                                                        >
-                                                                            {preset.name}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={() => deleteFilterPreset(preset.id)}
-                                                                            className="p-1 text-purple-400 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-all"
-                                                                        >
-                                                                            <Trash2 className="w-3 h-3" />
-                                                                        </button>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        ) : (
-                                                            <p className="text-xs text-muted">No saved filters. Apply filters then save them here.</p>
-                                                        )}
-                                                    </div>
-                                                </motion.div>
+                                        {/* Advanced Filters Toggle */}
+                                        <button
+                                            onClick={() => setShowFilters(!showFilters)}
+                                            className={cn(
+                                                "px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 border",
+                                                showFilters || hasActiveFilters
+                                                    ? "bg-blue-100 text-blue-700 border-blue-200"
+                                                    : "bg-[var(--background)] text-[var(--foreground-muted)] border-[var(--card-border)] hover:bg-[var(--card-border)]"
                                             )}
-                                        </AnimatePresence>
+                                        >
+                                            <Filter className="w-3.5 h-3.5" />
+                                            Filters
+                                            {hasActiveFilters && (
+                                                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                                            )}
+                                        </button>
                                     </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
 
-                        <AnimatePresence>
-                            {selectedOrders.size > 0 && (
-                                <motion.div
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: "auto" }}
-                                    exit={{ opacity: 0, height: 0 }}
-                                    className="flex items-center gap-3 pt-4 border-t border-[var(--card-border)]"
-                                >
-                                    <span className="text-sm text-muted">{selectedOrders.size} selected</span>
-                                    <button
-                                        onClick={handleBulkConfirm}
-                                        className="px-3 py-1.5 rounded-lg bg-[var(--pastel-green)] text-green-900 text-sm font-medium hover:bg-[var(--pastel-green-light)] transition-all"
-                                    >
-                                        Confirm
-                                    </button>
-                                    <button
-                                        onClick={handleBulkDeliver}
-                                        className="px-3 py-1.5 rounded-lg bg-[var(--pastel-purple)] text-purple-900 text-sm font-medium hover:bg-[var(--pastel-purple-light)] transition-all"
-                                    >
-                                        Deliver
-                                    </button>
-                                    <button
-                                        onClick={handleBulkReject}
-                                        className="px-3 py-1.5 rounded-lg bg-[var(--pastel-pink)] text-rose-900 text-sm font-medium hover:bg-[var(--pastel-pink-light)] transition-all"
-                                    >
-                                        Reject
-                                    </button>
-                                    <button
-                                        onClick={handleBulkArchive}
-                                        className="px-3 py-1.5 rounded-lg bg-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-300 transition-all"
-                                    >
-                                        Archive
-                                    </button>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </motion.div>
+                                    {/* Advanced Filters Panel */}
+                                    <AnimatePresence>
+                                        {showFilters && (
+                                            <motion.div
+                                                initial={{ opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: "auto" }}
+                                                exit={{ opacity: 0, height: 0 }}
+                                                className="overflow-hidden"
+                                            >
+                                                <div className="pt-4 border-t border-[var(--card-border)] space-y-4">
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                                        {/* Date From */}
+                                                        <div>
+                                                            <label className="text-xs text-muted font-medium block mb-1.5">From Date</label>
+                                                            <div className="relative">
+                                                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                                                                <input
+                                                                    type="date"
+                                                                    value={filters.dateFrom || ""}
+                                                                    onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value || undefined })}
+                                                                    className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Date To */}
+                                                        <div>
+                                                            <label className="text-xs text-muted font-medium block mb-1.5">To Date</label>
+                                                            <div className="relative">
+                                                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                                                                <input
+                                                                    type="date"
+                                                                    value={filters.dateTo || ""}
+                                                                    onChange={(e) => setFilters({ ...filters, dateTo: e.target.value || undefined })}
+                                                                    className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                        {/* City Filter */}
+                                                        <div>
+                                                            <label className="text-xs text-muted font-medium block mb-1.5">City</label>
+                                                            <div className="relative">
+                                                                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                                                                <select
+                                                                    value={filters.city || ""}
+                                                                    onChange={(e) => setFilters({ ...filters, city: e.target.value || undefined })}
+                                                                    className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all appearance-none cursor-pointer"
+                                                                >
+                                                                    <option value="">All Cities</option>
+                                                                    {availableCities.map((city) => (
+                                                                        <option key={city} value={city}>{city}</option>
+                                                                    ))}
+                                                                </select>
+                                                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Product Filter */}
+                                                        <div>
+                                                            <label className="text-xs text-muted font-medium block mb-1.5">Product</label>
+                                                            <div className="relative">
+                                                                <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                                                                <select
+                                                                    value={filters.product || ""}
+                                                                    onChange={(e) => setFilters({ ...filters, product: e.target.value || undefined })}
+                                                                    className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all appearance-none cursor-pointer"
+                                                                >
+                                                                    <option value="">All Products</option>
+                                                                    {availableProducts.map((product) => (
+                                                                        <option key={product} value={product}>{product}</option>
+                                                                    ))}
+                                                                </select>
+                                                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {/* Filter Actions Row */}
+                                                    <div className="flex flex-wrap items-center gap-3">
+                                                        {/* Clear Filters Button */}
+                                                        {hasActiveFilters && (
+                                                            <button
+                                                                onClick={clearFilters}
+                                                                className="flex items-center gap-2 px-3 py-1.5 text-sm text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-all"
+                                                            >
+                                                                <X className="w-3.5 h-3.5" />
+                                                                Clear all filters
+                                                            </button>
+                                                        )}
+
+                                                        {/* Toggle Presets */}
+                                                        <button
+                                                            onClick={() => setShowPresets(!showPresets)}
+                                                            className={cn(
+                                                                "flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-all",
+                                                                showPresets || filterPresets.length > 0
+                                                                    ? "text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                                                                    : "text-muted hover:text-foreground hover:bg-gray-50"
+                                                            )}
+                                                        >
+                                                            <Bookmark className="w-3.5 h-3.5" />
+                                                            Presets {filterPresets.length > 0 && `(${filterPresets.length})`}
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Filter Presets Panel */}
+                                                    <AnimatePresence>
+                                                        {showPresets && (
+                                                            <motion.div
+                                                                initial={{ opacity: 0, height: 0 }}
+                                                                animate={{ opacity: 1, height: "auto" }}
+                                                                exit={{ opacity: 0, height: 0 }}
+                                                                className="overflow-hidden"
+                                                            >
+                                                                <div className="pt-3 border-t border-dashed border-[var(--card-border)] space-y-3">
+                                                                    {/* Save Current Filter */}
+                                                                    {hasActiveFilters && (
+                                                                        <div className="flex gap-2">
+                                                                            <input
+                                                                                type="text"
+                                                                                placeholder="Name this filter..."
+                                                                                value={newPresetName}
+                                                                                onChange={(e) => setNewPresetName(e.target.value)}
+                                                                                className="flex-1 px-3 py-2 text-sm bg-white border border-[var(--card-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-200"
+                                                                            />
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    if (newPresetName.trim()) {
+                                                                                        saveFilterPreset(newPresetName.trim());
+                                                                                        setNewPresetName("");
+                                                                                    }
+                                                                                }}
+                                                                                disabled={!newPresetName.trim()}
+                                                                                className="flex items-center gap-1.5 px-3 py-2 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-all disabled:opacity-50"
+                                                                            >
+                                                                                <Save className="w-3.5 h-3.5" />
+                                                                                Save
+                                                                            </button>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* Saved Presets List */}
+                                                                    {filterPresets.length > 0 ? (
+                                                                        <div className="flex flex-wrap gap-2">
+                                                                            {filterPresets.map((preset) => (
+                                                                                <div
+                                                                                    key={preset.id}
+                                                                                    className="flex items-center gap-1 pl-3 pr-1 py-1.5 bg-purple-50 border border-purple-100 rounded-lg group"
+                                                                                >
+                                                                                    <button
+                                                                                        onClick={() => loadFilterPreset(preset.id)}
+                                                                                        className="text-sm text-purple-700 hover:text-purple-900 font-medium"
+                                                                                    >
+                                                                                        {preset.name}
+                                                                                    </button>
+                                                                                    <button
+                                                                                        onClick={() => deleteFilterPreset(preset.id)}
+                                                                                        className="p-1 text-purple-400 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-all"
+                                                                                    >
+                                                                                        <Trash2 className="w-3 h-3" />
+                                                                                    </button>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <p className="text-xs text-muted">No saved filters. Apply filters then save them here.</p>
+                                                                    )}
+                                                                </div>
+                                                            </motion.div>
+                                                        )}
+                                                    </AnimatePresence>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+
+                                    <AnimatePresence>
+                                        {selectedOrders.size > 0 && (
+                                            <motion.div
+                                                initial={{ opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: "auto" }}
+                                                exit={{ opacity: 0, height: 0 }}
+                                                className="flex items-center gap-3 pt-4 border-t border-[var(--card-border)]"
+                                            >
+                                                <span className="text-sm text-muted">{selectedOrders.size} selected</span>
+                                                <button
+                                                    onClick={handleBulkConfirm}
+                                                    className="px-3 py-1.5 rounded-lg bg-[var(--pastel-green)] text-green-900 text-sm font-medium hover:bg-[var(--pastel-green-light)] transition-all"
+                                                >
+                                                    Confirm
+                                                </button>
+                                                <button
+                                                    onClick={handleBulkDeliver}
+                                                    className="px-3 py-1.5 rounded-lg bg-[var(--pastel-purple)] text-purple-900 text-sm font-medium hover:bg-[var(--pastel-purple-light)] transition-all"
+                                                >
+                                                    Deliver
+                                                </button>
+                                                <button
+                                                    onClick={handleBulkReject}
+                                                    className="px-3 py-1.5 rounded-lg bg-[var(--pastel-pink)] text-rose-900 text-sm font-medium hover:bg-[var(--pastel-pink-light)] transition-all"
+                                                >
+                                                    Reject
+                                                </button>
+                                                <button
+                                                    onClick={handleBulkArchive}
+                                                    className="px-3 py-1.5 rounded-lg bg-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-300 transition-all"
+                                                >
+                                                    Archive
+                                                </button>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     {/* Orders List */}
                     <div className="space-y-3">
@@ -884,6 +931,6 @@ export default function OrdersPage() {
                     onArchive={handleBulkArchive}
                 />
             </div>
-        </PageTransition>
+        </PageTransition >
     );
 }
