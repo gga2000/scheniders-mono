@@ -246,8 +246,8 @@ export default function OrdersPage() {
                             </p>
                         </div>
 
-                        <div className="flex items-center gap-3">
-                            {/* Workflow Mode Toggle */}
+                        <div className="flex flex-col items-end gap-3">
+                            {/* Workflow Mode Toggle - Top Row */}
                             <div className="flex items-center bg-[var(--background)] border border-[var(--card-border)] rounded-xl p-1">
                                 <button
                                     onClick={() => {
@@ -279,102 +279,104 @@ export default function OrdersPage() {
                                 </button>
                             </div>
 
-                            {/* View Mode Toggle (only show in simple mode) */}
-                            {!workflowMode && (
-                                <div className="flex items-center bg-[var(--background)] border border-[var(--card-border)] rounded-xl p-1">
-                                    {[
-                                        { mode: "cards" as const, icon: LayoutGrid, label: "Cards" },
-                                        { mode: "table" as const, icon: Table, label: "Table" },
-                                        { mode: "kanban" as const, icon: Columns, label: "Kanban" },
-                                    ].map((v) => {
-                                        const Icon = v.icon;
-                                        return (
-                                            <button
-                                                key={v.mode}
-                                                onClick={() => setViewMode(v.mode)}
-                                                title={v.label}
-                                                className={cn(
-                                                    "p-2 rounded-lg transition-all",
-                                                    viewMode === v.mode
-                                                        ? "bg-[var(--foreground)] text-white shadow-sm"
-                                                        : "text-muted hover:text-foreground hover:bg-[var(--card-border)]"
-                                                )}
-                                            >
-                                                <Icon className="w-4 h-4" />
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            )}
-
-                            {/* Notification Toggle */}
-                            <button
-                                onClick={toggleNotifications}
-                                title={notificationsEnabled ? "Notifications enabled" : "Enable notifications"}
-                                className={cn(
-                                    "p-3 rounded-2xl border transition-all shadow-sm",
-                                    notificationsEnabled
-                                        ? "bg-green-100 border-green-200 text-green-700"
-                                        : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                            {/* Other Controls - Bottom Row */}
+                            <div className="flex items-center gap-3">
+                                {!workflowMode && (
+                                    <div className="flex items-center bg-[var(--background)] border border-[var(--card-border)] rounded-xl p-1">
+                                        {[
+                                            { mode: "cards" as const, icon: LayoutGrid, label: "Cards" },
+                                            { mode: "table" as const, icon: Table, label: "Table" },
+                                            { mode: "kanban" as const, icon: Columns, label: "Kanban" },
+                                        ].map((v) => {
+                                            const Icon = v.icon;
+                                            return (
+                                                <button
+                                                    key={v.mode}
+                                                    onClick={() => setViewMode(v.mode)}
+                                                    title={v.label}
+                                                    className={cn(
+                                                        "p-2 rounded-lg transition-all",
+                                                        viewMode === v.mode
+                                                            ? "bg-[var(--foreground)] text-white shadow-sm"
+                                                            : "text-muted hover:text-foreground hover:bg-[var(--card-border)]"
+                                                    )}
+                                                >
+                                                    <Icon className="w-4 h-4" />
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 )}
-                            >
-                                {notificationsEnabled ? (
-                                    <Bell className="w-4 h-4" />
-                                ) : (
-                                    <BellOff className="w-4 h-4" />
-                                )}
-                            </button>
 
-                            {/* Stats Toggle */}
-                            <button
-                                onClick={() => {
-                                    const newLevel = ((analyticsLevel + 1) % 3) as 0 | 1 | 2;
-                                    setAnalyticsLevel(newLevel);
-                                    localStorage.setItem("ordersAnalyticsLevel", String(newLevel));
-                                }}
-                                title={analyticsLevel === 0 ? "Show Stats" : analyticsLevel === 1 ? "Show Details" : "Hide Analytics"}
-                                className={cn(
-                                    "p-3 rounded-2xl border transition-all shadow-sm flex items-center gap-2",
-                                    analyticsLevel > 0
-                                        ? "bg-blue-100 border-blue-200 text-blue-700"
-                                        : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
-                                )}
-                            >
-                                <BarChart3 className="w-4 h-4" />
-                            </button>
+                                {/* Notification Toggle */}
+                                <button
+                                    onClick={toggleNotifications}
+                                    title={notificationsEnabled ? "Notifications enabled" : "Enable notifications"}
+                                    className={cn(
+                                        "p-3 rounded-2xl border transition-all shadow-sm",
+                                        notificationsEnabled
+                                            ? "bg-green-100 border-green-200 text-green-700"
+                                            : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                    )}
+                                >
+                                    {notificationsEnabled ? (
+                                        <Bell className="w-4 h-4" />
+                                    ) : (
+                                        <BellOff className="w-4 h-4" />
+                                    )}
+                                </button>
 
-                            {/* Filters Toggle */}
-                            <button
-                                onClick={() => {
-                                    const newValue = !showSearchBar;
-                                    setShowSearchBar(newValue);
-                                    localStorage.setItem("ordersShowSearchBar", String(newValue));
-                                }}
-                                title={showSearchBar ? "Hide Filters" : "Show Filters"}
-                                className={cn(
-                                    "p-3 rounded-2xl border transition-all shadow-sm flex items-center gap-2",
-                                    showSearchBar
-                                        ? "bg-purple-100 border-purple-200 text-purple-700"
-                                        : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
-                                )}
-                            >
-                                <SlidersHorizontal className="w-4 h-4" />
-                            </button>
+                                {/* Stats Toggle */}
+                                <button
+                                    onClick={() => {
+                                        const newLevel = ((analyticsLevel + 1) % 3) as 0 | 1 | 2;
+                                        setAnalyticsLevel(newLevel);
+                                        localStorage.setItem("ordersAnalyticsLevel", String(newLevel));
+                                    }}
+                                    title={analyticsLevel === 0 ? "Show Stats" : analyticsLevel === 1 ? "Show Details" : "Hide Analytics"}
+                                    className={cn(
+                                        "p-3 rounded-2xl border transition-all shadow-sm flex items-center gap-2",
+                                        analyticsLevel > 0
+                                            ? "bg-blue-100 border-blue-200 text-blue-700"
+                                            : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                    )}
+                                >
+                                    <BarChart3 className="w-4 h-4" />
+                                </button>
 
-                            <button
-                                onClick={handleExport}
-                                className="px-4 py-3 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] text-foreground hover:bg-[var(--background)] transition-all shadow-sm flex items-center gap-2"
-                            >
-                                <Download className="w-4 h-4" />
-                                <span className="hidden sm:inline">Export</span>
-                            </button>
-                            <button
-                                onClick={() => setIsCreateModalOpen(true)}
-                                className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-[var(--button-success)] text-white shadow-lg shadow-green-500/20 hover:bg-[var(--button-success-hover)] hover:shadow-green-500/30 hover:scale-[1.02] transition-all font-semibold"
-                            >
-                                <Plus className="h-5 w-5" />
-                                <span>New Order</span>
-                            </button>
+                                {/* Filters Toggle */}
+                                <button
+                                    onClick={() => {
+                                        const newValue = !showSearchBar;
+                                        setShowSearchBar(newValue);
+                                        localStorage.setItem("ordersShowSearchBar", String(newValue));
+                                    }}
+                                    title={showSearchBar ? "Hide Filters" : "Show Filters"}
+                                    className={cn(
+                                        "p-3 rounded-2xl border transition-all shadow-sm flex items-center gap-2",
+                                        showSearchBar
+                                            ? "bg-purple-100 border-purple-200 text-purple-700"
+                                            : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                    )}
+                                >
+                                    <SlidersHorizontal className="w-4 h-4" />
+                                </button>
+
+                                <button
+                                    onClick={handleExport}
+                                    className="px-4 py-3 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] text-foreground hover:bg-[var(--background)] transition-all shadow-sm flex items-center gap-2"
+                                >
+                                    <Download className="w-4 h-4" />
+                                    <span className="hidden sm:inline">Export</span>
+                                </button>
+                                <button
+                                    onClick={() => setIsCreateModalOpen(true)}
+                                    className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-[var(--button-success)] text-white shadow-lg shadow-green-500/20 hover:bg-[var(--button-success-hover)] hover:shadow-green-500/30 hover:scale-[1.02] transition-all font-semibold"
+                                >
+                                    <Plus className="h-5 w-5" />
+                                    <span>New Order</span>
+                                </button>
+                            </div>
                         </div>
                     </motion.div>
 
