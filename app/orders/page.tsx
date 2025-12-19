@@ -325,6 +325,42 @@ export default function OrdersPage() {
                                 )}
                             </button>
 
+                            {/* Stats Toggle */}
+                            <button
+                                onClick={() => {
+                                    const newLevel = ((analyticsLevel + 1) % 3) as 0 | 1 | 2;
+                                    setAnalyticsLevel(newLevel);
+                                    localStorage.setItem("ordersAnalyticsLevel", String(newLevel));
+                                }}
+                                title={analyticsLevel === 0 ? "Show Stats" : analyticsLevel === 1 ? "Show Details" : "Hide Analytics"}
+                                className={cn(
+                                    "p-3 rounded-2xl border transition-all shadow-sm flex items-center gap-2",
+                                    analyticsLevel > 0
+                                        ? "bg-blue-100 border-blue-200 text-blue-700"
+                                        : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                )}
+                            >
+                                <BarChart3 className="w-4 h-4" />
+                            </button>
+
+                            {/* Filters Toggle */}
+                            <button
+                                onClick={() => {
+                                    const newValue = !showSearchBar;
+                                    setShowSearchBar(newValue);
+                                    localStorage.setItem("ordersShowSearchBar", String(newValue));
+                                }}
+                                title={showSearchBar ? "Hide Filters" : "Show Filters"}
+                                className={cn(
+                                    "p-3 rounded-2xl border transition-all shadow-sm flex items-center gap-2",
+                                    showSearchBar
+                                        ? "bg-purple-100 border-purple-200 text-purple-700"
+                                        : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                )}
+                            >
+                                <SlidersHorizontal className="w-4 h-4" />
+                            </button>
+
                             <button
                                 onClick={handleExport}
                                 className="px-4 py-3 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] text-foreground hover:bg-[var(--background)] transition-all shadow-sm flex items-center gap-2"
@@ -453,34 +489,6 @@ export default function OrdersPage() {
                             </motion.div>
                         )}
                     </AnimatePresence>
-
-                    {/* Toggle Stats Button */}
-                    <button
-                        onClick={() => {
-                            const newLevel = ((analyticsLevel + 1) % 3) as 0 | 1 | 2;
-                            setAnalyticsLevel(newLevel);
-                            localStorage.setItem("ordersAnalyticsLevel", String(newLevel));
-                        }}
-                        className="flex items-center gap-2 px-3 py-1.5 mx-auto text-xs text-muted hover:text-foreground transition-colors"
-                    >
-                        <BarChart3 className="w-3.5 h-3.5" />
-                        {analyticsLevel === 0 ? "Show Stats" : analyticsLevel === 1 ? "Show Details" : "Hide Analytics"}
-                        {analyticsLevel === 2 ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                    </button>
-
-                    {/* Toggle Filters Button */}
-                    <button
-                        onClick={() => {
-                            const newValue = !showSearchBar;
-                            setShowSearchBar(newValue);
-                            localStorage.setItem("ordersShowSearchBar", String(newValue));
-                        }}
-                        className="flex items-center gap-2 px-3 py-1.5 mx-auto text-xs text-muted hover:text-foreground transition-colors"
-                    >
-                        <SlidersHorizontal className="w-3.5 h-3.5" />
-                        {showSearchBar ? "Hide Filters" : "Show Filters"}
-                        {showSearchBar ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                    </button>
 
                     {/* Filters & Search Bar */}
                     <AnimatePresence>
