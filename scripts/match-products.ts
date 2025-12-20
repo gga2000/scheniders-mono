@@ -13,6 +13,16 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 function matchProduct(orderProductName: string, products: any[]): any | null {
     const normalized = orderProductName.toLowerCase().trim();
 
+    // Product name synonyms/variations (keys match database product names)
+    const synonyms: Record<string, string[]> = {
+        'بستاشيو': ['بستاشيو', 'فستق', 'خير بستاشيو', 'خير فستق', 'pistachio', 'بستاشو'],
+        'ايدنتتي': ['ايدنتتي', 'ايدينتتي', 'ادينتيتي', 'identity', 'ايدينتيتي', 'ادينتتي'],
+        'بيرسيفيرون': ['بيرسيفيرون', 'برسيفيرون', 'perseveron', 'بيرسفيرون', 'بيرسيفرون'],
+        'فيوجن': ['فيوجن', 'fusion', 'فيوجين'],
+        'ايبسكو': ['ايبسكو', 'ابسكو', 'ipesco', 'ابيسكو'],
+        'رفقات': ['رفقات', 'رفقات وايت', 'rafaqat', 'رفقة'],
+    };
+
     // Try exact match first
     const exactMatch = products.find(p =>
         p.name.toLowerCase().trim() === normalized
@@ -26,29 +36,42 @@ function matchProduct(orderProductName: string, products: any[]): any | null {
     });
     if (containsMatch) return containsMatch;
 
-    // Try if product name is part of order item (e.g., "برسيفيرون" in "عطر برسيفيرون الفاخر...")
-    const reverseMatch = products.find(p => {
-        const productName = p.name.toLowerCase().trim();
-        // Check if the core product name appears in the order
-        return normalized.includes(productName);
-    });
-    if (reverseMatch) return reverseMatch;
+    // Try synonym matching
+    for (const product of products) {
+        const productName = product.name.toLowerCase().trim();
+        const productSynonyms = synonyms[productName] || [productName];
 
-    // Try variations - remove common prefixes/suffixes
+        // Check if any synonym appears in the order item name
+        const synonymMatch = productSynonyms.some(syn =>
+            normalized.includes(syn.toLowerCase())
+        );
+
+        if (synonymMatch) return product;
+    }
+
+    // Try variations - remove common prefixes/suffixes  
     const cleanedOrder = normalized
         .replace(/^عطر\s*/i, '')           // Remove "عطر" prefix
         .replace(/\s*الفاخر.*/i, '')       // Remove "الفاخر" and anything after
         .replace(/\s*من باريس.*/i, '')    // Remove "من باريس" and anything after
         .replace(/\s*للرجال.*/i, '')      // Remove "للرجال" and anything after
         .replace(/\s*للنساء.*/i, '')      // Remove "للنساء" and anything after
+        .replace(/\s*\d+$/, '')            // Remove trailing numbers
+        .replace(/\s*\/.*/, '')            // Remove everything after /
         .trim();
 
     if (cleanedOrder) {
-        const cleanMatch = products.find(p => {
-            const productName = p.name.toLowerCase().trim();
-            return cleanedOrder.includes(productName) || productName.includes(cleanedOrder);
-        });
-        if (cleanMatch) return cleanMatch;
+        // Check against all synonyms
+        for (const product of products) {
+            const productName = product.name.toLowerCase().trim();
+            const productSynonyms = synonyms[productName] || [productName];
+
+            const synMatch = productSynonyms.some(syn =>
+                cleanedOrder.includes(syn.toLowerCase()) || syn.toLowerCase().includes(cleanedOrder)
+            );
+
+            if (synMatch) return product;
+        }
     }
 
     return null;
