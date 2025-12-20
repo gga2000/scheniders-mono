@@ -13,6 +13,7 @@ interface ProductFormData {
     stock_quantity: number;
     low_stock_threshold: number;
     image_url?: string;
+    tag_color?: string; // Custom color for product tag display
 }
 
 interface VariantFormData {
