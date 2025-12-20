@@ -19,6 +19,7 @@ export interface Order {
     order_id: string;
     customer_name: string;
     phone: string;
+    secondary_phone?: string; // Secondary phone number from Excel import
     city?: string;
     governorate_code?: string;
     address_details?: string;
