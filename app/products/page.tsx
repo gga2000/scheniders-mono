@@ -167,6 +167,7 @@ export default function ProductsPage() {
                 stock_quantity: data.stock_quantity,
                 low_stock_threshold: data.low_stock_threshold,
                 image_url: data.image_url,
+                tag_color: data.tag_color,
             });
 
             // Add variants if any
@@ -191,6 +192,7 @@ export default function ProductsPage() {
                 stock_quantity: data.stock_quantity,
                 low_stock_threshold: data.low_stock_threshold,
                 image_url: data.image_url,
+                tag_color: data.tag_color,
             });
 
             // Handle variant updates (simplified - in production you'd want more sophisticated handling)
