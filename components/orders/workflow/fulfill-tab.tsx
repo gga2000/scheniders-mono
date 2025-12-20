@@ -128,7 +128,7 @@ export function FulfillTab({
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.03 }}
                             className={cn(
-                                "pastel-card overflow-hidden",
+                                "pastel-card overflow-hidden flex flex-col h-full",
                                 allPacked && "border-emerald-300"
                             )}
                         >
@@ -143,7 +143,7 @@ export function FulfillTab({
                                 />
                             </div>
 
-                            <div className="p-4">
+                            <div className="p-4 flex flex-col flex-1">
                                 {/* Header */}
                                 <div className="flex items-center justify-between mb-3">
                                     <div>
@@ -190,6 +190,9 @@ export function FulfillTab({
                                         </button>
                                     ))}
                                 </div>
+
+                                {/* Spacer */}
+                                <div className="flex-1" />
 
                                 {/* Actions */}
                                 <div className="flex gap-2">
