@@ -266,10 +266,10 @@ export function OrderCard({ order, loadingId, onStatusUpdate, onViewDetails, isB
                                             return (
                                                 <span
                                                     key={idx}
-                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-medium text-foreground bg-[var(--background)] border-l-[3px]"
+                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-medium text-foreground bg-[#f8f6f2] ring-1"
                                                     style={{
-                                                        borderLeftColor: item.tag_color || '#22c55e'
-                                                    }}
+                                                        '--tw-ring-color': item.tag_color || '#22c55e'
+                                                    } as React.CSSProperties}
                                                 >
                                                     {item.name}
                                                     <span className={`px-1.5 py-0.5 rounded-md text-xs font-bold border ${quantityColor}`}>
@@ -422,6 +422,6 @@ export function OrderCard({ order, loadingId, onStatusUpdate, onViewDetails, isB
                     </div>
                 </div>
             </motion.div>
-        </motion.div>
+        </motion.div >
     );
 }
