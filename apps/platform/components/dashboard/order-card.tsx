@@ -58,7 +58,8 @@ export function OrderCard({ order, loadingId, onStatusUpdate, onViewDetails, isB
         return items.slice(0, 2).map(item => ({
             name: item.name,
             quantity: item.quantity,
-            image_url: item.image_url
+            image_url: item.image_url,
+            tag_color: item.tag_color
         }));
     };
 
@@ -254,17 +255,29 @@ export function OrderCard({ order, loadingId, onStatusUpdate, onViewDetails, isB
                             <div className="flex-1 min-w-0">
                                 {items.length > 0 ? (
                                     <div className="flex flex-wrap gap-2">
-                                        {items.map((item, idx) => (
-                                            <span key={idx} className={cn(
-                                                "inline-flex items-center gap-1 px-2 py-1 rounded-lg text-sm font-medium",
-                                                isNew
-                                                    ? "bg-orange-50 text-orange-900"
-                                                    : "bg-[var(--background)] text-foreground"
-                                            )}>
-                                                {item.name}
-                                                <span className="text-xs text-muted">×{item.quantity}</span>
-                                            </span>
-                                        ))}
+                                        {items.map((item, idx) => {
+                                            // Quantity-based colors: 1=green, 2=orange, 3+=red
+                                            const quantityColor = item.quantity === 1
+                                                ? 'bg-emerald-100 text-emerald-700'
+                                                : item.quantity === 2
+                                                    ? 'bg-orange-100 text-orange-700'
+                                                    : 'bg-rose-100 text-rose-700';
+
+                                            return (
+                                                <span
+                                                    key={idx}
+                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-medium text-white"
+                                                    style={{
+                                                        backgroundColor: item.tag_color || '#22c55e'
+                                                    }}
+                                                >
+                                                    {item.name}
+                                                    <span className={`px-1.5 py-0.5 rounded-md text-xs font-bold ${quantityColor}`}>
+                                                        ×{item.quantity}
+                                                    </span>
+                                                </span>
+                                            );
+                                        })}
                                         {(order.items?.length || 0) > 2 && (
                                             <span className="text-xs text-muted self-center">+{(order.items?.length || 0) - 2} more</span>
                                         )}
