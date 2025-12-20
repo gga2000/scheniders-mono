@@ -24,6 +24,7 @@ export interface ProductFormData {
     stock_quantity: number;
     low_stock_threshold: number;
     image_url: string;
+    tag_color: string; // Custom color for product tag display
     variants: VariantFormData[];
 }
 
@@ -53,6 +54,7 @@ export function ProductFormModal({
         stock_quantity: 0,
         low_stock_threshold: 5,
         image_url: "",
+        tag_color: "#22c55e", // Default green
         variants: [],
     });
 
@@ -68,6 +70,7 @@ export function ProductFormModal({
                 stock_quantity: product.stock_quantity,
                 low_stock_threshold: product.low_stock_threshold,
                 image_url: product.image_url || "",
+                tag_color: product.tag_color || "#22c55e",
                 variants: (product.variants || []).map((v) => ({
                     id: v.id,
                     name: v.name,
@@ -87,6 +90,7 @@ export function ProductFormModal({
                 stock_quantity: 0,
                 low_stock_threshold: 5,
                 image_url: "",
+                tag_color: "#22c55e",
                 variants: [],
             });
         }
@@ -229,6 +233,38 @@ export function ProductFormModal({
                                         onChange={(url) => setFormData((prev) => ({ ...prev, image_url: url }))}
                                         productId={product?.id}
                                     />
+                                </div>
+
+                                {/* Tag Color Picker */}
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-foreground mb-2">
+                                        Tag Color
+                                    </label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {[
+                                            { color: '#22c55e', name: 'Green' },
+                                            { color: '#f97316', name: 'Orange' },
+                                            { color: '#3b82f6', name: 'Blue' },
+                                            { color: '#a855f7', name: 'Purple' },
+                                            { color: '#ec4899', name: 'Pink' },
+                                            { color: '#14b8a6', name: 'Teal' },
+                                            { color: '#eab308', name: 'Yellow' },
+                                            { color: '#ef4444', name: 'Red' },
+                                        ].map((preset) => (
+                                            <button
+                                                key={preset.color}
+                                                type="button"
+                                                onClick={() => setFormData((prev) => ({ ...prev, tag_color: preset.color }))}
+                                                className={`w-10 h-10 rounded-xl border-2 transition-all ${formData.tag_color === preset.color
+                                                        ? 'border-foreground scale-110 shadow-lg'
+                                                        : 'border-transparent hover:scale-105'
+                                                    }`}
+                                                style={{ backgroundColor: preset.color }}
+                                                title={preset.name}
+                                            />
+                                        ))}
+                                    </div>
+                                    <p className="text-xs text-muted mt-2">This color will be used for the product tag in orders</p>
                                 </div>
                             </div>
                         </div>

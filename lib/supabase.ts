@@ -73,6 +73,7 @@ export interface Product {
     stock_quantity: number;
     low_stock_threshold: number;
     image_url?: string;
+    tag_color?: string; // Custom tag color for product display
     is_archived: boolean;
     // Computed fields (not in DB)
     variants?: ProductVariant[];

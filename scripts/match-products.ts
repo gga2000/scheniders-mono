@@ -82,7 +82,7 @@ async function matchOrdersToProducts() {
 
     const { data: products, error: productsError } = await supabase
         .from('products')
-        .select('id, name, price, image_url')
+        .select('id, name, price, image_url, tag_color')
         .eq('is_archived', false);
 
     if (productsError) {
@@ -142,6 +142,7 @@ async function matchOrdersToProducts() {
                     name: match.name,           // Use product name instead of Excel name
                     product_id: match.id,
                     image_url: match.image_url, // Add product image
+                    tag_color: match.tag_color, // Add product tag color
                     // Keep original price from order, or use product price:
                     // price: match.price
                 };
