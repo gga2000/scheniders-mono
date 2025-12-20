@@ -221,10 +221,10 @@ export function OrderDetailsModal({
     return (
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className="max-w-4xl overflow-hidden">
-                {/* Header Area with Quick Actions */}
+                {/* Header Area */}
                 <DialogHeader className="space-y-0 pb-0">
-                    {/* Top Row: Order ID, Status, Edit Button */}
-                    <div className="flex items-center justify-between mb-3">
+                    {/* Top Row: Order ID, Status, Timeline + Edit Buttons */}
+                    <div className="flex items-center justify-between mb-3 mr-6">
                         <div className="flex items-center gap-3">
                             <DialogTitle className="font-mono text-xl">#{order.order_id}</DialogTitle>
                             <span className={cn(
@@ -233,12 +233,30 @@ export function OrderDetailsModal({
                             )}>
                                 {getStatusLabel(order.status)}
                             </span>
+                            <span className="flex items-center gap-1.5 text-xs text-muted">
+                                <Calendar className="h-3 w-3" />
+                                {formatDate(order.created_at)}
+                            </span>
                         </div>
                         <div className="flex items-center gap-2">
+                            {/* Timeline Button */}
+                            <button
+                                onClick={() => setActiveTab(activeTab === "timeline" ? "details" : "timeline")}
+                                className={cn(
+                                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border",
+                                    activeTab === "timeline"
+                                        ? "bg-[var(--foreground)] text-white border-transparent"
+                                        : "bg-white border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                )}
+                            >
+                                <History className="h-3.5 w-3.5" />
+                                السجل
+                            </button>
+                            {/* Edit Button */}
                             {!isEditing && (
                                 <button
                                     onClick={handleEdit}
-                                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--background)] border border-[var(--card-border)] text-foreground hover:bg-[var(--card-border)] transition-all text-sm font-medium"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--background)] border border-[var(--card-border)] text-foreground hover:bg-[var(--card-border)] transition-all text-xs font-medium"
                                 >
                                     <Edit2 className="h-3.5 w-3.5" />
                                     تعديل
@@ -247,10 +265,10 @@ export function OrderDetailsModal({
                         </div>
                     </div>
 
-                    {/* Quick Actions Row - Status + Management */}
+                    {/* Quick Actions Row - Status + Management (with colors!) */}
                     {!isEditing && order.status !== "delivered" && (
                         <div className="flex flex-wrap items-center gap-2 py-3 border-y border-[var(--card-border)]">
-                            {/* Status Actions */}
+                            {/* Status Actions - Colored */}
                             {onStatusUpdate && (
                                 <>
                                     {quickActions.map((action) => {
@@ -262,10 +280,10 @@ export function OrderDetailsModal({
                                                 onClick={() => handleStatusChange(action.status)}
                                                 disabled={isUpdatingStatus || isCurrentStatus}
                                                 className={cn(
-                                                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border",
+                                                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
                                                     isCurrentStatus
-                                                        ? "bg-[var(--foreground)] text-white border-transparent"
-                                                        : "bg-white border-[var(--card-border)] text-muted hover:bg-[var(--background)] hover:text-foreground",
+                                                        ? "bg-[var(--foreground)] text-white"
+                                                        : cn(action.bgColor, action.textColor, action.hoverColor),
                                                     isUpdatingStatus && "opacity-50 cursor-wait"
                                                 )}
                                             >
@@ -280,11 +298,11 @@ export function OrderDetailsModal({
                                 </>
                             )}
 
-                            {/* Priority Buttons */}
+                            {/* Priority Buttons - Colored */}
                             {[
-                                { value: 'normal', label: 'عادي' },
-                                { value: 'high', label: 'هام', icon: Flag },
-                                { value: 'urgent', label: 'عاجل', icon: Flame },
+                                { value: 'normal', label: 'عادي', bg: 'bg-gray-100', text: 'text-gray-700', hover: 'hover:bg-gray-200' },
+                                { value: 'high', label: 'هام', bg: 'bg-amber-100', text: 'text-amber-800', hover: 'hover:bg-amber-200', icon: Flag },
+                                { value: 'urgent', label: 'عاجل', bg: 'bg-red-100', text: 'text-red-800', hover: 'hover:bg-red-200', icon: Flame },
                             ].map((p) => {
                                 const Icon = p.icon;
                                 const isActive = order.priority === p.value || (!order.priority && p.value === 'normal');
@@ -295,10 +313,10 @@ export function OrderDetailsModal({
                                             await onUpdate(order.id, { priority: p.value } as Partial<Order>);
                                         }}
                                         className={cn(
-                                            "flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border",
+                                            "flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all",
                                             isActive
-                                                ? "bg-[var(--foreground)] text-white border-transparent"
-                                                : "bg-white border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                                ? "bg-[var(--foreground)] text-white"
+                                                : cn(p.bg, p.text, p.hover)
                                         )}
                                     >
                                         {Icon && <Icon className="w-3 h-3" />}
@@ -310,7 +328,7 @@ export function OrderDetailsModal({
                             {/* Separator */}
                             <div className="w-px h-5 bg-[var(--card-border)] mx-1" />
 
-                            {/* Schedule */}
+                            {/* Schedule - Colored */}
                             <button
                                 onClick={async () => {
                                     const dateInput = prompt('موعد التوصيل (YYYY-MM-DD):', order.scheduled_date || new Date().toISOString().split('T')[0]);
@@ -318,7 +336,7 @@ export function OrderDetailsModal({
                                         await onUpdate(order.id, { scheduled_date: dateInput } as Partial<Order>);
                                     }
                                 }}
-                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border bg-white border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all bg-blue-100 text-blue-700 hover:bg-blue-200"
                             >
                                 <CalendarDays className="w-3.5 h-3.5" />
                                 {order.scheduled_date
@@ -332,7 +350,7 @@ export function OrderDetailsModal({
                                     tomorrow.setDate(tomorrow.getDate() + 1);
                                     await onUpdate(order.id, { scheduled_date: tomorrow.toISOString().split('T')[0] } as Partial<Order>);
                                 }}
-                                className="px-2 py-1.5 text-xs rounded-lg border bg-white border-[var(--card-border)] text-muted hover:bg-[var(--background)] transition-all"
+                                className="px-2 py-1.5 text-xs rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all"
                             >
                                 غداً
                             </button>
@@ -344,43 +362,9 @@ export function OrderDetailsModal({
                     </DialogDescription>
                 </DialogHeader>
 
-                {/* Tab Navigation */}
-                <div className="flex gap-2 py-2">
-                    <button
-                        onClick={() => setActiveTab("details")}
-                        className={cn(
-                            "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                            activeTab === "details"
-                                ? "bg-[var(--foreground)] text-white"
-                                : "text-muted hover:bg-[var(--background)]"
-                        )}
-                    >
-                        <Package className="w-4 h-4" />
-                        Details
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("timeline")}
-                        className={cn(
-                            "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                            activeTab === "timeline"
-                                ? "bg-[var(--foreground)] text-white"
-                                : "text-muted hover:bg-[var(--background)]"
-                        )}
-                    >
-                        <History className="w-4 h-4" />
-                        Timeline
-                    </button>
-
-                    {/* Date */}
-                    <span className="ml-auto flex items-center gap-2 text-xs text-muted">
-                        <Calendar className="h-3.5 w-3.5" />
-                        {formatDate(order.created_at)}
-                    </span>
-                </div>
-
-                {/* Timeline Tab */}
+                {/* Timeline View */}
                 {activeTab === "timeline" && (
-                    <div className="py-4">
+                    <div className="py-4 max-h-[50vh] overflow-y-auto">
                         {loadingTimeline ? (
                             <div className="text-center py-8">
                                 <div className="w-6 h-6 border-2 border-[var(--foreground)] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
@@ -392,35 +376,52 @@ export function OrderDetailsModal({
                     </div>
                 )}
 
-                {/* Details Tab Content */}
+                {/* Details Content (default) */}
                 {activeTab === "details" && (
-                    <div className="space-y-4 max-h-[55vh] overflow-y-auto -mr-2 pr-4">
+                    <div className="space-y-3 max-h-[50vh] overflow-y-auto -mr-2 pr-4">
 
-                        {/* Customer Info Card */}
+                        {/* Customer Info Card - Compact & Organized */}
                         <div className="bg-white rounded-xl border border-[var(--card-border)] overflow-hidden">
-                            <div className="flex items-center gap-3 px-4 py-3 bg-[var(--background)] border-b border-[var(--card-border)]">
-                                <User className="h-4 w-4 text-muted" />
-                                <span className="font-semibold text-foreground">معلومات العميل</span>
+                            <div className="px-4 py-3 bg-[var(--background)] border-b border-[var(--card-border)] flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <User className="h-4 w-4 text-muted" />
+                                    <span className="font-semibold text-foreground">معلومات العميل</span>
+                                </div>
                             </div>
-                            <div className="p-4 space-y-4">
-                                {/* Customer Name */}
-                                <div>
-                                    <span className="text-xs text-muted uppercase tracking-wider block mb-1">الاسم</span>
-                                    {isEditing ? (
-                                        <input
-                                            value={displayValue("customer_name") as string}
-                                            onChange={(e) => updateFormData("customer_name", e.target.value)}
-                                            className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-lg font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
-                                        />
-                                    ) : (
-                                        <p className="text-xl font-bold text-foreground">{order.customer_name}</p>
-                                    )}
+
+                            <div className="p-4 grid gap-4">
+                                {/* Name & Governorate Row */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="md:col-span-2">
+                                        <span className="text-xs text-muted uppercase tracking-wider block mb-1">الاسم</span>
+                                        {isEditing ? (
+                                            <input
+                                                value={displayValue("customer_name") as string}
+                                                onChange={(e) => updateFormData("customer_name", e.target.value)}
+                                                className="w-full px-3 py-1.5 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-lg font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
+                                            />
+                                        ) : (
+                                            <p className="text-lg font-bold text-foreground">{order.customer_name}</p>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <span className="text-xs text-muted uppercase tracking-wider block mb-1">المحافظة</span>
+                                        {isEditing ? (
+                                            <input
+                                                value={(displayValue("city") || "") as string}
+                                                onChange={(e) => updateFormData("city", e.target.value)}
+                                                className="w-full px-3 py-1.5 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-medium focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
+                                            />
+                                        ) : (
+                                            <p className="text-lg font-medium text-foreground">{order.city || "—"}</p>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {/* Phones Row */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {/* Primary Phone */}
-                                    <div className="bg-[var(--background)] rounded-lg p-3 border border-[var(--card-border)]">
+                                    <div>
                                         <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
                                             <Phone className="w-3 h-3" />
                                             الرقم الأساسي
@@ -434,11 +435,11 @@ export function OrderDetailsModal({
                                                     className="flex-1 px-3 py-1.5 bg-white border border-[var(--card-border)] rounded-lg text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
                                                 />
                                             ) : (
-                                                <span className="flex-1 font-mono text-foreground" dir="ltr">{order.phone}</span>
+                                                <span className="flex-1 font-mono text-lg text-foreground tracking-wide" dir="ltr">{order.phone}</span>
                                             )}
                                             <button
                                                 onClick={handleWhatsApp}
-                                                className="w-8 h-8 rounded-lg bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)] transition-all flex items-center justify-center"
+                                                className="w-8 h-8 rounded-lg bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)] transition-all flex items-center justify-center flex-shrink-0"
                                                 title="واتساب"
                                             >
                                                 <MessageCircle className="h-4 w-4" />
@@ -446,7 +447,7 @@ export function OrderDetailsModal({
                                         </div>
                                     </div>
                                     {/* Secondary Phone */}
-                                    <div className="bg-[var(--background)] rounded-lg p-3 border border-[var(--card-border)]">
+                                    <div>
                                         <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
                                             <Phone className="w-3 h-3" />
                                             الرقم الثانوي
@@ -461,7 +462,7 @@ export function OrderDetailsModal({
                                                     className="flex-1 px-3 py-1.5 bg-white border border-[var(--card-border)] rounded-lg text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
                                                 />
                                             ) : (
-                                                <span className="flex-1 font-mono text-foreground" dir="ltr">
+                                                <span className="flex-1 font-mono text-lg text-foreground tracking-wide" dir="ltr">
                                                     {order.secondary_phone || "—"}
                                                 </span>
                                             )}
@@ -474,7 +475,7 @@ export function OrderDetailsModal({
                                                         );
                                                         window.open(link, "_blank");
                                                     }}
-                                                    className="w-8 h-8 rounded-lg bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)] transition-all flex items-center justify-center"
+                                                    className="w-8 h-8 rounded-lg bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)] transition-all flex items-center justify-center flex-shrink-0"
                                                     title="واتساب"
                                                 >
                                                     <MessageCircle className="h-4 w-4" />
@@ -484,38 +485,24 @@ export function OrderDetailsModal({
                                     </div>
                                 </div>
 
-                                {/* City & Address */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    <div>
-                                        <span className="text-xs text-muted uppercase tracking-wider block mb-1">المدينة</span>
-                                        {isEditing ? (
-                                            <input
-                                                value={(displayValue("city") || "") as string}
-                                                onChange={(e) => updateFormData("city", e.target.value)}
-                                                className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
-                                            />
-                                        ) : (
-                                            <p className="text-foreground">{order.city || "—"}</p>
-                                        )}
-                                    </div>
-                                    <div>
-                                        <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1 mb-1">
-                                            <MapPin className="h-3 w-3" />
-                                            العنوان
-                                        </span>
-                                        {isEditing ? (
-                                            <textarea
-                                                value={(displayValue("address_details") || "") as string}
-                                                onChange={(e) => updateFormData("address_details", e.target.value)}
-                                                rows={2}
-                                                className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[var(--card-border)] resize-none"
-                                            />
-                                        ) : (
-                                            <p className="text-sm text-muted">
-                                                {order.address_details || "لم يتم تحديد العنوان"}
-                                            </p>
-                                        )}
-                                    </div>
+                                {/* Address Row */}
+                                <div>
+                                    <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1 mb-1.5">
+                                        <MapPin className="h-3 w-3" />
+                                        العنوان الكامل
+                                    </span>
+                                    {isEditing ? (
+                                        <textarea
+                                            value={(displayValue("address_details") || "") as string}
+                                            onChange={(e) => updateFormData("address_details", e.target.value)}
+                                            rows={2}
+                                            className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[var(--card-border)] resize-none"
+                                        />
+                                    ) : (
+                                        <p className="text-sm font-medium text-foreground bg-[var(--background)] px-3 py-2.5 rounded-lg leading-relaxed">
+                                            {order.address_details || "لم يتم تحديد العنوان"}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         </div>
