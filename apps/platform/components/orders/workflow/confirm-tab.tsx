@@ -87,7 +87,7 @@ export function ConfirmTab({
                             transition={{ delay: index * 0.03 }}
                             onClick={() => onViewDetails(order)}
                             className={cn(
-                                "pastel-card p-4 cursor-pointer transition-all hover:shadow-md",
+                                "pastel-card p-4 cursor-pointer transition-all hover:shadow-md flex flex-col h-full",
                                 isBlack && "border-rose-300 bg-rose-50/50"
                             )}
                         >
@@ -139,22 +139,18 @@ export function ConfirmTab({
                                 </span>
                             </div>
 
-                            {/* Items */}
-                            <div className="flex flex-wrap gap-1.5 mb-3">
-                                {order.items?.slice(0, 2).map((item, i) => (
-                                    <span
-                                        key={i}
-                                        className="px-2 py-1 bg-[var(--background)] rounded-lg text-xs font-medium text-foreground"
-                                    >
+                            {/* Items - compact single line */}
+                            <div className="text-sm text-foreground mb-3 truncate">
+                                {order.items?.map((item, i) => (
+                                    <span key={i}>
+                                        {i > 0 && ", "}
                                         {item.name} ×{item.quantity}
                                     </span>
                                 ))}
-                                {(order.items?.length || 0) > 2 && (
-                                    <span className="px-2 py-1 text-xs text-muted">
-                                        +{order.items!.length - 2} more
-                                    </span>
-                                )}
                             </div>
+
+                            {/* Spacer to push content down */}
+                            <div className="flex-1" />
 
                             {/* Time */}
                             <div className="flex items-center gap-1.5 text-xs text-muted mb-4 pb-3 border-b border-dashed border-[var(--card-border)]">
