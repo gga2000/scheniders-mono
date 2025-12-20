@@ -104,10 +104,13 @@ export function useProductsCrud() {
     // Add new product
     const addProduct = async (data: ProductFormData): Promise<Product | null> => {
         try {
+            // Exclude sku since the column doesn't exist in the database
+            const { sku, ...productData } = data;
+
             const { data: newProduct, error: insertError } = await supabase
                 .from("products")
                 .insert([{
-                    ...data,
+                    ...productData,
                     is_archived: false,
                 }])
                 .select()
@@ -127,9 +130,12 @@ export function useProductsCrud() {
     // Update product
     const updateProduct = async (id: string, data: Partial<ProductFormData>): Promise<boolean> => {
         try {
+            // Exclude sku since the column doesn't exist
+            const { sku, ...updateData } = data as ProductFormData;
+
             const { error: updateError } = await supabase
                 .from("products")
-                .update(data)
+                .update(updateData)
                 .eq("id", id);
 
             if (updateError) throw updateError;
