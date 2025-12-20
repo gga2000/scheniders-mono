@@ -47,7 +47,7 @@ interface OrderDetailsModalProps {
 }
 
 export function OrderDetailsModal({
-    order,
+    order: propOrder,
     open,
     onClose,
     onUpdate,
@@ -55,6 +55,12 @@ export function OrderDetailsModal({
     onGetTimeline,
     onGetNotes,
 }: OrderDetailsModalProps) {
+    const [order, setOrder] = useState<Order | null>(propOrder);
+
+    // Sync local state with prop updates
+    useEffect(() => {
+        setOrder(propOrder);
+    }, [propOrder]);
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
@@ -125,20 +131,33 @@ export function OrderDetailsModal({
     };
 
     const handleStatusChange = async (newStatus: Order["status"]) => {
-        if (!onStatusUpdate) return;
+        if (!onStatusUpdate || !order) return;
 
         setIsUpdatingStatus(true);
+
+        const previousStatus = order.status;
+
+        // Optimistic update
+        setOrder(prev => prev ? { ...prev, status: newStatus } : null);
 
         let rejectionReason: string | undefined;
         if (newStatus === "rejected") {
             const promptResult = prompt("سبب الرفض (اختياري):");
-            rejectionReason = promptResult !== null ? promptResult : undefined;
+            if (promptResult === null) {
+                // User cancelled, revert
+                setOrder(prev => prev ? { ...prev, status: previousStatus } : null);
+                setIsUpdatingStatus(false);
+                return;
+            }
+            rejectionReason = promptResult;
         }
 
         const result = await onStatusUpdate(order.id, newStatus, rejectionReason);
 
         if (!result.success) {
             alert(`فشل تحديث الحالة: ${result.error}`);
+            // Revert on failure
+            setOrder(prev => prev ? { ...prev, status: previousStatus } : null);
         }
 
         setIsUpdatingStatus(false);
@@ -310,7 +329,16 @@ export function OrderDetailsModal({
                                     <button
                                         key={p.value}
                                         onClick={async () => {
-                                            await onUpdate(order.id, { priority: p.value } as Partial<Order>);
+                                            if (!order) return;
+                                            const oldPriority = order.priority;
+                                            const newPriority = p.value as Order["priority"];
+                                            setOrder(prev => prev ? { ...prev, priority: newPriority } : null);
+
+                                            const result = await onUpdate(order.id, { priority: newPriority } as Partial<Order>);
+                                            if (!result.success) {
+                                                // Revert
+                                                setOrder(prev => prev ? { ...prev, priority: oldPriority } : null);
+                                            }
                                         }}
                                         className={cn(
                                             "flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all",
@@ -331,9 +359,16 @@ export function OrderDetailsModal({
                             {/* Schedule - Colored */}
                             <button
                                 onClick={async () => {
+                                    if (!order) return;
                                     const dateInput = prompt('موعد التوصيل (YYYY-MM-DD):', order.scheduled_date || new Date().toISOString().split('T')[0]);
                                     if (dateInput) {
-                                        await onUpdate(order.id, { scheduled_date: dateInput } as Partial<Order>);
+                                        const oldDate = order.scheduled_date;
+                                        setOrder(prev => prev ? { ...prev, scheduled_date: dateInput } : null);
+
+                                        const result = await onUpdate(order.id, { scheduled_date: dateInput } as Partial<Order>);
+                                        if (!result.success) {
+                                            setOrder(prev => prev ? { ...prev, scheduled_date: oldDate } : null);
+                                        }
                                     }
                                 }}
                                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all bg-blue-100 text-blue-700 hover:bg-blue-200"
@@ -346,9 +381,18 @@ export function OrderDetailsModal({
                             </button>
                             <button
                                 onClick={async () => {
+                                    if (!order) return;
                                     const tomorrow = new Date();
                                     tomorrow.setDate(tomorrow.getDate() + 1);
-                                    await onUpdate(order.id, { scheduled_date: tomorrow.toISOString().split('T')[0] } as Partial<Order>);
+                                    const dateStr = tomorrow.toISOString().split('T')[0];
+
+                                    const oldDate = order.scheduled_date;
+                                    setOrder(prev => prev ? { ...prev, scheduled_date: dateStr } : null);
+
+                                    const result = await onUpdate(order.id, { scheduled_date: dateStr } as Partial<Order>);
+                                    if (!result.success) {
+                                        setOrder(prev => prev ? { ...prev, scheduled_date: oldDate } : null);
+                                    }
                                 }}
                                 className="px-2 py-1.5 text-xs rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all"
                             >
