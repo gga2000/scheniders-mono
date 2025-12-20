@@ -50,6 +50,9 @@ export interface OrderItem {
     quantity: number;
     price: number;
     sku?: string; // Product SKU from LightFunnels for matching
+    product_id?: string; // Matched product ID
+    image_url?: string; // Product image URL
+    tag_color?: string; // Product tag color
 }
 
 export interface Blacklist {
