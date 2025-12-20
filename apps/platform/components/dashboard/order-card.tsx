@@ -57,7 +57,8 @@ export function OrderCard({ order, loadingId, onStatusUpdate, onViewDetails, isB
         if (!items || items.length === 0) return [];
         return items.slice(0, 2).map(item => ({
             name: item.name,
-            quantity: item.quantity
+            quantity: item.quantity,
+            image_url: item.image_url
         }));
     };
 
@@ -231,15 +232,23 @@ export function OrderCard({ order, loadingId, onStatusUpdate, onViewDetails, isB
                     <div className="flex-1 min-w-0 space-y-2 hidden md:block">
                         {/* Product Row */}
                         <div className="flex items-center gap-3">
-                            {/* Product Thumbnail Placeholder */}
-                            <div className={cn(
-                                "w-12 h-12 rounded-xl border flex items-center justify-center flex-shrink-0",
-                                isNew
-                                    ? "bg-orange-50 border-orange-200"
-                                    : "bg-[var(--background)] border-[var(--card-border)]"
-                            )}>
-                                <Package className={cn("w-5 h-5", isNew ? "text-orange-600" : "text-muted")} />
-                            </div>
+                            {/* Product Thumbnail */}
+                            {items[0]?.image_url ? (
+                                <img
+                                    src={items[0].image_url}
+                                    alt={items[0].name}
+                                    className="w-12 h-12 rounded-xl object-cover border border-[var(--card-border)] flex-shrink-0"
+                                />
+                            ) : (
+                                <div className={cn(
+                                    "w-12 h-12 rounded-xl border flex items-center justify-center flex-shrink-0",
+                                    isNew
+                                        ? "bg-orange-50 border-orange-200"
+                                        : "bg-[var(--background)] border-[var(--card-border)]"
+                                )}>
+                                    <Package className={cn("w-5 h-5", isNew ? "text-orange-600" : "text-muted")} />
+                                </div>
+                            )}
 
                             {/* Product Names */}
                             <div className="flex-1 min-w-0">
