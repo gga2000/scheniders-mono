@@ -9,7 +9,7 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PU
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Simple fuzzy matching - checks if product name contains keyword
+// Improved fuzzy matching for Arabic product names
 function matchProduct(orderProductName: string, products: any[]): any | null {
     const normalized = orderProductName.toLowerCase().trim();
 
@@ -19,22 +19,39 @@ function matchProduct(orderProductName: string, products: any[]): any | null {
     );
     if (exactMatch) return exactMatch;
 
-    // Try partial match
-    const partialMatch = products.find(p => {
-        const productName = p.name.toLowerCase();
-        // Check if order product contains the product name or vice versa
-        return normalized.includes(productName) || productName.includes(normalized);
+    // Try if order item contains exact product name anywhere
+    const containsMatch = products.find(p => {
+        const productName = p.name.toLowerCase().trim();
+        return normalized.includes(productName);
     });
-    if (partialMatch) return partialMatch;
+    if (containsMatch) return containsMatch;
 
-    // Try keyword matching
-    const keywords = normalized.split(/[\s-]+/).filter(k => k.length > 3);
-    const keywordMatch = products.find(p => {
-        const productName = p.name.toLowerCase();
-        return keywords.some(keyword => productName.includes(keyword));
+    // Try if product name is part of order item (e.g., "برسيفيرون" in "عطر برسيفيرون الفاخر...")
+    const reverseMatch = products.find(p => {
+        const productName = p.name.toLowerCase().trim();
+        // Check if the core product name appears in the order
+        return normalized.includes(productName);
     });
+    if (reverseMatch) return reverseMatch;
 
-    return keywordMatch || null;
+    // Try variations - remove common prefixes/suffixes
+    const cleanedOrder = normalized
+        .replace(/^عطر\s*/i, '')           // Remove "عطر" prefix
+        .replace(/\s*الفاخر.*/i, '')       // Remove "الفاخر" and anything after
+        .replace(/\s*من باريس.*/i, '')    // Remove "من باريس" and anything after
+        .replace(/\s*للرجال.*/i, '')      // Remove "للرجال" and anything after
+        .replace(/\s*للنساء.*/i, '')      // Remove "للنساء" and anything after
+        .trim();
+
+    if (cleanedOrder) {
+        const cleanMatch = products.find(p => {
+            const productName = p.name.toLowerCase().trim();
+            return cleanedOrder.includes(productName) || productName.includes(cleanedOrder);
+        });
+        if (cleanMatch) return cleanMatch;
+    }
+
+    return null;
 }
 
 async function matchOrdersToProducts() {
