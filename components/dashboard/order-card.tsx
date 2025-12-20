@@ -256,9 +256,9 @@ export function OrderCard({ order, loadingId, onStatusUpdate, onViewDetails, isB
                                 {items.length > 0 ? (
                                     <div className="flex flex-wrap gap-2">
                                         {items.map((item, idx) => {
-                                            // Quantity-based colors: 1=green, 2=orange, 3+=red
+                                            // Only color quantity badge if > 1
                                             const quantityColor = item.quantity === 1
-                                                ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                                                ? 'bg-[var(--background)] text-muted border-[var(--card-border)]'
                                                 : item.quantity === 2
                                                     ? 'bg-orange-100 text-orange-700 border-orange-300'
                                                     : 'bg-rose-100 text-rose-700 border-rose-300';
