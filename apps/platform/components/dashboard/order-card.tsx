@@ -61,6 +61,17 @@ export function OrderCard({ order, loadingId, onStatusUpdate, onViewDetails, isB
         }));
     };
 
+    // Extract full address from notes (format: "note | address")
+    const getFullAddress = () => {
+        if (order.notes && order.notes.includes(' | ')) {
+            const parts = order.notes.split(' | ');
+            return parts[parts.length - 1]; // Last part is the address
+        }
+        return order.city || '';
+    };
+
+    const fullAddress = getFullAddress();
+
     // Soft pastel status colors - reassigned (with return order override)
     const getStatusColor = () => {
         if (isReturn) return "bg-purple-400"; // Purple for return orders
@@ -264,13 +275,13 @@ export function OrderCard({ order, loadingId, onStatusUpdate, onViewDetails, isB
                             </div>
 
                             {/* Divider */}
-                            {order.city && (
+                            {fullAddress && (
                                 <>
                                     <span className="text-[var(--card-border)]">•</span>
-                                    {/* Address */}
-                                    <div className="flex items-center gap-1.5 text-muted">
-                                        <MapPin className="w-3.5 h-3.5" />
-                                        <span className="truncate max-w-[150px]">{order.city}</span>
+                                    {/* Full Address */}
+                                    <div className="flex items-center gap-1.5 text-muted flex-1 min-w-0">
+                                        <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                                        <span className="truncate">{fullAddress}</span>
                                     </div>
                                 </>
                             )}
