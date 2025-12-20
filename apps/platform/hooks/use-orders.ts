@@ -93,13 +93,26 @@ export function useOrders() {
             if (fetchError) throw fetchError;
 
             // Provide defaults for new fields on old orders
-            const ordersWithDefaults = (data || []).map((order) => ({
-                ...order,
-                priority: order.priority || "normal",
-                payment_status: order.payment_status || "cod",
-                is_return: order.is_return || false,
-                is_archived: order.is_archived || false,
-            }));
+            const ordersWithDefaults = (data || []).map((order) => {
+                // Parse items if it's a JSON string (from import script)
+                let parsedItems = order.items;
+                if (typeof order.items === 'string') {
+                    try {
+                        parsedItems = JSON.parse(order.items);
+                    } catch {
+                        parsedItems = [];
+                    }
+                }
+
+                return {
+                    ...order,
+                    items: parsedItems || [],
+                    priority: order.priority || "normal",
+                    payment_status: order.payment_status || "cod",
+                    is_return: order.is_return || false,
+                    is_archived: order.is_archived || false,
+                };
+            });
 
             setOrders(ordersWithDefaults);
             setError(null);
