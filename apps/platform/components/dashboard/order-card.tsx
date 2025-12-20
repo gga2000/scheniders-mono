@@ -258,21 +258,21 @@ export function OrderCard({ order, loadingId, onStatusUpdate, onViewDetails, isB
                                         {items.map((item, idx) => {
                                             // Quantity-based colors: 1=green, 2=orange, 3+=red
                                             const quantityColor = item.quantity === 1
-                                                ? 'bg-emerald-100 text-emerald-700'
+                                                ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
                                                 : item.quantity === 2
-                                                    ? 'bg-orange-100 text-orange-700'
-                                                    : 'bg-rose-100 text-rose-700';
+                                                    ? 'bg-orange-100 text-orange-700 border-orange-300'
+                                                    : 'bg-rose-100 text-rose-700 border-rose-300';
 
                                             return (
                                                 <span
                                                     key={idx}
-                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-medium text-white"
+                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-medium text-foreground bg-[var(--background)] border-l-[3px]"
                                                     style={{
-                                                        backgroundColor: item.tag_color || '#22c55e'
+                                                        borderLeftColor: item.tag_color || '#22c55e'
                                                     }}
                                                 >
                                                     {item.name}
-                                                    <span className={`px-1.5 py-0.5 rounded-md text-xs font-bold ${quantityColor}`}>
+                                                    <span className={`px-1.5 py-0.5 rounded-md text-xs font-bold border ${quantityColor}`}>
                                                         ×{item.quantity}
                                                     </span>
                                                 </span>
