@@ -82,7 +82,7 @@ async function matchOrdersToProducts() {
 
     const { data: products, error: productsError } = await supabase
         .from('products')
-        .select('id, name, price')
+        .select('id, name, price, image_url')
         .eq('is_archived', false);
 
     if (productsError) {
@@ -139,8 +139,10 @@ async function matchOrdersToProducts() {
                 updated = true;
                 return {
                     ...item,
+                    name: match.name,           // Use product name instead of Excel name
                     product_id: match.id,
-                    // Optionally update price to product price
+                    image_url: match.image_url, // Add product image
+                    // Keep original price from order, or use product price:
                     // price: match.price
                 };
             } else {
