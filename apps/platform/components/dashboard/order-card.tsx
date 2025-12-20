@@ -91,7 +91,7 @@ export function OrderCard({ order, loadingId, onStatusUpdate, onViewDetails, isB
     const getPriorityBadge = () => {
         if (order.priority === "urgent") {
             return (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full bg-red-100 text-red-700 uppercase tracking-wider animate-pulse">
+                <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full bg-red-100 text-red-700 uppercase tracking-wider animate-pulse">
                     <Flame className="w-3 h-3" />
                     Urgent
                 </span>
@@ -99,7 +99,7 @@ export function OrderCard({ order, loadingId, onStatusUpdate, onViewDetails, isB
         }
         if (order.priority === "high") {
             return (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 text-amber-700 uppercase tracking-wider">
+                <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full bg-amber-100 text-amber-700 uppercase tracking-wider">
                     <Flag className="w-3 h-3" />
                     High
                 </span>
@@ -200,30 +200,33 @@ export function OrderCard({ order, loadingId, onStatusUpdate, onViewDetails, isB
                             <span className="font-mono">{formatTime(order.created_at)}</span>
                         </div>
 
-                        {/* Status Badge */}
-                        <motion.span
-                            layoutId={`order-status-${order.id}`}
-                            className={cn(
-                                "inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider mt-1",
-                                getStatusBadgeStyle(),
-                                isReturn && "bg-purple-100 text-purple-700"
+                        {/* Tags Row */}
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                            {/* Status Badge */}
+                            <motion.span
+                                layoutId={`order-status-${order.id}`}
+                                className={cn(
+                                    "inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full uppercase tracking-wider",
+                                    getStatusBadgeStyle(),
+                                    isReturn && "bg-purple-100 text-purple-700"
+                                )}
+                            >
+                                {isNew && <Sparkles className="w-3 h-3" />}
+                                {isReturn && <RotateCcw className="w-3 h-3" />}
+                                {isReturn ? "Return" : getStatusLabel(order.status)}
+                            </motion.span>
+
+                            {/* Priority Badge */}
+                            {getPriorityBadge()}
+
+                            {/* Scheduled Date Indicator */}
+                            {order.scheduled_date && (
+                                <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-medium rounded-full bg-blue-50 text-blue-700">
+                                    <Calendar className="w-3 h-3" />
+                                    {new Date(order.scheduled_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                </span>
                             )}
-                        >
-                            {isNew && <Sparkles className="w-3 h-3" />}
-                            {isReturn && <RotateCcw className="w-3 h-3" />}
-                            {isReturn ? "Return" : getStatusLabel(order.status)}
-                        </motion.span>
-
-                        {/* Priority Badge */}
-                        {getPriorityBadge()}
-
-                        {/* Scheduled Date Indicator */}
-                        {order.scheduled_date && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-full bg-blue-50 text-blue-700 mt-1">
-                                <Calendar className="w-3 h-3" />
-                                {new Date(order.scheduled_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                            </span>
-                        )}
+                        </div>
                     </motion.div>
 
                     {/* DIVIDER */}
