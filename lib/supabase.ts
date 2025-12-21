@@ -38,6 +38,7 @@ export interface Order {
     is_return: boolean;
     original_order_id?: string;
     is_archived: boolean;
+    is_pinned?: boolean;
 }
 
 // Order priority levels

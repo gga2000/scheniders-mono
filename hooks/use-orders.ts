@@ -247,7 +247,13 @@ export function useOrders() {
         [filters]
     );
 
-    const filteredOrders = applyFilters(orders);
+    const filteredOrders = applyFilters(orders).sort((a, b) => {
+        // Pinned orders always come first
+        if (a.is_pinned && !b.is_pinned) return -1;
+        if (!a.is_pinned && b.is_pinned) return 1;
+        // Then sort by date descending (newest first)
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
 
     // Get unique cities from orders
     const availableCities = [...new Set(orders.map((o) => o.city).filter(Boolean))] as string[];
@@ -430,6 +436,21 @@ export function useOrders() {
 
     async function setPaymentStatus(orderId: string, paymentStatus: PaymentStatus) {
         return updateOrder(orderId, { payment_status: paymentStatus });
+    }
+
+    // =============================================
+    // PIN ORDERS
+    // =============================================
+
+    async function togglePin(orderId: string) {
+        const order = orders.find(o => o.id === orderId);
+        if (!order) return { success: false, error: "Order not found" };
+
+        return updateOrder(orderId, { is_pinned: !order.is_pinned });
+    }
+
+    async function setPin(orderId: string, isPinned: boolean) {
+        return updateOrder(orderId, { is_pinned: isPinned });
     }
 
     // =============================================
@@ -976,6 +997,8 @@ export function useOrders() {
         setScheduledDate,
         setPriority,
         setPaymentStatus,
+        togglePin,
+        setPin,
 
         // Bulk operations
         bulkUpdateStatus,

@@ -75,6 +75,8 @@ export default function OrdersPage() {
         getCustomerOrderCount,
         getCustomerHistory,
         mergeOrders,
+        // Pin
+        togglePin,
     } = useOrders();
 
     const [sortBy, setSortBy] = useState<"date" | "amount" | "status">("date");
@@ -907,6 +909,7 @@ export default function OrdersPage() {
                                                                     console.error('Merge failed:', result.error);
                                                                 }
                                                             }}
+                                                            onTogglePin={togglePin}
                                                         />
                                                     </StaggerItem>
                                                 );

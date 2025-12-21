@@ -24,6 +24,7 @@ import {
     Copy,
     Link2,
     Clock,
+    Pin,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -37,6 +38,8 @@ interface OrderCardProps {
     customerOrderCount?: number;
     previousOrder?: Order | null;
     onMergeWithPrevious?: (currentOrderId: string, previousOrderId: string) => void;
+    // Pin functionality
+    onTogglePin?: (orderId: string) => void;
 }
 
 export function OrderCard({
@@ -48,6 +51,7 @@ export function OrderCard({
     customerOrderCount = 1,
     previousOrder,
     onMergeWithPrevious,
+    onTogglePin,
 }: OrderCardProps) {
     const isLoading = loadingId === order.id;
     const isNew = order.status === "new";
@@ -55,6 +59,7 @@ export function OrderCard({
     const isUrgent = order.priority === "urgent";
     const isHighPriority = order.priority === "high";
     const hasDuplicates = customerOrderCount > 1;
+    const isPinned = order.is_pinned;
 
     // Format date as "12/3"
     const formatShortDate = (dateStr: string) => {
@@ -198,9 +203,12 @@ export function OrderCard({
             {isReturn && (
                 <div className="absolute -inset-0.5 bg-purple-400 rounded-[22px] blur-md opacity-40 group-hover:opacity-60 transition-opacity" />
             )}
-            {/* Glow effect for duplicate orders */}
-            {hasDuplicates && !isReturn && !isUrgent && (
+            {hasDuplicates && !isReturn && !isUrgent && !isPinned && (
                 <div className="absolute -inset-0.5 bg-orange-400 rounded-[22px] blur-md opacity-50 group-hover:opacity-70 transition-opacity animate-pulse" />
+            )}
+            {/* Glow effect for pinned orders */}
+            {isPinned && (
+                <div className="absolute -inset-0.5 bg-blue-400 rounded-[22px] blur-md opacity-40 group-hover:opacity-60 transition-opacity" />
             )}
 
             <motion.div
@@ -235,7 +243,8 @@ export function OrderCard({
                             layoutId={`order-name-${order.id}`}
                             className="flex items-center gap-2"
                         >
-                            {isNew && <Sparkles className="w-4 h-4 text-orange-500 animate-pulse" />}
+                            {isPinned && <Pin className="w-4 h-4 text-blue-500 -rotate-45" />}
+                            {isNew && !isPinned && <Sparkles className="w-4 h-4 text-orange-500 animate-pulse" />}
                             {isReturn && <RotateCcw className="w-4 h-4 text-purple-600" />}
                             <span className="font-bold text-foreground text-base">
                                 {order.customer_name}
@@ -562,6 +571,25 @@ export function OrderCard({
                         >
                             <Copy className="w-4 h-4" />
                         </button>
+
+                        {/* Pin Button */}
+                        {onTogglePin && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onTogglePin(order.id);
+                                }}
+                                className={cn(
+                                    "w-10 h-10 rounded-xl border transition-all flex items-center justify-center",
+                                    isPinned
+                                        ? "bg-blue-100 border-blue-300 text-blue-600"
+                                        : "bg-[var(--background)] border-[var(--card-border)] text-foreground hover:bg-[var(--card-border)]"
+                                )}
+                                title={isPinned ? "Unpin Order" : "Pin Order"}
+                            >
+                                <Pin className={cn("w-4 h-4", isPinned && "-rotate-45")} />
+                            </button>
+                        )}
 
                         {/* Quick Status Actions */}
                         {order.status !== "delivered" && order.status !== "rejected" && (
