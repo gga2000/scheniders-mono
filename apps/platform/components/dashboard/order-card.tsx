@@ -1,7 +1,7 @@
 "use client";
 
 import { Order, OrderPriority } from "@/lib/supabase";
-import { formatIQD, generateWhatsAppLink, getStatusLabel } from "@/lib/utils";
+import { formatIQD, generateWhatsAppLink, getStatusLabel, copyOrderToClipboard } from "@/lib/utils";
 import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
 import { cn } from "@/lib/utils";
 import {
@@ -541,6 +541,26 @@ export function OrderCard({
                             title="Edit Order"
                         >
                             <Edit className="w-4 h-4" />
+                        </button>
+
+                        {/* Copy Button */}
+                        <button
+                            onClick={async (e) => {
+                                e.stopPropagation();
+                                const success = await copyOrderToClipboard(order);
+                                if (success) {
+                                    // Visual feedback - could add toast here
+                                    const btn = e.currentTarget;
+                                    btn.classList.add('bg-green-100', 'text-green-600', 'border-green-200');
+                                    setTimeout(() => {
+                                        btn.classList.remove('bg-green-100', 'text-green-600', 'border-green-200');
+                                    }, 1000);
+                                }
+                            }}
+                            className="w-10 h-10 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-foreground hover:bg-[var(--card-border)] transition-all flex items-center justify-center"
+                            title="Copy Order Details"
+                        >
+                            <Copy className="w-4 h-4" />
                         </button>
 
                         {/* Quick Status Actions */}

@@ -35,6 +35,8 @@ import {
     Clock,
     CalendarDays,
     History,
+    CreditCard,
+    Banknote,
 } from "lucide-react";
 
 interface OrderDetailsModalProps {
@@ -624,6 +626,56 @@ export function OrderDetailsModal({
                                             {order.address_details || "لم يتم تحديد العنوان"}
                                         </p>
                                     )}
+                                </div>
+                            </div>
+
+                            {/* Payment Type Toggle */}
+                            <div>
+                                <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1 mb-2">
+                                    <CreditCard className="h-3 w-3" />
+                                    طريقة الدفع
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={async () => {
+                                            if (!order) return;
+                                            const oldStatus = order.payment_status;
+                                            setOrder(prev => prev ? { ...prev, payment_status: 'cod' } : null);
+                                            const result = await onUpdate(order.id, { payment_status: 'cod' } as Partial<Order>);
+                                            if (!result.success) {
+                                                setOrder(prev => prev ? { ...prev, payment_status: oldStatus } : null);
+                                            }
+                                        }}
+                                        className={cn(
+                                            "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border",
+                                            order.payment_status === 'cod' || !order.payment_status
+                                                ? "bg-amber-100 border-amber-300 text-amber-800"
+                                                : "bg-white border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                        )}
+                                    >
+                                        <Banknote className="w-4 h-4" />
+                                        كاش (COD)
+                                    </button>
+                                    <button
+                                        onClick={async () => {
+                                            if (!order) return;
+                                            const oldStatus = order.payment_status;
+                                            setOrder(prev => prev ? { ...prev, payment_status: 'prepaid' } : null);
+                                            const result = await onUpdate(order.id, { payment_status: 'prepaid' } as Partial<Order>);
+                                            if (!result.success) {
+                                                setOrder(prev => prev ? { ...prev, payment_status: oldStatus } : null);
+                                            }
+                                        }}
+                                        className={cn(
+                                            "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border",
+                                            order.payment_status === 'prepaid'
+                                                ? "bg-green-100 border-green-300 text-green-800"
+                                                : "bg-white border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                        )}
+                                    >
+                                        <CreditCard className="w-4 h-4" />
+                                        دفع الكتروني
+                                    </button>
                                 </div>
                             </div>
                         </div>
