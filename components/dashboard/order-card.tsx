@@ -23,6 +23,7 @@ import {
     FileText,
     Copy,
     Link2,
+    Clock,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -70,6 +71,39 @@ export function OrderCard({
             hour12: true
         }).replace(' ', '');
     };
+
+    // Get relative time string for order age
+    const getOrderAge = (dateStr: string) => {
+        const now = new Date();
+        const orderDate = new Date(dateStr);
+        const diffMs = now.getTime() - orderDate.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays === 1) return "1d ago";
+        return `${diffDays}d ago`;
+    };
+
+    // Get urgency level based on order age (for pending/new orders)
+    const getAgeUrgency = (dateStr: string) => {
+        if (order.status === "delivered" || order.status === "rejected") return "none";
+
+        const now = new Date();
+        const orderDate = new Date(dateStr);
+        const diffHours = (now.getTime() - orderDate.getTime()) / 3600000;
+
+        if (diffHours < 2) return "fresh";      // Green - just arrived
+        if (diffHours < 4) return "normal";     // Default - normal processing
+        if (diffHours < 8) return "attention";  // Yellow - needs attention
+        if (diffHours < 24) return "urgent";    // Orange - getting old
+        return "stale";                         // Red - very old
+    };
+
+    const orderAge = getOrderAge(order.created_at);
+    const ageUrgency = getAgeUrgency(order.created_at);
 
     const getItemsDisplay = (items: any[]) => {
         if (!items || items.length === 0) return [];
@@ -219,11 +253,25 @@ export function OrderCard({
                             #{order.order_id}
                         </p>
 
-                        {/* Date & Time */}
-                        <div className="flex items-center gap-2 text-xs text-subtle">
-                            <span className="font-semibold">{formatShortDate(order.created_at)}</span>
+                        {/* Date & Time with Age Badge */}
+                        <div className="flex items-center gap-2 text-xs">
+                            <span className="font-semibold text-subtle">{formatShortDate(order.created_at)}</span>
                             <span className="text-[var(--card-border)]">|</span>
-                            <span className="font-mono">{formatTime(order.created_at)}</span>
+                            <span className="font-mono text-subtle">{formatTime(order.created_at)}</span>
+
+                            {/* Order Age Badge with Color Coding */}
+                            <span className={cn(
+                                "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold transition-all",
+                                ageUrgency === "fresh" && "bg-green-100 text-green-700",
+                                ageUrgency === "normal" && "bg-gray-100 text-gray-600",
+                                ageUrgency === "attention" && "bg-yellow-100 text-yellow-700",
+                                ageUrgency === "urgent" && "bg-orange-100 text-orange-700 animate-pulse",
+                                ageUrgency === "stale" && "bg-red-100 text-red-700 animate-pulse",
+                                ageUrgency === "none" && "bg-gray-100 text-gray-500"
+                            )}>
+                                <Clock className="w-3 h-3" />
+                                {orderAge}
+                            </span>
                         </div>
 
                         {/* Tags Row */}
