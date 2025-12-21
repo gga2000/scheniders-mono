@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useOrders } from "@/hooks/use-orders";
-import { Order } from "@/lib/supabase";
+import { Order, PaymentStatus } from "@/lib/supabase";
 import { OrderCard } from "@/components/dashboard/order-card";
 import { OrderDetailsModal } from "@/components/orders/order-details-modal";
 import { CreateOrderModal } from "@/components/orders/create-order-modal";
 import { KanbanBoard } from "@/components/orders/kanban-board";
 import { FloatingActionBar } from "@/components/orders/floating-action-bar";
 import { WorkflowTabs } from "@/components/orders/workflow-tabs";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { EmptyState } from "@/components/ui/empty-states";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layout/page-transition";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -18,8 +20,8 @@ import {
     Package,
     CheckSquare,
     ChevronDown,
-    Calendar,
     MapPin,
+    CreditCard,
     Filter,
     X,
     BarChart3,
@@ -584,35 +586,19 @@ export default function OrdersPage() {
                                                 className="overflow-hidden"
                                             >
                                                 <div className="pt-4 border-t border-[var(--card-border)] space-y-4">
+                                                    {/* Date Range Picker - Premium Component */}
+                                                    <div className="flex flex-wrap items-end gap-4">
+                                                        <div>
+                                                            <label className="text-xs text-muted font-medium block mb-1.5">Date Range</label>
+                                                            <DateRangePicker
+                                                                dateFrom={filters.dateFrom}
+                                                                dateTo={filters.dateTo}
+                                                                onDateChange={(from, to) => setFilters({ ...filters, dateFrom: from, dateTo: to })}
+                                                            />
+                                                        </div>
+                                                    </div>
+
                                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                                        {/* Date From */}
-                                                        <div>
-                                                            <label className="text-xs text-muted font-medium block mb-1.5">From Date</label>
-                                                            <div className="relative">
-                                                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                                                                <input
-                                                                    type="date"
-                                                                    value={filters.dateFrom || ""}
-                                                                    onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value || undefined })}
-                                                                    className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
-                                                                />
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Date To */}
-                                                        <div>
-                                                            <label className="text-xs text-muted font-medium block mb-1.5">To Date</label>
-                                                            <div className="relative">
-                                                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                                                                <input
-                                                                    type="date"
-                                                                    value={filters.dateTo || ""}
-                                                                    onChange={(e) => setFilters({ ...filters, dateTo: e.target.value || undefined })}
-                                                                    className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
-                                                                />
-                                                            </div>
-                                                        </div>
-
                                                         {/* City Filter */}
                                                         <div>
                                                             <label className="text-xs text-muted font-medium block mb-1.5">City</label>
@@ -646,6 +632,26 @@ export default function OrdersPage() {
                                                                     {availableProducts.map((product) => (
                                                                         <option key={product} value={product}>{product}</option>
                                                                     ))}
+                                                                </select>
+                                                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Payment Status Filter */}
+                                                        <div>
+                                                            <label className="text-xs text-muted font-medium block mb-1.5">Payment</label>
+                                                            <div className="relative">
+                                                                <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                                                                <select
+                                                                    value={filters.paymentStatus || ""}
+                                                                    onChange={(e) => setFilters({ ...filters, paymentStatus: (e.target.value as PaymentStatus) || undefined })}
+                                                                    className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all appearance-none cursor-pointer"
+                                                                >
+                                                                    <option value="">All Payments</option>
+                                                                    <option value="cod">Cash on Delivery</option>
+                                                                    <option value="prepaid">Prepaid (Digital)</option>
+                                                                    <option value="pending">Pending</option>
+                                                                    <option value="partial">Partial</option>
                                                                 </select>
                                                                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
                                                             </div>
@@ -829,13 +835,11 @@ export default function OrdersPage() {
                                 {viewMode === "cards" && (
                                     <StaggerContainer className="space-y-3">
                                         {filteredOrders.length === 0 ? (
-                                            <div className="pastel-card p-12 text-center">
-                                                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--background)] flex items-center justify-center">
-                                                    <Package className="h-8 w-8 text-[var(--foreground-subtle)]" />
-                                                </div>
-                                                <p className="text-lg font-medium text-foreground mb-1">No orders found</p>
-                                                <p className="text-sm text-muted">Try adjusting your search or filters</p>
-                                            </div>
+                                            <EmptyState
+                                                type={(filters.status as any) || "all"}
+                                                searchQuery={filters.searchQuery}
+                                                hasFilters={!!(filters.dateFrom || filters.dateTo || filters.city || filters.product || filters.priority)}
+                                            />
                                         ) : (
                                             filteredOrders.map((order) => {
                                                 const customerOrders = getCustomerHistory(order.phone);

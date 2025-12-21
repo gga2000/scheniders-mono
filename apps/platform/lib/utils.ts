@@ -92,3 +92,43 @@ export function getStatusLabel(status: string): string {
 
     return labels[status as keyof typeof labels] || status;
 }
+
+/**
+ * Copy order details to clipboard in a formatted way
+ */
+export async function copyOrderToClipboard(order: {
+    order_id: string;
+    customer_name: string;
+    phone: string;
+    city?: string;
+    address_details?: string;
+    items?: { name: string; quantity: number; price?: number }[];
+    price: number;
+    notes?: string;
+}): Promise<boolean> {
+    const items = order.items || [];
+    const itemsList = items
+        .map(item => `• ${item.name} × ${item.quantity}`)
+        .join('\n');
+
+    const address = order.address_details || order.city || 'غير محدد';
+
+    const text = `📦 طلب رقم: #${order.order_id}
+👤 الزبون: ${order.customer_name}
+📱 الهاتف: ${order.phone}
+📍 العنوان: ${address}
+
+🛒 المنتجات:
+${itemsList}
+
+💰 المجموع: ${formatIQD(Number(order.price))}
+${order.notes ? `\n📝 ملاحظات: ${order.notes}` : ''}`;
+
+    try {
+        await navigator.clipboard.writeText(text);
+        return true;
+    } catch (err) {
+        console.error('Failed to copy:', err);
+        return false;
+    }
+}
