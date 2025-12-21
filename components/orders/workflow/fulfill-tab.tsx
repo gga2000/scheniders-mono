@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Package, CheckSquare, Square, Printer, Truck, Eye, BoxSelect } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
+import { formatPhoneForDisplay } from "@/lib/order-utils";
 import type { Order } from "@/lib/supabase";
 
 interface FulfillTabProps {
@@ -72,7 +73,8 @@ export function FulfillTab({
                     <div class="header">📦 SHIPPING LABEL</div>
                     <div class="info"><strong>Order:</strong> #${order.order_id}</div>
                     <div class="info"><strong>Customer:</strong> ${order.customer_name}</div>
-                    <div class="info"><strong>Phone:</strong> ${order.phone}</div>
+                    <div class="info"><strong>Phone 1:</strong> ${formatPhoneForDisplay(order.phone)}</div>
+                    ${order.secondary_phone ? `<div class="info"><strong>Phone 2:</strong> ${formatPhoneForDisplay(order.secondary_phone)}</div>` : ''}
                     <div class="info"><strong>City:</strong> ${order.city || 'N/A'}</div>
                     <div class="info" style="margin-top:12px;"><strong>Items:</strong></div>
                     ${order.items?.map(i => `<div class="info">• ${i.name} ×${i.quantity}</div>`).join('') || 'N/A'}

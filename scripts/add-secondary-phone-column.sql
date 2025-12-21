@@ -1,8 +1,6 @@
--- Add secondary_phone column to orders table
--- Run this in Supabase SQL Editor
+-- Run this in your Supabase SQL Editor to add the secondary_phone column:
 
-ALTER TABLE orders 
-ADD COLUMN IF NOT EXISTS secondary_phone TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS secondary_phone TEXT;
 
--- Add comment
-COMMENT ON COLUMN orders.secondary_phone IS 'Secondary phone number from Excel import';
+-- After running this, you can run the script again to populate secondary phones:
+-- npx tsx scripts/add-secondary-phones.ts

@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Truck, CheckCircle, XCircle, AlertTriangle, RefreshCw, MapPin, Phone } from "lucide-react";
+import { Truck, CheckCircle, XCircle, AlertTriangle, RefreshCw, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
+import { DualPhoneDisplay } from "@/components/ui/phone-display";
 import type { Order } from "@/lib/supabase";
 
 interface DeliveryTabProps {
@@ -124,16 +125,18 @@ export function DeliveryTab({
                                     <div>
                                         <span className="font-mono text-sm font-bold text-amber-700">#{order.order_id}</span>
                                         <p className="font-semibold text-foreground">{order.customer_name}</p>
-                                        <div className="flex items-center gap-3 text-xs text-muted mt-1">
-                                            <span className="flex items-center gap-1">
-                                                <Phone className="w-3 h-3" />
-                                                {order.phone}
-                                            </span>
-                                            <span className="flex items-center gap-1">
-                                                <MapPin className="w-3 h-3" />
-                                                {order.city}
-                                            </span>
-                                        </div>
+                                        <DualPhoneDisplay
+                                            primaryPhone={order.phone}
+                                            secondaryPhone={order.secondary_phone}
+                                            customerName={order.customer_name}
+                                            orderId={order.order_id}
+                                            showWhatsApp={true}
+                                            size="sm"
+                                        />
+                                        <span className="flex items-center gap-1">
+                                            <MapPin className="w-3 h-3" />
+                                            {order.city}
+                                        </span>
                                     </div>
                                     <div className="text-right">
                                         <p className="font-bold text-foreground">{formatIQD(Number(order.price))}</p>

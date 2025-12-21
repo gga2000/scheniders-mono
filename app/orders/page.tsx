@@ -67,6 +67,10 @@ export default function OrdersPage() {
         deleteFilterPreset,
         getOrderTimeline,
         getOrderNotes,
+        // Duplicate detection
+        getCustomerOrderCount,
+        getCustomerHistory,
+        mergeOrders,
     } = useOrders();
 
     const [sortBy, setSortBy] = useState<"date" | "amount" | "status">("date");
@@ -833,20 +837,35 @@ export default function OrdersPage() {
                                                 <p className="text-sm text-muted">Try adjusting your search or filters</p>
                                             </div>
                                         ) : (
-                                            filteredOrders.map((order) => (
-                                                <StaggerItem key={order.id}>
-                                                    <OrderCard
-                                                        order={order}
-                                                        loadingId={loadingId}
-                                                        onStatusUpdate={handleStatusUpdate}
-                                                        onViewDetails={(o) => {
-                                                            setSelectedOrder(o);
-                                                            setIsModalOpen(true);
-                                                        }}
-                                                        isBlacklisted={isBlacklisted(order.phone)}
-                                                    />
-                                                </StaggerItem>
-                                            ))
+                                            filteredOrders.map((order) => {
+                                                const customerOrders = getCustomerHistory(order.phone);
+                                                const orderCount = getCustomerOrderCount(order.phone);
+                                                // Find previous order (not the current one)
+                                                const previousOrder = customerOrders.find(o => o.id !== order.id) || null;
+
+                                                return (
+                                                    <StaggerItem key={order.id}>
+                                                        <OrderCard
+                                                            order={order}
+                                                            loadingId={loadingId}
+                                                            onStatusUpdate={handleStatusUpdate}
+                                                            onViewDetails={(o) => {
+                                                                setSelectedOrder(o);
+                                                                setIsModalOpen(true);
+                                                            }}
+                                                            isBlacklisted={isBlacklisted(order.phone)}
+                                                            customerOrderCount={orderCount}
+                                                            previousOrder={previousOrder}
+                                                            onMergeWithPrevious={async (keepId, archiveId) => {
+                                                                const result = await mergeOrders(keepId, archiveId);
+                                                                if (!result.success) {
+                                                                    console.error('Merge failed:', result.error);
+                                                                }
+                                                            }}
+                                                        />
+                                                    </StaggerItem>
+                                                );
+                                            })
                                         )}
                                     </StaggerContainer>
                                 )}
