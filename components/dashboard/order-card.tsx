@@ -25,6 +25,7 @@ import {
     Link2,
     Clock,
     Pin,
+    CopyPlus,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -40,6 +41,8 @@ interface OrderCardProps {
     onMergeWithPrevious?: (currentOrderId: string, previousOrderId: string) => void;
     // Pin functionality
     onTogglePin?: (orderId: string) => void;
+    // Clone functionality
+    onCloneOrder?: (orderId: string) => void;
 }
 
 export function OrderCard({
@@ -52,6 +55,7 @@ export function OrderCard({
     previousOrder,
     onMergeWithPrevious,
     onTogglePin,
+    onCloneOrder,
 }: OrderCardProps) {
     const isLoading = loadingId === order.id;
     const isNew = order.status === "new";
@@ -588,6 +592,20 @@ export function OrderCard({
                                 title={isPinned ? "Unpin Order" : "Pin Order"}
                             >
                                 <Pin className={cn("w-4 h-4", isPinned && "-rotate-45")} />
+                            </button>
+                        )}
+
+                        {/* Clone Button */}
+                        {onCloneOrder && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onCloneOrder(order.id);
+                                }}
+                                className="w-10 h-10 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-foreground hover:bg-purple-100 hover:text-purple-600 hover:border-purple-200 transition-all flex items-center justify-center"
+                                title="Clone Order"
+                            >
+                                <CopyPlus className="w-4 h-4" />
                             </button>
                         )}
 

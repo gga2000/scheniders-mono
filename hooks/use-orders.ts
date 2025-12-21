@@ -397,6 +397,59 @@ export function useOrders() {
         }
     }
 
+    async function cloneOrder(orderId: string) {
+        try {
+            const originalOrder = orders.find(o => o.id === orderId);
+            if (!originalOrder) {
+                return { success: false, error: "Order not found" };
+            }
+
+            // Generate new order ID
+            const newOrderId = `CLN-${originalOrder.order_id}-${Date.now().toString(36).toUpperCase()}`;
+
+            // Clone the order with fresh data
+            const clonedOrderData = {
+                order_id: newOrderId,
+                customer_name: originalOrder.customer_name,
+                phone: originalOrder.phone,
+                secondary_phone: originalOrder.secondary_phone,
+                city: originalOrder.city,
+                governorate_code: originalOrder.governorate_code,
+                address_details: originalOrder.address_details,
+                price: originalOrder.price,
+                items: originalOrder.items,
+                notes: `Cloned from order #${originalOrder.order_id}`,
+                status: "new" as const,
+                priority: "normal" as const,
+                payment_status: originalOrder.payment_status || "cod",
+                is_return: false,
+                is_archived: false,
+                is_pinned: false,
+            };
+
+            const { data, error: insertError } = await supabase
+                .from("orders")
+                .insert([clonedOrderData])
+                .select()
+                .single();
+
+            if (insertError) throw insertError;
+
+            // Add to local state
+            if (data) {
+                setOrders((prev) => [data, ...prev]);
+            }
+
+            return { success: true, data };
+        } catch (err) {
+            console.error("Error cloning order:", err);
+            return {
+                success: false,
+                error: err instanceof Error ? err.message : "Failed to clone order",
+            };
+        }
+    }
+
     // =============================================
     // SCHEDULED DELIVERY DATE
     // =============================================
@@ -994,6 +1047,7 @@ export function useOrders() {
         updateOrderStatus,
         updateOrder,
         createOrder,
+        cloneOrder,
         setScheduledDate,
         setPriority,
         setPaymentStatus,
