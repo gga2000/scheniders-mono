@@ -407,7 +407,7 @@ export function useOrders() {
             // Generate new order ID
             const newOrderId = `CLN-${originalOrder.order_id}-${Date.now().toString(36).toUpperCase()}`;
 
-            // Clone the order with fresh data
+            // Clone the order with fresh data (only include fields that exist in DB)
             const clonedOrderData = {
                 order_id: newOrderId,
                 customer_name: originalOrder.customer_name,
@@ -424,7 +424,7 @@ export function useOrders() {
                 payment_status: originalOrder.payment_status || "cod",
                 is_return: false,
                 is_archived: false,
-                is_pinned: false,
+                // Note: is_pinned is a frontend-only feature for now
             };
 
             const { data, error: insertError } = await supabase
@@ -492,18 +492,30 @@ export function useOrders() {
     }
 
     // =============================================
-    // PIN ORDERS
+    // PIN ORDERS (local-only for now - column doesn't exist in DB)
     // =============================================
 
     async function togglePin(orderId: string) {
         const order = orders.find(o => o.id === orderId);
         if (!order) return { success: false, error: "Order not found" };
 
-        return updateOrder(orderId, { is_pinned: !order.is_pinned });
+        // Update local state only (is_pinned not in database yet)
+        setOrders((prev) =>
+            prev.map((o) =>
+                o.id === orderId ? { ...o, is_pinned: !o.is_pinned } : o
+            )
+        );
+        return { success: true };
     }
 
     async function setPin(orderId: string, isPinned: boolean) {
-        return updateOrder(orderId, { is_pinned: isPinned });
+        // Update local state only (is_pinned not in database yet)
+        setOrders((prev) =>
+            prev.map((o) =>
+                o.id === orderId ? { ...o, is_pinned: isPinned } : o
+            )
+        );
+        return { success: true };
     }
 
     // =============================================
