@@ -1026,6 +1026,29 @@ export function useOrders() {
         };
     })();
 
+    // Calculate Peak Hours
+    const peakTime = (() => {
+        if (orders.length === 0) return "N/A";
+        const hourCounts: Record<number, number> = {};
+        orders.forEach(o => {
+            const hour = new Date(o.created_at).getHours();
+            hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+        });
+
+        let maxHour = 0;
+        let maxCount = 0;
+        Object.entries(hourCounts).forEach(([h, count]) => {
+            if (count > maxCount) {
+                maxCount = count;
+                maxHour = parseInt(h);
+            }
+        });
+
+        const ampm = maxHour >= 12 ? 'PM' : 'AM';
+        const displayHour = maxHour % 12 || 12;
+        return `${displayHour} ${ampm}`;
+    })();
+
     const stats = {
         totalOrders: orders.length,
         todayOrders: orders.filter((o) => {
@@ -1063,6 +1086,7 @@ export function useOrders() {
         urgentOrders: orders.filter((o) => o.priority === "urgent").length,
         revenueTrends,
         velocityMetrics,
+        peakTime,
     };
 
     // =============================================
