@@ -172,6 +172,7 @@ export interface OrderFilters {
     priority?: OrderPriority;
     paymentStatus?: PaymentStatus;
     isReturn?: boolean;
+    isArchived?: boolean;
     searchQuery?: string;
 }
 

@@ -43,6 +43,7 @@ import {
     SlidersHorizontal,
     LayoutList,
     Rows3,
+    Archive,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
@@ -80,6 +81,9 @@ export default function OrdersPage() {
         // Pin & Clone
         togglePin,
         cloneOrder,
+        // Archive
+        archivedOrders,
+        fetchArchivedOrders,
     } = useOrders();
 
     const [sortBy, setSortBy] = useState<"date" | "amount" | "status">("date");
@@ -89,6 +93,7 @@ export default function OrdersPage() {
         }
         return false;
     });
+    const [showArchived, setShowArchived] = useState(false);
     const [loadingId, setLoadingId] = useState<string | null>(null);
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -210,6 +215,9 @@ export default function OrdersPage() {
             : filteredOrders.map(o => o.id);
         exportOrders(ids, "csv");
     };
+
+    // Switch between regular and archived orders
+    const displayedOrders = showArchived ? archivedOrders : filteredOrders;
 
     const filterOptions = [
         { id: "all", label: "All Orders", count: orders.length },
@@ -439,6 +447,26 @@ export default function OrdersPage() {
                                     )}
                                 >
                                     <SlidersHorizontal className="w-4 h-4" />
+                                </button>
+
+                                {/* Archive Toggle */}
+                                <button
+                                    onClick={async () => {
+                                        if (!showArchived && archivedOrders.length === 0) {
+                                            await fetchArchivedOrders();
+                                        }
+                                        setShowArchived(!showArchived);
+                                    }}
+                                    title={showArchived ? "Show Active Orders" : "Show Archived Orders"}
+                                    className={cn(
+                                        "p-3 rounded-2xl border transition-all shadow-sm flex items-center gap-2",
+                                        showArchived
+                                            ? "bg-amber-100 border-amber-200 text-amber-700"
+                                            : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                    )}
+                                >
+                                    <Archive className="w-4 h-4" />
+                                    {showArchived && <span className="text-xs font-medium">Archived</span>}
                                 </button>
 
                                 <button
@@ -895,14 +923,14 @@ export default function OrdersPage() {
                                 {/* Cards View */}
                                 {viewMode === "cards" && (
                                     <StaggerContainer className="space-y-3">
-                                        {filteredOrders.length === 0 ? (
+                                        {displayedOrders.length === 0 ? (
                                             <EmptyState
                                                 type={(filters.status as any) || "all"}
                                                 searchQuery={filters.searchQuery}
                                                 hasFilters={!!(filters.dateFrom || filters.dateTo || filters.city || filters.product || filters.priority)}
                                             />
                                         ) : (
-                                            filteredOrders.map((order) => {
+                                            displayedOrders.map((order) => {
                                                 const customerOrders = getCustomerHistory(order.phone);
                                                 const orderCount = getCustomerOrderCount(order.phone);
                                                 // Find previous order (not the current one)
@@ -952,7 +980,7 @@ export default function OrdersPage() {
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-[var(--card-border)]">
-                                                {filteredOrders.map((order) => (
+                                                {displayedOrders.map((order) => (
                                                     <tr
                                                         key={order.id}
                                                         onClick={() => { setSelectedOrder(order); setIsModalOpen(true); }}
