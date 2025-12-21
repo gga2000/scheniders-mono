@@ -41,6 +41,8 @@ import {
     Eye,
     EyeOff,
     SlidersHorizontal,
+    LayoutList,
+    Rows3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
@@ -75,11 +77,18 @@ export default function OrdersPage() {
         getCustomerOrderCount,
         getCustomerHistory,
         mergeOrders,
-        // Pin
+        // Pin & Clone
         togglePin,
+        cloneOrder,
     } = useOrders();
 
     const [sortBy, setSortBy] = useState<"date" | "amount" | "status">("date");
+    const [compactView, setCompactView] = useState(() => {
+        if (typeof window !== "undefined") {
+            return localStorage.getItem("ordersCompactView") === "true";
+        }
+        return false;
+    });
     const [loadingId, setLoadingId] = useState<string | null>(null);
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -317,6 +326,26 @@ export default function OrdersPage() {
                                             );
                                         })}
                                     </div>
+                                )}
+
+                                {/* Compact View Toggle */}
+                                {!workflowMode && viewMode === "cards" && (
+                                    <button
+                                        onClick={() => {
+                                            const newValue = !compactView;
+                                            setCompactView(newValue);
+                                            localStorage.setItem("ordersCompactView", String(newValue));
+                                        }}
+                                        title={compactView ? "Expanded View" : "Compact View"}
+                                        className={cn(
+                                            "p-3 rounded-2xl border transition-all shadow-sm",
+                                            compactView
+                                                ? "bg-purple-100 border-purple-200 text-purple-700"
+                                                : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                        )}
+                                    >
+                                        {compactView ? <LayoutList className="w-4 h-4" /> : <Rows3 className="w-4 h-4" />}
+                                    </button>
                                 )}
 
                                 {/* Date Picker Dropdown */}
@@ -899,6 +928,7 @@ export default function OrdersPage() {
                                                                 }
                                                             }}
                                                             onTogglePin={togglePin}
+                                                            onCloneOrder={cloneOrder}
                                                         />
                                                     </StaggerItem>
                                                 );
