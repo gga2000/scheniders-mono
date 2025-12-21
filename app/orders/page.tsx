@@ -44,6 +44,8 @@ import {
     LayoutList,
     Rows3,
     Archive,
+    Volume2,
+    VolumeX,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
@@ -94,6 +96,12 @@ export default function OrdersPage() {
         return false;
     });
     const [showArchived, setShowArchived] = useState(false);
+    const [soundEnabled, setSoundEnabled] = useState(() => {
+        if (typeof window !== "undefined") {
+            return notificationService.soundEnabled;
+        }
+        return true;
+    });
     const [loadingId, setLoadingId] = useState<string | null>(null);
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -135,18 +143,7 @@ export default function OrdersPage() {
         localStorage.setItem("ordersWorkflowMode", String(newMode));
     };
 
-    // Toggle notifications
-    const toggleNotifications = async () => {
-        if (notificationsEnabled) {
-            setNotificationsEnabled(false);
-        } else {
-            const granted = await notificationService.requestPermission();
-            setNotificationsEnabled(granted);
-            if (granted) {
-                notificationService.playBeep(); // Confirm sound
-            }
-        }
-    };
+
 
     // Sort hook's filtered orders
     const filteredOrders = hookFilteredOrders.sort((a, b) => {
@@ -397,7 +394,21 @@ export default function OrdersPage() {
 
                                 {/* Notification Toggle */}
                                 <button
-                                    onClick={toggleNotifications}
+                                    onClick={async () => {
+                                        const newState = !notificationsEnabled;
+                                        if (newState) {
+                                            const granted = await notificationService.requestPermission();
+                                            if (granted) {
+                                                setNotificationsEnabled(true);
+                                                notificationService.showNotification({
+                                                    title: "Notifications Enabled",
+                                                    body: "You will now be notified of new orders",
+                                                });
+                                            }
+                                        } else {
+                                            setNotificationsEnabled(false);
+                                        }
+                                    }}
                                     title={notificationsEnabled ? "Notifications enabled" : "Enable notifications"}
                                     className={cn(
                                         "p-3 rounded-2xl border transition-all shadow-sm",
@@ -406,11 +417,28 @@ export default function OrdersPage() {
                                             : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
                                     )}
                                 >
-                                    {notificationsEnabled ? (
-                                        <Bell className="w-4 h-4" />
-                                    ) : (
-                                        <BellOff className="w-4 h-4" />
+                                    {notificationsEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+                                </button>
+
+                                {/* Sound Toggle */}
+                                <button
+                                    onClick={() => {
+                                        const newState = !soundEnabled;
+                                        setSoundEnabled(newState);
+                                        notificationService.soundEnabled = newState;
+                                        if (newState) {
+                                            notificationService.testSound();
+                                        }
+                                    }}
+                                    title={soundEnabled ? "Sound enabled" : "Mute sound"}
+                                    className={cn(
+                                        "p-3 rounded-2xl border transition-all shadow-sm",
+                                        soundEnabled
+                                            ? "bg-blue-100 border-blue-200 text-blue-700"
+                                            : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
                                     )}
+                                >
+                                    {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
                                 </button>
 
                                 {/* Stats Toggle */}
@@ -531,8 +559,16 @@ export default function OrdersPage() {
                                         {/* Conversion Rate */}
                                         <div className="pastel-card p-4">
                                             <p className="text-xs text-muted font-medium uppercase tracking-wide">Conversion</p>
-                                            <p className="text-2xl font-bold text-foreground mt-1">{stats.conversionRate.toFixed(1)}%</p>
-                                            <p className="text-xs text-muted mt-1">success rate</p>
+                                            <div className="flex items-end gap-2 mt-1">
+                                                <p className="text-2xl font-bold text-foreground">{stats.conversionRate.toFixed(1)}%</p>
+                                            </div>
+                                            <div className="w-full h-1.5 bg-gray-100 rounded-full mt-3 overflow-hidden">
+                                                <div
+                                                    className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-1000 ease-out"
+                                                    style={{ width: `${stats.conversionRate}%` }}
+                                                />
+                                            </div>
+                                            <p className="text-[10px] text-muted mt-2">Confirmed vs Total</p>
                                         </div>
 
                                         {/* Average Order Value */}
@@ -540,6 +576,13 @@ export default function OrdersPage() {
                                             <p className="text-xs text-muted font-medium uppercase tracking-wide">AVG Order</p>
                                             <p className="text-2xl font-bold text-foreground mt-1">{formatIQD(stats.averageOrderValue)}</p>
                                             <p className="text-xs text-muted mt-1">per order</p>
+                                        </div>
+
+                                        {/* Peak Time */}
+                                        <div className="pastel-card pastel-bg-purple p-4">
+                                            <p className="text-xs text-purple-700 font-medium uppercase tracking-wide">Peak Time</p>
+                                            <p className="text-2xl font-bold text-purple-900 mt-1">{stats.peakTime}</p>
+                                            <p className="text-xs text-purple-600 mt-1">busiest hour</p>
                                         </div>
                                     </div>
 

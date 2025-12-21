@@ -22,11 +22,27 @@ class NotificationService {
     private notificationSound: HTMLAudioElement | null = null;
     private urgentSound: HTMLAudioElement | null = null;
 
+    private _soundEnabled = true;
+
     constructor() {
         if (typeof window !== "undefined") {
             this.permission = Notification.permission;
             this.initAudio();
+            // Load sound preference
+            const savedSound = localStorage.getItem("ordersSoundEnabled");
+            this._soundEnabled = savedSound !== "false";
         }
+    }
+
+    set soundEnabled(enabled: boolean) {
+        this._soundEnabled = enabled;
+        if (typeof window !== "undefined") {
+            localStorage.setItem("ordersSoundEnabled", String(enabled));
+        }
+    }
+
+    get soundEnabled(): boolean {
+        return this._soundEnabled;
     }
 
     private initAudio() {
@@ -129,18 +145,29 @@ class NotificationService {
         );
     }
 
+    async testSound() {
+        if (!this._soundEnabled) return;
+        this.playSound(false);
+    }
+
     private playSound(urgent = false) {
+        if (!this._soundEnabled) return;
+
         try {
             const sound = urgent ? this.urgentSound : this.notificationSound;
             if (sound) {
                 sound.currentTime = 0;
                 sound.play().catch(() => {
                     // Audio play failed (user hasn't interacted with page yet)
-                    console.log("Audio play failed - user interaction required");
+                    console.log("Audio play failed - trying fallback beep");
+                    this.playBeep(urgent ? 880 : 440, 200);
                 });
+            } else {
+                this.playBeep(urgent ? 880 : 440, 200);
             }
         } catch (error) {
             console.error("Failed to play notification sound:", error);
+            this.playBeep(urgent ? 880 : 440, 200);
         }
     }
 
