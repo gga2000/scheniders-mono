@@ -22,6 +22,8 @@ import {
     ChevronDown,
     MapPin,
     CreditCard,
+    Calendar,
+    CalendarDays,
     Filter,
     X,
     BarChart3,
@@ -105,6 +107,7 @@ export default function OrdersPage() {
         }
         return false;
     });
+    const [showDatePicker, setShowDatePicker] = useState(false);
     const [notificationsEnabled, setNotificationsEnabled] = useState(
         typeof window !== "undefined" && notificationService.isEnabled()
     );
@@ -313,6 +316,56 @@ export default function OrdersPage() {
                                         })}
                                     </div>
                                 )}
+
+                                {/* Date Picker Dropdown */}
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setShowDatePicker(!showDatePicker)}
+                                        className={cn(
+                                            "p-3 rounded-2xl border transition-all shadow-sm flex items-center gap-2",
+                                            (filters.dateFrom || filters.dateTo)
+                                                ? "bg-amber-100 border-amber-200 text-amber-700"
+                                                : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                        )}
+                                        title="Date Filter"
+                                    >
+                                        <CalendarDays className="w-4 h-4" />
+                                        {filters.dateFrom && (
+                                            <span className="text-xs font-medium hidden sm:inline">
+                                                {filters.dateFrom === filters.dateTo
+                                                    ? new Date(filters.dateFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                                                    : `${new Date(filters.dateFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${filters.dateTo ? new Date(filters.dateTo).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '...'}`
+                                                }
+                                            </span>
+                                        )}
+                                    </button>
+
+                                    {/* Date Picker Dropdown Panel */}
+                                    {showDatePicker && (
+                                        <div className="absolute right-0 top-full mt-2 z-50 bg-white rounded-2xl shadow-xl border border-[var(--card-border)] p-4 min-w-[280px]">
+                                            <DateRangePicker
+                                                dateFrom={filters.dateFrom}
+                                                dateTo={filters.dateTo}
+                                                onDateChange={(from, to) => {
+                                                    setFilters({ ...filters, dateFrom: from, dateTo: to });
+                                                    setShowDatePicker(false);
+                                                }}
+                                            />
+                                            {/* Quick Reset */}
+                                            {(filters.dateFrom || filters.dateTo) && (
+                                                <button
+                                                    onClick={() => {
+                                                        setFilters({ ...filters, dateFrom: undefined, dateTo: undefined });
+                                                        setShowDatePicker(false);
+                                                    }}
+                                                    className="mt-3 w-full py-2 text-xs text-muted hover:text-foreground text-center rounded-lg hover:bg-[var(--background)] transition-all"
+                                                >
+                                                    Clear Date Filter
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
 
                                 {/* Notification Toggle */}
                                 <button
@@ -586,18 +639,6 @@ export default function OrdersPage() {
                                                 className="overflow-hidden"
                                             >
                                                 <div className="pt-4 border-t border-[var(--card-border)] space-y-4">
-                                                    {/* Date Range Picker - Premium Component */}
-                                                    <div className="flex flex-wrap items-end gap-4">
-                                                        <div>
-                                                            <label className="text-xs text-muted font-medium block mb-1.5">Date Range</label>
-                                                            <DateRangePicker
-                                                                dateFrom={filters.dateFrom}
-                                                                dateTo={filters.dateTo}
-                                                                onDateChange={(from, to) => setFilters({ ...filters, dateFrom: from, dateTo: to })}
-                                                            />
-                                                        </div>
-                                                    </div>
-
                                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                                         {/* City Filter */}
                                                         <div>
