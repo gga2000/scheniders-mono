@@ -344,8 +344,9 @@ export default function OrdersPage() {
 
                                     {/* Date Picker Dropdown Panel */}
                                     {showDatePicker && (
-                                        <div className="absolute right-0 top-full mt-2 z-50 bg-white rounded-2xl shadow-xl border border-[var(--card-border)] p-4 min-w-[280px]">
+                                        <div className="absolute right-0 top-full mt-2 z-50 shadow-2xl rounded-3xl border border-amber-100 overflow-hidden">
                                             <DateRangePicker
+                                                inline
                                                 dateFrom={filters.dateFrom}
                                                 dateTo={filters.dateTo}
                                                 onDateChange={(from, to) => {
@@ -353,18 +354,6 @@ export default function OrdersPage() {
                                                     setShowDatePicker(false);
                                                 }}
                                             />
-                                            {/* Quick Reset */}
-                                            {(filters.dateFrom || filters.dateTo) && (
-                                                <button
-                                                    onClick={() => {
-                                                        setFilters({ ...filters, dateFrom: undefined, dateTo: undefined });
-                                                        setShowDatePicker(false);
-                                                    }}
-                                                    className="mt-3 w-full py-2 text-xs text-muted hover:text-foreground text-center rounded-lg hover:bg-[var(--background)] transition-all"
-                                                >
-                                                    Clear Date Filter
-                                                </button>
-                                            )}
                                         </div>
                                     )}
                                 </div>
