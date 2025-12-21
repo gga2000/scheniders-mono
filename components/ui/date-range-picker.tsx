@@ -17,6 +17,7 @@ interface DateRangePickerProps {
     dateTo?: string;
     onDateChange: (from: string | undefined, to: string | undefined) => void;
     className?: string;
+    inline?: boolean; // When true, shows calendar directly without trigger button
 }
 
 type PresetType = "today" | "yesterday" | "thisWeek" | "thisMonth" | "last7" | "last30" | "custom";
@@ -120,8 +121,9 @@ export function DateRangePicker({
     dateTo,
     onDateChange,
     className,
+    inline = false,
 }: DateRangePickerProps) {
-    const [isOpen, setIsOpen] = useState(false);
+    const [isOpen, setIsOpen] = useState(inline); // Start open if inline
     const [activePreset, setActivePreset] = useState<PresetType | null>(null);
     const [viewDate, setViewDate] = useState(() => new Date());
     const [selectingEnd, setSelectingEnd] = useState(false);
@@ -294,6 +296,103 @@ export function DateRangePicker({
         if (dateFrom === dateTo) return formatDisplayDate(dateFrom);
         return `${formatDisplayDate(dateFrom)} — ${formatDisplayDate(dateTo)}`;
     };
+
+    // For inline mode, render just the panel content directly
+    if (inline) {
+        return (
+            <div className={cn("flex bg-white rounded-2xl overflow-hidden", className)}>
+                {/* Presets Sidebar */}
+                <div className="w-40 bg-gradient-to-b from-amber-50 to-orange-50 p-3 border-r border-amber-100">
+                    <div className="flex items-center gap-2 mb-3 px-2">
+                        <Sparkles className="w-4 h-4 text-amber-500" />
+                        <span className="text-xs font-semibold text-amber-700 uppercase tracking-wider">
+                            Quick Pick
+                        </span>
+                    </div>
+                    <div className="space-y-1">
+                        {presets.map((preset) => (
+                            <motion.button
+                                key={preset.id}
+                                type="button"
+                                onClick={() => handlePresetClick(preset)}
+                                whileHover={{ x: 4 }}
+                                whileTap={{ scale: 0.98 }}
+                                className={cn(
+                                    "w-full px-3 py-2 rounded-xl text-sm text-left transition-all flex items-center gap-2",
+                                    activePreset === preset.id
+                                        ? "bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-md shadow-amber-500/30"
+                                        : "text-foreground hover:bg-white hover:shadow-sm"
+                                )}
+                            >
+                                {activePreset === preset.id && (
+                                    <Check className="w-3.5 h-3.5" />
+                                )}
+                                <span className={activePreset !== preset.id ? "ml-5" : ""}>
+                                    {preset.label}
+                                </span>
+                            </motion.button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Calendar */}
+                <div className="p-4 w-72">
+                    {/* Month Navigation */}
+                    <div className="flex items-center justify-between mb-4">
+                        <motion.button
+                            type="button"
+                            onClick={goToPrevMonth}
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            className="p-2 rounded-xl hover:bg-amber-100 text-muted transition-all"
+                        >
+                            <ChevronLeft className="w-5 h-5" />
+                        </motion.button>
+                        <span className="font-semibold text-foreground">
+                            {viewDate.toLocaleDateString("en-US", {
+                                month: "long",
+                                year: "numeric",
+                            })}
+                        </span>
+                        <motion.button
+                            type="button"
+                            onClick={goToNextMonth}
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            className="p-2 rounded-xl hover:bg-amber-100 text-muted transition-all"
+                        >
+                            <ChevronRight className="w-5 h-5" />
+                        </motion.button>
+                    </div>
+
+                    {/* Calendar Grid */}
+                    {renderCalendar()}
+
+                    {/* Actions */}
+                    <div className="flex gap-2 mt-4 pt-4 border-t border-amber-100">
+                        <motion.button
+                            type="button"
+                            onClick={handleClear}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            className="flex-1 py-2.5 rounded-xl border border-amber-200 text-sm font-medium text-muted hover:bg-amber-50 transition-all"
+                        >
+                            Clear
+                        </motion.button>
+                        <motion.button
+                            type="button"
+                            onClick={handleApply}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 text-white text-sm font-semibold shadow-md shadow-amber-500/30 hover:shadow-lg transition-all"
+                        >
+                            Apply
+                        </motion.button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div ref={containerRef} className={cn("relative", className)}>
