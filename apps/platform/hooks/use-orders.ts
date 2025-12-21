@@ -648,7 +648,94 @@ export function useOrders() {
     // =============================================
 
     function getCustomerHistory(phone: string): Order[] {
-        return orders.filter((order) => order.phone === phone);
+        return orders
+            .filter((order) => order.phone === phone)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }
+
+    // Get customer order count (for duplicate detection display)
+    function getCustomerOrderCount(phone: string): number {
+        return orders.filter((order) => order.phone === phone && !order.is_archived).length;
+    }
+
+    // =============================================
+    // MERGE ORDERS
+    // =============================================
+
+    async function mergeOrders(keepOrderId: string, archiveOrderId: string): Promise<{ success: boolean; error?: string }> {
+        try {
+            const keepOrder = orders.find((o) => o.id === keepOrderId);
+            const archiveOrder = orders.find((o) => o.id === archiveOrderId);
+
+            if (!keepOrder || !archiveOrder) {
+                return { success: false, error: "One or both orders not found" };
+            }
+
+            // Combine items from both orders
+            const combinedItems = [...(keepOrder.items || [])];
+            for (const archiveItem of archiveOrder.items || []) {
+                const existingItem = combinedItems.find((i) => i.name === archiveItem.name);
+                if (existingItem) {
+                    // Sum quantities for same product
+                    existingItem.quantity = (existingItem.quantity || 1) + (archiveItem.quantity || 1);
+                } else {
+                    combinedItems.push(archiveItem);
+                }
+            }
+
+            // Calculate combined price
+            const combinedPrice = (Number(keepOrder.price) || 0) + (Number(archiveOrder.price) || 0);
+
+            // Combine notes
+            const combinedNotes = [keepOrder.notes, archiveOrder.notes]
+                .filter(Boolean)
+                .join(' | ');
+
+            // Update the order to keep with combined data
+            const { error: updateError } = await supabase
+                .from("orders")
+                .update({
+                    items: combinedItems,
+                    price: combinedPrice,
+                    notes: combinedNotes || keepOrder.notes,
+                })
+                .eq("id", keepOrderId);
+
+            if (updateError) throw updateError;
+
+            // Archive the other order and mark as duplicate
+            const { error: archiveError } = await supabase
+                .from("orders")
+                .update({
+                    is_archived: true,
+                    notes: `[مدمج مع #${keepOrder.order_id}] ${archiveOrder.notes || ''}`.trim(),
+                    status: "rejected" as Order["status"],
+                    rejection_reason: "duplicate_merged",
+                })
+                .eq("id", archiveOrderId);
+
+            if (archiveError) throw archiveError;
+
+            // Update local state
+            setOrders((prev) =>
+                prev
+                    .map((order) => {
+                        if (order.id === keepOrderId) {
+                            return { ...order, items: combinedItems, price: combinedPrice, notes: combinedNotes || order.notes };
+                        }
+                        return order;
+                    })
+                    .filter((order) => order.id !== archiveOrderId)
+            );
+
+            return { success: true };
+        } catch (err) {
+            console.error("Error merging orders:", err);
+            return {
+                success: false,
+                error: err instanceof Error ? err.message : "Failed to merge orders",
+            };
+        }
     }
 
     // =============================================
@@ -904,6 +991,8 @@ export function useOrders() {
         getDuplicatesForOrder,
         hasDuplicates,
         getCustomerHistory,
+        getCustomerOrderCount,
+        mergeOrders,
 
         // Notes
         addOrderNote,

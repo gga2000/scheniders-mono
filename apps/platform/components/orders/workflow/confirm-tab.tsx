@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { MessageCircle, CheckCircle, XCircle, Phone, Clock, MapPin, Sparkles, Package } from "lucide-react";
+import { MessageCircle, CheckCircle, XCircle, Clock, MapPin, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD, generateWhatsAppLink } from "@/lib/utils";
+import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
+import { DualPhoneDisplay } from "@/components/ui/phone-display";
 import type { Order } from "@/lib/supabase";
 
 interface ConfirmTabProps {
@@ -127,13 +129,17 @@ export function ConfirmTab({
                                 </div>
                             </div>
 
-                            {/* Phone & City */}
-                            <div className="flex items-center gap-4 text-sm text-muted mb-3">
-                                <span className="flex items-center gap-1">
-                                    <Phone className="w-3 h-3" />
-                                    {order.phone}
-                                </span>
-                                <span className="flex items-center gap-1">
+                            {/* Phone Numbers with Validation */}
+                            <div className="flex items-center gap-3 text-sm text-muted mb-3">
+                                <DualPhoneDisplay
+                                    primaryPhone={order.phone}
+                                    secondaryPhone={order.secondary_phone}
+                                    customerName={order.customer_name}
+                                    orderId={order.order_id}
+                                    showWhatsApp={false}
+                                    size="sm"
+                                />
+                                <span className="flex items-center gap-1 text-xs">
                                     <MapPin className="w-3 h-3" />
                                     {order.city || "—"}
                                 </span>
@@ -165,13 +171,34 @@ export function ConfirmTab({
 
                             {/* Action Buttons - matching existing style */}
                             <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+                                {/* WhatsApp button(s) */}
                                 <button
                                     onClick={() => handleWhatsApp(order)}
-                                    className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-[var(--button-success)] text-white font-semibold text-sm hover:bg-[var(--button-success-hover)] transition-all"
+                                    disabled={!validatePhoneDetailed(order.phone).isValid}
+                                    className={cn(
+                                        "flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-semibold text-sm transition-all",
+                                        validatePhoneDetailed(order.phone).isValid
+                                            ? "bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)]"
+                                            : "bg-gray-200 text-gray-400 cursor-not-allowed",
+                                        order.secondary_phone ? "flex-none" : "flex-1"
+                                    )}
+                                    title={validatePhoneDetailed(order.phone).isValid ? "WhatsApp - الرقم الأول" : validatePhoneDetailed(order.phone).errorMessageAr}
                                 >
                                     <MessageCircle className="w-4 h-4" />
-                                    WhatsApp
+                                    {!order.secondary_phone && "WhatsApp"}
                                 </button>
+                                {order.secondary_phone && validatePhoneDetailed(order.secondary_phone).isValid && (
+                                    <button
+                                        onClick={() => {
+                                            const message = `مرحباً ${order.customer_name}!\n\nشكراً لطلبكم #${order.order_id}.\nنود تأكيد طلبكم. هل المعلومات صحيحة؟`;
+                                            window.open(generateWhatsAppLink(order.secondary_phone!, message), "_blank");
+                                        }}
+                                        className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-emerald-500 text-white font-semibold text-sm hover:bg-emerald-600 transition-all"
+                                        title="WhatsApp - الرقم الثاني"
+                                    >
+                                        <MessageCircle className="w-4 h-4" />
+                                    </button>
+                                )}
                                 <button
                                     onClick={() => handleConfirm(order.id)}
                                     disabled={isLoading}

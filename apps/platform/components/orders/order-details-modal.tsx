@@ -10,6 +10,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { formatIQD, formatDate, generateWhatsAppLink, getStatusLabel } from "@/lib/utils";
+import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
 import { cn } from "@/lib/utils";
 import type { Order, OrderStatusHistory, OrderNote } from "@/lib/supabase";
 import { OrderTimeline } from "./order-timeline";
@@ -88,6 +89,8 @@ export function OrderDetailsModal({
     // Reset when closed
     useEffect(() => {
         if (!open) {
+            setIsEditing(false);
+            setFormData({});
             setActiveTab("details");
             setTimeline([]);
             setNotes([]);
@@ -469,22 +472,63 @@ export function OrderDetailsModal({
                                         <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
                                             <Phone className="w-3 h-3" />
                                             الرقم الأساسي
+                                            {/* Validation indicator for display mode */}
+                                            {!isEditing && !validatePhoneDetailed(order.phone).isValid && (
+                                                <span className="relative flex h-2.5 w-2.5 ml-1">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+                                                </span>
+                                            )}
                                         </span>
                                         <div className="flex items-center gap-2">
                                             {isEditing ? (
-                                                <input
-                                                    value={displayValue("phone") as string}
-                                                    onChange={(e) => updateFormData("phone", e.target.value)}
-                                                    dir="ltr"
-                                                    className="flex-1 px-3 py-1.5 bg-white border border-[var(--card-border)] rounded-lg text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
-                                                />
+                                                <div className="flex-1 relative">
+                                                    <input
+                                                        value={displayValue("phone") as string}
+                                                        onChange={(e) => updateFormData("phone", e.target.value)}
+                                                        dir="ltr"
+                                                        className={cn(
+                                                            "w-full px-3 py-1.5 bg-white border rounded-lg text-foreground font-mono focus:outline-none focus:ring-2",
+                                                            !validatePhoneDetailed(displayValue("phone") as string).isValid
+                                                                ? "border-red-300 focus:ring-red-200"
+                                                                : "border-[var(--card-border)] focus:ring-[var(--card-border)]"
+                                                        )}
+                                                    />
+                                                    {/* Real-time validation indicator while editing */}
+                                                    {!validatePhoneDetailed(displayValue("phone") as string).isValid && (
+                                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 group">
+                                                            <span className="relative flex h-2.5 w-2.5">
+                                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                                                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+                                                            </span>
+                                                            {/* Tooltip */}
+                                                            <div className="absolute bottom-full right-0 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                                                                {validatePhoneDetailed(displayValue("phone") as string).errorMessageAr}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             ) : (
-                                                <span className="flex-1 font-mono text-lg text-foreground tracking-wide" dir="ltr">{order.phone}</span>
+                                                <span
+                                                    className={cn(
+                                                        "flex-1 font-mono text-lg tracking-wide",
+                                                        !validatePhoneDetailed(order.phone).isValid && "text-red-600"
+                                                    )}
+                                                    dir="ltr"
+                                                >
+                                                    {formatPhoneForDisplay(order.phone) || "—"}
+                                                </span>
                                             )}
                                             <button
                                                 onClick={handleWhatsApp}
-                                                className="w-8 h-8 rounded-lg bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)] transition-all flex items-center justify-center flex-shrink-0"
-                                                title="واتساب"
+                                                disabled={!validatePhoneDetailed(order.phone).isValid}
+                                                className={cn(
+                                                    "w-8 h-8 rounded-lg transition-all flex items-center justify-center flex-shrink-0",
+                                                    validatePhoneDetailed(order.phone).isValid
+                                                        ? "bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)]"
+                                                        : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                                )}
+                                                title={validatePhoneDetailed(order.phone).isValid ? "واتساب" : validatePhoneDetailed(order.phone).errorMessageAr}
                                             >
                                                 <MessageCircle className="h-4 w-4" />
                                             </button>
@@ -495,22 +539,55 @@ export function OrderDetailsModal({
                                         <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
                                             <Phone className="w-3 h-3" />
                                             الرقم الثانوي
+                                            {/* Validation indicator for display mode (only if phone exists) */}
+                                            {!isEditing && order.secondary_phone && !validatePhoneDetailed(order.secondary_phone).isValid && (
+                                                <span className="relative flex h-2.5 w-2.5 ml-1">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+                                                </span>
+                                            )}
                                         </span>
                                         <div className="flex items-center gap-2">
                                             {isEditing ? (
-                                                <input
-                                                    value={(displayValue("secondary_phone") || "") as string}
-                                                    onChange={(e) => updateFormData("secondary_phone", e.target.value)}
-                                                    dir="ltr"
-                                                    placeholder="اختياري"
-                                                    className="flex-1 px-3 py-1.5 bg-white border border-[var(--card-border)] rounded-lg text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
-                                                />
+                                                <div className="flex-1 relative">
+                                                    <input
+                                                        value={(displayValue("secondary_phone") || "") as string}
+                                                        onChange={(e) => updateFormData("secondary_phone", e.target.value)}
+                                                        dir="ltr"
+                                                        placeholder="اختياري"
+                                                        className={cn(
+                                                            "w-full px-3 py-1.5 bg-white border rounded-lg text-foreground font-mono focus:outline-none focus:ring-2",
+                                                            (displayValue("secondary_phone") as string) && !validatePhoneDetailed(displayValue("secondary_phone") as string).isValid
+                                                                ? "border-red-300 focus:ring-red-200"
+                                                                : "border-[var(--card-border)] focus:ring-[var(--card-border)]"
+                                                        )}
+                                                    />
+                                                    {/* Real-time validation indicator while editing */}
+                                                    {(displayValue("secondary_phone") as string) && !validatePhoneDetailed(displayValue("secondary_phone") as string).isValid && (
+                                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 group">
+                                                            <span className="relative flex h-2.5 w-2.5">
+                                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                                                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+                                                            </span>
+                                                            {/* Tooltip */}
+                                                            <div className="absolute bottom-full right-0 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                                                                {validatePhoneDetailed(displayValue("secondary_phone") as string).errorMessageAr}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             ) : (
-                                                <span className="flex-1 font-mono text-lg text-foreground tracking-wide" dir="ltr">
-                                                    {order.secondary_phone || "—"}
+                                                <span
+                                                    className={cn(
+                                                        "flex-1 font-mono text-lg tracking-wide",
+                                                        order.secondary_phone && !validatePhoneDetailed(order.secondary_phone).isValid && "text-red-600"
+                                                    )}
+                                                    dir="ltr"
+                                                >
+                                                    {formatPhoneForDisplay(order.secondary_phone) || "—"}
                                                 </span>
                                             )}
-                                            {order.secondary_phone && (
+                                            {order.secondary_phone && validatePhoneDetailed(order.secondary_phone).isValid && (
                                                 <button
                                                     onClick={() => {
                                                         const link = generateWhatsAppLink(

@@ -2,6 +2,7 @@
 
 import { Order, OrderPriority } from "@/lib/supabase";
 import { formatIQD, generateWhatsAppLink, getStatusLabel } from "@/lib/utils";
+import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
 import { cn } from "@/lib/utils";
 import {
     MessageCircle,
@@ -19,6 +20,9 @@ import {
     RotateCcw,
     Flag,
     Flame,
+    FileText,
+    Copy,
+    Link2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -28,14 +32,28 @@ interface OrderCardProps {
     onStatusUpdate: (id: string, status: Order["status"], reason?: string) => void;
     onViewDetails: (order: Order) => void;
     isBlacklisted?: boolean;
+    // Duplicate detection props
+    customerOrderCount?: number;
+    previousOrder?: Order | null;
+    onMergeWithPrevious?: (currentOrderId: string, previousOrderId: string) => void;
 }
 
-export function OrderCard({ order, loadingId, onStatusUpdate, onViewDetails, isBlacklisted }: OrderCardProps) {
+export function OrderCard({
+    order,
+    loadingId,
+    onStatusUpdate,
+    onViewDetails,
+    isBlacklisted,
+    customerOrderCount = 1,
+    previousOrder,
+    onMergeWithPrevious,
+}: OrderCardProps) {
     const isLoading = loadingId === order.id;
     const isNew = order.status === "new";
     const isReturn = order.is_return;
     const isUrgent = order.priority === "urgent";
     const isHighPriority = order.priority === "high";
+    const hasDuplicates = customerOrderCount > 1;
 
     // Format date as "12/3"
     const formatShortDate = (dateStr: string) => {
@@ -63,16 +81,18 @@ export function OrderCard({ order, loadingId, onStatusUpdate, onViewDetails, isB
         }));
     };
 
-    // Extract full address from notes (format: "note | address")
+    // Get address from address_details or city
     const getFullAddress = () => {
-        if (order.notes && order.notes.includes(' | ')) {
-            const parts = order.notes.split(' | ');
-            return parts[parts.length - 1]; // Last part is the address
-        }
-        return order.city || '';
+        return order.address_details || order.city || '';
+    };
+
+    // Get notes directly (no longer contains address)
+    const getActualNotes = () => {
+        return order.notes?.trim() || '';
     };
 
     const fullAddress = getFullAddress();
+    const actualNotes = getActualNotes();
 
     // Soft pastel status colors - reassigned (with return order override)
     const getStatusColor = () => {
@@ -136,13 +156,17 @@ export function OrderCard({ order, loadingId, onStatusUpdate, onViewDetails, isB
             {isNew && (
                 <div className="absolute -inset-0.5 bg-orange-300 rounded-[22px] blur-md opacity-50 group-hover:opacity-70 transition-opacity animate-pulse" />
             )}
-            {/* Glow effect for urgent priority */}
-            {isUrgent && !isNew && (
+            {/* Glow effect for urgent orders */}
+            {isUrgent && !isReturn && (
                 <div className="absolute -inset-0.5 bg-red-400 rounded-[22px] blur-md opacity-40 group-hover:opacity-60 transition-opacity animate-pulse" />
             )}
             {/* Glow effect for return orders */}
             {isReturn && (
                 <div className="absolute -inset-0.5 bg-purple-400 rounded-[22px] blur-md opacity-40 group-hover:opacity-60 transition-opacity" />
+            )}
+            {/* Glow effect for duplicate orders */}
+            {hasDuplicates && !isReturn && !isUrgent && (
+                <div className="absolute -inset-0.5 bg-orange-400 rounded-[22px] blur-md opacity-50 group-hover:opacity-70 transition-opacity animate-pulse" />
             )}
 
             <motion.div
@@ -152,7 +176,8 @@ export function OrderCard({ order, loadingId, onStatusUpdate, onViewDetails, isB
                     isNew && "ring-2 ring-orange-300 ring-offset-2 ring-offset-[var(--background)]",
                     isReturn && "ring-2 ring-purple-400 ring-offset-2 ring-offset-[var(--background)]",
                     isUrgent && !isNew && "ring-2 ring-red-400 ring-offset-2 ring-offset-[var(--background)]",
-                    isBlacklisted && "ring-2 ring-red-500 ring-offset-2 ring-offset-[var(--background)]"
+                    isBlacklisted && "ring-2 ring-red-500 ring-offset-2 ring-offset-[var(--background)]",
+                    hasDuplicates && "ring-2 ring-orange-400 ring-offset-2 ring-offset-[var(--background)]"
                 )}
             >
                 {/* Status Accent Bar */}
@@ -161,7 +186,8 @@ export function OrderCard({ order, loadingId, onStatusUpdate, onViewDetails, isB
                     className={cn(
                         "w-2 flex-shrink-0 rounded-l-[20px]",
                         getStatusColor(),
-                        isNew && "w-3"
+                        isNew && "w-3",
+                        hasDuplicates && "w-4 bg-gradient-to-b from-orange-400 via-orange-500 to-orange-400 animate-pulse"
                     )}
                 />
 
@@ -225,6 +251,47 @@ export function OrderCard({ order, loadingId, onStatusUpdate, onViewDetails, isB
                                     <Calendar className="w-3 h-3" />
                                     {new Date(order.scheduled_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                 </span>
+                            )}
+
+                            {/* Duplicate Order Indicator */}
+                            {customerOrderCount > 1 && (
+                                <span
+                                    className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-medium rounded-full bg-orange-100 text-orange-700 border border-orange-200 cursor-pointer hover:bg-orange-200 transition-colors"
+                                    title={previousOrder ? `طلب سابق: #${previousOrder.order_id}` : `${customerOrderCount} طلبات من هذا الزبون`}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (previousOrder) {
+                                            onViewDetails(previousOrder);
+                                        }
+                                    }}
+                                >
+                                    <Copy className="w-3 h-3" />
+                                    {customerOrderCount} طلبات
+                                </span>
+                            )}
+
+                            {/* Merge Button - show when there's a previous order to merge with */}
+                            {previousOrder && onMergeWithPrevious && !order.is_archived && order.status !== "delivered" && previousOrder.status !== "delivered" && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        // Determine which is older (keep older, archive newer)
+                                        const currentDate = new Date(order.created_at);
+                                        const previousDate = new Date(previousOrder.created_at);
+                                        if (currentDate > previousDate) {
+                                            // Current is newer, merge into previous (older)
+                                            onMergeWithPrevious(previousOrder.id, order.id);
+                                        } else {
+                                            // Current is older, merge into current
+                                            onMergeWithPrevious(order.id, previousOrder.id);
+                                        }
+                                    }}
+                                    className="inline-flex h-6 items-center gap-1 px-3 text-[10px] font-bold rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white hover:from-purple-600 hover:to-indigo-600 transition-all shadow-md hover:shadow-lg"
+                                    title="دمج مع الطلب السابق"
+                                >
+                                    <Link2 className="w-3 h-3" />
+                                    دمج الطلبات
+                                </button>
                             )}
                         </div>
                     </motion.div>
@@ -293,11 +360,46 @@ export function OrderCard({ order, loadingId, onStatusUpdate, onViewDetails, isB
 
                         {/* Phone & Address Row */}
                         <div className="flex items-center gap-4 text-sm">
-                            {/* Phone */}
+                            {/* Primary Phone */}
                             <div className="flex items-center gap-1.5 text-foreground">
+                                {/* Validation indicator */}
+                                {!validatePhoneDetailed(order.phone).isValid && (
+                                    <span className="relative flex h-2.5 w-2.5" title={validatePhoneDetailed(order.phone).errorMessageAr}>
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+                                    </span>
+                                )}
                                 <Phone className="w-3.5 h-3.5 text-muted" />
-                                <span className="font-mono text-sm">{order.phone}</span>
+                                <span className={cn(
+                                    "font-mono text-sm",
+                                    !validatePhoneDetailed(order.phone).isValid && "text-red-600"
+                                )}>
+                                    {formatPhoneForDisplay(order.phone)}
+                                </span>
                             </div>
+
+                            {/* Secondary Phone */}
+                            {order.secondary_phone && (
+                                <>
+                                    <span className="text-[var(--card-border)]">|</span>
+                                    <div className="flex items-center gap-1.5 text-foreground">
+                                        {/* Validation indicator */}
+                                        {!validatePhoneDetailed(order.secondary_phone).isValid && (
+                                            <span className="relative flex h-2.5 w-2.5" title={validatePhoneDetailed(order.secondary_phone).errorMessageAr}>
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+                                            </span>
+                                        )}
+                                        <Phone className="w-3.5 h-3.5 text-muted" />
+                                        <span className={cn(
+                                            "font-mono text-sm",
+                                            !validatePhoneDetailed(order.secondary_phone).isValid && "text-red-600"
+                                        )}>
+                                            {formatPhoneForDisplay(order.secondary_phone)}
+                                        </span>
+                                    </div>
+                                </>
+                            )}
 
                             {/* Divider */}
                             {fullAddress && (
@@ -311,6 +413,14 @@ export function OrderCard({ order, loadingId, onStatusUpdate, onViewDetails, isB
                                 </>
                             )}
                         </div>
+
+                        {/* Notes Row */}
+                        {actualNotes && (
+                            <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 rounded-lg px-2 py-1">
+                                <FileText className="w-3 h-3 flex-shrink-0" />
+                                <span className="truncate" title={actualNotes}>{actualNotes}</span>
+                            </div>
+                        )}
                     </div>
 
                     {/* PRICE SECTION */}
@@ -336,17 +446,42 @@ export function OrderCard({ order, loadingId, onStatusUpdate, onViewDetails, isB
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
+                                if (!validatePhoneDetailed(order.phone).isValid) return;
                                 const link = generateWhatsAppLink(
                                     order.phone,
                                     `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
                                 );
                                 window.open(link, "_blank");
                             }}
-                            className="w-10 h-10 rounded-xl bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)] transition-all shadow-md shadow-green-500/20 flex items-center justify-center"
-                            title="Chat on WhatsApp"
+                            disabled={!validatePhoneDetailed(order.phone).isValid}
+                            className={cn(
+                                "w-10 h-10 rounded-xl transition-all shadow-md flex items-center justify-center",
+                                validatePhoneDetailed(order.phone).isValid
+                                    ? "bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)] shadow-green-500/20"
+                                    : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
+                            )}
+                            title={validatePhoneDetailed(order.phone).isValid ? "Chat on WhatsApp" : validatePhoneDetailed(order.phone).errorMessageAr}
                         >
                             <MessageCircle className="w-4 h-4" />
                         </button>
+
+                        {/* Chat Button - Secondary Phone */}
+                        {order.secondary_phone && validatePhoneDetailed(order.secondary_phone).isValid && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const link = generateWhatsAppLink(
+                                        order.secondary_phone!,
+                                        `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
+                                    );
+                                    window.open(link, "_blank");
+                                }}
+                                className="w-10 h-10 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center"
+                                title="Chat on WhatsApp (Secondary)"
+                            >
+                                <MessageCircle className="w-4 h-4" />
+                            </button>
+                        )}
 
                         {/* Edit Button */}
                         <button
