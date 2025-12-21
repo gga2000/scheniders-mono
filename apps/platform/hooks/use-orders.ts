@@ -23,6 +23,7 @@ import { notificationService } from "@/lib/notification-service";
 export function useOrders() {
     // Core state
     const [orders, setOrders] = useState<Order[]>([]);
+    const [archivedOrders, setArchivedOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -121,6 +122,43 @@ export function useOrders() {
             setError(err instanceof Error ? err.message : "Failed to fetch orders");
         } finally {
             setLoading(false);
+        }
+    }
+
+    async function fetchArchivedOrders() {
+        try {
+            const { data, error: fetchError } = await supabase
+                .from("orders")
+                .select("*")
+                .eq("is_archived", true)
+                .order("created_at", { ascending: false });
+
+            if (fetchError) throw fetchError;
+
+            const ordersWithDefaults = (data || []).map((order) => {
+                let parsedItems = order.items;
+                if (typeof order.items === 'string') {
+                    try {
+                        parsedItems = JSON.parse(order.items);
+                    } catch {
+                        parsedItems = [];
+                    }
+                }
+                return {
+                    ...order,
+                    items: parsedItems || [],
+                    priority: order.priority || "normal",
+                    payment_status: order.payment_status || "cod",
+                    is_return: order.is_return || false,
+                    is_archived: true,
+                };
+            });
+
+            setArchivedOrders(ordersWithDefaults);
+            return { success: true, count: ordersWithDefaults.length };
+        } catch (err) {
+            console.error("Error fetching archived orders:", err);
+            return { success: false, error: err instanceof Error ? err.message : "Failed to fetch archived orders" };
         }
     }
 
@@ -1034,10 +1072,12 @@ export function useOrders() {
     return {
         // Core data
         orders,
+        archivedOrders,
         filteredOrders,
         loading,
         error,
         stats,
+        fetchArchivedOrders,
 
         // Reference data
         rejectionReasons,
