@@ -4,21 +4,16 @@ import { useState } from "react";
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { formatIQD, generateWhatsAppLink } from "@/lib/utils";
+import { formatIQD, cn } from "@/lib/utils";
 import {
-    generateOrderId,
-    validateOrderForm,
     calculateTotal,
-    formatPhoneToStandard,
     type OrderFormData,
     type ValidationErrors,
 } from "@/lib/order-utils";
@@ -28,342 +23,510 @@ import {
     Phone,
     MapPin,
     Package,
-    Plus,
     Trash2,
     Save,
     X,
+    MessageCircle,
+    Instagram,
+    FileText,
+    Hash,
+    AlertTriangle,
+    Check,
 } from "lucide-react";
+import { ProductPicker } from "./product-picker";
+
+// TikTok icon component
+const TikTokIcon = ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+        <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+    </svg>
+);
 
 interface CreateOrderModalProps {
     open: boolean;
     onClose: () => void;
     onCreate: (orderData: any) => Promise<{ success: boolean; error?: string }>;
+    checkOrderIdExists?: (orderId: string) => Promise<boolean>;
 }
+
+const ORDER_SOURCES = [
+    { id: "whatsapp", label: "واتساب", icon: MessageCircle, color: "text-green-600" },
+    { id: "meta", label: "Meta", icon: Instagram, color: "text-pink-600" },
+    { id: "tiktok", label: "TikTok", icon: TikTokIcon, color: "text-gray-800" },
+];
 
 export function CreateOrderModal({
     open,
     onClose,
     onCreate,
+    checkOrderIdExists,
 }: CreateOrderModalProps) {
-    const [formData, setFormData] = useState<OrderFormData>({
+    const [formData, setFormData] = useState<OrderFormData & { secondary_phone?: string; source?: string; order_id?: string }>({
         customer_name: "",
         phone: "",
+        secondary_phone: "",
         city: "",
-        governorate_code: "",
         address_details: "",
-        items: [{ name: "", quantity: 1, price: 0 }],
+        items: [],
         notes: "",
+        delivery_slot: undefined,
+        payment_status: "cod",
+        source: "whatsapp",
+        order_id: "",
     });
-
     const [errors, setErrors] = useState<ValidationErrors>({});
     const [isCreating, setIsCreating] = useState(false);
+    const [showProductPicker, setShowProductPicker] = useState(false);
+    const [discount, setDiscount] = useState(0);
+    const [orderIdStatus, setOrderIdStatus] = useState<"idle" | "checking" | "available" | "exists">("idle");
+    const [isCheckingId, setIsCheckingId] = useState(false);
 
     const handleClose = () => {
-        // Reset form
+        if (isCreating) return;
         setFormData({
             customer_name: "",
             phone: "",
+            secondary_phone: "",
             city: "",
-            governorate_code: "",
             address_details: "",
-            items: [{ name: "", quantity: 1, price: 0 }],
+            items: [],
             notes: "",
+            delivery_slot: undefined,
+            payment_status: "cod",
+            source: "whatsapp",
+            order_id: "",
         });
         setErrors({});
+        setDiscount(0);
+        setOrderIdStatus("idle");
         onClose();
     };
 
-    const updateField = (field: keyof OrderFormData, value: any) => {
+    const handleOrderIdChange = async (value: string) => {
+        updateField("order_id", value);
+        setOrderIdStatus("idle");
+
+        // Only check if user entered something
+        if (value.trim() && checkOrderIdExists) {
+            setIsCheckingId(true);
+            setOrderIdStatus("checking");
+            const exists = await checkOrderIdExists(value.trim());
+            setOrderIdStatus(exists ? "exists" : "available");
+            setIsCheckingId(false);
+        }
+    };
+
+    const updateField = (field: string, value: any) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
-        // Clear error for this field
         if (errors[field]) {
-            setErrors((prev) => {
-                const newErrors = { ...prev };
-                delete newErrors[field];
-                return newErrors;
-            });
+            setErrors((prev) => ({ ...prev, [field]: undefined }));
         }
     };
 
     const updateItem = (index: number, field: keyof OrderItem, value: any) => {
-        setFormData((prev) => ({
-            ...prev,
-            items: prev.items.map((item, i) =>
-                i === index ? { ...item, [field]: value } : item
-            ),
-        }));
-        // Clear items error
-        if (errors.items) {
-            setErrors((prev) => {
-                const newErrors = { ...prev };
-                delete newErrors.items;
-                return newErrors;
-            });
-        }
-    };
-
-    const addItem = () => {
-        setFormData((prev) => ({
-            ...prev,
-            items: [...prev.items, { name: "", quantity: 1, price: 0 }],
-        }));
+        setFormData((prev) => {
+            const newItems = [...prev.items];
+            newItems[index] = { ...newItems[index], [field]: value };
+            return { ...prev, items: newItems };
+        });
     };
 
     const removeItem = (index: number) => {
-        if (formData.items.length > 1) {
-            setFormData((prev) => ({
-                ...prev,
-                items: prev.items.filter((_, i) => i !== index),
-            }));
-        }
+        setFormData((prev) => ({
+            ...prev,
+            items: prev.items.filter((_, i) => i !== index),
+        }));
+    };
+
+    const handleProductSelect = (product: { name: string; price: number; quantity: number; image_url?: string }) => {
+        setFormData((prev) => ({
+            ...prev,
+            items: [...prev.items, product],
+        }));
     };
 
     const handleCreate = async () => {
-        // Validate form
-        const validationErrors = validateOrderForm(formData);
+        const newErrors: ValidationErrors = {};
 
-        if (Object.keys(validationErrors).length > 0) {
-            setErrors(validationErrors);
+        if (!formData.customer_name.trim()) {
+            newErrors.customer_name = "اسم العميل مطلوب";
+        }
+        if (!formData.phone.trim()) {
+            newErrors.phone = "رقم الهاتف مطلوب";
+        } else if (!/^07\d{8,9}$/.test(formData.phone.trim())) {
+            newErrors.phone = "رقم الهاتف غير صحيح";
+        }
+        if (formData.items.length === 0) {
+            newErrors.items = "أضف منتج واحد على الأقل";
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
             return;
         }
 
         setIsCreating(true);
+        try {
+            // Calculate total price from items
+            const itemsTotal = formData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const finalPrice = Math.max(0, itemsTotal - discount);
 
-        // Prepare order data
-        const orderData = {
-            order_id: generateOrderId(),
-            customer_name: formData.customer_name.trim(),
-            phone: formatPhoneToStandard(formData.phone),
-            city: formData.city?.trim() || null,
-            governorate_code: formData.governorate_code?.trim() || null,
-            address_details: formData.address_details?.trim() || null,
-            items: formData.items,
-            price: calculateTotal(formData.items),
-            status: "new" as const,
-            whatsapp_link: generateWhatsAppLink(
-                formatPhoneToStandard(formData.phone),
-                `مرحباً ${formData.customer_name}، شكراً لطلبك`
-            ),
-            notes: formData.notes?.trim() || null,
-        };
+            const result = await onCreate({
+                ...formData,
+                price: finalPrice,
+                discount_amount: discount,
+                items: formData.items.filter(item => item.name.trim()),
+            });
 
-        const result = await onCreate(orderData);
-
-        if (result.success) {
-            handleClose();
-        } else {
-            alert(`فشل إنشاء الطلب: ${result.error}`);
+            if (result.success) {
+                handleClose();
+            } else {
+                setErrors({ items: result.error || "حدث خطأ" });
+            }
+        } catch (error) {
+            setErrors({ items: "حدث خطأ غير متوقع" });
+        } finally {
+            setIsCreating(false);
         }
-
-        setIsCreating(false);
     };
 
-    const total = calculateTotal(formData.items);
+    const subtotal = calculateTotal(formData.items);
+    const total = Math.max(0, subtotal - discount);
 
     return (
-        <Dialog open={open} onOpenChange={handleClose}>
-            <DialogContent className="max-w-4xl">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                        <Package className="h-6 w-6 text-primary" />
-                        طلب جديد
-                    </DialogTitle>
-                    <DialogDescription>
-                        أضف طلب جديد مع تفاصيل العميل والمنتجات
-                    </DialogDescription>
-                </DialogHeader>
+        <>
+            <Dialog open={open} onOpenChange={(isOpen) => { if (!showProductPicker) handleClose(); }} modal={!showProductPicker}>
+                <DialogContent className="max-w-2xl bg-white border border-[var(--card-border)] !rounded-2xl overflow-hidden p-0">
+                    {/* Header */}
+                    <DialogHeader className="px-6 py-4 border-b border-[var(--card-border)] bg-[var(--background)]">
+                        <DialogTitle className="flex items-center gap-3 text-foreground">
+                            <div className="w-9 h-9 rounded-xl bg-[var(--pastel-green)] flex items-center justify-center">
+                                <Package className="h-4 w-4 text-green-700" />
+                            </div>
+                            <div>
+                                <span className="text-lg font-bold">طلب جديد</span>
+                                <p className="text-xs font-normal text-muted mt-0.5">أضف تفاصيل الطلب والمنتجات</p>
+                            </div>
+                        </DialogTitle>
+                    </DialogHeader>
 
-                <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2">
-                    {/* Customer Information */}
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-semibold flex items-center gap-2">
-                            <User className="h-5 w-5 text-primary" />
-                            معلومات العميل
-                        </h3>
+                    <div className="p-6 space-y-5 max-h-[65vh] overflow-y-auto">
+                        {/* Optional Order ID */}
+                        <div className="space-y-1.5">
+                            <Label className="text-xs text-muted flex items-center gap-1">
+                                <Hash className="h-3 w-3" />
+                                رقم الطلب (اختياري)
+                            </Label>
+                            <div className="flex items-center gap-2">
+                                <div className="relative flex-1">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm font-mono">#</span>
+                                    <Input
+                                        value={formData.order_id || ""}
+                                        onChange={(e) => handleOrderIdChange(e.target.value)}
+                                        placeholder="اترك فارغاً للإنشاء تلقائياً"
+                                        dir="ltr"
+                                        className={cn(
+                                            "h-10 pl-7 rounded-lg font-mono",
+                                            orderIdStatus === "exists"
+                                                ? "border-red-300 bg-red-50"
+                                                : orderIdStatus === "available"
+                                                    ? "border-green-300 bg-green-50"
+                                                    : "border-[var(--card-border)] bg-[var(--background)]"
+                                        )}
+                                    />
+                                    {/* Status indicator */}
+                                    {formData.order_id && (
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                            {isCheckingId ? (
+                                                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                            ) : orderIdStatus === "available" ? (
+                                                <Check className="w-4 h-4 text-green-600" />
+                                            ) : orderIdStatus === "exists" ? (
+                                                <AlertTriangle className="w-4 h-4 text-red-600" />
+                                            ) : null}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            {orderIdStatus === "exists" && (
+                                <p className="text-xs text-red-500 flex items-center gap-1">
+                                    <AlertTriangle className="w-3 h-3" />
+                                    رقم الطلب موجود مسبقاً
+                                </p>
+                            )}
+                            {!formData.order_id && (
+                                <p className="text-xs text-muted">سيتم إنشاء رقم تلقائي عند ترك هذا الحقل فارغاً</p>
+                            )}
+                        </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>اسم العميل *</Label>
-                                <Input
-                                    value={formData.customer_name}
-                                    onChange={(e) => updateField("customer_name", e.target.value)}
-                                    placeholder="مثال: أحمد محمد"
-                                    className={errors.customer_name ? "border-destructive" : ""}
-                                />
-                                {errors.customer_name && (
-                                    <p className="text-sm text-destructive">{errors.customer_name}</p>
-                                )}
+                        {/* Customer Information */}
+                        <div className="space-y-4">
+                            <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                                <User className="h-4 w-4 text-muted" />
+                                معلومات العميل
+                            </h3>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* Customer Name */}
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs text-muted">اسم العميل <span className="text-red-500">*</span></Label>
+                                    <Input
+                                        value={formData.customer_name}
+                                        onChange={(e) => updateField("customer_name", e.target.value)}
+                                        placeholder="أحمد محمد"
+                                        className={cn(
+                                            "h-10 rounded-lg border-[var(--card-border)] bg-[var(--background)]",
+                                            errors.customer_name && "border-red-300 bg-red-50"
+                                        )}
+                                    />
+                                    {errors.customer_name && <p className="text-xs text-red-500">{errors.customer_name}</p>}
+                                </div>
+
+                                {/* Primary Phone */}
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs text-muted flex items-center gap-1">
+                                        <Phone className="h-3 w-3" />
+                                        رقم الهاتف <span className="text-red-500">*</span>
+                                    </Label>
+                                    <Input
+                                        value={formData.phone}
+                                        onChange={(e) => updateField("phone", e.target.value)}
+                                        placeholder="07XXXXXXXX"
+                                        dir="ltr"
+                                        className={cn(
+                                            "h-10 rounded-lg border-[var(--card-border)] bg-[var(--background)] font-mono",
+                                            errors.phone && "border-red-300 bg-red-50"
+                                        )}
+                                    />
+                                    {errors.phone && <p className="text-xs text-red-500">{errors.phone}</p>}
+                                </div>
+
+                                {/* Secondary Phone */}
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs text-muted flex items-center gap-1">
+                                        <Phone className="h-3 w-3" />
+                                        رقم إضافي (اختياري)
+                                    </Label>
+                                    <Input
+                                        value={formData.secondary_phone || ""}
+                                        onChange={(e) => updateField("secondary_phone", e.target.value)}
+                                        placeholder="07XXXXXXXX"
+                                        dir="ltr"
+                                        className="h-10 rounded-lg border-[var(--card-border)] bg-[var(--background)] font-mono"
+                                    />
+                                </div>
+
+                                {/* City */}
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs text-muted">المدينة</Label>
+                                    <Input
+                                        value={formData.city}
+                                        onChange={(e) => updateField("city", e.target.value)}
+                                        placeholder="بغداد"
+                                        className="h-10 rounded-lg border-[var(--card-border)] bg-[var(--background)]"
+                                    />
+                                </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label className="flex items-center gap-2">
-                                    <Phone className="h-4 w-4" />
-                                    رقم الهاتف *
+                            {/* Address */}
+                            <div className="space-y-1.5">
+                                <Label className="text-xs text-muted flex items-center gap-1">
+                                    <MapPin className="h-3 w-3" />
+                                    العنوان الكامل
                                 </Label>
-                                <Input
-                                    value={formData.phone}
-                                    onChange={(e) => updateField("phone", e.target.value)}
-                                    placeholder="07XXXXXXXX"
-                                    dir="ltr"
-                                    className={errors.phone ? "border-destructive" : ""}
-                                />
-                                {errors.phone && (
-                                    <p className="text-sm text-destructive">{errors.phone}</p>
-                                )}
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label>المدينة</Label>
-                                <Input
-                                    value={formData.city}
-                                    onChange={(e) => updateField("city", e.target.value)}
-                                    placeholder="مثال: بغداد"
+                                <Textarea
+                                    value={formData.address_details}
+                                    onChange={(e) => updateField("address_details", e.target.value)}
+                                    placeholder="أدخل العنوان التفصيلي..."
+                                    rows={2}
+                                    className="rounded-lg border-[var(--card-border)] bg-[var(--background)] resize-none"
                                 />
                             </div>
 
-                            <div className="space-y-2">
-                                <Label>كود المحافظة</Label>
-                                <Input
-                                    value={formData.governorate_code}
-                                    onChange={(e) => updateField("governorate_code", e.target.value)}
-                                    placeholder="مثال: BG"
-                                />
+                            {/* Order Source */}
+                            <div className="space-y-1.5">
+                                <Label className="text-xs text-muted">مصدر الطلب</Label>
+                                <div className="flex gap-2">
+                                    {ORDER_SOURCES.map((source) => (
+                                        <button
+                                            key={source.id}
+                                            type="button"
+                                            onClick={() => updateField("source", source.id)}
+                                            className={cn(
+                                                "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-medium transition-all",
+                                                formData.source === source.id
+                                                    ? "border-[var(--pastel-green-dark)] bg-[var(--pastel-green-light)] text-foreground"
+                                                    : "border-[var(--card-border)] bg-white hover:bg-[var(--background)]"
+                                            )}
+                                        >
+                                            <source.icon className={cn("h-4 w-4", source.color)} />
+                                            {source.label}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label className="flex items-center gap-2">
-                                <MapPin className="h-4 w-4" />
-                                العنوان الكامل
+                        {/* Products */}
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                                    <Package className="h-4 w-4 text-muted" />
+                                    المنتجات
+                                </h3>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowProductPicker(true)}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-all"
+                                >
+                                    + إضافة منتج
+                                </button>
+                            </div>
+
+                            {errors.items && (
+                                <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{errors.items}</p>
+                            )}
+
+                            {formData.items.length === 0 ? (
+                                <div className="text-center py-8 text-muted bg-[var(--background)] rounded-lg border border-dashed border-[var(--card-border)]">
+                                    <Package className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                                    <p className="text-sm">لم تتم إضافة منتجات بعد</p>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowProductPicker(true)}
+                                        className="mt-2 text-xs text-green-600 hover:underline"
+                                    >
+                                        اضغط لإضافة منتج
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {formData.items.map((item, index) => (
+                                        <div
+                                            key={index}
+                                            className="flex items-center gap-3 p-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg"
+                                        >
+                                            <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center shrink-0">
+                                                <Package className="w-5 h-5 text-purple-600" />
+                                            </div>
+
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-medium text-sm text-foreground truncate">{item.name}</p>
+                                                <p className="text-xs text-muted">{formatIQD(item.price)} × {item.quantity}</p>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-1 bg-white border border-[var(--card-border)] rounded-lg px-1.5">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => updateItem(index, "quantity", Math.max(1, item.quantity - 1))}
+                                                        className="w-5 h-5 flex items-center justify-center text-gray-500 hover:text-gray-700"
+                                                    >
+                                                        -
+                                                    </button>
+                                                    <span className="w-6 text-center text-xs font-medium">{item.quantity}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => updateItem(index, "quantity", item.quantity + 1)}
+                                                        className="w-5 h-5 flex items-center justify-center text-gray-500 hover:text-gray-700"
+                                                    >
+                                                        +
+                                                    </button>
+                                                </div>
+
+                                                <span className="text-sm font-bold text-foreground font-mono w-24 text-right">
+                                                    {formatIQD(item.price * item.quantity)}
+                                                </span>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeItem(index)}
+                                                    className="w-7 h-7 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center transition-all"
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Discount & Total */}
+                            {formData.items.length > 0 && (
+                                <div className="space-y-2 pt-3 border-t border-[var(--card-border)]">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm text-muted">المجموع الفرعي</span>
+                                        <span className="text-sm font-mono font-medium">{formatIQD(subtotal)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className="text-sm text-muted">خصم</span>
+                                        <Input
+                                            type="number"
+                                            min="0"
+                                            value={discount}
+                                            onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                                            className="w-28 h-8 rounded-lg border-[var(--card-border)] bg-white text-sm font-mono text-right"
+                                            placeholder="0"
+                                        />
+                                    </div>
+                                    <div className="flex items-center justify-between pt-2 border-t border-[var(--card-border)]">
+                                        <span className="text-sm font-semibold text-foreground">المجموع الكلي</span>
+                                        <span className="text-lg font-bold font-mono text-green-700">{formatIQD(total)}</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Notes */}
+                        <div className="space-y-1.5">
+                            <Label className="text-xs text-muted flex items-center gap-1">
+                                <FileText className="h-3 w-3" />
+                                ملاحظات
                             </Label>
                             <Textarea
-                                value={formData.address_details}
-                                onChange={(e) => updateField("address_details", e.target.value)}
-                                placeholder="أدخل العنوان التفصيلي هنا..."
-                                rows={3}
+                                value={formData.notes}
+                                onChange={(e) => updateField("notes", e.target.value)}
+                                placeholder="ملاحظات داخلية..."
+                                rows={2}
+                                className="rounded-lg border-[var(--card-border)] bg-[var(--background)] resize-none"
                             />
                         </div>
                     </div>
 
-                    {/* Items Section */}
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-semibold flex items-center gap-2">
-                                <Package className="h-5 w-5 text-primary" />
-                                المنتجات
-                            </h3>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={addItem}
-                                className="gap-2"
-                            >
-                                <Plus className="h-4 w-4" />
-                                إضافة منتج
-                            </Button>
-                        </div>
+                    {/* Footer */}
+                    <DialogFooter className="flex items-center justify-end gap-3 px-6 py-4 bg-[var(--background)] border-t border-[var(--card-border)]">
+                        <button
+                            type="button"
+                            onClick={handleClose}
+                            disabled={isCreating}
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted hover:text-foreground transition-colors disabled:opacity-50"
+                        >
+                            <X className="h-4 w-4" />
+                            إلغاء
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleCreate}
+                            disabled={isCreating}
+                            className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-[var(--button-success)] hover:bg-[var(--button-success-hover)] rounded-xl shadow-md transition-all disabled:opacity-50"
+                        >
+                            {isCreating ? (
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <Save className="h-4 w-4" />
+                            )}
+                            إنشاء الطلب
+                        </button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
-                        {errors.items && (
-                            <p className="text-sm text-destructive">{errors.items}</p>
-                        )}
-
-                        <div className="space-y-3">
-                            {formData.items.map((item, index) => (
-                                <div
-                                    key={index}
-                                    className="flex items-end gap-3 p-4 border border-border rounded-lg bg-surface/50"
-                                >
-                                    <div className="flex-1 space-y-2">
-                                        <Label className="text-xs">اسم المنتج</Label>
-                                        <Input
-                                            value={item.name}
-                                            onChange={(e) => updateItem(index, "name", e.target.value)}
-                                            placeholder="مثال: Dior Sauvage"
-                                        />
-                                    </div>
-
-                                    <div className="w-24 space-y-2">
-                                        <Label className="text-xs">الكمية</Label>
-                                        <Input
-                                            type="number"
-                                            min="1"
-                                            value={item.quantity}
-                                            onChange={(e) =>
-                                                updateItem(index, "quantity", parseInt(e.target.value) || 1)
-                                            }
-                                        />
-                                    </div>
-
-                                    <div className="w-32 space-y-2">
-                                        <Label className="text-xs">السعر (IQD)</Label>
-                                        <Input
-                                            type="number"
-                                            min="0"
-                                            value={item.price}
-                                            onChange={(e) =>
-                                                updateItem(index, "price", parseFloat(e.target.value) || 0)
-                                            }
-                                        />
-                                    </div>
-
-                                    <div className="w-32 space-y-2">
-                                        <Label className="text-xs">المجموع</Label>
-                                        <div className="h-10 flex items-center font-mono text-financial font-semibold">
-                                            {formatIQD(item.price * item.quantity)}
-                                        </div>
-                                    </div>
-
-                                    {formData.items.length > 1 && (
-                                        <Button
-                                            size="icon"
-                                            variant="destructive"
-                                            onClick={() => removeItem(index)}
-                                            title="حذف المنتج"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Total */}
-                        <div className="flex justify-end items-center gap-4 p-4 bg-surface border border-border rounded-lg">
-                            <span className="text-lg font-semibold">المجموع الكلي:</span>
-                            <span className="text-2xl font-mono font-bold text-financial">
-                                {formatIQD(total)}
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Notes */}
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">ملاحظات</h3>
-                        <Textarea
-                            value={formData.notes}
-                            onChange={(e) => updateField("notes", e.target.value)}
-                            placeholder="أضف ملاحظات داخلية هنا..."
-                            rows={3}
-                        />
-                    </div>
-                </div>
-
-                <DialogFooter>
-                    <Button variant="ghost" onClick={handleClose} disabled={isCreating}>
-                        <X className="h-4 w-4 mr-2" />
-                        إلغاء
-                    </Button>
-                    <Button
-                        variant="primary"
-                        onClick={handleCreate}
-                        isLoading={isCreating}
-                        disabled={isCreating}
-                    >
-                        <Save className="h-4 w-4 mr-2" />
-                        إنشاء الطلب
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+            {/* Product Picker */}
+            <ProductPicker
+                open={showProductPicker}
+                onClose={() => setShowProductPicker(false)}
+                onSelect={handleProductSelect}
+            />
+        </>
     );
 }

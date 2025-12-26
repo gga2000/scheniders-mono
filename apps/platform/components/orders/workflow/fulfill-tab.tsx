@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Package, CheckSquare, Square, Printer, Truck, Eye, BoxSelect } from "lucide-react";
+import { Package, CheckSquare, Square, Printer, Truck, Eye, BoxSelect, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatIQD } from "@/lib/utils";
+import { formatIQD, getBaseOrderId } from "@/lib/utils";
 import { formatPhoneForDisplay } from "@/lib/order-utils";
 import type { Order } from "@/lib/supabase";
 
@@ -26,6 +26,8 @@ export function FulfillTab({
     onViewDetails,
 }: FulfillTabProps) {
     const [packedState, setPackedState] = useState<Record<string, PackedItem[]>>({});
+    const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
+    const [isShippingAll, setIsShippingAll] = useState(false);
 
     const getPackedItems = (order: Order): PackedItem[] => {
         if (packedState[order.id]) {
@@ -53,13 +55,51 @@ export function FulfillTab({
     };
 
     const handleMarkShipped = async (order: Order) => {
-        await onUpdate(order.id, { status: "delivered" } as Partial<Order>);
+        // Mark as in_transit when shipped to delivery company
+        await onUpdate(order.id, { status: "in_transit" } as Partial<Order>);
     };
 
-    const handlePrintLabel = (order: Order) => {
+    // Bulk ship all ready orders
+    const handleShipAllReady = async () => {
+        const readyOrders = orders.filter(o => isFullyPacked(o.id));
+        if (readyOrders.length === 0) return;
+
+        setIsShippingAll(true);
+        for (const order of readyOrders) {
+            await onUpdate(order.id, { status: "in_transit" } as Partial<Order>);
+        }
+        setIsShippingAll(false);
+    };
+
+    // Toggle order selection
+    const toggleSelection = (orderId: string) => {
+        setSelectedOrders(prev => {
+            const next = new Set(prev);
+            if (next.has(orderId)) {
+                next.delete(orderId);
+            } else {
+                next.add(orderId);
+            }
+            return next;
+        });
+    };
+
+    // Ship selected orders
+    const handleShipSelected = async () => {
+        if (selectedOrders.size === 0) return;
+        setIsShippingAll(true);
+        for (const orderId of selectedOrders) {
+            await onUpdate(orderId, { status: "in_transit" } as Partial<Order>);
+        }
+        setSelectedOrders(new Set());
+        setIsShippingAll(false);
+    };
+
+    const handlePrintLabel = async (order: Order) => {
+        // Auto-mark as in_transit when printing (user wants this behavior)
         const labelContent = `
             <html>
-            <head><title>Shipping Label - #${order.order_id}</title>
+            <head><title>Shipping Label - #${getBaseOrderId(order.order_id)}</title>
             <style>
                 body { font-family: 'Segoe UI', Arial, sans-serif; padding: 30px; }
                 .label { border: 2px solid #333; padding: 24px; max-width: 400px; margin: auto; border-radius: 12px; }
@@ -71,14 +111,14 @@ export function FulfillTab({
             <body>
                 <div class="label">
                     <div class="header">📦 SHIPPING LABEL</div>
-                    <div class="info"><strong>Order:</strong> #${order.order_id}</div>
+                    <div class="info"><strong>Order:</strong> #${getBaseOrderId(order.order_id)}</div>
                     <div class="info"><strong>Customer:</strong> ${order.customer_name}</div>
                     <div class="info"><strong>Phone 1:</strong> ${formatPhoneForDisplay(order.phone)}</div>
                     ${order.secondary_phone ? `<div class="info"><strong>Phone 2:</strong> ${formatPhoneForDisplay(order.secondary_phone)}</div>` : ''}
                     <div class="info"><strong>City:</strong> ${order.city || 'N/A'}</div>
                     <div class="info" style="margin-top:12px;"><strong>Items:</strong></div>
                     ${order.items?.map(i => `<div class="info">• ${i.name} ×${i.quantity}</div>`).join('') || 'N/A'}
-                    <div class="barcode">${order.order_id}</div>
+                    <div class="barcode">${getBaseOrderId(order.order_id)}</div>
                 </div>
             </body>
             </html>
@@ -88,6 +128,8 @@ export function FulfillTab({
             printWindow.document.write(labelContent);
             printWindow.document.close();
             printWindow.print();
+            // Auto-mark as in_transit after printing
+            await onUpdate(order.id, { status: "in_transit" } as Partial<Order>);
         }
     };
 
@@ -105,15 +147,41 @@ export function FulfillTab({
 
     return (
         <div className="space-y-4">
-            {/* Stats */}
-            <div className="flex items-center justify-center gap-3">
-                <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-100 text-purple-800 text-sm font-medium">
-                    <BoxSelect className="w-4 h-4" />
-                    {orders.length} To Pack
-                </span>
-                <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--pastel-green)] text-emerald-800 text-sm font-medium">
-                    {orders.filter(o => isFullyPacked(o.id)).length} Ready
-                </span>
+            {/* Stats and Actions */}
+            <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                    <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-100 text-purple-800 text-sm font-medium">
+                        <BoxSelect className="w-4 h-4" />
+                        {orders.length} To Pack
+                    </span>
+                    <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--pastel-green)] text-emerald-800 text-sm font-medium">
+                        {orders.filter(o => isFullyPacked(o.id)).length} Ready
+                    </span>
+                </div>
+
+                {/* Bulk Actions */}
+                <div className="flex items-center gap-2">
+                    {selectedOrders.size > 0 && (
+                        <button
+                            onClick={handleShipSelected}
+                            disabled={isShippingAll}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold text-sm hover:from-blue-600 hover:to-indigo-700 transition-all shadow-lg disabled:opacity-50"
+                        >
+                            <Truck className="w-4 h-4" />
+                            Ship {selectedOrders.size} Selected
+                        </button>
+                    )}
+                    {orders.filter(o => isFullyPacked(o.id)).length > 0 && (
+                        <button
+                            onClick={handleShipAllReady}
+                            disabled={isShippingAll}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold text-sm hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg disabled:opacity-50"
+                        >
+                            <Send className="w-4 h-4" />
+                            {isShippingAll ? "Shipping..." : `Ship All Ready (${orders.filter(o => isFullyPacked(o.id)).length})`}
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Cards */}
@@ -149,7 +217,7 @@ export function FulfillTab({
                                 {/* Header */}
                                 <div className="flex items-center justify-between mb-3">
                                     <div>
-                                        <span className="font-mono text-sm font-bold text-purple-700">#{order.order_id}</span>
+                                        <span className="font-mono text-sm font-bold text-purple-700">#{getBaseOrderId(order.order_id)}</span>
                                         <p className="font-semibold text-foreground">{order.customer_name}</p>
                                         <p className="text-xs text-muted">{order.city}</p>
                                     </div>

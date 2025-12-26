@@ -1,9 +1,19 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useOrders } from "@/hooks/use-orders";
+import { usePrinting, LabelSettings, PrintBatch } from "@/hooks/use-printing";
 import { Order } from "@/lib/supabase";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layout/page-transition";
+import { LabelSettingsPanel } from "@/components/printing/label-settings-panel";
+import { PrintPreviewModal } from "@/components/printing/print-preview-modal";
+import { PrintStatsPanel } from "@/components/printing/print-stats-panel";
+import { BatchManager } from "@/components/printing/batch-manager";
+import { BatchDetailsModal } from "@/components/printing/batch-details-modal";
+import { ReprintWarningModal } from "@/components/printing/reprint-warning-modal";
+import { MarkAsShippedDialog, MarkAsDeliveredDialog } from "@/components/printing/confirmation-dialog";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { EnhancedLabelOptions, printBulkEnhancedLabels, printBulkInvoices, generateBulkA6InvoicesHTML } from "@/lib/enhanced-label-generator";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Printer,
@@ -16,20 +26,106 @@ import {
     Tag,
     Truck,
     CheckCircle,
+    Search,
+    ChevronDown,
+    Filter,
+    X,
+    CalendarDays,
+    Eye,
+    BarChart3,
+    RefreshCw,
+    AlertTriangle,
+    ChevronUp,
+    Star,
+    SlidersHorizontal,
+    GripVertical,
+    Download,
 } from "lucide-react";
-import { formatIQD, formatDate } from "@/lib/utils";
+import { formatIQD, formatDate, getBaseOrderId } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 export default function PrintingPage() {
-    const { orders, loading, error, updateOrderStatus } = useOrders();
+    const { orders, loading, error, updateOrderStatus, bulkUpdateStatus } = useOrders();
+    const printing = usePrinting(orders);
+
+    // Selection state
     const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
-    const [printType, setPrintType] = useState<"labels" | "invoices">("labels");
+    const [printType, setPrintType] = useState<"labels" | "invoices">("invoices");
+    const [invoiceTemplate, setInvoiceTemplate] = useState<"classic" | "modern" | "prime">("prime");
 
-    // Only show confirmed orders ready for printing
-    const printableOrders = useMemo(() => {
-        return orders.filter((order) => order.status === "confirmed");
-    }, [orders]);
+    // UI state
+    const [showStats, setShowStats] = useState(false);
+    const [showFilters, setShowFilters] = useState(true);
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [sortBy, setSortBy] = useState<"priority" | "date" | "city" | "price">("priority");
+    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
+    // Modal state
+    const [showPreview, setShowPreview] = useState(false);
+    const [showReprintWarning, setShowReprintWarning] = useState(false);
+    const [showShipDialog, setShowShipDialog] = useState(false);
+    const [showDeliverDialog, setShowDeliverDialog] = useState(false);
+    const [selectedBatch, setSelectedBatch] = useState<PrintBatch | null>(null);
+    const [showBatchDetails, setShowBatchDetails] = useState(false);
+
+    // Automation state
+    const [autoShipAfterPrint, setAutoShipAfterPrint] = useState(true);
+
+    // Customer order counts for labels
+    const [customerOrderCounts, setCustomerOrderCounts] = useState<Record<string, number>>({});
+
+    // Fetch customer counts for selected orders
+    useEffect(() => {
+        async function fetchCounts() {
+            const phones = [...new Set(printing.printableOrders.map((o) => o.phone))];
+            const counts: Record<string, number> = {};
+
+            for (const phone of phones) {
+                counts[phone] = await printing.getCustomerOrderCount(phone);
+            }
+
+            setCustomerOrderCounts(counts);
+        }
+
+        if (printing.printableOrders.length > 0) {
+            fetchCounts();
+        }
+    }, [printing.printableOrders]);
+
+    // Load batches on mount
+    useEffect(() => {
+        printing.fetchBatches();
+        printing.fetchPrintHistory();
+    }, []);
+
+    // Sort orders
+    const sortedOrders = useMemo(() => {
+        const sorted = [...printing.printableOrders].sort((a, b) => {
+            let comparison = 0;
+
+            switch (sortBy) {
+                case "priority":
+                    const priorityOrder = { urgent: 0, high: 1, normal: 2 };
+                    comparison = priorityOrder[a.priority || "normal"] - priorityOrder[b.priority || "normal"];
+                    break;
+                case "date":
+                    comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+                    break;
+                case "city":
+                    comparison = (a.city || "").localeCompare(b.city || "");
+                    break;
+                case "price":
+                    comparison = Number(a.price) - Number(b.price);
+                    break;
+            }
+
+            return sortDirection === "asc" ? comparison : -comparison;
+        });
+
+        return sorted;
+    }, [printing.printableOrders, sortBy, sortDirection]);
+
+    // Toggle order selection
     const toggleOrderSelection = (orderId: string) => {
         const newSelected = new Set(selectedOrders);
         if (newSelected.has(orderId)) {
@@ -40,201 +136,188 @@ export default function PrintingPage() {
         setSelectedOrders(newSelected);
     };
 
+    // Select all
     const selectAll = () => {
-        if (selectedOrders.size === printableOrders.length) {
+        if (selectedOrders.size === sortedOrders.length) {
             setSelectedOrders(new Set());
         } else {
-            setSelectedOrders(new Set(printableOrders.map((o) => o.id)));
+            setSelectedOrders(new Set(sortedOrders.map((o) => o.id)));
         }
     };
 
-    const handlePrint = () => {
-        const ordersToPrint = printableOrders.filter((o) => selectedOrders.has(o.id));
+    // Get selected orders list
+    const selectedOrdersList = sortedOrders.filter((o) => selectedOrders.has(o.id));
 
-        // Create a new window for printing
-        const printWindow = window.open("", "_blank");
-        if (!printWindow) return;
+    // Check for reprints
+    const reprintOrders = selectedOrdersList.filter((o) => printing.isReprintOrder(o.id));
 
-        const content = printType === "labels"
-            ? generateLabelsHTML(ordersToPrint)
-            : generateInvoicesHTML(ordersToPrint);
+    // Handle print action
+    const handlePrint = async () => {
+        if (selectedOrders.size === 0) return;
 
-        printWindow.document.write(content);
-        printWindow.document.close();
-        printWindow.focus();
-        printWindow.print();
+        // Check for reprints first
+        if (reprintOrders.length > 0) {
+            setShowReprintWarning(true);
+            return;
+        }
+
+        await executePrint(selectedOrdersList);
     };
 
-    const handleMarkAsDelivered = async () => {
-        for (const orderId of selectedOrders) {
-            await updateOrderStatus(orderId, "delivered");
+    // Execute print
+    const executePrint = async (ordersToPrint: Order[]) => {
+        const labelOptions: EnhancedLabelOptions = {
+            ...printing.labelSettings,
+            invoiceTemplate: invoiceTemplate,
+        };
+
+        if (printType === "labels") {
+            await printBulkEnhancedLabels(ordersToPrint, labelOptions, customerOrderCounts);
+        } else {
+            printBulkInvoices(ordersToPrint, labelOptions);
         }
+
+        // Record print history
+        await printing.recordPrint(
+            ordersToPrint.map((o) => o.id),
+            printType === "labels" ? "label" : "invoice",
+            undefined,
+            printing.labelSettings.size
+        );
+
+        // Auto-create batch for this print job
+        const batchName = `${new Date().toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+        })} - ${new Date().toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+        })}`;
+        await printing.createBatch(
+            batchName,
+            ordersToPrint.map((o) => o.id),
+            ordersToPrint,
+            invoiceTemplate,
+            printType
+        );
+
+        // Auto-ship if enabled
+        if (autoShipAfterPrint) {
+            await bulkUpdateStatus(ordersToPrint.map((o) => o.id), "in_transit");
+            setSelectedOrders(new Set());
+        }
+    };
+
+    // Handle print all (including reprints)
+    const handlePrintAll = async () => {
+        setShowReprintWarning(false);
+        await executePrint(selectedOrdersList);
+    };
+
+    // Handle print new only
+    const handlePrintNewOnly = async () => {
+        setShowReprintWarning(false);
+        const newOrders = selectedOrdersList.filter((o) => !printing.isReprintOrder(o.id));
+        if (newOrders.length > 0) {
+            await executePrint(newOrders);
+        }
+    };
+
+    // Handle mark as shipped
+    const handleMarkAsShipped = async () => {
+        await bulkUpdateStatus(Array.from(selectedOrders), "in_transit");
         setSelectedOrders(new Set());
     };
 
-    const generateLabelsHTML = (orders: Order[]) => {
-        return `
-            <!DOCTYPE html>
-            <html dir="rtl">
-            <head>
-                <meta charset="UTF-8">
-                <title>Shipping Labels</title>
-                <style>
-                    * { margin: 0; padding: 0; box-sizing: border-box; }
-                    body { font-family: 'Segoe UI', Tahoma, sans-serif; }
-                    .label {
-                        width: 4in;
-                        height: 6in;
-                        border: 2px solid #333;
-                        padding: 20px;
-                        margin: 10px auto;
-                        page-break-after: always;
-                    }
-                    .label:last-child { page-break-after: avoid; }
-                    .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 15px; }
-                    .header h1 { font-size: 24px; }
-                    .order-id { font-size: 28px; font-weight: bold; margin: 15px 0; text-align: center; }
-                    .customer-name { font-size: 22px; font-weight: bold; margin: 10px 0; }
-                    .phone { font-size: 20px; font-family: monospace; margin: 10px 0; direction: ltr; text-align: right; }
-                    .address { font-size: 16px; margin: 15px 0; padding: 10px; background: #f5f5f5; border-radius: 5px; }
-                    .items { margin: 15px 0; }
-                    .item { padding: 5px 0; border-bottom: 1px dashed #ccc; }
-                    .total { font-size: 24px; font-weight: bold; text-align: center; margin-top: 20px; padding: 15px; background: #333; color: white; border-radius: 5px; }
-                    @media print {
-                        .label { margin: 0; border: 2px solid #333; }
-                    }
-                </style>
-            </head>
-            <body>
-                ${orders.map((order) => `
-                    <div class="label">
-                        <div class="header">
-                            <h1>🧴 Schneiders</h1>
-                        </div>
-                        <div class="order-id">#${order.order_id}</div>
-                        <div class="customer-name">${order.customer_name}</div>
-                        <div class="phone">📞 ${order.phone}</div>
-                        <div class="address">
-                            <strong>📍 العنوان:</strong><br>
-                            ${order.city || ""} ${order.governorate_code ? `(${order.governorate_code})` : ""}<br>
-                            ${order.address_details || ""}
-                        </div>
-                        <div class="items">
-                            ${order.items?.map((item) => `
-                                <div class="item">${item.name} × ${item.quantity}</div>
-                            `).join("") || ""}
-                        </div>
-                        <div class="total">
-                            💰 ${formatIQD(Number(order.price))}
-                        </div>
-                    </div>
-                `).join("")}
-            </body>
-            </html>
-        `;
+    // Handle mark as delivered
+    const handleMarkAsDelivered = async () => {
+        await bulkUpdateStatus(Array.from(selectedOrders), "delivered");
+        setSelectedOrders(new Set());
     };
 
-    const generateInvoicesHTML = (orders: Order[]) => {
-        return `
-            <!DOCTYPE html>
-            <html dir="rtl">
-            <head>
-                <meta charset="UTF-8">
-                <title>Invoices</title>
-                <style>
-                    * { margin: 0; padding: 0; box-sizing: border-box; }
-                    body { font-family: 'Segoe UI', Tahoma, sans-serif; }
-                    .invoice {
-                        max-width: 8in;
-                        margin: 20px auto;
-                        padding: 30px;
-                        border: 1px solid #ddd;
-                        page-break-after: always;
-                    }
-                    .invoice:last-child { page-break-after: avoid; }
-                    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 20px; }
-                    .logo { font-size: 28px; font-weight: bold; }
-                    .invoice-info { text-align: left; }
-                    .invoice-number { font-size: 14px; color: #666; }
-                    .date { font-size: 12px; color: #999; }
-                    .customer-section { display: flex; justify-content: space-between; margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 8px; }
-                    .customer-info h3 { margin-bottom: 10px; }
-                    .customer-info p { margin: 5px 0; color: #666; }
-                    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-                    th, td { padding: 12px; text-align: right; border-bottom: 1px solid #eee; }
-                    th { background: #f5f5f5; font-weight: bold; }
-                    .total-row { font-size: 18px; font-weight: bold; background: #333; color: white; }
-                    .total-row td { padding: 15px; }
-                    .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; color: #999; font-size: 12px; }
-                </style>
-            </head>
-            <body>
-                ${orders.map((order) => `
-                    <div class="invoice">
-                        <div class="header">
-                            <div class="logo">🧴 Schneiders</div>
-                            <div class="invoice-info">
-                                <div class="invoice-number">فاتورة #${order.order_id}</div>
-                                <div class="date">${formatDate(order.created_at)}</div>
-                            </div>
-                        </div>
-                        
-                        <div class="customer-section">
-                            <div class="customer-info">
-                                <h3>معلومات العميل</h3>
-                                <p><strong>${order.customer_name}</strong></p>
-                                <p>📞 ${order.phone}</p>
-                            </div>
-                            <div class="customer-info">
-                                <h3>عنوان الشحن</h3>
-                                <p>${order.city || "-"} ${order.governorate_code ? `(${order.governorate_code})` : ""}</p>
-                                <p>${order.address_details || "-"}</p>
-                            </div>
-                        </div>
-                        
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>المنتج</th>
-                                    <th>الكمية</th>
-                                    <th>السعر</th>
-                                    <th>المجموع</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${order.items?.map((item) => `
-                                    <tr>
-                                        <td>${item.name}</td>
-                                        <td>${item.quantity}</td>
-                                        <td>${formatIQD(item.price)}</td>
-                                        <td>${formatIQD(item.price * item.quantity)}</td>
-                                    </tr>
-                                `).join("") || "<tr><td colspan='4'>لا توجد عناصر</td></tr>"}
-                            </tbody>
-                            <tfoot>
-                                <tr class="total-row">
-                                    <td colspan="3">المجموع الكلي</td>
-                                    <td>${formatIQD(Number(order.price))}</td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                        
-                        <div class="footer">
-                            <p>شكراً لتسوقكم معنا! 💜</p>
-                            <p>Schneiders Perfumes</p>
-                        </div>
-                    </div>
-                `).join("")}
-            </body>
-            </html>
-        `;
+    // Handle download PDF
+    const handleDownloadPDF = async () => {
+        if (selectedOrders.size === 0) return;
+
+        const ordersToPrint = sortedOrders.filter((o) => selectedOrders.has(o.id));
+        const labelOptions: EnhancedLabelOptions = {
+            ...printing.labelSettings,
+            invoiceTemplate: invoiceTemplate,
+        };
+
+        // Generate the HTML content
+        const html = await generateBulkA6InvoicesHTML(ordersToPrint, labelOptions);
+
+        // Create iframe completely off-screen (iframes don't affect main document layout)
+        const iframe = document.createElement("iframe");
+        iframe.style.cssText = "position:absolute;left:-99999px;top:-99999px;width:794px;height:1123px;border:none;";
+        iframe.srcdoc = html;
+        document.body.appendChild(iframe);
+
+        // Wait for iframe to load
+        await new Promise<void>((resolve) => {
+            iframe.onload = () => resolve();
+            setTimeout(resolve, 2000); // Fallback timeout
+        });
+
+        // Additional wait for content rendering
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        try {
+            const html2canvas = (await import("html2canvas")).default;
+            const { jsPDF } = await import("jspdf");
+
+            const iframeDoc = iframe.contentDocument;
+            if (!iframeDoc) throw new Error("Could not access iframe document");
+
+            const body = iframeDoc.body;
+
+            const canvas = await html2canvas(body, {
+                scale: 1.5,
+                useCORS: true,
+                logging: false,
+                backgroundColor: "#ffffff",
+                allowTaint: true,
+            });
+
+            const pdf = new jsPDF({
+                orientation: "portrait",
+                unit: "mm",
+                format: "a4",
+            });
+
+            const imgWidth = 210;
+            const pageHeight = 297;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            const imgData = canvas.toDataURL("image/png");
+
+            let yPos = 0;
+            let remainingHeight = imgHeight;
+
+            pdf.addImage(imgData, "PNG", 0, yPos, imgWidth, imgHeight);
+            remainingHeight -= pageHeight;
+
+            while (remainingHeight > 0) {
+                pdf.addPage();
+                yPos = -(imgHeight - remainingHeight);
+                pdf.addImage(imgData, "PNG", 0, yPos, imgWidth, imgHeight);
+                remainingHeight -= pageHeight;
+            }
+
+            pdf.save(`invoices-${new Date().toISOString().slice(0, 10)}.pdf`);
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+            alert("Failed to generate PDF. Please try again.");
+        } finally {
+            document.body.removeChild(iframe);
+        }
     };
 
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 rounded-full border-4 border-[var(--pastel-yellow)] border-t-transparent animate-spin"></div>
+                    <div className="w-12 h-12 rounded-full border-4 border-[var(--pastel-purple)] border-t-transparent animate-spin"></div>
                     <p className="text-muted font-medium">Loading print queue...</p>
                 </div>
             </div>
@@ -261,16 +344,70 @@ export default function PrintingPage() {
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.4, delay: 0.1 }}
-                        className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6"
+                        className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4"
                     >
-                        <div>
-                            <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight flex items-center gap-3">
-                                <Printer className="w-8 h-8" />
-                                Print Queue
-                            </h1>
-                            <p className="text-muted mt-2 text-lg">
-                                {printableOrders.length} confirmed orders ready to print
-                            </p>
+                        <div className="flex items-center gap-4 flex-wrap">
+                            <div>
+                                <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight flex items-center gap-3">
+                                    <Printer className="w-8 h-8" />
+                                    Print Queue
+                                </h1>
+                                <p className="text-muted mt-1 text-lg">
+                                    {sortedOrders.length} confirmed orders ready to print
+                                    {selectedOrders.size > 0 && ` • ${selectedOrders.size} selected`}
+                                </p>
+                            </div>
+
+                            {/* Action Buttons - Always visible area to prevent snap */}
+                            <div className="flex items-center gap-2 min-h-[44px]">
+                                <AnimatePresence mode="wait">
+                                    {selectedOrders.size > 0 && (
+                                        <motion.div
+                                            initial={{ opacity: 0, x: -10 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            exit={{ opacity: 0, x: -10 }}
+                                            transition={{ duration: 0.15 }}
+                                            className="flex items-center gap-2"
+                                        >
+                                            {/* Preview Button */}
+                                            <button
+                                                onClick={() => setShowPreview(true)}
+                                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--pastel-blue)] text-blue-900 hover:shadow-md transition-all font-medium text-sm"
+                                            >
+                                                <Eye className="h-4 w-4" />
+                                                Preview
+                                            </button>
+
+                                            {/* Print Button */}
+                                            <button
+                                                onClick={handlePrint}
+                                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--foreground)] text-white shadow-lg hover:scale-[1.02] transition-all font-semibold text-sm"
+                                            >
+                                                <Printer className="h-4 w-4" />
+                                                Print {selectedOrders.size}
+                                            </button>
+
+                                            {/* Download PDF Button */}
+                                            <button
+                                                onClick={handleDownloadPDF}
+                                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--pastel-purple)] text-purple-900 hover:shadow-md transition-all font-medium text-sm"
+                                            >
+                                                <Download className="h-4 w-4" />
+                                                PDF
+                                            </button>
+
+                                            {/* Ship Button */}
+                                            <button
+                                                onClick={() => setShowShipDialog(true)}
+                                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--pastel-green)] text-emerald-900 hover:shadow-md transition-all font-medium text-sm"
+                                            >
+                                                <Truck className="h-4 w-4" />
+                                                Ship
+                                            </button>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
                         </div>
 
                         <div className="flex items-center gap-3 flex-wrap">
@@ -302,34 +439,279 @@ export default function PrintingPage() {
                                 </button>
                             </div>
 
-                            {/* Action Buttons */}
-                            <AnimatePresence>
-                                {selectedOrders.size > 0 && (
-                                    <motion.div
-                                        initial={{ opacity: 0, scale: 0.9 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        exit={{ opacity: 0, scale: 0.9 }}
-                                        className="flex items-center gap-2"
+                            {/* Invoice Template Toggle (only when invoices selected) */}
+                            {printType === "invoices" && (
+                                <div className="flex bg-[var(--card-bg)] rounded-xl p-1 border border-[var(--card-border)]">
+                                    <button
+                                        onClick={() => setInvoiceTemplate("classic")}
+                                        className={cn(
+                                            "px-3 py-2 rounded-lg transition-all flex items-center gap-2 text-sm font-medium",
+                                            invoiceTemplate === "classic"
+                                                ? "bg-amber-500 text-white"
+                                                : "text-muted hover:text-foreground"
+                                        )}
                                     >
-                                        <button
-                                            onClick={handlePrint}
-                                            className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-[var(--foreground)] text-white shadow-lg hover:scale-[1.02] transition-all font-semibold"
-                                        >
-                                            <Printer className="h-5 w-5" />
-                                            Print {selectedOrders.size}
-                                        </button>
-                                        <button
-                                            onClick={handleMarkAsDelivered}
-                                            className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-[var(--pastel-mint)] text-teal-900 hover:bg-[var(--pastel-mint-dark)] transition-all font-medium"
-                                        >
-                                            <Truck className="h-5 w-5" />
-                                            Mark Delivered
-                                        </button>
-                                    </motion.div>
+                                        📄 Classic
+                                    </button>
+                                    <button
+                                        onClick={() => setInvoiceTemplate("modern")}
+                                        className={cn(
+                                            "px-3 py-2 rounded-lg transition-all flex items-center gap-2 text-sm font-medium",
+                                            invoiceTemplate === "modern"
+                                                ? "bg-gradient-to-r from-orange-500 to-rose-500 text-white"
+                                                : "text-muted hover:text-foreground"
+                                        )}
+                                    >
+                                        ✨ Modern
+                                    </button>
+                                    <button
+                                        onClick={() => setInvoiceTemplate("prime")}
+                                        className={cn(
+                                            "px-3 py-2 rounded-lg transition-all flex items-center gap-2 text-sm font-medium",
+                                            invoiceTemplate === "prime"
+                                                ? "bg-gradient-to-r from-slate-700 to-slate-900 text-white"
+                                                : "text-muted hover:text-foreground"
+                                        )}
+                                    >
+                                        📋 Prime
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Stats Toggle */}
+                            <button
+                                onClick={() => setShowStats(!showStats)}
+                                className={cn(
+                                    "p-3 rounded-2xl border transition-all shadow-sm",
+                                    showStats
+                                        ? "bg-purple-100 border-purple-200 text-purple-700"
+                                        : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
                                 )}
-                            </AnimatePresence>
+                                title="Toggle Stats"
+                            >
+                                <BarChart3 className="w-4 h-4" />
+                            </button>
+
+                            {/* Filters Toggle */}
+                            <button
+                                onClick={() => setShowFilters(!showFilters)}
+                                className={cn(
+                                    "p-3 rounded-2xl border transition-all shadow-sm",
+                                    showFilters
+                                        ? "bg-blue-100 border-blue-200 text-blue-700"
+                                        : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                )}
+                                title="Toggle Filters"
+                            >
+                                <SlidersHorizontal className="w-4 h-4" />
+                            </button>
                         </div>
                     </motion.div>
+
+                    {/* Stats Panel */}
+                    <AnimatePresence>
+                        {showStats && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="overflow-hidden"
+                            >
+                                <PrintStatsPanel stats={printing.stats} />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Filters & Settings Panel */}
+                    <AnimatePresence>
+                        {showFilters && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="overflow-hidden space-y-4"
+                            >
+                                {/* Search & Filters */}
+                                <div className="pastel-card p-4 space-y-4">
+                                    <div className="flex flex-col lg:flex-row gap-4">
+                                        {/* Search */}
+                                        <div className="relative flex-1">
+                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted" />
+                                            <input
+                                                type="text"
+                                                placeholder="Search by name, phone, or order ID..."
+                                                value={printing.filters.searchQuery || ""}
+                                                onChange={(e) =>
+                                                    printing.setFilters({
+                                                        ...printing.filters,
+                                                        searchQuery: e.target.value || undefined,
+                                                    })
+                                                }
+                                                className="w-full pl-12 pr-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-purple)] transition-all"
+                                            />
+                                        </div>
+
+                                        {/* City Filter */}
+                                        <div className="relative">
+                                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                                            <select
+                                                value={printing.filters.city || ""}
+                                                onChange={(e) =>
+                                                    printing.setFilters({
+                                                        ...printing.filters,
+                                                        city: e.target.value || undefined,
+                                                    })
+                                                }
+                                                className="pl-10 pr-8 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-purple)] appearance-none cursor-pointer min-w-[150px]"
+                                            >
+                                                <option value="">All Cities</option>
+                                                {printing.availableCities.map((city) => (
+                                                    <option key={city} value={city}>
+                                                        {city}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
+                                        </div>
+
+                                        {/* Sort */}
+                                        <div className="relative">
+                                            <select
+                                                value={sortBy}
+                                                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                                                className="pl-4 pr-8 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-purple)] appearance-none cursor-pointer"
+                                            >
+                                                <option value="priority">Sort by Priority</option>
+                                                <option value="date">Sort by Date</option>
+                                                <option value="city">Sort by City</option>
+                                                <option value="price">Sort by Price</option>
+                                            </select>
+                                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
+                                        </div>
+
+                                        {/* Date Range */}
+                                        <div className="relative">
+                                            <button
+                                                onClick={() => setShowDatePicker(!showDatePicker)}
+                                                className={cn(
+                                                    "flex items-center gap-2 px-4 py-3 rounded-2xl border transition-all",
+                                                    printing.filters.dateFrom || printing.filters.dateTo
+                                                        ? "bg-amber-100 border-amber-200 text-amber-700"
+                                                        : "bg-[var(--background)] border-[var(--card-border)] text-muted hover:bg-[var(--card-border)]"
+                                                )}
+                                            >
+                                                <CalendarDays className="w-4 h-4" />
+                                                {printing.filters.dateFrom ? "Date Set" : "Date Range"}
+                                            </button>
+
+                                            {showDatePicker && (
+                                                <div className="absolute right-0 top-full mt-2 z-50 shadow-2xl rounded-3xl">
+                                                    <DateRangePicker
+                                                        inline
+                                                        dateFrom={printing.filters.dateFrom}
+                                                        dateTo={printing.filters.dateTo}
+                                                        onDateChange={(from, to) => {
+                                                            printing.setFilters({
+                                                                ...printing.filters,
+                                                                dateFrom: from,
+                                                                dateTo: to,
+                                                            });
+                                                            setShowDatePicker(false);
+                                                        }}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Clear Filters */}
+                                        {(printing.filters.searchQuery ||
+                                            printing.filters.city ||
+                                            printing.filters.dateFrom) && (
+                                                <button
+                                                    onClick={printing.clearFilters}
+                                                    className="px-4 py-3 rounded-2xl bg-red-50 text-red-600 hover:bg-red-100 transition-all flex items-center gap-2"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                    Clear
+                                                </button>
+                                            )}
+                                    </div>
+
+                                    {/* Priority Pills */}
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-sm text-muted mr-2">Priority:</span>
+                                        {["all", "urgent", "high", "normal"].map((priority) => (
+                                            <button
+                                                key={priority}
+                                                onClick={() =>
+                                                    printing.setFilters({
+                                                        ...printing.filters,
+                                                        priority: priority === "all" ? undefined : (priority as any),
+                                                    })
+                                                }
+                                                className={cn(
+                                                    "px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+                                                    (priority === "all" && !printing.filters.priority) ||
+                                                        printing.filters.priority === priority
+                                                        ? priority === "urgent"
+                                                            ? "bg-red-500 text-white"
+                                                            : priority === "high"
+                                                                ? "bg-orange-500 text-white"
+                                                                : "bg-[var(--foreground)] text-white"
+                                                        : "bg-[var(--background)] border border-[var(--card-border)] text-muted hover:bg-[var(--card-border)]"
+                                                )}
+                                            >
+                                                {priority === "all" ? "All" : priority.charAt(0).toUpperCase() + priority.slice(1)}
+                                            </button>
+                                        ))}
+
+                                        {/* Auto-ship toggle */}
+                                        <div className="ml-auto flex items-center gap-2">
+                                            <span className="text-sm text-muted">Auto-ship after print:</span>
+                                            <button
+                                                onClick={() => setAutoShipAfterPrint(!autoShipAfterPrint)}
+                                                className={cn(
+                                                    "w-10 h-6 rounded-full transition-all relative",
+                                                    autoShipAfterPrint ? "bg-green-500" : "bg-gray-300"
+                                                )}
+                                            >
+                                                <div
+                                                    className={cn(
+                                                        "absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow",
+                                                        autoShipAfterPrint ? "left-5" : "left-1"
+                                                    )}
+                                                />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Label Settings */}
+                                <LabelSettingsPanel
+                                    settings={printing.labelSettings}
+                                    onSettingsChange={printing.setLabelSettings}
+                                    isExpanded={false}
+                                />
+
+                                {/* Batch Manager */}
+                                <BatchManager
+                                    batches={printing.batches}
+                                    selectedOrderIds={selectedOrders}
+                                    orders={sortedOrders}
+                                    onCreateBatch={printing.createBatch}
+                                    onAddToBatch={(batchId, orderIds, ordersData) =>
+                                        printing.addOrdersToBatch(batchId, orderIds, ordersData)
+                                    }
+                                    onExportCSV={(ids) => printing.exportToCSV(ids, sortedOrders)}
+                                    onExportExcel={(ids) => printing.exportToExcel(ids, sortedOrders)}
+                                    onOpenBatchDetails={(batch) => {
+                                        setSelectedBatch(batch);
+                                        setShowBatchDetails(true);
+                                    }}
+                                />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     {/* Print Queue List */}
                     <motion.div
@@ -339,29 +721,29 @@ export default function PrintingPage() {
                         className="space-y-3"
                     >
                         {/* Select All Row */}
-                        {printableOrders.length > 0 && (
+                        {sortedOrders.length > 0 && (
                             <div className="flex items-center gap-3 px-2">
                                 <button
                                     onClick={selectAll}
                                     className={cn(
                                         "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all",
-                                        selectedOrders.size === printableOrders.length
+                                        selectedOrders.size === sortedOrders.length
                                             ? "bg-[var(--foreground)] border-[var(--foreground)] text-white"
                                             : "border-[var(--card-border)] hover:border-[var(--foreground-muted)]"
                                     )}
                                 >
-                                    {selectedOrders.size === printableOrders.length && (
+                                    {selectedOrders.size === sortedOrders.length && (
                                         <CheckSquare className="w-4 h-4" />
                                     )}
                                 </button>
                                 <span className="text-sm text-muted">
-                                    Select all ({printableOrders.length} orders)
+                                    Select all ({sortedOrders.length} orders)
                                 </span>
                             </div>
                         )}
 
                         <StaggerContainer className="space-y-3">
-                            {printableOrders.length === 0 ? (
+                            {sortedOrders.length === 0 ? (
                                 <div className="pastel-card p-12 text-center">
                                     <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--pastel-green)] flex items-center justify-center">
                                         <CheckCircle className="h-8 w-8 text-green-700" />
@@ -370,7 +752,7 @@ export default function PrintingPage() {
                                     <p className="text-sm text-muted">Confirmed orders will appear here for printing</p>
                                 </div>
                             ) : (
-                                printableOrders.map((order) => (
+                                sortedOrders.map((order) => (
                                     <StaggerItem key={order.id}>
                                         <motion.div
                                             className={cn(
@@ -383,12 +765,14 @@ export default function PrintingPage() {
                                         >
                                             <div className="flex items-center p-4 gap-4">
                                                 {/* Checkbox */}
-                                                <div className={cn(
-                                                    "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all flex-shrink-0",
-                                                    selectedOrders.has(order.id)
-                                                        ? "bg-[var(--foreground)] border-[var(--foreground)] text-white"
-                                                        : "border-[var(--card-border)]"
-                                                )}>
+                                                <div
+                                                    className={cn(
+                                                        "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all flex-shrink-0",
+                                                        selectedOrders.has(order.id)
+                                                            ? "bg-[var(--foreground)] border-[var(--foreground)] text-white"
+                                                            : "border-[var(--card-border)]"
+                                                    )}
+                                                >
                                                     {selectedOrders.has(order.id) ? (
                                                         <CheckSquare className="w-4 h-4" />
                                                     ) : (
@@ -396,18 +780,61 @@ export default function PrintingPage() {
                                                     )}
                                                 </div>
 
+                                                {/* Priority Indicator */}
+                                                {order.priority !== "normal" && (
+                                                    <div
+                                                        className={cn(
+                                                            "w-2 h-12 rounded-full flex-shrink-0",
+                                                            order.priority === "urgent"
+                                                                ? "bg-red-500"
+                                                                : "bg-orange-400"
+                                                        )}
+                                                    />
+                                                )}
+
                                                 {/* Order ID Badge */}
-                                                <div className="w-20 h-12 rounded-xl bg-[var(--pastel-green)] flex items-center justify-center flex-shrink-0">
-                                                    <span className="font-mono font-bold text-green-900 text-sm">
-                                                        #{order.order_id}
+                                                <div
+                                                    className={cn(
+                                                        "w-20 h-12 rounded-xl flex items-center justify-center flex-shrink-0",
+                                                        printing.isReprintOrder(order.id)
+                                                            ? "bg-amber-100"
+                                                            : "bg-[var(--pastel-green)]"
+                                                    )}
+                                                >
+                                                    <span
+                                                        className={cn(
+                                                            "font-mono font-bold text-sm",
+                                                            printing.isReprintOrder(order.id)
+                                                                ? "text-amber-800"
+                                                                : "text-green-900"
+                                                        )}
+                                                    >
+                                                        #{getBaseOrderId(order.order_id)}
                                                     </span>
                                                 </div>
 
+                                                {/* Reprint indicator */}
+                                                {printing.isReprintOrder(order.id) && (
+                                                    <div className="flex items-center gap-1 px-2 py-1 bg-amber-50 rounded-lg">
+                                                        <RefreshCw className="w-3 h-3 text-amber-600" />
+                                                        <span className="text-xs text-amber-700 font-medium">
+                                                            ×{printing.getOrderPrintCount(order.id)}
+                                                        </span>
+                                                    </div>
+                                                )}
+
                                                 {/* Customer Info */}
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="font-bold text-foreground truncate">
-                                                        {order.customer_name}
-                                                    </p>
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="font-bold text-foreground truncate">
+                                                            {order.customer_name}
+                                                        </p>
+                                                        {customerOrderCounts[order.phone] > 1 && (
+                                                            <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                                                                #{customerOrderCounts[order.phone]} order
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     <div className="flex items-center gap-3 text-sm text-muted mt-1">
                                                         <span className="flex items-center gap-1 font-mono">
                                                             <Phone className="w-3 h-3" />
@@ -425,17 +852,35 @@ export default function PrintingPage() {
                                                 {/* Items Preview */}
                                                 <div className="hidden md:block flex-1">
                                                     <div className="flex flex-wrap gap-2">
-                                                        {order.items?.slice(0, 2).map((item, idx) => (
-                                                            <span key={idx} className="px-2 py-1 bg-[var(--background)] rounded-lg text-sm">
+                                                        {order.items?.map((item, idx) => (
+                                                            <span
+                                                                key={idx}
+                                                                className="px-2 py-1 bg-[var(--background)] rounded-lg text-sm"
+                                                            >
                                                                 {item.name} ×{item.quantity}
                                                             </span>
                                                         ))}
-                                                        {(order.items?.length || 0) > 2 && (
-                                                            <span className="text-xs text-muted self-center">
-                                                                +{(order.items?.length || 0) - 2} more
-                                                            </span>
-                                                        )}
                                                     </div>
+                                                </div>
+
+                                                {/* Payment Badge */}
+                                                <div className="flex-shrink-0">
+                                                    <span
+                                                        className={cn(
+                                                            "px-3 py-1.5 rounded-xl text-xs font-bold",
+                                                            order.payment_status === "prepaid"
+                                                                ? "bg-green-100 text-green-700"
+                                                                : order.payment_status === "partial"
+                                                                    ? "bg-blue-100 text-blue-700"
+                                                                    : "bg-amber-100 text-amber-700"
+                                                        )}
+                                                    >
+                                                        {order.payment_status === "prepaid"
+                                                            ? "PAID"
+                                                            : order.payment_status === "partial"
+                                                                ? "PARTIAL"
+                                                                : "COD"}
+                                                    </span>
                                                 </div>
 
                                                 {/* Price */}
@@ -443,10 +888,15 @@ export default function PrintingPage() {
                                                     <p className="text-lg font-bold text-foreground">
                                                         {formatIQD(Number(order.price))}
                                                     </p>
-                                                    <p className="text-xs text-muted">
-                                                        {formatDate(order.created_at)}
-                                                    </p>
+                                                    <p className="text-xs text-muted">{formatDate(order.created_at)}</p>
                                                 </div>
+
+                                                {/* Notes indicator */}
+                                                {order.notes && (
+                                                    <div className="flex-shrink-0" title={order.notes}>
+                                                        <AlertTriangle className="w-4 h-4 text-amber-500" />
+                                                    </div>
+                                                )}
                                             </div>
                                         </motion.div>
                                     </StaggerItem>
@@ -455,6 +905,116 @@ export default function PrintingPage() {
                         </StaggerContainer>
                     </motion.div>
                 </div>
+
+                {/* Modals */}
+                <PrintPreviewModal
+                    isOpen={showPreview}
+                    onClose={() => setShowPreview(false)}
+                    orders={selectedOrdersList}
+                    printType={printType}
+                    labelOptions={{ ...printing.labelSettings, invoiceTemplate }}
+                    customerOrderCounts={customerOrderCounts}
+                    onPrint={() => executePrint(selectedOrdersList)}
+                />
+
+                <ReprintWarningModal
+                    isOpen={showReprintWarning}
+                    onClose={() => setShowReprintWarning(false)}
+                    reprintOrders={reprintOrders}
+                    onConfirm={handlePrintAll}
+                    onPrintNewOnly={handlePrintNewOnly}
+                />
+
+                <MarkAsShippedDialog
+                    isOpen={showShipDialog}
+                    onClose={() => setShowShipDialog(false)}
+                    onConfirm={handleMarkAsShipped}
+                    orderCount={selectedOrders.size}
+                />
+
+                <MarkAsDeliveredDialog
+                    isOpen={showDeliverDialog}
+                    onClose={() => setShowDeliverDialog(false)}
+                    onConfirm={handleMarkAsDelivered}
+                    orderCount={selectedOrders.size}
+                />
+
+                <BatchDetailsModal
+                    isOpen={showBatchDetails}
+                    onClose={() => {
+                        setShowBatchDetails(false);
+                        setSelectedBatch(null);
+                    }}
+                    batch={selectedBatch}
+                    allOrders={orders}
+                    onReprint={async (orderIds, template) => {
+                        const batchOrdersToReprint = orders.filter((o) => orderIds.includes(o.id));
+                        const labelOptions: EnhancedLabelOptions = {
+                            ...printing.labelSettings,
+                            invoiceTemplate: template as "classic" | "modern" | "prime",
+                        };
+                        printBulkInvoices(batchOrdersToReprint, labelOptions);
+                    }}
+                    onDownloadPDF={async (orderIds, template) => {
+                        const batchOrdersForPdf = orders.filter((o) => orderIds.includes(o.id));
+                        const labelOptions: EnhancedLabelOptions = {
+                            ...printing.labelSettings,
+                            invoiceTemplate: template as "classic" | "modern" | "prime",
+                        };
+                        const html = await generateBulkA6InvoicesHTML(batchOrdersForPdf, labelOptions);
+
+                        const iframe = document.createElement("iframe");
+                        iframe.style.cssText = "position:absolute;left:-99999px;top:-99999px;width:794px;height:1123px;border:none;";
+                        iframe.srcdoc = html;
+                        document.body.appendChild(iframe);
+
+                        await new Promise<void>((resolve) => {
+                            iframe.onload = () => resolve();
+                            setTimeout(resolve, 2000);
+                        });
+                        await new Promise((resolve) => setTimeout(resolve, 500));
+
+                        try {
+                            const html2canvas = (await import("html2canvas")).default;
+                            const { jsPDF } = await import("jspdf");
+                            const iframeDoc = iframe.contentDocument;
+                            if (!iframeDoc) throw new Error("Could not access iframe");
+
+                            const canvas = await html2canvas(iframeDoc.body, {
+                                scale: 1.5,
+                                useCORS: true,
+                                logging: false,
+                                backgroundColor: "#ffffff",
+                                allowTaint: true,
+                            });
+
+                            const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+                            const imgWidth = 210;
+                            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                            const imgData = canvas.toDataURL("image/png");
+
+                            let yPos = 0;
+                            let remainingHeight = imgHeight;
+                            pdf.addImage(imgData, "PNG", 0, yPos, imgWidth, imgHeight);
+                            remainingHeight -= 297;
+
+                            while (remainingHeight > 0) {
+                                pdf.addPage();
+                                yPos = -(imgHeight - remainingHeight);
+                                pdf.addImage(imgData, "PNG", 0, yPos, imgWidth, imgHeight);
+                                remainingHeight -= 297;
+                            }
+                            pdf.save(`batch-${selectedBatch?.name || "orders"}.pdf`);
+                        } catch (error) {
+                            console.error("PDF generation error:", error);
+                        } finally {
+                            document.body.removeChild(iframe);
+                        }
+                    }}
+                    onDeleteBatch={printing.deleteBatch}
+                    onUpdateName={printing.updateBatchName}
+                    onRemoveOrders={printing.removeOrdersFromBatch}
+                />
             </div>
         </PageTransition>
     );

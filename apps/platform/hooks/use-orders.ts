@@ -15,6 +15,7 @@ import {
     type PaymentStatus,
 } from "@/lib/supabase";
 import { notificationService } from "@/lib/notification-service";
+import { normalizePhoneForSearch } from "@/lib/order-utils";
 
 // =============================================
 // ENHANCED ORDERS HOOK
@@ -32,6 +33,16 @@ export function useOrders() {
     const [messageTemplates, setMessageTemplates] = useState<MessageTemplate[]>([]);
     const [filterPresets, setFilterPresets] = useState<FilterPreset[]>([]);
     const [blacklistedPhones, setBlacklistedPhones] = useState<Set<string>>(new Set());
+
+    // Undo stack for reverting changes
+    interface UndoEntry {
+        orderId: string;
+        previousState: Partial<Order>;
+        action: string;
+        timestamp: Date;
+    }
+    const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
+    const MAX_UNDO_STACK = 10;
 
     // Filters state
     const [filters, setFilters] = useState<OrderFilters>({
@@ -225,8 +236,23 @@ export function useOrders() {
         (ordersToFilter: Order[]): Order[] => {
             return ordersToFilter.filter((order) => {
                 // Status filter
-                if (filters.status && filters.status !== "all" && order.status !== filters.status) {
-                    return false;
+                const statusFilter = filters.status as string;
+                if (statusFilter && statusFilter !== "all") {
+                    // Special handling for "needs_review" filter
+                    if (statusFilter === "needs_review") {
+                        // Only count if has warning flags in notes (actual issues)
+                        if (order.notes && order.notes.includes('⚠️')) {
+                            // This order needs review
+                        } else if ((!order.items || order.items.length === 0) && order.customer_name !== 'Manual Order') {
+                            // Empty items and not a manual order
+                        } else if (order.customer_name?.startsWith('Customer ') && order.customer_name !== 'Customer') {
+                            // Placeholder customer name
+                        } else {
+                            return false;
+                        }
+                    } else if (order.status !== statusFilter) {
+                        return false;
+                    }
                 }
 
                 // Date range filter
@@ -274,9 +300,10 @@ export function useOrders() {
                 if (filters.searchQuery) {
                     const query = filters.searchQuery.toLowerCase();
                     const matchesName = order.customer_name.toLowerCase().includes(query);
-                    const matchesPhone = order.phone.includes(query);
+                    const matchesPhone = normalizePhoneForSearch(order.phone).includes(normalizePhoneForSearch(filters.searchQuery));
                     const matchesOrderId = order.order_id?.toLowerCase().includes(query);
-                    if (!matchesName && !matchesPhone && !matchesOrderId) return false;
+                    const matchesDeliveryId = order.delivery_order_id?.toLowerCase().includes(query);
+                    if (!matchesName && !matchesPhone && !matchesOrderId && !matchesDeliveryId) return false;
                 }
 
                 return true;
@@ -346,9 +373,31 @@ export function useOrders() {
         rejectionReason?: string
     ) {
         try {
+            // Find the order to save its previous state for undo
+            const previousOrder = orders.find(o => o.id === orderId);
+            if (previousOrder) {
+                const undoEntry = {
+                    orderId,
+                    previousState: {
+                        status: previousOrder.status,
+                        rejection_reason: previousOrder.rejection_reason,
+                    },
+                    action: `Changed status to ${status}`,
+                    timestamp: new Date(),
+                };
+                setUndoStack(prev => [undoEntry, ...prev.slice(0, MAX_UNDO_STACK - 1)]);
+            }
+
             const updateData: Partial<Order> = { status };
             if (rejectionReason) {
                 updateData.rejection_reason = rejectionReason;
+            }
+
+            // Set timestamp when status changes to delivered or cancelled
+            if (status === 'delivered') {
+                updateData.delivered_at = new Date().toISOString();
+            } else if (status === 'cancelled') {
+                updateData.cancelled_at = new Date().toISOString();
             }
 
             const { error: updateError } = await supabase
@@ -357,6 +406,19 @@ export function useOrders() {
                 .eq("id", orderId);
 
             if (updateError) throw updateError;
+
+            // Record status change to history table for timeline tracking
+            if (previousOrder && previousOrder.status !== status) {
+                await supabase
+                    .from("order_status_history")
+                    .insert([{
+                        order_id: orderId,
+                        from_status: previousOrder.status,
+                        to_status: status,
+                        changed_at: new Date().toISOString(),
+                        notes: rejectionReason || null,
+                    }]);
+            }
 
             // Update local state
             setOrders((prev) =>
@@ -403,9 +465,51 @@ export function useOrders() {
 
     async function createOrder(orderData: Omit<Order, "id" | "created_at" | "updated_at">) {
         try {
+            // Generate smart order ID if not provided
+            // Format: SYYMMDD### where S=source code, YYMMDD=date, ###=daily sequence
+            let generatedOrderId = orderData.order_id;
+
+            if (!generatedOrderId) {
+                // Get source code
+                const sourceCode = orderData.source === 'whatsapp' ? '1'
+                    : orderData.source === 'meta' ? '2'
+                        : orderData.source === 'tiktok' ? '3'
+                            : '4'; // Manual/other
+
+                // Get today's date in YYMMDD format
+                const now = new Date();
+                const dateStr = `${now.getFullYear().toString().slice(-2)}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}`;
+
+                // Get today's order count for this source to determine sequence
+                const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+                const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+
+                const { count } = await supabase
+                    .from('orders')
+                    .select('*', { count: 'exact', head: true })
+                    .gte('created_at', startOfDay)
+                    .lt('created_at', endOfDay)
+                    .like('order_id', `${sourceCode}${dateStr}%`);
+
+                const sequence = ((count || 0) + 1).toString().padStart(3, '0');
+                generatedOrderId = `${sourceCode}${dateStr}${sequence}`;
+            }
+
+            // Get next global sequence number
+            const { data: maxSeqData } = await supabase
+                .from('orders')
+                .select('sequence_number')
+                .order('sequence_number', { ascending: false })
+                .limit(1)
+                .single();
+
+            const nextSequenceNumber = (maxSeqData?.sequence_number || 0) + 1;
+
             // Add defaults for new fields
             const fullOrderData = {
                 ...orderData,
+                order_id: generatedOrderId,
+                sequence_number: nextSequenceNumber,
                 priority: orderData.priority || "normal",
                 payment_status: orderData.payment_status || "cod",
                 is_return: orderData.is_return || false,
@@ -537,24 +641,137 @@ export function useOrders() {
         const order = orders.find(o => o.id === orderId);
         if (!order) return { success: false, error: "Order not found" };
 
-        // Update local state only (is_pinned not in database yet)
+        const newPinnedState = !order.is_pinned;
+
+        // Optimistic update
         setOrders((prev) =>
             prev.map((o) =>
-                o.id === orderId ? { ...o, is_pinned: !o.is_pinned } : o
+                o.id === orderId ? { ...o, is_pinned: newPinnedState } : o
             )
         );
-        return { success: true };
+
+        try {
+            const { error } = await supabase
+                .from("orders")
+                .update({ is_pinned: newPinnedState })
+                .eq("id", orderId);
+
+            if (error) throw error;
+            return { success: true };
+        } catch (err) {
+            console.error("Error toggling pin:", err);
+            // Revert
+            setOrders((prev) =>
+                prev.map((o) =>
+                    o.id === orderId ? { ...o, is_pinned: !newPinnedState } : o
+                )
+            );
+            return { success: false, error: err instanceof Error ? err.message : "Failed to toggle pin" };
+        }
     }
 
     async function setPin(orderId: string, isPinned: boolean) {
-        // Update local state only (is_pinned not in database yet)
+        // Optimistic update
         setOrders((prev) =>
             prev.map((o) =>
                 o.id === orderId ? { ...o, is_pinned: isPinned } : o
             )
         );
-        return { success: true };
+
+        try {
+            const { error } = await supabase
+                .from("orders")
+                .update({ is_pinned: isPinned })
+                .eq("id", orderId);
+
+            if (error) throw error;
+            return { success: true };
+        } catch (err) {
+            console.error("Error setting pin:", err);
+            // Revert
+            setOrders((prev) =>
+                prev.map((o) =>
+                    o.id === orderId ? { ...o, is_pinned: !isPinned } : o
+                )
+            );
+            return { success: false, error: err instanceof Error ? err.message : "Failed to set pin" };
+        }
     }
+
+    // =============================================
+    // REVIEW DELIVERED ORDERS
+    // =============================================
+
+    async function toggleReviewed(orderId: string) {
+        const order = orders.find(o => o.id === orderId);
+        if (!order) return { success: false, error: "Order not found" };
+
+        const newReviewedState = !order.is_reviewed;
+
+        // Optimistic update
+        setOrders((prev) =>
+            prev.map((o) =>
+                o.id === orderId ? { ...o, is_reviewed: newReviewedState } : o
+            )
+        );
+
+        try {
+            const { error } = await supabase
+                .from("orders")
+                .update({ is_reviewed: newReviewedState })
+                .eq("id", orderId);
+
+            if (error) throw error;
+            return { success: true };
+        } catch (err) {
+            console.error("Error toggling reviewed:", err);
+            // Revert
+            setOrders((prev) =>
+                prev.map((o) =>
+                    o.id === orderId ? { ...o, is_reviewed: !newReviewedState } : o
+                )
+            );
+            return { success: false, error: err instanceof Error ? err.message : "Failed to toggle reviewed" };
+        }
+    }
+
+    // =============================================
+    // MARK AS VERIFIED RETURNING CUSTOMER
+    // =============================================
+
+    async function markAsVerifiedCustomer(orderId: string) {
+        const order = orders.find(o => o.id === orderId);
+        if (!order) return { success: false, error: "Order not found" };
+
+        // Optimistic update - mark this order and all orders with same phone
+        const phone = order.phone;
+        setOrders((prev) =>
+            prev.map((o) =>
+                o.phone === phone ? { ...o, is_verified_customer: true } : o
+            )
+        );
+
+        try {
+            // Update all orders with this phone number
+            const { error } = await supabase
+                .from("orders")
+                .update({ is_verified_customer: true })
+                .eq("phone", phone);
+
+            if (error) throw error;
+            return { success: true };
+        } catch (err) {
+            console.error("Error marking as verified customer:", err);
+            // Revert
+            setOrders((prev) =>
+                prev.map((o) =>
+                    o.phone === phone ? { ...o, is_verified_customer: false } : o
+                )
+            );
+            return { success: false, error: err instanceof Error ? err.message : "Failed to mark as verified" };
+        }
+    }
+
 
     // =============================================
     // BULK OPERATIONS
@@ -630,6 +847,51 @@ export function useOrders() {
         }
     }
 
+    // Delete a single order
+    async function deleteOrder(orderId: string) {
+        try {
+            const { error: deleteError } = await supabase
+                .from("orders")
+                .delete()
+                .eq("id", orderId);
+
+            if (deleteError) throw deleteError;
+
+            // Remove from local state
+            setOrders((prev) => prev.filter((order) => order.id !== orderId));
+
+            return { success: true };
+        } catch (err) {
+            console.error("Error deleting order:", err);
+            return {
+                success: false,
+                error: err instanceof Error ? err.message : "Failed to delete order",
+            };
+        }
+    }
+
+    // Check if duplicate ID exists
+    async function checkOrderIdExists(orderId: string, excludeUuid?: string): Promise<boolean> {
+        try {
+            let query = supabase
+                .from("orders")
+                .select("id")
+                .eq("order_id", orderId)
+
+            if (excludeUuid) {
+                query = query.neq("id", excludeUuid);
+            }
+
+            const { data, error } = await query;
+
+            if (error) throw error;
+            return data && data.length > 0;
+        } catch (err) {
+            console.error("Error checking order ID:", err);
+            return false; // Fail safe
+        }
+    }
+
     function exportOrders(orderIds: string[], format: "csv" | "xlsx" = "csv") {
         const ordersToExport = orders.filter((o) => orderIds.includes(o.id));
 
@@ -690,28 +952,46 @@ export function useOrders() {
         return_amount: number;
         reason: string;
         items?: Order["items"];
+        deductDeliveryFee?: boolean; // If true, deduct 5000 IQD from return amount
     }) {
         const originalOrder = orders.find((o) => o.id === originalOrderId);
         if (!originalOrder) {
             return { success: false, error: "Original order not found" };
         }
 
+        // Count existing returns for this order to generate unique RTN ID
+        const existingReturns = orders.filter(o =>
+            o.is_return && o.original_order_id === originalOrderId
+        );
+        const returnCount = existingReturns.length + 1;
+
+        // Generate RTN ID: RTN-{original_sequence_number}-{return_count}
+        const sequenceNum = originalOrder.sequence_number || originalOrder.order_id;
+        const returnOrderId = `RTN-${sequenceNum}-${returnCount}`;
+
+        // Calculate return amount (deduct 5000 IQD delivery fee if checked)
+        const deliveryFeeDeduction = returnData.deductDeliveryFee ? 5000 : 0;
+        const finalReturnAmount = returnData.return_amount - deliveryFeeDeduction;
+
         const returnOrder: Omit<Order, "id" | "created_at" | "updated_at"> = {
-            order_id: `RET-${originalOrder.order_id}`,
+            order_id: returnOrderId,
             customer_name: originalOrder.customer_name,
             phone: originalOrder.phone,
             city: originalOrder.city,
             governorate_code: originalOrder.governorate_code,
             address_details: originalOrder.address_details,
             items: returnData.items || originalOrder.items,
-            price: -returnData.return_amount, // Negative amount for returns
-            status: "new",
-            notes: returnData.reason,
+            price: -finalReturnAmount, // Negative amount for returns
+            status: "return_pending",
+            notes: returnData.deductDeliveryFee
+                ? `استرجاع: ${returnData.reason} | خصم التوصيل: 5,000 | الطلب الأصلي: #${originalOrder.order_id}`
+                : `استرجاع: ${returnData.reason} | الطلب الأصلي: #${originalOrder.order_id}`,
             is_return: true,
             original_order_id: originalOrderId,
             priority: "high", // Returns are usually high priority
             payment_status: "pending",
             is_archived: false,
+            delivery_fee: deliveryFeeDeduction, // Store fee deducted
         };
 
         return createOrder(returnOrder);
@@ -778,8 +1058,25 @@ export function useOrders() {
     }
 
     // Get customer order count (for duplicate detection display)
-    function getCustomerOrderCount(phone: string): number {
-        return orders.filter((order) => order.phone === phone && !order.is_archived).length;
+    // Excludes orders with the same base ID (e.g., 10004 vs LF-10004-044 are same order)
+    function getCustomerOrderCount(phone: string, currentOrderId?: string): number {
+        // Helper to extract base order ID
+        const getBaseId = (orderId: string): string => {
+            const lfMatch = orderId.match(/LF-(\d+)-\d+$/);
+            if (lfMatch) return lfMatch[1];
+            if (orderId.startsWith('DLV-')) return orderId.replace('DLV-', '');
+            const digits = orderId.match(/\d+/);
+            return digits ? digits[0] : orderId;
+        };
+
+        const currentBaseId = currentOrderId ? getBaseId(currentOrderId) : null;
+
+        return orders.filter((order) => {
+            if (order.phone !== phone || order.is_archived) return false;
+            // Exclude orders with the same base ID (they're the same order in different format)
+            if (currentBaseId && getBaseId(order.order_id) === currentBaseId) return false;
+            return true;
+        }).length;
     }
 
     // =============================================
@@ -988,6 +1285,93 @@ export function useOrders() {
     }
 
     // =============================================
+    // DUPLICATE DISMISSAL
+    // =============================================
+
+    // Get all orders for a specific customer phone
+    function getCustomerOrders(phone: string): Order[] {
+        const normalizedPhone = phone?.replace(/\D/g, "").slice(-10) || "";
+        return orders.filter(o => {
+            const orderPhone = o.phone?.replace(/\D/g, "").slice(-10) || "";
+            return orderPhone === normalizedPhone;
+        });
+    }
+
+    // Dismiss duplicate alert for a phone number (won't show again)
+    async function dismissDuplicate(phone: string, notes?: string): Promise<{ success: boolean; error?: string }> {
+        try {
+            const { error: insertError } = await supabase
+                .from("duplicate_dismissals")
+                .insert([{
+                    phone: phone,
+                    notes: notes || null,
+                }]);
+
+            if (insertError) throw insertError;
+            return { success: true };
+        } catch (err) {
+            console.error("Error dismissing duplicate:", err);
+            return {
+                success: false,
+                error: err instanceof Error ? err.message : "Failed to dismiss duplicate",
+            };
+        }
+    }
+
+    // =============================================
+    // UNDO FUNCTIONALITY
+    // =============================================
+
+    async function undoLastAction(): Promise<{ success: boolean; error?: string; undoneAction?: string }> {
+        if (undoStack.length === 0) {
+            return { success: false, error: "Nothing to undo" };
+        }
+
+        const lastAction = undoStack[0];
+
+        try {
+            // Revert the order to its previous state
+            const { error: updateError } = await supabase
+                .from("orders")
+                .update(lastAction.previousState)
+                .eq("id", lastAction.orderId);
+
+            if (updateError) throw updateError;
+
+            // Update local state
+            setOrders((prev) =>
+                prev.map((order) =>
+                    order.id === lastAction.orderId
+                        ? { ...order, ...lastAction.previousState }
+                        : order
+                )
+            );
+
+            // Remove from undo stack
+            setUndoStack(prev => prev.slice(1));
+
+            return {
+                success: true,
+                undoneAction: lastAction.action
+            };
+        } catch (err) {
+            console.error("Error undoing action:", err);
+            return {
+                success: false,
+                error: err instanceof Error ? err.message : "Failed to undo",
+            };
+        }
+    }
+
+    function getLastUndoAction(): UndoEntry | null {
+        return undoStack.length > 0 ? undoStack[0] : null;
+    }
+
+    function clearUndoStack(): void {
+        setUndoStack([]);
+    }
+
+    // =============================================
     // ANALYTICS / STATS
     // =============================================
 
@@ -1081,7 +1465,11 @@ export function useOrders() {
         contactedOrders: orders.filter((o) => o.status === "contacted").length,
         confirmedOrders: orders.filter((o) => o.status === "confirmed").length,
         deliveredOrders: orders.filter((o) => o.status === "delivered").length,
+        inTransitOrders: orders.filter((o) => o.status === "in_transit").length,
         rejectedOrders: orders.filter((o) => o.status === "rejected").length,
+        completedOrders: orders.filter((o) => o.status === "completed").length,
+        noResponseOrders: orders.filter((o) => o.status === "no_response").length,
+        returnPendingOrders: orders.filter((o) => o.status === "return_pending").length,
         returnOrders: orders.filter((o) => o.is_return).length,
         urgentOrders: orders.filter((o) => o.priority === "urgent").length,
         revenueTrends,
@@ -1096,12 +1484,13 @@ export function useOrders() {
     return {
         // Core data
         orders,
+        // Archive
         archivedOrders,
+        fetchArchivedOrders,
         filteredOrders,
         loading,
         error,
         stats,
-        fetchArchivedOrders,
 
         // Reference data
         rejectionReasons,
@@ -1129,6 +1518,9 @@ export function useOrders() {
         setPaymentStatus,
         togglePin,
         setPin,
+        toggleReviewed,
+        markAsVerifiedCustomer,
+        deleteOrder,
 
         // Bulk operations
         bulkUpdateStatus,
@@ -1146,6 +1538,7 @@ export function useOrders() {
         getCustomerHistory,
         getCustomerOrderCount,
         mergeOrders,
+        fetchOrders, // Exposed for manual refresh
 
         // Notes
         addOrderNote,
@@ -1161,5 +1554,16 @@ export function useOrders() {
 
         // Blacklist
         isBlacklisted,
+
+        // Duplicate management
+        getCustomerOrders,
+        dismissDuplicate,
+
+        // Undo functionality
+        undoLastAction,
+        getLastUndoAction,
+        clearUndoStack,
+        canUndo: undoStack.length > 0,
+        checkOrderIdExists,
     };
 }

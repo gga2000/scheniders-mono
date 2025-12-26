@@ -1,12 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sidebar } from "./sidebar";
 import { TopBar } from "./global-search";
 import { AnimatePresence } from "framer-motion";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
+    // Initialize with consistent value for SSR - always false
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    // Load from localStorage only after mount (client-side)
+    useEffect(() => {
+        const saved = localStorage.getItem("sidebarCollapsed");
+        if (saved === "true") {
+            setIsCollapsed(true);
+        }
+        setMounted(true);
+    }, []);
+
+    // Save sidebar state to localStorage
+    useEffect(() => {
+        if (mounted) {
+            localStorage.setItem("sidebarCollapsed", String(isCollapsed));
+        }
+    }, [isCollapsed, mounted]);
 
     return (
         <div className="flex min-h-screen bg-background text-foreground">

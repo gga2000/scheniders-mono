@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Order } from "@/lib/supabase";
 import { OrderDetailsModal } from "@/components/orders/order-details-modal";
 import { OrderCard } from "@/components/dashboard/order-card";
+import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { Search, Filter } from "lucide-react";
 
 interface OrdersTableProps {
@@ -23,7 +24,7 @@ export function OrdersTable({ orders, onUpdateStatus, onUpdateOrder }: OrdersTab
         const matchesFilter = filter === "all" || order.status === filter;
         const matchesSearch =
             order.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            order.phone.includes(searchQuery);
+            normalizePhoneForSearch(order.phone).includes(normalizePhoneForSearch(searchQuery));
         return matchesFilter && matchesSearch;
     });
 
