@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 import { formatPhoneToStandard } from "./order-utils";
 import { generateWhatsAppLink } from "./utils";
+import { validateAddress, getAddressStatus } from "./address-validator";
 import type { OrderItem } from "./supabase";
 
 /**
@@ -144,6 +145,21 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
             sku: item.sku || undefined, // SKU from LightFunnels for matching
         }));
 
+        // Validate customer address
+        const addressValidation = validateAddress(
+            webhook.customer.city,
+            webhook.customer.governorate,
+            webhook.customer.address
+        );
+        const addressStatus = getAddressStatus(addressValidation);
+
+        // Determine if order needs attention due to address issues
+        const hasAddressIssues = !addressValidation.isValid;
+        const attentionReasons: string[] = [];
+        if (hasAddressIssues) {
+            attentionReasons.push('address_issue');
+        }
+
         // Prepare order data
         const orderData = {
             order_id: `LF-${webhook.order_id}`,
@@ -160,6 +176,13 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
                 `مرحباً ${webhook.customer.name}، شكراً لطلبك من LightFunnels`
             ),
             notes: webhook.notes?.trim() || null,
+            // Address validation fields
+            address_status: addressStatus,
+            address_issues: addressValidation.issues,
+            validated_governorate_code: addressValidation.governorate?.code || null,
+            // Flag for attention if address has issues
+            needs_attention: hasAddressIssues,
+            attention_reasons: attentionReasons.length > 0 ? attentionReasons : null,
         };
 
         // Insert into database

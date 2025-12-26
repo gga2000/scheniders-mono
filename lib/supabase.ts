@@ -25,9 +25,11 @@ export interface Order {
     address_details?: string;
     items: OrderItem[];
     price: number;
-    status: 'new' | 'contacted' | 'confirmed' | 'rejected' | 'delivered';
+    // Status flow: new → contacted → confirmed/cancelled → in_transit → delivered/rejected
+    status: OrderStatus;
     whatsapp_link?: string;
-    notes?: string;
+    notes?: string; // Order notes - shown on invoice
+    internal_notes?: string; // Internal notes between employees - not shown on invoice
     rejection_reason?: string;
     // New fields for enhanced orders
     scheduled_date?: string;
@@ -39,18 +41,56 @@ export interface Order {
     original_order_id?: string;
     is_archived: boolean;
     is_pinned?: boolean;
+    delivery_slot?: 'morning' | 'afternoon' | 'evening';
+    source?: 'whatsapp' | 'lightfunnels' | 'meta' | 'tiktok' | 'delivery_import';
+    sequence_number?: number; // Global order counter (#178, #179, etc.)
+    // Delivery tracking
+    delivered_at?: string; // Timestamp when marked delivered (activates 7-day guarantee)
+    cancelled_at?: string; // Timestamp when customer cancelled
+    // Print tracking
+    printed_at?: string; // Timestamp of last print
+    print_count?: number; // Number of times printed
+    last_batch_id?: string; // Last batch this order was printed in
+    is_gift?: boolean; // If true, hide price on label
+    // Attention flags for orders needing manual review
+    needs_attention?: boolean;
+    attention_reasons?: string[]; // ['missing_phone', 'missing_product', 'price_changed', etc.]
+    delivery_cost?: number; // Delivery fee from delivery company
+    tag_color?: 'yellow' | 'green' | 'blue' | 'pink' | 'purple' | null; // Row highlight color
+    delivery_order_id?: string; // Alias order ID from delivery company (searchable)
+    is_reviewed?: boolean; // Whether a delivered order has been reviewed by an employee
+    is_verified_customer?: boolean; // Whether this customer has been verified as returning customer (not duplicate)
+    contact_count?: number; // Number of WhatsApp messages sent (0=green, 1=yellow, 2=orange, 3+=red)
+    // Address validation
+    address_status?: 'valid' | 'incomplete' | 'invalid' | 'needs_review';
+    address_issues?: string[]; // ['missing_governorate', 'incomplete_address', 'possible_typo']
+    validated_governorate_code?: string; // Our standardized code (BGD, NAS, etc.)
 }
+
+// Order status types
+// - new: Just received
+// - contacted: Employee reached out to customer
+// - confirmed: Customer confirmed the order
+// - cancelled: Customer cancelled the order
+// - in_transit: Order shipped to delivery company
+// - delivered: Delivery confirmed by delivery person
+// - rejected: Delivery rejected at the door
+// - completed: Delivery verified and finalized (طلب تام)
+// - no_response: Customer never responded to contact attempts (لم يرد)
+// - return_pending: Return order awaiting processing (استرجاع معلق)
+export type OrderStatus = 'new' | 'contacted' | 'confirmed' | 'cancelled' | 'in_transit' | 'delivered' | 'rejected' | 'completed' | 'no_response' | 'return_pending';
 
 // Order priority levels
 export type OrderPriority = 'normal' | 'high' | 'urgent';
 
 // Payment status options
-export type PaymentStatus = 'pending' | 'cod' | 'prepaid' | 'partial';
+export type PaymentStatus = 'pending' | 'cod' | 'prepaid' | 'partial' | 'paid';
 
 export interface OrderItem {
     name: string;
     quantity: number;
     price: number;
+    compare_at_price?: number; // Original price before discount (for calculating discount %)
     sku?: string; // Product SKU from LightFunnels for matching
     product_id?: string; // Matched product ID
     image_url?: string; // Product image URL
@@ -74,6 +114,7 @@ export interface Product {
     description?: string;
     sku?: string; // Product SKU for matching with LightFunnels orders
     price: number;
+    compare_at_price?: number; // Original price before discount (shows "was X, now Y")
     cost?: number;
     stock_quantity: number;
     low_stock_threshold: number;
@@ -182,11 +223,15 @@ export interface MessageTemplate {
     name: string;
     content: string;
     content_ar?: string;
-    category: 'general' | 'confirmation' | 'shipping' | 'delay' | 'payment' | 'follow_up';
+    category: 'general' | 'confirmation' | 'shipping' | 'delay' | 'payment' | 'follow_up' | 'reminder' | 'discount';
     variables: string[];
     sort_order: number;
     is_active: boolean;
     created_at: string;
+    // 3-step workflow template type
+    template_type?: 'confirmation' | 'reminder' | 'discount';
+    // For discount template calculations (default 10%)
+    discount_percentage?: number;
 }
 
 // Follow-up reminders

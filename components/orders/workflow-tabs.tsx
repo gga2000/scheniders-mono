@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Phone, Package, Truck } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Order } from "@/lib/supabase";
+import type { Order, MessageTemplate } from "@/lib/supabase";
 
 import { ConfirmTab } from "./workflow/confirm-tab";
 import { FulfillTab } from "./workflow/fulfill-tab";
@@ -16,6 +16,7 @@ interface WorkflowTabsProps {
     onUpdate: (orderId: string, updates: Partial<Order>) => Promise<{ success: boolean; error?: string }>;
     onViewDetails: (order: Order) => void;
     isBlacklisted: (phone: string) => boolean;
+    messageTemplates?: MessageTemplate[];
 }
 
 type WorkflowTab = "confirm" | "fulfill" | "delivery";
@@ -60,13 +61,14 @@ export function WorkflowTabs({
     onUpdate,
     onViewDetails,
     isBlacklisted,
+    messageTemplates = [],
 }: WorkflowTabsProps) {
     const [activeTab, setActiveTab] = useState<WorkflowTab>("confirm");
 
     // Filter orders by workflow stage
     const confirmOrders = orders.filter(o => o.status === "new" || o.status === "contacted");
     const fulfillOrders = orders.filter(o => o.status === "confirmed");
-    const deliveryOrders = orders.filter(o => o.status === "delivered" || (o as Order & { shipping_status?: string }).shipping_status === "shipped");
+    const deliveryOrders = orders.filter(o => o.status === "in_transit");
 
     const orderCounts: Record<WorkflowTab, number> = {
         confirm: confirmOrders.length,
@@ -151,6 +153,8 @@ export function WorkflowTabs({
                             onStatusUpdate={onStatusUpdate}
                             onViewDetails={onViewDetails}
                             isBlacklisted={isBlacklisted}
+                            messageTemplates={messageTemplates}
+                            onUpdateOrder={onUpdate}
                         />
                     )}
                     {activeTab === "fulfill" && (

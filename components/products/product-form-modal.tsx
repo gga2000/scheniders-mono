@@ -20,6 +20,7 @@ export interface ProductFormData {
     description: string;
     sku: string; // Product SKU for LightFunnels matching
     price: number;
+    compare_at_price: number; // Original price before discount
     cost: number;
     stock_quantity: number;
     low_stock_threshold: number;
@@ -50,6 +51,7 @@ export function ProductFormModal({
         description: "",
         sku: "",
         price: 0,
+        compare_at_price: 0,
         cost: 0,
         stock_quantity: 0,
         low_stock_threshold: 5,
@@ -66,6 +68,7 @@ export function ProductFormModal({
                 description: product.description || "",
                 sku: product.sku || "",
                 price: product.price,
+                compare_at_price: product.compare_at_price || 0,
                 cost: product.cost || 0,
                 stock_quantity: product.stock_quantity,
                 low_stock_threshold: product.low_stock_threshold,
@@ -86,6 +89,7 @@ export function ProductFormModal({
                 description: "",
                 sku: "",
                 price: 0,
+                compare_at_price: 0,
                 cost: 0,
                 stock_quantity: 0,
                 low_stock_threshold: 5,
@@ -256,8 +260,8 @@ export function ProductFormModal({
                                                 type="button"
                                                 onClick={() => setFormData((prev) => ({ ...prev, tag_color: preset.color }))}
                                                 className={`w-10 h-10 rounded-xl border-2 transition-all ${formData.tag_color === preset.color
-                                                        ? 'border-foreground scale-110 shadow-lg'
-                                                        : 'border-transparent hover:scale-105'
+                                                    ? 'border-foreground scale-110 shadow-lg'
+                                                    : 'border-transparent hover:scale-105'
                                                     }`}
                                                 style={{ backgroundColor: preset.color }}
                                                 title={preset.name}
@@ -275,7 +279,7 @@ export function ProductFormModal({
                                 Pricing
                             </h3>
 
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-2">
                                         Selling Price (IQD) *
@@ -286,6 +290,21 @@ export function ProductFormModal({
                                         onChange={(e) => setFormData((prev) => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
                                         placeholder="0"
                                         required
+                                        min={0}
+                                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-foreground mb-2">
+                                        Compare At Price (IQD)
+                                        <span className="text-xs text-muted ml-1">(Original price before discount)</span>
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={formData.compare_at_price}
+                                        onChange={(e) => setFormData((prev) => ({ ...prev, compare_at_price: parseFloat(e.target.value) || 0 }))}
+                                        placeholder="0"
                                         min={0}
                                         className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                                     />
@@ -305,11 +324,19 @@ export function ProductFormModal({
                                     />
                                 </div>
 
-                                <div className="flex items-end">
+                                <div className="flex items-end gap-2">
                                     {profitMargin && (
-                                        <div className="w-full px-4 py-3 bg-[var(--pastel-green)] rounded-xl text-center">
-                                            <p className="text-xs text-green-700">Profit Margin</p>
+                                        <div className="flex-1 px-4 py-3 bg-[var(--pastel-green)] rounded-xl text-center">
+                                            <p className="text-xs text-green-700">Profit</p>
                                             <p className="text-lg font-bold text-green-900">{profitMargin}%</p>
+                                        </div>
+                                    )}
+                                    {formData.compare_at_price > formData.price && (
+                                        <div className="flex-1 px-4 py-3 bg-[var(--pastel-pink)] rounded-xl text-center">
+                                            <p className="text-xs text-rose-700">Discount</p>
+                                            <p className="text-lg font-bold text-rose-900">
+                                                {Math.round((1 - formData.price / formData.compare_at_price) * 100)}%
+                                            </p>
                                         </div>
                                     )}
                                 </div>

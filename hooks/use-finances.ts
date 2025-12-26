@@ -45,6 +45,12 @@ export interface DailyData {
     expenses: number;
 }
 
+export interface RejectionStats {
+    totalRejected: number;
+    rejectionRate: number;
+    byReason: Array<{ reason: string; count: number; percentage: number }>;
+}
+
 export interface HourlyData {
     hour: number;
     orders: number;
@@ -231,6 +237,38 @@ export function useFinances(dateRange?: DateRange) {
         return byCategory;
     }, [filteredExpenses]);
 
+    // Calculate Rejection Stats
+    const rejectionStats = useMemo((): RejectionStats => {
+        let totalRejected = 0;
+        const reasonsMap = new Map<string, number>();
+
+        filteredOrders.forEach((order) => {
+            if (order.status === "rejected") {
+                totalRejected++;
+                const reason = order.rejection_reason || "Unknown";
+                reasonsMap.set(reason, (reasonsMap.get(reason) || 0) + 1);
+            }
+        });
+
+        // Calculate total relevant orders (excluding cancelled? or all?)
+        // Usually rejection rate is Rejected / (Delivered + Rejected) or Total Shipped
+        // Let's use (Delivered + Rejected) as "Attempted Deliveries"
+        const attemptedDeliveries = filteredOrders.filter(o => o.status === "delivered" || o.status === "rejected").length;
+        const rejectionRate = attemptedDeliveries > 0 ? (totalRejected / attemptedDeliveries) * 100 : 0;
+
+        const byReason = Array.from(reasonsMap.entries()).map(([reason, count]) => ({
+            reason,
+            count,
+            percentage: totalRejected > 0 ? (count / totalRejected) * 100 : 0
+        })).sort((a, b) => b.count - a.count);
+
+        return {
+            totalRejected,
+            rejectionRate,
+            byReason
+        };
+    }, [filteredOrders]);
+
     // Compare with previous period
     const comparePeriods = useCallback((currentRange: DateRange): PeriodComparison | null => {
         const currentStart = new Date(currentRange.startDate);
@@ -310,8 +348,13 @@ export function useFinances(dateRange?: DateRange) {
             new: { count: 0, revenue: 0 },
             contacted: { count: 0, revenue: 0 },
             confirmed: { count: 0, revenue: 0 },
+            cancelled: { count: 0, revenue: 0 },
+            in_transit: { count: 0, revenue: 0 },
             delivered: { count: 0, revenue: 0 },
             rejected: { count: 0, revenue: 0 },
+            completed: { count: 0, revenue: 0 },
+            no_response: { count: 0, revenue: 0 },
+            return_pending: { count: 0, revenue: 0 },
         };
 
         filteredOrders.forEach((order) => {
@@ -328,6 +371,7 @@ export function useFinances(dateRange?: DateRange) {
         profitStats,
         salesByStatus,
         expensesByCategory,
+        rejectionStats,
 
         // Chart data
         dailyData,

@@ -18,7 +18,7 @@ import {
     ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatIQD } from "@/lib/utils";
+import { formatIQD, getBaseOrderId } from "@/lib/utils";
 
 type SearchCategory = "all" | "orders" | "customers" | "products";
 
@@ -61,7 +61,9 @@ export function GlobalSearch() {
         // Search orders
         if (category === "all" || category === "orders") {
             orders.forEach((order) => {
-                const matchesId = order.order_id?.toString().includes(query);
+                // Normalize order ID for search (handles both old LF-XXXXX and new #XXXXX formats)
+                const normalizedOrderId = getBaseOrderId(order.order_id);
+                const matchesId = normalizedOrderId.toString().includes(query) || order.order_id?.toString().includes(query);
                 const matchesPhone = order.phone.includes(query);
                 const matchesName = order.customer_name.toLowerCase().includes(lowerQuery);
 
@@ -69,10 +71,10 @@ export function GlobalSearch() {
                     searchResults.push({
                         type: "order",
                         id: order.id,
-                        title: `#${order.order_id} - ${order.customer_name}`,
+                        title: `#${normalizedOrderId} - ${order.customer_name}`,
                         subtitle: order.phone,
                         meta: formatIQD(Number(order.price)),
-                        href: `/orders?search=${order.order_id}`,
+                        href: `/orders?search=${normalizedOrderId}`,
                     });
                 }
             });

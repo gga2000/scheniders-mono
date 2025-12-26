@@ -12,6 +12,7 @@ import {
     ChevronLeft,
     ChevronRight,
     DollarSign,
+    BarChart3,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -21,7 +22,7 @@ const NAV_ITEMS = [
     { label: "Orders", icon: Package, href: "/orders" },
     { label: "Customers", icon: Users, href: "/customers" },
     { label: "Products", icon: ShoppingBag, href: "/products" },
-    { label: "Finances", icon: DollarSign, href: "/finances" },
+    { label: "Analytics", icon: BarChart3, href: "/analytics" },
     { label: "Printing", icon: Printer, href: "/printing" },
     { label: "Settings", icon: Settings, href: "/settings" },
 ];

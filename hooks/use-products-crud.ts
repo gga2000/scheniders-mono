@@ -9,6 +9,7 @@ interface ProductFormData {
     description?: string;
     sku?: string; // Product SKU for LightFunnels matching
     price: number;
+    compare_at_price?: number; // Original price before discount
     cost?: number;
     stock_quantity: number;
     low_stock_threshold: number;

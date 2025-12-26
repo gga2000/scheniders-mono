@@ -141,6 +141,30 @@ export function formatPhoneForDisplay(phone: string | undefined | null): string 
     return cleaned;
 }
 
+/**
+ * Normalize phone number for search comparison
+ * Strips all formatting, country codes, and leading zeros to enable
+ * matching regardless of format (e.g., 07735441316 will match 7735441316)
+ */
+export function normalizePhoneForSearch(phone: string | undefined | null): string {
+    if (!phone) return '';
+
+    // Remove all non-digit characters
+    let cleaned = phone.replace(/\D/g, '');
+
+    // Remove +964 or 964 prefix
+    if (cleaned.startsWith('964')) {
+        cleaned = cleaned.substring(3);
+    }
+
+    // Remove leading zero (Iraqi mobile numbers start with 07)
+    if (cleaned.startsWith('0')) {
+        cleaned = cleaned.substring(1);
+    }
+
+    return cleaned;
+}
+
 
 /**
  * Calculate total price from items array
@@ -162,6 +186,25 @@ export interface OrderFormData {
     address_details?: string;
     items: OrderItem[];
     notes?: string;
+    delivery_slot?: 'morning' | 'afternoon' | 'evening';
+    payment_status?: 'cod' | 'prepaid' | 'partial';
+}
+
+/**
+ * Create an empty order form with default values
+ */
+export function createEmptyOrderForm(): OrderFormData {
+    return {
+        customer_name: "",
+        phone: "",
+        city: "",
+        governorate_code: "",
+        address_details: "",
+        items: [{ name: "", quantity: 1, price: 0 }],
+        notes: "",
+        delivery_slot: undefined,
+        payment_status: "cod",
+    };
 }
 
 export interface ValidationErrors {

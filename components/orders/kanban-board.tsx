@@ -7,16 +7,18 @@ import {
     DragOverlay,
     DragStartEvent,
     PointerSensor,
+    TouchSensor,
+    KeyboardSensor,
     useSensor,
     useSensors,
     useDroppable,
     useDraggable,
+    closestCenter,
 } from "@dnd-kit/core";
 import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/lib/utils";
-import { formatIQD } from "@/lib/utils";
+import { cn, formatIQD, getBaseOrderId } from "@/lib/utils";
 import type { Order } from "@/lib/supabase";
-import { GripVertical, Undo2, X } from "lucide-react";
+import { GripVertical, Undo2, X, Move } from "lucide-react";
 
 interface KanbanBoardProps {
     orders: Order[];
@@ -46,16 +48,21 @@ function DroppableColumn({
     orderCount: number;
     isOver: boolean;
 }) {
-    const { setNodeRef } = useDroppable({ id: status });
+    const { setNodeRef, isOver: isDroppableOver } = useDroppable({ id: status });
     const colors = statusConfig[status];
+    const isActive = isOver || isDroppableOver;
 
     return (
-        <div
+        <motion.div
             ref={setNodeRef}
+            animate={{
+                scale: isActive ? 1.02 : 1,
+                transition: { duration: 0.2 }
+            }}
             className={cn(
-                "rounded-2xl overflow-hidden transition-all duration-200 min-h-[300px]",
+                "rounded-2xl overflow-hidden transition-all duration-200 min-h-[300px] border-2",
                 colors.bg,
-                isOver && "ring-2 ring-offset-2 ring-blue-400 scale-[1.02]"
+                isActive ? "border-blue-400 ring-2 ring-blue-200 shadow-lg" : "border-transparent"
             )}
         >
             <div className={cn(
@@ -66,10 +73,10 @@ function DroppableColumn({
                 <span>{colors.label}</span>
                 <span className="px-2 py-0.5 bg-white/50 rounded-full text-xs">{orderCount}</span>
             </div>
-            <div className="p-2 space-y-2 max-h-[500px] overflow-y-auto min-h-[200px]">
+            <div className="p-3 space-y-2 max-h-[500px] overflow-y-auto min-h-[200px]">
                 {children}
             </div>
-        </div>
+        </motion.div>
     );
 }
 
@@ -87,25 +94,30 @@ function DraggableOrderCard({
     });
 
     const style = transform
-        ? { transform: `translate(${transform.x}px, ${transform.y}px)` }
+        ? {
+            transform: `translate(${transform.x}px, ${transform.y}px)`,
+            zIndex: 1000,
+        }
         : undefined;
 
     return (
-        <div
+        <motion.div
             ref={setNodeRef}
             style={style}
+            whileHover={{ scale: isDragging ? 1 : 1.02 }}
             className={cn(
-                "bg-white rounded-xl p-3 shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing transition-all group",
-                isDragging && "opacity-50 shadow-lg scale-105 z-50"
+                "bg-white rounded-xl shadow-sm border border-gray-100 transition-all group",
+                isDragging && "opacity-50 shadow-lg ring-2 ring-blue-400"
             )}
         >
-            <div className="flex items-start gap-2">
-                <div
-                    {...attributes}
-                    {...listeners}
-                    className="mt-0.5 text-gray-300 hover:text-gray-500 cursor-grab"
-                >
-                    <GripVertical className="w-4 h-4" />
+            {/* Drag Handle - Full width touch target */}
+            <div
+                {...attributes}
+                {...listeners}
+                className="flex items-center gap-2 p-3 cursor-grab active:cursor-grabbing touch-manipulation"
+            >
+                <div className="p-1.5 rounded-lg bg-gray-100 group-hover:bg-gray-200 transition-colors">
+                    <Move className="w-4 h-4 text-gray-400 group-hover:text-gray-600" />
                 </div>
                 <div
                     className="flex-1 min-w-0"
@@ -115,11 +127,13 @@ function DraggableOrderCard({
                     }}
                 >
                     <p className="font-medium text-sm truncate">{order.customer_name}</p>
-                    <p className="text-xs text-muted font-mono">#{order.order_id}</p>
-                    <p className="text-sm font-semibold mt-1">{formatIQD(Number(order.price))}</p>
+                    <div className="flex items-center justify-between mt-1">
+                        <p className="text-xs text-muted font-mono">#{getBaseOrderId(order.order_id)}</p>
+                        <p className="text-sm font-bold text-emerald-600">{formatIQD(Number(order.price))}</p>
+                    </div>
                 </div>
             </div>
-        </div>
+        </motion.div>
     );
 }
 
@@ -132,9 +146,16 @@ export function KanbanBoard({ orders, onStatusChange, onViewDetails }: KanbanBoa
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
-                distance: 8, // Require 8px drag before activating
+                distance: 5, // Reduced from 8px for faster activation
             },
-        })
+        }),
+        useSensor(TouchSensor, {
+            activationConstraint: {
+                delay: 150, // Short delay to differentiate from scroll
+                tolerance: 5,
+            },
+        }),
+        useSensor(KeyboardSensor)
     );
 
     const activeOrder = activeId ? orders.find((o) => o.id === activeId) : null;
@@ -220,7 +241,7 @@ export function KanbanBoard({ orders, onStatusChange, onViewDetails }: KanbanBoa
                     {activeOrder && (
                         <div className="bg-white rounded-xl p-3 shadow-2xl border-2 border-blue-400 w-[200px]">
                             <p className="font-medium text-sm truncate">{activeOrder.customer_name}</p>
-                            <p className="text-xs text-muted font-mono">#{activeOrder.order_id}</p>
+                            <p className="text-xs text-muted font-mono">#{getBaseOrderId(activeOrder.order_id)}</p>
                             <p className="text-sm font-semibold mt-1">{formatIQD(Number(activeOrder.price))}</p>
                         </div>
                     )}
