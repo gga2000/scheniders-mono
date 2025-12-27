@@ -349,6 +349,90 @@ export function findExactGovernorate(input: string): Governorate | null {
 }
 
 /**
+ * Extract governorate from an address string and return the remaining address
+ * 
+ * Example: "النجف حي الامير مقابل قاعه عشتار" 
+ * Returns: { governorate: Najaf, city: "النجف", remainingAddress: "حي الامير مقابل قاعه عشتار" }
+ */
+export function extractAndSeparateGovernorate(fullAddress: string): {
+    governorate: Governorate | null;
+    city: string;
+    remainingAddress: string;
+} {
+    if (!fullAddress || !fullAddress.trim()) {
+        return { governorate: null, city: '', remainingAddress: '' };
+    }
+
+    const trimmedAddress = fullAddress.trim();
+
+    // Try to find a governorate in the address
+    for (const gov of GOVERNORATES) {
+        for (const alias of gov.aliases) {
+            // Check if the address STARTS with this governorate name (case insensitive)
+            const normalizedAlias = normalizeArabicText(alias);
+            const normalizedAddress = normalizeArabicText(trimmedAddress);
+
+            if (normalizedAddress.startsWith(normalizedAlias)) {
+                // Find where the alias appears in the original text (preserving case)
+                // Look for separators after the governorate: space, dash, comma
+                const aliasLength = alias.length;
+
+                // Find the governorate portion in original text
+                let foundIndex = -1;
+                for (let i = 0; i <= trimmedAddress.length - aliasLength; i++) {
+                    const substr = trimmedAddress.substring(i, i + aliasLength);
+                    if (normalizeArabicText(substr) === normalizedAlias) {
+                        foundIndex = i;
+                        break;
+                    }
+                }
+
+                if (foundIndex !== -1) {
+                    const matchedPortion = trimmedAddress.substring(foundIndex, foundIndex + aliasLength);
+                    const afterMatch = trimmedAddress.substring(foundIndex + aliasLength).trim();
+
+                    // Remove leading separators from remaining address
+                    const cleanedRemaining = afterMatch.replace(/^[\s\-،,\/:]+/, '').trim();
+
+                    return {
+                        governorate: gov,
+                        city: matchedPortion,
+                        remainingAddress: cleanedRemaining
+                    };
+                }
+            }
+
+            // Also check if the governorate appears after a separator
+            // e.g., "حي الامير - النجف" (less common but possible)
+            if (normalizedAddress.includes(normalizedAlias)) {
+                // Find where it appears
+                const startIdx = normalizedAddress.indexOf(normalizedAlias);
+
+                // Build the parts
+                const beforeGov = trimmedAddress.substring(0, startIdx).replace(/[\s\-،,\/:]+$/, '').trim();
+                const afterGov = trimmedAddress.substring(startIdx + alias.length).replace(/^[\s\-،,\/:]+/, '').trim();
+
+                // Combine before and after as the remaining address
+                const remaining = [beforeGov, afterGov].filter(Boolean).join(' ');
+
+                return {
+                    governorate: gov,
+                    city: gov.nameAr, // Use the standard Arabic name
+                    remainingAddress: remaining
+                };
+            }
+        }
+    }
+
+    // No governorate found - return the full address as remainingAddress
+    return {
+        governorate: null,
+        city: '',
+        remainingAddress: trimmedAddress
+    };
+}
+
+/**
  * Extract governorate from address text (city, governorate_code, or address_details)
  */
 export function extractGovernorate(
