@@ -81,6 +81,7 @@ export interface LightFunnelsWebhookPayload {
 export interface LightFunnelsWebhook {
     order_id: string;
     order_number: string;
+    is_checkout: boolean; // true if this is an abandoned checkout, false if completed order
     customer: {
         name: string;
         phone: string;
@@ -163,10 +164,16 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
             product_id: item.product_id,
         }));
 
+        // Detect if this is a checkout (abandoned) or a completed order
+        // Checkouts have __typename "Checkout", orders have "Order"
+        const isCheckout = node.__typename === 'Checkout' ||
+            (node.id && String(node.id).startsWith('checkout_'));
+
         // Build normalized webhook data
         const normalized: LightFunnelsWebhook = {
             order_id: String(node._id || node.id),
             order_number: node.name || String(node._id),
+            is_checkout: isCheckout,
             customer: {
                 name: customerName.trim(),
                 phone: phone,
@@ -279,8 +286,11 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
             };
         }
 
-        // Check for duplicate
-        const isDuplicate = await checkDuplicateOrder(webhook.order_number);
+        // Check for duplicate using the same ID format that will be created
+        const duplicateCheckId = webhook.is_checkout
+            ? `CHK-${webhook.order_id}`
+            : webhook.order_number;
+        const isDuplicate = await checkDuplicateOrder(duplicateCheckId);
         if (isDuplicate) {
             return {
                 success: false,
@@ -320,9 +330,22 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
             attentionReasons.push('address_issue');
         }
 
+        // For checkouts (abandoned), use CHK- prefix and pending_checkout status
+        // When confirmed by employee, the app will assign a unique order number
+        const orderId = webhook.is_checkout
+            ? `CHK-${webhook.order_id}`
+            : webhook.order_number;
+
+        const orderStatus = webhook.is_checkout ? 'pending_checkout' : 'new';
+
+        // Build WhatsApp message based on type
+        const whatsappMessage = webhook.is_checkout
+            ? `مرحباً ${webhook.customer.name}، لاحظنا أنك لم تكمل طلبك. هل تحتاج مساعدة؟`
+            : `مرحباً ${webhook.customer.name}، شكراً لطلبك رقم ${webhook.order_number}`;
+
         // Prepare order data (only include fields that exist in the database)
         const orderData = {
-            order_id: webhook.order_number,
+            order_id: orderId,
             customer_name: webhook.customer.name.trim(),
             phone: formattedPhone,
             city: webhook.customer.city?.trim() || null,
@@ -330,17 +353,16 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
             address_details: webhook.customer.address?.trim() || null,
             items,
             price: webhook.total,
-            status: "new" as const,
+            status: orderStatus as any,
             priority: "normal" as const,
             payment_status: webhook.payment_method === 'cod' ? 'cod' as const : 'pending' as const,
             is_return: false,
             is_archived: false,
             source: 'lightfunnels' as const,
-            whatsapp_link: generateWhatsAppLink(
-                formattedPhone,
-                `مرحباً ${webhook.customer.name}، شكراً لطلبك رقم ${webhook.order_number}`
-            ),
-            notes: webhook.notes?.trim() || null,
+            whatsapp_link: generateWhatsAppLink(formattedPhone, whatsappMessage),
+            notes: webhook.is_checkout
+                ? `[سلة متروكة] ${webhook.notes?.trim() || ''}`.trim()
+                : webhook.notes?.trim() || null,
         };
 
         // Insert into database
