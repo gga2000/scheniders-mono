@@ -104,16 +104,21 @@ export interface LightFunnelsWebhook {
 }
 
 /**
- * Parse and validate LightFunnels webhook payload (actual Lightfunnels format)
+ * Parse and validate LightFunnels webhook payload (handles both order and checkout formats)
  */
 export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | null {
     try {
-        // Check if payload has the node wrapper (actual Lightfunnels format)
+        // Check if payload has the node wrapper (order automation format)
         const node = payload.node || payload;
+
+        // Detect checkout format: has first_name at root or step_id (checkout-specific)
+        const isCheckoutFormat = !payload.node && (node.first_name !== undefined || node.step_id !== undefined);
+
+        console.log("Webhook type:", isCheckoutFormat ? "Checkout" : "Order");
 
         // Validate required fields
         if (!node._id && !node.id) {
-            console.error("Missing order ID in webhook payload");
+            console.error("Missing order/checkout ID in webhook payload");
             return null;
         }
 
@@ -127,23 +132,27 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
             return null;
         }
 
-        // Extract customer name from various possible locations
-        const customerName =
-            node.customer?.full_name ||
-            [node.shipping_address?.first_name, node.shipping_address?.last_name].filter(Boolean).join(' ') ||
-            [node.billing_address?.first_name, node.billing_address?.last_name].filter(Boolean).join(' ') ||
-            'Unknown Customer';
+        // Extract customer name based on format
+        let customerName: string;
+        if (isCheckoutFormat) {
+            // Checkout: first_name/last_name at root
+            customerName = [node.first_name, node.last_name].filter(Boolean).join(' ').trim() || 'Unknown Customer';
+        } else {
+            // Order: customer.full_name or from addresses
+            customerName =
+                node.customer?.full_name ||
+                [node.shipping_address?.first_name, node.shipping_address?.last_name].filter(Boolean).join(' ') ||
+                [node.billing_address?.first_name, node.billing_address?.last_name].filter(Boolean).join(' ') ||
+                'Unknown Customer';
+        }
 
-        // Extract phone from various locations
+        // Extract phone
         const phone = node.phone || node.shipping_address?.phone || node.billing_address?.phone || '';
 
-        // Extract city from shipping address or customer location
-        const city =
-            node.shipping_address?.city ||
-            node.customer?.location?.split(',').pop()?.trim() ||
-            '';
+        // Extract city
+        const city = node.shipping_address?.city || node.customer?.location?.split(',').pop()?.trim() || '';
 
-        // Build address from shipping address fields
+        // Build address
         const addressParts = [
             node.shipping_address?.line1,
             node.shipping_address?.line2,
@@ -151,28 +160,30 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
         ].filter(Boolean);
         const address = addressParts.length > 0 ? addressParts.join(', ') : '';
 
-        // Get payment method
+        // Get payment method (orders only)
         const paymentMethod = node.payments?.[0]?.source?.payment_gateway?.prototype?.key || 'unknown';
 
         // Normalize items
         const items = node.items.map((item: any) => ({
             name: item.title || item.name || 'Unknown Product',
-            quantity: 1, // Lightfunnels doesn't send quantity, defaulting to 1
+            quantity: 1,
             price: item.price || 0,
             sku: item.sku,
             image_url: item.image?.path,
             product_id: item.product_id,
         }));
 
-        // Detect if this is a checkout (abandoned) or a completed order
-        // Checkouts have __typename "Checkout", orders have "Order"
-        const isCheckout = node.__typename === 'Checkout' ||
+        // Calculate total (checkouts don't have total field)
+        const total = node.total || items.reduce((sum: number, item: any) => sum + item.price, 0);
+
+        // Checkout detection
+        const isCheckout = isCheckoutFormat ||
+            node.__typename === 'Checkout' ||
             (node.id && String(node.id).startsWith('checkout_'));
 
-        // Build normalized webhook data
         const normalized: LightFunnelsWebhook = {
             order_id: String(node._id || node.id),
-            order_number: node.name || String(node._id),
+            order_number: node.name || String(node._id || node.id),
             is_checkout: isCheckout,
             customer: {
                 name: customerName.trim(),
@@ -182,13 +193,13 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
                 address: address,
             },
             items,
-            total: node.total || 0,
+            total: total,
             created_at: node.created_at,
             notes: node.notes,
             payment_method: paymentMethod,
         };
 
-        console.log("Parsed webhook payload:", JSON.stringify(normalized, null, 2));
+        console.log("Parsed:", normalized.is_checkout ? "Checkout" : "Order", normalized.order_number);
         return normalized;
     } catch (error) {
         console.error("Error parsing webhook payload:", error);
