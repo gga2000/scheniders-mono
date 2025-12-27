@@ -109,15 +109,8 @@ export function useOrders() {
                 }
             });
 
-        // Polling fallback: refresh every 30 seconds as a safety net
-        const pollingInterval = setInterval(() => {
-            console.log("[Polling] Refreshing orders...");
-            fetchOrders();
-        }, 30000);
-
         return () => {
             channel.unsubscribe();
-            clearInterval(pollingInterval);
         };
     }, []);
 
