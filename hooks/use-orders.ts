@@ -44,9 +44,20 @@ export function useOrders() {
     const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
     const MAX_UNDO_STACK = 10;
 
-    // Filters state
-    const [filters, setFilters] = useState<OrderFilters>({
-        status: "all",
+    // Helper to get today's date in YYYY-MM-DD format
+    const getTodayDate = () => {
+        const today = new Date();
+        return today.toISOString().split('T')[0];
+    };
+
+    // Filters state - default to today's orders
+    const [filters, setFilters] = useState<OrderFilters>(() => {
+        const today = new Date().toISOString().split('T')[0];
+        return {
+            status: "all",
+            dateFrom: today,
+            dateTo: today,
+        };
     });
 
     // =============================================

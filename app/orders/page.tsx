@@ -415,14 +415,12 @@ export default function OrdersPage() {
         { id: "all", label: "All Orders", count: orders.length },
         { id: "new", label: "New", count: stats.pendingOrders },
         { id: "contacted", label: "Contacted", count: stats.contactedOrders },
-        { id: "in_transit", label: "🚚 In Transit", count: stats.inTransitOrders },
         { id: "confirmed", label: "Confirmed", count: stats.confirmedOrders },
+        { id: "in_transit", label: "🚚 In Transit", count: stats.inTransitOrders },
         { id: "delivered", label: "Delivered", count: stats.deliveredOrders },
-        { id: "completed", label: "✅ Completed", count: stats.completedOrders || 0 },
+        { id: "completed", label: "Completed", count: stats.completedOrders || 0 },
         { id: "rejected", label: "Rejected", count: stats.rejectedOrders },
         { id: "no_response", label: "لم يرد", count: stats.noResponseOrders || 0 },
-        { id: "return_pending", label: "🔄 استرجاع معلق", count: stats.returnPendingOrders || 0 },
-        { id: "needs_review", label: "⚠️ Needs Review", count: needsReviewCount },
     ];
 
     // Check if any advanced filters are active
@@ -1571,7 +1569,7 @@ export default function OrdersPage() {
                                                                         confirmed: "مؤكد",
                                                                         in_transit: "قيد التوصيل",
                                                                         delivered: "تم التسليم",
-                                                                        completed: "مكتمل ✅",
+                                                                        completed: "مكتمل",
                                                                         no_response: "لم يرد",
                                                                         rejected: "مرفوض",
                                                                         cancelled: "ملغي"
@@ -1825,7 +1823,7 @@ export default function OrdersPage() {
                                                                                             order.status === "confirmed" && "bg-green-100 text-green-700",
                                                                                             order.status === "in_transit" && "bg-blue-100 text-blue-700",
                                                                                             order.status === "delivered" && "bg-teal-100 text-teal-700",
-                                                                                            order.status === "completed" && "bg-emerald-100 text-emerald-700",
+                                                                                            order.status === "completed" && "bg-emerald-100 text-emerald-700 shadow-[0_0_10px_rgba(16,185,129,0.4)]",
                                                                                             order.status === "no_response" && "bg-gray-100 text-gray-600",
                                                                                             order.status === "rejected" && "bg-rose-100 text-rose-700",
                                                                                             order.status === "cancelled" && "bg-gray-100 text-gray-600",
@@ -1836,7 +1834,7 @@ export default function OrdersPage() {
                                                                                         <option value="confirmed">مؤكد</option>
                                                                                         <option value="in_transit">قيد التوصيل</option>
                                                                                         <option value="delivered">تم التسليم</option>
-                                                                                        <option value="completed">مكتمل ✅</option>
+                                                                                        <option value="completed">مكتمل</option>
                                                                                         <option value="no_response">لم يرد</option>
                                                                                         <option value="rejected">مرفوض</option>
                                                                                         <option value="cancelled">ملغي</option>
