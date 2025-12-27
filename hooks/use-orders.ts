@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
     supabase,
     type Order,
@@ -244,10 +244,10 @@ export function useOrders() {
     // =============================================
 
     const applyFilters = useCallback(
-        (ordersToFilter: Order[]): Order[] => {
+        (ordersToFilter: Order[], activeFilters: OrderFilters = filters): Order[] => {
             return ordersToFilter.filter((order) => {
                 // Status filter
-                const statusFilter = filters.status as string;
+                const statusFilter = activeFilters.status as string;
                 if (statusFilter && statusFilter !== "all") {
                     // Special handling for "needs_review" filter
                     if (statusFilter === "needs_review") {
@@ -267,51 +267,53 @@ export function useOrders() {
                 }
 
                 // Date range filter
-                if (filters.dateFrom) {
+                if (activeFilters.dateFrom) {
                     const orderDate = new Date(order.created_at);
-                    const fromDate = new Date(filters.dateFrom);
+                    const fromDate = new Date(activeFilters.dateFrom);
+                    // Reset time to start of day for accurate comparison
+                    fromDate.setHours(0, 0, 0, 0);
                     if (orderDate < fromDate) return false;
                 }
-                if (filters.dateTo) {
+                if (activeFilters.dateTo) {
                     const orderDate = new Date(order.created_at);
-                    const toDate = new Date(filters.dateTo);
+                    const toDate = new Date(activeFilters.dateTo);
                     toDate.setHours(23, 59, 59, 999);
                     if (orderDate > toDate) return false;
                 }
 
                 // City filter
-                if (filters.city && order.city !== filters.city) {
+                if (activeFilters.city && order.city !== activeFilters.city) {
                     return false;
                 }
 
                 // Product filter
-                if (filters.product) {
+                if (activeFilters.product) {
                     const hasProduct = order.items?.some((item) =>
-                        item.name.toLowerCase().includes(filters.product!.toLowerCase())
+                        item.name.toLowerCase().includes(activeFilters.product!.toLowerCase())
                     );
                     if (!hasProduct) return false;
                 }
 
                 // Priority filter
-                if (filters.priority && order.priority !== filters.priority) {
+                if (activeFilters.priority && order.priority !== activeFilters.priority) {
                     return false;
                 }
 
                 // Payment status filter
-                if (filters.paymentStatus && order.payment_status !== filters.paymentStatus) {
+                if (activeFilters.paymentStatus && order.payment_status !== activeFilters.paymentStatus) {
                     return false;
                 }
 
                 // Return orders filter
-                if (filters.isReturn !== undefined && order.is_return !== filters.isReturn) {
+                if (activeFilters.isReturn !== undefined && order.is_return !== activeFilters.isReturn) {
                     return false;
                 }
 
                 // Search query
-                if (filters.searchQuery) {
-                    const query = filters.searchQuery.toLowerCase();
+                if (activeFilters.searchQuery) {
+                    const query = activeFilters.searchQuery.toLowerCase();
                     const matchesName = order.customer_name.toLowerCase().includes(query);
-                    const matchesPhone = normalizePhoneForSearch(order.phone).includes(normalizePhoneForSearch(filters.searchQuery));
+                    const matchesPhone = normalizePhoneForSearch(order.phone).includes(normalizePhoneForSearch(activeFilters.searchQuery));
                     const matchesOrderId = order.order_id?.toLowerCase().includes(query);
                     const matchesDeliveryId = order.delivery_order_id?.toLowerCase().includes(query);
                     if (!matchesName && !matchesPhone && !matchesOrderId && !matchesDeliveryId) return false;
@@ -330,6 +332,36 @@ export function useOrders() {
         // Then sort by date descending (newest first)
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
+
+    // Calculate specific counts for status buttons based on current filters (ignoring status filter)
+    const statusCounts = useMemo(() => {
+        const filtersWithoutStatus = { ...filters, status: 'all' as const };
+        const matchingOrders = applyFilters(orders, filtersWithoutStatus);
+
+        const counts = {
+            all: matchingOrders.length,
+            new: 0,
+            contacted: 0,
+            confirmed: 0,
+            in_transit: 0,
+            delivered: 0,
+            completed: 0,
+            rejected: 0,
+            no_response: 0,
+            return_pending: 0,
+        };
+
+        matchingOrders.forEach(order => {
+            // @ts-ignore
+            if (counts[order.status] !== undefined) {
+                // @ts-ignore
+                counts[order.status]++;
+            }
+        });
+
+        return counts;
+    }, [orders, filters, applyFilters]);
+
 
     // Get unique cities from orders
     const availableCities = [...new Set(orders.map((o) => o.city).filter(Boolean))] as string[];
@@ -1521,6 +1553,7 @@ export function useOrders() {
     return {
         // Core data
         orders,
+        statusCounts,
         // Archive
         archivedOrders,
         fetchArchivedOrders,

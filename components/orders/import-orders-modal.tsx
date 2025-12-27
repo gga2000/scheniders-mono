@@ -273,7 +273,7 @@ export function ImportOrdersModal({
                         <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
                             <p className="text-sm font-medium text-blue-800 mb-2">الأعمدة المتوقعة:</p>
                             <div className="flex flex-wrap gap-2">
-                                {['رقم الوصل', 'التاريخ', 'اسم المنتج', 'سعر المنتج', 'الكمية', 'اسم الزبون', 'رقم الهاتف الاول', 'رقم الهاتف الثاني', 'العنوان', 'ملاحظة'].map(col => (
+                                {['رقم الوصل', 'التاريخ', 'اسم المنتج', 'SKU', 'سعر المنتج', 'الكمية', 'اسم الزبون', 'رقم الهاتف الاول', 'رقم الهاتف الثاني', 'العنوان', 'حالة الطلب', 'ملاحظة'].map(col => (
                                     <span key={col} className="px-2 py-1 bg-white rounded-lg text-xs text-blue-700 border border-blue-200">
                                         {col}
                                     </span>
