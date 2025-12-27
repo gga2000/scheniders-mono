@@ -594,14 +594,22 @@ export default function PrintingPage() {
                                             <button
                                                 onClick={() => setShowDatePicker(!showDatePicker)}
                                                 className={cn(
-                                                    "flex items-center gap-2 px-4 py-3 rounded-2xl border transition-all",
-                                                    printing.filters.dateFrom || printing.filters.dateTo
+                                                    "p-3 rounded-2xl border transition-all shadow-sm flex items-center gap-2",
+                                                    (printing.filters.dateFrom || printing.filters.dateTo)
                                                         ? "bg-amber-100 border-amber-200 text-amber-700"
-                                                        : "bg-[var(--background)] border-[var(--card-border)] text-muted hover:bg-[var(--card-border)]"
+                                                        : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
                                                 )}
+                                                title="Date Filter"
                                             >
                                                 <CalendarDays className="w-4 h-4" />
-                                                {printing.filters.dateFrom ? "Date Set" : "Date Range"}
+                                                {printing.filters.dateFrom && (
+                                                    <span className="text-xs font-medium hidden sm:inline">
+                                                        {printing.filters.dateFrom === printing.filters.dateTo
+                                                            ? new Date(printing.filters.dateFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                                                            : `${new Date(printing.filters.dateFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${printing.filters.dateTo ? new Date(printing.filters.dateTo).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '...'}`
+                                                        }
+                                                    </span>
+                                                )}
                                             </button>
 
                                             {showDatePicker && (

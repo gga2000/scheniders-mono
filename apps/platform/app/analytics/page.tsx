@@ -21,7 +21,7 @@ import { useFinances, DateRange } from "@/hooks/use-finances";
 import { useExpenses } from "@/hooks/use-expenses";
 
 // Components
-import { DateRangePicker } from "@/components/finances/date-range-picker";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { RevenueCards, ProfitCards } from "@/components/finances/stat-cards";
 import { RevenueChart } from "@/components/finances/revenue-chart";
 import { ExpenseBreakdown } from "@/components/finances/expense-breakdown";
@@ -45,7 +45,7 @@ export default function AnalyticsPage() {
         .split("T")[0];
 
     const [dateRange, setDateRange] = useState<DateRange>({
-        startDate: monthStart,
+        startDate: today,
         endDate: today,
     });
 
@@ -147,9 +147,9 @@ export default function AnalyticsPage() {
 
                 <div className="flex items-center gap-3">
                     <DateRangePicker
-                        startDate={dateRange.startDate}
-                        endDate={dateRange.endDate}
-                        onChange={(start, end) => setDateRange({ startDate: start, endDate: end })}
+                        dateFrom={dateRange.startDate}
+                        dateTo={dateRange.endDate}
+                        onDateChange={(start, end) => setDateRange({ startDate: start || "", endDate: end || "" })}
                     />
 
                     {/* Export Menu */}

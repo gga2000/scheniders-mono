@@ -64,7 +64,11 @@ export function usePrinting(orders: Order[]) {
     const [batches, setBatches] = useState<PrintBatch[]>([]);
     const [printHistory, setPrintHistory] = useState<PrintHistoryEntry[]>([]);
     const [loading, setLoading] = useState(false);
-    const [filters, setFilters] = useState<PrintingFilters>({ status: "confirmed" });
+    const [filters, setFilters] = useState<PrintingFilters>({
+        status: "confirmed",
+        dateFrom: new Date().toISOString().split("T")[0],
+        dateTo: new Date().toISOString().split("T")[0],
+    });
     const [labelSettings, setLabelSettings] = useState<LabelSettings>({
         size: "4x6",
         showQrCode: true,

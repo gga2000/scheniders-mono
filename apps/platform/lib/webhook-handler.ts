@@ -118,18 +118,25 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
 
         // Validate required fields
         if (!node._id && !node.id) {
-            console.error("Missing order/checkout ID in webhook payload");
-            return null;
+            const msg = `Missing order/checkout ID in webhook payload. Payload keys: ${Object.keys(node).join(', ')}`;
+            console.error(msg);
+            throw new Error(msg);
         }
 
-        if (!node.phone && !node.shipping_address?.phone) {
-            console.error("Missing phone number in webhook payload");
-            return null;
+        if (!node.phone && !node.shipping_address?.phone && !node.billing_address?.phone) {
+            // Check for dummy/test indicators
+            const isTest = node.email?.includes('example.com') || node.customer?.email?.includes('example.com');
+            if (!isTest) {
+                const msg = `Missing phone number. Node has phone: ${!!node.phone}, Shipping phone: ${!!node.shipping_address?.phone}`;
+                console.error(msg);
+                throw new Error(msg);
+            }
         }
 
         if (!node.items || !Array.isArray(node.items) || node.items.length === 0) {
-            console.error("Invalid or empty items array");
-            return null;
+            const msg = `Invalid or empty items array. Items type: ${typeof node.items}`;
+            console.error(msg);
+            throw new Error(msg);
         }
 
         // Extract customer name based on format
@@ -211,8 +218,12 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
         console.log("Parsed:", normalized.is_checkout ? "Checkout" : "Order", normalized.order_number);
         return normalized;
     } catch (error) {
+        // Rethrow validation string errors, log others
+        if (error instanceof Error && (error.message.startsWith('Missing') || error.message.startsWith('Invalid'))) {
+            throw error;
+        }
         console.error("Error parsing webhook payload:", error);
-        return null;
+        throw new Error(`parsing failed: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
 

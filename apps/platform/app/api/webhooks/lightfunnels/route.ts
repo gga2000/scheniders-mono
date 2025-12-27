@@ -34,10 +34,19 @@ export async function POST(request: NextRequest) {
         const payload = await request.json();
 
         // 3. Validate payload structure
-        const webhookData = parseLightFunnelsPayload(payload);
+        let webhookData;
+        try {
+            webhookData = parseLightFunnelsPayload(payload);
+        } catch (error) {
+            return NextResponse.json(
+                { error: error instanceof Error ? error.message : "Invalid payload format" },
+                { status: 400 }
+            );
+        }
+
         if (!webhookData) {
             return NextResponse.json(
-                { error: "Invalid payload format" },
+                { error: "Invalid payload format (unknown error)" },
                 { status: 400 }
             );
         }
