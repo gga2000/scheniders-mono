@@ -46,12 +46,21 @@ class NotificationService {
     }
 
     private initAudio() {
-        // Pre-load notification sounds
+        // Pre-load notification sounds with error handling
         if (typeof Audio !== "undefined") {
-            this.notificationSound = new Audio(NOTIFICATION_SOUND_URL);
-            this.notificationSound.volume = 0.5;
-            this.urgentSound = new Audio(URGENT_SOUND_URL);
-            this.urgentSound.volume = 0.7;
+            try {
+                this.notificationSound = new Audio();
+                this.notificationSound.volume = 0.5;
+                this.notificationSound.preload = "none"; // Don't preload to avoid range request issues
+                this.notificationSound.src = NOTIFICATION_SOUND_URL;
+
+                this.urgentSound = new Audio();
+                this.urgentSound.volume = 0.7;
+                this.urgentSound.preload = "none";
+                this.urgentSound.src = URGENT_SOUND_URL;
+            } catch (error) {
+                console.warn("Failed to initialize audio:", error);
+            }
         }
     }
 

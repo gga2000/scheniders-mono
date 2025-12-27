@@ -33,6 +33,7 @@ const DialogContent = forwardRef<
         <DialogOverlay />
         <DialogPrimitive.Content
             ref={ref}
+            aria-describedby={props["aria-describedby"] ?? undefined}
             className={cn(
                 "fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%]",
                 "bg-[var(--card-bg)] rounded-[24px] p-6 shadow-xl duration-200",
