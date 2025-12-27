@@ -197,7 +197,7 @@ export async function checkDuplicateOrder(lightfunnelsOrderId: string): Promise<
         const { data, error } = await supabase
             .from("orders")
             .select("id")
-            .eq("order_id", `LF-${lightfunnelsOrderId}`)
+            .eq("order_id", lightfunnelsOrderId)
             .single();
 
         if (error && error.code !== "PGRST116") {
@@ -280,7 +280,7 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
         }
 
         // Check for duplicate
-        const isDuplicate = await checkDuplicateOrder(webhook.order_id);
+        const isDuplicate = await checkDuplicateOrder(webhook.order_number);
         if (isDuplicate) {
             return {
                 success: false,
@@ -322,7 +322,7 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
 
         // Prepare order data (only include fields that exist in the database)
         const orderData = {
-            order_id: `LF-${webhook.order_id}`,
+            order_id: webhook.order_number,
             customer_name: webhook.customer.name.trim(),
             phone: formattedPhone,
             city: webhook.customer.city?.trim() || null,
@@ -358,7 +358,7 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
             };
         }
 
-        console.log(`Order created successfully: LF-${webhook.order_id}`);
+        console.log(`Order created successfully: ${webhook.order_number}`);
         return {
             success: true,
             order: data,
