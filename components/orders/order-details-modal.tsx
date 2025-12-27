@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { formatIQD, formatDate, generateWhatsAppLink, getStatusLabel, getBaseOrderId } from "@/lib/utils";
 import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
+import { getAllGovernorateCodes } from "@/lib/address-validator";
 import { cn } from "@/lib/utils";
 import type { Order, OrderStatusHistory, OrderNote } from "@/lib/supabase";
 import { OrderTimeline } from "./order-timeline";
@@ -71,6 +72,7 @@ export function OrderDetailsModal({
     checkOrderIdExists,
 }: OrderDetailsModalProps) {
     const [order, setOrder] = useState<Order | null>(propOrder);
+    const governorates = getAllGovernorateCodes();
 
     // Sync local state with prop updates
     useEffect(() => {
@@ -925,11 +927,23 @@ export function OrderDetailsModal({
                                         <div>
                                             <span className="text-xs text-muted uppercase tracking-wider block mb-1">المحافظة</span>
                                             {isEditing ? (
-                                                <input
-                                                    value={(displayValue("city") || "") as string}
-                                                    onChange={(e) => updateFormData("city", e.target.value)}
-                                                    className="w-full px-3 py-1.5 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-medium focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
-                                                />
+                                                <div className="relative">
+                                                    <select
+                                                        value={(displayValue("city") || "") as string}
+                                                        onChange={(e) => updateFormData("city", e.target.value)}
+                                                        className="w-full h-[38px] px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
+                                                    >
+                                                        <option value="" disabled>اختر المحافظة...</option>
+                                                        {governorates.map((gov) => (
+                                                            <option key={gov.code} value={gov.nameAr}>
+                                                                {gov.nameAr}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-down"><path d="m6 9 6 6 6-6" /></svg>
+                                                    </div>
+                                                </div>
                                             ) : (
                                                 <p className="text-lg font-medium text-foreground">{order.city || "—"}</p>
                                             )}
@@ -1159,10 +1173,16 @@ export function OrderDetailsModal({
                                                 </span>
                                             )}
                                         </span>
-                                        {/* Warning only if no address details at all */}
                                         {(!order.address_details || order.address_details.trim() === '') && (
                                             <div className="text-xs px-2 py-1 rounded-lg mb-2 bg-yellow-50 text-yellow-700 border border-yellow-200">
                                                 ⚠️ لا يوجد تفاصيل عنوان - الرجاء اضافة المنطقة والعنوان
+                                            </div>
+                                        )}
+                                        {/* Warning if address exists but governorate is missing */}
+                                        {order.address_details && order.address_details.trim() !== '' && !order.city && (
+                                            <div className="text-xs px-2 py-1 rounded-lg mb-2 bg-red-50 text-red-700 border border-red-200 flex items-center gap-2">
+                                                <AlertTriangle className="w-3 h-3" />
+                                                يرجى تحديد المحافظة لإكمال العنوان
                                             </div>
                                         )}
                                         {/* Validated Governorate Badge */}

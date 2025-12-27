@@ -227,7 +227,11 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
         return normalized;
     } catch (error) {
         // Rethrow validation string errors, log others
-        if (error instanceof Error && (error.message.startsWith('Missing') || error.message.startsWith('Invalid'))) {
+        if (error instanceof Error && (
+            error.message.startsWith('Missing') ||
+            error.message.startsWith('Invalid') ||
+            error.message === 'is_test_payload'
+        )) {
             throw error;
         }
         console.error("Error parsing webhook payload:", error);

@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { formatIQD, cn } from "@/lib/utils";
+import { getAllGovernorateCodes } from "@/lib/address-validator";
 import {
     calculateTotal,
     type OrderFormData,
@@ -76,6 +77,7 @@ export function CreateOrderModal({
     });
     const [errors, setErrors] = useState<ValidationErrors>({});
     const [isCreating, setIsCreating] = useState(false);
+    const governorates = getAllGovernorateCodes();
     const [showProductPicker, setShowProductPicker] = useState(false);
     const [discount, setDiscount] = useState(0);
     const [orderIdStatus, setOrderIdStatus] = useState<"idle" | "checking" | "available" | "exists">("idle");
@@ -316,15 +318,32 @@ export function CreateOrderModal({
                                     />
                                 </div>
 
-                                {/* City */}
+                                {/* Governorate (City) */}
                                 <div className="space-y-1.5">
-                                    <Label className="text-xs text-muted">المدينة</Label>
-                                    <Input
-                                        value={formData.city}
-                                        onChange={(e) => updateField("city", e.target.value)}
-                                        placeholder="بغداد"
-                                        className="h-10 rounded-lg border-[var(--card-border)] bg-[var(--background)]"
-                                    />
+                                    <Label className="text-xs text-muted">المحافظة</Label>
+                                    <div className="relative">
+                                        <select
+                                            value={formData.city}
+                                            onChange={(e) => {
+                                                const selectedName = e.target.value;
+                                                updateField("city", selectedName);
+                                            }}
+                                            className={cn(
+                                                "h-10 w-full appearance-none rounded-lg border-[var(--card-border)] bg-[var(--background)] px-3 text-sm outline-none transition-all focus:ring-2 focus:ring-[var(--card-border)]",
+                                                !formData.city && "text-muted-foreground"
+                                            )}
+                                        >
+                                            <option value="" disabled>اختر المحافظة...</option>
+                                            {governorates.map((gov) => (
+                                                <option key={gov.code} value={gov.nameAr}>
+                                                    {gov.nameAr}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-down"><path d="m6 9 6 6 6-6" /></svg>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
