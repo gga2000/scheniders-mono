@@ -6,7 +6,7 @@
  */
 
 import * as XLSX from 'xlsx';
-import { validateAddress, getAddressStatus, extractGovernorate } from './address-validator';
+import { validateAddress, getAddressStatus, extractGovernorate, extractAndSeparateGovernorate } from './address-validator';
 
 // =============================================
 // TYPES
@@ -298,14 +298,14 @@ function parseAddress(address: string): { city?: string; details: string; govern
 
     const trimmed = address.trim();
 
-    // Try to extract governorate from address
-    const extraction = extractGovernorate(undefined, undefined, trimmed);
+    // Use separate engine to split governorate from details
+    const { governorate, remainingAddress } = extractAndSeparateGovernorate(trimmed);
 
-    if (extraction.governorate) {
+    if (governorate) {
         return {
-            city: extraction.governorate.nameAr,
-            details: trimmed,
-            governorateCode: extraction.governorate.code,
+            city: governorate.nameAr,
+            details: remainingAddress,
+            governorateCode: governorate.code,
         };
     }
 

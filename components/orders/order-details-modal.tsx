@@ -248,6 +248,7 @@ export function OrderDetailsModal({
             payment_status: order.payment_status || "cod",
             delivery_slot: order.delivery_slot || undefined,
             items: order.items ? [...order.items] : [],
+            created_at: order.created_at,
         });
         setIsEditing(true);
     };
@@ -1076,26 +1077,69 @@ export function OrderDetailsModal({
                                         </div>
                                     </div>
 
-                                    {/* Delivery Order ID Alias Row */}
-                                    <div>
-                                        <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
-                                            <Truck className="w-3 h-3" />
-                                            رقم شركة التوصيل (اختياري)
-                                        </span>
-                                        <div className="flex items-center gap-2">
+                                    {/* Date & Delivery Order ID Row */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Order Date (Editable) */}
+                                        <div>
+                                            <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                                                <Calendar className="w-3 h-3" />
+                                                تاريخ الطلب
+                                            </span>
                                             {isEditing ? (
                                                 <input
-                                                    value={(displayValue("delivery_order_id") || "") as string}
-                                                    onChange={(e) => updateFormData("delivery_order_id", e.target.value)}
-                                                    dir="ltr"
-                                                    placeholder="مثال: DHL-12345"
-                                                    className="w-full px-3 py-1.5 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
+                                                    type="datetime-local"
+                                                    value={(() => {
+                                                        const val = displayValue("created_at") as string;
+                                                        if (!val) return "";
+                                                        const date = new Date(val);
+                                                        // Adjust to local time ISO string for input
+                                                        return new Date(date.getTime() - (date.getTimezoneOffset() * 60000))
+                                                            .toISOString()
+                                                            .slice(0, 16);
+                                                    })()}
+                                                    onChange={(e) => {
+                                                        const date = new Date(e.target.value);
+                                                        updateFormData("created_at", date.toISOString());
+                                                    }}
+                                                    className="w-full px-3 py-1.5 bg-white border border-[var(--card-border)] rounded-lg text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
                                                 />
                                             ) : (
-                                                <p className="text-sm font-mono text-foreground">
-                                                    {order.delivery_order_id || <span className="text-muted">لم يتم التحديد</span>}
-                                                </p>
+                                                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-transparent">
+                                                    <span className="font-mono text-sm">
+                                                        {new Date(order.created_at).toLocaleString('en-US', {
+                                                            year: 'numeric',
+                                                            month: '2-digit',
+                                                            day: '2-digit',
+                                                            hour: '2-digit',
+                                                            minute: '2-digit',
+                                                            hour12: true
+                                                        })}
+                                                    </span>
+                                                </div>
                                             )}
+                                        </div>
+
+                                        {/* Delivery Order ID Alias */}
+                                        <div>
+                                            <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                                                <Truck className="w-3 h-3" />
+                                                رقم شركة التوصيل (اختياري)
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                {isEditing ? (
+                                                    <input
+                                                        value={(displayValue("delivery_order_id") || "") as string}
+                                                        onChange={(e) => updateFormData("delivery_order_id", e.target.value)}
+                                                        dir="ltr"
+                                                        placeholder="مثال: DHL-12345"
+                                                        className="w-full px-3 py-1.5 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
+                                                    />
+                                                ) : (
+                                                    <p className="text-sm font-mono text-foreground px-3 py-1.5">
+                                                        {order.delivery_order_id || <span className="text-muted">لم يتم التحديد</span>}
+                                                    </p>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
 

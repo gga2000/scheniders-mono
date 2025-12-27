@@ -1685,7 +1685,7 @@ export default function OrdersPage() {
                                                                                 rowColor === "blue" && "bg-blue-50/60",
                                                                                 rowColor === "pink" && "bg-pink-50/60",
                                                                                 rowColor === "purple" && "bg-purple-50/60",
-                                                                                isCancelled && "grayscale opacity-60 bg-gray-50"
+                                                                                isCancelled && "opacity-60 bg-gray-50"
                                                                             )}
                                                                         >
                                                                             {/* Row Number - Shows sequence or index */}
@@ -1918,7 +1918,7 @@ export default function OrdersPage() {
                                                                                             order.status === "completed" && "bg-emerald-100 text-emerald-700 shadow-[0_0_10px_rgba(16,185,129,0.4)]",
                                                                                             order.status === "no_response" && "bg-gray-100 text-gray-600",
                                                                                             order.status === "rejected" && "bg-rose-100 text-rose-700",
-                                                                                            order.status === "cancelled" && "bg-gray-100 text-gray-600",
+                                                                                            order.status === "cancelled" && "bg-red-100 text-red-700",
                                                                                         )}
                                                                                     >
                                                                                         <option value="new">جديد</option>

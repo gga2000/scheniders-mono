@@ -220,6 +220,7 @@ export function OrderCard({
             case "delivered": return "bg-[var(--pastel-mint)]"; // Mint/Blue for delivered
             case "rejected": return "bg-[var(--pastel-pink)]"; // Pink/Red for rejected
             case "return_pending": return "bg-rose-400"; // Rose for return pending
+            case "cancelled": return "bg-red-300"; // Red for cancelled
             default: return "bg-[var(--card-border)]";
         }
     };
@@ -250,7 +251,7 @@ export function OrderCard({
             case "new": return "bg-orange-200 text-orange-900";
             case "contacted": return "bg-[var(--pastel-yellow)] text-amber-900";
             case "confirmed": return "bg-[var(--pastel-green)] text-green-900";
-            case "cancelled": return "bg-gray-200 text-gray-700";
+            case "cancelled": return "bg-red-200 text-red-900";
             case "in_transit": return "bg-blue-200 text-blue-900";
             case "delivered": return "bg-[var(--pastel-mint)] text-teal-900";
             case "rejected": return "bg-[var(--pastel-pink)] text-rose-900";
@@ -747,7 +748,7 @@ export function OrderCard({
                                             </span>
                                         )}
                                         <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
-                                        <span className="truncate" title={fullAddress}>{fullAddress}</span>
+                                        <span className="truncate text-right" dir="rtl" title={fullAddress}>{fullAddress}</span>
                                         {/* Show validated governorate code */}
                                         {order.validated_governorate_code && (
                                             <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] font-semibold flex-shrink-0">
