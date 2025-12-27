@@ -276,6 +276,8 @@ export function CreateOrderModal({
                                         value={formData.customer_name}
                                         onChange={(e) => updateField("customer_name", e.target.value)}
                                         placeholder="أحمد محمد"
+                                        inputMode="text"
+                                        autoComplete="name"
                                         className={cn(
                                             "h-10 rounded-lg border-[var(--card-border)] bg-[var(--background)]",
                                             errors.customer_name && "border-red-300 bg-red-50"
@@ -295,6 +297,8 @@ export function CreateOrderModal({
                                         onChange={(e) => updateField("phone", e.target.value)}
                                         placeholder="07XXXXXXXX"
                                         dir="ltr"
+                                        inputMode="tel"
+                                        autoComplete="tel"
                                         className={cn(
                                             "h-10 rounded-lg border-[var(--card-border)] bg-[var(--background)] font-mono",
                                             errors.phone && "border-red-300 bg-red-50"
@@ -314,6 +318,8 @@ export function CreateOrderModal({
                                         onChange={(e) => updateField("secondary_phone", e.target.value)}
                                         placeholder="07XXXXXXXX"
                                         dir="ltr"
+                                        inputMode="tel"
+                                        autoComplete="tel"
                                         className="h-10 rounded-lg border-[var(--card-border)] bg-[var(--background)] font-mono"
                                     />
                                 </div>
