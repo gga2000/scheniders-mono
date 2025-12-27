@@ -123,11 +123,13 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
             throw new Error(msg);
         }
 
-        // Check if this appears to be a "Send dummy" test payload (minimal fields)
-        // The dummy payload often only has an ID, or ID + basic fields but empty
+        // Check if this is a minimal/incomplete payload (test payload or checkout notification with just ID)
+        // Lightfunnels sometimes sends checkout webhooks with only the ID - we can't create an order from these
+        // We treat them as successful (return 200) since there's nothing to process
         const keys = Object.keys(node);
-        if (keys.length <= 3 && (node.id != null || node._id != null) && !node.items) {
-            console.log("Detected test/dummy payload");
+        const hasMinimalData = keys.length <= 3 && (node.id != null || node._id != null) && !node.items;
+        if (hasMinimalData) {
+            console.log("Detected minimal/incomplete payload (test or ID-only checkout):", node.id || node._id);
             throw new Error("is_test_payload");
         }
 
