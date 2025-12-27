@@ -320,7 +320,7 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
             attentionReasons.push('address_issue');
         }
 
-        // Prepare order data
+        // Prepare order data (only include fields that exist in the database)
         const orderData = {
             order_id: `LF-${webhook.order_id}`,
             customer_name: webhook.customer.name.trim(),
@@ -341,13 +341,6 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
                 `مرحباً ${webhook.customer.name}، شكراً لطلبك رقم ${webhook.order_number}`
             ),
             notes: webhook.notes?.trim() || null,
-            // Address validation fields
-            address_status: addressStatus,
-            address_issues: addressValidation.issues,
-            validated_governorate_code: addressValidation.governorate?.code || null,
-            // Flag for attention if address has issues
-            needs_attention: hasAddressIssues,
-            attention_reasons: attentionReasons.length > 0 ? attentionReasons : null,
         };
 
         // Insert into database
