@@ -1571,6 +1571,8 @@ export default function OrdersPage() {
                                                                         confirmed: "مؤكد",
                                                                         in_transit: "قيد التوصيل",
                                                                         delivered: "تم التسليم",
+                                                                        completed: "مكتمل ✅",
+                                                                        no_response: "لم يرد",
                                                                         rejected: "مرفوض",
                                                                         cancelled: "ملغي"
                                                                     };
@@ -1823,6 +1825,8 @@ export default function OrdersPage() {
                                                                                             order.status === "confirmed" && "bg-green-100 text-green-700",
                                                                                             order.status === "in_transit" && "bg-blue-100 text-blue-700",
                                                                                             order.status === "delivered" && "bg-teal-100 text-teal-700",
+                                                                                            order.status === "completed" && "bg-emerald-100 text-emerald-700",
+                                                                                            order.status === "no_response" && "bg-gray-100 text-gray-600",
                                                                                             order.status === "rejected" && "bg-rose-100 text-rose-700",
                                                                                             order.status === "cancelled" && "bg-gray-100 text-gray-600",
                                                                                         )}
@@ -1832,6 +1836,8 @@ export default function OrdersPage() {
                                                                                         <option value="confirmed">مؤكد</option>
                                                                                         <option value="in_transit">قيد التوصيل</option>
                                                                                         <option value="delivered">تم التسليم</option>
+                                                                                        <option value="completed">مكتمل ✅</option>
+                                                                                        <option value="no_response">لم يرد</option>
                                                                                         <option value="rejected">مرفوض</option>
                                                                                         <option value="cancelled">ملغي</option>
                                                                                     </select>

@@ -315,12 +315,13 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
             webhook.items.map(async (item) => {
                 const product = item.sku ? await findProductBySku(item.sku) : null;
                 return {
-                    name: item.name,
+                    // Use local product name if found, otherwise use Lightfunnels name
+                    name: product?.name || item.name,
                     quantity: item.quantity,
                     price: item.price,
                     sku: item.sku || undefined,
                     product_id: product?.id,
-                    image_url: item.image_url || product?.image_url,
+                    image_url: product?.image_url || item.image_url,
                     tag_color: product?.tag_color,
                 };
             })
