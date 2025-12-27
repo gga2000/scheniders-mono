@@ -15,6 +15,7 @@ import {
     Phone,
     MapPin,
     Calendar,
+    FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD, formatDate } from "@/lib/utils";
@@ -26,6 +27,7 @@ interface BatchDetailsModalProps {
     allOrders: Order[];
     onReprint: (orderIds: string[], template: string) => void;
     onDownloadPDF: (orderIds: string[], template: string) => void;
+    onExportPrimeCSV: (orderIds: string[], ordersData: Order[]) => void;
     onDeleteBatch: (batchId: string) => Promise<{ success: boolean }>;
     onUpdateName: (batchId: string, newName: string) => Promise<{ success: boolean }>;
     onRemoveOrders: (batchId: string, orderIds: string[], ordersData: Order[]) => Promise<{ success: boolean }>;
@@ -38,6 +40,7 @@ export function BatchDetailsModal({
     allOrders,
     onReprint,
     onDownloadPDF,
+    onExportPrimeCSV,
     onDeleteBatch,
     onUpdateName,
     onRemoveOrders,
@@ -187,6 +190,14 @@ export function BatchDetailsModal({
                                 >
                                     <Download className="w-4 h-4" />
                                     Download PDF
+                                </button>
+                                <button
+                                    onClick={() => onExportPrimeCSV(batch.order_ids || [], batchOrders)}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-slate-700 to-slate-900 text-white font-medium text-sm hover:shadow-md transition-all"
+                                    title="Export for Prime Delivery"
+                                >
+                                    <FileText className="w-4 h-4" />
+                                    تصدير للشحن
                                 </button>
                                 {selectedForRemoval.size > 0 && (
                                     <button

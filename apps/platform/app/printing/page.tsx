@@ -396,6 +396,18 @@ export default function PrintingPage() {
                                                 PDF
                                             </button>
 
+                                            {/* Prime CSV Export Button */}
+                                            <button
+                                                onClick={() => {
+                                                    printing.exportToPrimeCSV(Array.from(selectedOrders), sortedOrders);
+                                                }}
+                                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-slate-700 to-slate-900 text-white hover:shadow-md transition-all font-medium text-sm"
+                                                title="Export for Prime Delivery"
+                                            >
+                                                <FileText className="h-4 w-4" />
+                                                تصدير للشحن
+                                            </button>
+
                                             {/* Ship Button */}
                                             <button
                                                 onClick={() => setShowShipDialog(true)}
@@ -1022,6 +1034,9 @@ export default function PrintingPage() {
                     onDeleteBatch={printing.deleteBatch}
                     onUpdateName={printing.updateBatchName}
                     onRemoveOrders={printing.removeOrdersFromBatch}
+                    onExportPrimeCSV={(orderIds, ordersData) => {
+                        printing.exportToPrimeCSV(orderIds, ordersData);
+                    }}
                 />
             </div>
         </PageTransition>
