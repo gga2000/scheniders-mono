@@ -5,52 +5,184 @@ import { validateAddress, getAddressStatus } from "./address-validator";
 import type { OrderItem } from "./supabase";
 
 /**
- * LightFunnels webhook payload structure
+ * LightFunnels webhook payload structure (actual format from Lightfunnels)
+ */
+export interface LightFunnelsWebhookPayload {
+    node: {
+        id: string; // e.g., "order_gUG6SIMpAjBKRRCtkKs9V"
+        __typename: string;
+        _id: number; // numeric ID like 20479299
+        total: number;
+        subtotal?: number;
+        name: string; // order number like "5552"
+        notes?: string;
+        email?: string;
+        phone: string;
+        created_at: string;
+        cancelled_at?: string;
+        tags: string[];
+        shipping?: number;
+        currency?: string;
+        customer: {
+            id: string;
+            full_name: string;
+            avatar?: string;
+            location?: string;
+        };
+        items: Array<{
+            __typename: string;
+            product_id: string;
+            id: string;
+            _id: number;
+            image?: { path: string };
+            title: string;
+            price: number;
+            variant_id?: string;
+            fulfillment_status?: string;
+            sku?: string;
+        }>;
+        shipping_address?: {
+            first_name?: string;
+            last_name?: string;
+            email?: string;
+            phone?: string;
+            line1?: string;
+            line2?: string;
+            country?: string;
+            city?: string;
+            area?: string;
+            zip?: string;
+            state?: string;
+        };
+        billing_address?: {
+            first_name?: string;
+            last_name?: string;
+            phone?: string;
+            city?: string;
+            country?: string;
+        };
+        payments?: Array<{
+            id: string;
+            total: number;
+            source?: {
+                payment_gateway?: {
+                    prototype?: {
+                        key?: string; // e.g., "cod"
+                    };
+                };
+            };
+        }>;
+    };
+}
+
+/**
+ * Normalized webhook data for internal use
  */
 export interface LightFunnelsWebhook {
-    event: string;
     order_id: string;
+    order_number: string;
     customer: {
         name: string;
         phone: string;
         email?: string;
         city?: string;
-        governorate?: string;
         address?: string;
     };
     items: Array<{
         name: string;
         quantity: number;
         price: number;
-        sku?: string; // Product SKU for matching
+        sku?: string;
+        image_url?: string;
+        product_id?: string;
     }>;
     total: number;
     created_at?: string;
     notes?: string;
+    payment_method?: string;
 }
 
 /**
- * Parse and validate LightFunnels webhook payload
+ * Parse and validate LightFunnels webhook payload (actual Lightfunnels format)
  */
 export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | null {
     try {
-        // Basic validation
-        if (!payload.order_id || !payload.customer || !payload.items || !payload.total) {
-            console.error("Missing required fields in webhook payload");
+        // Check if payload has the node wrapper (actual Lightfunnels format)
+        const node = payload.node || payload;
+
+        // Validate required fields
+        if (!node._id && !node.id) {
+            console.error("Missing order ID in webhook payload");
             return null;
         }
 
-        if (!payload.customer.name || !payload.customer.phone) {
-            console.error("Missing customer name or phone");
+        if (!node.phone && !node.shipping_address?.phone) {
+            console.error("Missing phone number in webhook payload");
             return null;
         }
 
-        if (!Array.isArray(payload.items) || payload.items.length === 0) {
+        if (!node.items || !Array.isArray(node.items) || node.items.length === 0) {
             console.error("Invalid or empty items array");
             return null;
         }
 
-        return payload as LightFunnelsWebhook;
+        // Extract customer name from various possible locations
+        const customerName =
+            node.customer?.full_name ||
+            [node.shipping_address?.first_name, node.shipping_address?.last_name].filter(Boolean).join(' ') ||
+            [node.billing_address?.first_name, node.billing_address?.last_name].filter(Boolean).join(' ') ||
+            'Unknown Customer';
+
+        // Extract phone from various locations
+        const phone = node.phone || node.shipping_address?.phone || node.billing_address?.phone || '';
+
+        // Extract city from shipping address or customer location
+        const city =
+            node.shipping_address?.city ||
+            node.customer?.location?.split(',').pop()?.trim() ||
+            '';
+
+        // Build address from shipping address fields
+        const addressParts = [
+            node.shipping_address?.line1,
+            node.shipping_address?.line2,
+            node.shipping_address?.area,
+        ].filter(Boolean);
+        const address = addressParts.length > 0 ? addressParts.join(', ') : '';
+
+        // Get payment method
+        const paymentMethod = node.payments?.[0]?.source?.payment_gateway?.prototype?.key || 'unknown';
+
+        // Normalize items
+        const items = node.items.map((item: any) => ({
+            name: item.title || item.name || 'Unknown Product',
+            quantity: 1, // Lightfunnels doesn't send quantity, defaulting to 1
+            price: item.price || 0,
+            sku: item.sku,
+            image_url: item.image?.path,
+            product_id: item.product_id,
+        }));
+
+        // Build normalized webhook data
+        const normalized: LightFunnelsWebhook = {
+            order_id: String(node._id || node.id),
+            order_number: node.name || String(node._id),
+            customer: {
+                name: customerName.trim(),
+                phone: phone,
+                email: node.email || node.shipping_address?.email,
+                city: city,
+                address: address,
+            },
+            items,
+            total: node.total || 0,
+            created_at: node.created_at,
+            notes: node.notes,
+            payment_method: paymentMethod,
+        };
+
+        console.log("Parsed webhook payload:", JSON.stringify(normalized, null, 2));
+        return normalized;
     } catch (error) {
         console.error("Error parsing webhook payload:", error);
         return null;
@@ -110,6 +242,26 @@ export async function checkBlacklist(phone: string): Promise<{ isBlacklisted: bo
 }
 
 /**
+ * Find product by SKU for linking
+ */
+async function findProductBySku(sku: string): Promise<{
+    id: string;
+    name: string;
+    image_url?: string;
+    tag_color?: string;
+} | null> {
+    if (!sku) return null;
+
+    const { data } = await supabase
+        .from('products')
+        .select('id, name, image_url, tag_color')
+        .eq('sku', sku)
+        .single();
+
+    return data;
+}
+
+/**
  * Create order from webhook data
  */
 export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
@@ -138,17 +290,25 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
         }
 
         // Map items with SKU for product matching
-        const items: OrderItem[] = webhook.items.map((item) => ({
-            name: item.name,
-            quantity: item.quantity,
-            price: item.price,
-            sku: item.sku || undefined, // SKU from LightFunnels for matching
-        }));
+        const items: OrderItem[] = await Promise.all(
+            webhook.items.map(async (item) => {
+                const product = item.sku ? await findProductBySku(item.sku) : null;
+                return {
+                    name: item.name,
+                    quantity: item.quantity,
+                    price: item.price,
+                    sku: item.sku || undefined,
+                    product_id: product?.id,
+                    image_url: item.image_url || product?.image_url,
+                    tag_color: product?.tag_color,
+                };
+            })
+        );
 
         // Validate customer address
         const addressValidation = validateAddress(
             webhook.customer.city,
-            webhook.customer.governorate,
+            undefined, // Lightfunnels doesn't provide governorate code
             webhook.customer.address
         );
         const addressStatus = getAddressStatus(addressValidation);
@@ -166,14 +326,19 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
             customer_name: webhook.customer.name.trim(),
             phone: formattedPhone,
             city: webhook.customer.city?.trim() || null,
-            governorate_code: webhook.customer.governorate?.trim() || null,
+            governorate_code: addressValidation.governorate?.code || null,
             address_details: webhook.customer.address?.trim() || null,
             items,
             price: webhook.total,
             status: "new" as const,
+            priority: "normal" as const,
+            payment_status: webhook.payment_method === 'cod' ? 'cod' as const : 'pending' as const,
+            is_return: false,
+            is_archived: false,
+            source: 'lightfunnels' as const,
             whatsapp_link: generateWhatsAppLink(
                 formattedPhone,
-                `مرحباً ${webhook.customer.name}، شكراً لطلبك من LightFunnels`
+                `مرحباً ${webhook.customer.name}، شكراً لطلبك رقم ${webhook.order_number}`
             ),
             notes: webhook.notes?.trim() || null,
             // Address validation fields
@@ -200,6 +365,7 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
             };
         }
 
+        console.log(`Order created successfully: LF-${webhook.order_id}`);
         return {
             success: true,
             order: data,
