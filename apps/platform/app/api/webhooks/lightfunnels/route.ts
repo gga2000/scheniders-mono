@@ -17,19 +17,12 @@ import {
 
 export async function POST(request: NextRequest) {
     try {
-        // 1. Verify webhook secret for security
+        // 1. Verify webhook secret for security (optional - Lightfunnels may not send one)
         const secret = request.headers.get("x-webhook-secret");
         const expectedSecret = process.env.LIGHTFUNNELS_WEBHOOK_SECRET;
 
-        if (!expectedSecret) {
-            console.error("LIGHTFUNNELS_WEBHOOK_SECRET not configured");
-            return NextResponse.json(
-                { error: "Webhook not configured" },
-                { status: 500 }
-            );
-        }
-
-        if (secret !== expectedSecret) {
+        // Only validate secret if both are configured and provided
+        if (expectedSecret && secret && secret !== expectedSecret) {
             console.error("Invalid webhook secret");
             return NextResponse.json(
                 { error: "Unauthorized" },
