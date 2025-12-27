@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Order, OrderPriority, MessageTemplate } from "@/lib/supabase";
 import { formatIQD, generateWhatsAppLink, getStatusLabel, copyOrderToClipboard, getGuaranteeDaysRemaining } from "@/lib/utils";
 import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
@@ -66,6 +67,9 @@ interface OrderCardProps {
     // WhatsApp template panel
     onOpenTemplatePanel?: (order: Order) => void;
     messageTemplates?: MessageTemplate[];
+    // Selection
+    isSelected?: boolean;
+    onToggleSelection?: (orderId: string) => void;
 }
 
 export function OrderCard({
@@ -89,6 +93,8 @@ export function OrderCard({
     compact = false,
     onOpenTemplatePanel,
     messageTemplates = [],
+    isSelected = false,
+    onToggleSelection,
 }: OrderCardProps) {
     const isLoading = loadingId === order.id;
     const isNew = order.status === "new";
@@ -104,12 +110,20 @@ export function OrderCard({
 
     // More actions dropdown state
     const [actionsOpen, setActionsOpen] = useState(false);
+    const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
     const actionsRef = useRef<HTMLDivElement>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
 
     // Close dropdown when clicking outside
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
-            if (actionsRef.current && !actionsRef.current.contains(event.target as Node)) {
+            const target = event.target as Node;
+            if (
+                actionsRef.current &&
+                !actionsRef.current.contains(target) &&
+                menuRef.current &&
+                !menuRef.current.contains(target)
+            ) {
                 setActionsOpen(false);
             }
         }
@@ -372,6 +386,21 @@ export function OrderCard({
                         hasDuplicates && !isVerifiedCustomer && "w-4 bg-gradient-to-b from-orange-400 via-orange-500 to-orange-400 animate-pulse"
                     )}
                 />
+
+                {/* Selection Checkbox */}
+                {onToggleSelection && (
+                    <div className="pl-3 pr-1 flex items-center justify-center">
+                        <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                                e.stopPropagation();
+                                onToggleSelection(order.id);
+                            }}
+                            className="w-4 h-4 rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--pastel-yellow)] cursor-pointer"
+                        />
+                    </div>
+                )}
 
                 {/* Main Content */}
                 <div className={cn("flex-1 flex items-center gap-4 overflow-hidden", compact ? "p-2" : "p-4")}>
@@ -907,7 +936,16 @@ export function OrderCard({
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    setActionsOpen(!actionsOpen);
+                                    if (actionsOpen) {
+                                        setActionsOpen(false);
+                                        return;
+                                    }
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setMenuPosition({
+                                        top: rect.bottom + 8,
+                                        right: window.innerWidth - rect.right
+                                    });
+                                    setActionsOpen(true);
                                 }}
                                 className={cn(
                                     "w-10 h-10 rounded-xl border transition-all flex items-center justify-center",
@@ -920,9 +958,18 @@ export function OrderCard({
                                 <MoreVertical className="w-4 h-4" />
                             </button>
 
-                            {/* Dropdown Menu */}
-                            {actionsOpen && (
-                                <div className="absolute right-0 top-12 z-50 bg-[var(--card-bg)] rounded-2xl shadow-lg border border-[var(--card-border)] py-2 min-w-[140px]">
+                            {/* Dropdown Menu - Portal to body to avoid clipping */}
+                            {actionsOpen && menuPosition && typeof document !== 'undefined' && createPortal(
+                                <div
+                                    ref={menuRef}
+                                    style={{
+                                        position: 'fixed',
+                                        top: menuPosition.top,
+                                        right: menuPosition.right,
+                                        zIndex: 9999
+                                    }}
+                                    className="bg-[var(--card-bg)] rounded-2xl shadow-lg border border-[var(--card-border)] py-2 min-w-[140px]"
+                                >
                                     {/* Copy */}
                                     <button
                                         onClick={async (e) => {
@@ -997,7 +1044,9 @@ export function OrderCard({
                                             <span className="font-medium">Share</span>
                                         </button>
                                     )}
-                                </div>
+                                </div>,
+
+                                document.body
                             )}
                         </div>
 
@@ -1136,6 +1185,6 @@ export function OrderCard({
                     </div>
                 </div>
             </motion.div>
-        </motion.div>
+        </motion.div >
     );
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, X, Archive, Eye, EyeOff } from "lucide-react";
+import { Check, X, Archive, Eye, EyeOff, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface FloatingActionBarProps {
@@ -10,6 +10,7 @@ interface FloatingActionBarProps {
     onConfirm: () => void;
     onReject: () => void;
     onArchive: () => void;
+    onDelete?: () => void;
     disabled?: boolean;
 }
 
@@ -18,6 +19,7 @@ export function FloatingActionBar({
     onConfirm,
     onReject,
     onArchive,
+    onDelete,
     disabled = false,
 }: FloatingActionBarProps) {
     const [isVisible, setIsVisible] = useState(true);
@@ -116,6 +118,23 @@ export function FloatingActionBar({
                             <Archive className="w-4 h-4" />
                             Archive
                         </button>
+
+                        <div className="h-6 w-px bg-[var(--card-border)]" />
+
+                        {onDelete && (
+                            <button
+                                onClick={onDelete}
+                                disabled={disabled}
+                                className={cn(
+                                    "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all",
+                                    "bg-red-100 text-red-700 hover:bg-red-200",
+                                    disabled && "opacity-50 cursor-not-allowed"
+                                )}
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                Delete
+                            </button>
+                        )}
 
                         <div className="h-6 w-px bg-[var(--card-border)]" />
 

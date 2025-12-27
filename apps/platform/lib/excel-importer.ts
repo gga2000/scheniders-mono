@@ -23,6 +23,8 @@ export interface ExcelRow {
     secondary_phone?: string;
     address: string;
     notes?: string;
+    status?: string;
+    sku?: string;
     raw_row_number: number;
 }
 
@@ -41,11 +43,14 @@ export interface ParsedOrder {
         product_id?: string;
         image_url?: string;
         tag_color?: string;
+        sku?: string;
     }>;
     price: number;
     notes?: string;
+    status?: string;
     created_at?: string;
     source_rows: number[];
+    is_abandoned?: boolean;
     validation: {
         isValid: boolean;
         errors: string[];
@@ -125,12 +130,42 @@ const HEADER_MAPPING: Record<string, keyof ExcelRow> = {
     'عنوان': 'address',
     'address': 'address',
 
+    // Status
+    'حالة الطلب': 'status',
+    'الحالة': 'status',
+    'status': 'status',
+
+    // SKU
+    'sku': 'sku',
+    'رمز المنتج': 'sku',
+
     // Notes
     'ملاحظة': 'notes',
     'ملاحظات': 'notes',
     'notes': 'notes',
     'note': 'notes',
 };
+
+// Map status string to OrderStatus
+function mapImportStatus(statusStr: string | undefined): string {
+    if (!statusStr) return 'new';
+
+    // Normalize
+    const s = statusStr.toLowerCase().trim();
+
+    // Arabic mappings
+    if (s.includes('جديد') || s.includes('new')) return 'new';
+    if (s.includes('رسالة') || s.includes('مراسلة') || s.includes('contacted')) return 'contacted';
+    if (s.includes('تثبيت') || s.includes('confirmed')) return 'confirmed';
+    if (s.includes('بريد') || s.includes('transit')) return 'in_transit';
+    if (s.includes('توصيل') || s.includes('delivered')) return 'delivered';
+    if (s.includes('رفض') || s.includes('راجع') || s.includes('rejected')) return 'rejected';
+    if (s.includes('ملغي') || s.includes('cancelled')) return 'cancelled';
+    if (s.includes('تام') || s.includes('completed')) return 'completed';
+    if (s.includes('لم يرد') || s.includes('no response')) return 'no_response';
+
+    return 'new'; // Default
+}
 
 // =============================================
 // PRODUCT CATALOGUE MATCHING
@@ -331,6 +366,10 @@ export function parseExcelFile(file: ArrayBuffer, productCatalogue?: ProductCata
     const rows: ExcelRow[] = [];
     const errors: Array<{ row: number; message: string }> = [];
 
+    // State for tracking multi-row abandoned orders
+    let lastAbandonedId: string | null = null;
+    let lastAbandonedKey: string | null = null;
+
     for (let i = 0; i < rawData.length; i++) {
         const rawRow = rawData[i];
         const rowNum = i + 2; // +2 for header row and 1-indexing
@@ -384,7 +423,48 @@ export function parseExcelFile(file: ArrayBuffer, productCatalogue?: ProductCata
                     case 'notes':
                         row.notes = String(value || '').trim() || undefined;
                         break;
+                    case 'status':
+                        row.status = String(value || '').trim() || undefined;
+                        break;
+                    case 'sku':
+                        row.sku = String(value || '').trim() || undefined;
+                        break;
                 }
+            }
+
+            // --- SPECIAL HANDLING FOR ABANDONED CHECKOUTS ---
+            const isAbandoned = row.order_id?.toLowerCase().includes('abandoned') || false;
+
+            if (isAbandoned) {
+                // Use phone as key to group abandoned items
+                const currentKey = row.phone || 'unknown';
+
+                // If it's the same customer (phone) as the last abandoned row, reuse the ID
+                if (lastAbandonedKey === currentKey && lastAbandonedId) {
+                    row.order_id = lastAbandonedId;
+                } else {
+                    // Generate a new unique ID for this abandoned order
+                    // Format: ABN-{last 6 digits of timestamp}-{random 3 digits}
+                    const timestamp = Date.now().toString().slice(-6);
+                    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+                    const newId = `ABN-${timestamp}-${random}`;
+
+                    lastAbandonedId = newId;
+                    lastAbandonedKey = currentKey;
+                    row.order_id = newId;
+                }
+
+                // Append "Abandoned Checkout" to notes to identify it easily
+                row.notes = row.notes ? `${row.notes} | Abandoned Checkout` : 'Abandoned Checkout';
+            } else {
+                // Reset tracking if we hit a normal order
+                lastAbandonedId = null;
+                lastAbandonedKey = null;
+            }
+
+            // Fallback for missing customer name (common in abandoned checkouts)
+            if (!row.customer_name && row.phone) {
+                row.customer_name = `زبون ${row.phone.slice(-4)}`;
             }
 
             // Validate required fields
@@ -392,7 +472,7 @@ export function parseExcelFile(file: ArrayBuffer, productCatalogue?: ProductCata
                 errors.push({ row: rowNum, message: 'رقم الوصل مفقود' });
                 continue;
             }
-            if (!row.customer_name) {
+            if (!row.customer_name) { // Still require customer name (which might be fallback)
                 errors.push({ row: rowNum, message: 'اسم الزبون مفقود' });
                 continue;
             }
@@ -434,6 +514,7 @@ export function parseExcelFile(file: ArrayBuffer, productCatalogue?: ProductCata
                 product_id: matchedProduct?.id,
                 image_url: matchedProduct?.image_url,
                 tag_color: matchedProduct?.tag_color,
+                sku: row.sku,
             };
         });
 
@@ -464,6 +545,16 @@ export function parseExcelFile(file: ArrayBuffer, productCatalogue?: ProductCata
             console.log('[Excel Import] Price is 0 for order:', orderId, 'items:', items);
         }
 
+        // Determine if abandoned
+        const isAbandoned = orderId.startsWith('ABN-');
+
+        // Append abandoned note if needed
+        let finalNotes = firstRow.notes;
+        if (isAbandoned) {
+            finalNotes = finalNotes ? `${finalNotes} | Abandoned Checkout` : 'Abandoned Checkout';
+            validationWarnings.push('طلب متروك (Abandoned Checkouts)');
+        }
+
         const parsedOrder: ParsedOrder = {
             order_id: orderId,
             customer_name: firstRow.customer_name,
@@ -474,9 +565,11 @@ export function parseExcelFile(file: ArrayBuffer, productCatalogue?: ProductCata
             address_details: addressParsed.details,
             items,
             price: totalPrice,
-            notes: firstRow.notes,
+            notes: finalNotes,
+            status: firstRow.status,
             created_at: parseDate(firstRow.date),
             source_rows: orderRows.map(r => r.raw_row_number),
+            is_abandoned: isAbandoned,
             validation: {
                 isValid: validationErrors.length === 0,
                 errors: validationErrors,
@@ -502,6 +595,8 @@ export function parseExcelFile(file: ArrayBuffer, productCatalogue?: ProductCata
 // =============================================
 
 export function convertToDbOrder(parsed: ParsedOrder): Record<string, unknown> {
+    const status = mapImportStatus(parsed.status);
+
     return {
         order_id: parsed.order_id,
         customer_name: parsed.customer_name,
@@ -514,10 +609,12 @@ export function convertToDbOrder(parsed: ParsedOrder): Record<string, unknown> {
         items: parsed.items,
         price: parsed.price,
         notes: parsed.notes || null,
-        status: 'new',
+        status: status,
         payment_status: 'cod',
         source: 'excel_import',
         created_at: parsed.created_at || new Date().toISOString(),
+        internal_notes: parsed.is_abandoned ? 'تم استيراده كطلب متروك' : null,
         whatsapp_link: `https://wa.me/${parsed.phone.replace('+', '')}`,
+        is_pinned: parsed.is_abandoned, // Pin abandoned orders to be noticeable
     };
 }

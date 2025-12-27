@@ -87,6 +87,7 @@ export default function OrdersPage() {
         clearFilters,
         bulkUpdateStatus,
         bulkArchive,
+        bulkDelete,
         exportOrders,
         filterPresets,
         saveFilterPreset,
@@ -118,6 +119,7 @@ export default function OrdersPage() {
         // Duplicate management
         getCustomerOrders,
         dismissDuplicate,
+        statusCounts,
         // Message templates
         messageTemplates,
     } = useOrders();
@@ -348,6 +350,46 @@ export default function OrdersPage() {
         setSelectedOrders(new Set());
     };
 
+    const handleBulkDelete = async () => {
+        if (!confirm(`Are you sure you want to delete ${selectedOrders.size} orders? This action cannot be undone.`)) {
+            return;
+        }
+        const ids = Array.from(selectedOrders);
+        await bulkDelete(ids);
+        setSelectedOrders(new Set());
+    };
+
+    // Additional bulk status handlers
+    const handleBulkNew = async () => {
+        const ids = Array.from(selectedOrders);
+        await bulkUpdateStatus(ids, "new");
+        setSelectedOrders(new Set());
+    };
+
+    const handleBulkContacted = async () => {
+        const ids = Array.from(selectedOrders);
+        await bulkUpdateStatus(ids, "contacted");
+        setSelectedOrders(new Set());
+    };
+
+    const handleBulkInTransit = async () => {
+        const ids = Array.from(selectedOrders);
+        await bulkUpdateStatus(ids, "in_transit");
+        setSelectedOrders(new Set());
+    };
+
+    const handleBulkCompleted = async () => {
+        const ids = Array.from(selectedOrders);
+        await bulkUpdateStatus(ids, "completed");
+        setSelectedOrders(new Set());
+    };
+
+    const handleBulkNoResponse = async () => {
+        const ids = Array.from(selectedOrders);
+        await bulkUpdateStatus(ids, "no_response");
+        setSelectedOrders(new Set());
+    };
+
     const handleExport = () => {
         const ids = selectedOrders.size > 0
             ? Array.from(selectedOrders)
@@ -412,15 +454,15 @@ export default function OrdersPage() {
     }).length;
 
     const filterOptions = [
-        { id: "all", label: "All Orders", count: orders.length },
-        { id: "new", label: "New", count: stats.pendingOrders },
-        { id: "contacted", label: "Contacted", count: stats.contactedOrders },
-        { id: "confirmed", label: "Confirmed", count: stats.confirmedOrders },
-        { id: "in_transit", label: "🚚 In Transit", count: stats.inTransitOrders },
-        { id: "delivered", label: "Delivered", count: stats.deliveredOrders },
-        { id: "completed", label: "Completed", count: stats.completedOrders || 0 },
-        { id: "rejected", label: "Rejected", count: stats.rejectedOrders },
-        { id: "no_response", label: "لم يرد", count: stats.noResponseOrders || 0 },
+        { id: "all", label: "All Orders", count: statusCounts.all },
+        { id: "new", label: "New", count: statusCounts.new || 0 },
+        { id: "contacted", label: "Contacted", count: statusCounts.contacted || 0 },
+        { id: "confirmed", label: "Confirmed", count: statusCounts.confirmed || 0 },
+        { id: "in_transit", label: "🚚 In Transit", count: statusCounts.in_transit || 0 },
+        { id: "delivered", label: "Delivered", count: statusCounts.delivered || 0 },
+        { id: "completed", label: "Completed", count: statusCounts.completed || 0 },
+        { id: "rejected", label: "Rejected", count: statusCounts.rejected || 0 },
+        { id: "no_response", label: "لم يرد", count: statusCounts.no_response || 0 },
     ];
 
     // Check if any advanced filters are active
@@ -810,14 +852,14 @@ export default function OrdersPage() {
                                         {/* Pending (New) */}
                                         <div className="pastel-card pastel-card-pink p-4">
                                             <p className="text-xs text-rose-700 font-medium uppercase tracking-wide">Pending</p>
-                                            <p className="text-2xl font-bold text-rose-900 mt-1">{stats.pendingOrders}</p>
+                                            <p className="text-2xl font-bold text-rose-900 mt-1">{statusCounts.new || 0}</p>
                                             <p className="text-xs text-rose-600 mt-1">new orders</p>
                                         </div>
 
                                         {/* Confirmed */}
                                         <div className="pastel-card pastel-card-purple p-4">
                                             <p className="text-xs text-purple-700 font-medium uppercase tracking-wide">Confirmed</p>
-                                            <p className="text-2xl font-bold text-purple-900 mt-1">{stats.confirmedOrders}</p>
+                                            <p className="text-2xl font-bold text-purple-900 mt-1">{statusCounts.confirmed || 0}</p>
                                             <p className="text-xs text-purple-600 mt-1">ready</p>
                                         </div>
 
@@ -1172,32 +1214,80 @@ export default function OrdersPage() {
                                                 initial={{ opacity: 0, height: 0 }}
                                                 animate={{ opacity: 1, height: "auto" }}
                                                 exit={{ opacity: 0, height: 0 }}
-                                                className="flex items-center gap-3 pt-4 border-t border-[var(--card-border)]"
+                                                className="flex items-center gap-3 pt-4 border-t border-[var(--card-border)] overflow-x-auto scrollbar-hide"
                                             >
-                                                <span className="text-sm text-muted">{selectedOrders.size} selected</span>
+                                                <span className="text-sm text-muted whitespace-nowrap">{selectedOrders.size} selected</span>
+
+                                                {/* Primary Actions */}
                                                 <button
                                                     onClick={handleBulkConfirm}
-                                                    className="px-3 py-1.5 rounded-lg bg-[var(--pastel-green)] text-green-900 text-sm font-medium hover:bg-[var(--pastel-green-light)] transition-all"
+                                                    className="px-3 py-1.5 rounded-lg bg-[var(--pastel-green)] text-green-900 text-sm font-medium hover:bg-[var(--pastel-green-light)] transition-all whitespace-nowrap"
                                                 >
                                                     Confirm
                                                 </button>
                                                 <button
                                                     onClick={handleBulkDeliver}
-                                                    className="px-3 py-1.5 rounded-lg bg-[var(--pastel-purple)] text-purple-900 text-sm font-medium hover:bg-[var(--pastel-purple-light)] transition-all"
+                                                    className="px-3 py-1.5 rounded-lg bg-[var(--pastel-purple)] text-purple-900 text-sm font-medium hover:bg-[var(--pastel-purple-light)] transition-all whitespace-nowrap"
                                                 >
                                                     Deliver
                                                 </button>
                                                 <button
                                                     onClick={handleBulkReject}
-                                                    className="px-3 py-1.5 rounded-lg bg-[var(--pastel-pink)] text-rose-900 text-sm font-medium hover:bg-[var(--pastel-pink-light)] transition-all"
+                                                    className="px-3 py-1.5 rounded-lg bg-[var(--pastel-pink)] text-rose-900 text-sm font-medium hover:bg-[var(--pastel-pink-light)] transition-all whitespace-nowrap"
                                                 >
                                                     Reject
                                                 </button>
                                                 <button
                                                     onClick={handleBulkArchive}
-                                                    className="px-3 py-1.5 rounded-lg bg-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-300 transition-all"
+                                                    className="px-3 py-1.5 rounded-lg bg-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-300 transition-all whitespace-nowrap"
                                                 >
                                                     Archive
+                                                </button>
+
+                                                {/* Divider */}
+                                                <div className="h-6 w-px bg-[var(--card-border)] flex-shrink-0" />
+
+                                                {/* Status Change Buttons */}
+                                                <button
+                                                    onClick={handleBulkNew}
+                                                    className="px-3 py-1.5 rounded-lg bg-blue-100 text-blue-700 text-sm font-medium hover:bg-blue-200 transition-all whitespace-nowrap"
+                                                >
+                                                    New
+                                                </button>
+                                                <button
+                                                    onClick={handleBulkContacted}
+                                                    className="px-3 py-1.5 rounded-lg bg-amber-100 text-amber-700 text-sm font-medium hover:bg-amber-200 transition-all whitespace-nowrap"
+                                                >
+                                                    Contacted
+                                                </button>
+                                                <button
+                                                    onClick={handleBulkInTransit}
+                                                    className="px-3 py-1.5 rounded-lg bg-orange-100 text-orange-700 text-sm font-medium hover:bg-orange-200 transition-all whitespace-nowrap"
+                                                >
+                                                    🚚 In Transit
+                                                </button>
+                                                <button
+                                                    onClick={handleBulkCompleted}
+                                                    className="px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 text-sm font-medium hover:bg-emerald-200 transition-all whitespace-nowrap"
+                                                >
+                                                    Completed
+                                                </button>
+                                                <button
+                                                    onClick={handleBulkNoResponse}
+                                                    className="px-3 py-1.5 rounded-lg bg-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-300 transition-all whitespace-nowrap"
+                                                >
+                                                    لم يرد
+                                                </button>
+
+                                                {/* Divider */}
+                                                <div className="h-6 w-px bg-[var(--card-border)] flex-shrink-0" />
+
+                                                {/* Destructive Action */}
+                                                <button
+                                                    onClick={handleBulkDelete}
+                                                    className="px-3 py-1.5 rounded-lg bg-red-100 text-red-700 text-sm font-medium hover:bg-red-200 transition-all whitespace-nowrap"
+                                                >
+                                                    Delete
                                                 </button>
                                             </motion.div>
                                         )}
@@ -1315,6 +1405,8 @@ export default function OrdersPage() {
                                                                 setTemplatePanelOpen(true);
                                                             }}
                                                             messageTemplates={workflowTemplates}
+                                                            isSelected={selectedOrders.has(order.id)}
+                                                            onToggleSelection={toggleOrderSelection}
                                                         />
                                                     </StaggerItem>
                                                 );
@@ -2108,6 +2200,7 @@ export default function OrdersPage() {
                     onConfirm={handleBulkConfirm}
                     onReject={handleBulkReject}
                     onArchive={handleBulkArchive}
+                    onDelete={handleBulkDelete}
                 />
 
                 {/* Order Confirmation Screenshot Modal */}
