@@ -437,14 +437,40 @@ export function useOrders() {
         }
     }
 
-    async function updateOrder(orderId: string, updates: Partial<Order>) {
+    async function updateOrder(orderId: string, updates: Partial<Order>, retryCount = 0): Promise<{ success: boolean; error?: string }> {
         try {
-            const { error: updateError } = await supabase
+            // Remove any fields that shouldn't be sent to the database
+            const cleanUpdates = { ...updates };
+            delete (cleanUpdates as Record<string, unknown>).id;
+            delete (cleanUpdates as Record<string, unknown>).created_at;
+
+            const { error: updateError, status } = await supabase
                 .from("orders")
-                .update(updates)
+                .update(cleanUpdates)
                 .eq("id", orderId);
 
-            if (updateError) throw updateError;
+            if (updateError) {
+                // Log detailed error info
+                console.error("Order update error:", {
+                    orderId,
+                    updates: cleanUpdates,
+                    error: updateError,
+                    status,
+                    code: updateError.code,
+                    details: updateError.details,
+                    hint: updateError.hint,
+                    message: updateError.message,
+                });
+
+                // Retry on conflict (409) if we haven't exceeded retry limit
+                if (status === 409 && retryCount < 2) {
+                    console.log(`Retrying update (attempt ${retryCount + 2})...`);
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    return updateOrder(orderId, updates, retryCount + 1);
+                }
+
+                throw updateError;
+            }
 
             // Update local state
             setOrders((prev) =>
