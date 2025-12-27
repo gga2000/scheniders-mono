@@ -71,14 +71,19 @@ export function useOrders() {
         fetchBlacklist();
         loadFilterPresets();
 
-        // Set up real-time subscription
-        const subscription = supabase
-            .channel("orders_channel")
+        // Set up real-time subscription with status logging
+        const channel = supabase
+            .channel("orders_realtime", {
+                config: {
+                    broadcast: { self: true },
+                    presence: { key: '' },
+                },
+            })
             .on(
                 "postgres_changes",
                 { event: "*", schema: "public", table: "orders" },
                 (payload) => {
-                    console.log("Change received!", payload);
+                    console.log("[Realtime] Change received:", payload.eventType, payload);
 
                     // Trigger notification for new orders
                     if (payload.eventType === "INSERT" && payload.new) {
@@ -90,13 +95,29 @@ export function useOrders() {
                         );
                     }
 
-                    fetchOrders(); // Refetch on any change
+                    // Refetch on any change
+                    fetchOrders();
                 }
             )
-            .subscribe();
+            .subscribe((status, err) => {
+                console.log("[Realtime] Subscription status:", status);
+                if (err) {
+                    console.error("[Realtime] Subscription error:", err);
+                }
+                if (status === "SUBSCRIBED") {
+                    console.log("[Realtime] ✅ Successfully subscribed to orders table");
+                }
+            });
+
+        // Polling fallback: refresh every 30 seconds as a safety net
+        const pollingInterval = setInterval(() => {
+            console.log("[Polling] Refreshing orders...");
+            fetchOrders();
+        }, 30000);
 
         return () => {
-            subscription.unsubscribe();
+            channel.unsubscribe();
+            clearInterval(pollingInterval);
         };
     }, []);
 
