@@ -71,19 +71,18 @@ export function useOrders() {
         fetchBlacklist();
         loadFilterPresets();
 
-        // Set up real-time subscription with status logging
+        // Set up real-time subscription (simplified config)
         const channel = supabase
-            .channel("orders_realtime", {
-                config: {
-                    broadcast: { self: true },
-                    presence: { key: '' },
-                },
-            })
+            .channel("orders_changes")
             .on(
                 "postgres_changes",
-                { event: "*", schema: "public", table: "orders" },
+                {
+                    event: "*",
+                    schema: "public",
+                    table: "orders"
+                },
                 (payload) => {
-                    console.log("[Realtime] Change received:", payload.eventType, payload);
+                    console.log("[Realtime] Change received:", payload.eventType);
 
                     // Trigger notification for new orders
                     if (payload.eventType === "INSERT" && payload.new) {
@@ -100,12 +99,12 @@ export function useOrders() {
                 }
             )
             .subscribe((status, err) => {
-                console.log("[Realtime] Subscription status:", status);
-                if (err) {
-                    console.error("[Realtime] Subscription error:", err);
-                }
                 if (status === "SUBSCRIBED") {
-                    console.log("[Realtime] ✅ Successfully subscribed to orders table");
+                    console.log("[Realtime] ✅ Connected to orders table");
+                } else if (status === "CHANNEL_ERROR") {
+                    console.error("[Realtime] ❌ Channel error:", err?.message);
+                } else {
+                    console.log("[Realtime] Status:", status);
                 }
             });
 
