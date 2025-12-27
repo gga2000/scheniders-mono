@@ -1,7 +1,7 @@
 import { supabase } from "./supabase";
 import { formatPhoneToStandard } from "./order-utils";
 import { generateWhatsAppLink } from "./utils";
-import { validateAddress, getAddressStatus } from "./address-validator";
+import { validateAddress, getAddressStatus, extractAndSeparateGovernorate } from "./address-validator";
 import type { OrderItem } from "./supabase";
 
 /**
@@ -149,16 +149,25 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
         // Extract phone
         const phone = node.phone || node.shipping_address?.phone || node.billing_address?.phone || '';
 
-        // Extract city
-        const city = node.shipping_address?.city || node.customer?.location?.split(',').pop()?.trim() || '';
-
-        // Build address
-        const addressParts = [
+        // Extract city and address - Lightfunnels often puts governorate + address in city field
+        // e.g., "النجف حي الامير مقابل قاعه عشتار" should be split into:
+        // - city: "النجف"
+        // - address: "حي الامير مقابل قاعه عشتار"
+        const rawCity = node.shipping_address?.city || node.customer?.location?.split(',').pop()?.trim() || '';
+        const rawAddress = [
             node.shipping_address?.line1,
             node.shipping_address?.line2,
             node.shipping_address?.area,
-        ].filter(Boolean);
-        const address = addressParts.length > 0 ? addressParts.join(', ') : '';
+        ].filter(Boolean).join(', ');
+
+        // Try to separate governorate from the city field if it contains both
+        const { governorate, city: extractedCity, remainingAddress: extractedAddress } = extractAndSeparateGovernorate(rawCity);
+
+        // Use extracted values if a governorate was found, otherwise use raw values
+        const city = governorate ? extractedCity : rawCity;
+        const address = governorate
+            ? [extractedAddress, rawAddress].filter(Boolean).join(', ')
+            : rawAddress;
 
         // Get payment method (orders only)
         const paymentMethod = node.payments?.[0]?.source?.payment_gateway?.prototype?.key || 'unknown';
