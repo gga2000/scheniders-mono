@@ -38,6 +38,13 @@ export async function POST(request: NextRequest) {
         try {
             webhookData = parseLightFunnelsPayload(payload);
         } catch (error) {
+            // Handle Lightfunnels "Dummy" verification request
+            if (error instanceof Error && error.message === "is_test_payload") {
+                return NextResponse.json(
+                    { success: true, message: "Webhook connection verified" },
+                    { status: 200 }
+                );
+            }
             return NextResponse.json(
                 { error: error instanceof Error ? error.message : "Invalid payload format" },
                 { status: 400 }

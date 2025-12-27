@@ -117,10 +117,18 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
         console.log("Webhook type:", isCheckoutFormat ? "Checkout" : "Order");
 
         // Validate required fields
-        if (!node._id && !node.id) {
+        if (node._id == null && node.id == null) {
             const msg = `Missing order/checkout ID in webhook payload. Payload keys: ${Object.keys(node).join(', ')}`;
             console.error(msg);
             throw new Error(msg);
+        }
+
+        // Check if this appears to be a "Send dummy" test payload (minimal fields)
+        // The dummy payload often only has an ID, or ID + basic fields but empty
+        const keys = Object.keys(node);
+        if (keys.length <= 3 && (node.id != null || node._id != null) && !node.items) {
+            console.log("Detected test/dummy payload");
+            throw new Error("is_test_payload");
         }
 
         if (!node.phone && !node.shipping_address?.phone && !node.billing_address?.phone) {
