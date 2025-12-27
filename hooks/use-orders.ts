@@ -595,11 +595,12 @@ export function useOrders() {
 
             const nextSequenceNumber = (maxSeqData?.sequence_number || 0) + 1;
 
-            // Add defaults for new fields
+            // Add defaults for new fields - manual orders are auto-confirmed
             const fullOrderData = {
                 ...orderData,
                 order_id: generatedOrderId,
                 sequence_number: nextSequenceNumber,
+                status: orderData.status || "confirmed", // Manual orders default to confirmed
                 priority: orderData.priority || "normal",
                 payment_status: orderData.payment_status || "cod",
                 is_return: orderData.is_return || false,

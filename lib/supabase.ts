@@ -78,7 +78,7 @@ export interface Order {
 // - completed: Delivery verified and finalized (طلب تام)
 // - no_response: Customer never responded to contact attempts (لم يرد)
 // - return_pending: Return order awaiting processing (استرجاع معلق)
-export type OrderStatus = 'new' | 'contacted' | 'confirmed' | 'cancelled' | 'in_transit' | 'delivered' | 'rejected' | 'completed' | 'no_response' | 'return_pending';
+export type OrderStatus = 'new' | 'contacted' | 'confirmed' | 'cancelled' | 'in_transit' | 'delivered' | 'rejected' | 'completed' | 'no_response' | 'return_pending' | 'pending_checkout';
 
 // Order priority levels
 export type OrderPriority = 'normal' | 'high' | 'urgent';
