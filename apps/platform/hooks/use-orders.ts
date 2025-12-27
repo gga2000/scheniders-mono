@@ -71,7 +71,10 @@ export function useOrders() {
         fetchBlacklist();
         loadFilterPresets();
 
-        // Set up real-time subscription (simplified config)
+        let pollingInterval: NodeJS.Timeout | null = null;
+        let realtimeWorking = false;
+
+        // Set up real-time subscription
         const channel = supabase
             .channel("orders_changes")
             .on(
@@ -101,8 +104,24 @@ export function useOrders() {
             .subscribe((status, err) => {
                 if (status === "SUBSCRIBED") {
                     console.log("[Realtime] ✅ Connected to orders table");
-                } else if (status === "CHANNEL_ERROR") {
-                    console.error("[Realtime] ❌ Channel error:", err?.message);
+                    realtimeWorking = true;
+                    // Clear polling if realtime starts working
+                    if (pollingInterval) {
+                        clearInterval(pollingInterval);
+                        pollingInterval = null;
+                    }
+                } else if (status === "CHANNEL_ERROR" || status === "CLOSED") {
+                    console.error("[Realtime] ❌ Error - falling back to polling:", err?.message);
+                    realtimeWorking = false;
+                    // Start polling only if realtime fails and we're not already polling
+                    if (!pollingInterval) {
+                        pollingInterval = setInterval(() => {
+                            // Only poll when tab is visible
+                            if (!document.hidden) {
+                                fetchOrders();
+                            }
+                        }, 120000); // 2 minutes - less disruptive
+                    }
                 } else {
                     console.log("[Realtime] Status:", status);
                 }
@@ -110,6 +129,7 @@ export function useOrders() {
 
         return () => {
             channel.unsubscribe();
+            if (pollingInterval) clearInterval(pollingInterval);
         };
     }, []);
 
