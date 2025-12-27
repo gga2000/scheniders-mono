@@ -48,3 +48,4 @@ next-env.d.ts
 # Temporary files
 *.tmp
 *.temp
+.env*.local
