@@ -377,7 +377,7 @@ export function DateRangePicker({
                             whileTap={{ scale: 0.98 }}
                             className="flex-1 py-2.5 rounded-xl border border-amber-200 text-sm font-medium text-muted hover:bg-amber-50 transition-all"
                         >
-                            Clear
+                            All Orders
                         </motion.button>
                         <motion.button
                             type="button"
@@ -516,7 +516,7 @@ export function DateRangePicker({
                                     whileTap={{ scale: 0.98 }}
                                     className="flex-1 py-2.5 rounded-xl border border-amber-200 text-sm font-medium text-muted hover:bg-amber-50 transition-all"
                                 >
-                                    Clear
+                                    All Orders
                                 </motion.button>
                                 <motion.button
                                     type="button"

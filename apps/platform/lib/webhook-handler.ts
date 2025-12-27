@@ -260,23 +260,40 @@ export async function checkBlacklist(phone: string): Promise<{ isBlacklisted: bo
 }
 
 /**
- * Find product by SKU for linking
+ * Find product by SKU for linking, with fallback to name matching
  */
-async function findProductBySku(sku: string): Promise<{
+async function findProductBySku(sku: string | undefined, lightfunnelsName: string): Promise<{
     id: string;
     name: string;
     image_url?: string;
     tag_color?: string;
 } | null> {
-    if (!sku) return null;
+    // First try exact SKU match
+    if (sku) {
+        const { data: skuMatch } = await supabase
+            .from('products')
+            .select('id, name, image_url, tag_color')
+            .eq('sku', sku)
+            .single();
 
-    const { data } = await supabase
+        if (skuMatch) return skuMatch;
+    }
+
+    // Fallback: search for any local product whose name appears in the Lightfunnels product name
+    // This handles cases like "عطر برسيفيرون الفاخر من باريس كورنر للرجال" containing "برسيفيرون"
+    const { data: allProducts } = await supabase
         .from('products')
-        .select('id, name, image_url, tag_color')
-        .eq('sku', sku)
-        .single();
+        .select('id, name, image_url, tag_color');
 
-    return data;
+    if (allProducts) {
+        // Find a product whose name is contained in the Lightfunnels name
+        const match = allProducts.find(product =>
+            lightfunnelsName.includes(product.name)
+        );
+        if (match) return match;
+    }
+
+    return null;
 }
 
 /**
@@ -313,7 +330,7 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
         // Map items with SKU for product matching
         const items: OrderItem[] = await Promise.all(
             webhook.items.map(async (item) => {
-                const product = item.sku ? await findProductBySku(item.sku) : null;
+                const product = await findProductBySku(item.sku, item.name);
                 return {
                     // Use local product name if found, otherwise use Lightfunnels name
                     name: product?.name || item.name,
