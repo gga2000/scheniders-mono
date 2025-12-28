@@ -110,16 +110,19 @@ export function usePrinting(orders: Order[]) {
                 // City filter
                 if (filters.city && order.city !== filters.city) return false;
 
-                // Date range filter
+                // Date range filter - use local timezone
                 if (filters.dateFrom) {
                     const orderDate = new Date(order.created_at);
-                    const fromDate = new Date(filters.dateFrom);
+                    // Parse as local date at start of day (midnight local time)
+                    const [year, month, day] = filters.dateFrom.split('-').map(Number);
+                    const fromDate = new Date(year, month - 1, day, 0, 0, 0, 0);
                     if (orderDate < fromDate) return false;
                 }
                 if (filters.dateTo) {
                     const orderDate = new Date(order.created_at);
-                    const toDate = new Date(filters.dateTo);
-                    toDate.setHours(23, 59, 59, 999);
+                    // Parse as local date at end of day (23:59:59.999 local time)
+                    const [year, month, day] = filters.dateTo.split('-').map(Number);
+                    const toDate = new Date(year, month - 1, day, 23, 59, 59, 999);
                     if (orderDate > toDate) return false;
                 }
 
