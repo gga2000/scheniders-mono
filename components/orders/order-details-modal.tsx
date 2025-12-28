@@ -1187,12 +1187,12 @@ export function OrderDetailsModal({
                                                 يرجى تحديد المحافظة لإكمال العنوان
                                             </div>
                                         )}
-                                        {/* Validated Governorate Badge */}
-                                        {order.validated_governorate_code && (
+                                        {/* Validated Governorate Badge - check both columns */}
+                                        {(order.validated_governorate_code || order.governorate_code) && (
                                             <div className="flex items-center gap-2 mb-2">
                                                 <span className="text-xs text-muted">المحافظة المعتمدة:</span>
                                                 <span className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-700 text-xs font-semibold border border-emerald-200">
-                                                    {order.validated_governorate_code}
+                                                    {order.validated_governorate_code || order.governorate_code}
                                                 </span>
                                             </div>
                                         )}
