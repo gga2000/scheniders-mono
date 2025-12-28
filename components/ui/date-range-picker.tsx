@@ -22,12 +22,23 @@ interface DateRangePickerProps {
 
 type PresetType = "today" | "yesterday" | "thisWeek" | "thisMonth" | "last7" | "last30" | "custom";
 
+/**
+ * Format a Date to YYYY-MM-DD string using LOCAL timezone (not UTC)
+ * This fixes the issue where after midnight local time, toISOString() would return previous day
+ */
+function formatLocalDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 const presets: { id: PresetType; label: string; getRange: () => { from: string; to: string } }[] = [
     {
         id: "today",
         label: "Today",
         getRange: () => {
-            const today = new Date().toISOString().split("T")[0];
+            const today = formatLocalDate(new Date());
             return { from: today, to: today };
         },
     },
@@ -37,7 +48,7 @@ const presets: { id: PresetType; label: string; getRange: () => { from: string; 
         getRange: () => {
             const yesterday = new Date();
             yesterday.setDate(yesterday.getDate() - 1);
-            const date = yesterday.toISOString().split("T")[0];
+            const date = formatLocalDate(yesterday);
             return { from: date, to: date };
         },
     },
@@ -49,8 +60,8 @@ const presets: { id: PresetType; label: string; getRange: () => { from: string; 
             const startOfWeek = new Date(now);
             startOfWeek.setDate(now.getDate() - now.getDay());
             return {
-                from: startOfWeek.toISOString().split("T")[0],
-                to: now.toISOString().split("T")[0],
+                from: formatLocalDate(startOfWeek),
+                to: formatLocalDate(now),
             };
         },
     },
@@ -61,8 +72,8 @@ const presets: { id: PresetType; label: string; getRange: () => { from: string; 
             const now = new Date();
             const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
             return {
-                from: startOfMonth.toISOString().split("T")[0],
-                to: now.toISOString().split("T")[0],
+                from: formatLocalDate(startOfMonth),
+                to: formatLocalDate(now),
             };
         },
     },
@@ -74,8 +85,8 @@ const presets: { id: PresetType; label: string; getRange: () => { from: string; 
             const weekAgo = new Date();
             weekAgo.setDate(now.getDate() - 7);
             return {
-                from: weekAgo.toISOString().split("T")[0],
-                to: now.toISOString().split("T")[0],
+                from: formatLocalDate(weekAgo),
+                to: formatLocalDate(now),
             };
         },
     },
@@ -87,8 +98,8 @@ const presets: { id: PresetType; label: string; getRange: () => { from: string; 
             const monthAgo = new Date();
             monthAgo.setDate(now.getDate() - 30);
             return {
-                from: monthAgo.toISOString().split("T")[0],
-                to: now.toISOString().split("T")[0],
+                from: formatLocalDate(monthAgo),
+                to: formatLocalDate(now),
             };
         },
     },
@@ -103,7 +114,8 @@ function getFirstDayOfMonth(year: number, month: number): number {
 }
 
 function formatDate(date: Date): string {
-    return date.toISOString().split("T")[0];
+    // Use local timezone formatting instead of UTC
+    return formatLocalDate(date);
 }
 
 function parseDate(dateStr: string): Date {
@@ -300,7 +312,7 @@ export function DateRangePicker({
     // For inline mode, render just the panel content directly
     if (inline) {
         return (
-            <div className={cn("flex bg-white rounded-2xl overflow-hidden", className)}>
+            <div className={cn("flex bg-white rounded-2xl min-w-[420px]", className)}>
                 {/* Presets Sidebar */}
                 <div className="w-40 bg-gradient-to-b from-amber-50 to-orange-50 p-3 border-r border-amber-100">
                     <div className="flex items-center gap-2 mb-3 px-2">
