@@ -85,6 +85,7 @@ export interface LightFunnelsWebhook {
     customer: {
         name: string;
         phone: string;
+        secondary_phone?: string; // Secondary phone from custom field
         email?: string;
         city?: string;
         address?: string;
@@ -166,6 +167,50 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
         // Extract phone
         const phone = node.phone || node.shipping_address?.phone || node.billing_address?.phone || '';
 
+        // Extract secondary phone from custom fields or other sources
+        // Lightfunnels stores custom checkout fields in the 'custom' JSON field
+        let secondaryPhone: string | undefined;
+        try {
+            // Parse custom field if it's a JSON string
+            const customData = typeof node.custom === 'string'
+                ? JSON.parse(node.custom || '{}')
+                : (node.custom || {});
+
+            // Look for common secondary phone field names  
+            secondaryPhone = customData.secondary_phone ||
+                customData.phone2 ||
+                customData['رقم الهاتف الثاني'] ||
+                customData['هاتف ثاني'] ||
+                customData.alt_phone ||
+                customData.backup_phone;
+        } catch {
+            // Ignore JSON parse errors
+        }
+
+        // Also check if shipping/billing have different phones
+        // Lightfunnels sends flat format: shipping_address_phone, billing_address_phone
+        // And also nested format: shipping_address.phone
+        if (!secondaryPhone) {
+            const shippingPhone = node.shipping_address_phone || node.shipping_address?.phone;
+            const billingPhone = node.billing_address_phone || node.billing_address?.phone;
+            // If shipping/billing phone exists and different from primary, use as secondary
+            if (shippingPhone && shippingPhone !== phone) {
+                secondaryPhone = shippingPhone;
+            } else if (billingPhone && billingPhone !== phone) {
+                secondaryPhone = billingPhone;
+            }
+        }
+
+        // Normalize phone (remove spaces/dashes)
+        const normalizePhone = (p: string) => p?.replace(/[-\s]/g, '').trim();
+        const normalizedPrimary = normalizePhone(phone);
+        const normalizedSecondary = secondaryPhone ? normalizePhone(secondaryPhone) : undefined;
+
+        // Skip secondary if it's the same as primary
+        if (normalizedSecondary && normalizedSecondary === normalizedPrimary) {
+            secondaryPhone = undefined;
+        }
+
         // Extract city and address - Lightfunnels often puts governorate + address in city field
         // e.g., "النجف حي الامير مقابل قاعه عشتار" should be split into:
         // - city: "النجف"
@@ -214,6 +259,7 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
             customer: {
                 name: customerName.trim(),
                 phone: phone,
+                secondary_phone: secondaryPhone,
                 email: node.email || node.shipping_address?.email,
                 city: city,
                 address: address,
@@ -512,10 +558,16 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
             : `مرحباً ${webhook.customer.name}، شكراً لطلبك رقم ${webhook.order_number}`;
 
         // Prepare order data (only include fields that exist in the database)
+        // Format secondary phone if present (skip if same as primary)
+        const formattedSecondaryPhone = webhook.customer.secondary_phone
+            ? formatPhoneToStandard(webhook.customer.secondary_phone)
+            : null;
+
         const orderData = {
             order_id: orderId,
             customer_name: webhook.customer.name.trim(),
             phone: formattedPhone,
+            secondary_phone: formattedSecondaryPhone !== formattedPhone ? formattedSecondaryPhone : null,
             city: webhook.customer.city?.trim() || null,
             governorate_code: addressValidation.governorate?.code || null,
             address_details: webhook.customer.address?.trim() || null,
