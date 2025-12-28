@@ -763,10 +763,10 @@ export function OrderCard({
                                         )}
                                         <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
                                         <span className="truncate text-right" dir="rtl" title={fullAddress}>{fullAddress}</span>
-                                        {/* Show validated governorate code */}
-                                        {order.validated_governorate_code && (
+                                        {/* Show validated governorate code - check both columns */}
+                                        {(order.validated_governorate_code || order.governorate_code) && (
                                             <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] font-semibold flex-shrink-0">
-                                                {order.validated_governorate_code}
+                                                {order.validated_governorate_code || order.governorate_code}
                                             </span>
                                         )}
                                     </div>
