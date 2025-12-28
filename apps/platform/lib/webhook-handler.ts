@@ -294,7 +294,40 @@ export async function checkBlacklist(phone: string): Promise<{ isBlacklisted: bo
 }
 
 /**
+ * Normalize Arabic text for fuzzy matching
+ * Handles common spelling variations in Arabic product names
+ */
+function normalizeArabicText(text: string): string {
+    return text
+        // Remove diacritics (tashkeel)
+        .replace(/[\u064B-\u065F]/g, '')
+        // Normalize alef variations
+        .replace(/[أإآ]/g, 'ا')
+        // Normalize teh marbuta and heh
+        .replace(/ة/g, 'ه')
+        // Normalize yeh variations  
+        .replace(/ى/g, 'ي')
+        // Remove common filler words
+        .replace(/عطر|الفاخر|من|باريس|كورنر|للرجال|للنساء/g, '')
+        // Remove extra whitespace
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+/**
+ * Extract core product keyword from Lightfunnels name
+ * Returns the most distinctive word that's likely the product name
+ */
+function extractCoreKeyword(lightfunnelsName: string): string {
+    const normalized = normalizeArabicText(lightfunnelsName);
+    // Split and find the longest word (usually the product name)
+    const words = normalized.split(' ').filter(w => w.length > 3);
+    return words.length > 0 ? words.reduce((a, b) => a.length >= b.length ? a : b) : normalized;
+}
+
+/**
  * Find product by SKU for linking, with fallback to name matching
+ * Uses multiple strategies for robust Arabic text matching
  */
 async function findProductBySku(sku: string | undefined, lightfunnelsName: string): Promise<{
     id: string;
@@ -302,7 +335,7 @@ async function findProductBySku(sku: string | undefined, lightfunnelsName: strin
     image_url?: string;
     tag_color?: string;
 } | null> {
-    // First try exact SKU match
+    // Strategy 1: Exact SKU match
     if (sku) {
         const { data: skuMatch } = await supabase
             .from('products')
@@ -313,18 +346,90 @@ async function findProductBySku(sku: string | undefined, lightfunnelsName: strin
         if (skuMatch) return skuMatch;
     }
 
-    // Fallback: search for any local product whose name appears in the Lightfunnels product name
-    // This handles cases like "عطر برسيفيرون الفاخر من باريس كورنر للرجال" containing "برسيفيرون"
+    // Fetch all products once for matching strategies
     const { data: allProducts } = await supabase
         .from('products')
-        .select('id, name, image_url, tag_color');
+        .select('id, name, image_url, tag_color, lightfunnels_aliases');
 
-    if (allProducts) {
-        // Find a product whose name is contained in the Lightfunnels name
-        const match = allProducts.find(product =>
-            lightfunnelsName.includes(product.name)
-        );
-        if (match) return match;
+    if (!allProducts || allProducts.length === 0) return null;
+
+    // Strategy 2: Check lightfunnels_aliases array
+    // This is the most reliable method if aliases are configured
+    for (const product of allProducts) {
+        const aliases = (product as any).lightfunnels_aliases as string[] | null;
+        if (aliases && aliases.length > 0) {
+            // Check if Lightfunnels name contains any alias
+            const matchedByAlias = aliases.some(alias =>
+                lightfunnelsName.includes(alias) || alias.includes(lightfunnelsName)
+            );
+            if (matchedByAlias) {
+                return {
+                    id: product.id,
+                    name: product.name,
+                    image_url: product.image_url,
+                    tag_color: product.tag_color,
+                };
+            }
+        }
+    }
+
+    // Strategy 3: Direct substring match (original logic)
+    // Product name is contained within Lightfunnels name
+    const directMatch = allProducts.find(product =>
+        lightfunnelsName.includes(product.name)
+    );
+    if (directMatch) return directMatch;
+
+    // Strategy 4: Normalized Arabic matching
+    // Handle common spelling variations (برسيفيرون vs بيرسيفيرون)
+    const normalizedLF = normalizeArabicText(lightfunnelsName);
+    const coreKeyword = extractCoreKeyword(lightfunnelsName);
+
+    for (const product of allProducts) {
+        const normalizedProductName = normalizeArabicText(product.name);
+
+        // Check if normalized names overlap significantly
+        if (normalizedLF.includes(normalizedProductName) ||
+            normalizedProductName.includes(coreKeyword) ||
+            coreKeyword.includes(normalizedProductName)) {
+            return {
+                id: product.id,
+                name: product.name,
+                image_url: product.image_url,
+                tag_color: product.tag_color,
+            };
+        }
+    }
+
+    // Strategy 5: Fuzzy matching with character-level similarity
+    // For cases where normalization alone doesn't work
+    for (const product of allProducts) {
+        // Check if product name characters appear in sequence within LF name
+        // This catches cases like "بيرسيفيرون" matching "برسيفيرون"
+        const productChars = product.name.replace(/\s/g, '');
+        const lfChars = lightfunnelsName.replace(/\s/g, '');
+
+        // Count matching characters (allowing for some insertions/deletions)
+        let matchCount = 0;
+        let lfIndex = 0;
+        for (const char of productChars) {
+            const foundAt = lfChars.indexOf(char, lfIndex);
+            if (foundAt !== -1) {
+                matchCount++;
+                lfIndex = foundAt + 1;
+            }
+        }
+
+        // If 80%+ of product name characters found in sequence, it's a match
+        const matchRatio = matchCount / productChars.length;
+        if (matchRatio >= 0.8 && productChars.length >= 4) {
+            return {
+                id: product.id,
+                name: product.name,
+                image_url: product.image_url,
+                tag_color: product.tag_color,
+            };
+        }
     }
 
     return null;

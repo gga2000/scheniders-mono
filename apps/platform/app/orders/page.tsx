@@ -6,6 +6,7 @@ import { useProductsCrud } from "@/hooks/use-products-crud";
 import { Order, PaymentStatus } from "@/lib/supabase";
 import { validatePhoneDetailed } from "@/lib/order-utils";
 import { OrderCard } from "@/components/dashboard/order-card";
+import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
 import { OrderDetailsModal } from "@/components/orders/order-details-modal";
 import { CreateOrderModal } from "@/components/orders/create-order-modal";
 import { KanbanBoard } from "@/components/orders/kanban-board";
@@ -20,6 +21,8 @@ import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layo
 import { SavedViewsTabs } from "@/components/orders/saved-views-tabs";
 import { OrderConfirmationCard } from "@/components/orders/order-confirmation-card";
 import { CancellationReasonDialog } from "@/components/orders/cancellation-reason-dialog";
+import { StickyFilterBar } from "@/components/orders/sticky-filter-bar";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Search,
@@ -126,6 +129,7 @@ export default function OrdersPage() {
 
     // Get products for Excel import matching
     const { products } = useProductsCrud();
+    const isMobile = useIsMobile();
 
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
     const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
@@ -513,87 +517,234 @@ export default function OrdersPage() {
 
     return (
         <PageTransition>
-            <div className="min-h-screen p-6 md:p-8">
-                <div className="space-y-6">
-                    {/* Page Header */}
+            <div className="min-h-screen p-4 md:p-6 lg:p-8">
+                <div className="space-y-4 md:space-y-6">
+                    {/* Page Header - Mobile Optimized */}
                     <motion.div
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.4, delay: 0.1 }}
-                        className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6"
+                        className="space-y-4"
                     >
-                        <div>
-                            <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight flex items-center gap-3">
-                                <Package className="w-8 h-8" />
-                                Orders Management
-                            </h1>
-                            <p className="text-muted mt-2 text-lg">
-                                {filteredOrders.length} orders • {selectedOrders.size} selected
-                            </p>
+                        {/* Title Row */}
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight flex items-center gap-2 md:gap-3">
+                                    <Package className="w-6 h-6 md:w-8 md:h-8" />
+                                    <span className="hidden sm:inline">Orders Management</span>
+                                    <span className="sm:hidden">Orders</span>
+                                </h1>
+                                <p className="text-muted mt-1 text-sm md:text-base lg:text-lg">
+                                    {filteredOrders.length} orders{selectedOrders.size > 0 && ` • ${selectedOrders.size} selected`}
+                                </p>
+                            </div>
+
+                            {/* Primary Actions - Always Visible */}
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setIsCreateModalOpen(true)}
+                                    className="flex items-center gap-2 px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl bg-[var(--button-success)] text-white shadow-lg shadow-green-500/20 hover:bg-[var(--button-success-hover)] transition-all font-semibold text-sm md:text-base"
+                                >
+                                    <Plus className="h-4 w-4 md:h-5 md:w-5" />
+                                    <span className="hidden sm:inline">New Order</span>
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="flex flex-col items-end gap-3">
-                            {/* Workflow Mode Toggle - Top Row */}
-                            <div className="flex items-center bg-[var(--background)] border border-[var(--card-border)] rounded-xl p-1">
+                        {/* Controls Row - Scrollable on Mobile */}
+                        <div className="flex items-center gap-2 md:gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 md:overflow-visible md:flex-wrap">
+                            {/* Workflow Mode Toggle */}
+                            <div className="flex items-center bg-[var(--background)] border border-[var(--card-border)] rounded-xl p-1 flex-shrink-0">
                                 <button
                                     onClick={() => {
                                         if (workflowMode) toggleWorkflowMode();
                                     }}
                                     className={cn(
-                                        "px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+                                        "px-2.5 md:px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all flex items-center gap-1.5 md:gap-2",
                                         !workflowMode
                                             ? "bg-[var(--foreground)] text-white shadow-sm"
                                             : "text-muted hover:text-foreground"
                                     )}
                                 >
-                                    <List className="w-4 h-4" />
-                                    Simple
+                                    <List className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                                    <span className="hidden md:inline">Simple</span>
                                 </button>
                                 <button
                                     onClick={() => {
                                         if (!workflowMode) toggleWorkflowMode();
                                     }}
                                     className={cn(
-                                        "px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+                                        "px-2.5 md:px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all flex items-center gap-1.5 md:gap-2",
                                         workflowMode
                                             ? "bg-[var(--foreground)] text-white shadow-sm"
                                             : "text-muted hover:text-foreground"
                                     )}
                                 >
-                                    <GitBranch className="w-4 h-4" />
-                                    Workflow
+                                    <GitBranch className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                                    <span className="hidden md:inline">Workflow</span>
                                 </button>
                             </div>
 
-                            {/* Other Controls - Bottom Row */}
-                            <div className="flex items-center gap-3">
-                                {!workflowMode && (
-                                    <div className="flex items-center bg-[var(--background)] border border-[var(--card-border)] rounded-xl p-1">
-                                        {[
-                                            { mode: "cards" as const, icon: LayoutGrid, label: "Cards" },
-                                            { mode: "table" as const, icon: Table, label: "Table" },
-                                            { mode: "kanban" as const, icon: Columns, label: "Kanban" },
-                                        ].map((v) => {
-                                            const Icon = v.icon;
-                                            return (
-                                                <button
-                                                    key={v.mode}
-                                                    onClick={() => setViewMode(v.mode)}
-                                                    title={v.label}
-                                                    className={cn(
-                                                        "p-2 rounded-lg transition-all",
-                                                        viewMode === v.mode
-                                                            ? "bg-[var(--foreground)] text-white shadow-sm"
-                                                            : "text-muted hover:text-foreground hover:bg-[var(--card-border)]"
-                                                    )}
-                                                >
-                                                    <Icon className="w-4 h-4" />
-                                                </button>
-                                            );
-                                        })}
+                            {/* View Mode Toggle - Hidden on Mobile in Workflow Mode */}
+                            {!workflowMode && (
+                                <div className="hidden sm:flex items-center bg-[var(--background)] border border-[var(--card-border)] rounded-xl p-1 flex-shrink-0">
+                                    {[
+                                        { mode: "cards" as const, icon: LayoutGrid, label: "Cards" },
+                                        { mode: "table" as const, icon: Table, label: "Table" },
+                                        { mode: "kanban" as const, icon: Columns, label: "Kanban" },
+                                    ].map((v) => {
+                                        const Icon = v.icon;
+                                        return (
+                                            <button
+                                                key={v.mode}
+                                                onClick={() => setViewMode(v.mode)}
+                                                title={v.label}
+                                                className={cn(
+                                                    "p-2 rounded-lg transition-all",
+                                                    viewMode === v.mode
+                                                        ? "bg-[var(--foreground)] text-white shadow-sm"
+                                                        : "text-muted hover:text-foreground hover:bg-[var(--card-border)]"
+                                                )}
+                                            >
+                                                <Icon className="w-4 h-4" />
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            {/* Date Picker */}
+                            <div className="relative flex-shrink-0">
+                                <button
+                                    onClick={() => setShowDatePicker(!showDatePicker)}
+                                    className={cn(
+                                        "p-2.5 md:p-3 rounded-xl md:rounded-2xl border transition-all shadow-sm flex items-center gap-2",
+                                        (filters.dateFrom || filters.dateTo)
+                                            ? "bg-amber-100 border-amber-200 text-amber-700"
+                                            : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                    )}
+                                    title="Date Filter"
+                                >
+                                    <CalendarDays className="w-4 h-4" />
+                                    {filters.dateFrom && (
+                                        <span className="text-xs font-medium hidden lg:inline">
+                                            {filters.dateFrom === filters.dateTo
+                                                ? new Date(filters.dateFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                                                : `${new Date(filters.dateFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${filters.dateTo ? new Date(filters.dateTo).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '...'}`
+                                            }
+                                        </span>
+                                    )}
+                                </button>
+
+                                {/* Date Picker Dropdown Panel */}
+                                {showDatePicker && (
+                                    <div className="absolute left-0 top-full mt-2 z-[100] shadow-2xl rounded-3xl border border-amber-100">
+                                        <DateRangePicker
+                                            inline
+                                            dateFrom={filters.dateFrom}
+                                            dateTo={filters.dateTo}
+                                            onDateChange={(from, to) => {
+                                                setFilters({ ...filters, dateFrom: from, dateTo: to });
+                                                setShowDatePicker(false);
+                                            }}
+                                        />
                                     </div>
                                 )}
+                            </div>
 
+                            {/* Quick Toggles - Grouped */}
+                            <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
+                                {/* Notifications */}
+                                <button
+                                    onClick={async () => {
+                                        const newState = !notificationsEnabled;
+                                        if (newState) {
+                                            const granted = await notificationService.requestPermission();
+                                            if (granted) {
+                                                setNotificationsEnabled(true);
+                                                notificationService.showNotification({
+                                                    title: "Notifications Enabled",
+                                                    body: "You will now be notified of new orders",
+                                                });
+                                            }
+                                            setSoundEnabled(true);
+                                            notificationService.soundEnabled = true;
+                                        } else {
+                                            setNotificationsEnabled(false);
+                                            setSoundEnabled(false);
+                                            notificationService.soundEnabled = false;
+                                        }
+                                    }}
+                                    title={notificationsEnabled ? "Notifications ON" : "Enable Notifications"}
+                                    className={cn(
+                                        "p-2.5 md:p-3 rounded-xl md:rounded-2xl border transition-all shadow-sm",
+                                        notificationsEnabled
+                                            ? "bg-green-100 border-green-200 text-green-700"
+                                            : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                    )}
+                                >
+                                    {notificationsEnabled ? (
+                                        <Bell className="w-4 h-4" />
+                                    ) : (
+                                        <BellOff className="w-4 h-4" />
+                                    )}
+                                </button>
+
+                                {/* Undo Button */}
+                                {canUndo && (
+                                    <motion.button
+                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.8 }}
+                                        onClick={async () => {
+                                            const result = await undoLastAction();
+                                        }}
+                                        title={`Undo: ${getLastUndoAction()?.action || 'last action'}`}
+                                        className="p-2.5 md:p-3 rounded-xl md:rounded-2xl border transition-all shadow-sm bg-amber-100 border-amber-200 text-amber-700 hover:bg-amber-200"
+                                    >
+                                        <RotateCcw className="w-4 h-4" />
+                                    </motion.button>
+                                )}
+
+                                {/* Stats Toggle - Hidden on Small Mobile */}
+                                <button
+                                    onClick={() => {
+                                        const newLevel = ((analyticsLevel + 1) % 3) as 0 | 1 | 2;
+                                        setAnalyticsLevel(newLevel);
+                                        localStorage.setItem("ordersAnalyticsLevel", String(newLevel));
+                                    }}
+                                    title={analyticsLevel === 0 ? "Show Stats" : analyticsLevel === 1 ? "Show Details" : "Hide Analytics"}
+                                    className={cn(
+                                        "hidden sm:flex p-2.5 md:p-3 rounded-xl md:rounded-2xl border transition-all shadow-sm items-center gap-2",
+                                        analyticsLevel > 0
+                                            ? "bg-blue-100 border-blue-200 text-blue-700"
+                                            : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                    )}
+                                >
+                                    <BarChart3 className="w-4 h-4" />
+                                </button>
+
+                                {/* Filters Toggle */}
+                                <button
+                                    onClick={() => {
+                                        const newValue = !showSearchBar;
+                                        setShowSearchBar(newValue);
+                                        localStorage.setItem("ordersShowSearchBar", String(newValue));
+                                    }}
+                                    title={showSearchBar ? "Hide Filters" : "Show Filters"}
+                                    className={cn(
+                                        "p-2.5 md:p-3 rounded-xl md:rounded-2xl border transition-all shadow-sm",
+                                        showSearchBar
+                                            ? "bg-purple-100 border-purple-200 text-purple-700"
+                                            : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                    )}
+                                >
+                                    <SlidersHorizontal className="w-4 h-4" />
+                                </button>
+                            </div>
+
+                            {/* Secondary Actions - Hidden on Mobile */}
+                            <div className="hidden md:flex items-center gap-2 flex-shrink-0">
                                 {/* Compact View Toggle */}
                                 {!workflowMode && viewMode === "cards" && (
                                     <button
@@ -613,138 +764,6 @@ export default function OrdersPage() {
                                         {compactView ? <LayoutList className="w-4 h-4" /> : <Rows3 className="w-4 h-4" />}
                                     </button>
                                 )}
-
-                                {/* Date Picker Dropdown */}
-                                <div className="relative">
-                                    <button
-                                        onClick={() => setShowDatePicker(!showDatePicker)}
-                                        className={cn(
-                                            "p-3 rounded-2xl border transition-all shadow-sm flex items-center gap-2",
-                                            (filters.dateFrom || filters.dateTo)
-                                                ? "bg-amber-100 border-amber-200 text-amber-700"
-                                                : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
-                                        )}
-                                        title="Date Filter"
-                                    >
-                                        <CalendarDays className="w-4 h-4" />
-                                        {filters.dateFrom && (
-                                            <span className="text-xs font-medium hidden sm:inline">
-                                                {filters.dateFrom === filters.dateTo
-                                                    ? new Date(filters.dateFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                                                    : `${new Date(filters.dateFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${filters.dateTo ? new Date(filters.dateTo).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '...'}`
-                                                }
-                                            </span>
-                                        )}
-                                    </button>
-
-                                    {/* Date Picker Dropdown Panel */}
-                                    {showDatePicker && (
-                                        <div className="absolute right-0 top-full mt-2 z-50 shadow-2xl rounded-3xl border border-amber-100 overflow-hidden">
-                                            <DateRangePicker
-                                                inline
-                                                dateFrom={filters.dateFrom}
-                                                dateTo={filters.dateTo}
-                                                onDateChange={(from, to) => {
-                                                    setFilters({ ...filters, dateFrom: from, dateTo: to });
-                                                    setShowDatePicker(false);
-                                                }}
-                                            />
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Notification Toggle */}
-                                <button
-                                    onClick={async () => {
-                                        const newState = !notificationsEnabled;
-                                        if (newState) {
-                                            const granted = await notificationService.requestPermission();
-                                            if (granted) {
-                                                setNotificationsEnabled(true);
-                                                notificationService.showNotification({
-                                                    title: "Notifications Enabled",
-                                                    body: "You will now be notified of new orders",
-                                                });
-                                            }
-                                            // Also enable sound when notifications are enabled
-                                            setSoundEnabled(true);
-                                            notificationService.soundEnabled = true;
-                                        } else {
-                                            setNotificationsEnabled(false);
-                                            // Also disable sound when notifications are disabled
-                                            setSoundEnabled(false);
-                                            notificationService.soundEnabled = false;
-                                        }
-                                    }}
-                                    title={notificationsEnabled ? "Notifications ON" : "Enable Notifications"}
-                                    className={cn(
-                                        "p-3 rounded-2xl border transition-all shadow-sm",
-                                        notificationsEnabled
-                                            ? "bg-green-100 border-green-200 text-green-700"
-                                            : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
-                                    )}
-                                >
-                                    {notificationsEnabled ? (
-                                        <Bell className="w-4 h-4" />
-                                    ) : (
-                                        <BellOff className="w-4 h-4" />
-                                    )}
-                                </button>
-
-                                {/* Undo Button - appears when there's something to undo */}
-                                {canUndo && (
-                                    <motion.button
-                                        initial={{ opacity: 0, scale: 0.8 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        exit={{ opacity: 0, scale: 0.8 }}
-                                        onClick={async () => {
-                                            const result = await undoLastAction();
-                                            if (result.success) {
-                                                // Could add toast notification here
-                                            }
-                                        }}
-                                        title={`Undo: ${getLastUndoAction()?.action || 'last action'}`}
-                                        className="p-3 rounded-2xl border transition-all shadow-sm bg-amber-100 border-amber-200 text-amber-700 hover:bg-amber-200 flex items-center gap-2"
-                                    >
-                                        <RotateCcw className="w-4 h-4" />
-                                    </motion.button>
-                                )}
-
-                                {/* Stats Toggle */}
-                                <button
-                                    onClick={() => {
-                                        const newLevel = ((analyticsLevel + 1) % 3) as 0 | 1 | 2;
-                                        setAnalyticsLevel(newLevel);
-                                        localStorage.setItem("ordersAnalyticsLevel", String(newLevel));
-                                    }}
-                                    title={analyticsLevel === 0 ? "Show Stats" : analyticsLevel === 1 ? "Show Details" : "Hide Analytics"}
-                                    className={cn(
-                                        "p-3 rounded-2xl border transition-all shadow-sm flex items-center gap-2",
-                                        analyticsLevel > 0
-                                            ? "bg-blue-100 border-blue-200 text-blue-700"
-                                            : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
-                                    )}
-                                >
-                                    <BarChart3 className="w-4 h-4" />
-                                </button>
-
-                                {/* Filters Toggle */}
-                                <button
-                                    onClick={() => {
-                                        const newValue = !showSearchBar;
-                                        setShowSearchBar(newValue);
-                                        localStorage.setItem("ordersShowSearchBar", String(newValue));
-                                    }}
-                                    title={showSearchBar ? "Hide Filters" : "Show Filters"}
-                                    className={cn(
-                                        "p-3 rounded-2xl border transition-all shadow-sm flex items-center gap-2",
-                                        showSearchBar
-                                            ? "bg-purple-100 border-purple-200 text-purple-700"
-                                            : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
-                                    )}
-                                >
-                                    <SlidersHorizontal className="w-4 h-4" />
-                                </button>
 
                                 {/* Archive Toggle */}
                                 <button
@@ -766,26 +785,20 @@ export default function OrdersPage() {
                                     {showArchived && <span className="text-xs font-medium">Archived</span>}
                                 </button>
 
+                                {/* Import/Export */}
                                 <button
                                     onClick={() => setIsImportModalOpen(true)}
                                     className="px-4 py-3 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] text-foreground hover:bg-[var(--background)] transition-all shadow-sm flex items-center gap-2"
                                 >
                                     <Upload className="w-4 h-4" />
-                                    <span className="hidden sm:inline">استيراد</span>
+                                    <span className="hidden lg:inline">استيراد</span>
                                 </button>
                                 <button
                                     onClick={handleExport}
                                     className="px-4 py-3 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] text-foreground hover:bg-[var(--background)] transition-all shadow-sm flex items-center gap-2"
                                 >
                                     <Download className="w-4 h-4" />
-                                    <span className="hidden sm:inline">Export</span>
-                                </button>
-                                <button
-                                    onClick={() => setIsCreateModalOpen(true)}
-                                    className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-[var(--button-success)] text-white shadow-lg shadow-green-500/20 hover:bg-[var(--button-success-hover)] hover:shadow-green-500/30 hover:scale-[1.02] transition-all font-semibold"
-                                >
-                                    <Plus className="h-5 w-5" />
-                                    <span>New Order</span>
+                                    <span className="hidden lg:inline">Export</span>
                                 </button>
                             </div>
                         </div>
@@ -974,71 +987,19 @@ export default function OrdersPage() {
                                         {/* Sort dropdown removed in favor of column sorting */}
                                     </div>
 
-                                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                                        {filterOptions.map((option) => (
-                                            <button
-                                                key={option.id}
-                                                onClick={() => setFilters({ ...filters, status: option.id as Order["status"] | "all" })}
-                                                className={cn(
-                                                    "px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2",
-                                                    filters.status === option.id || (option.id === "all" && !filters.status)
-                                                        ? "bg-[var(--foreground)] text-white shadow-md"
-                                                        : "bg-[var(--background)] text-[var(--foreground-muted)] hover:bg-[var(--card-border)] border border-[var(--card-border)]"
-                                                )}
-                                            >
-                                                {option.label}
-                                                <span className={cn(
-                                                    "px-2 py-0.5 rounded-full text-xs font-bold",
-                                                    filters.status === option.id || (option.id === "all" && !filters.status)
-                                                        ? "bg-white/20 text-white"
-                                                        : "bg-[var(--card-border)] text-muted"
-                                                )}>
-                                                    {option.count}
-                                                </span>
-                                            </button>
-                                        ))}
-
-                                        {/* Advanced Filters Toggle */}
-                                        <button
-                                            onClick={() => setShowFilters(!showFilters)}
-                                            className={cn(
-                                                "px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 border",
-                                                showFilters || hasActiveFilters
-                                                    ? "bg-blue-100 text-blue-700 border-blue-200"
-                                                    : "bg-[var(--background)] text-[var(--foreground-muted)] border-[var(--card-border)] hover:bg-[var(--card-border)]"
-                                            )}
-                                        >
-                                            <Filter className="w-3.5 h-3.5" />
-                                            Filters
-                                            {hasActiveFilters && (
-                                                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                                            )}
-                                        </button>
-
-                                        {/* Group By Toggle */}
-                                        <div className="relative group/dropdown">
-                                            <button
-                                                className={cn(
-                                                    "px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 border",
-                                                    groupBy !== 'none'
-                                                        ? "bg-purple-100 text-purple-700 border-purple-200"
-                                                        : "bg-[var(--background)] text-[var(--foreground-muted)] border-[var(--card-border)] hover:bg-[var(--card-border)]"
-                                                )}
-                                            >
-                                                <Layers className="w-3.5 h-3.5" />
-                                                Group: {groupBy === 'none' ? 'None' : groupBy.charAt(0).toUpperCase() + groupBy.slice(1)}
-                                                <ChevronDown className="w-3 h-3 opacity-50" />
-                                            </button>
-
-                                            {/* Dropdown Menu */}
-                                            <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 p-1 z-50 hidden group-hover/dropdown:block">
-                                                <button onClick={() => setGroupBy('none')} className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-gray-50 text-gray-700">None</button>
-                                                <button onClick={() => setGroupBy('status')} className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-gray-50 text-gray-700">Status</button>
-                                                <button onClick={() => setGroupBy('city')} className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-gray-50 text-gray-700">City</button>
-                                                <button onClick={() => setGroupBy('verified')} className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-gray-50 text-gray-700">Verified</button>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    {!isMobile && (
+                                        <StickyFilterBar
+                                            filters={filters}
+                                            setFilters={setFilters}
+                                            statusCounts={statusCounts}
+                                            showFilters={showFilters}
+                                            setShowFilters={setShowFilters}
+                                            hasActiveFilters={hasActiveFilters}
+                                            groupBy={groupBy}
+                                            setGroupBy={setGroupBy}
+                                            isMobile={false}
+                                        />
+                                    )}
 
                                     {/* Advanced Filters Panel */}
                                     <AnimatePresence>
@@ -1297,6 +1258,21 @@ export default function OrdersPage() {
                         )}
                     </AnimatePresence>
 
+                    {/* Mobile Sticky Filter Bar - Rendered outside overflow-hidden container */}
+                    {isMobile && showSearchBar && (
+                        <StickyFilterBar
+                            filters={filters}
+                            setFilters={setFilters}
+                            statusCounts={statusCounts}
+                            showFilters={showFilters}
+                            setShowFilters={setShowFilters}
+                            hasActiveFilters={hasActiveFilters}
+                            groupBy={groupBy}
+                            setGroupBy={setGroupBy}
+                            isMobile={true}
+                        />
+                    )}
+
                     {/* Orders List */}
                     <div className="space-y-3">
                         {/* Select All Row */}
@@ -1364,7 +1340,7 @@ export default function OrdersPage() {
 
                                                 return (
                                                     <StaggerItem key={order.id}>
-                                                        <OrderCard
+                                                        <SwipeableOrderCard
                                                             order={order}
                                                             loadingId={loadingId}
                                                             onStatusUpdate={handleStatusUpdate}

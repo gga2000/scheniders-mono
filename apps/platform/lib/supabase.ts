@@ -113,6 +113,7 @@ export interface Product {
     name: string;
     description?: string;
     sku?: string; // Product SKU for matching with LightFunnels orders
+    lightfunnels_aliases?: string[]; // Alternative names/patterns from Lightfunnels that map to this product
     price: number;
     compare_at_price?: number; // Original price before discount (shows "was X, now Y")
     cost?: number;
