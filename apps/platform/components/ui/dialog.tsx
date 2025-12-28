@@ -35,18 +35,28 @@ const DialogContent = forwardRef<
             ref={ref}
             aria-describedby={props["aria-describedby"] ?? undefined}
             className={cn(
-                "fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%]",
-                "bg-[var(--card-bg)] rounded-[24px] p-6 shadow-xl duration-200",
-                "w-full max-w-3xl max-h-[90vh] overflow-y-auto",
-                "border border-[var(--card-border)]",
+                // Mobile: Full screen with safe areas
+                "fixed inset-0 z-50 md:inset-auto",
+                "md:left-[50%] md:top-[50%] md:translate-x-[-50%] md:translate-y-[-50%]",
+                // Styling
+                "bg-[var(--card-bg)] p-4 md:p-6 shadow-xl duration-200",
+                "md:rounded-[24px] md:border md:border-[var(--card-border)]",
+                // Size constraints
+                "w-full md:max-w-3xl md:max-h-[90vh]",
+                "overflow-y-auto",
+                // Animation
                 "data-[state=open]:animate-slide-in-up",
                 className
             )}
+            style={{
+                paddingTop: "max(1rem, env(safe-area-inset-top))",
+                paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
+            }}
             {...props}
         >
             {children}
-            <DialogPrimitive.Close className="absolute right-4 top-4 rounded-xl p-2 text-[var(--foreground-muted)] transition-all hover:text-foreground hover:bg-[var(--background)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] disabled:pointer-events-none">
-                <X className="h-5 w-5" />
+            <DialogPrimitive.Close className="absolute right-3 top-3 md:right-4 md:top-4 rounded-xl p-2.5 md:p-2 text-[var(--foreground-muted)] transition-all hover:text-foreground hover:bg-[var(--background)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] disabled:pointer-events-none touch-target">
+                <X className="h-5 w-5 md:h-5 md:w-5" />
                 <span className="sr-only">Close</span>
             </DialogPrimitive.Close>
         </DialogPrimitive.Content>

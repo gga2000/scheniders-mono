@@ -114,6 +114,9 @@ export function OrderCard({
     const actionsRef = useRef<HTMLDivElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
 
+
+
+
     // Close dropdown when clicking outside
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -363,7 +366,9 @@ export function OrderCard({
             <motion.div
                 layoutId={`order-card-inner-${order.id}`}
                 className={cn(
-                    "relative bg-[var(--card-bg)] rounded-[20px] shadow-[var(--card-shadow)] flex hover:shadow-[var(--card-shadow-hover)] transition-all",
+                    "relative bg-[var(--card-bg)] rounded-[20px] shadow-[var(--card-shadow)] hover:shadow-[var(--card-shadow-hover)] transition-all",
+                    // Mobile: vertical layout, Desktop: horizontal
+                    "flex flex-col md:flex-row",
                     actionsOpen ? "overflow-visible z-50" : "overflow-hidden",
                     // Priority order: blacklisted > return > urgent > duplicates > new > refunded
                     isBlacklisted && "ring-2 ring-red-500 ring-offset-2 ring-offset-[var(--background)]",
@@ -403,8 +408,19 @@ export function OrderCard({
                     </div>
                 )}
 
-                {/* Main Content */}
-                <div className={cn("flex-1 flex items-center gap-4 overflow-hidden", compact ? "p-2" : "p-4")}>
+                {/* Main Content Row */}
+                <div
+                    className={cn(
+                        "flex-1 flex items-center gap-4 overflow-hidden cursor-pointer md:cursor-default",
+                        compact ? "p-2" : "p-4"
+                    )}
+                    onClick={(e) => {
+                        if (!onToggleSelection) {
+                            e.stopPropagation();
+                            onViewDetails(order);
+                        }
+                    }}
+                >
 
                     {/* LEFT SECTION: Customer Info */}
                     <motion.div layoutId={`order-customer-${order.id}`} className={cn("space-y-1 flex-shrink-0", compact ? "min-w-[120px]" : "min-w-[160px]")}>
@@ -414,7 +430,6 @@ export function OrderCard({
                             className="flex items-center gap-2 cursor-pointer hover:bg-black/5 rounded px-1 -ml-1 transition-colors"
                             onClick={(e) => {
                                 e.stopPropagation();
-                                console.log("Name clicked", order.id);
                                 onViewDetails(order);
                             }}
                         >
@@ -465,7 +480,6 @@ export function OrderCard({
                                             className="px-2 py-0.5 rounded-md bg-[var(--background)] border border-[var(--card-border)] text-sm font-bold text-foreground cursor-pointer hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors"
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                console.log("ID clicked", order.id);
                                                 onViewDetails(order);
                                             }}
                                         >
@@ -828,11 +842,11 @@ export function OrderCard({
                         </div>
                     )}
 
-                    {/* DIVIDER */}
-                    <div className="w-px h-16 bg-[var(--card-border)] flex-shrink-0" />
+                    {/* DIVIDER - Desktop only */}
+                    <div className="w-px h-16 bg-[var(--card-border)] flex-shrink-0 hidden md:block" />
 
-                    {/* ACTION BUTTONS */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    {/* ACTION BUTTONS - Desktop only */}
+                    <div className="hidden md:flex items-center gap-2 flex-shrink-0">
                         {/* Chat Button - Primary with Contact Stage Indicator */}
                         {(() => {
                             const contactCount = order.contact_count || 0;
@@ -1185,6 +1199,8 @@ export function OrderCard({
                         )}
                     </div>
                 </div>
+
+
             </motion.div>
         </motion.div >
     );
