@@ -2,6 +2,7 @@ import { supabase } from "./supabase";
 import { formatPhoneToStandard } from "./order-utils";
 import { generateWhatsAppLink } from "./utils";
 import { validateAddress, getAddressStatus, extractAndSeparateGovernorate } from "./address-validator";
+import { fetchCheckoutById, getSavedAccessToken } from "./lightfunnels-api";
 import type { OrderItem } from "./supabase";
 
 /**
@@ -124,13 +125,19 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
             throw new Error(msg);
         }
 
-        // Check if this is a minimal/incomplete payload (test payload or checkout notification with just ID)
-        // Lightfunnels sometimes sends checkout webhooks with only the ID - we can't create an order from these
-        // We treat them as successful (return 200) since there's nothing to process
+        // Check if this is a minimal/incomplete payload (checkout notification with just ID)
+        // Lightfunnels checkout/created webhook only sends the ID - we need to fetch full data from API
         const keys = Object.keys(node);
         const hasMinimalData = keys.length <= 3 && (node.id != null || node._id != null) && !node.items;
         if (hasMinimalData) {
-            console.log("Detected minimal/incomplete payload (test or ID-only checkout):", node.id || node._id);
+            const checkoutId = node.id || node._id;
+            console.log("Detected minimal checkout payload, ID:", checkoutId);
+            // Check if this looks like a checkout ID (starts with 'ch_')
+            if (typeof checkoutId === 'string' && checkoutId.startsWith('ch_')) {
+                // Throw special error that will be caught by webhook route to fetch full checkout
+                throw new Error(`fetch_checkout:${checkoutId}`);
+            }
+            // For test payloads or non-checkout minimal data
             throw new Error("is_test_payload");
         }
 
@@ -278,12 +285,92 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
         if (error instanceof Error && (
             error.message.startsWith('Missing') ||
             error.message.startsWith('Invalid') ||
+            error.message.startsWith('fetch_checkout:') ||
             error.message === 'is_test_payload'
         )) {
             throw error;
         }
         console.error("Error parsing webhook payload:", error);
         throw new Error(`parsing failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+}
+
+/**
+ * Parse checkout data from API into LightFunnelsWebhook format
+ * Used when we receive a minimal checkout payload and fetch full data from API
+ */
+export function parseCheckoutToWebhook(checkout: any): LightFunnelsWebhook | null {
+    try {
+        if (!checkout || !checkout.items || checkout.items.length === 0) {
+            console.error("Invalid checkout data: missing items");
+            return null;
+        }
+
+        // Get customer name
+        const customerName = [checkout.first_name, checkout.last_name].filter(Boolean).join(' ').trim()
+            || checkout.customer?.full_name
+            || checkout.shipping_address?.first_name
+            || 'Unknown Customer';
+
+        // Get phone - primary from root or shipping
+        const phone = checkout.phone
+            || checkout.shipping_address?.phone
+            || checkout.billing_address?.phone
+            || checkout.customer?.phone
+            || '';
+
+        // Get secondary phone
+        let secondaryPhone: string | undefined;
+        const shippingPhone = checkout.shipping_address?.phone;
+        const billingPhone = checkout.billing_address?.phone;
+        if (shippingPhone && shippingPhone !== phone) {
+            secondaryPhone = shippingPhone;
+        } else if (billingPhone && billingPhone !== phone) {
+            secondaryPhone = billingPhone;
+        }
+
+        // Get city and address
+        const city = checkout.shipping_address?.city || '';
+        const address = [
+            checkout.shipping_address?.line1,
+            checkout.shipping_address?.line2,
+            checkout.shipping_address?.area,
+        ].filter(Boolean).join(', ');
+
+        // Map items
+        const items = checkout.items.map((item: any) => ({
+            name: item.title || item.name || 'Unknown Product',
+            quantity: 1,
+            price: item.price || 0,
+            sku: item.sku,
+            image_url: item.image?.path,
+            product_id: item.product_id,
+        }));
+
+        // Calculate total
+        const total = checkout.total || items.reduce((sum: number, item: any) => sum + item.price, 0);
+
+        return {
+            order_id: String(checkout._id || checkout.id),
+            order_number: String(checkout._id || checkout.id),
+            is_checkout: true,
+            customer: {
+                name: customerName,
+                phone: phone,
+                secondary_phone: secondaryPhone,
+                email: checkout.email,
+                city: city,
+                address: address,
+            },
+            items,
+            total,
+            created_at: checkout.created_at,
+            notes: undefined,
+            payment_method: 'cod', // Checkouts are typically COD
+        };
+    } catch (error) {
+        console.error("Error parsing checkout:", error);
+        return null;
     }
 }
 
