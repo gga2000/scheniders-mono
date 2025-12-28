@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
     Dialog,
     DialogContent,
@@ -73,6 +74,7 @@ export function OrderDetailsModal({
 }: OrderDetailsModalProps) {
     const [order, setOrder] = useState<Order | null>(propOrder);
     const governorates = getAllGovernorateCodes();
+    const isMobile = useIsMobile();
 
     // Sync local state with prop updates
     useEffect(() => {
@@ -469,7 +471,7 @@ export function OrderDetailsModal({
     return (
         <>
             <Dialog open={open} onOpenChange={(isOpen) => { if (!showProductPicker) onClose(); }} modal={!showProductPicker}>
-                <DialogContent className="max-w-4xl overflow-hidden">
+                <DialogContent className="max-w-4xl">
                     {/* Header Area */}
                     <DialogHeader className="space-y-0 pb-0 group relative">
                         {/* Top Row: Order ID, Status, Timeline + Edit Buttons */}
@@ -618,12 +620,12 @@ export function OrderDetailsModal({
                             </div>
                         </div>
 
-                        {/* Quick Actions Row - Status + Management (with colors!) */}
+                        {/* Quick Actions Row - Mobile Optimized */}
                         {!isEditing && (
-                            <div className="flex flex-wrap items-center gap-2 py-3 border-y border-[var(--card-border)]">
-                                {/* Status Actions - Colored */}
+                            <div className="py-3 border-y border-[var(--card-border)] space-y-2">
+                                {/* Status Actions - Horizontally scrollable on mobile */}
                                 {onStatusUpdate && (
-                                    <>
+                                    <div className="flex flex-wrap items-center gap-2">
                                         {quickActions.map((action) => {
                                             const Icon = action.icon;
                                             const isCurrentStatus = order.status === action.status;
@@ -633,10 +635,10 @@ export function OrderDetailsModal({
                                                     onClick={() => handleStatusChange(action.status)}
                                                     disabled={isUpdatingStatus || isCurrentStatus}
                                                     className={cn(
-                                                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                                                        "flex items-center gap-1.5 px-3 py-2 md:px-3 md:py-1.5 rounded-xl md:rounded-lg text-xs font-medium transition-all touch-target",
                                                         isCurrentStatus
-                                                            ? "bg-[var(--foreground)] text-white"
-                                                            : cn(action.bgColor, action.textColor, action.hoverColor),
+                                                            ? "bg-[var(--foreground)] text-white ring-2 ring-offset-2 ring-[var(--foreground)]"
+                                                            : cn(action.bgColor, action.textColor, action.hoverColor, "active:scale-95"),
                                                         isUpdatingStatus && "opacity-50 cursor-wait"
                                                     )}
                                                 >
@@ -645,107 +647,107 @@ export function OrderDetailsModal({
                                                 </button>
                                             );
                                         })}
-
-                                        {/* Separator */}
-                                        <div className="w-px h-5 bg-[var(--card-border)] mx-1" />
-                                    </>
+                                    </div>
                                 )}
 
-                                {/* Priority Buttons - Colored */}
-                                {[
-                                    { value: 'normal', label: 'عادي', bg: 'bg-gray-100', text: 'text-gray-700', hover: 'hover:bg-gray-200' },
-                                    { value: 'high', label: 'هام', bg: 'bg-amber-100', text: 'text-amber-800', hover: 'hover:bg-amber-200', icon: Flag },
-                                    { value: 'urgent', label: 'عاجل', bg: 'bg-red-100', text: 'text-red-800', hover: 'hover:bg-red-200', icon: Flame },
-                                ].map((p) => {
-                                    const Icon = p.icon;
-                                    const isActive = order.priority === p.value || (!order.priority && p.value === 'normal');
-                                    return (
+                                {/* Secondary Actions Row - Priority, Schedule, Return */}
+                                <div className="flex flex-wrap items-center gap-2">
+                                    {/* Priority Buttons */}
+                                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                                        {[
+                                            { value: 'normal', label: 'عادي', bg: 'bg-gray-100', text: 'text-gray-700', hover: 'hover:bg-gray-200' },
+                                            { value: 'high', label: 'هام', bg: 'bg-amber-100', text: 'text-amber-800', hover: 'hover:bg-amber-200', icon: Flag },
+                                            { value: 'urgent', label: 'عاجل', bg: 'bg-red-100', text: 'text-red-800', hover: 'hover:bg-red-200', icon: Flame },
+                                        ].map((p) => {
+                                            const Icon = p.icon;
+                                            const isActive = order.priority === p.value || (!order.priority && p.value === 'normal');
+                                            return (
+                                                <button
+                                                    key={p.value}
+                                                    onClick={async () => {
+                                                        if (!order) return;
+                                                        const oldPriority = order.priority;
+                                                        const newPriority = p.value as Order["priority"];
+                                                        setOrder(prev => prev ? { ...prev, priority: newPriority } : null);
+
+                                                        const result = await onUpdate(order.id, { priority: newPriority } as Partial<Order>);
+                                                        if (!result.success) {
+                                                            setOrder(prev => prev ? { ...prev, priority: oldPriority } : null);
+                                                        }
+                                                    }}
+                                                    className={cn(
+                                                        "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95",
+                                                        isActive
+                                                            ? "bg-[var(--foreground)] text-white"
+                                                            : cn(p.bg, p.text, p.hover)
+                                                    )}
+                                                >
+                                                    {Icon && <Icon className="w-3 h-3" />}
+                                                    {p.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Schedule Buttons */}
+                                    <div className="flex items-center gap-1.5">
                                         <button
-                                            key={p.value}
                                             onClick={async () => {
                                                 if (!order) return;
-                                                const oldPriority = order.priority;
-                                                const newPriority = p.value as Order["priority"];
-                                                setOrder(prev => prev ? { ...prev, priority: newPriority } : null);
+                                                const dateInput = prompt('موعد التوصيل (YYYY-MM-DD):', order.scheduled_date || new Date().toISOString().split('T')[0]);
+                                                if (dateInput) {
+                                                    const oldDate = order.scheduled_date;
+                                                    setOrder(prev => prev ? { ...prev, scheduled_date: dateInput } : null);
 
-                                                const result = await onUpdate(order.id, { priority: newPriority } as Partial<Order>);
-                                                if (!result.success) {
-                                                    // Revert
-                                                    setOrder(prev => prev ? { ...prev, priority: oldPriority } : null);
+                                                    const result = await onUpdate(order.id, { scheduled_date: dateInput } as Partial<Order>);
+                                                    if (!result.success) {
+                                                        setOrder(prev => prev ? { ...prev, scheduled_date: oldDate } : null);
+                                                    }
                                                 }
                                             }}
-                                            className={cn(
-                                                "flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all",
-                                                isActive
-                                                    ? "bg-[var(--foreground)] text-white"
-                                                    : cn(p.bg, p.text, p.hover)
-                                            )}
+                                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all bg-blue-100 text-blue-700 hover:bg-blue-200 active:scale-95"
                                         >
-                                            {Icon && <Icon className="w-3 h-3" />}
-                                            {p.label}
-                                        </button>
-                                    );
-                                })}
-
-                                {/* Separator */}
-                                <div className="w-px h-5 bg-[var(--card-border)] mx-1" />
-
-                                {/* Schedule - Colored */}
-                                <button
-                                    onClick={async () => {
-                                        if (!order) return;
-                                        const dateInput = prompt('موعد التوصيل (YYYY-MM-DD):', order.scheduled_date || new Date().toISOString().split('T')[0]);
-                                        if (dateInput) {
-                                            const oldDate = order.scheduled_date;
-                                            setOrder(prev => prev ? { ...prev, scheduled_date: dateInput } : null);
-
-                                            const result = await onUpdate(order.id, { scheduled_date: dateInput } as Partial<Order>);
-                                            if (!result.success) {
-                                                setOrder(prev => prev ? { ...prev, scheduled_date: oldDate } : null);
+                                            <CalendarDays className="w-3.5 h-3.5" />
+                                            {order.scheduled_date
+                                                ? new Date(order.scheduled_date).toLocaleDateString('ar-IQ', { day: 'numeric', month: 'short' })
+                                                : 'موعد'
                                             }
-                                        }
-                                    }}
-                                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all bg-blue-100 text-blue-700 hover:bg-blue-200"
-                                >
-                                    <CalendarDays className="w-3.5 h-3.5" />
-                                    {order.scheduled_date
-                                        ? new Date(order.scheduled_date).toLocaleDateString('ar-IQ', { day: 'numeric', month: 'short' })
-                                        : 'موعد'
-                                    }
-                                </button>
-                                <button
-                                    onClick={async () => {
-                                        if (!order) return;
-                                        const tomorrow = new Date();
-                                        tomorrow.setDate(tomorrow.getDate() + 1);
-                                        const dateStr = tomorrow.toISOString().split('T')[0];
-
-                                        const oldDate = order.scheduled_date;
-                                        setOrder(prev => prev ? { ...prev, scheduled_date: dateStr } : null);
-
-                                        const result = await onUpdate(order.id, { scheduled_date: dateStr } as Partial<Order>);
-                                        if (!result.success) {
-                                            setOrder(prev => prev ? { ...prev, scheduled_date: oldDate } : null);
-                                        }
-                                    }}
-                                    className="px-2 py-1.5 text-xs rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all"
-                                >
-                                    غداً
-                                </button>
-
-                                {/* Create Return Button - Only for delivered orders */}
-                                {order.status === "delivered" && onCreateReturn && !order.is_return && (
-                                    <>
-                                        <div className="w-px h-5 bg-[var(--card-border)] mx-1" />
-                                        <button
-                                            onClick={() => setShowReturnModal(true)}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition-all text-xs font-medium"
-                                        >
-                                            <RotateCcw className="w-3.5 h-3.5" />
-                                            استرجاع
                                         </button>
-                                    </>
-                                )}
+                                        <button
+                                            onClick={async () => {
+                                                if (!order) return;
+                                                const tomorrow = new Date();
+                                                tomorrow.setDate(tomorrow.getDate() + 1);
+                                                const dateStr = tomorrow.toISOString().split('T')[0];
+
+                                                const oldDate = order.scheduled_date;
+                                                setOrder(prev => prev ? { ...prev, scheduled_date: dateStr } : null);
+
+                                                const result = await onUpdate(order.id, { scheduled_date: dateStr } as Partial<Order>);
+                                                if (!result.success) {
+                                                    setOrder(prev => prev ? { ...prev, scheduled_date: oldDate } : null);
+                                                }
+                                            }}
+                                            className="px-2.5 py-1.5 text-xs rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all active:scale-95"
+                                        >
+                                            غداً
+                                        </button>
+                                    </div>
+
+                                    {/* Create Return Button - Only for delivered orders */}
+                                    {order.status === "delivered" && onCreateReturn && !order.is_return && (
+                                        <>
+
+                                            <button
+                                                onClick={() => setShowReturnModal(true)}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition-all text-xs font-medium active:scale-95"
+                                            >
+                                                <RotateCcw className="w-3.5 h-3.5" />
+                                                استرجاع
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         )}
 
@@ -1597,12 +1599,13 @@ export function OrderDetailsModal({
                         </div>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
+            </Dialog >
 
             {/* Product Picker Modal - Outside Dialog for proper z-index */}
-            <ProductPicker
+            < ProductPicker
                 open={showProductPicker}
-                onClose={() => setShowProductPicker(false)}
+                onClose={() => setShowProductPicker(false)
+                }
                 onSelect={handleProductSelect}
             />
         </>

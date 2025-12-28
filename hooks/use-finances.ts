@@ -355,6 +355,7 @@ export function useFinances(dateRange?: DateRange) {
             completed: { count: 0, revenue: 0 },
             no_response: { count: 0, revenue: 0 },
             return_pending: { count: 0, revenue: 0 },
+            pending_checkout: { count: 0, revenue: 0 },
         };
 
         filteredOrders.forEach((order) => {

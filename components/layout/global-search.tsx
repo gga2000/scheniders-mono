@@ -306,15 +306,43 @@ export function GlobalSearch() {
     );
 }
 
-export function TopBar() {
+interface TopBarProps {
+    onMenuClick?: () => void;
+    isMobile?: boolean;
+}
+
+export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
     return (
-        <header className="sticky top-0 z-40 px-6 py-4 bg-[var(--background)]">
-            <div className="flex items-center gap-6">
+        <header className="sticky top-0 z-40 px-4 md:px-6 py-3 md:py-4 bg-[var(--background)]">
+            <div className="flex items-center gap-3 md:gap-6">
+                {/* Mobile Menu Button */}
+                {isMobile && onMenuClick && (
+                    <button
+                        onClick={onMenuClick}
+                        className="w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-foreground hover:bg-[var(--background)] transition-all flex-shrink-0"
+                        aria-label="Open menu"
+                    >
+                        <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M4 6h16M4 12h16M4 18h16"
+                            />
+                        </svg>
+                    </button>
+                )}
+
                 {/* Global Search */}
                 <GlobalSearch />
 
-                {/* Right Side Actions */}
-                <div className="flex items-center gap-2">
+                {/* Right Side Actions - Hidden on mobile (available in sidebar) */}
+                <div className="hidden md:flex items-center gap-2">
                     {/* Notifications */}
                     <button className="w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-muted hover:text-foreground hover:border-[var(--foreground-muted)] transition-all">
                         <Bell className="w-5 h-5" />
