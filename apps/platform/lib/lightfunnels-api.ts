@@ -196,6 +196,141 @@ query GetStoreInfo {
 `;
 
 /**
+ * Query to fetch a single checkout by ID
+ */
+const CHECKOUT_QUERY = `
+query GetCheckout($id: ID!) {
+    node(id: $id) {
+        ... on Checkout {
+            id
+            _id
+            step_id
+            phone
+            email
+            first_name
+            last_name
+            created_at
+            updated_at
+            total
+            subtotal
+            custom
+            items {
+                __typename
+                id
+                _id
+                title
+                price
+                sku
+                variant_id
+                product_id
+                image {
+                    path
+                }
+            }
+            shipping_address {
+                first_name
+                last_name
+                phone
+                line1
+                line2
+                city
+                country
+                area
+                zip
+                state
+            }
+            billing_address {
+                first_name
+                last_name
+                phone
+                city
+                country
+            }
+            customer {
+                id
+                full_name
+                phone
+                location
+            }
+        }
+    }
+}
+`;
+
+/**
+ * Checkout data structure
+ */
+export interface LightfunnelsCheckout {
+    id: string;
+    _id: number;
+    step_id?: string;
+    phone?: string;
+    email?: string;
+    first_name?: string;
+    last_name?: string;
+    created_at: string;
+    total: number;
+    subtotal?: number;
+    custom?: Record<string, unknown>;
+    items: Array<{
+        __typename: string;
+        id: string;
+        _id: number;
+        title: string;
+        price: number;
+        sku?: string;
+        variant_id?: string;
+        product_id?: string;
+        image?: { path: string };
+    }>;
+    shipping_address?: {
+        first_name?: string;
+        last_name?: string;
+        phone?: string;
+        line1?: string;
+        line2?: string;
+        city?: string;
+        country?: string;
+        area?: string;
+        zip?: string;
+        state?: string;
+    };
+    billing_address?: {
+        first_name?: string;
+        last_name?: string;
+        phone?: string;
+        city?: string;
+        country?: string;
+    };
+    customer?: {
+        id: string;
+        full_name?: string;
+        phone?: string;
+        location?: string;
+    };
+}
+
+/**
+ * Fetch a checkout by ID from Lightfunnels API
+ */
+export async function fetchCheckoutById(
+    checkoutId: string,
+    accessToken: string
+): Promise<LightfunnelsCheckout | null> {
+    try {
+        const data = await executeQuery<{ node: LightfunnelsCheckout | null }>(
+            CHECKOUT_QUERY,
+            { id: checkoutId },
+            accessToken
+        );
+        return data.node;
+    } catch (error) {
+        console.error('Error fetching checkout:', error);
+        return null;
+    }
+}
+
+/**
  * Test connection to Lightfunnels API
  */
 export async function testConnection(accessToken: string): Promise<{
