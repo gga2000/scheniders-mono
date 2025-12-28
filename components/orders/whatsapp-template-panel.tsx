@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { cn, formatIQD, generateWhatsAppLink, getBaseOrderId } from "@/lib/utils";
 import { processEmojis } from "@/lib/emoji-shortcodes";
+import { formatPhoneForDisplay } from "@/lib/order-utils";
 import type { MessageTemplate, Order } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -138,7 +139,20 @@ export function WhatsAppTemplatePanel({
         // For display: original price is compare_at_price total, or order price if no discount
         const displayOriginalPrice = calculatedDiscount > 0 ? originalPrice : orderPrice;
 
-        const address = order.address_details || order.city || "";
+        // Build full address: combine city (governorate) with address details
+        // If city and address_details both exist, show "city - address_details"
+        const city = order.city || "";
+        const addressDetails = order.address_details || "";
+        let fullAddress = "";
+        if (city && addressDetails) {
+            fullAddress = `${city} - ${addressDetails}`;
+        } else {
+            fullAddress = city || addressDetails || "";
+        }
+
+        // Format phone numbers for display (Iraqi format)
+        const formattedPhone = formatPhoneForDisplay(order.phone) || order.phone || "";
+        const formattedSecondaryPhone = formatPhoneForDisplay(order.secondary_phone) || "";
 
         // Replace variables
         let processed = content
@@ -148,14 +162,14 @@ export function WhatsAppTemplatePanel({
             .replace(/\{product\}/g, productDisplay)
             .replace(/\{products\}/g, productDisplay)
             .replace(/\{items_count\}/g, itemsCount.toString())
-            .replace(/\{address\}/g, address)
-            .replace(/\{phone\}/g, order.phone || "")
-            .replace(/\{secondary_phone\}/g, order.secondary_phone || "—")
+            .replace(/\{address\}/g, fullAddress)
+            .replace(/\{phone\}/g, formattedPhone)
+            .replace(/\{secondary_phone\}/g, formattedSecondaryPhone || "—")
             .replace(/\{original_price\}/g, formatIQD(displayOriginalPrice))
             .replace(/\{price\}/g, formatIQD(orderPrice))
             .replace(/\{discounted_price\}/g, formatIQD(discountedPrice))
             .replace(/\{discount_percent\}/g, activeDiscount.toString())
-            .replace(/\{city\}/g, order.city || "")
+            .replace(/\{city\}/g, city)
             .replace(/\{status\}/g, order.status || "");
 
         // Convert emoji shortcodes to actual emojis
