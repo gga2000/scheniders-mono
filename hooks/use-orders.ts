@@ -16,6 +16,7 @@ import {
 } from "@/lib/supabase";
 import { notificationService } from "@/lib/notification-service";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
+import { activityLogger } from "@/lib/activity-logger";
 
 // =============================================
 // HELPER: Normalize order data from DB/realtime
@@ -535,6 +536,17 @@ export function useOrders() {
                 )
             );
 
+            // Log activity
+            if (previousOrder && previousOrder.status !== status) {
+                activityLogger.logStatusChange(
+                    orderId,
+                    previousOrder.order_id,
+                    previousOrder.status,
+                    status,
+                    rejectionReason
+                );
+            }
+
             return { success: true };
         } catch (err) {
             console.error("Error updating order:", err);
@@ -662,6 +674,13 @@ export function useOrders() {
             // Add to local state
             if (data) {
                 setOrders((prev) => [data, ...prev]);
+
+                // Log activity
+                activityLogger.logOrderCreate(
+                    data.id,
+                    data.order_id,
+                    orderData.source || "manual"
+                );
             }
 
             return { success: true, data };

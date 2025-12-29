@@ -13,10 +13,14 @@ import {
     ChevronRight,
     BarChart3,
     X,
+    Shield,
+    UserCircle,
+    UsersRound,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/components/auth/auth-provider";
 
 const NAV_ITEMS = [
     { label: "Dashboard", icon: LayoutDashboard, href: "/" },
@@ -26,6 +30,11 @@ const NAV_ITEMS = [
     { label: "Analytics", icon: BarChart3, href: "/analytics" },
     { label: "Printing", icon: Printer, href: "/printing" },
     { label: "Settings", icon: Settings, href: "/settings" },
+];
+
+// Admin-only nav items
+const ADMIN_NAV_ITEMS = [
+    { label: "Team", icon: UsersRound, href: "/settings/team" },
 ];
 
 interface SidebarProps {
@@ -44,6 +53,8 @@ export function Sidebar({
     setMobileMenuOpen
 }: SidebarProps) {
     const pathname = usePathname();
+    const router = useRouter();
+    const { profile, signOut, isAdmin, loading } = useAuth();
 
     // On mobile, always show expanded sidebar in the drawer
     const isCollapsed = isMobile ? false : collapsed;
@@ -54,6 +65,36 @@ export function Sidebar({
             setMobileMenuOpen(false);
         }
     };
+
+    // Handle logout
+    const handleLogout = async () => {
+        await signOut();
+        router.push("/login");
+    };
+
+    // Get role badge styling
+    const getRoleBadge = () => {
+        if (!profile) return null;
+
+        const roleConfig = {
+            admin: { label: "مسؤول", color: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
+            employee: { label: "موظف", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
+            viewer: { label: "مشاهد", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+        };
+
+        const config = roleConfig[profile.role];
+        return (
+            <span className={cn(
+                "text-[10px] font-medium px-2 py-0.5 rounded-full border",
+                config.color
+            )}>
+                {config.label}
+            </span>
+        );
+    };
+
+    // Get all nav items (including admin-only if applicable)
+    const allNavItems = isAdmin ? [...NAV_ITEMS, ...ADMIN_NAV_ITEMS] : NAV_ITEMS;
 
     // Desktop sidebar
     if (!isMobile) {
@@ -102,7 +143,7 @@ export function Sidebar({
                         </div>
                     )}
 
-                    {NAV_ITEMS.map((item) => {
+                    {allNavItems.map((item) => {
                         const isActive = pathname === item.href;
                         return (
                             <Link
@@ -143,9 +184,37 @@ export function Sidebar({
                     })}
                 </nav>
 
-                {/* Bottom Section */}
-                <div className="pt-4 border-t border-white/5 px-2">
+                {/* User Section */}
+                {profile && (
+                    <div className={cn(
+                        "pt-4 border-t border-white/5 px-2 mb-2",
+                        collapsed ? "flex justify-center" : ""
+                    )}>
+                        <div className={cn(
+                            "flex items-center gap-3 rounded-2xl p-2 bg-white/5",
+                            collapsed ? "justify-center p-3" : ""
+                        )}>
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center flex-shrink-0">
+                                <UserCircle className="w-5 h-5 text-primary" />
+                            </div>
+                            {!collapsed && (
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-white truncate">
+                                        {profile.display_name || profile.email.split("@")[0]}
+                                    </p>
+                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                        {getRoleBadge()}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Logout Button */}
+                <div className="px-2">
                     <button
+                        onClick={handleLogout}
                         className={cn(
                             "flex items-center py-3 rounded-2xl text-zinc-500 hover:text-rose-400 hover:bg-rose-500/5 w-full transition-all duration-300",
                             collapsed ? "justify-center" : "gap-3 px-3"
@@ -206,13 +275,32 @@ export function Sidebar({
                             </button>
                         </div>
 
+                        {/* User Info on Mobile */}
+                        {profile && (
+                            <div className="px-2 pb-4 mb-4 border-b border-white/10">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center">
+                                        <UserCircle className="w-6 h-6 text-primary" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="font-medium text-white">
+                                            {profile.display_name || profile.email.split("@")[0]}
+                                        </p>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            {getRoleBadge()}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Navigation */}
                         <nav className="flex-1 space-y-1 overflow-y-auto scrollbar-hide">
                             <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-3 px-3">
                                 General
                             </div>
 
-                            {NAV_ITEMS.map((item) => {
+                            {allNavItems.map((item) => {
                                 const isActive = pathname === item.href;
                                 return (
                                     <Link
@@ -241,6 +329,7 @@ export function Sidebar({
                         {/* Bottom Section */}
                         <div className="pt-4 border-t border-white/10">
                             <button
+                                onClick={handleLogout}
                                 className="flex items-center gap-4 py-4 px-4 rounded-2xl text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 w-full transition-all duration-200"
                             >
                                 <LogOut className="w-5 h-5 flex-shrink-0" />
@@ -255,3 +344,4 @@ export function Sidebar({
         </AnimatePresence>
     );
 }
+

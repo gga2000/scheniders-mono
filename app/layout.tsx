@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { AuthProvider } from "@/components/auth/auth-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Schenider | Intelly Dashboard",
-  description: "Advanced medical dashboard",
+  title: "Schenider | Order Management System",
+  description: "Advanced order management dashboard for Schenider team",
 };
 
 export default function RootLayout({
@@ -24,13 +25,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="ar" dir="rtl">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased selection:bg-pastel-yellow selection:text-black`}
       >
-        <DashboardLayout>
-          {children}
-        </DashboardLayout>
+        <AuthProvider>
+          <DashboardLayout>
+            {children}
+          </DashboardLayout>
+        </AuthProvider>
       </body>
     </html>
   );
