@@ -324,7 +324,7 @@ export function OrderCard({
 
     return (
         <motion.div
-            layoutId={`order-card-${order.id}`}
+            layoutId={`order-card-${order.id}-${order.status}`}
             className={cn(
                 "group relative w-full",
                 order.status === "rejected" && "opacity-60"
@@ -364,7 +364,7 @@ export function OrderCard({
             )}
 
             <motion.div
-                layoutId={`order-card-inner-${order.id}`}
+                layoutId={`order-card-inner-${order.id}-${order.status}`}
                 className={cn(
                     "relative bg-[var(--card-bg)] rounded-[20px] shadow-[var(--card-shadow)] hover:shadow-[var(--card-shadow-hover)] transition-all",
                     // Mobile: vertical layout, Desktop: horizontal
@@ -383,7 +383,7 @@ export function OrderCard({
             >
                 {/* Status Accent Bar */}
                 <motion.div
-                    layoutId={`order-accent-${order.id}`}
+                    layoutId={`order-accent-${order.id}-${order.status}`}
                     className={cn(
                         "w-2 flex-shrink-0 rounded-l-[20px]",
                         getStatusColor(),
@@ -423,10 +423,10 @@ export function OrderCard({
                 >
 
                     {/* LEFT SECTION: Customer Info */}
-                    <motion.div layoutId={`order-customer-${order.id}`} className={cn("space-y-1 flex-shrink-0", compact ? "min-w-[120px]" : "min-w-[160px]")}>
+                    <motion.div layoutId={`order-customer-${order.id}-${order.status}`} className={cn("space-y-1 flex-shrink-0", compact ? "min-w-[120px]" : "min-w-[160px]")}>
                         {/* Customer Name with sparkle for new */}
                         <motion.div
-                            layoutId={`order-name-${order.id}`}
+                            layoutId={`order-name-${order.id}-${order.status}`}
                             className="flex items-center gap-2 cursor-pointer hover:bg-black/5 rounded px-1 -ml-1 transition-colors"
                             onClick={(e) => {
                                 e.stopPropagation();
@@ -530,7 +530,7 @@ export function OrderCard({
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
                             {/* Status Badge */}
                             <motion.span
-                                layoutId={`order-status-${order.id}`}
+                                layoutId={`order-status-${order.id}-${order.status}`}
                                 className={cn(
                                     "inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full uppercase tracking-wider",
                                     getStatusBadgeStyle(),
@@ -792,7 +792,7 @@ export function OrderCard({
                     </div>
 
                     {/* PRICE SECTION */}
-                    <motion.div layoutId={`order-price-${order.id}`} className="text-right min-w-[100px] flex-shrink-0">
+                    <motion.div layoutId={`order-price-${order.id}-${order.status}`} className="text-right min-w-[100px] flex-shrink-0">
                         <p className="text-[10px] text-muted uppercase tracking-wider mb-0.5">
                             TOTAL
                         </p>

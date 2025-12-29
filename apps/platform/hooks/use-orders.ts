@@ -18,6 +18,31 @@ import { notificationService } from "@/lib/notification-service";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 
 // =============================================
+// HELPER: Normalize order data from DB/realtime
+// =============================================
+
+function normalizeOrder(order: Order): Order {
+    // Parse items if it's a JSON string (from import script)
+    let parsedItems = order.items;
+    if (typeof order.items === 'string') {
+        try {
+            parsedItems = JSON.parse(order.items);
+        } catch {
+            parsedItems = [];
+        }
+    }
+
+    return {
+        ...order,
+        items: parsedItems || [],
+        priority: order.priority || "normal",
+        payment_status: order.payment_status || "cod",
+        is_return: order.is_return || false,
+        is_archived: order.is_archived || false,
+    };
+}
+
+// =============================================
 // ENHANCED ORDERS HOOK
 // =============================================
 
@@ -27,6 +52,8 @@ export function useOrders() {
     const [archivedOrders, setArchivedOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    // Version counter to force re-renders on realtime updates
+    const [realtimeVersion, setRealtimeVersion] = useState(0);
 
     // Enhanced state
     const [rejectionReasons, setRejectionReasons] = useState<RejectionReason[]>([]);
@@ -65,6 +92,10 @@ export function useOrders() {
     // =============================================
 
     useEffect(() => {
+        // Generate unique ID for this subscription to detect duplicates
+        const subscriptionId = Math.random().toString(36).substring(7);
+        console.log(`[Realtime] 🔌 Creating subscription ID: ${subscriptionId}`);
+
         fetchOrders();
         fetchRejectionReasons();
         fetchMessageTemplates();
@@ -73,10 +104,11 @@ export function useOrders() {
 
         let pollingInterval: NodeJS.Timeout | null = null;
         let realtimeWorking = false;
+        let realtimeRefetchTimeout: NodeJS.Timeout | null = null; // Debounce for realtime updates
 
         // Set up real-time subscription
         const channel = supabase
-            .channel("orders_changes")
+            .channel(`orders_changes_${subscriptionId}`) // Unique channel name
             .on(
                 "postgres_changes",
                 {
@@ -85,20 +117,54 @@ export function useOrders() {
                     table: "orders"
                 },
                 (payload) => {
-                    console.log("[Realtime] Change received:", payload.eventType);
+                    console.log(`[Realtime] [${subscriptionId}] 📦 Change received:`, payload.eventType, payload.new ? (payload.new as Order).order_id : payload.old);
+                    console.log(`[Realtime] [${subscriptionId}] Full payload:`, JSON.stringify(payload, null, 2));
 
-                    // Trigger notification for new orders
+                    // Handle INSERT - add new order to state
                     if (payload.eventType === "INSERT" && payload.new) {
-                        const newOrder = payload.new as Order;
+                        const newOrder = normalizeOrder(payload.new as Order);
+
+                        // Skip archived orders (they shouldn't be in main list)
+                        if (newOrder.is_archived) return;
+
+                        // Show notification for new orders
                         notificationService.showNewOrderNotification(
                             newOrder.customer_name,
                             newOrder.order_id,
                             newOrder.priority
                         );
+
+                        // Add to state (idempotent - skip if already present)
+                        setOrders(prev => {
+                            if (prev.some(o => o.id === newOrder.id)) return prev;
+                            return [newOrder, ...prev];
+                        });
                     }
 
-                    // Refetch on any change
-                    fetchOrders();
+                    // Handle UPDATE - refetch orders to avoid stale closure issues in React concurrent mode
+                    // Previous approach tried to granularly update state but React's double-invoke 
+                    // in Strict Mode caused callbacks to run with stale closures
+                    if (payload.eventType === "UPDATE" && payload.new) {
+                        const updatedOrder = payload.new as Order;
+                        console.log(`[Realtime] [${subscriptionId}] UPDATE received for order:`, updatedOrder.order_id, "status:", updatedOrder.status);
+
+                        // Debounce refetch - clear any pending refetch and schedule a new one
+                        // This coalesces multiple rapid updates into a single fetch
+                        if (realtimeRefetchTimeout) {
+                            clearTimeout(realtimeRefetchTimeout);
+                        }
+                        realtimeRefetchTimeout = setTimeout(() => {
+                            console.log(`[Realtime] [${subscriptionId}] Executing debounced refetch...`);
+                            fetchOrders();
+                            realtimeRefetchTimeout = null;
+                        }, 100); // 100ms debounce
+                    }
+
+                    // Handle DELETE - remove order from state
+                    if (payload.eventType === "DELETE" && payload.old) {
+                        const deletedId = (payload.old as { id: string }).id;
+                        setOrders(prev => prev.filter(o => o.id !== deletedId));
+                    }
                 }
             )
             .subscribe((status, err) => {
@@ -128,8 +194,10 @@ export function useOrders() {
             });
 
         return () => {
+            console.log(`[Realtime] 🔌 Cleaning up subscription ID: ${subscriptionId}`);
             channel.unsubscribe();
             if (pollingInterval) clearInterval(pollingInterval);
+            if (realtimeRefetchTimeout) clearTimeout(realtimeRefetchTimeout);
         };
     }, []);
 
@@ -148,27 +216,8 @@ export function useOrders() {
 
             if (fetchError) throw fetchError;
 
-            // Provide defaults for new fields on old orders
-            const ordersWithDefaults = (data || []).map((order) => {
-                // Parse items if it's a JSON string (from import script)
-                let parsedItems = order.items;
-                if (typeof order.items === 'string') {
-                    try {
-                        parsedItems = JSON.parse(order.items);
-                    } catch {
-                        parsedItems = [];
-                    }
-                }
-
-                return {
-                    ...order,
-                    items: parsedItems || [],
-                    priority: order.priority || "normal",
-                    payment_status: order.payment_status || "cod",
-                    is_return: order.is_return || false,
-                    is_archived: order.is_archived || false,
-                };
-            });
+            // Normalize all orders using shared helper
+            const ordersWithDefaults = (data || []).map(normalizeOrder);
 
             setOrders(ordersWithDefaults);
             setError(null);
@@ -190,24 +239,7 @@ export function useOrders() {
 
             if (fetchError) throw fetchError;
 
-            const ordersWithDefaults = (data || []).map((order) => {
-                let parsedItems = order.items;
-                if (typeof order.items === 'string') {
-                    try {
-                        parsedItems = JSON.parse(order.items);
-                    } catch {
-                        parsedItems = [];
-                    }
-                }
-                return {
-                    ...order,
-                    items: parsedItems || [],
-                    priority: order.priority || "normal",
-                    payment_status: order.payment_status || "cod",
-                    is_return: order.is_return || false,
-                    is_archived: true,
-                };
-            });
+            const ordersWithDefaults = (data || []).map(normalizeOrder);
 
             setArchivedOrders(ordersWithDefaults);
             return { success: true, count: ordersWithDefaults.length };
@@ -1595,6 +1627,8 @@ export function useOrders() {
         loading,
         error,
         stats,
+        // Realtime version counter (for forcing re-renders when realtime updates happen)
+        realtimeVersion,
 
         // Reference data
         rejectionReasons,

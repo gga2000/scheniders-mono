@@ -125,6 +125,8 @@ export default function OrdersPage() {
         statusCounts,
         // Message templates
         messageTemplates,
+        // Realtime version (forces re-renders)
+        realtimeVersion,
     } = useOrders();
 
     // Get products for Excel import matching
@@ -257,6 +259,10 @@ export default function OrdersPage() {
     // Sort hook's filtered orders
     // Advanced Filtering & Sorting
     const filteredOrders = useMemo(() => {
+        // DEBUG: Log when this useMemo runs
+        const order5571 = hookFilteredOrders.find(o => o.order_id === "5571");
+        console.log(`[Page] useMemo recalculating filteredOrders - realtimeVersion: ${realtimeVersion}, hookFilteredOrders.length: ${hookFilteredOrders.length}, order5571 status: ${order5571?.status || 'not found'}`);
+
         let result = [...hookFilteredOrders];
 
         // 1. Apply Column Filters
@@ -303,7 +309,8 @@ export default function OrdersPage() {
             }
         });
         return result;
-    }, [hookFilteredOrders, sortConfig, columnFilters, filterDuplicatesOnly, getCustomerOrderCount]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hookFilteredOrders, sortConfig, columnFilters, filterDuplicatesOnly, getCustomerOrderCount, realtimeVersion]);
 
     const handleStatusUpdate = async (orderId: string, status: Order["status"], reason?: string) => {
         setLoadingId(orderId);
@@ -1324,7 +1331,7 @@ export default function OrdersPage() {
                             <>
                                 {/* Cards View */}
                                 {viewMode === "cards" && (
-                                    <StaggerContainer className="space-y-3">
+                                    <StaggerContainer key={`orders-list-${realtimeVersion}`} className="space-y-3">
                                         {displayedOrders.length === 0 ? (
                                             <EmptyState
                                                 type={(filters.status as any) || "all"}
@@ -1339,7 +1346,7 @@ export default function OrdersPage() {
                                                 const previousOrder = customerOrders.find(o => o.id !== order.id) || null;
 
                                                 return (
-                                                    <StaggerItem key={order.id}>
+                                                    <StaggerItem key={`${order.id}-${order.updated_at || order.status}`}>
                                                         <SwipeableOrderCard
                                                             order={order}
                                                             loadingId={loadingId}
@@ -1393,7 +1400,7 @@ export default function OrdersPage() {
 
                                 {/* Table View - State of the Art */}
                                 {viewMode === "table" && (
-                                    <div className="pastel-card">
+                                    <div key={`table-view-${realtimeVersion}`} className="pastel-card">
                                         <div className="overflow-x-auto">
                                             <table className="w-full">
                                                 <thead className="bg-[var(--background)] border-b border-[var(--card-border)] sticky top-0 z-30">
@@ -1650,7 +1657,7 @@ export default function OrdersPage() {
 
                                                                     return (
                                                                         <tr
-                                                                            key={order.id}
+                                                                            key={`${order.id}-${order.updated_at || order.status}`}
                                                                             className={cn(
                                                                                 "hover:bg-[var(--background)] transition-all group",
                                                                                 isSelected && "bg-blue-50/70",
@@ -2011,6 +2018,7 @@ export default function OrdersPage() {
                                 {/* Kanban View */}
                                 {viewMode === "kanban" && (
                                     <KanbanBoard
+                                        key={`kanban-view-${realtimeVersion}`}
                                         orders={filteredOrders}
                                         onStatusChange={async (orderId, newStatus) => {
                                             await updateOrderStatus(orderId, newStatus);

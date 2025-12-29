@@ -35,6 +35,7 @@ import {
     Check,
 } from "lucide-react";
 import { ProductPicker } from "./product-picker";
+import { DiscountPresetSelector } from "./discount-preset-selector";
 
 // TikTok icon component
 const TikTokIcon = ({ className }: { className?: string }) => (
@@ -478,13 +479,23 @@ export function CreateOrderModal({
 
                             {/* Discount & Total */}
                             {formData.items.length > 0 && (
-                                <div className="space-y-2 pt-3 border-t border-[var(--card-border)]">
+                                <div className="space-y-3 pt-3 border-t border-[var(--card-border)]">
+                                    {/* Discount Preset Selector */}
+                                    <DiscountPresetSelector
+                                        items={formData.items}
+                                        currentDiscount={discount}
+                                        onDiscountChange={setDiscount}
+                                    />
+
+                                    {/* Subtotal */}
                                     <div className="flex items-center justify-between">
                                         <span className="text-sm text-muted">المجموع الفرعي</span>
                                         <span className="text-sm font-mono font-medium">{formatIQD(subtotal)}</span>
                                     </div>
+
+                                    {/* Manual Discount Input */}
                                     <div className="flex items-center justify-between gap-3">
-                                        <span className="text-sm text-muted">خصم</span>
+                                        <span className="text-sm text-muted">خصم مخصص</span>
                                         <Input
                                             type="number"
                                             min="0"
@@ -494,6 +505,8 @@ export function CreateOrderModal({
                                             placeholder="0"
                                         />
                                     </div>
+
+                                    {/* Total */}
                                     <div className="flex items-center justify-between pt-2 border-t border-[var(--card-border)]">
                                         <span className="text-sm font-semibold text-foreground">المجموع الكلي</span>
                                         <span className="text-lg font-bold font-mono text-green-700">{formatIQD(total)}</span>
