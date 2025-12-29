@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import type { Order, OrderStatusHistory, OrderNote } from "@/lib/supabase";
 import { OrderTimeline } from "./order-timeline";
 import { ProductPicker } from "./product-picker";
+import { DiscountPresetSelector } from "./discount-preset-selector";
 import {
     MapPin,
     Phone,
@@ -932,7 +933,14 @@ export function OrderDetailsModal({
                                                 <div className="relative">
                                                     <select
                                                         value={(displayValue("city") || "") as string}
-                                                        onChange={(e) => updateFormData("city", e.target.value)}
+                                                        onChange={(e) => {
+                                                            const selectedGov = governorates.find(g => g.nameAr === e.target.value);
+                                                            updateFormData("city", e.target.value);
+                                                            // Auto-update governorate code when city is selected
+                                                            if (selectedGov) {
+                                                                updateFormData("governorate_code", selectedGov.code);
+                                                            }
+                                                        }}
                                                         className="w-full h-[38px] px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
                                                     >
                                                         <option value="" disabled>اختر المحافظة...</option>
@@ -948,6 +956,33 @@ export function OrderDetailsModal({
                                                 </div>
                                             ) : (
                                                 <p className="text-lg font-medium text-foreground">{order.city || "—"}</p>
+                                            )}
+                                        </div>
+                                        {/* Governorate Code - Editable in edit mode */}
+                                        <div>
+                                            <span className="text-xs text-muted uppercase tracking-wider block mb-1">كود المحافظة</span>
+                                            {isEditing ? (
+                                                <div className="relative">
+                                                    <select
+                                                        value={(displayValue("governorate_code") || "") as string}
+                                                        onChange={(e) => updateFormData("governorate_code", e.target.value)}
+                                                        className="w-full h-[38px] px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-mono font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
+                                                    >
+                                                        <option value="">بدون كود</option>
+                                                        {governorates.map((gov) => (
+                                                            <option key={gov.code} value={gov.code}>
+                                                                {gov.code} - {gov.nameAr}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-down"><path d="m6 9 6 6 6-6" /></svg>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <p className="text-lg font-medium text-foreground font-mono">
+                                                    {order.governorate_code || order.validated_governorate_code || <span className="text-muted">—</span>}
+                                                </p>
                                             )}
                                         </div>
                                     </div>
@@ -1376,9 +1411,19 @@ export function OrderDetailsModal({
                                 </div>
                                 {/* Discount + Total */}
                                 <div className="border-t border-[var(--card-border)]">
+                                    {/* Discount Preset Selector (Edit Mode Only) */}
+                                    {isEditing && (
+                                        <div className="px-4 py-3">
+                                            <DiscountPresetSelector
+                                                items={(formData.items || order.items || []) as any[]}
+                                                currentDiscount={(displayValue("discount_amount") as number) || 0}
+                                                onDiscountChange={(val) => updateFormData("discount_amount", val)}
+                                            />
+                                        </div>
+                                    )}
                                     {/* Discount Row */}
                                     <div className="flex items-center justify-between px-4 py-2">
-                                        <span className="text-sm text-muted">خصم</span>
+                                        <span className="text-sm text-muted">خصم مخصص</span>
                                         {isEditing ? (
                                             <input
                                                 type="number"

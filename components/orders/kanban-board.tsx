@@ -221,7 +221,7 @@ export function KanbanBoard({ orders, onStatusChange, onViewDetails }: KanbanBoa
                             >
                                 {statusOrders.map((order) => (
                                     <DraggableOrderCard
-                                        key={order.id}
+                                        key={`${order.id}-${order.updated_at || order.status}`}
                                         order={order}
                                         onViewDetails={onViewDetails}
                                     />
