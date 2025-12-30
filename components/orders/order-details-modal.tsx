@@ -1224,6 +1224,31 @@ export function OrderDetailsModal({
                                                 )}
                                             </div>
                                         </div>
+
+                                        {/* Scheduled Delivery Date */}
+                                        <div>
+                                            <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                                                <CalendarDays className="w-3 h-3" />
+                                                موعد التوصيل
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                {isEditing ? (
+                                                    <input
+                                                        type="date"
+                                                        value={(displayValue("scheduled_date") || "") as string}
+                                                        onChange={(e) => updateFormData("scheduled_date", e.target.value)}
+                                                        className="w-full px-3 py-1.5 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
+                                                    />
+                                                ) : (
+                                                    <p className="text-sm text-foreground px-3 py-1.5">
+                                                        {order.scheduled_date
+                                                            ? new Date(order.scheduled_date).toLocaleDateString('ar-IQ', { day: 'numeric', month: 'short', year: 'numeric' })
+                                                            : <span className="text-muted">لم يتم التحديد</span>
+                                                        }
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
 
                                     {/* Address Row with Simple Validation */}
