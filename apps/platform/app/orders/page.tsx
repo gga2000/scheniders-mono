@@ -259,10 +259,6 @@ export default function OrdersPage() {
     // Sort hook's filtered orders
     // Advanced Filtering & Sorting
     const filteredOrders = useMemo(() => {
-        // DEBUG: Log when this useMemo runs
-        const order5571 = hookFilteredOrders.find(o => o.order_id === "5571");
-        console.log(`[Page] useMemo recalculating filteredOrders - realtimeVersion: ${realtimeVersion}, hookFilteredOrders.length: ${hookFilteredOrders.length}, order5571 status: ${order5571?.status || 'not found'}`);
-
         let result = [...hookFilteredOrders];
 
         // 1. Apply Column Filters
