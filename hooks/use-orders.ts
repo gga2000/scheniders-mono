@@ -95,7 +95,6 @@ export function useOrders() {
     useEffect(() => {
         // Generate unique ID for this subscription to detect duplicates
         const subscriptionId = Math.random().toString(36).substring(7);
-        console.log(`[Realtime] 🔌 Creating subscription ID: ${subscriptionId}`);
 
         fetchOrders();
         fetchRejectionReasons();
@@ -118,9 +117,6 @@ export function useOrders() {
                     table: "orders"
                 },
                 (payload) => {
-                    console.log(`[Realtime] [${subscriptionId}] 📦 Change received:`, payload.eventType, payload.new ? (payload.new as Order).order_id : payload.old);
-                    console.log(`[Realtime] [${subscriptionId}] Full payload:`, JSON.stringify(payload, null, 2));
-
                     // Handle INSERT - add new order to state
                     if (payload.eventType === "INSERT" && payload.new) {
                         const newOrder = normalizeOrder(payload.new as Order);
@@ -146,16 +142,12 @@ export function useOrders() {
                     // Previous approach tried to granularly update state but React's double-invoke 
                     // in Strict Mode caused callbacks to run with stale closures
                     if (payload.eventType === "UPDATE" && payload.new) {
-                        const updatedOrder = payload.new as Order;
-                        console.log(`[Realtime] [${subscriptionId}] UPDATE received for order:`, updatedOrder.order_id, "status:", updatedOrder.status);
-
                         // Debounce refetch - clear any pending refetch and schedule a new one
                         // This coalesces multiple rapid updates into a single fetch
                         if (realtimeRefetchTimeout) {
                             clearTimeout(realtimeRefetchTimeout);
                         }
                         realtimeRefetchTimeout = setTimeout(() => {
-                            console.log(`[Realtime] [${subscriptionId}] Executing debounced refetch...`);
                             fetchOrders();
                             realtimeRefetchTimeout = null;
                         }, 100); // 100ms debounce
@@ -170,7 +162,6 @@ export function useOrders() {
             )
             .subscribe((status, err) => {
                 if (status === "SUBSCRIBED") {
-                    console.log("[Realtime] ✅ Connected to orders table");
                     realtimeWorking = true;
                     // Clear polling if realtime starts working
                     if (pollingInterval) {
@@ -190,12 +181,11 @@ export function useOrders() {
                         }, 120000); // 2 minutes - less disruptive
                     }
                 } else {
-                    console.log("[Realtime] Status:", status);
+                    // Other status values (TIMED_OUT, etc.)
                 }
             });
 
         return () => {
-            console.log(`[Realtime] 🔌 Cleaning up subscription ID: ${subscriptionId}`);
             channel.unsubscribe();
             if (pollingInterval) clearInterval(pollingInterval);
             if (realtimeRefetchTimeout) clearTimeout(realtimeRefetchTimeout);
@@ -584,7 +574,6 @@ export function useOrders() {
 
                 // Retry on conflict (409) if we haven't exceeded retry limit
                 if (status === 409 && retryCount < 2) {
-                    console.log(`Retrying update (attempt ${retryCount + 2})...`);
                     await new Promise(resolve => setTimeout(resolve, 500));
                     return updateOrder(orderId, updates, retryCount + 1);
                 }

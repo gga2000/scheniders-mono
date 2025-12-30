@@ -110,6 +110,9 @@ export function OrderDetailsModal({
     const [showIdWarning, setShowIdWarning] = useState(false);
     const [idCountdown, setIdCountdown] = useState(5);
     const [isSavingId, setIsSavingId] = useState(false);
+    // Date picker state
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [tempDate, setTempDate] = useState("");
 
     // Fetch timeline when tab switches
     useEffect(() => {
@@ -691,20 +694,11 @@ export function OrderDetailsModal({
                                     </div>
 
                                     {/* Schedule Buttons */}
-                                    <div className="flex items-center gap-1.5">
+                                    <div className="relative flex items-center gap-1.5">
                                         <button
-                                            onClick={async () => {
-                                                if (!order) return;
-                                                const dateInput = prompt('موعد التوصيل (YYYY-MM-DD):', order.scheduled_date || new Date().toISOString().split('T')[0]);
-                                                if (dateInput) {
-                                                    const oldDate = order.scheduled_date;
-                                                    setOrder(prev => prev ? { ...prev, scheduled_date: dateInput } : null);
-
-                                                    const result = await onUpdate(order.id, { scheduled_date: dateInput } as Partial<Order>);
-                                                    if (!result.success) {
-                                                        setOrder(prev => prev ? { ...prev, scheduled_date: oldDate } : null);
-                                                    }
-                                                }
+                                            onClick={() => {
+                                                setTempDate(order.scheduled_date || new Date().toISOString().split('T')[0]);
+                                                setShowDatePicker(!showDatePicker);
                                             }}
                                             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all bg-blue-100 text-blue-700 hover:bg-blue-200 active:scale-95"
                                         >
@@ -714,6 +708,44 @@ export function OrderDetailsModal({
                                                 : 'موعد'
                                             }
                                         </button>
+
+                                        {/* Date Picker Dropdown */}
+                                        {showDatePicker && (
+                                            <div className="absolute top-full left-0 mt-1 p-3 bg-white border border-gray-200 rounded-xl shadow-xl z-50 min-w-[200px]">
+                                                <label className="block text-xs text-muted mb-1.5">موعد التوصيل</label>
+                                                <input
+                                                    type="date"
+                                                    value={tempDate}
+                                                    onChange={(e) => setTempDate(e.target.value)}
+                                                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100"
+                                                />
+                                                <div className="flex gap-2 mt-2">
+                                                    <button
+                                                        onClick={() => setShowDatePicker(false)}
+                                                        className="flex-1 px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 transition-all"
+                                                    >
+                                                        إلغاء
+                                                    </button>
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (!order || !tempDate) return;
+                                                            const oldDate = order.scheduled_date;
+                                                            setOrder(prev => prev ? { ...prev, scheduled_date: tempDate } : null);
+                                                            setShowDatePicker(false);
+
+                                                            const result = await onUpdate(order.id, { scheduled_date: tempDate } as Partial<Order>);
+                                                            if (!result.success) {
+                                                                setOrder(prev => prev ? { ...prev, scheduled_date: oldDate } : null);
+                                                            }
+                                                        }}
+                                                        className="flex-1 px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+                                                    >
+                                                        حفظ
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+
                                         <button
                                             onClick={async () => {
                                                 if (!order) return;
