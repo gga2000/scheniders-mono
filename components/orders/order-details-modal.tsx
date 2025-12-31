@@ -18,6 +18,7 @@ import type { Order, OrderStatusHistory, OrderNote } from "@/lib/supabase";
 import { OrderTimeline } from "./order-timeline";
 import { ProductPicker } from "./product-picker";
 import { DiscountPresetSelector } from "./discount-preset-selector";
+import { DateTimePicker } from "@/components/ui/datetime-picker";
 import {
     MapPin,
     Phone,
@@ -1169,33 +1170,10 @@ export function OrderDetailsModal({
                                                 تاريخ الطلب
                                             </span>
                                             {isEditing ? (
-                                                <input
-                                                    type="datetime-local"
-                                                    value={(() => {
-                                                        const val = displayValue("created_at") as string;
-                                                        if (!val) return "";
-                                                        // Parse ISO string and convert to local datetime-local format
-                                                        try {
-                                                            const date = new Date(val);
-                                                            if (isNaN(date.getTime())) return "";
-                                                            // Format as YYYY-MM-DDTHH:MM for datetime-local input
-                                                            const year = date.getFullYear();
-                                                            const month = String(date.getMonth() + 1).padStart(2, '0');
-                                                            const day = String(date.getDate()).padStart(2, '0');
-                                                            const hours = String(date.getHours()).padStart(2, '0');
-                                                            const mins = String(date.getMinutes()).padStart(2, '0');
-                                                            return `${year}-${month}-${day}T${hours}:${mins}`;
-                                                        } catch {
-                                                            return "";
-                                                        }
-                                                    })()}
-                                                    onChange={(e) => {
-                                                        if (!e.target.value) return;
-                                                        // Convert local datetime to ISO string
-                                                        const localDate = new Date(e.target.value);
-                                                        updateFormData("created_at", localDate.toISOString());
-                                                    }}
-                                                    className="w-full px-3 py-1.5 bg-white border border-[var(--card-border)] rounded-lg text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
+                                                <DateTimePicker
+                                                    value={displayValue("created_at") as string}
+                                                    onChange={(isoString) => updateFormData("created_at", isoString)}
+                                                    showTime={true}
                                                 />
                                             ) : (
                                                 <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-transparent">
