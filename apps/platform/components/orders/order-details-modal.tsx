@@ -1174,15 +1174,26 @@ export function OrderDetailsModal({
                                                     value={(() => {
                                                         const val = displayValue("created_at") as string;
                                                         if (!val) return "";
-                                                        const date = new Date(val);
-                                                        // Adjust to local time ISO string for input
-                                                        return new Date(date.getTime() - (date.getTimezoneOffset() * 60000))
-                                                            .toISOString()
-                                                            .slice(0, 16);
+                                                        // Parse ISO string and convert to local datetime-local format
+                                                        try {
+                                                            const date = new Date(val);
+                                                            if (isNaN(date.getTime())) return "";
+                                                            // Format as YYYY-MM-DDTHH:MM for datetime-local input
+                                                            const year = date.getFullYear();
+                                                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                                                            const day = String(date.getDate()).padStart(2, '0');
+                                                            const hours = String(date.getHours()).padStart(2, '0');
+                                                            const mins = String(date.getMinutes()).padStart(2, '0');
+                                                            return `${year}-${month}-${day}T${hours}:${mins}`;
+                                                        } catch {
+                                                            return "";
+                                                        }
                                                     })()}
                                                     onChange={(e) => {
-                                                        const date = new Date(e.target.value);
-                                                        updateFormData("created_at", date.toISOString());
+                                                        if (!e.target.value) return;
+                                                        // Convert local datetime to ISO string
+                                                        const localDate = new Date(e.target.value);
+                                                        updateFormData("created_at", localDate.toISOString());
                                                     }}
                                                     className="w-full px-3 py-1.5 bg-white border border-[var(--card-border)] rounded-lg text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
                                                 />
