@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
             // Handle minimal checkout payload - fetch full data from API
             if (error instanceof Error && error.message.startsWith("fetch_checkout:")) {
                 const checkoutId = error.message.replace("fetch_checkout:", "");
-                console.log("Fetching checkout from API:", checkoutId);
+                // console.log("Fetching checkout from API:", checkoutId);
 
                 // Get saved access token
                 const accessToken = await getSavedAccessToken();
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
                     );
                 }
 
-                console.log("Successfully fetched and parsed checkout:", checkoutId);
+                // console.log("Successfully fetched and parsed checkout:", checkoutId);
             } else {
                 return NextResponse.json(
                     { error: error instanceof Error ? error.message : "Invalid payload format" },
