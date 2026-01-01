@@ -317,6 +317,133 @@ body {
   animation: slideDownSheet 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards;
 }
 
+/* ============================================
+   Mobile Polish & Haptic Feedback
+   ============================================ */
+
+/* Haptic-style tap feedback - use on buttons/interactive elements */
+.tap-feedback {
+  transition: transform 100ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms;
+}
+
+.tap-feedback:active {
+  transform: scale(0.97);
+  opacity: 0.9;
+}
+
+/* Stronger press effect for important actions */
+.press-feedback {
+  transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.press-feedback:active {
+  transform: scale(0.95);
+}
+
+/* Skeleton loading shimmer */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg, 
+    var(--card-bg) 25%, 
+    rgba(255,255,255,0.5) 50%, 
+    var(--card-bg) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--card-radius-sm);
+}
+
+/* Skeleton text placeholder */
+.skeleton-text {
+  height: 1em;
+  border-radius: 4px;
+}
+
+.skeleton-text-sm {
+  height: 0.75em;
+  width: 60%;
+}
+
+.skeleton-circle {
+  border-radius: 50%;
+}
+
+/* Bounce animation for FAB and important CTAs */
+@keyframes bounce-gentle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-bounce-gentle {
+  animation: bounce-gentle 2s ease-in-out infinite;
+}
+
+/* Pulse ring for attention-grabbing elements */
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 currentColor;
+    opacity: 0.4;
+  }
+  70% {
+    box-shadow: 0 0 0 10px currentColor;
+    opacity: 0;
+  }
+  100% {
+    box-shadow: 0 0 0 0 currentColor;
+    opacity: 0;
+  }
+}
+
+.pulse-ring {
+  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Success flash animation */
+@keyframes success-flash {
+  0% {
+    background-color: var(--pastel-green);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.animate-success {
+  animation: success-flash 0.5s ease-out;
+}
+
+/* Mobile-specific scroll improvements */
+@media (max-width: 768px) {
+  /* Smooth momentum scrolling */
+  .scroll-smooth-mobile {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+  
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide-mobile::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .scrollbar-hide-mobile {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
 /* Sidebar slide animation */
 @keyframes slideInLeft {
   from {

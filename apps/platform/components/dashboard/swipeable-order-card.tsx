@@ -1,19 +1,21 @@
 "use client";
 
-import React, { useState, useRef } from "react";
-import { motion, useMotionValue, useTransform, PanInfo } from "framer-motion";
+import React, { useState, useRef, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Order, MessageTemplate } from "@/lib/supabase";
 import { OrderCard } from "./order-card";
 import {
     MessageCircle,
-    Edit,
-    Copy,
     CheckCircle,
+    XCircle,
+    Copy,
+    MoreHorizontal,
+    Camera,
+    Pin,
     PhoneCall,
     Truck,
-    XCircle,
-    Ban,
-    Camera
+    Clock,
+    Ban
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { copyOrderToClipboard, generateWhatsAppLink } from "@/lib/utils";
@@ -45,68 +47,113 @@ interface SwipeableOrderCardProps {
     onToggleSelection?: (orderId: string) => void;
 }
 
-// Swipe threshold in pixels
-const SWIPE_THRESHOLD = 80;
-const ACTION_WIDTH = 80;
+// Double tap detection timing (ms)
+const DOUBLE_TAP_DELAY = 300;
 
 export function SwipeableOrderCard(props: SwipeableOrderCardProps) {
-    const { order, onStatusUpdate, onViewDetails, onOpenTemplatePanel, messageTemplates = [], onScreenshot, onCancelWithReason, onRejectWithReason } = props;
+    const {
+        order,
+        onStatusUpdate,
+        onViewDetails,
+        onOpenTemplatePanel,
+        messageTemplates = [],
+        onCancelWithReason,
+        onRejectWithReason,
+        onScreenshot,
+        onTogglePin
+    } = props;
+
     const isMobile = useIsMobile();
-    const [isSwipedLeft, setIsSwipedLeft] = useState(false);
-    const [isSwipedRight, setIsSwipedRight] = useState(false);
-    const x = useMotionValue(0);
-    const containerRef = useRef<HTMLDivElement>(null);
+    const [isExpanded, setIsExpanded] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [showMoreMenu, setShowMoreMenu] = useState(false);
+    const lastTapRef = useRef<number>(0);
+    const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Transform for background action visibility
-    const leftActionsOpacity = useTransform(x, [-ACTION_WIDTH * 2, -ACTION_WIDTH, 0], [1, 0.8, 0]);
-    const rightActionsOpacity = useTransform(x, [0, ACTION_WIDTH, ACTION_WIDTH * 2], [0, 0.8, 1]);
-
-    // Get next status action based on current status
-    const getNextStatusAction = () => {
-        switch (order.status) {
-            case "new":
-                return { status: "contacted" as const, label: "اتصال", icon: PhoneCall, color: "bg-amber-500" };
-            case "contacted":
-                return { status: "confirmed" as const, label: "تأكيد", icon: CheckCircle, color: "bg-green-500" };
-            case "confirmed":
-                return { status: "in_transit" as const, label: "شحن", icon: Truck, color: "bg-blue-500" };
-            case "in_transit":
-                return { status: "delivered" as const, label: "تسليم", icon: CheckCircle, color: "bg-emerald-500" };
-            case "delivered":
-                return { status: "completed" as const, label: "إكمال", icon: CheckCircle, color: "bg-teal-500" };
-            default:
-                return null;
-        }
-    };
-
-    const nextAction = getNextStatusAction();
     const isValidPhone = validatePhoneDetailed(order.phone).isValid;
 
-    const handleDragEnd = (_: any, info: PanInfo) => {
-        const swipeDistance = info.offset.x;
-        const velocity = info.velocity.x;
+    // Status actions matching desktop colors exactly
+    const getStatusActions = () => {
+        const actions: Array<{
+            status: Order["status"];
+            labelAr: string;
+            icon: any;
+            bgColor: string;
+            textColor: string;
+        }> = [];
 
-        // Left swipe - show right actions (WhatsApp, Edit, Copy)
-        if (swipeDistance < -SWIPE_THRESHOLD || velocity < -500) {
-            setIsSwipedLeft(true);
-            setIsSwipedRight(false);
+        switch (order.status) {
+            case "new":
+                actions.push(
+                    { status: "contacted", labelAr: "اتصال", icon: PhoneCall, bgColor: "bg-[var(--pastel-yellow)]", textColor: "text-amber-900" },
+                    { status: "confirmed", labelAr: "تأكيد", icon: CheckCircle, bgColor: "bg-[var(--pastel-green)]", textColor: "text-green-900" },
+                    { status: "cancelled", labelAr: "إلغاء", icon: XCircle, bgColor: "bg-[var(--pastel-pink)]", textColor: "text-rose-900" }
+                );
+                break;
+            case "contacted":
+                actions.push(
+                    { status: "confirmed", labelAr: "تأكيد", icon: CheckCircle, bgColor: "bg-[var(--pastel-green)]", textColor: "text-green-900" },
+                    { status: "no_response", labelAr: "لا رد", icon: Clock, bgColor: "bg-orange-100", textColor: "text-orange-900" },
+                    { status: "cancelled", labelAr: "إلغاء", icon: XCircle, bgColor: "bg-[var(--pastel-pink)]", textColor: "text-rose-900" }
+                );
+                break;
+            case "confirmed":
+                actions.push(
+                    { status: "in_transit", labelAr: "شحن", icon: Truck, bgColor: "bg-[var(--pastel-mint)]", textColor: "text-teal-900" },
+                    { status: "cancelled", labelAr: "إلغاء", icon: XCircle, bgColor: "bg-[var(--pastel-pink)]", textColor: "text-rose-900" }
+                );
+                break;
+            case "in_transit":
+                actions.push(
+                    { status: "delivered", labelAr: "تسليم", icon: Truck, bgColor: "bg-[var(--pastel-mint)]", textColor: "text-teal-900" },
+                    { status: "cancelled", labelAr: "إلغاء", icon: XCircle, bgColor: "bg-[var(--pastel-pink)]", textColor: "text-rose-900" }
+                );
+                break;
+            case "delivered":
+                actions.push(
+                    { status: "completed", labelAr: "إكمال", icon: CheckCircle, bgColor: "bg-[var(--pastel-green)]", textColor: "text-green-900" }
+                );
+                break;
+            case "no_response":
+                actions.push(
+                    { status: "contacted", labelAr: "اتصال", icon: PhoneCall, bgColor: "bg-[var(--pastel-yellow)]", textColor: "text-amber-900" },
+                    { status: "confirmed", labelAr: "تأكيد", icon: CheckCircle, bgColor: "bg-[var(--pastel-green)]", textColor: "text-green-900" },
+                    { status: "cancelled", labelAr: "إلغاء", icon: XCircle, bgColor: "bg-[var(--pastel-pink)]", textColor: "text-rose-900" }
+                );
+                break;
         }
-        // Right swipe - show left actions (Status)
-        else if (swipeDistance > SWIPE_THRESHOLD || velocity > 500) {
-            setIsSwipedRight(true);
-            setIsSwipedLeft(false);
-        }
-        // Reset
-        else {
-            setIsSwipedLeft(false);
-            setIsSwipedRight(false);
-        }
+
+        return actions;
     };
 
-    const resetSwipe = () => {
-        setIsSwipedLeft(false);
-        setIsSwipedRight(false);
-    };
+    const statusActions = getStatusActions();
+
+    // Handle double tap detection
+    const handleTap = useCallback((e: React.MouseEvent) => {
+        // Don't trigger if clicking on buttons or links
+        if ((e.target as HTMLElement).closest('button, a')) return;
+
+        const now = Date.now();
+        const timeSinceLastTap = now - lastTapRef.current;
+
+        if (timeSinceLastTap < DOUBLE_TAP_DELAY) {
+            // Double tap detected - toggle expansion
+            if (tapTimeoutRef.current) {
+                clearTimeout(tapTimeoutRef.current);
+                tapTimeoutRef.current = null;
+            }
+            setIsExpanded(prev => !prev);
+            setShowMoreMenu(false);
+        } else {
+            // Single tap - wait to see if it becomes double tap
+            tapTimeoutRef.current = setTimeout(() => {
+                // Single tap confirmed - open details
+                onViewDetails(order);
+            }, DOUBLE_TAP_DELAY);
+        }
+
+        lastTapRef.current = now;
+    }, [order, onViewDetails]);
 
     const handleWhatsApp = () => {
         if (!isValidPhone) return;
@@ -119,23 +166,42 @@ export function SwipeableOrderCard(props: SwipeableOrderCardProps) {
             );
             window.open(link, "_blank");
         }
-        resetSwipe();
+    };
+
+    const handleStatusAction = async (status: Order["status"]) => {
+        if (isProcessing) return;
+
+        // For cancelled/rejected, use the reason dialogs if available
+        if (status === "cancelled" && onCancelWithReason) {
+            onCancelWithReason(order);
+            return;
+        }
+        if (status === "rejected" && onRejectWithReason) {
+            onRejectWithReason(order);
+            return;
+        }
+
+        setIsProcessing(true);
+        await onStatusUpdate(order.id, status);
+        setIsProcessing(false);
     };
 
     const handleCopy = async () => {
         await copyOrderToClipboard(order);
-        resetSwipe();
+        setShowMoreMenu(false);
     };
 
-    const handleEdit = () => {
-        onViewDetails(order);
-        resetSwipe();
+    const handleScreenshot = () => {
+        if (onScreenshot) {
+            onScreenshot(order);
+            setShowMoreMenu(false);
+        }
     };
 
-    const handleStatusChange = () => {
-        if (nextAction) {
-            onStatusUpdate(order.id, nextAction.status);
-            resetSwipe();
+    const handlePin = () => {
+        if (onTogglePin) {
+            onTogglePin(order.id);
+            setShowMoreMenu(false);
         }
     };
 
@@ -145,114 +211,125 @@ export function SwipeableOrderCard(props: SwipeableOrderCardProps) {
     }
 
     return (
-        <div ref={containerRef} className="relative overflow-hidden rounded-[20px]">
-            {/* Left Actions (shown when swiping right) - Status */}
-            <motion.div
-                style={{ opacity: rightActionsOpacity }}
-                className={cn(
-                    "absolute inset-y-0 left-0 flex items-center justify-start pl-4",
-                    nextAction?.color || "bg-green-500",
-                    "rounded-l-[20px]"
+        <div
+            className={cn(
+                "relative bg-[var(--card-bg)] rounded-[20px] border-2 transition-all duration-200 overflow-hidden",
+                isExpanded
+                    ? "border-[var(--pastel-green)] shadow-lg shadow-green-500/10"
+                    : "border-[var(--card-border)]"
+            )}
+        >
+            {/* Order Card Content - Tappable */}
+            <div onClick={handleTap} className="cursor-pointer">
+                <OrderCard {...props} />
+            </div>
+
+            {/* Action Bar - Inside Card, Revealed on Double Tap */}
+            <AnimatePresence>
+                {isExpanded && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        className="border-t border-[var(--card-border)] bg-[var(--background)]"
+                    >
+                        <div className="p-3 flex items-center gap-2 flex-wrap">
+                            {/* WhatsApp Button - Green with icon */}
+                            <button
+                                onClick={handleWhatsApp}
+                                disabled={!isValidPhone}
+                                className={cn(
+                                    "flex items-center justify-center w-11 h-11 rounded-xl transition-all active:scale-95",
+                                    isValidPhone
+                                        ? "bg-[var(--pastel-green)] text-green-700"
+                                        : "bg-gray-100 text-gray-400"
+                                )}
+                            >
+                                <MessageCircle className="w-5 h-5" />
+                            </button>
+
+                            {/* Status Action Buttons - Using exact desktop colors */}
+                            {statusActions.map((action) => {
+                                const Icon = action.icon;
+                                return (
+                                    <button
+                                        key={action.status}
+                                        onClick={() => handleStatusAction(action.status)}
+                                        disabled={isProcessing}
+                                        className={cn(
+                                            "flex items-center gap-1.5 px-4 h-11 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-50",
+                                            action.bgColor,
+                                            action.textColor
+                                        )}
+                                    >
+                                        <Icon className="w-4 h-4" />
+                                        <span>{action.labelAr}</span>
+                                    </button>
+                                );
+                            })}
+
+                            {/* Spacer */}
+                            <div className="flex-1" />
+
+                            {/* More Button */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowMoreMenu(!showMoreMenu)}
+                                    className="flex items-center justify-center w-11 h-11 rounded-xl border border-gray-200 bg-white text-gray-600 transition-all active:scale-95"
+                                >
+                                    <MoreHorizontal className="w-5 h-5" />
+                                </button>
+
+                                {/* More Menu Dropdown */}
+                                <AnimatePresence>
+                                    {showMoreMenu && (
+                                        <motion.div
+                                            initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                                            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                                            transition={{ duration: 0.15 }}
+                                            className="absolute bottom-full right-0 mb-2 w-44 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50"
+                                        >
+                                            <button
+                                                onClick={handleCopy}
+                                                className="flex items-center gap-3 w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                                            >
+                                                <Copy className="w-4 h-4" />
+                                                <span>نسخ البيانات</span>
+                                            </button>
+                                            {onScreenshot && (
+                                                <button
+                                                    onClick={handleScreenshot}
+                                                    className="flex items-center gap-3 w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                                                >
+                                                    <Camera className="w-4 h-4" />
+                                                    <span>مشاركة صورة</span>
+                                                </button>
+                                            )}
+                                            {onTogglePin && (
+                                                <button
+                                                    onClick={handlePin}
+                                                    className="flex items-center gap-3 w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                                                >
+                                                    <Pin className="w-4 h-4" />
+                                                    <span>{order.is_pinned ? "إلغاء التثبيت" : "تثبيت"}</span>
+                                                </button>
+                                            )}
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        </div>
+                    </motion.div>
                 )}
-            >
-                {nextAction && (
-                    <button
-                        onClick={handleStatusChange}
-                        className="flex flex-col items-center justify-center w-16 h-full text-white"
-                    >
-                        <nextAction.icon className="w-6 h-6 mb-1" />
-                        <span className="text-xs font-medium">{nextAction.label}</span>
-                    </button>
-                )}
-            </motion.div>
+            </AnimatePresence>
 
-            {/* Right Actions (shown when swiping left) - WhatsApp, Edit, Copy */}
-            <motion.div
-                style={{ opacity: leftActionsOpacity }}
-                className="absolute inset-y-0 right-0 flex items-center justify-end rounded-r-[20px] bg-gradient-to-l from-gray-100 to-transparent"
-            >
-                <div className="flex items-center gap-1 pr-2">
-                    {/* Copy */}
-                    <button
-                        onClick={handleCopy}
-                        className="flex flex-col items-center justify-center w-14 h-14 rounded-xl bg-green-100 text-green-700"
-                    >
-                        <Copy className="w-5 h-5" />
-                        <span className="text-[10px] mt-0.5">نسخ</span>
-                    </button>
-
-                    {/* Screenshot */}
-                    {onScreenshot && (
-                        <button
-                            onClick={() => { onScreenshot(order); resetSwipe(); }}
-                            className="flex flex-col items-center justify-center w-14 h-14 rounded-xl bg-violet-100 text-violet-700"
-                        >
-                            <Camera className="w-5 h-5" />
-                            <span className="text-[10px] mt-0.5">مشاركة</span>
-                        </button>
-                    )}
-
-                    {/* Edit */}
-                    <button
-                        onClick={handleEdit}
-                        className="flex flex-col items-center justify-center w-14 h-14 rounded-xl bg-blue-100 text-blue-700"
-                    >
-                        <Edit className="w-5 h-5" />
-                        <span className="text-[10px] mt-0.5">تفاصيل</span>
-                    </button>
-
-                    {/* WhatsApp */}
-                    <button
-                        onClick={handleWhatsApp}
-                        disabled={!isValidPhone}
-                        className={cn(
-                            "flex flex-col items-center justify-center w-14 h-14 rounded-xl",
-                            isValidPhone ? "bg-green-500 text-white" : "bg-gray-200 text-gray-400"
-                        )}
-                    >
-                        <MessageCircle className="w-5 h-5" />
-                        <span className="text-[10px] mt-0.5">واتساب</span>
-                    </button>
-                </div>
-            </motion.div>
-
-            {/* Draggable Card */}
-            <motion.div
-                drag="x"
-                dragConstraints={{ left: -ACTION_WIDTH * 3, right: ACTION_WIDTH * 1.5 }}
-                dragElastic={0.1}
-                onDragEnd={handleDragEnd}
-                animate={{
-                    x: isSwipedLeft ? -ACTION_WIDTH * 2.5 : isSwipedRight ? ACTION_WIDTH * 1.2 : 0
-                }}
-                transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                style={{ x }}
-                className="relative z-10"
-                onClick={(e) => {
-                    // If swiped, clicking resets. Otherwise, open details
-                    if (isSwipedLeft || isSwipedRight) {
-                        e.stopPropagation();
-                        resetSwipe();
-                    }
-                }}
-            >
-                <OrderCard
-                    {...props}
-                // Disable the built-in mobile expand on swipeable cards
-                />
-            </motion.div>
-
-            {/* Swipe indicator overlay when swiped */}
-            {(isSwipedLeft || isSwipedRight) && (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="absolute inset-0 z-20 pointer-events-none"
-                    style={{
-                        background: isSwipedLeft
-                            ? "linear-gradient(to left, rgba(0,0,0,0.05), transparent)"
-                            : "linear-gradient(to right, rgba(0,0,0,0.05), transparent)"
-                    }}
+            {/* Click outside to close more menu */}
+            {showMoreMenu && (
+                <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowMoreMenu(false)}
                 />
             )}
         </div>

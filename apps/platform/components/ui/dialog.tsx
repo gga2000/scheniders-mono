@@ -3,7 +3,8 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { forwardRef, ComponentPropsWithoutRef, ElementRef } from "react";
+import { forwardRef, ComponentPropsWithoutRef, ElementRef, useState, useRef, useEffect } from "react";
+import { motion, useMotionValue, useTransform, PanInfo, AnimatePresence } from "framer-motion";
 
 const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
@@ -25,6 +26,7 @@ const DialogOverlay = forwardRef<
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
+// Standard dialog content (existing behavior)
 const DialogContent = forwardRef<
     ElementRef<typeof DialogPrimitive.Content>,
     ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
@@ -63,6 +65,120 @@ const DialogContent = forwardRef<
     </DialogPortal>
 ));
 DialogContent.displayName = DialogPrimitive.Content.displayName;
+
+// Bottom Sheet Content - Mobile-First with Swipe Gestures
+interface BottomSheetContentProps extends ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
+    onClose?: () => void;
+}
+
+const BottomSheetContent = forwardRef<
+    ElementRef<typeof DialogPrimitive.Content>,
+    BottomSheetContentProps
+>(({ className, children, onClose, ...props }, ref) => {
+    const y = useMotionValue(0);
+    const [isDragging, setIsDragging] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    // Calculate backdrop opacity based on drag position
+    const backdropOpacity = useTransform(y, [0, 400], [0.4, 0]);
+
+    // Threshold for dismissal (in pixels)
+    const DISMISS_THRESHOLD = 150;
+
+    const handleDragEnd = (_: any, info: PanInfo) => {
+        setIsDragging(false);
+
+        // If dragged down past threshold or with high velocity, dismiss
+        if (info.offset.y > DISMISS_THRESHOLD || info.velocity.y > 500) {
+            onClose?.();
+        }
+    };
+
+    const handleDragStart = () => {
+        setIsDragging(true);
+    };
+
+    return (
+        <DialogPortal>
+            {/* Custom Overlay with animated opacity */}
+            <motion.div
+                className="fixed inset-0 z-50 bg-black backdrop-blur-sm"
+                style={{ opacity: backdropOpacity }}
+                onClick={onClose}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.4 }}
+                exit={{ opacity: 0 }}
+            />
+
+            <DialogPrimitive.Content
+                ref={ref}
+                aria-describedby={props["aria-describedby"] ?? undefined}
+                asChild
+                {...props}
+            >
+                <motion.div
+                    ref={containerRef}
+                    className={cn(
+                        // Bottom sheet positioning
+                        "fixed bottom-0 left-0 right-0 z-50",
+                        // Rounded top corners
+                        "rounded-t-[28px]",
+                        // Background and shadow
+                        "bg-[var(--card-bg)] shadow-[0_-10px_60px_rgba(0,0,0,0.2)]",
+                        // Max height
+                        "max-h-[92vh]",
+                        // Overflow
+                        "overflow-hidden flex flex-col",
+                        className
+                    )}
+                    style={{
+                        y,
+                        paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
+                    }}
+                    initial={{ y: "100%" }}
+                    animate={{ y: 0 }}
+                    exit={{ y: "100%" }}
+                    transition={{
+                        type: "spring",
+                        damping: 30,
+                        stiffness: 300,
+                    }}
+                    drag="y"
+                    dragConstraints={{ top: 0, bottom: 0 }}
+                    dragElastic={{ top: 0, bottom: 0.5 }}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                >
+                    {/* Drag Handle */}
+                    <div className="flex-shrink-0 pt-3 pb-2 cursor-grab active:cursor-grabbing">
+                        <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto" />
+                    </div>
+
+                    {/* Close button - positioned absolutely */}
+                    <DialogPrimitive.Close className="absolute right-3 top-3 rounded-xl p-2.5 text-[var(--foreground-muted)] transition-all hover:text-foreground hover:bg-[var(--background)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] disabled:pointer-events-none z-10">
+                        <X className="h-5 w-5" />
+                        <span className="sr-only">Close</span>
+                    </DialogPrimitive.Close>
+
+                    {/* Scrollable content */}
+                    <div
+                        className="flex-1 overflow-y-auto overscroll-contain px-4 pb-4"
+                        onTouchStart={(e) => {
+                            // Prevent drag from interfering with scroll
+                            const target = e.currentTarget;
+                            if (target.scrollTop > 0) {
+                                e.stopPropagation();
+                            }
+                        }}
+                    >
+                        {children}
+                    </div>
+                </motion.div>
+            </DialogPrimitive.Content>
+        </DialogPortal>
+    );
+});
+BottomSheetContent.displayName = "BottomSheetContent";
 
 const DialogHeader = ({
     className,
@@ -126,6 +242,7 @@ export {
     DialogClose,
     DialogTrigger,
     DialogContent,
+    BottomSheetContent,
     DialogHeader,
     DialogFooter,
     DialogTitle,

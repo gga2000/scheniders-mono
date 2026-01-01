@@ -7,6 +7,7 @@ import { Order, PaymentStatus } from "@/lib/supabase";
 import { validatePhoneDetailed } from "@/lib/order-utils";
 import { OrderCard } from "@/components/dashboard/order-card";
 import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
+import { OrderCardSkeleton } from "@/components/dashboard/order-card-skeleton";
 import { OrderDetailsModal } from "@/components/orders/order-details-modal";
 import { CreateOrderModal } from "@/components/orders/create-order-modal";
 import { KanbanBoard } from "@/components/orders/kanban-board";
@@ -498,10 +499,28 @@ export default function OrdersPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 rounded-full border-4 border-[var(--pastel-yellow)] border-t-transparent animate-spin"></div>
-                    <p className="text-muted font-medium">Loading orders...</p>
+            <div className="min-h-screen p-4 md:p-6 lg:p-8">
+                <div className="space-y-4">
+                    {/* Skeleton header */}
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-2">
+                            <div className="skeleton w-48 h-8 rounded-xl" />
+                            <div className="skeleton w-24 h-4 rounded-lg" />
+                        </div>
+                        <div className="skeleton w-32 h-12 rounded-2xl" />
+                    </div>
+
+                    {/* Skeleton filter bar */}
+                    <div className="flex gap-2 overflow-hidden">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                            <div key={i} className="skeleton w-24 h-12 rounded-full flex-shrink-0" />
+                        ))}
+                    </div>
+
+                    {/* Skeleton order cards */}
+                    <div className="space-y-3">
+                        <OrderCardSkeleton count={5} />
+                    </div>
                 </div>
             </div>
         );
@@ -542,14 +561,14 @@ export default function OrdersPage() {
                                 </p>
                             </div>
 
-                            {/* Primary Actions - Always Visible */}
-                            <div className="flex items-center gap-2">
+                            {/* Primary Actions - Hidden on mobile (FAB replaces it) */}
+                            <div className="hidden sm:flex items-center gap-2">
                                 <button
                                     onClick={() => setIsCreateModalOpen(true)}
-                                    className="flex items-center gap-2 px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl bg-[var(--button-success)] text-white shadow-lg shadow-green-500/20 hover:bg-[var(--button-success-hover)] transition-all font-semibold text-sm md:text-base"
+                                    className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-[var(--button-success)] text-white shadow-lg shadow-green-500/20 hover:bg-[var(--button-success-hover)] transition-all font-semibold text-base"
                                 >
-                                    <Plus className="h-4 w-4 md:h-5 md:w-5" />
-                                    <span className="hidden sm:inline">New Order</span>
+                                    <Plus className="h-5 w-5" />
+                                    <span>New Order</span>
                                 </button>
                             </div>
                         </div>
@@ -2175,6 +2194,24 @@ export default function OrdersPage() {
                         return { success: imported > 0, imported, errors };
                     }}
                 />
+
+                {/* Mobile Floating Action Button for New Order */}
+                {isMobile && selectedOrders.size === 0 && (
+                    <motion.button
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0, opacity: 0 }}
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="fixed bottom-6 right-4 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-xl shadow-green-500/30 flex items-center justify-center active:scale-95 transition-transform"
+                        style={{
+                            bottom: 'calc(1.5rem + env(safe-area-inset-bottom))',
+                            right: 'calc(1rem + env(safe-area-inset-right))'
+                        }}
+                    >
+                        <Plus className="w-7 h-7" />
+                    </motion.button>
+                )}
+
                 <FloatingActionBar
                     selectedCount={selectedOrders.size}
                     onConfirm={handleBulkConfirm}
