@@ -65,10 +65,18 @@ export function usePrinting(orders: Order[]) {
     const [batches, setBatches] = useState<PrintBatch[]>([]);
     const [printHistory, setPrintHistory] = useState<PrintHistoryEntry[]>([]);
     const [loading, setLoading] = useState(false);
+    // Helper to get date in YYYY-MM-DD format using LOCAL timezone
+    const getLocalDateString = (date: Date = new Date()) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
     const [filters, setFilters] = useState<PrintingFilters>({
         status: "confirmed",
-        dateFrom: new Date().toISOString().split("T")[0],
-        dateTo: new Date().toISOString().split("T")[0],
+        dateFrom: getLocalDateString(),
+        dateTo: getLocalDateString(),
     });
     const [labelSettings, setLabelSettings] = useState<LabelSettings>({
         size: "4x6",
@@ -557,6 +565,20 @@ export function usePrinting(orders: Order[]) {
         return { success: true, count: selectedOrders.length };
     }
 
+    // Helper to clean phone numbers for export (remove 964 prefix and leading 0s)
+    function cleanPhoneForExport(phone: string): string {
+        if (!phone) return '';
+        // Remove all non-digit characters
+        let cleaned = phone.replace(/\D/g, '');
+        // Remove 964 country code prefix
+        if (cleaned.startsWith('964')) {
+            cleaned = cleaned.substring(3);
+        }
+        // Remove leading zeros
+        cleaned = cleaned.replace(/^0+/, '');
+        return cleaned;
+    }
+
     function exportToExcel(orderIds: string[], ordersData: Order[]) {
         // For Excel, we use CSV with a different extension
         // A proper implementation would use xlsx library
@@ -577,7 +599,7 @@ export function usePrinting(orders: Order[]) {
         const rows = selectedOrders.map((order) => [
             order.order_id,
             order.customer_name,
-            order.phone,
+            cleanPhoneForExport(order.phone),
             order.city || "",
             order.address_details || "",
             order.items?.map((i) => `${i.name} x${i.quantity}`).join("; ") || "",
@@ -635,17 +657,9 @@ export function usePrinting(orders: Order[]) {
             // Get total item quantity
             const totalQuantity = order.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 1;
 
-            // Format phone number (ensure 11 digits, add leading 0 if needed)
-            let phone = (order.phone || '').replace(/\D/g, '');
-            if (phone.length === 10 && !phone.startsWith('0')) {
-                phone = '0' + phone;
-            }
-
-            // Format secondary phone
-            let secondaryPhone = (order.secondary_phone || '').replace(/\D/g, '');
-            if (secondaryPhone.length === 10 && !secondaryPhone.startsWith('0')) {
-                secondaryPhone = '0' + secondaryPhone;
-            }
+            // Clean phone numbers (remove 964 prefix and leading zeros, start with 7)
+            const phone = cleanPhoneForExport(order.phone);
+            const secondaryPhone = cleanPhoneForExport(order.secondary_phone || '');
 
             // Get governorate code
             let govCode = order.validated_governorate_code || order.governorate_code || '';

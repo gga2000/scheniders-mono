@@ -270,7 +270,9 @@ export function OrderDetailsModal({
 
     const handleSave = async () => {
         setIsSaving(true);
+        console.log("handleSave called. formData:", formData);
         const result = await onUpdate(order.id, formData);
+        console.log("handleSave result:", result);
 
         if (result.success) {
             // Update local order state with new values immediately
@@ -1016,7 +1018,10 @@ export function OrderDetailsModal({
                                                 <div className="relative">
                                                     <select
                                                         value={(displayValue("governorate_code") || "") as string}
-                                                        onChange={(e) => updateFormData("governorate_code", e.target.value)}
+                                                        onChange={(e) => {
+                                                            console.log("Governorate code changed to:", e.target.value);
+                                                            updateFormData("governorate_code", e.target.value);
+                                                        }}
                                                         className="w-full h-[38px] px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-mono font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
                                                     >
                                                         <option value="">بدون كود</option>
@@ -1190,7 +1195,10 @@ export function OrderDetailsModal({
                                             {isEditing ? (
                                                 <DateTimePicker
                                                     value={displayValue("created_at") as string}
-                                                    onChange={(isoString) => updateFormData("created_at", isoString)}
+                                                    onChange={(isoString) => {
+                                                        console.log("DateTimePicker changed:", isoString);
+                                                        updateFormData("created_at", isoString);
+                                                    }}
                                                     showTime={true}
                                                 />
                                             ) : (
