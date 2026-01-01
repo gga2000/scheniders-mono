@@ -74,17 +74,19 @@ export function StickyFilterBar({
                         onClick={() => setFilters({ ...filters, status: option.id === "all" ? undefined : option.id as Order["status"] })}
                         className={cn(
                             "rounded-full whitespace-nowrap transition-all flex items-center gap-2 snap-start flex-shrink-0 border",
-                            // Mobile: Larger touch targets (44px min height recommended, using py-2.5)
-                            isMobile ? "px-4 py-2.5 text-sm" : "px-4 py-2 text-sm font-medium",
+                            // Mobile: Larger touch targets (48px min height for better accessibility)
+                            isMobile
+                                ? "min-h-[48px] px-5 py-3 text-sm font-semibold"
+                                : "px-4 py-2 text-sm font-medium",
 
                             filters.status === option.id || (option.id === "all" && !filters.status)
-                                ? "bg-foreground text-background border-foreground shadow-md scale-105"
-                                : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground"
+                                ? "bg-foreground text-background border-foreground shadow-lg scale-105"
+                                : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95"
                         )}
                     >
                         <span>{isMobile ? option.label : (option.fullLabel || option.label)}</span>
                         <span className={cn(
-                            "px-1.5 py-0.5 rounded-full text-[10px] font-bold min-w-[20px] text-center",
+                            "px-2 py-0.5 rounded-full text-[11px] font-bold min-w-[24px] text-center",
                             filters.status === option.id || (option.id === "all" && !filters.status)
                                 ? "bg-background/20 text-current"
                                 : "bg-muted text-muted-foreground"

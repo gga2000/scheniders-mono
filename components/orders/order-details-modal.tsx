@@ -5,6 +5,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import {
     Dialog,
     DialogContent,
+    BottomSheetContent,
     DialogDescription,
     DialogFooter,
     DialogHeader,
@@ -473,10 +474,16 @@ export function OrderDetailsModal({
         },
     ];
 
+    // Choose content wrapper based on device
+    const ContentWrapper = isMobile ? BottomSheetContent : DialogContent;
+
     return (
         <>
             <Dialog open={open} onOpenChange={(isOpen) => { if (!showProductPicker) onClose(); }} modal={!showProductPicker}>
-                <DialogContent className="max-w-4xl">
+                <ContentWrapper
+                    className={isMobile ? "" : "max-w-4xl"}
+                    {...(isMobile ? { onClose } : {})}
+                >
                     {/* Header Area */}
                     <DialogHeader className="space-y-0 pb-0 group relative">
                         {/* Top Row: Order ID, Status, Timeline + Edit Buttons */}
@@ -627,10 +634,14 @@ export function OrderDetailsModal({
 
                         {/* Quick Actions Row - Mobile Optimized */}
                         {!isEditing && (
-                            <div className="py-3 border-y border-[var(--card-border)] space-y-2">
-                                {/* Status Actions - Horizontally scrollable on mobile */}
+                            <div className="py-3 border-y border-[var(--card-border)] space-y-3">
+                                {/* Status Actions - Mobile-first grid layout */}
                                 {onStatusUpdate && (
-                                    <div className="flex flex-wrap items-center gap-2">
+                                    <div className={cn(
+                                        "grid gap-2",
+                                        // Mobile: 2 columns with larger buttons
+                                        "grid-cols-2 md:flex md:flex-wrap md:items-center"
+                                    )}>
                                         {quickActions.map((action) => {
                                             const Icon = action.icon;
                                             const isCurrentStatus = order.status === action.status;
@@ -640,14 +651,21 @@ export function OrderDetailsModal({
                                                     onClick={() => handleStatusChange(action.status)}
                                                     disabled={isUpdatingStatus || isCurrentStatus}
                                                     className={cn(
-                                                        "flex items-center gap-1.5 px-3 py-2 md:px-3 md:py-1.5 rounded-xl md:rounded-lg text-xs font-medium transition-all touch-target",
+                                                        // Base styles
+                                                        "flex items-center justify-center gap-2 font-semibold transition-all",
+                                                        // Mobile: Large touch targets (48px min height)
+                                                        "min-h-[48px] px-4 py-3 rounded-2xl text-sm",
+                                                        // Desktop: Smaller
+                                                        "md:min-h-0 md:px-3 md:py-1.5 md:rounded-lg md:text-xs md:font-medium",
+                                                        // Active/Current state
                                                         isCurrentStatus
-                                                            ? "bg-[var(--foreground)] text-white ring-2 ring-offset-2 ring-[var(--foreground)]"
-                                                            : cn(action.bgColor, action.textColor, action.hoverColor, "active:scale-95"),
+                                                            ? "bg-[var(--foreground)] text-white ring-2 ring-offset-2 ring-[var(--foreground)] shadow-lg"
+                                                            : cn(action.bgColor, action.textColor, action.hoverColor, "active:scale-95 shadow-sm"),
+                                                        // Loading state
                                                         isUpdatingStatus && "opacity-50 cursor-wait"
                                                     )}
                                                 >
-                                                    <Icon className="w-3.5 h-3.5" />
+                                                    <Icon className="w-5 h-5 md:w-3.5 md:h-3.5" />
                                                     <span>{action.labelAr}</span>
                                                 </button>
                                             );
@@ -1664,8 +1682,8 @@ export function OrderDetailsModal({
                             )}
                         </div>
                     </DialogFooter>
-                </DialogContent>
-            </Dialog >
+                </ContentWrapper>
+            </Dialog>
 
             {/* Product Picker Modal - Outside Dialog for proper z-index */}
             < ProductPicker
