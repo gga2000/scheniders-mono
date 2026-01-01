@@ -36,6 +36,23 @@ const DialogContent = forwardRef<
         <DialogPrimitive.Content
             ref={ref}
             aria-describedby={props["aria-describedby"] ?? undefined}
+            // Prevent dialog from closing when clicking on portal-rendered components (like DateTimePicker)
+            onPointerDownOutside={(e) => {
+                // Check if the click target is inside a portal element that should be ignored
+                const target = e.target as HTMLElement;
+                const portalElement = target.closest('[data-portal-ignore="true"]');
+                if (portalElement) {
+                    e.preventDefault();
+                }
+            }}
+            onInteractOutside={(e) => {
+                // Also prevent interaction-based closing for portals
+                const target = e.target as HTMLElement;
+                const portalElement = target.closest('[data-portal-ignore="true"]');
+                if (portalElement) {
+                    e.preventDefault();
+                }
+            }}
             className={cn(
                 // Mobile: Full screen with safe areas
                 "fixed inset-0 z-50 md:inset-auto",
@@ -114,6 +131,21 @@ const BottomSheetContent = forwardRef<
                 ref={ref}
                 aria-describedby={props["aria-describedby"] ?? undefined}
                 asChild
+                // Prevent dialog from closing when clicking on portal-rendered components (like DateTimePicker)
+                onPointerDownOutside={(e) => {
+                    const target = e.target as HTMLElement;
+                    const portalElement = target.closest('[data-portal-ignore="true"]');
+                    if (portalElement) {
+                        e.preventDefault();
+                    }
+                }}
+                onInteractOutside={(e) => {
+                    const target = e.target as HTMLElement;
+                    const portalElement = target.closest('[data-portal-ignore="true"]');
+                    if (portalElement) {
+                        e.preventDefault();
+                    }
+                }}
                 {...props}
             >
                 <motion.div

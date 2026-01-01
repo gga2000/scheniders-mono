@@ -72,15 +72,19 @@ export function useOrders() {
     const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
     const MAX_UNDO_STACK = 10;
 
-    // Helper to get today's date in YYYY-MM-DD format
-    const getTodayDate = () => {
-        const today = new Date();
-        return today.toISOString().split('T')[0];
+    // Helper to get today's date in YYYY-MM-DD format using LOCAL timezone
+    // Note: toISOString() converts to UTC which causes issues for users in positive
+    // UTC offset timezones (like Iraq UTC+3) after local midnight but before UTC midnight
+    const getLocalDateString = (date: Date = new Date()) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     };
 
     // Filters state - default to today's orders
     const [filters, setFilters] = useState<OrderFilters>(() => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateString();
         return {
             status: "all",
             dateFrom: today,
@@ -549,10 +553,14 @@ export function useOrders() {
 
     async function updateOrder(orderId: string, updates: Partial<Order>, retryCount = 0): Promise<{ success: boolean; error?: string }> {
         try {
+            console.log("updateOrder called with:", { orderId, updates });
             // Remove any fields that shouldn't be sent to the database
+            // Note: id is auto-generated and should never be updated
+            // Note: created_at is intentionally NOT removed here - it can be updated by users via the edit modal
             const cleanUpdates = { ...updates };
             delete (cleanUpdates as Record<string, unknown>).id;
-            delete (cleanUpdates as Record<string, unknown>).created_at;
+
+            console.log("cleanUpdates sending to Supabase:", cleanUpdates);
 
             const { error: updateError, status } = await supabase
                 .from("orders")
@@ -580,6 +588,8 @@ export function useOrders() {
 
                 throw updateError;
             }
+
+            console.log("Supabase update success");
 
             // Update local state
             setOrders((prev) =>
