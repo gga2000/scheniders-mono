@@ -70,10 +70,26 @@ export function DateTimePicker({
     useEffect(() => {
         if (isOpen && triggerRef.current) {
             const rect = triggerRef.current.getBoundingClientRect();
-            setDropdownPosition({
-                top: rect.bottom + window.scrollY + 8,
-                left: rect.left + window.scrollX
-            });
+            const dropdownHeight = 380; // Approximate height of dropdown
+            const viewportHeight = window.innerHeight;
+
+            // Check if dropdown would overflow bottom of viewport
+            const wouldOverflowBottom = rect.bottom + dropdownHeight > viewportHeight;
+
+            // If it would overflow, position above the trigger instead
+            if (wouldOverflowBottom && rect.top > dropdownHeight) {
+                // Position above
+                setDropdownPosition({
+                    top: rect.top - dropdownHeight - 8,
+                    left: Math.max(8, Math.min(rect.left, window.innerWidth - 330)) // Keep within viewport
+                });
+            } else {
+                // Position below (default)
+                setDropdownPosition({
+                    top: rect.bottom + 8,
+                    left: Math.max(8, Math.min(rect.left, window.innerWidth - 330)) // Keep within viewport
+                });
+            }
         }
     }, [isOpen]);
 
