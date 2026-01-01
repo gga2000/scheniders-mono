@@ -408,17 +408,26 @@ export function OrderCard({
                                 className="w-4 h-4 rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--pastel-yellow)] cursor-pointer"
                             />
                         </div>
-                        {/* Mobile: absolute top-left checkbox - use left-1 to stay in accent area */}
-                        <div className="md:hidden absolute top-2 left-1 z-10">
-                            <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={(e) => {
-                                    e.stopPropagation();
-                                    onToggleSelection(order.id);
-                                }}
-                                className="w-5 h-5 rounded border-2 border-gray-300 bg-white text-[var(--foreground)] focus:ring-[var(--pastel-yellow)] cursor-pointer shadow-sm"
-                            />
+                        {/* Mobile: floating checkbox button in top-left corner */}
+                        <div
+                            className="md:hidden absolute top-3 left-3 z-10"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onToggleSelection(order.id);
+                            }}
+                        >
+                            <div className={cn(
+                                "w-6 h-6 rounded-full flex items-center justify-center transition-all shadow-md cursor-pointer",
+                                isSelected
+                                    ? "bg-blue-500 text-white ring-2 ring-blue-300 ring-offset-1"
+                                    : "bg-white border-2 border-gray-300 hover:border-blue-400"
+                            )}>
+                                {isSelected && (
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                )}
+                            </div>
                         </div>
                     </>
                 )}
@@ -427,7 +436,8 @@ export function OrderCard({
                 <div
                     className={cn(
                         "flex-1 flex items-center gap-4 overflow-hidden cursor-pointer md:cursor-default",
-                        compact ? "p-2" : "p-4"
+                        compact ? "p-2" : "p-4",
+                        onToggleSelection && "pl-10 md:pl-4" // Extra left padding on mobile for checkbox
                     )}
                     onClick={(e) => {
                         if (!onToggleSelection) {
@@ -840,87 +850,91 @@ export function OrderCard({
                     </motion.div>
 
                     {/* MOBILE SECTION: Phone, Address & Price - shows below main content on mobile */}
-                    <div className="md:hidden px-4 pb-4 space-y-2 -mt-2">
-                        {/* Phone numbers row */}
-                        <div className="flex items-center gap-3 text-sm flex-wrap">
-                            {/* Primary Phone - clickable for WhatsApp */}
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (!validatePhoneDetailed(order.phone).isValid) return;
-                                    const link = generateWhatsAppLink(order.phone, `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`);
-                                    window.open(link, "_blank");
-                                }}
-                                className={cn(
-                                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors",
-                                    validatePhoneDetailed(order.phone).isValid
-                                        ? "bg-[var(--pastel-green)] text-green-800 active:scale-95"
-                                        : "bg-red-50 text-red-600"
-                                )}
-                            >
-                                <MessageCircle className="w-4 h-4" />
-                                <span className="font-mono text-sm font-medium">
-                                    {formatPhoneForDisplay(order.phone)}
-                                </span>
-                            </button>
-
-                            {/* Secondary Phone */}
-                            {order.secondary_phone && (
+                    <div className="md:hidden space-y-3 px-4 pb-4">
+                        {/* Top row: Phone & Price */}
+                        <div className="flex items-center justify-between gap-3">
+                            {/* Phone buttons - left aligned */}
+                            <div className="flex items-center gap-2 flex-wrap">
+                                {/* Primary Phone - WhatsApp button */}
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        if (!validatePhoneDetailed(order.secondary_phone!).isValid) return;
-                                        const link = generateWhatsAppLink(order.secondary_phone!, `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`);
+                                        if (!validatePhoneDetailed(order.phone).isValid) return;
+                                        const link = generateWhatsAppLink(order.phone, `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`);
                                         window.open(link, "_blank");
                                     }}
                                     className={cn(
-                                        "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors",
-                                        validatePhoneDetailed(order.secondary_phone).isValid
-                                            ? "bg-gray-100 text-gray-700 active:scale-95"
-                                            : "bg-red-50 text-red-600"
+                                        "flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all active:scale-95 shadow-sm",
+                                        validatePhoneDetailed(order.phone).isValid
+                                            ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-green-200"
+                                            : "bg-red-100 text-red-600 border border-red-200"
                                     )}
                                 >
-                                    <Phone className="w-4 h-4" />
-                                    <span className="font-mono text-sm">
-                                        {formatPhoneForDisplay(order.secondary_phone)}
+                                    <MessageCircle className="w-4 h-4" />
+                                    <span className="font-mono text-sm font-semibold tracking-wide">
+                                        {formatPhoneForDisplay(order.phone)}
                                     </span>
                                 </button>
-                            )}
+
+                                {/* Secondary Phone */}
+                                {order.secondary_phone && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (!validatePhoneDetailed(order.secondary_phone!).isValid) return;
+                                            const link = generateWhatsAppLink(order.secondary_phone!, `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`);
+                                            window.open(link, "_blank");
+                                        }}
+                                        className={cn(
+                                            "flex items-center gap-1.5 px-2.5 py-2 rounded-xl transition-all active:scale-95",
+                                            validatePhoneDetailed(order.secondary_phone).isValid
+                                                ? "bg-gray-100 text-gray-700 border border-gray-200"
+                                                : "bg-red-50 text-red-600 border border-red-200"
+                                        )}
+                                    >
+                                        <Phone className="w-3.5 h-3.5" />
+                                        <span className="font-mono text-xs">
+                                            {formatPhoneForDisplay(order.secondary_phone)}
+                                        </span>
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Price - right aligned, prominent */}
+                            <div className="flex-shrink-0 text-right">
+                                {(order.payment_status === "paid" || order.payment_status === "prepaid") ? (
+                                    <div className="flex flex-col items-end">
+                                        <span className="text-xs text-emerald-600 font-medium">مدفوع</span>
+                                        <span className="text-lg font-bold text-emerald-600">واصل</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-end">
+                                        <span className="text-[10px] text-muted uppercase tracking-wider">المبلغ</span>
+                                        <span className={cn(
+                                            "text-xl font-bold tabular-nums",
+                                            isReturn ? "text-red-600" : "text-foreground",
+                                            hasRefund && "line-through opacity-50"
+                                        )}>
+                                            {isReturn && "-"}
+                                            {formatIQD(Math.abs(Number(order.price)))}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         {/* Address row */}
                         {fullAddress && (
-                            <div className="flex items-center gap-1.5 text-sm text-muted">
-                                <MapPin className="w-4 h-4 flex-shrink-0" />
-                                <span className="truncate" dir="rtl">{fullAddress}</span>
+                            <div className="flex items-center gap-2 p-2.5 rounded-xl bg-gray-50/80 border border-gray-100">
+                                <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                <span className="text-sm text-gray-600 truncate flex-1" dir="rtl">{fullAddress}</span>
                                 {(order.validated_governorate_code || order.governorate_code) && (
-                                    <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-semibold flex-shrink-0">
+                                    <span className="px-2 py-1 rounded-lg bg-emerald-500 text-white text-[11px] font-bold flex-shrink-0 shadow-sm">
                                         {order.validated_governorate_code || order.governorate_code}
                                     </span>
                                 )}
                             </div>
                         )}
-
-                        {/* Price at bottom right */}
-                        <div className="flex items-center justify-end pt-2 border-t border-[var(--card-border)]">
-                            {(order.payment_status === "paid" || order.payment_status === "prepaid") ? (
-                                <div className="text-right">
-                                    <span className="text-base font-bold text-emerald-600">واصل</span>
-                                    <span className="text-xs text-muted font-mono ml-2">
-                                        {formatIQD(Math.abs(Number(order.price)))}
-                                    </span>
-                                </div>
-                            ) : (
-                                <span className={cn(
-                                    "text-lg font-bold",
-                                    isReturn ? "text-red-600" : "text-foreground",
-                                    hasRefund && "line-through opacity-50"
-                                )}>
-                                    {isReturn && "-"}
-                                    {formatIQD(Math.abs(Number(order.price)))}
-                                </span>
-                            )}
-                        </div>
                     </div>
 
                     {/* REVIEW INDICATOR - Only for delivered orders */}
