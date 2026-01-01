@@ -393,9 +393,9 @@ export function OrderCard({
                     )}
                 />
 
-                {/* Selection Checkbox */}
+                {/* Selection Checkbox - Desktop only (mobile uses double-tap actions) */}
                 {onToggleSelection && (
-                    <div className="pl-3 pr-1 flex items-center justify-center">
+                    <div className="hidden md:flex pl-3 pr-1 items-center justify-center">
                         <input
                             type="checkbox"
                             checked={isSelected}
