@@ -608,7 +608,9 @@ export function useOrders() {
         }
     }
 
-    async function createOrder(orderData: Omit<Order, "id" | "created_at" | "updated_at">) {
+    async function createOrder(orderData: Omit<Order, "id" | "created_at" | "updated_at">, retryCount = 0): Promise<{ success: boolean; data?: Order; error?: string }> {
+        const MAX_RETRIES = 5;
+
         try {
             // Generate smart order ID if not provided
             // Format: SYYMMDD### where S=source code, YYMMDD=date, ###=daily sequence
@@ -636,7 +638,8 @@ export function useOrders() {
                     .lt('created_at', endOfDay)
                     .like('order_id', `${sourceCode}${dateStr}%`);
 
-                const sequence = ((count || 0) + 1).toString().padStart(3, '0');
+                // Add retryCount to handle race conditions where multiple orders are created simultaneously
+                const sequence = ((count || 0) + 1 + retryCount).toString().padStart(3, '0');
                 generatedOrderId = `${sourceCode}${dateStr}${sequence}`;
             }
 
@@ -648,7 +651,7 @@ export function useOrders() {
                 .limit(1)
                 .single();
 
-            const nextSequenceNumber = (maxSeqData?.sequence_number || 0) + 1;
+            const nextSequenceNumber = (maxSeqData?.sequence_number || 0) + 1 + retryCount;
 
             // Add defaults for new fields - manual orders are auto-confirmed
             const fullOrderData = {
@@ -668,7 +671,16 @@ export function useOrders() {
                 .select()
                 .single();
 
-            if (insertError) throw insertError;
+            if (insertError) {
+                // Handle duplicate key constraint violation - retry with incremented sequence
+                // Error code 23505 is PostgreSQL unique violation
+                if ((insertError as any).code === '23505' && retryCount < MAX_RETRIES) {
+                    console.log(`Order ID collision detected, retrying (attempt ${retryCount + 2}/${MAX_RETRIES + 1})...`);
+                    await new Promise(resolve => setTimeout(resolve, 100)); // Small delay before retry
+                    return createOrder(orderData, retryCount + 1);
+                }
+                throw insertError;
+            }
 
             // Add to local state
             if (data) {
