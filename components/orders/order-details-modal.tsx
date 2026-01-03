@@ -257,6 +257,7 @@ export function OrderDetailsModal({
             discount_amount: order.discount_amount || 0,
             payment_status: order.payment_status || "cod",
             delivery_slot: order.delivery_slot || undefined,
+            delivery_order_id: order.delivery_order_id || "",
             items: order.items ? [...order.items] : [],
             created_at: order.created_at,
         });
@@ -270,9 +271,7 @@ export function OrderDetailsModal({
 
     const handleSave = async () => {
         setIsSaving(true);
-        console.log("handleSave called. formData:", formData);
         const result = await onUpdate(order.id, formData);
-        console.log("handleSave result:", result);
 
         if (result.success) {
             // Update local order state with new values immediately
@@ -489,7 +488,7 @@ export function OrderDetailsModal({
                     {/* Header Area */}
                     <DialogHeader className="space-y-0 pb-0 group relative">
                         {/* Top Row: Order ID, Status, Timeline + Edit Buttons */}
-                        <div className="flex items-center justify-between mb-3 mr-6">
+                        <div className="flex items-center justify-between mb-3 mr-10">
                             <div className="flex items-center gap-3">
                                 <div className="relative group/id">
                                     <DialogTitle className="font-mono text-xl">#{getBaseOrderId(order.order_id)}</DialogTitle>
@@ -966,20 +965,22 @@ export function OrderDetailsModal({
                                 </div>
 
                                 <div className="p-4 grid gap-4">
-                                    {/* Name & Governorate Row */}
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <div className="md:col-span-2">
+                                    {/* Row 1: Name, Governorate, Governorate Code - 3 equal columns */}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                        {/* Name */}
+                                        <div>
                                             <span className="text-xs text-muted uppercase tracking-wider block mb-1">الاسم</span>
                                             {isEditing ? (
                                                 <input
                                                     value={displayValue("customer_name") as string}
                                                     onChange={(e) => updateFormData("customer_name", e.target.value)}
-                                                    className="w-full px-3 py-1.5 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-lg font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
+                                                    className="w-full h-[38px] px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-medium focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
                                                 />
                                             ) : (
-                                                <p className="text-lg font-bold text-foreground">{order.customer_name}</p>
+                                                <p className="text-base font-bold text-foreground">{order.customer_name}</p>
                                             )}
                                         </div>
+                                        {/* Governorate */}
                                         <div>
                                             <span className="text-xs text-muted uppercase tracking-wider block mb-1">المحافظة</span>
                                             {isEditing ? (
@@ -994,7 +995,7 @@ export function OrderDetailsModal({
                                                                 updateFormData("governorate_code", selectedGov.code);
                                                             }
                                                         }}
-                                                        className="w-full h-[38px] px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
+                                                        className="w-full h-[38px] px-3 pr-8 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
                                                     >
                                                         <option value="" disabled>اختر المحافظة...</option>
                                                         {governorates.map((gov) => (
@@ -1003,15 +1004,15 @@ export function OrderDetailsModal({
                                                             </option>
                                                         ))}
                                                     </select>
-                                                    <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">
+                                                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted">
                                                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-down"><path d="m6 9 6 6 6-6" /></svg>
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <p className="text-lg font-medium text-foreground">{order.city || "—"}</p>
+                                                <p className="text-base font-medium text-foreground">{order.city || "—"}</p>
                                             )}
                                         </div>
-                                        {/* Governorate Code - Editable in edit mode */}
+                                        {/* Governorate Code */}
                                         <div>
                                             <span className="text-xs text-muted uppercase tracking-wider block mb-1">كود المحافظة</span>
                                             {isEditing ? (
@@ -1019,10 +1020,9 @@ export function OrderDetailsModal({
                                                     <select
                                                         value={(displayValue("governorate_code") || "") as string}
                                                         onChange={(e) => {
-                                                            console.log("Governorate code changed to:", e.target.value);
                                                             updateFormData("governorate_code", e.target.value);
                                                         }}
-                                                        className="w-full h-[38px] px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-mono font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
+                                                        className="w-full h-[38px] px-3 pr-8 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-mono font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
                                                     >
                                                         <option value="">بدون كود</option>
                                                         {governorates.map((gov) => (
@@ -1031,26 +1031,51 @@ export function OrderDetailsModal({
                                                             </option>
                                                         ))}
                                                     </select>
-                                                    <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">
+                                                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted">
                                                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-down"><path d="m6 9 6 6 6-6" /></svg>
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <p className="text-lg font-medium text-foreground font-mono">
+                                                <p className="text-base font-medium text-foreground font-mono">
                                                     {order.governorate_code || order.validated_governorate_code || <span className="text-muted">—</span>}
                                                 </p>
                                             )}
                                         </div>
                                     </div>
 
-                                    {/* Phones Row */}
+                                    {/* Row 2: Full Address (single full-width field) */}
+                                    <div>
+                                        <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1 mb-1">
+                                            <MapPin className="h-3 w-3" />
+                                            العنوان الكامل
+                                            {(!order.address_details || order.address_details.trim() === '') && (
+                                                <span className="relative flex h-2.5 w-2.5 ml-1" title="لا يوجد تفاصيل عنوان">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75" />
+                                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-yellow-500" />
+                                                </span>
+                                            )}
+                                        </span>
+                                        {isEditing ? (
+                                            <textarea
+                                                value={(displayValue("address_details") || "") as string}
+                                                onChange={(e) => updateFormData("address_details", e.target.value)}
+                                                rows={2}
+                                                className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[var(--card-border)] resize-none"
+                                            />
+                                        ) : (
+                                            <p className="text-sm font-medium text-foreground bg-[var(--background)] px-3 py-2.5 rounded-lg leading-relaxed">
+                                                {order.address_details || "لم يتم تحديد العنوان"}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    {/* Row 3: Phone Numbers */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         {/* Primary Phone */}
                                         <div>
-                                            <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                                            <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1">
                                                 <Phone className="w-3 h-3" />
                                                 الرقم الأساسي
-                                                {/* Validation indicator for display mode */}
                                                 {!isEditing && !validatePhoneDetailed(order.phone).isValid && (
                                                     <span className="relative flex h-2.5 w-2.5 ml-1">
                                                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
@@ -1066,20 +1091,18 @@ export function OrderDetailsModal({
                                                             onChange={(e) => updateFormData("phone", e.target.value)}
                                                             dir="ltr"
                                                             className={cn(
-                                                                "w-full px-3 py-1.5 bg-white border rounded-lg text-foreground font-mono focus:outline-none focus:ring-2",
+                                                                "w-full h-[38px] px-3 bg-[var(--background)] border rounded-lg text-foreground font-mono focus:outline-none focus:ring-2",
                                                                 !validatePhoneDetailed(displayValue("phone") as string).isValid
                                                                     ? "border-red-300 focus:ring-red-200"
                                                                     : "border-[var(--card-border)] focus:ring-[var(--card-border)]"
                                                             )}
                                                         />
-                                                        {/* Real-time validation indicator while editing */}
                                                         {!validatePhoneDetailed(displayValue("phone") as string).isValid && (
                                                             <div className="absolute right-3 top-1/2 -translate-y-1/2 group">
                                                                 <span className="relative flex h-2.5 w-2.5">
                                                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                                                                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
                                                                 </span>
-                                                                {/* Tooltip */}
                                                                 <div className="absolute bottom-full right-0 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
                                                                     {validatePhoneDetailed(displayValue("phone") as string).errorMessageAr}
                                                                 </div>
@@ -1089,7 +1112,7 @@ export function OrderDetailsModal({
                                                 ) : (
                                                     <span
                                                         className={cn(
-                                                            "flex-1 font-mono text-lg tracking-wide",
+                                                            "flex-1 font-mono text-base",
                                                             !validatePhoneDetailed(order.phone).isValid && "text-red-600"
                                                         )}
                                                         dir="ltr"
@@ -1101,7 +1124,7 @@ export function OrderDetailsModal({
                                                     onClick={handleWhatsApp}
                                                     disabled={!validatePhoneDetailed(order.phone).isValid}
                                                     className={cn(
-                                                        "w-8 h-8 rounded-lg transition-all flex items-center justify-center flex-shrink-0",
+                                                        "w-9 h-9 rounded-lg transition-all flex items-center justify-center flex-shrink-0",
                                                         validatePhoneDetailed(order.phone).isValid
                                                             ? "bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)]"
                                                             : "bg-gray-200 text-gray-400 cursor-not-allowed"
@@ -1114,10 +1137,9 @@ export function OrderDetailsModal({
                                         </div>
                                         {/* Secondary Phone */}
                                         <div>
-                                            <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                                            <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1">
                                                 <Phone className="w-3 h-3" />
                                                 الرقم الثانوي
-                                                {/* Validation indicator for display mode (only if phone exists) */}
                                                 {!isEditing && order.secondary_phone && !validatePhoneDetailed(order.secondary_phone).isValid && (
                                                     <span className="relative flex h-2.5 w-2.5 ml-1">
                                                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
@@ -1134,20 +1156,18 @@ export function OrderDetailsModal({
                                                             dir="ltr"
                                                             placeholder="اختياري"
                                                             className={cn(
-                                                                "w-full px-3 py-1.5 bg-white border rounded-lg text-foreground font-mono focus:outline-none focus:ring-2",
+                                                                "w-full h-[38px] px-3 bg-[var(--background)] border rounded-lg text-foreground font-mono focus:outline-none focus:ring-2",
                                                                 (displayValue("secondary_phone") as string) && !validatePhoneDetailed(displayValue("secondary_phone") as string).isValid
                                                                     ? "border-red-300 focus:ring-red-200"
                                                                     : "border-[var(--card-border)] focus:ring-[var(--card-border)]"
                                                             )}
                                                         />
-                                                        {/* Real-time validation indicator while editing */}
                                                         {(displayValue("secondary_phone") as string) && !validatePhoneDetailed(displayValue("secondary_phone") as string).isValid && (
                                                             <div className="absolute right-3 top-1/2 -translate-y-1/2 group">
                                                                 <span className="relative flex h-2.5 w-2.5">
                                                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                                                                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
                                                                 </span>
-                                                                {/* Tooltip */}
                                                                 <div className="absolute bottom-full right-0 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
                                                                     {validatePhoneDetailed(displayValue("secondary_phone") as string).errorMessageAr}
                                                                 </div>
@@ -1157,7 +1177,7 @@ export function OrderDetailsModal({
                                                 ) : (
                                                     <span
                                                         className={cn(
-                                                            "flex-1 font-mono text-lg tracking-wide",
+                                                            "flex-1 font-mono text-base",
                                                             order.secondary_phone && !validatePhoneDetailed(order.secondary_phone).isValid && "text-red-600"
                                                         )}
                                                         dir="ltr"
@@ -1174,7 +1194,7 @@ export function OrderDetailsModal({
                                                             );
                                                             window.open(link, "_blank");
                                                         }}
-                                                        className="w-8 h-8 rounded-lg bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)] transition-all flex items-center justify-center flex-shrink-0"
+                                                        className="w-9 h-9 rounded-lg bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)] transition-all flex items-center justify-center flex-shrink-0"
                                                         title="واتساب"
                                                     >
                                                         <MessageCircle className="h-4 w-4" />
@@ -1184,26 +1204,24 @@ export function OrderDetailsModal({
                                         </div>
                                     </div>
 
-                                    {/* Date & Delivery Order ID Row */}
+                                    {/* Row 4: Date & Delivery Order ID */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {/* Order Date (Editable) */}
+                                        {/* Order Date */}
                                         <div>
-                                            <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                                            <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1">
                                                 <Calendar className="w-3 h-3" />
                                                 تاريخ الطلب
                                             </span>
                                             {isEditing ? (
                                                 <DateTimePicker
                                                     value={displayValue("created_at") as string}
-                                                    onChange={(isoString) => {
-                                                        console.log("DateTimePicker changed:", isoString);
-                                                        updateFormData("created_at", isoString);
-                                                    }}
+                                                    onChange={(isoString) => updateFormData("created_at", isoString)}
                                                     showTime={true}
+                                                    className="h-[38px]"
                                                 />
                                             ) : (
-                                                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-transparent">
-                                                    <span className="font-mono text-sm">
+                                                <div className="h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg">
+                                                    <span className="font-mono text-sm text-foreground">
                                                         {new Date(order.created_at).toLocaleString('en-US', {
                                                             year: 'numeric',
                                                             month: '2-digit',
@@ -1216,80 +1234,28 @@ export function OrderDetailsModal({
                                                 </div>
                                             )}
                                         </div>
-
-                                        {/* Delivery Order ID Alias */}
+                                        {/* Delivery Order ID */}
                                         <div>
-                                            <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                                            <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1">
                                                 <Truck className="w-3 h-3" />
                                                 رقم شركة التوصيل (اختياري)
                                             </span>
-                                            <div className="flex items-center gap-2">
-                                                {isEditing ? (
-                                                    <input
-                                                        value={(displayValue("delivery_order_id") || "") as string}
-                                                        onChange={(e) => updateFormData("delivery_order_id", e.target.value)}
-                                                        dir="ltr"
-                                                        placeholder="مثال: DHL-12345"
-                                                        className="w-full px-3 py-1.5 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
-                                                    />
-                                                ) : (
-                                                    <p className="text-sm font-mono text-foreground px-3 py-1.5">
+                                            {isEditing ? (
+                                                <input
+                                                    value={(displayValue("delivery_order_id") || "") as string}
+                                                    onChange={(e) => updateFormData("delivery_order_id", e.target.value)}
+                                                    dir="ltr"
+                                                    placeholder="مثال: DHL-12345"
+                                                    className="w-full h-[38px] px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
+                                                />
+                                            ) : (
+                                                <div className="h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg">
+                                                    <span className="font-mono text-sm text-foreground">
                                                         {order.delivery_order_id || <span className="text-muted">لم يتم التحديد</span>}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Address Row with Simple Validation */}
-                                    <div>
-                                        <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1 mb-1.5">
-                                            <MapPin className="h-3 w-3" />
-                                            العنوان الكامل
-                                            {/* Simple validation: only flag if address_details is empty */}
-                                            {(!order.address_details || order.address_details.trim() === '') && (
-                                                <span
-                                                    className="relative flex h-2.5 w-2.5 ml-1"
-                                                    title="لا يوجد تفاصيل عنوان"
-                                                >
-                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75" />
-                                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-yellow-500" />
-                                                </span>
+                                                    </span>
+                                                </div>
                                             )}
-                                        </span>
-                                        {(!order.address_details || order.address_details.trim() === '') && (
-                                            <div className="text-xs px-2 py-1 rounded-lg mb-2 bg-yellow-50 text-yellow-700 border border-yellow-200">
-                                                ⚠️ لا يوجد تفاصيل عنوان - الرجاء اضافة المنطقة والعنوان
-                                            </div>
-                                        )}
-                                        {/* Warning if address exists but governorate is missing */}
-                                        {order.address_details && order.address_details.trim() !== '' && !order.city && (
-                                            <div className="text-xs px-2 py-1 rounded-lg mb-2 bg-red-50 text-red-700 border border-red-200 flex items-center gap-2">
-                                                <AlertTriangle className="w-3 h-3" />
-                                                يرجى تحديد المحافظة لإكمال العنوان
-                                            </div>
-                                        )}
-                                        {/* Validated Governorate Badge - check both columns */}
-                                        {(order.validated_governorate_code || order.governorate_code) && (
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <span className="text-xs text-muted">المحافظة المعتمدة:</span>
-                                                <span className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-700 text-xs font-semibold border border-emerald-200">
-                                                    {order.validated_governorate_code || order.governorate_code}
-                                                </span>
-                                            </div>
-                                        )}
-                                        {isEditing ? (
-                                            <textarea
-                                                value={(displayValue("address_details") || "") as string}
-                                                onChange={(e) => updateFormData("address_details", e.target.value)}
-                                                rows={2}
-                                                className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[var(--card-border)] resize-none"
-                                            />
-                                        ) : (
-                                            <p className="text-sm font-medium text-foreground bg-[var(--background)] px-3 py-2.5 rounded-lg leading-relaxed">
-                                                {order.address_details || "لم يتم تحديد العنوان"}
-                                            </p>
-                                        )}
+                                        </div>
                                     </div>
 
 
@@ -1691,7 +1657,7 @@ export function OrderDetailsModal({
                         </div>
                     </DialogFooter>
                 </ContentWrapper>
-            </Dialog>
+            </Dialog >
 
             {/* Product Picker Modal - Outside Dialog for proper z-index */}
             < ProductPicker

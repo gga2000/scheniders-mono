@@ -553,14 +553,11 @@ export function useOrders() {
 
     async function updateOrder(orderId: string, updates: Partial<Order>, retryCount = 0): Promise<{ success: boolean; error?: string }> {
         try {
-            console.log("updateOrder called with:", { orderId, updates });
             // Remove any fields that shouldn't be sent to the database
             // Note: id is auto-generated and should never be updated
             // Note: created_at is intentionally NOT removed here - it can be updated by users via the edit modal
             const cleanUpdates = { ...updates };
             delete (cleanUpdates as Record<string, unknown>).id;
-
-            console.log("cleanUpdates sending to Supabase:", cleanUpdates);
 
             const { error: updateError, status } = await supabase
                 .from("orders")
@@ -588,8 +585,6 @@ export function useOrders() {
 
                 throw updateError;
             }
-
-            console.log("Supabase update success");
 
             // Update local state
             setOrders((prev) =>
@@ -1060,33 +1055,44 @@ export function useOrders() {
     function exportOrders(orderIds: string[], format: "csv" | "xlsx" = "csv") {
         const ordersToExport = orders.filter((o) => orderIds.includes(o.id));
 
+        // Helper to clean phone numbers for export (remove 964 prefix and leading 0s)
+        const cleanPhoneForExport = (phone: string): string => {
+            if (!phone) return '';
+            let cleaned = phone.replace(/\D/g, '');
+            if (cleaned.startsWith('964')) {
+                cleaned = cleaned.substring(3);
+            }
+            cleaned = cleaned.replace(/^0+/, '');
+            return cleaned;
+        };
+
+        const headers = [
+            "Order ID",
+            "Customer Name",
+            "Phone",
+            "City",
+            "Address",
+            "Items",
+            "Total",
+            "Status",
+            "Payment Status",
+            "Created At",
+        ];
+
+        const rows = ordersToExport.map((order) => [
+            order.order_id,
+            order.customer_name,
+            cleanPhoneForExport(order.phone),
+            order.city || "",
+            order.address_details || "",
+            order.items?.map((i) => `${i.name} x${i.quantity}`).join("; ") || "",
+            order.price,
+            order.status,
+            order.payment_status,
+            new Date(order.created_at).toLocaleDateString(),
+        ]);
+
         if (format === "csv") {
-            const headers = [
-                "Order ID",
-                "Customer Name",
-                "Phone",
-                "City",
-                "Status",
-                "Total",
-                "Priority",
-                "Payment Status",
-                "Scheduled Date",
-                "Created At",
-            ];
-
-            const rows = ordersToExport.map((order) => [
-                order.order_id,
-                order.customer_name,
-                order.phone,
-                order.city || "",
-                order.status,
-                order.price,
-                order.priority,
-                order.payment_status,
-                order.scheduled_date || "",
-                new Date(order.created_at).toLocaleDateString(),
-            ]);
-
             const csvContent = [
                 headers.join(","),
                 ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
@@ -1105,8 +1111,23 @@ export function useOrders() {
             return { success: true, count: ordersToExport.length };
         }
 
-        // For xlsx, we'd need a library like xlsx - for now just use CSV
-        return { success: false, error: "XLSX export requires additional setup" };
+        // For xlsx - use Tab-separated values for Excel compatibility
+        const tsvContent = [
+            headers.join("\t"),
+            ...rows.map((row) => row.map((cell) => `${cell}`).join("\t")),
+        ].join("\n");
+
+        const blob = new Blob([tsvContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `orders_export_${new Date().toISOString().split("T")[0]}.xls`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        return { success: true, count: ordersToExport.length };
     }
 
     // =============================================
