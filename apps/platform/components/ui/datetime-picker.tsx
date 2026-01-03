@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Calendar,
     Clock,
     ChevronLeft,
     ChevronRight,
-    Check
+    Check,
+    X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +36,6 @@ export function DateTimePicker({
 }: DateTimePickerProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [mode, setMode] = useState<"date" | "time">("date");
-    const containerRef = useRef<HTMLDivElement>(null);
 
     // Parse initial value or use current date
     const initialDate = value ? new Date(value) : new Date();
@@ -63,27 +64,6 @@ export function DateTimePicker({
         if (isOpen) {
             setMode("date");
         }
-    }, [isOpen]);
-
-    // Click outside to close - using mousedown for immediate response
-    useEffect(() => {
-        if (!isOpen) return;
-
-        const handleClickOutside = (e: MouseEvent) => {
-            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-                setIsOpen(false);
-            }
-        };
-
-        // Small delay to prevent the opening click from immediately closing
-        const timer = setTimeout(() => {
-            document.addEventListener("mousedown", handleClickOutside);
-        }, 10);
-
-        return () => {
-            clearTimeout(timer);
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
     }, [isOpen]);
 
     // Calendar calculations
@@ -180,13 +160,6 @@ export function DateTimePicker({
             viewYear === today.getFullYear();
     };
 
-    // Check if day is selected
-    const isSelected = (day: number) => {
-        return day === selectedDay &&
-            viewMonth === (value ? new Date(value).getMonth() : new Date().getMonth()) &&
-            viewYear === (value ? new Date(value).getFullYear() : new Date().getFullYear());
-    };
-
     // Format display value
     const formatDisplayValue = () => {
         if (!value) return "اختر التاريخ";
@@ -205,275 +178,307 @@ export function DateTimePicker({
     };
 
     return (
-        <div
-            ref={containerRef}
-            className={cn("relative", className)}
-            // Prevent any click from propagating to parent dialog
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
-        >
+        <DialogPrimitive.Root open={isOpen} onOpenChange={setIsOpen}>
             {/* Trigger Button */}
-            <button
-                type="button"
-                onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsOpen(!isOpen);
-                }}
-                className={cn(
-                    "w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl",
-                    "bg-gradient-to-br from-white to-gray-50 border border-gray-200",
-                    "hover:border-blue-300 hover:shadow-md transition-all duration-200",
-                    "focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400",
-                    isOpen && "border-blue-400 ring-2 ring-blue-100 shadow-md"
-                )}
-            >
-                <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
-                        <Calendar className="w-4 h-4 text-white" />
-                    </div>
+            <DialogPrimitive.Trigger asChild>
+                <button
+                    type="button"
+                    className={cn(
+                        "w-full h-[38px] flex items-center gap-2 px-3 rounded-lg",
+                        "bg-[var(--background)] border border-[var(--card-border)]",
+                        "hover:border-[var(--card-border)] hover:bg-[var(--background)]",
+                        "focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]",
+                        "transition-all",
+                        className
+                    )}
+                >
                     <span className={cn(
-                        "text-sm font-medium",
+                        "flex-1 text-left text-sm font-mono",
                         value ? "text-foreground" : "text-muted"
                     )}>
                         {formatDisplayValue()}
                     </span>
-                </div>
-                <ChevronRight className={cn(
-                    "w-4 h-4 text-muted transition-transform duration-200",
-                    isOpen && "rotate-90"
-                )} />
-            </button>
+                    <ChevronRight className="w-4 h-4 text-muted flex-shrink-0" />
+                </button>
+            </DialogPrimitive.Trigger>
 
-            {/* Dropdown - Using absolute positioning, NOT portal */}
             <AnimatePresence>
                 {isOpen && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -8, scale: 0.96 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -8, scale: 0.96 }}
-                        transition={{ duration: 0.15 }}
-                        className={cn(
-                            "absolute top-full left-0 mt-2 z-[9999]",
-                            "w-[320px] bg-white rounded-2xl shadow-2xl border border-gray-100",
-                            "overflow-hidden"
-                        )}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        {/* Mode Tabs */}
-                        {showTime && (
-                            <div className="flex border-b border-gray-100">
-                                <button
-                                    type="button"
-                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setMode("date"); }}
-                                    className={cn(
-                                        "flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-all",
-                                        mode === "date"
-                                            ? "bg-blue-50 text-blue-700 border-b-2 border-blue-500"
-                                            : "text-muted hover:bg-gray-50"
-                                    )}
-                                >
-                                    <Calendar className="w-4 h-4" />
-                                    التاريخ
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setMode("time"); }}
-                                    className={cn(
-                                        "flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-all",
-                                        mode === "time"
-                                            ? "bg-blue-50 text-blue-700 border-b-2 border-blue-500"
-                                            : "text-muted hover:bg-gray-50"
-                                    )}
-                                >
-                                    <Clock className="w-4 h-4" />
-                                    الوقت
-                                </button>
-                            </div>
-                        )}
+                    <DialogPrimitive.Portal forceMount>
+                        {/* Overlay */}
+                        <DialogPrimitive.Overlay asChild>
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+                                style={{ zIndex: 99999 }}
+                            />
+                        </DialogPrimitive.Overlay>
 
-                        {/* Date Picker View */}
-                        {mode === "date" && (
-                            <div className="p-4">
-                                {/* Month/Year Navigation */}
-                                <div className="flex items-center justify-between mb-4">
-                                    <button
-                                        type="button"
-                                        onClick={prevMonth}
-                                        className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors"
-                                    >
-                                        <ChevronLeft className="w-4 h-4" />
-                                    </button>
-                                    <div className="text-center">
-                                        <span className="font-bold text-foreground">{MONTHS_AR[viewMonth]}</span>
-                                        <span className="text-muted ml-2">{viewYear}</span>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={nextMonth}
-                                        className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors"
-                                    >
-                                        <ChevronRight className="w-4 h-4" />
-                                    </button>
-                                </div>
-
-                                {/* Day Labels */}
-                                <div className="grid grid-cols-7 gap-1 mb-2">
-                                    {DAYS.map((day, i) => (
-                                        <div key={i} className="text-center text-xs font-medium text-muted py-1">
-                                            {day}
+                        {/* Content */}
+                        <DialogPrimitive.Content asChild>
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                                className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-[var(--card-border)]"
+                                style={{ zIndex: 99999 }}
+                            >
+                                {/* Header */}
+                                <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--card-border)] bg-[var(--background)]">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
+                                            <Calendar className="w-4 h-4 text-white" />
                                         </div>
-                                    ))}
+                                        <div>
+                                            <DialogPrimitive.Title className="font-bold text-foreground">
+                                                اختر التاريخ والوقت
+                                            </DialogPrimitive.Title>
+                                            <DialogPrimitive.Description className="text-xs text-muted">
+                                                {selectedDay} {MONTHS_AR[viewMonth]} {viewYear}
+                                                {showTime && ` - ${String(selectedHour).padStart(2, '0')}:${String(selectedMinute).padStart(2, '0')}`}
+                                            </DialogPrimitive.Description>
+                                        </div>
+                                    </div>
+                                    <DialogPrimitive.Close asChild>
+                                        <button
+                                            type="button"
+                                            className="w-8 h-8 rounded-lg hover:bg-[var(--card-border)] flex items-center justify-center transition-all"
+                                        >
+                                            <X className="w-4 h-4 text-muted" />
+                                        </button>
+                                    </DialogPrimitive.Close>
                                 </div>
 
-                                {/* Days Grid */}
-                                <div className="grid grid-cols-7 gap-1">
-                                    {calendarDays.map((day, i) => (
-                                        <div key={i} className="aspect-square">
-                                            {day && (
+                                {/* Mode Tabs */}
+                                {showTime && (
+                                    <div className="flex border-b border-gray-100">
+                                        <button
+                                            type="button"
+                                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setMode("date"); }}
+                                            className={cn(
+                                                "flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-all",
+                                                mode === "date"
+                                                    ? "bg-blue-50 text-blue-700 border-b-2 border-blue-500"
+                                                    : "text-muted hover:bg-gray-50"
+                                            )}
+                                        >
+                                            <Calendar className="w-4 h-4" />
+                                            التاريخ
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setMode("time"); }}
+                                            className={cn(
+                                                "flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-all",
+                                                mode === "time"
+                                                    ? "bg-blue-50 text-blue-700 border-b-2 border-blue-500"
+                                                    : "text-muted hover:bg-gray-50"
+                                            )}
+                                        >
+                                            <Clock className="w-4 h-4" />
+                                            الوقت
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Date Picker View */}
+                                {mode === "date" && (
+                                    <div className="p-4">
+                                        {/* Month/Year Navigation */}
+                                        <div className="flex items-center justify-between mb-4">
+                                            <button
+                                                type="button"
+                                                onClick={prevMonth}
+                                                className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors"
+                                            >
+                                                <ChevronLeft className="w-4 h-4" />
+                                            </button>
+                                            <div className="text-center">
+                                                <span className="font-bold text-foreground">{MONTHS_AR[viewMonth]}</span>
+                                                <span className="text-muted ml-2">{viewYear}</span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={nextMonth}
+                                                className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors"
+                                            >
+                                                <ChevronRight className="w-4 h-4" />
+                                            </button>
+                                        </div>
+
+                                        {/* Day Labels */}
+                                        <div className="grid grid-cols-7 gap-1 mb-2">
+                                            {DAYS.map((day, i) => (
+                                                <div key={i} className="text-center text-xs font-medium text-muted py-1">
+                                                    {day}
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* Days Grid */}
+                                        <div className="grid grid-cols-7 gap-1">
+                                            {calendarDays.map((day, i) => (
+                                                <div key={i} className="aspect-square">
+                                                    {day && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => selectDay(day, e)}
+                                                            className={cn(
+                                                                "w-full h-full rounded-lg text-sm font-medium transition-all",
+                                                                selectedDay === day && viewMonth === (value ? new Date(value).getMonth() : viewMonth)
+                                                                    ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-200"
+                                                                    : isToday(day)
+                                                                        ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                                                                        : "hover:bg-gray-100 text-foreground"
+                                                            )}
+                                                        >
+                                                            {day}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* Quick Actions */}
+                                        <div className="flex justify-between items-center mt-4 pt-3 border-t border-gray-100">
+                                            <button
+                                                type="button"
+                                                onClick={selectToday}
+                                                className="text-xs text-blue-600 font-medium hover:text-blue-700"
+                                            >
+                                                اليوم
+                                            </button>
+                                            {!showTime && (
                                                 <button
                                                     type="button"
-                                                    onClick={(e) => selectDay(day, e)}
-                                                    className={cn(
-                                                        "w-full h-full rounded-lg text-sm font-medium transition-all",
-                                                        selectedDay === day && viewMonth === (value ? new Date(value).getMonth() : viewMonth)
-                                                            ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-200"
-                                                            : isToday(day)
-                                                                ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
-                                                                : "hover:bg-gray-100 text-foreground"
-                                                    )}
+                                                    onClick={confirmSelection}
+                                                    className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
                                                 >
-                                                    {day}
+                                                    <Check className="w-3.5 h-3.5" />
+                                                    تأكيد
                                                 </button>
                                             )}
                                         </div>
-                                    ))}
-                                </div>
+                                    </div>
+                                )}
 
-                                {/* Quick Actions */}
-                                <div className="flex justify-between items-center mt-4 pt-3 border-t border-gray-100">
-                                    <button
-                                        type="button"
-                                        onClick={selectToday}
-                                        className="text-xs text-blue-600 font-medium hover:text-blue-700"
-                                    >
-                                        اليوم
-                                    </button>
-                                    {!showTime && (
+                                {/* Time Picker View */}
+                                {mode === "time" && (
+                                    <div className="p-4">
+                                        {/* Selected Date Display */}
+                                        <div className="text-center mb-4 pb-3 border-b border-gray-100">
+                                            <p className="text-sm text-muted">التاريخ المحدد</p>
+                                            <p className="font-bold text-foreground">
+                                                {selectedDay} {MONTHS_AR[viewMonth]} {viewYear}
+                                            </p>
+                                        </div>
+
+                                        {/* Time Selectors */}
+                                        <div className="flex items-center justify-center gap-4">
+                                            {/* Hour (12-hour format) */}
+                                            <div className="flex flex-col items-center">
+                                                <label className="text-xs text-muted mb-2">الساعة</label>
+                                                <select
+                                                    value={selectedHour % 12 || 12}
+                                                    onChange={(e) => {
+                                                        const displayHour = parseInt(e.target.value);
+                                                        // Convert 12-hour to 24-hour
+                                                        if (selectedHour >= 12) {
+                                                            // PM
+                                                            setSelectedHour(displayHour === 12 ? 12 : displayHour + 12);
+                                                        } else {
+                                                            // AM
+                                                            setSelectedHour(displayHour === 12 ? 0 : displayHour);
+                                                        }
+                                                    }}
+                                                    className="appearance-none w-20 h-12 text-center text-xl font-bold bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                                                >
+                                                    {Array.from({ length: 12 }, (_, i) => {
+                                                        const hour = i === 0 ? 12 : i;
+                                                        return (
+                                                            <option key={hour} value={hour}>
+                                                                {hour}
+                                                            </option>
+                                                        );
+                                                    })}
+                                                </select>
+                                            </div>
+
+                                            <span className="text-2xl font-bold text-muted mt-6">:</span>
+
+                                            {/* Minute */}
+                                            <div className="flex flex-col items-center">
+                                                <label className="text-xs text-muted mb-2">الدقيقة</label>
+                                                <select
+                                                    value={selectedMinute}
+                                                    onChange={(e) => setSelectedMinute(parseInt(e.target.value))}
+                                                    className="appearance-none w-20 h-12 text-center text-xl font-bold bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                                                >
+                                                    {Array.from({ length: 60 }, (_, i) => (
+                                                        <option key={i} value={i}>
+                                                            {String(i).padStart(2, '0')}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {/* AM/PM Toggle */}
+                                        <div className="flex justify-center gap-2 mt-4">
+                                            <button
+                                                type="button"
+                                                onClick={setAM}
+                                                className={cn(
+                                                    "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                                                    selectedHour < 12
+                                                        ? "bg-blue-600 text-white"
+                                                        : "bg-gray-100 text-muted hover:bg-gray-200"
+                                                )}
+                                            >
+                                                صباحاً
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={setPM}
+                                                className={cn(
+                                                    "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                                                    selectedHour >= 12
+                                                        ? "bg-blue-600 text-white"
+                                                        : "bg-gray-100 text-muted hover:bg-gray-200"
+                                                )}
+                                            >
+                                                مساءً
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Footer */}
+                                <div className="flex items-center justify-end gap-2 p-4 bg-[var(--background)] border-t border-[var(--card-border)]">
+                                    <DialogPrimitive.Close asChild>
                                         <button
                                             type="button"
-                                            onClick={confirmSelection}
-                                            className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                                            className="px-4 py-2 text-sm font-medium text-muted hover:text-foreground transition-colors"
                                         >
-                                            <Check className="w-3.5 h-3.5" />
-                                            تأكيد
+                                            إلغاء
                                         </button>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Time Picker View */}
-                        {mode === "time" && (
-                            <div className="p-4">
-                                {/* Selected Date Display */}
-                                <div className="text-center mb-4 pb-3 border-b border-gray-100">
-                                    <p className="text-sm text-muted">التاريخ المحدد</p>
-                                    <p className="font-bold text-foreground">
-                                        {selectedDay} {MONTHS_AR[viewMonth]} {viewYear}
-                                    </p>
-                                </div>
-
-                                {/* Time Selectors */}
-                                <div className="flex items-center justify-center gap-4">
-                                    {/* Hour */}
-                                    <div className="flex flex-col items-center">
-                                        <label className="text-xs text-muted mb-2">الساعة</label>
-                                        <select
-                                            value={selectedHour}
-                                            onChange={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedHour(parseInt(e.target.value));
-                                            }}
-                                            onMouseDown={(e) => e.stopPropagation()}
-                                            onClick={(e) => e.stopPropagation()}
-                                            className="appearance-none w-20 h-12 text-center text-xl font-bold bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
-                                        >
-                                            {Array.from({ length: 24 }, (_, i) => (
-                                                <option key={i} value={i}>
-                                                    {String(i).padStart(2, '0')}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    <span className="text-2xl font-bold text-muted mt-6">:</span>
-
-                                    {/* Minute */}
-                                    <div className="flex flex-col items-center">
-                                        <label className="text-xs text-muted mb-2">الدقيقة</label>
-                                        <select
-                                            value={selectedMinute}
-                                            onChange={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedMinute(parseInt(e.target.value));
-                                            }}
-                                            onMouseDown={(e) => e.stopPropagation()}
-                                            onClick={(e) => e.stopPropagation()}
-                                            className="appearance-none w-20 h-12 text-center text-xl font-bold bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
-                                        >
-                                            {Array.from({ length: 60 }, (_, i) => (
-                                                <option key={i} value={i}>
-                                                    {String(i).padStart(2, '0')}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-
-                                {/* AM/PM Toggle */}
-                                <div className="flex justify-center gap-2 mt-4">
+                                    </DialogPrimitive.Close>
                                     <button
                                         type="button"
-                                        onClick={setAM}
-                                        className={cn(
-                                            "px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                                            selectedHour < 12
-                                                ? "bg-blue-600 text-white"
-                                                : "bg-gray-100 text-muted hover:bg-gray-200"
-                                        )}
+                                        onClick={confirmSelection}
+                                        className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all shadow-md"
                                     >
-                                        صباحاً
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={setPM}
-                                        className={cn(
-                                            "px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                                            selectedHour >= 12
-                                                ? "bg-blue-600 text-white"
-                                                : "bg-gray-100 text-muted hover:bg-gray-200"
-                                        )}
-                                    >
-                                        مساءً
+                                        <Check className="w-4 h-4" />
+                                        تأكيد
                                     </button>
                                 </div>
-
-                                {/* Confirm Button */}
-                                <button
-                                    type="button"
-                                    onClick={confirmSelection}
-                                    className="w-full mt-6 flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg shadow-blue-200"
-                                >
-                                    <Check className="w-4 h-4" />
-                                    تأكيد الوقت والتاريخ
-                                </button>
-                            </div>
-                        )}
-                    </motion.div>
+                            </motion.div>
+                        </DialogPrimitive.Content>
+                    </DialogPrimitive.Portal>
                 )}
             </AnimatePresence>
-        </div>
+        </DialogPrimitive.Root>
     );
 }

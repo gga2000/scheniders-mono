@@ -402,7 +402,7 @@ export default function OrdersPage() {
         const ids = selectedOrders.size > 0
             ? Array.from(selectedOrders)
             : filteredOrders.map(o => o.id);
-        exportOrders(ids, "csv");
+        exportOrders(ids, "xlsx");
     };
 
     // Calculate duplicate phone map for ghost detection
