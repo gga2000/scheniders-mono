@@ -42,7 +42,7 @@ export interface Order {
     is_archived: boolean;
     is_pinned?: boolean;
     delivery_slot?: 'morning' | 'afternoon' | 'evening';
-    source?: 'whatsapp' | 'lightfunnels' | 'meta' | 'tiktok' | 'delivery_import';
+    source?: 'whatsapp' | 'lightfunnels' | 'meta' | 'tiktok' | 'delivery_import' | 'other';
     sequence_number?: number; // Global order counter (#178, #179, etc.)
     // Delivery tracking
     delivered_at?: string; // Timestamp when marked delivered (activates 7-day guarantee)
