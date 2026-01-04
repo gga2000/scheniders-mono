@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { formatIQD, formatDate, generateWhatsAppLink, getStatusLabel, getBaseOrderId } from "@/lib/utils";
 import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
-import { getAllGovernorateCodes } from "@/lib/address-validator";
+import { getAllGovernorateCodes, extractGovernorate } from "@/lib/address-validator";
 import { cn } from "@/lib/utils";
 import type { Order, OrderStatusHistory, OrderNote } from "@/lib/supabase";
 import { OrderTimeline } from "./order-timeline";
@@ -46,6 +46,7 @@ import {
     Trash2,
     AlertTriangle,
     RotateCcw,
+    Globe,
 } from "lucide-react";
 
 interface OrderDetailsModalProps {
@@ -630,6 +631,16 @@ export function OrderDetailsModal({
                                         تعديل
                                     </button>
                                 )}
+                                {/* Return Button - Only for delivered/completed orders */}
+                                {(order.status === "delivered" || order.status === "completed") && onCreateReturn && !order.is_return && (
+                                    <button
+                                        onClick={() => setShowReturnModal(true)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 transition-all text-xs font-medium"
+                                    >
+                                        <RotateCcw className="h-3.5 w-3.5" />
+                                        استرجاع
+                                    </button>
+                                )}
                             </div>
                         </div>
 
@@ -787,19 +798,7 @@ export function OrderDetailsModal({
                                         </button>
                                     </div>
 
-                                    {/* Create Return Button - Only for delivered orders */}
-                                    {order.status === "delivered" && onCreateReturn && !order.is_return && (
-                                        <>
 
-                                            <button
-                                                onClick={() => setShowReturnModal(true)}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition-all text-xs font-medium active:scale-95"
-                                            >
-                                                <RotateCcw className="w-3.5 h-3.5" />
-                                                استرجاع
-                                            </button>
-                                        </>
-                                    )}
                                 </div>
                             </div>
                         )}
@@ -1037,7 +1036,16 @@ export function OrderDetailsModal({
                                                 </div>
                                             ) : (
                                                 <p className="text-base font-medium text-foreground font-mono">
-                                                    {order.governorate_code || order.validated_governorate_code || <span className="text-muted">—</span>}
+                                                    {(() => {
+                                                        const code = order.governorate_code || order.validated_governorate_code;
+                                                        if (code) return code;
+                                                        // If not stored, extract from city
+                                                        if (order.city) {
+                                                            const { governorate } = extractGovernorate(order.city, undefined, order.address_details);
+                                                            if (governorate?.code) return governorate.code;
+                                                        }
+                                                        return <span className="text-muted">—</span>;
+                                                    })()}
                                                 </p>
                                             )}
                                         </div>
@@ -1204,8 +1212,8 @@ export function OrderDetailsModal({
                                         </div>
                                     </div>
 
-                                    {/* Row 4: Date & Delivery Order ID */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Row 4: Date, Delivery ID, Source */}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         {/* Order Date */}
                                         <div>
                                             <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1">
@@ -1253,6 +1261,75 @@ export function OrderDetailsModal({
                                                     <span className="font-mono text-sm text-foreground">
                                                         {order.delivery_order_id || <span className="text-muted">لم يتم التحديد</span>}
                                                     </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        {/* Source */}
+                                        <div>
+                                            <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1">
+                                                <Globe className="w-3 h-3" />
+                                                المصدر
+                                            </span>
+                                            {isEditing ? (
+                                                <div className="relative">
+                                                    <select
+                                                        value={(displayValue("source") || "other") as string}
+                                                        onChange={(e) => updateFormData("source", e.target.value)}
+                                                        className="w-full h-[38px] px-3 pr-8 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
+                                                    >
+                                                        <option value="whatsapp">WhatsApp</option>
+                                                        <option value="lightfunnels">LightFunnels</option>
+                                                        <option value="meta">Instagram (Meta)</option>
+                                                        <option value="tiktok">TikTok</option>
+                                                        <option value="delivery_import">Delivery Import</option>
+                                                        <option value="other">Other</option>
+                                                    </select>
+                                                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-down"><path d="m6 9 6 6 6-6" /></svg>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg">
+                                                    {(() => {
+                                                        const src = order.source || 'other';
+                                                        switch (src) {
+                                                            case 'whatsapp':
+                                                                return (
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="w-2 h-2 rounded-full bg-green-500" />
+                                                                        <span className="text-sm font-medium">WhatsApp</span>
+                                                                    </div>
+                                                                );
+                                                            case 'lightfunnels':
+                                                                return (
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="w-2 h-2 rounded-full bg-purple-500" />
+                                                                        <span className="text-sm font-medium">LightFunnels</span>
+                                                                    </div>
+                                                                );
+                                                            case 'meta':
+                                                                return (
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="w-2 h-2 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600" />
+                                                                        <span className="text-sm font-medium">Instagram</span>
+                                                                    </div>
+                                                                );
+                                                            case 'tiktok':
+                                                                return (
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="w-2 h-2 rounded-full bg-black" />
+                                                                        <span className="text-sm font-medium">TikTok</span>
+                                                                    </div>
+                                                                );
+                                                            default:
+                                                                return (
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="w-2 h-2 rounded-full bg-gray-400" />
+                                                                        <span className="text-sm font-medium">Other</span>
+                                                                    </div>
+                                                                );
+                                                        }
+                                                    })()}
                                                 </div>
                                             )}
                                         </div>
