@@ -1405,6 +1405,43 @@ export function useOrders() {
     }
 
     // =============================================
+    // BATCH MANAGEMENT
+    // =============================================
+
+    async function createBatch(
+        name: string,
+        orderIds: string[],
+        invoiceTemplate: string = "prime",
+        printType: string = "invoice"
+    ) {
+        try {
+            const selectedOrders = orders.filter((o) => orderIds.includes(o.id));
+            const totalValue = selectedOrders.reduce((sum, o) => sum + Number(o.price || 0), 0);
+            const cities = [...new Set(selectedOrders.map((o) => o.city).filter(Boolean))] as string[];
+
+            const { data, error } = await supabase
+                .from("print_batches")
+                .insert({
+                    name,
+                    order_count: orderIds.length,
+                    total_value: totalValue,
+                    cities,
+                    order_ids: orderIds,
+                    invoice_template: invoiceTemplate,
+                    print_type: printType,
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+            return { success: true, batch: data };
+        } catch (err) {
+            console.error("Error creating batch:", err);
+            return { success: false, error: err instanceof Error ? err.message : "Failed to create batch" };
+        }
+    }
+
+    // =============================================
     // FOLLOW-UP REMINDERS
     // =============================================
 
@@ -1716,6 +1753,7 @@ export function useOrders() {
         bulkArchive,
         bulkDelete,
         exportOrders,
+        createBatch,
 
         // Return orders
         createReturnOrder,

@@ -428,17 +428,24 @@ export function DateRangePicker({
                 </div>
                 <span className="font-medium text-foreground">{getDisplayValue()}</span>
                 {dateFrom && (
-                    <motion.button
-                        type="button"
+                    <motion.span
+                        role="button"
+                        tabIndex={0}
                         onClick={(e) => {
                             e.stopPropagation();
                             handleClear();
                         }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.stopPropagation();
+                                handleClear();
+                            }
+                        }}
                         whileHover={{ scale: 1.1, rotate: 90 }}
-                        className="p-1 rounded-full hover:bg-amber-100 text-muted"
+                        className="p-1 rounded-full hover:bg-amber-100 text-muted cursor-pointer"
                     >
                         <X className="w-4 h-4" />
-                    </motion.button>
+                    </motion.span>
                 )}
             </motion.button>
 

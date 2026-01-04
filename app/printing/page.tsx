@@ -2,7 +2,8 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useOrders } from "@/hooks/use-orders";
-import { usePrinting, LabelSettings, PrintBatch } from "@/hooks/use-printing";
+import { usePrinting, LabelSettings } from "@/hooks/use-printing";
+import { PrintBatch } from "@/lib/supabase";
 import { Order } from "@/lib/supabase";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layout/page-transition";
 import { LabelSettingsPanel } from "@/components/printing/label-settings-panel";

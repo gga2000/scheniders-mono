@@ -245,3 +245,16 @@ export interface FollowUpReminder {
     created_at: string;
 }
 
+export interface PrintBatch {
+    id: string;
+    name: string;
+    created_at: string;
+    order_count: number;
+    total_value: number;
+    cities: string[];
+    order_ids: string[];
+    invoice_template?: string;
+    print_type?: string;
+    pdf_url?: string;
+}
+

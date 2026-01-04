@@ -71,6 +71,7 @@ import {
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
 import { notificationService } from "@/lib/notification-service";
+import { exportOrdersToPrimeCSV } from "@/lib/export-utils";
 
 export default function OrdersPage() {
     const {
@@ -93,6 +94,7 @@ export default function OrdersPage() {
         bulkArchive,
         bulkDelete,
         exportOrders,
+        createBatch,
         filterPresets,
         saveFilterPreset,
         loadFilterPreset,
@@ -403,6 +405,65 @@ export default function OrdersPage() {
             ? Array.from(selectedOrders)
             : filteredOrders.map(o => o.id);
         exportOrders(ids, "xlsx");
+    };
+
+    const handlePrimeExport = async () => {
+        const ids = selectedOrders.size > 0
+            ? Array.from(selectedOrders)
+            : filteredOrders.map(o => o.id);
+
+        if (ids.length === 0) {
+            notificationService.showNotification({
+                title: "Error",
+                body: "No orders selected for export",
+            });
+            return;
+        }
+
+        // We need the full order objects for the export
+        let ordersToExport: Order[] = [];
+        if (selectedOrders.size > 0) {
+            // Find selected orders in the full list
+            ordersToExport = orders.filter(o => selectedOrders.has(o.id));
+        } else {
+            // Use current filtered view
+            ordersToExport = filteredOrders;
+        }
+
+        try {
+            // 1. Create a batch for history
+            const batchName = `Prime Export ${new Date().toLocaleDateString('en-GB')}`;
+            const { success: batchSuccess } = await createBatch(
+                batchName,
+                ids,
+                "prime",
+                "invoice" // Prime is essentially an invoice export
+            );
+
+            if (batchSuccess) {
+                // 2. Download the file
+                await exportOrdersToPrimeCSV(ids, ordersToExport);
+
+                // 3. Update status to In Transit
+                await bulkUpdateStatus(ids, "in_transit");
+
+                // Clear selection
+                setSelectedOrders(new Set());
+
+                notificationService.showNotification({
+                    title: "Export Successful",
+                    body: `${ids.length} orders exported and moved to In Transit`,
+                });
+            } else {
+                throw new Error("Failed to create export batch");
+            }
+        } catch (err) {
+            console.error("Prime export error:", err);
+            notificationService.showNotification({
+                title: "Export Failed",
+                body: "Could not complete the export process",
+            });
+        }
     };
 
     // Calculate duplicate phone map for ghost detection
@@ -821,6 +882,13 @@ export default function OrdersPage() {
                                 >
                                     <Download className="w-4 h-4" />
                                     <span className="hidden lg:inline">Export</span>
+                                </button>
+                                <button
+                                    onClick={handlePrimeExport}
+                                    className="px-4 py-3 rounded-2xl bg-[#1e293b] text-white hover:bg-[#334155] border border-transparent transition-all shadow-sm flex items-center gap-2"
+                                >
+                                    <span className="hidden lg:inline">تصدير للشحن</span>
+                                    <span className="lg:hidden">Prime</span>
                                 </button>
                             </div>
                         </div>
