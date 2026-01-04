@@ -14,11 +14,17 @@ import {
     PieChart,
     BarChart3,
     X,
+    Target,
+    Users,
+    Wallet,
 } from "lucide-react";
 
 // Hooks
 import { useFinances, DateRange } from "@/hooks/use-finances";
 import { useExpenses } from "@/hooks/use-expenses";
+import { useOrders } from "@/hooks/use-orders";
+import { useProductsCrud } from "@/hooks/use-products-crud";
+import { useOrderProfits } from "@/hooks/use-order-profits";
 
 // Components
 import { DateRangePicker } from "@/components/ui/date-range-picker";
@@ -31,26 +37,32 @@ import { ExpenseFormModal, ExpenseFormData } from "@/components/finances/expense
 import { RejectionReasonsChart } from "@/components/analytics/rejection-reasons-chart";
 import { PeriodComparisonCard } from "@/components/finances/period-comparison";
 
+// New Profit Analysis Components
+import { ProfitBreakdownTable } from "@/components/analytics/profit-breakdown-table";
+import { CostCompositionChart } from "@/components/analytics/cost-composition-chart";
+import { CustomerAnalyticsCard } from "@/components/analytics/customer-analytics-card";
+import { ProfitSummaryCards } from "@/components/analytics/profit-summary-cards";
+import { MarketingExpenseModal } from "@/components/analytics/marketing-expense-modal";
+import { PipelineSummaryCard } from "@/components/analytics/pipeline-summary-card";
+import { OverviewCards } from "@/components/analytics/overview-cards";
+
 // Utils
 import { exportFinancesToCSV, exportFinancesToExcel, printFinancialReport } from "@/lib/finance-export";
 import { Expense } from "@/lib/expense-types";
+import { cn } from "@/lib/utils";
 
-type ActiveTab = "overview" | "expenses";
+type ActiveTab = "overview" | "profit" | "customers" | "expenses";
 
 export default function AnalyticsPage() {
-    // Date range state
-    const today = new Date().toISOString().split("T")[0];
-    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-        .toISOString()
-        .split("T")[0];
-
+    // Date range state - default to all orders (empty = no filter)
     const [dateRange, setDateRange] = useState<DateRange>({
-        startDate: today,
-        endDate: today,
+        startDate: "",
+        endDate: "",
     });
 
-    const [activeTab, setActiveTab] = useState<ActiveTab>("overview");
+    const [activeTab, setActiveTab] = useState<ActiveTab>("profit");
     const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+    const [isMarketingModalOpen, setIsMarketingModalOpen] = useState(false);
     const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
     const [expenseModalMode, setExpenseModalMode] = useState<"add" | "edit">("add");
     const [exportMenuOpen, setExportMenuOpen] = useState(false);
@@ -64,7 +76,11 @@ export default function AnalyticsPage() {
         expensesByCategory,
         comparePeriods,
         rejectionStats,
+        filteredOrders,
     } = useFinances(dateRange);
+
+    const { orders } = useOrders();
+    const { products } = useProductsCrud();
 
     const {
         expenses,
@@ -75,6 +91,34 @@ export default function AnalyticsPage() {
         startDate: dateRange.startDate,
         endDate: dateRange.endDate,
     });
+
+    // Calculate marketing cost from expenses in period
+    const marketingCost = useMemo(() => {
+        return expenses
+            .filter(e => e.category === "marketing")
+            .reduce((sum, e) => sum + e.amount, 0);
+    }, [expenses]);
+
+    // Filter orders by date range for profit calculations
+    const ordersInRange = useMemo(() => {
+        // If no date range selected, return all orders
+        if (!dateRange.startDate || !dateRange.endDate) {
+            return orders;
+        }
+        return orders.filter(order => {
+            const orderDate = new Date(order.created_at).toISOString().split("T")[0];
+            return orderDate >= dateRange.startDate && orderDate <= dateRange.endDate;
+        });
+    }, [orders, dateRange]);
+
+    // Use order profits hook
+    const {
+        orderCostBreakdowns,
+        profitSummary,
+        customerAnalytics,
+        productProfitAnalysis,
+        pipelineSummary,
+    } = useOrderProfits(ordersInRange, products, marketingCost);
 
     // Period comparison
     const periodComparison = useMemo(() => {
@@ -108,6 +152,15 @@ export default function AnalyticsPage() {
         }
     };
 
+    const handleAddMarketingExpense = async (data: { amount: number; notes?: string; date: string }) => {
+        await addExpense({
+            amount: data.amount,
+            category: "marketing",
+            expense_date: data.date,
+            notes: data.notes,
+        });
+    };
+
     const handleExport = (type: "csv" | "excel" | "print") => {
         const reportData = {
             dateRange: { start: dateRange.startDate, end: dateRange.endDate },
@@ -131,26 +184,42 @@ export default function AnalyticsPage() {
         setExportMenuOpen(false);
     };
 
+    const tabs = [
+        { id: "profit" as const, label: "Profit Analysis", icon: TrendingUp },
+        { id: "customers" as const, label: "Customers", icon: Users },
+        { id: "overview" as const, label: "Overview", icon: BarChart3 },
+        { id: "expenses" as const, label: "Expenses", icon: PieChart },
+    ];
+
     return (
         <div className="min-h-screen p-4 md:p-6 lg:p-8">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                 <div>
                     <h1 className="text-2xl md:text-3xl font-bold text-foreground flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-[var(--pastel-blue)] flex items-center justify-center">
-                            <BarChart3 className="w-5 h-5 text-blue-700" />
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                            <Wallet className="w-5 h-5 text-white" />
                         </div>
-                        Analytics
+                        Analytics & Finances
                     </h1>
-                    <p className="text-muted mt-1">Track revenue, expenses, and order performance</p>
+                    <p className="text-muted mt-1">Detailed profit analysis with all costs breakdown</p>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                     <DateRangePicker
                         dateFrom={dateRange.startDate}
                         dateTo={dateRange.endDate}
                         onDateChange={(start, end) => setDateRange({ startDate: start || "", endDate: end || "" })}
                     />
+
+                    {/* Marketing Expense Button */}
+                    <button
+                        onClick={() => setIsMarketingModalOpen(true)}
+                        className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl font-medium hover:opacity-90 transition-all shadow-lg shadow-violet-500/20"
+                    >
+                        <Target className="w-4 h-4" />
+                        <span className="hidden md:inline">Marketing</span>
+                    </button>
 
                     {/* Export Menu */}
                     <div className="relative">
@@ -204,31 +273,134 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex bg-[var(--card-bg)] rounded-xl p-1 mb-6 w-fit border border-[var(--card-border)]">
-                <button
-                    onClick={() => setActiveTab("overview")}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "overview"
-                        ? "bg-[var(--foreground)] text-white"
-                        : "text-muted hover:text-foreground"
-                        }`}
-                >
-                    <BarChart3 className="w-4 h-4" />
-                    Overview
-                </button>
-                <button
-                    onClick={() => setActiveTab("expenses")}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "expenses"
-                        ? "bg-[var(--foreground)] text-white"
-                        : "text-muted hover:text-foreground"
-                        }`}
-                >
-                    <PieChart className="w-4 h-4" />
-                    Expenses
-                </button>
+            <div className="flex bg-[var(--card-bg)] rounded-xl p-1 mb-6 w-fit border border-[var(--card-border)] overflow-x-auto">
+                {tabs.map(tab => {
+                    const Icon = tab.icon;
+                    return (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={cn(
+                                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                                activeTab === tab.id
+                                    ? "bg-[var(--foreground)] text-white"
+                                    : "text-muted hover:text-foreground"
+                            )}
+                        >
+                            <Icon className="w-4 h-4" />
+                            {tab.label}
+                        </button>
+                    );
+                })}
             </div>
 
             {/* Content */}
-            {activeTab === "overview" ? (
+            {activeTab === "profit" ? (
+                <div className="space-y-6">
+                    {/* Overview Cards - Full Width at Top */}
+                    <OverviewCards profitSummary={profitSummary} pipelineSummary={pipelineSummary} />
+
+                    {/* Two Column Grid: Cost Breakdown + Pipeline */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Realized Profit Breakdown */}
+                        <div className="flex flex-col">
+                            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                                <TrendingUp className="w-5 h-5 text-green-600" />
+                                Realized Profit
+                                <span className="text-xs font-normal text-muted">(Delivered + Completed)</span>
+                            </h2>
+                            <ProfitSummaryCards summary={profitSummary} />
+                        </div>
+
+                        {/* Pipeline Summary */}
+                        <div className="flex flex-col">
+                            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                                <Target className="w-5 h-5 text-indigo-600" />
+                                Pipeline
+                                <span className="text-xs font-normal text-muted">(Confirmed + In Transit)</span>
+                            </h2>
+                            <PipelineSummaryCard pipeline={pipelineSummary} />
+                        </div>
+                    </div>
+
+                    {/* Cost Composition */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
+                            <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
+                                Cost Composition
+                            </h3>
+                            <CostCompositionChart summary={profitSummary} />
+                        </div>
+
+                        {/* Product Profit Analysis */}
+                        <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
+                            <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
+                                Product Profitability
+                            </h3>
+                            <div className="space-y-2 max-h-80 overflow-y-auto">
+                                {productProfitAnalysis.slice(0, 10).map((product, index) => (
+                                    <div
+                                        key={product.name}
+                                        className="flex items-center justify-between p-3 rounded-xl bg-[var(--background)] hover:bg-[var(--card-border)] transition-colors"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <span className={cn(
+                                                "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold",
+                                                index === 0 ? "bg-amber-100 text-amber-700" :
+                                                    index === 1 ? "bg-gray-200 text-gray-700" :
+                                                        index === 2 ? "bg-orange-100 text-orange-700" :
+                                                            "bg-[var(--card-bg)] text-muted"
+                                            )}>
+                                                {index + 1}
+                                            </span>
+                                            <div>
+                                                <p className="text-sm font-medium text-foreground truncate max-w-[200px]">
+                                                    {product.name}
+                                                </p>
+                                                <p className="text-xs text-muted">{product.sold} sold</p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className={cn(
+                                                "font-semibold",
+                                                product.profit >= 0 ? "text-green-600" : "text-rose-600"
+                                            )}>
+                                                {new Intl.NumberFormat("en-IQ").format(product.profit)} IQD
+                                            </p>
+                                            <p className="text-xs text-muted">
+                                                {product.revenue > 0
+                                                    ? ((product.profit / product.revenue) * 100).toFixed(1)
+                                                    : 0}% margin
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
+                                {productProfitAnalysis.length === 0 && (
+                                    <p className="text-center text-muted py-8">No product data available</p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Order Breakdown Table */}
+                    <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
+                        <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
+                            Per-Order Profit Breakdown
+                        </h3>
+                        <ProfitBreakdownTable breakdowns={orderCostBreakdowns} />
+                    </div>
+                </div>
+            ) : activeTab === "customers" ? (
+                <div className="space-y-6">
+                    <div>
+                        <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                            <Users className="w-5 h-5 text-blue-600" />
+                            Customer Analytics
+                        </h2>
+                        <CustomerAnalyticsCard analytics={customerAnalytics} />
+                    </div>
+                </div>
+            ) : activeTab === "overview" ? (
                 <div className="space-y-6">
                     {/* Revenue Cards */}
                     <div>
@@ -330,6 +502,14 @@ export default function AnalyticsPage() {
                 onSubmit={handleExpenseSubmit}
                 expense={selectedExpense}
                 mode={expenseModalMode}
+            />
+
+            {/* Marketing Expense Modal */}
+            <MarketingExpenseModal
+                isOpen={isMarketingModalOpen}
+                onClose={() => setIsMarketingModalOpen(false)}
+                onSubmit={handleAddMarketingExpense}
+                dateRange={dateRange}
             />
         </div>
     );

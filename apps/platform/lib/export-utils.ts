@@ -1,5 +1,124 @@
-import { Product } from "@/lib/supabase";
+import { Product, Order } from "@/lib/supabase";
 import { formatIQD } from "@/lib/utils";
+import { extractGovernorate } from "@/lib/address-validator";
+
+/**
+ * Helper to clean phone numbers for export
+ * - Removes 964 prefix
+ * - Removes leading zeros
+ * - Removes non-digit characters
+ */
+export function cleanPhoneForExport(phone: string): string {
+    if (!phone) return '';
+    // Remove all non-digit characters
+    let cleaned = phone.replace(/\D/g, '');
+    // Remove 964 country code prefix
+    if (cleaned.startsWith('964')) {
+        cleaned = cleaned.substring(3);
+    }
+    // Remove leading zeros
+    cleaned = cleaned.replace(/^0+/, '');
+    return cleaned;
+}
+
+/**
+ * Export orders to Prime delivery company XLSX format
+ * Matches the exact column structure of PrimeUploadSample.xlsx
+ */
+export async function exportOrdersToPrimeCSV(orderIds: string[], ordersData: Order[]) {
+    const selectedOrders = ordersData.filter((o) => orderIds.includes(o.id));
+
+    // Dynamically import xlsx library
+    // @ts-ignore
+    const XLSX = await import('xlsx');
+
+    // Prime headers (Arabic, exact match to their sample)
+    const headers = [
+        'ملاحظات',
+        'عدد القطع',
+        'يحتوي على ارجاع بضاعة؟',
+        'هاتف المستلم',
+        'تفاصيل العنوان',
+        'شفرة المحافظة',
+        'أسم المستلم',
+        'المبلغ عراقي',
+        'رقم الوصل',
+        'كود الشحنة',
+        'هاتف المستلم 2',
+        'نوع البضاعة',
+    ];
+
+    const rows = selectedOrders.map((order) => {
+        // Get total item quantity
+        const totalQuantity = order.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 1;
+
+        // Clean phone numbers (remove 964 prefix and leading zeros, start with 7)
+        const phone = cleanPhoneForExport(order.phone);
+        const secondaryPhone = cleanPhoneForExport(order.secondary_phone || '');
+
+        // Get governorate code
+        let govCode = order.validated_governorate_code || order.governorate_code || '';
+        if (!govCode && order.city) {
+            const { governorate } = extractGovernorate(order.city, undefined, order.address_details);
+            govCode = governorate?.code || '';
+        }
+
+        // Get product type from first item
+        const productType = order.items?.[0]?.name || 'ملابس';
+
+        return {
+            'ملاحظات': order.notes || '',
+            'عدد القطع': totalQuantity,
+            'يحتوي على ارجاع بضاعة؟': 'N',
+            'هاتف المستلم': phone,
+            'تفاصيل العنوان': order.address_details || order.city || '',
+            'شفرة المحافظة': govCode,
+            'أسم المستلم': order.customer_name || '',
+            'المبلغ عراقي': order.price || 0,
+            'رقم الوصل': order.order_id || '',
+            'كود الشحنة': '',
+            'هاتف المستلم 2': secondaryPhone,
+            'نوع البضاعة': productType,
+        };
+    });
+
+    // Create workbook and worksheet
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(rows, { header: headers });
+
+    // Set column widths for better readability
+    worksheet['!cols'] = [
+        { wch: 15 }, // ملاحظات
+        { wch: 10 }, // عدد القطع
+        { wch: 20 }, // يحتوي على ارجاع بضاعة؟
+        { wch: 15 }, // هاتف المستلم
+        { wch: 30 }, // تفاصيل العنوان
+        { wch: 15 }, // شفرة المحافظة
+        { wch: 20 }, // أسم المستلم
+        { wch: 15 }, // المبلغ عراقي
+        { wch: 15 }, // رقم الوصل
+        { wch: 15 }, // كود الشحنة
+        { wch: 15 }, // هاتف المستلم 2
+        { wch: 15 }, // نوع البضاعة
+    ];
+
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Orders');
+
+    // Generate buffer and download
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `prime_shipment_${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    return { success: true, count: selectedOrders.length };
+}
 
 /**
  * Export products to CSV format

@@ -271,9 +271,25 @@ export function useFinances(dateRange?: DateRange) {
 
     // Compare with previous period
     const comparePeriods = useCallback((currentRange: DateRange): PeriodComparison | null => {
+        // Validate date range
+        if (!currentRange.startDate || !currentRange.endDate) {
+            return null;
+        }
+
         const currentStart = new Date(currentRange.startDate);
         const currentEnd = new Date(currentRange.endDate);
+
+        // Check for invalid dates
+        if (isNaN(currentStart.getTime()) || isNaN(currentEnd.getTime())) {
+            return null;
+        }
+
         const periodLength = currentEnd.getTime() - currentStart.getTime();
+
+        // Prevent issues with negative or zero period length
+        if (periodLength < 0) {
+            return null;
+        }
 
         const previousEnd = new Date(currentStart.getTime() - 1);
         const previousStart = new Date(previousEnd.getTime() - periodLength);

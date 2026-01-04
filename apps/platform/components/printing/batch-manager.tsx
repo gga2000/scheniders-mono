@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { PrintBatch } from "@/hooks/use-printing";
+import { PrintBatch } from "@/lib/supabase";
 import { Order } from "@/lib/supabase";
 import {
     Package,

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { PrintBatch } from "@/hooks/use-printing";
+import { PrintBatch } from "@/lib/supabase";
 import { Order } from "@/lib/supabase";
 import {
     X,
