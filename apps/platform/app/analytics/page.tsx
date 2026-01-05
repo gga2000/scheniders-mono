@@ -46,6 +46,8 @@ import { MarketingExpenseModal } from "@/components/analytics/marketing-expense-
 import { PipelineSummaryCard } from "@/components/analytics/pipeline-summary-card";
 import { OverviewCards } from "@/components/analytics/overview-cards";
 
+import { PageGuard } from "@/components/auth/role-guard";
+
 // Utils
 import { exportFinancesToCSV, exportFinancesToExcel, printFinancialReport } from "@/lib/finance-export";
 import { Expense } from "@/lib/expense-types";
@@ -192,325 +194,327 @@ export default function AnalyticsPage() {
     ];
 
     return (
-        <div className="min-h-screen p-4 md:p-6 lg:p-8">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                <div>
-                    <h1 className="text-2xl md:text-3xl font-bold text-foreground flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                            <Wallet className="w-5 h-5 text-white" />
-                        </div>
-                        Analytics & Finances
-                    </h1>
-                    <p className="text-muted mt-1">Detailed profit analysis with all costs breakdown</p>
-                </div>
+        <PageGuard requiredPermission="system.analytics.view">
+            <div className="min-h-screen p-4 md:p-6 lg:p-8">
+                {/* Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                    <div>
+                        <h1 className="text-2xl md:text-3xl font-bold text-foreground flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                                <Wallet className="w-5 h-5 text-white" />
+                            </div>
+                            Analytics & Finances
+                        </h1>
+                        <p className="text-muted mt-1">Detailed profit analysis with all costs breakdown</p>
+                    </div>
 
-                <div className="flex flex-wrap items-center gap-3">
-                    <DateRangePicker
-                        dateFrom={dateRange.startDate}
-                        dateTo={dateRange.endDate}
-                        onDateChange={(start, end) => setDateRange({ startDate: start || "", endDate: end || "" })}
-                    />
+                    <div className="flex flex-wrap items-center gap-3">
+                        <DateRangePicker
+                            dateFrom={dateRange.startDate}
+                            dateTo={dateRange.endDate}
+                            onDateChange={(start, end) => setDateRange({ startDate: start || "", endDate: end || "" })}
+                        />
 
-                    {/* Marketing Expense Button */}
-                    <button
-                        onClick={() => setIsMarketingModalOpen(true)}
-                        className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl font-medium hover:opacity-90 transition-all shadow-lg shadow-violet-500/20"
-                    >
-                        <Target className="w-4 h-4" />
-                        <span className="hidden md:inline">Marketing</span>
-                    </button>
-
-                    {/* Export Menu */}
-                    <div className="relative">
+                        {/* Marketing Expense Button */}
                         <button
-                            onClick={() => setExportMenuOpen(!exportMenuOpen)}
-                            className="flex items-center gap-2 px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground hover:border-[var(--foreground)] transition-all"
+                            onClick={() => setIsMarketingModalOpen(true)}
+                            className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl font-medium hover:opacity-90 transition-all shadow-lg shadow-violet-500/20"
                         >
-                            <Download className="w-4 h-4" />
-                            <span className="hidden md:inline">Export</span>
+                            <Target className="w-4 h-4" />
+                            <span className="hidden md:inline">Marketing</span>
                         </button>
 
-                        {exportMenuOpen && (
-                            <motion.div
-                                initial={{ opacity: 0, y: -10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="absolute right-0 top-full mt-2 z-50 bg-[var(--card-bg)] rounded-xl shadow-lg border border-[var(--card-border)] overflow-hidden min-w-[160px]"
+                        {/* Export Menu */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setExportMenuOpen(!exportMenuOpen)}
+                                className="flex items-center gap-2 px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground hover:border-[var(--foreground)] transition-all"
                             >
-                                <button
-                                    onClick={() => handleExport("csv")}
-                                    className="w-full flex items-center gap-2 px-4 py-3 text-sm text-foreground hover:bg-[var(--background)] transition-colors"
+                                <Download className="w-4 h-4" />
+                                <span className="hidden md:inline">Export</span>
+                            </button>
+
+                            {exportMenuOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="absolute right-0 top-full mt-2 z-50 bg-[var(--card-bg)] rounded-xl shadow-lg border border-[var(--card-border)] overflow-hidden min-w-[160px]"
                                 >
-                                    <FileText className="w-4 h-4" />
-                                    Export CSV
-                                </button>
-                                <button
-                                    onClick={() => handleExport("excel")}
-                                    className="w-full flex items-center gap-2 px-4 py-3 text-sm text-foreground hover:bg-[var(--background)] transition-colors"
-                                >
-                                    <FileSpreadsheet className="w-4 h-4" />
-                                    Export Excel
-                                </button>
-                                <button
-                                    onClick={() => handleExport("print")}
-                                    className="w-full flex items-center gap-2 px-4 py-3 text-sm text-foreground hover:bg-[var(--background)] transition-colors"
-                                >
-                                    <Printer className="w-4 h-4" />
-                                    Print Report
-                                </button>
-                            </motion.div>
-                        )}
-                    </div>
-
-                    <button
-                        onClick={handleAddExpense}
-                        className="flex items-center gap-2 px-4 py-3 bg-[var(--foreground)] text-white rounded-xl font-medium hover:opacity-90 transition-all"
-                    >
-                        <Plus className="w-4 h-4" />
-                        <span className="hidden md:inline">Add Expense</span>
-                    </button>
-                </div>
-            </div>
-
-            {/* Tabs */}
-            <div className="flex bg-[var(--card-bg)] rounded-xl p-1 mb-6 w-fit border border-[var(--card-border)] overflow-x-auto">
-                {tabs.map(tab => {
-                    const Icon = tab.icon;
-                    return (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
-                                activeTab === tab.id
-                                    ? "bg-[var(--foreground)] text-white"
-                                    : "text-muted hover:text-foreground"
-                            )}
-                        >
-                            <Icon className="w-4 h-4" />
-                            {tab.label}
-                        </button>
-                    );
-                })}
-            </div>
-
-            {/* Content */}
-            {activeTab === "profit" ? (
-                <div className="space-y-6">
-                    {/* Overview Cards - Full Width at Top */}
-                    <OverviewCards profitSummary={profitSummary} pipelineSummary={pipelineSummary} />
-
-                    {/* Two Column Grid: Cost Breakdown + Pipeline */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Realized Profit Breakdown */}
-                        <div className="flex flex-col">
-                            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                                <TrendingUp className="w-5 h-5 text-green-600" />
-                                Realized Profit
-                                <span className="text-xs font-normal text-muted">(Delivered + Completed)</span>
-                            </h2>
-                            <ProfitSummaryCards summary={profitSummary} />
-                        </div>
-
-                        {/* Pipeline Summary */}
-                        <div className="flex flex-col">
-                            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                                <Target className="w-5 h-5 text-indigo-600" />
-                                Pipeline
-                                <span className="text-xs font-normal text-muted">(Confirmed + In Transit)</span>
-                            </h2>
-                            <PipelineSummaryCard pipeline={pipelineSummary} />
-                        </div>
-                    </div>
-
-                    {/* Cost Composition */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
-                            <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
-                                Cost Composition
-                            </h3>
-                            <CostCompositionChart summary={profitSummary} />
-                        </div>
-
-                        {/* Product Profit Analysis */}
-                        <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
-                            <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
-                                Product Profitability
-                            </h3>
-                            <div className="space-y-2 max-h-80 overflow-y-auto">
-                                {productProfitAnalysis.slice(0, 10).map((product, index) => (
-                                    <div
-                                        key={product.name}
-                                        className="flex items-center justify-between p-3 rounded-xl bg-[var(--background)] hover:bg-[var(--card-border)] transition-colors"
+                                    <button
+                                        onClick={() => handleExport("csv")}
+                                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-foreground hover:bg-[var(--background)] transition-colors"
                                     >
-                                        <div className="flex items-center gap-3">
-                                            <span className={cn(
-                                                "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold",
-                                                index === 0 ? "bg-amber-100 text-amber-700" :
-                                                    index === 1 ? "bg-gray-200 text-gray-700" :
-                                                        index === 2 ? "bg-orange-100 text-orange-700" :
-                                                            "bg-[var(--card-bg)] text-muted"
-                                            )}>
-                                                {index + 1}
-                                            </span>
-                                            <div>
-                                                <p className="text-sm font-medium text-foreground truncate max-w-[200px]">
-                                                    {product.name}
+                                        <FileText className="w-4 h-4" />
+                                        Export CSV
+                                    </button>
+                                    <button
+                                        onClick={() => handleExport("excel")}
+                                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-foreground hover:bg-[var(--background)] transition-colors"
+                                    >
+                                        <FileSpreadsheet className="w-4 h-4" />
+                                        Export Excel
+                                    </button>
+                                    <button
+                                        onClick={() => handleExport("print")}
+                                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-foreground hover:bg-[var(--background)] transition-colors"
+                                    >
+                                        <Printer className="w-4 h-4" />
+                                        Print Report
+                                    </button>
+                                </motion.div>
+                            )}
+                        </div>
+
+                        <button
+                            onClick={handleAddExpense}
+                            className="flex items-center gap-2 px-4 py-3 bg-[var(--foreground)] text-white rounded-xl font-medium hover:opacity-90 transition-all"
+                        >
+                            <Plus className="w-4 h-4" />
+                            <span className="hidden md:inline">Add Expense</span>
+                        </button>
+                    </div>
+                </div>
+
+                {/* Tabs */}
+                <div className="flex bg-[var(--card-bg)] rounded-xl p-1 mb-6 w-fit border border-[var(--card-border)] overflow-x-auto">
+                    {tabs.map(tab => {
+                        const Icon = tab.icon;
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={cn(
+                                    "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                                    activeTab === tab.id
+                                        ? "bg-[var(--foreground)] text-white"
+                                        : "text-muted hover:text-foreground"
+                                )}
+                            >
+                                <Icon className="w-4 h-4" />
+                                {tab.label}
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {/* Content */}
+                {activeTab === "profit" ? (
+                    <div className="space-y-6">
+                        {/* Overview Cards - Full Width at Top */}
+                        <OverviewCards profitSummary={profitSummary} pipelineSummary={pipelineSummary} />
+
+                        {/* Two Column Grid: Cost Breakdown + Pipeline */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {/* Realized Profit Breakdown */}
+                            <div className="flex flex-col">
+                                <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                                    <TrendingUp className="w-5 h-5 text-green-600" />
+                                    Realized Profit
+                                    <span className="text-xs font-normal text-muted">(Delivered + Completed)</span>
+                                </h2>
+                                <ProfitSummaryCards summary={profitSummary} />
+                            </div>
+
+                            {/* Pipeline Summary */}
+                            <div className="flex flex-col">
+                                <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                                    <Target className="w-5 h-5 text-indigo-600" />
+                                    Pipeline
+                                    <span className="text-xs font-normal text-muted">(Confirmed + In Transit)</span>
+                                </h2>
+                                <PipelineSummaryCard pipeline={pipelineSummary} />
+                            </div>
+                        </div>
+
+                        {/* Cost Composition */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
+                                <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
+                                    Cost Composition
+                                </h3>
+                                <CostCompositionChart summary={profitSummary} />
+                            </div>
+
+                            {/* Product Profit Analysis */}
+                            <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
+                                <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
+                                    Product Profitability
+                                </h3>
+                                <div className="space-y-2 max-h-80 overflow-y-auto">
+                                    {productProfitAnalysis.slice(0, 10).map((product, index) => (
+                                        <div
+                                            key={product.name}
+                                            className="flex items-center justify-between p-3 rounded-xl bg-[var(--background)] hover:bg-[var(--card-border)] transition-colors"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <span className={cn(
+                                                    "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold",
+                                                    index === 0 ? "bg-amber-100 text-amber-700" :
+                                                        index === 1 ? "bg-gray-200 text-gray-700" :
+                                                            index === 2 ? "bg-orange-100 text-orange-700" :
+                                                                "bg-[var(--card-bg)] text-muted"
+                                                )}>
+                                                    {index + 1}
+                                                </span>
+                                                <div>
+                                                    <p className="text-sm font-medium text-foreground truncate max-w-[200px]">
+                                                        {product.name}
+                                                    </p>
+                                                    <p className="text-xs text-muted">{product.sold} sold</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className={cn(
+                                                    "font-semibold",
+                                                    product.profit >= 0 ? "text-green-600" : "text-rose-600"
+                                                )}>
+                                                    {new Intl.NumberFormat("en-IQ").format(product.profit)} IQD
                                                 </p>
-                                                <p className="text-xs text-muted">{product.sold} sold</p>
+                                                <p className="text-xs text-muted">
+                                                    {product.revenue > 0
+                                                        ? ((product.profit / product.revenue) * 100).toFixed(1)
+                                                        : 0}% margin
+                                                </p>
                                             </div>
                                         </div>
-                                        <div className="text-right">
-                                            <p className={cn(
-                                                "font-semibold",
-                                                product.profit >= 0 ? "text-green-600" : "text-rose-600"
-                                            )}>
-                                                {new Intl.NumberFormat("en-IQ").format(product.profit)} IQD
-                                            </p>
-                                            <p className="text-xs text-muted">
-                                                {product.revenue > 0
-                                                    ? ((product.profit / product.revenue) * 100).toFixed(1)
-                                                    : 0}% margin
-                                            </p>
+                                    ))}
+                                    {productProfitAnalysis.length === 0 && (
+                                        <p className="text-center text-muted py-8">No product data available</p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Order Breakdown Table */}
+                        <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
+                            <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
+                                Per-Order Profit Breakdown
+                            </h3>
+                            <ProfitBreakdownTable breakdowns={orderCostBreakdowns} />
+                        </div>
+                    </div>
+                ) : activeTab === "customers" ? (
+                    <div className="space-y-6">
+                        <div>
+                            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                                <Users className="w-5 h-5 text-blue-600" />
+                                Customer Analytics
+                            </h2>
+                            <CustomerAnalyticsCard analytics={customerAnalytics} />
+                        </div>
+                    </div>
+                ) : activeTab === "overview" ? (
+                    <div className="space-y-6">
+                        {/* Revenue Cards */}
+                        <div>
+                            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                                <TrendingUp className="w-5 h-5 text-green-600" />
+                                Revenue
+                            </h2>
+                            <RevenueCards stats={revenueStats} comparison={periodComparison} />
+                        </div>
+
+                        {/* Profit Cards */}
+                        <div>
+                            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                                <DollarSign className="w-5 h-5 text-blue-600" />
+                                Profit
+                            </h2>
+                            <ProfitCards stats={profitStats} revenue={revenueStats.deliveredRevenue} />
+                        </div>
+
+                        {/* Charts Row */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            {/* Revenue Trend */}
+                            <div className="lg:col-span-2 p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
+                                <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
+                                    Revenue & Profit Trend
+                                </h3>
+                                <RevenueChart data={dailyData} showProfit />
+                            </div>
+
+                            {/* Period Comparison */}
+                            {periodComparison && (
+                                <div>
+                                    <PeriodComparisonCard comparison={periodComparison} />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Bottom Row */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {/* Expense Breakdown */}
+                            <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
+                                <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
+                                    Expense Breakdown
+                                </h3>
+                                <ExpenseBreakdown data={expensesByCategory} />
+                            </div>
+
+                            {/* Peak Hours */}
+                            <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
+                                <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4 flex items-center gap-2">
+                                    <Clock className="w-4 h-4" />
+                                    Peak Sales Hours
+                                </h3>
+                                <PeakHoursChart data={hourlyData} />
+                            </div>
+                        </div>
+
+                        {/* Rejection Analytics */}
+                        <div className="grid grid-cols-1 gap-6">
+                            <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
+                                <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4 flex items-center gap-2">
+                                    <X className="w-4 h-4" />
+                                    Rejection Analysis
+                                </h3>
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    <div className="lg:col-span-1 space-y-4">
+                                        <div className="p-4 rounded-xl bg-rose-50 border border-rose-100 dark:bg-rose-900/10 dark:border-rose-900/20">
+                                            <p className="text-sm text-rose-600 font-medium">Total Rejected</p>
+                                            <p className="text-2xl font-bold text-rose-700">{rejectionStats.totalRejected}</p>
+                                        </div>
+                                        <div className="p-4 rounded-xl bg-orange-50 border border-orange-100 dark:bg-orange-900/10 dark:border-orange-900/20">
+                                            <p className="text-sm text-orange-600 font-medium">Rejection Rate</p>
+                                            <p className="text-2xl font-bold text-orange-700">{rejectionStats.rejectionRate.toFixed(1)}%</p>
+                                            <p className="text-xs text-orange-600 mt-1">of attempted deliveries</p>
                                         </div>
                                     </div>
-                                ))}
-                                {productProfitAnalysis.length === 0 && (
-                                    <p className="text-center text-muted py-8">No product data available</p>
-                                )}
+                                    <div className="lg:col-span-2">
+                                        <h4 className="text-xs font-semibold text-muted mb-2">Top Reasons</h4>
+                                        <RejectionReasonsChart data={rejectionStats.byReason} />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-
-                    {/* Order Breakdown Table */}
+                ) : (
                     <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
-                        <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
-                            Per-Order Profit Breakdown
-                        </h3>
-                        <ProfitBreakdownTable breakdowns={orderCostBreakdowns} />
+                        <ExpenseList
+                            expenses={expenses}
+                            onEdit={handleEditExpense}
+                            onDelete={handleDeleteExpense}
+                        />
                     </div>
-                </div>
-            ) : activeTab === "customers" ? (
-                <div className="space-y-6">
-                    <div>
-                        <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                            <Users className="w-5 h-5 text-blue-600" />
-                            Customer Analytics
-                        </h2>
-                        <CustomerAnalyticsCard analytics={customerAnalytics} />
-                    </div>
-                </div>
-            ) : activeTab === "overview" ? (
-                <div className="space-y-6">
-                    {/* Revenue Cards */}
-                    <div>
-                        <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                            <TrendingUp className="w-5 h-5 text-green-600" />
-                            Revenue
-                        </h2>
-                        <RevenueCards stats={revenueStats} comparison={periodComparison} />
-                    </div>
+                )}
 
-                    {/* Profit Cards */}
-                    <div>
-                        <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                            <DollarSign className="w-5 h-5 text-blue-600" />
-                            Profit
-                        </h2>
-                        <ProfitCards stats={profitStats} revenue={revenueStats.deliveredRevenue} />
-                    </div>
+                {/* Expense Form Modal */}
+                <ExpenseFormModal
+                    isOpen={isExpenseModalOpen}
+                    onClose={() => setIsExpenseModalOpen(false)}
+                    onSubmit={handleExpenseSubmit}
+                    expense={selectedExpense}
+                    mode={expenseModalMode}
+                />
 
-                    {/* Charts Row */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* Revenue Trend */}
-                        <div className="lg:col-span-2 p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
-                            <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
-                                Revenue & Profit Trend
-                            </h3>
-                            <RevenueChart data={dailyData} showProfit />
-                        </div>
-
-                        {/* Period Comparison */}
-                        {periodComparison && (
-                            <div>
-                                <PeriodComparisonCard comparison={periodComparison} />
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Bottom Row */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Expense Breakdown */}
-                        <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
-                            <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
-                                Expense Breakdown
-                            </h3>
-                            <ExpenseBreakdown data={expensesByCategory} />
-                        </div>
-
-                        {/* Peak Hours */}
-                        <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
-                            <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4 flex items-center gap-2">
-                                <Clock className="w-4 h-4" />
-                                Peak Sales Hours
-                            </h3>
-                            <PeakHoursChart data={hourlyData} />
-                        </div>
-                    </div>
-
-                    {/* Rejection Analytics */}
-                    <div className="grid grid-cols-1 gap-6">
-                        <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
-                            <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4 flex items-center gap-2">
-                                <X className="w-4 h-4" />
-                                Rejection Analysis
-                            </h3>
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                <div className="lg:col-span-1 space-y-4">
-                                    <div className="p-4 rounded-xl bg-rose-50 border border-rose-100 dark:bg-rose-900/10 dark:border-rose-900/20">
-                                        <p className="text-sm text-rose-600 font-medium">Total Rejected</p>
-                                        <p className="text-2xl font-bold text-rose-700">{rejectionStats.totalRejected}</p>
-                                    </div>
-                                    <div className="p-4 rounded-xl bg-orange-50 border border-orange-100 dark:bg-orange-900/10 dark:border-orange-900/20">
-                                        <p className="text-sm text-orange-600 font-medium">Rejection Rate</p>
-                                        <p className="text-2xl font-bold text-orange-700">{rejectionStats.rejectionRate.toFixed(1)}%</p>
-                                        <p className="text-xs text-orange-600 mt-1">of attempted deliveries</p>
-                                    </div>
-                                </div>
-                                <div className="lg:col-span-2">
-                                    <h4 className="text-xs font-semibold text-muted mb-2">Top Reasons</h4>
-                                    <RejectionReasonsChart data={rejectionStats.byReason} />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            ) : (
-                <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
-                    <ExpenseList
-                        expenses={expenses}
-                        onEdit={handleEditExpense}
-                        onDelete={handleDeleteExpense}
-                    />
-                </div>
-            )}
-
-            {/* Expense Form Modal */}
-            <ExpenseFormModal
-                isOpen={isExpenseModalOpen}
-                onClose={() => setIsExpenseModalOpen(false)}
-                onSubmit={handleExpenseSubmit}
-                expense={selectedExpense}
-                mode={expenseModalMode}
-            />
-
-            {/* Marketing Expense Modal */}
-            <MarketingExpenseModal
-                isOpen={isMarketingModalOpen}
-                onClose={() => setIsMarketingModalOpen(false)}
-                onSubmit={handleAddMarketingExpense}
-                dateRange={dateRange}
-            />
-        </div>
+                {/* Marketing Expense Modal */}
+                <MarketingExpenseModal
+                    isOpen={isMarketingModalOpen}
+                    onClose={() => setIsMarketingModalOpen(false)}
+                    onSubmit={handleAddMarketingExpense}
+                    dateRange={dateRange}
+                />
+            </div>
+        </PageGuard>
     );
 }

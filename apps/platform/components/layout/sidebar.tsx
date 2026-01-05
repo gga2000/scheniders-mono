@@ -4,7 +4,6 @@ import { cn } from "@/lib/utils";
 import {
     LayoutDashboard,
     Settings,
-    LogOut,
     Package,
     Users,
     Printer,
@@ -13,14 +12,14 @@ import {
     ChevronRight,
     BarChart3,
     X,
-    Shield,
-    UserCircle,
     UsersRound,
+    LogOut,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { useAuth } from "@/components/auth/auth-provider";
+import { useAuth } from "@/hooks/use-auth";
+import { useState } from "react";
 
 const NAV_ITEMS = [
     { label: "Dashboard", icon: LayoutDashboard, href: "/" },
@@ -29,12 +28,8 @@ const NAV_ITEMS = [
     { label: "Products", icon: ShoppingBag, href: "/products" },
     { label: "Analytics", icon: BarChart3, href: "/analytics" },
     { label: "Printing", icon: Printer, href: "/printing" },
+    { label: "Team", icon: UsersRound, href: "/team" },
     { label: "Settings", icon: Settings, href: "/settings" },
-];
-
-// Admin-only nav items
-const ADMIN_NAV_ITEMS = [
-    { label: "Team", icon: UsersRound, href: "/settings/team" },
 ];
 
 interface SidebarProps {
@@ -54,7 +49,8 @@ export function Sidebar({
 }: SidebarProps) {
     const pathname = usePathname();
     const router = useRouter();
-    const { profile, signOut, isAdmin, loading } = useAuth();
+    const { user, profile, signOut, isLoading: authLoading } = useAuth();
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
     // On mobile, always show expanded sidebar in the drawer
     const isCollapsed = isMobile ? false : collapsed;
@@ -71,30 +67,6 @@ export function Sidebar({
         await signOut();
         router.push("/login");
     };
-
-    // Get role badge styling
-    const getRoleBadge = () => {
-        if (!profile) return null;
-
-        const roleConfig = {
-            admin: { label: "مسؤول", color: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
-            employee: { label: "موظف", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
-            viewer: { label: "مشاهد", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
-        };
-
-        const config = roleConfig[profile.role];
-        return (
-            <span className={cn(
-                "text-[10px] font-medium px-2 py-0.5 rounded-full border",
-                config.color
-            )}>
-                {config.label}
-            </span>
-        );
-    };
-
-    // Get all nav items (including admin-only if applicable)
-    const allNavItems = isAdmin ? [...NAV_ITEMS, ...ADMIN_NAV_ITEMS] : NAV_ITEMS;
 
     // Desktop sidebar
     if (!isMobile) {
@@ -143,7 +115,7 @@ export function Sidebar({
                         </div>
                     )}
 
-                    {allNavItems.map((item) => {
+                    {NAV_ITEMS.map((item) => {
                         const isActive = pathname === item.href;
                         return (
                             <Link
@@ -185,51 +157,106 @@ export function Sidebar({
                 </nav>
 
                 {/* User Section */}
-                {profile && (
+                {user && (
                     <div className={cn(
-                        "pt-4 border-t border-white/5 px-2 mb-2",
-                        collapsed ? "flex justify-center" : ""
+                        "mt-4 pt-4 border-t border-white/10 px-2",
+                        collapsed ? "flex flex-col items-center" : ""
                     )}>
+                        {!collapsed && (
+                            <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-3 px-1">
+                                Account
+                            </div>
+                        )}
+
+                        {/* User Info */}
                         <div className={cn(
-                            "flex items-center gap-3 rounded-2xl p-2 bg-white/5",
-                            collapsed ? "justify-center p-3" : ""
+                            "flex items-center gap-3 mb-3",
+                            collapsed ? "justify-center" : "px-3"
                         )}>
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center flex-shrink-0">
-                                <UserCircle className="w-5 h-5 text-primary" />
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#FBE38E] to-[#F4C7CF] flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                {profile?.avatar_url ? (
+                                    <img src={profile.avatar_url} alt={profile.display_name || "User"} className="w-full h-full object-cover" />
+                                ) : (
+                                    <span className="text-[#1E1E1E] font-semibold text-sm">
+                                        {(profile?.display_name || user.email)?.charAt(0).toUpperCase()}
+                                    </span>
+                                )}
                             </div>
                             {!collapsed && (
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-white truncate">
-                                        {profile.display_name || profile.email.split("@")[0]}
-                                    </p>
-                                    <div className="flex items-center gap-1.5 mt-0.5">
-                                        {getRoleBadge()}
+                                <>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-white text-sm font-medium truncate">
+                                            {profile?.display_name || user.email?.split("@")[0]}
+                                        </p>
+                                        <p className="text-zinc-500 text-xs truncate">
+                                            {user.email}
+                                        </p>
                                     </div>
-                                </div>
+                                    <Link
+                                        href="/settings"
+                                        className="p-2 hover:bg-white/10 rounded-lg transition-colors text-zinc-500 hover:text-white"
+                                        title="Settings"
+                                    >
+                                        <Settings className="w-4 h-4" />
+                                    </Link>
+                                </>
                             )}
                         </div>
+
+                        {/* Logout Button */}
+                        {!showLogoutConfirm ? (
+                            <button
+                                onClick={() => setShowLogoutConfirm(true)}
+                                className={cn(
+                                    "flex items-center gap-3 py-3 rounded-2xl transition-all duration-200 w-full",
+                                    "text-zinc-500 hover:text-white hover:bg-white/[0.05]",
+                                    collapsed ? "justify-center" : "px-3"
+                                )}
+                                title={collapsed ? "Logout" : undefined}
+                            >
+                                <LogOut className="w-[20px] h-[20px]" />
+                                {!collapsed && (
+                                    <span className="text-sm font-medium">Logout</span>
+                                )}
+                            </button>
+                        ) : (
+                            <div className={cn(
+                                "space-y-2",
+                                collapsed ? "w-full" : ""
+                            )}>
+                                {!collapsed && (
+                                    <p className="text-xs text-zinc-400 px-3">Are you sure?</p>
+                                )}
+                                <div className={cn(
+                                    "flex gap-2",
+                                    collapsed ? "flex-col px-1" : "px-3"
+                                )}>
+                                    <button
+                                        onClick={handleLogout}
+                                        disabled={authLoading}
+                                        className={cn(
+                                            "flex-1 py-2 rounded-xl text-xs font-medium transition-colors",
+                                            "bg-red-500/20 text-red-400 hover:bg-red-500/30",
+                                            collapsed ? "px-2" : ""
+                                        )}
+                                    >
+                                        {collapsed ? "Yes" : "Logout"}
+                                    </button>
+                                    <button
+                                        onClick={() => setShowLogoutConfirm(false)}
+                                        className={cn(
+                                            "flex-1 py-2 rounded-xl text-xs font-medium transition-colors",
+                                            "bg-white/10 text-zinc-400 hover:bg-white/20",
+                                            collapsed ? "px-2" : ""
+                                        )}
+                                    >
+                                        {collapsed ? "No" : "Cancel"}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
-
-                {/* Logout Button */}
-                <div className="px-2">
-                    <button
-                        onClick={handleLogout}
-                        className={cn(
-                            "flex items-center py-3 rounded-2xl text-zinc-500 hover:text-rose-400 hover:bg-rose-500/5 w-full transition-all duration-300",
-                            collapsed ? "justify-center" : "gap-3 px-3"
-                        )}
-                        title={collapsed ? "Log out" : undefined}
-                    >
-                        <LogOut className="w-[22px] h-[22px] flex-shrink-0" />
-                        <span className={cn(
-                            "font-medium text-[15px] transition-all duration-500 whitespace-nowrap",
-                            collapsed ? "w-0 opacity-0 hidden" : "opacity-100"
-                        )}>
-                            Log out
-                        </span>
-                    </button>
-                </div>
             </aside>
         );
     }
@@ -275,32 +302,13 @@ export function Sidebar({
                             </button>
                         </div>
 
-                        {/* User Info on Mobile */}
-                        {profile && (
-                            <div className="px-2 pb-4 mb-4 border-b border-white/10">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center">
-                                        <UserCircle className="w-6 h-6 text-primary" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="font-medium text-white">
-                                            {profile.display_name || profile.email.split("@")[0]}
-                                        </p>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            {getRoleBadge()}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
                         {/* Navigation */}
                         <nav className="flex-1 space-y-1 overflow-y-auto scrollbar-hide">
                             <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-3 px-3">
                                 General
                             </div>
 
-                            {allNavItems.map((item) => {
+                            {NAV_ITEMS.map((item) => {
                                 const isActive = pathname === item.href;
                                 return (
                                     <Link
@@ -326,22 +334,42 @@ export function Sidebar({
                             })}
                         </nav>
 
-                        {/* Bottom Section */}
-                        <div className="pt-4 border-t border-white/10">
-                            <button
-                                onClick={handleLogout}
-                                className="flex items-center gap-4 py-4 px-4 rounded-2xl text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 w-full transition-all duration-200"
-                            >
-                                <LogOut className="w-5 h-5 flex-shrink-0" />
-                                <span className="font-medium text-base">
-                                    Log out
-                                </span>
-                            </button>
-                        </div>
+                        {/* Mobile User Section */}
+                        {user && (
+                            <div className="mt-auto border-t border-white/10 p-4">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FBE38E] to-[#F4C7CF] flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                        {profile?.avatar_url ? (
+                                            <img src={profile.avatar_url} alt={profile.display_name || "User"} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <span className="text-[#1E1E1E] font-semibold text-base">
+                                                {(profile?.display_name || user.email)?.charAt(0).toUpperCase()}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-white text-base font-medium truncate">
+                                            {profile?.display_name || user.email?.split("@")[0]}
+                                        </p>
+                                        <p className="text-zinc-500 text-sm truncate">
+                                            {user.email}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={handleLogout}
+                                    disabled={authLoading}
+                                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white/10 text-white font-medium hover:bg-white/20 transition-colors"
+                                >
+                                    <LogOut className="w-5 h-5" />
+                                    <span>Logout</span>
+                                </button>
+                            </div>
+                        )}
                     </motion.aside>
                 </>
             )}
         </AnimatePresence>
     );
 }
-

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { TopBar } from "./global-search";
 import { MobileNav } from "./mobile-nav";
@@ -9,15 +10,19 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
-    // Initialize with consistent value for SSR - always false
+    const pathname = usePathname();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [mounted, setMounted] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-    // Mobile detection
     const isMobile = useIsMobile();
 
-    // Load from localStorage only after mount (client-side)
+    // Check if we are on an auth page
+    const isAuthPage = pathname?.startsWith('/login') ||
+        pathname?.startsWith('/forgot-password') ||
+        pathname?.startsWith('/reset-password');
+
+    // Load from localStorage after mount
     useEffect(() => {
         const saved = localStorage.getItem("sidebarCollapsed");
         if (saved === "true") {
@@ -26,30 +31,36 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         setMounted(true);
     }, []);
 
-    // Save sidebar state to localStorage
     useEffect(() => {
         if (mounted) {
             localStorage.setItem("sidebarCollapsed", String(isCollapsed));
         }
     }, [isCollapsed, mounted]);
 
-    // Close mobile menu when switching to desktop
     useEffect(() => {
         if (!isMobile && mobileMenuOpen) {
             setMobileMenuOpen(false);
         }
     }, [isMobile, mobileMenuOpen]);
 
-    // Calculate main content margin - 0 on mobile
+    if (isAuthPage) {
+        return (
+            <div className="min-h-screen bg-background text-foreground">
+                <AnimatePresence mode="wait">
+                    {children}
+                </AnimatePresence>
+            </div>
+        );
+    }
+
     const getMainMargin = () => {
-        if (!mounted) return "0px"; // SSR: no margin
+        if (!mounted) return "0px";
         if (isMobile) return "0px";
         return isCollapsed ? "88px" : "272px";
     };
 
     return (
         <div className="flex min-h-screen bg-background text-foreground">
-            {/* Mobile Menu Overlay */}
             {isMobile && mobileMenuOpen && (
                 <div
                     className="mobile-overlay active"
@@ -57,7 +68,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 />
             )}
 
-            {/* Sidebar - Hidden on mobile, shown when menu is open */}
             <Sidebar
                 collapsed={isCollapsed}
                 setCollapsed={setIsCollapsed}
@@ -66,7 +76,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 setMobileMenuOpen={setMobileMenuOpen}
             />
 
-            {/* Main Content Area with smooth transition */}
             <main
                 className={cn(
                     "flex-1 min-w-0 transition-all duration-500 ease-in-out",
@@ -74,11 +83,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 )}
                 style={{
                     marginLeft: getMainMargin(),
-                    // Add bottom padding on mobile for nav bar
                     paddingBottom: isMobile ? "var(--mobile-nav-height)" : "0",
                 }}
             >
-                {/* Top Bar with Global Search - includes mobile hamburger */}
                 <TopBar
                     onMenuClick={() => setMobileMenuOpen(true)}
                     isMobile={isMobile}
@@ -91,7 +98,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 </AnimatePresence>
             </main>
 
-            {/* Mobile Bottom Navigation */}
             {mounted && isMobile && <MobileNav />}
         </div>
     );

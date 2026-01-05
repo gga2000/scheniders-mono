@@ -11,6 +11,7 @@ import {
     Settings,
     BarChart3,
     X,
+    UsersRound,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -27,6 +28,7 @@ const PRIMARY_NAV_ITEMS = [
 const MORE_NAV_ITEMS = [
     { label: "Analytics", icon: BarChart3, href: "/analytics" },
     { label: "Printing", icon: Printer, href: "/printing" },
+    { label: "Team", icon: UsersRound, href: "/team" },
     { label: "Settings", icon: Settings, href: "/settings" },
 ];
 
