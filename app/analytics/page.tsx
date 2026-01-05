@@ -22,7 +22,7 @@ import {
 // Hooks
 import { useFinances, DateRange } from "@/hooks/use-finances";
 import { useExpenses } from "@/hooks/use-expenses";
-import { useOrders } from "@/hooks/use-orders";
+import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useOrderProfits } from "@/hooks/use-order-profits";
 
@@ -70,7 +70,7 @@ export default function AnalyticsPage() {
     const [exportMenuOpen, setExportMenuOpen] = useState(false);
 
     // Data hooks - single source of truth for orders and products
-    const { orders } = useOrders();
+    const { orders } = useOrdersContext();
     const { products } = useProductsCrud();
 
     // useFinances now receives orders and products as props (no duplicate fetching)

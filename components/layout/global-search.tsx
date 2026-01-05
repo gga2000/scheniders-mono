@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/auth/auth-provider";
-import { useOrders } from "@/hooks/use-orders";
+import { useOrdersContext } from "@/components/providers/orders-provider";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Search,
@@ -35,7 +35,8 @@ interface SearchResult {
 
 export function GlobalSearch() {
     const router = useRouter();
-    const { orders } = useOrders();
+    // Use shared context instead of direct useOrders() call
+    const { orders } = useOrdersContext();
     const [query, setQuery] = useState("");
     const [category, setCategory] = useState<SearchCategory>("all");
     const [isOpen, setIsOpen] = useState(false);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useOrders } from "@/hooks/use-orders";
+import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useCustomers, CustomerFilters, Customer } from "@/hooks/use-customers";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layout/page-transition";
 import { motion, AnimatePresence } from "framer-motion";
@@ -56,7 +56,7 @@ export default function CustomersPage() {
     const activeFilters = { ...filters, search: searchQuery };
 
     // Single source of truth for orders - prevents duplicate subscriptions
-    const { orders, loading: ordersLoading, error } = useOrders();
+    const { orders, loading: ordersLoading, error } = useOrdersContext();
 
     const {
         customers,
