@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const fetchRoleAndPermissions = async (userId: string) => {
         try {
-            // 1. Fetch Full Profile
+            // 1. Fetch Full Profile first (needed to get role)
             const { data: profileData, error: profileError } = await supabase
                 .from('user_profiles')
                 .select('*')
@@ -53,22 +53,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setRole(profileData.role);
                 setProfile(profileData as UserProfile);
 
-                // 2. Fetch Base Role Permissions
-                const { data: rolePerms } = await supabase
-                    .from('role_permissions')
-                    .select('permission')
-                    .eq('role', profileData.role);
+                // 2. Fetch Role Permissions AND User Overrides in PARALLEL
+                // These don't depend on each other, only on profile/userId
+                const [rolePermsResult, userOverridesResult] = await Promise.all([
+                    supabase
+                        .from('role_permissions')
+                        .select('permission')
+                        .eq('role', profileData.role),
+                    supabase
+                        .from('user_permissions')
+                        .select('permission, is_granted')
+                        .eq('user_id', userId)
+                ]);
 
-                const finalPermissions = new Set(rolePerms?.map(p => p.permission) || []);
+                const finalPermissions = new Set(rolePermsResult.data?.map(p => p.permission) || []);
 
-                // 3. Fetch User Overrides
-                const { data: userOverrides } = await supabase
-                    .from('user_permissions')
-                    .select('permission, is_granted')
-                    .eq('user_id', userId);
-
-                if (userOverrides) {
-                    userOverrides.forEach(override => {
+                // Apply user overrides
+                if (userOverridesResult.data) {
+                    userOverridesResult.data.forEach(override => {
                         if (override.is_granted) {
                             finalPermissions.add(override.permission);
                         } else {
@@ -131,21 +133,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         await fetchRoleAndPermissions(currentSession.user.id);
 
                         if (event === 'SIGNED_IN') {
-                            try {
-                                // Update last_login_at
-                                await supabase.from('user_profiles').update({
-                                    last_login_at: new Date().toISOString()
-                                }).eq('id', currentSession.user.id);
+                            // Fire-and-forget: Don't block auth flow with activity logging
+                            (async () => {
+                                try {
+                                    // Update last_login_at
+                                    await supabase.from('user_profiles').update({
+                                        last_login_at: new Date().toISOString()
+                                    }).eq('id', currentSession.user.id);
 
-                                // Log activity
-                                await activityLogger.log({
-                                    action: "user.login",
-                                    entityType: "user",
-                                    entityId: currentSession.user.id
-                                });
-                            } catch (err) {
-                                console.error("Error logging login:", err);
-                            }
+                                    // Log activity (non-blocking)
+                                    activityLogger.log({
+                                        action: "user.login",
+                                        entityType: "user",
+                                        entityId: currentSession.user.id
+                                    });
+                                } catch (err) {
+                                    console.error("Error logging login:", err);
+                                }
+                            })();
                         }
                     } else if (!role) {
                         // Fallback if role missing

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import {
     supabase,
     type Order,
@@ -56,6 +56,10 @@ export function useOrders() {
     // Version counter to force re-renders on realtime updates
     const [realtimeVersion, setRealtimeVersion] = useState(0);
 
+    // Refs to prevent race conditions
+    const hasInitiallyLoaded = useRef(false); // Track if initial data has been loaded
+    const isMountedRef = useRef(true); // Track if component is still mounted
+
     // Enhanced state
     const [rejectionReasons, setRejectionReasons] = useState<RejectionReason[]>([]);
     const [messageTemplates, setMessageTemplates] = useState<MessageTemplate[]>([]);
@@ -97,10 +101,13 @@ export function useOrders() {
     // =============================================
 
     useEffect(() => {
-        // Generate unique ID for this subscription to detect duplicates
+        // Mark as mounted
+        isMountedRef.current = true;
+
+        // Generate unique ID for this subscription
         const subscriptionId = Math.random().toString(36).substring(7);
 
-        fetchOrders();
+        fetchOrders(true); // Initial load
         fetchRejectionReasons();
         fetchMessageTemplates();
         fetchBlacklist();
@@ -146,15 +153,14 @@ export function useOrders() {
                     // Previous approach tried to granularly update state but React's double-invoke 
                     // in Strict Mode caused callbacks to run with stale closures
                     if (payload.eventType === "UPDATE" && payload.new) {
-                        // Debounce refetch - clear any pending refetch and schedule a new one
-                        // This coalesces multiple rapid updates into a single fetch
+                        // Debounce refetch to coalesce multiple rapid updates
                         if (realtimeRefetchTimeout) {
                             clearTimeout(realtimeRefetchTimeout);
                         }
                         realtimeRefetchTimeout = setTimeout(() => {
-                            fetchOrders();
+                            fetchOrders(false); // Background refresh
                             realtimeRefetchTimeout = null;
-                        }, 100); // 100ms debounce
+                        }, 100);
                     }
 
                     // Handle DELETE - remove order from state
@@ -173,14 +179,13 @@ export function useOrders() {
                         pollingInterval = null;
                     }
                 } else if (status === "CHANNEL_ERROR" || status === "CLOSED") {
-                    console.error("[Realtime] ❌ Error - falling back to polling:", err?.message);
+                    console.error("[Realtime] Error - falling back to polling:", err?.message);
                     realtimeWorking = false;
-                    // Start polling only if realtime fails and we're not already polling
+                    // Start polling only if realtime fails
                     if (!pollingInterval) {
                         pollingInterval = setInterval(() => {
-                            // Only poll when tab is visible
                             if (!document.hidden) {
-                                fetchOrders();
+                                fetchOrders(false);
                             }
                         }, 120000); // 2 minutes - less disruptive
                     }
@@ -190,6 +195,12 @@ export function useOrders() {
             });
 
         return () => {
+            // Mark as unmounted to prevent state updates on unmounted component
+            isMountedRef.current = false;
+            // Cancel any pending fetch
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
             channel.unsubscribe();
             if (pollingInterval) clearInterval(pollingInterval);
             if (realtimeRefetchTimeout) clearTimeout(realtimeRefetchTimeout);
@@ -200,27 +211,58 @@ export function useOrders() {
     // FETCH FUNCTIONS
     // =============================================
 
-    async function fetchOrders() {
+    // Keep track of the latest abort controller
+    const abortControllerRef = useRef<AbortController | null>(null);
+
+    async function fetchOrders(isInitialLoad: boolean = false) {
+        // Cancel previous request if it's still running
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+
+        // Create new controller for this request
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+
         try {
-            setLoading(true);
             const { data, error: fetchError } = await supabase
                 .from("orders")
                 .select("*")
                 .eq("is_archived", false)
-                .order("created_at", { ascending: false });
+                .order("created_at", { ascending: false })
+                .abortSignal(controller.signal);
+
+            // If aborted, don't update state
+            if (controller.signal.aborted) {
+                return;
+            }
+
+            // Check if component mounted
+            if (!isMountedRef.current) {
+                return;
+            }
 
             if (fetchError) throw fetchError;
 
-            // Normalize all orders using shared helper
             const ordersWithDefaults = (data || []).map(normalizeOrder);
 
             setOrders(ordersWithDefaults);
             setError(null);
+            hasInitiallyLoaded.current = true;
         } catch (err) {
-            console.error("Error fetching orders:", err);
-            setError(err instanceof Error ? err.message : "Failed to fetch orders");
+            // Ignore abort errors
+            if (err instanceof Error && err.name === 'AbortError') {
+                return;
+            }
+
+            if (isMountedRef.current && !controller.signal.aborted) {
+                console.error("Error fetching orders:", err);
+                setError(err instanceof Error ? err.message : "Failed to fetch orders");
+            }
         } finally {
-            setLoading(false);
+            if (isMountedRef.current && !controller.signal.aborted) {
+                setLoading(false);
+            }
         }
     }
 

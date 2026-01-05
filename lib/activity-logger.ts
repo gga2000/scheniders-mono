@@ -47,6 +47,10 @@ export interface LogActivityParams {
 // =============================================
 
 class ActivityLogger {
+    // Cache session to avoid repeated getSession() calls
+    private cachedSession: { userId: string; userEmail: string; expiresAt: number } | null = null;
+    private sessionCacheDuration = 5 * 60 * 1000; // 5 minutes
+
     private getUserAgent(): string | null {
         if (typeof window !== "undefined") {
             return window.navigator.userAgent;
@@ -54,18 +58,49 @@ class ActivityLogger {
         return null;
     }
 
-    /**
-     * Log an activity to the database
-     */
-    async log(params: LogActivityParams): Promise<{ success: boolean; error?: string }> {
+    private async getCachedSession(): Promise<{ userId: string | null; userEmail: string | null }> {
+        // Return cached session if still valid
+        if (this.cachedSession && Date.now() < this.cachedSession.expiresAt) {
+            return {
+                userId: this.cachedSession.userId,
+                userEmail: this.cachedSession.userEmail
+            };
+        }
+
         try {
             const { data: session } = await supabase.auth.getSession();
             const userId = session?.session?.user?.id;
             const userEmail = session?.session?.user?.email;
 
+            if (userId && userEmail) {
+                this.cachedSession = {
+                    userId,
+                    userEmail,
+                    expiresAt: Date.now() + this.sessionCacheDuration
+                };
+            }
+
+            return { userId: userId || null, userEmail: userEmail || null };
+        } catch {
+            return { userId: null, userEmail: null };
+        }
+    }
+
+    /**
+     * Log an activity to the database (fire-and-forget, non-blocking)
+     */
+    async log(params: LogActivityParams): Promise<{ success: boolean; error?: string }> {
+        try {
+            const { userId, userEmail } = await this.getCachedSession();
+
+            // Skip logging if no user (can't satisfy NOT NULL constraint)
+            if (!userId) {
+                return { success: false, error: "No user session" };
+            }
+
             const { error } = await supabase.from("activity_logs").insert({
-                user_id: userId || null,
-                user_email: userEmail || null,
+                user_id: userId,
+                user_email: userEmail,
                 action: params.action,
                 entity_type: params.entityType || null,
                 entity_id: params.entityId || null,
