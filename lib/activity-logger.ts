@@ -63,7 +63,7 @@ class ActivityLogger {
             const userId = session?.session?.user?.id;
             const userEmail = session?.session?.user?.email;
 
-            const { error } = await supabase.from("activity_log").insert({
+            const { error } = await supabase.from("activity_logs").insert({
                 user_id: userId || null,
                 user_email: userEmail || null,
                 action: params.action,
@@ -212,7 +212,7 @@ class ActivityLogger {
     }): Promise<{ data: ActivityLogEntry[]; count: number; error?: string }> {
         try {
             let query = supabase
-                .from("activity_log")
+                .from("activity_logs")
                 .select("*", { count: "exact" })
                 .order("created_at", { ascending: false });
 

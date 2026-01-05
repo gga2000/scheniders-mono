@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
 
 // Supabase configuration - trim to remove any trailing newlines from .env
 const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim();
@@ -8,8 +8,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
     console.warn('⚠️ Supabase environment variables are not set. Please configure them in .env.local');
 }
 
-// Create a single supabase client for the entire app
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create a single supabase client for the entire app with proper auth persistence
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
 
 // Type definitions for our database tables
 export interface Order {

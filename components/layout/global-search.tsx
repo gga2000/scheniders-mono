@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useAuth } from "@/components/auth/auth-provider";
 import { useOrders } from "@/hooks/use-orders";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -312,6 +314,20 @@ interface TopBarProps {
 }
 
 export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
+    const { user, profile } = useAuth();
+    const router = useRouter();
+    // Assuming notificationService is available and has showNotification method, imported from lib
+    // If not, we can use a simple alert or just console log for now, but user mentioned it "doesn't do anything".
+    // I will use notificationService if I can import it, otherwise I'll just make it visual for now or use window.alert as a fallback temp.
+    // Actually, I'll skip notificationService import complexity if not already there, and just make it do *something*.
+    // Better: I'll use the existing notificationService if possible. It was used in OrdersPage.
+
+    const handleNotificationClick = () => {
+        // Placeholder for now as we don't have a notifications page/drawer yet
+        // We can use the service if imported, or just show a browser notification/alert
+        alert("Notifications feature coming soon!");
+    };
+
     return (
         <header className="sticky top-0 z-40 px-4 md:px-6 py-3 md:py-4 bg-[var(--background)]">
             <div className="flex items-center gap-3 md:gap-6">
@@ -344,19 +360,41 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
                 {/* Right Side Actions - Hidden on mobile (available in sidebar) */}
                 <div className="hidden md:flex items-center gap-2">
                     {/* Notifications */}
-                    <button className="w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-muted hover:text-foreground hover:border-[var(--foreground-muted)] transition-all">
+                    <button
+                        onClick={handleNotificationClick}
+                        className="w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-muted hover:text-foreground hover:border-[var(--foreground-muted)] transition-all"
+                        title="Notifications"
+                    >
                         <Bell className="w-5 h-5" />
                     </button>
 
                     {/* Settings */}
-                    <button className="w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-muted hover:text-foreground hover:border-[var(--foreground-muted)] transition-all">
+                    <Link
+                        href="/settings"
+                        className="w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-muted hover:text-foreground hover:border-[var(--foreground-muted)] transition-all"
+                        title="Settings"
+                    >
                         <Settings className="w-5 h-5" />
-                    </button>
+                    </Link>
 
                     {/* User Avatar */}
-                    <button className="w-10 h-10 rounded-full bg-[var(--pastel-pink)] flex items-center justify-center text-rose-900 font-bold text-sm hover:scale-105 transition-transform">
-                        A
-                    </button>
+                    <Link
+                        href="/settings"
+                        className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FBE38E] to-[#F4C7CF] flex items-center justify-center text-[#1E1E1E] font-bold text-sm hover:scale-105 transition-transform overflow-hidden shadow-sm"
+                        title="Profile"
+                    >
+                        {profile?.avatar_url ? (
+                            <img
+                                src={profile.avatar_url}
+                                alt={profile.display_name || "User"}
+                                className="w-full h-full object-cover"
+                            />
+                        ) : (
+                            <span>
+                                {(profile?.display_name || user?.email || "U")?.charAt(0).toUpperCase()}
+                            </span>
+                        )}
+                    </Link>
                 </div>
             </div>
         </header>

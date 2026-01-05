@@ -14,8 +14,11 @@ import { cn } from "@/lib/utils";
 import { GeneralSettings } from "@/components/settings/general-settings";
 import { OrderSettings } from "@/components/settings/order-settings";
 import { PrintingSettings } from "@/components/settings/printing-settings";
+import { TeamSettings } from "@/components/settings/team-settings";
 import { DataSettings } from "@/components/settings/data-settings";
 import { LightfunnelsSettings } from "@/components/settings/lightfunnels-settings";
+import { PageSettings } from "@/components/settings/pages-settings";
+import { UsersRound } from "lucide-react";
 
 const SECTIONS = [
     {
@@ -23,6 +26,12 @@ const SECTIONS = [
         label: "General",
         icon: Store,
         component: GeneralSettings,
+    },
+    {
+        id: "team",
+        label: "Team & Roles",
+        icon: UsersRound,
+        component: TeamSettings,
     },
     {
         id: "orders",
@@ -41,6 +50,12 @@ const SECTIONS = [
         label: "Lightfunnels",
         icon: Cloud,
         component: LightfunnelsSettings,
+    },
+    {
+        id: "pages",
+        label: "Pages Access",
+        icon: LayoutDashboard,
+        component: PageSettings,
     },
     {
         id: "data",
