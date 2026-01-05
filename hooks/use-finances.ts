@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useOrders } from "./use-orders";
 import { useExpenses } from "./use-expenses";
-import { useProductsCrud } from "./use-products-crud";
 import { ExpenseCategory } from "@/lib/expense-types";
+import type { Order, Product } from "@/lib/supabase";
 
 export interface DateRange {
     startDate: string;
@@ -57,10 +56,16 @@ export interface HourlyData {
     revenue: number;
 }
 
-export function useFinances(dateRange?: DateRange) {
-    const { orders } = useOrders();
+/**
+ * useFinances hook - now accepts orders and products as parameters
+ * to avoid creating redundant subscriptions.
+ * 
+ * @param orders - Orders array from useOrders() in parent component
+ * @param products - Products array from useProductsCrud() in parent component
+ * @param dateRange - Optional date range filter
+ */
+export function useFinances(orders: Order[], products: Product[], dateRange?: DateRange) {
     const { expenses } = useExpenses();
-    const { products } = useProductsCrud();
 
     // Filter orders by date range
     const filteredOrders = useMemo(() => {

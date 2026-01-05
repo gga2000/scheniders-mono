@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useOrders } from "@/hooks/use-orders";
 import { useCustomers, CustomerFilters, Customer } from "@/hooks/use-customers";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layout/page-transition";
 import { motion, AnimatePresence } from "framer-motion";
@@ -54,6 +55,9 @@ export default function CustomersPage() {
     // Apply search to filters
     const activeFilters = { ...filters, search: searchQuery };
 
+    // Single source of truth for orders - prevents duplicate subscriptions
+    const { orders, loading: ordersLoading, error } = useOrders();
+
     const {
         customers,
         allCustomers,
@@ -63,9 +67,10 @@ export default function CustomersPage() {
         customerGrowth,
         uniqueCities,
         uniqueProducts,
-        loading,
-        error,
-    } = useCustomers(activeFilters);
+        loading: customersLoading,
+    } = useCustomers(orders, activeFilters);
+
+    const loading = ordersLoading || customersLoading;
 
     const handleViewCustomer = (customer: Customer) => {
         setSelectedCustomer(customer);
