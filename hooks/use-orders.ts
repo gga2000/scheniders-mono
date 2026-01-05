@@ -16,6 +16,7 @@ import {
 } from "@/lib/supabase";
 import { notificationService } from "@/lib/notification-service";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
+import { cleanPhoneForExport } from "@/lib/export-utils";
 import { activityLogger } from "@/lib/activity-logger";
 
 // =============================================
@@ -1097,16 +1098,7 @@ export function useOrders() {
     function exportOrders(orderIds: string[], format: "csv" | "xlsx" = "csv") {
         const ordersToExport = orders.filter((o) => orderIds.includes(o.id));
 
-        // Helper to clean phone numbers for export (remove 964 prefix and leading 0s)
-        const cleanPhoneForExport = (phone: string): string => {
-            if (!phone) return '';
-            let cleaned = phone.replace(/\D/g, '');
-            if (cleaned.startsWith('964')) {
-                cleaned = cleaned.substring(3);
-            }
-            cleaned = cleaned.replace(/^0+/, '');
-            return cleaned;
-        };
+        // cleanPhoneForExport is now imported from @/lib/export-utils
 
         const headers = [
             "Order ID",
