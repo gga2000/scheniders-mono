@@ -124,16 +124,16 @@ class ActivityLogger {
     }
 
     /**
-     * Log order status change
+     * Log order status change (fire-and-forget, non-blocking)
      */
-    async logStatusChange(
+    logStatusChange(
         orderId: string,
         orderDisplayId: string,
         fromStatus: string,
         toStatus: string,
         reason?: string
-    ) {
-        return this.log({
+    ): void {
+        this.log({
             action: "order.status_change",
             entityType: "order",
             entityId: orderId,
@@ -143,14 +143,14 @@ class ActivityLogger {
                 to_status: toStatus,
                 reason: reason || null,
             },
-        });
+        }).catch(err => console.warn("[ActivityLogger] Background log failed:", err));
     }
 
     /**
-     * Log order creation
+     * Log order creation (fire-and-forget, non-blocking)
      */
-    async logOrderCreate(orderId: string, orderDisplayId: string, source?: string) {
-        return this.log({
+    logOrderCreate(orderId: string, orderDisplayId: string, source?: string): void {
+        this.log({
             action: "order.create",
             entityType: "order",
             entityId: orderId,
@@ -158,18 +158,18 @@ class ActivityLogger {
                 order_id: orderDisplayId,
                 source: source || "manual",
             },
-        });
+        }).catch(err => console.warn("[ActivityLogger] Background log failed:", err));
     }
 
     /**
-     * Log order edit
+     * Log order edit (fire-and-forget, non-blocking)
      */
-    async logOrderEdit(
+    logOrderEdit(
         orderId: string,
         orderDisplayId: string,
         changes: Record<string, { from: unknown; to: unknown }>
-    ) {
-        return this.log({
+    ): void {
+        this.log({
             action: "order.edit",
             entityType: "order",
             entityId: orderId,
@@ -177,19 +177,19 @@ class ActivityLogger {
                 order_id: orderDisplayId,
                 changes,
             },
-        });
+        }).catch(err => console.warn("[ActivityLogger] Background log failed:", err));
     }
 
     /**
-     * Log order assignment
+     * Log order assignment (fire-and-forget, non-blocking)
      */
-    async logOrderAssign(
+    logOrderAssign(
         orderId: string,
         orderDisplayId: string,
         assignedToId: string,
         assignedToName: string
-    ) {
-        return this.log({
+    ): void {
+        this.log({
             action: "order.assign",
             entityType: "order",
             entityId: orderId,
@@ -198,14 +198,14 @@ class ActivityLogger {
                 assigned_to_id: assignedToId,
                 assigned_to_name: assignedToName,
             },
-        });
+        }).catch(err => console.warn("[ActivityLogger] Background log failed:", err));
     }
 
     /**
-     * Log print action
+     * Log print action (fire-and-forget, non-blocking)
      */
-    async logPrint(orderIds: string[], orderDisplayIds: string[], batchId?: string) {
-        return this.log({
+    logPrint(orderIds: string[], orderDisplayIds: string[], batchId?: string): void {
+        this.log({
             action: "order.print",
             entityType: "order",
             entityId: batchId || orderIds[0],
@@ -214,14 +214,14 @@ class ActivityLogger {
                 count: orderIds.length,
                 batch_id: batchId,
             },
-        });
+        }).catch(err => console.warn("[ActivityLogger] Background log failed:", err));
     }
 
     /**
-     * Log blacklist action
+     * Log blacklist action (fire-and-forget, non-blocking)
      */
-    async logBlacklist(phone: string, reason: string) {
-        return this.log({
+    logBlacklist(phone: string, reason: string): void {
+        this.log({
             action: "customer.blacklist",
             entityType: "customer",
             entityId: phone,
@@ -229,7 +229,7 @@ class ActivityLogger {
                 phone,
                 reason,
             },
-        });
+        }).catch(err => console.warn("[ActivityLogger] Background log failed:", err));
     }
 
     /**
