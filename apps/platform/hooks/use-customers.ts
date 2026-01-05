@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, useCallback, useEffect } from "react";
-import { useOrders } from "./use-orders";
 import { Order } from "@/lib/supabase";
 import { supabase } from "@/lib/supabase";
 import { CustomerTag, CustomerTagAssignment, CustomerMetadata, CustomerStatus } from "@/lib/customer-types";
@@ -48,8 +47,14 @@ export interface CustomerGrowth {
     totalCustomers: number;
 }
 
-export function useCustomers(filters?: CustomerFilters) {
-    const { orders, loading: ordersLoading, error } = useOrders();
+/**
+ * useCustomers hook - now accepts orders as a parameter
+ * to avoid creating redundant subscriptions.
+ * 
+ * @param orders - Orders array from useOrders() in parent component
+ * @param filters - Optional customer filters
+ */
+export function useCustomers(orders: Order[], filters?: CustomerFilters) {
     const [tagAssignments, setTagAssignments] = useState<Map<string, CustomerTag[]>>(new Map());
     const [metadataMap, setMetadataMap] = useState<Map<string, CustomerMetadata>>(new Map());
     const [blacklist, setBlacklist] = useState<Set<string>>(new Set());
@@ -370,8 +375,7 @@ export function useCustomers(filters?: CustomerFilters) {
         customerGrowth,
         uniqueCities,
         uniqueProducts,
-        loading: ordersLoading || dataLoading,
-        error,
+        loading: dataLoading,
         refetch: fetchCustomerData,
     };
 }

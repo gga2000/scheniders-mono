@@ -69,7 +69,11 @@ export default function AnalyticsPage() {
     const [expenseModalMode, setExpenseModalMode] = useState<"add" | "edit">("add");
     const [exportMenuOpen, setExportMenuOpen] = useState(false);
 
-    // Data hooks
+    // Data hooks - single source of truth for orders and products
+    const { orders } = useOrders();
+    const { products } = useProductsCrud();
+
+    // useFinances now receives orders and products as props (no duplicate fetching)
     const {
         revenueStats,
         profitStats,
@@ -79,10 +83,7 @@ export default function AnalyticsPage() {
         comparePeriods,
         rejectionStats,
         filteredOrders,
-    } = useFinances(dateRange);
-
-    const { orders } = useOrders();
-    const { products } = useProductsCrud();
+    } = useFinances(orders, products, dateRange);
 
     const {
         expenses,
