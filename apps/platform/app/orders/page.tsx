@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, Fragment } from "react";
-import { useOrders } from "@/hooks/use-orders";
+import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { Order, PaymentStatus } from "@/lib/supabase";
 import { validatePhoneDetailed } from "@/lib/order-utils";
@@ -130,7 +130,7 @@ export default function OrdersPage() {
         messageTemplates,
         // Realtime version (forces re-renders)
         realtimeVersion,
-    } = useOrders();
+    } = useOrdersContext();
 
     // Get products for Excel import matching
     const { products } = useProductsCrud();
