@@ -121,6 +121,7 @@ export function Sidebar({
                             <Link
                                 key={item.href}
                                 href={item.href}
+                                prefetch={true}
                                 className={cn(
                                     "flex items-center py-3 rounded-2xl transition-all duration-300 group relative overflow-hidden",
                                     collapsed
@@ -314,6 +315,7 @@ export function Sidebar({
                                     <Link
                                         key={item.href}
                                         href={item.href}
+                                        prefetch={true}
                                         onClick={handleNavClick}
                                         className={cn(
                                             "flex items-center gap-4 py-4 px-4 rounded-2xl transition-all duration-200",
