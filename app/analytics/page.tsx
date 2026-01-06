@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import {
     DollarSign,
@@ -26,31 +27,80 @@ import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useOrderProfits } from "@/hooks/use-order-profits";
 
-// Components
+// Core components (always needed)
 import { DateRangePicker } from "@/components/ui/date-range-picker";
-import { RevenueCards, ProfitCards } from "@/components/finances/stat-cards";
-import { RevenueChart } from "@/components/finances/revenue-chart";
-import { ExpenseBreakdown } from "@/components/finances/expense-breakdown";
-import { PeakHoursChart } from "@/components/finances/peak-hours-chart";
-import { ExpenseList } from "@/components/finances/expense-list";
-import { ExpenseFormModal, ExpenseFormData } from "@/components/finances/expense-form-modal";
-import { RejectionReasonsChart } from "@/components/analytics/rejection-reasons-chart";
-import { PeriodComparisonCard } from "@/components/finances/period-comparison";
-
-// New Profit Analysis Components
-import { ProfitBreakdownTable } from "@/components/analytics/profit-breakdown-table";
-import { CostCompositionChart } from "@/components/analytics/cost-composition-chart";
-import { CustomerAnalyticsCard } from "@/components/analytics/customer-analytics-card";
-import { ProfitSummaryCards } from "@/components/analytics/profit-summary-cards";
-import { MarketingExpenseModal } from "@/components/analytics/marketing-expense-modal";
-import { PipelineSummaryCard } from "@/components/analytics/pipeline-summary-card";
-import { OverviewCards } from "@/components/analytics/overview-cards";
-
 import { PageGuard } from "@/components/auth/role-guard";
+
+// Dynamic imports for heavy components - reduces initial bundle by ~50KB
+const RevenueCards = dynamic(
+    () => import("@/components/finances/stat-cards").then(mod => ({ default: mod.RevenueCards })),
+    { loading: () => <div className="skeleton h-32 rounded-2xl" /> }
+);
+const ProfitCards = dynamic(
+    () => import("@/components/finances/stat-cards").then(mod => ({ default: mod.ProfitCards })),
+    { loading: () => <div className="skeleton h-32 rounded-2xl" /> }
+);
+const RevenueChart = dynamic(
+    () => import("@/components/finances/revenue-chart").then(mod => ({ default: mod.RevenueChart })),
+    { loading: () => <div className="skeleton h-64 rounded-2xl" /> }
+);
+const ExpenseBreakdown = dynamic(
+    () => import("@/components/finances/expense-breakdown").then(mod => ({ default: mod.ExpenseBreakdown })),
+    { loading: () => <div className="skeleton h-48 rounded-2xl" /> }
+);
+const PeakHoursChart = dynamic(
+    () => import("@/components/finances/peak-hours-chart").then(mod => ({ default: mod.PeakHoursChart })),
+    { loading: () => <div className="skeleton h-48 rounded-2xl" /> }
+);
+const ExpenseList = dynamic(
+    () => import("@/components/finances/expense-list").then(mod => ({ default: mod.ExpenseList })),
+    { loading: () => <div className="skeleton h-64 rounded-2xl" /> }
+);
+const ExpenseFormModal = dynamic(
+    () => import("@/components/finances/expense-form-modal").then(mod => ({ default: mod.ExpenseFormModal })),
+    { ssr: false }
+);
+const RejectionReasonsChart = dynamic(
+    () => import("@/components/analytics/rejection-reasons-chart").then(mod => ({ default: mod.RejectionReasonsChart })),
+    { loading: () => <div className="skeleton h-32 rounded-2xl" /> }
+);
+const PeriodComparisonCard = dynamic(
+    () => import("@/components/finances/period-comparison").then(mod => ({ default: mod.PeriodComparisonCard })),
+    { loading: () => <div className="skeleton h-48 rounded-2xl" /> }
+);
+const ProfitBreakdownTable = dynamic(
+    () => import("@/components/analytics/profit-breakdown-table").then(mod => ({ default: mod.ProfitBreakdownTable })),
+    { loading: () => <div className="skeleton h-64 rounded-2xl" /> }
+);
+const CostCompositionChart = dynamic(
+    () => import("@/components/analytics/cost-composition-chart").then(mod => ({ default: mod.CostCompositionChart })),
+    { loading: () => <div className="skeleton h-48 rounded-2xl" /> }
+);
+const CustomerAnalyticsCard = dynamic(
+    () => import("@/components/analytics/customer-analytics-card").then(mod => ({ default: mod.CustomerAnalyticsCard })),
+    { loading: () => <div className="skeleton h-64 rounded-2xl" /> }
+);
+const ProfitSummaryCards = dynamic(
+    () => import("@/components/analytics/profit-summary-cards").then(mod => ({ default: mod.ProfitSummaryCards })),
+    { loading: () => <div className="skeleton h-48 rounded-2xl" /> }
+);
+const MarketingExpenseModal = dynamic(
+    () => import("@/components/analytics/marketing-expense-modal").then(mod => ({ default: mod.MarketingExpenseModal })),
+    { ssr: false }
+);
+const PipelineSummaryCard = dynamic(
+    () => import("@/components/analytics/pipeline-summary-card").then(mod => ({ default: mod.PipelineSummaryCard })),
+    { loading: () => <div className="skeleton h-48 rounded-2xl" /> }
+);
+const OverviewCards = dynamic(
+    () => import("@/components/analytics/overview-cards").then(mod => ({ default: mod.OverviewCards })),
+    { loading: () => <div className="skeleton h-32 rounded-2xl" /> }
+);
 
 // Utils
 import { exportFinancesToCSV, exportFinancesToExcel, printFinancialReport } from "@/lib/finance-export";
 import { Expense } from "@/lib/expense-types";
+import { ExpenseFormData } from "@/components/finances/expense-form-modal";
 import { cn } from "@/lib/utils";
 
 type ActiveTab = "overview" | "profit" | "customers" | "expenses";
