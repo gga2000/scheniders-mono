@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
     supabase,
     type Order,
@@ -39,6 +40,8 @@ import {
 import {
     exportOrders as exportOrdersUtil,
 } from "@/lib/order-export-utils";
+// React Query hooks for caching
+import { useOrdersQuery, orderKeys } from "@/hooks/use-orders-query";
 
 // normalizeOrder is now imported from @/lib/order-normalize-utils
 
@@ -47,13 +50,37 @@ import {
 // =============================================
 
 export function useOrders() {
-    // Core state
+    // =============================================
+    // REACT QUERY INTEGRATION FOR CACHING
+    // =============================================
+    // Import the cached query - this provides instant data on repeat visits
+    const queryClient = useQueryClient();
+    const { data: cachedOrders, isLoading: queryLoading, error: queryError } = useOrdersQuery();
+
+    // Core state - now seeded from React Query cache
     const [orders, setOrders] = useState<Order[]>([]);
     const [archivedOrders, setArchivedOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     // Version counter to force re-renders on realtime updates
     const [realtimeVersion, setRealtimeVersion] = useState(0);
+
+    // Sync React Query data to local state (for backward compatibility)
+    useEffect(() => {
+        if (cachedOrders) {
+            setOrders(cachedOrders);
+            setLoading(false);
+            setError(null);
+        }
+    }, [cachedOrders]);
+
+    // Handle query errors
+    useEffect(() => {
+        if (queryError) {
+            setError(queryError instanceof Error ? queryError.message : "Failed to fetch orders");
+            setLoading(false);
+        }
+    }, [queryError]);
 
     // Refs to prevent race conditions
     const hasInitiallyLoaded = useRef(false); // Track if initial data has been loaded
@@ -81,7 +108,7 @@ export function useOrders() {
     const [filters, setFilters] = useState<OrderFilters>(getDefaultFilters);
 
     // =============================================
-    // INITIAL DATA FETCH
+    // INITIAL DATA FETCH (Real-time subscription only now)
     // =============================================
 
     useEffect(() => {
@@ -91,7 +118,8 @@ export function useOrders() {
         // Generate unique ID for this subscription
         const subscriptionId = Math.random().toString(36).substring(7);
 
-        fetchOrders(true); // Initial load
+        // Note: Initial fetch is now handled by React Query
+        // We only need to set up realtime subscription and fetch auxiliary data
         fetchRejectionReasons();
         fetchMessageTemplates();
         fetchBlacklist();
