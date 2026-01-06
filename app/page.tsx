@@ -9,6 +9,7 @@ import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useStats } from "@/hooks/use-stats";
 import { Plus, Search, Bell, User } from "lucide-react";
 import { PageGuard } from "@/components/auth/role-guard";
+import { PageSkeleton } from "@/components/ui/skeletons";
 
 export default function Home() {
   const { orders, loading, error, updateOrderStatus, updateOrder, createOrder } = useOrdersContext();
@@ -17,11 +18,8 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--background)]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-full border-4 border-[var(--pastel-yellow)] border-t-transparent animate-spin"></div>
-          <p className="text-muted font-medium">جاري تحميل البيانات...</p>
-        </div>
+      <div className="min-h-screen bg-[var(--background)]">
+        <PageSkeleton />
       </div>
     );
   }
