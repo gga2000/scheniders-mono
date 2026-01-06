@@ -49,19 +49,20 @@ interface BeforeInstallPromptEvent extends Event {
 
 export function usePWAInstall() {
     const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-    const [isInstalled, setIsInstalled] = useState(false);
-    const [isIOS, setIsIOS] = useState(false);
+    // Initialize installed state lazily to avoid effect setState
+    const [isInstalled, setIsInstalled] = useState(() => {
+        if (typeof window === "undefined") return false;
+        return window.matchMedia("(display-mode: standalone)").matches;
+    });
+    // Initialize iOS state lazily
+    const [isIOS] = useState(() => {
+        if (typeof window === "undefined") return false;
+        return /iPad|iPhone|iPod/.test(navigator.userAgent);
+    });
 
     useEffect(() => {
-        // Check if already installed
-        if (window.matchMedia("(display-mode: standalone)").matches) {
-            setIsInstalled(true);
-            return;
-        }
-
-        // Check iOS
-        const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent);
-        setIsIOS(isIOSDevice);
+        // Skip if already installed
+        if (isInstalled) return;
 
         // Listen for install prompt
         const handleBeforeInstall = (e: Event) => {
@@ -118,14 +119,12 @@ export function usePWAInstall() {
 
 export function PWAInstallBanner() {
     const { canInstall, isInstalled, isIOS, install } = usePWAInstall();
-    const [dismissed, setDismissed] = useState(false);
+    // Use lazy initialization to avoid setState in effect
+    const [dismissed, setDismissed] = useState(() => {
+        if (typeof window === "undefined") return false;
+        return sessionStorage.getItem("pwa-install-dismissed") === "true";
+    });
     const [showIOSInstructions, setShowIOSInstructions] = useState(false);
-
-    // Check if already dismissed in this session
-    useEffect(() => {
-        const wasDismissed = sessionStorage.getItem("pwa-install-dismissed");
-        if (wasDismissed) setDismissed(true);
-    }, []);
 
     const handleDismiss = () => {
         setDismissed(true);
@@ -253,11 +252,13 @@ export function PWAInstallBanner() {
 // =============================================
 
 export function useOnlineStatus() {
-    const [isOnline, setIsOnline] = useState(true);
+    // Use lazy initialization to avoid setState in effect
+    const [isOnline, setIsOnline] = useState(() => {
+        if (typeof window === "undefined") return true;
+        return navigator.onLine;
+    });
 
     useEffect(() => {
-        setIsOnline(navigator.onLine);
-
         const handleOnline = () => setIsOnline(true);
         const handleOffline = () => setIsOnline(false);
 

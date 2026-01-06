@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+
 
 // Expense category type
 export type ExpenseCategory =
