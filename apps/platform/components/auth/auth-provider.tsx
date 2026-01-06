@@ -124,16 +124,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, currentSession) => {
+
                 setSession(currentSession);
                 setUser(currentSession?.user ?? null);
 
                 if (currentSession?.user) {
                     // Only fetch if user changed or just signed in
                     if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+
                         await fetchRoleAndPermissions(currentSession.user.id);
+
 
                         if (event === 'SIGNED_IN') {
                             // Fire-and-forget: Don't block auth flow with activity logging
+
                             (async () => {
                                 try {
                                     // Update last_login_at
@@ -151,6 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                                     console.error("Error logging login:", err);
                                 }
                             })();
+
                         }
                     } else if (!role) {
                         // Fallback if role missing

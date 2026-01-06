@@ -168,11 +168,14 @@ export function CreateOrderModal({
             return;
         }
 
+
         setIsCreating(true);
         try {
+
             // Calculate total price from items
             const itemsTotal = formData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
             const finalPrice = Math.max(0, itemsTotal - discount);
+
 
             const result = await onCreate({
                 ...formData,

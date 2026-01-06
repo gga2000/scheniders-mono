@@ -59,6 +59,7 @@ class ActivityLogger {
     }
 
     private async getCachedSession(): Promise<{ userId: string | null; userEmail: string | null }> {
+        // console.log(`[ActivityLogger] Getting session...`);
         // Return cached session if still valid
         if (this.cachedSession && Date.now() < this.cachedSession.expiresAt) {
             return {

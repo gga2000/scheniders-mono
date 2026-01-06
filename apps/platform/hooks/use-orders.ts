@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+
 import {
     supabase,
     type Order,
@@ -49,6 +50,7 @@ import {
 } from "@/hooks/use-orders-query";
 
 // normalizeOrder is now imported from @/lib/order-normalize-utils
+import { createOrderAction } from "@/app/actions/orders";
 
 // =============================================
 // ENHANCED ORDERS HOOK
@@ -140,7 +142,7 @@ export function useOrders() {
 
         // Set up real-time subscription
         const channel = supabase
-            .channel(`orders_changes_${subscriptionId}`) // Unique channel name
+            .channel(`orders_changes_${subscriptionId} `) // Unique channel name
             .on(
                 "postgres_changes",
                 {
@@ -200,16 +202,15 @@ export function useOrders() {
                         pollingInterval = null;
                     }
                 } else if (status === "CHANNEL_ERROR" || status === "CLOSED") {
-                    console.error("[Realtime] Error - falling back to polling:", err?.message);
-                    realtimeWorking = false;
-                    // Start polling only if realtime fails
-                    if (!pollingInterval) {
-                        pollingInterval = setInterval(() => {
-                            if (!document.hidden) {
-                                fetchOrders(false);
-                            }
-                        }, 120000); // 2 minutes - less disruptive
-                    }
+                    console.log(`[Realtime] Error - falling back to polling: `, err);
+                    // DISABLED POLLING FOR DEBUGGING - Suspect it causes freeze
+                    // if (!pollingInterval) {
+                    //     pollingInterval = setInterval(() => {
+                    //         if (!document.hidden) {
+                    //             fetchOrders(false);
+                    //         }
+                    //     }, 120000); // 2 minutes - less disruptive
+                    // }
                 } else {
                     // Other status values (TIMED_OUT, etc.)
                 }
@@ -538,7 +539,7 @@ export function useOrders() {
                         status: previousOrder.status,
                         rejection_reason: previousOrder.rejection_reason,
                     },
-                    action: `Changed status to ${status}`,
+                    action: `Changed status to ${status} `,
                     timestamp: new Date(),
                 };
                 setUndoStack(prev => [undoEntry, ...prev.slice(0, MAX_UNDO_STACK - 1)]);
@@ -626,112 +627,29 @@ export function useOrders() {
         }
     }
 
-    async function createOrder(orderData: Omit<Order, "id" | "created_at" | "updated_at">, retryCount = 0): Promise<{ success: boolean; data?: Order; error?: string }> {
-        const MAX_RETRIES = 5;
-        const TIMEOUT_MS = 30000; // 30 second timeout to prevent infinite loading when tab is backgrounded
 
-        // Timeout wrapper to prevent infinite hangs when browser throttles backgrounded tabs
-        const withTimeout = <T>(promiseLike: PromiseLike<T>, ms: number): Promise<T> => {
-            const promise = Promise.resolve(promiseLike);
-            return Promise.race([
-                promise,
-                new Promise<T>((_, reject) =>
-                    setTimeout(() => reject(new Error('Request timed out - please try again')), ms)
-                )
-            ]);
-        };
+
+    async function createOrder(orderData: Omit<Order, "id" | "created_at" | "updated_at">): Promise<{ success: boolean; data?: Order; error?: string }> {
+
 
         try {
-            // Generate smart order ID if not provided
-            // Format: SYYMMDD### where S=source code, YYMMDD=date, ###=daily sequence
-            let generatedOrderId = orderData.order_id;
+            const result = await createOrderAction(orderData);
 
-            if (!generatedOrderId) {
-                // Get source code
-                const sourceCode = orderData.source === 'whatsapp' ? '1'
-                    : orderData.source === 'meta' ? '2'
-                        : orderData.source === 'tiktok' ? '3'
-                            : '4'; // Manual/other
-
-                // Get today's date in YYMMDD format
-                const now = new Date();
-                const dateStr = `${now.getFullYear().toString().slice(-2)}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}`;
-
-                // Get today's order count for this source to determine sequence
-                const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-                const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
-
-                const { count } = await withTimeout(
-                    supabase
-                        .from('orders')
-                        .select('*', { count: 'exact', head: true })
-                        .gte('created_at', startOfDay)
-                        .lt('created_at', endOfDay)
-                        .like('order_id', `${sourceCode}${dateStr}%`),
-                    TIMEOUT_MS
-                );
-
-                // Add retryCount to handle race conditions where multiple orders are created simultaneously
-                const sequence = ((count || 0) + 1 + retryCount).toString().padStart(3, '0');
-                generatedOrderId = `${sourceCode}${dateStr}${sequence}`;
+            if (!result.success || !result.data) {
+                throw new Error(result.error || "Failed to create order");
             }
 
-            // Get next global sequence number
-            const { data: maxSeqData } = await withTimeout(
-                supabase
-                    .from('orders')
-                    .select('sequence_number')
-                    .order('sequence_number', { ascending: false })
-                    .limit(1)
-                    .single(),
-                TIMEOUT_MS
-            );
-
-            const nextSequenceNumber = (maxSeqData?.sequence_number || 0) + 1 + retryCount;
-
-            // Add defaults for new fields - manual orders are auto-confirmed
-            const fullOrderData = {
-                ...orderData,
-                order_id: generatedOrderId,
-                sequence_number: nextSequenceNumber,
-                status: orderData.status || "confirmed", // Manual orders default to confirmed
-                priority: orderData.priority || "normal",
-                payment_status: orderData.payment_status || "cod",
-                is_return: orderData.is_return || false,
-                is_archived: false,
-            };
-
-            const { data, error: insertError } = await withTimeout(
-                supabase
-                    .from("orders")
-                    .insert([fullOrderData])
-                    .select()
-                    .single(),
-                TIMEOUT_MS
-            );
-
-            if (insertError) {
-                // Handle duplicate key constraint violation - retry with incremented sequence
-                // Error code 23505 is PostgreSQL unique violation
-                if ((insertError as any).code === '23505' && retryCount < MAX_RETRIES) {
-                    console.log(`Order ID collision detected, retrying (attempt ${retryCount + 2}/${MAX_RETRIES + 1})...`);
-                    await new Promise(resolve => setTimeout(resolve, 100)); // Small delay before retry
-                    return createOrder(orderData, retryCount + 1);
-                }
-                throw insertError;
-            }
+            const data = result.data;
 
             // Add to local state
-            if (data) {
-                setOrders((prev) => [data, ...prev]);
+            setOrders((prev) => [data, ...prev]);
 
-                // Log activity
-                activityLogger.logOrderCreate(
-                    data.id,
-                    data.order_id,
-                    orderData.source || "manual"
-                );
-            }
+            // Log activity
+            activityLogger.logOrderCreate(
+                data.id,
+                data.order_id,
+                orderData.source || "manual"
+            );
 
             return { success: true, data };
         } catch (err) {
@@ -751,7 +669,7 @@ export function useOrders() {
             }
 
             // Generate new order ID
-            const newOrderId = `CLN-${originalOrder.order_id}-${Date.now().toString(36).toUpperCase()}`;
+            const newOrderId = `CLN - ${originalOrder.order_id} -${Date.now().toString(36).toUpperCase()} `;
 
             // Clone the order with fresh data (only include fields that exist in DB)
             const clonedOrderData = {
@@ -764,7 +682,7 @@ export function useOrders() {
                 address_details: originalOrder.address_details,
                 price: originalOrder.price,
                 items: originalOrder.items,
-                notes: `Cloned from order #${originalOrder.order_id}`,
+                notes: `Cloned from order #${originalOrder.order_id} `,
                 status: "new" as const,
                 priority: "normal" as const,
                 payment_status: originalOrder.payment_status || "cod",
@@ -1120,7 +1038,7 @@ export function useOrders() {
             cleanPhoneForExport(order.phone),
             order.city || "",
             order.address_details || "",
-            order.items?.map((i) => `${i.name} x${i.quantity}`).join("; ") || "",
+            order.items?.map((i) => `${i.name} x${i.quantity} `).join("; ") || "",
             order.price,
             order.status,
             order.payment_status,
@@ -1149,7 +1067,7 @@ export function useOrders() {
         // For xlsx - use Tab-separated values for Excel compatibility
         const tsvContent = [
             headers.join("\t"),
-            ...rows.map((row) => row.map((cell) => `${cell}`).join("\t")),
+            ...rows.map((row) => row.map((cell) => `${cell} `).join("\t")),
         ].join("\n");
 
         const blob = new Blob([tsvContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
@@ -1188,7 +1106,7 @@ export function useOrders() {
 
         // Generate RTN ID: RTN-{original_sequence_number}-{return_count}
         const sequenceNum = originalOrder.sequence_number || originalOrder.order_id;
-        const returnOrderId = `RTN-${sequenceNum}-${returnCount}`;
+        const returnOrderId = `RTN - ${sequenceNum} -${returnCount} `;
 
         // Calculate return amount (deduct 5000 IQD delivery fee if checked)
         const deliveryFeeDeduction = returnData.deductDeliveryFee ? 5000 : 0;
@@ -1205,8 +1123,8 @@ export function useOrders() {
             price: -finalReturnAmount, // Negative amount for returns
             status: "return_pending",
             notes: returnData.deductDeliveryFee
-                ? `استرجاع: ${returnData.reason} | خصم التوصيل: 5,000 | الطلب الأصلي: #${originalOrder.order_id}`
-                : `استرجاع: ${returnData.reason} | الطلب الأصلي: #${originalOrder.order_id}`,
+                ? `استرجاع: ${returnData.reason} | خصم التوصيل: 5,000 | الطلب الأصلي: #${originalOrder.order_id} `
+                : `استرجاع: ${returnData.reason} | الطلب الأصلي: #${originalOrder.order_id} `,
             is_return: true,
             original_order_id: originalOrderId,
             priority: "high", // Returns are usually high priority
@@ -1350,7 +1268,7 @@ export function useOrders() {
                 .from("orders")
                 .update({
                     is_archived: true,
-                    notes: `[مدمج مع #${keepOrder.order_id}] ${archiveOrder.notes || ''}`.trim(),
+                    notes: `[مدمج مع #${keepOrder.order_id}] ${archiveOrder.notes || ''} `.trim(),
                     status: "rejected" as Order["status"],
                     rejection_reason: "duplicate_merged",
                 })
@@ -1688,7 +1606,7 @@ export function useOrders() {
 
         const ampm = maxHour >= 12 ? 'PM' : 'AM';
         const displayHour = maxHour % 12 || 12;
-        return `${displayHour} ${ampm}`;
+        return `${displayHour} ${ampm} `;
     })();
 
     const stats = {
