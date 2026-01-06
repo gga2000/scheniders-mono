@@ -41,7 +41,12 @@ import {
     exportOrders as exportOrdersUtil,
 } from "@/lib/order-export-utils";
 // React Query hooks for caching
-import { useOrdersQuery, orderKeys } from "@/hooks/use-orders-query";
+import {
+    useOrdersQuery,
+    useUpdateStatusMutation,
+    useUpdateOrderMutation,
+    orderKeys
+} from "@/hooks/use-orders-query";
 
 // normalizeOrder is now imported from @/lib/order-normalize-utils
 
@@ -56,6 +61,10 @@ export function useOrders() {
     // Import the cached query - this provides instant data on repeat visits
     const queryClient = useQueryClient();
     const { data: cachedOrders, isLoading: queryLoading, error: queryError } = useOrdersQuery();
+
+    // Import mutations for optimistic updates
+    const updateStatusMutation = useUpdateStatusMutation();
+    const updateOrderMutation = useUpdateOrderMutation();
 
     // Core state - now seeded from React Query cache
     const [orders, setOrders] = useState<Order[]>([]);
@@ -535,28 +544,18 @@ export function useOrders() {
                 setUndoStack(prev => [undoEntry, ...prev.slice(0, MAX_UNDO_STACK - 1)]);
             }
 
-            const updateData: Partial<Order> = { status };
-            if (rejectionReason) {
-                updateData.rejection_reason = rejectionReason;
-            }
-
-            // Set timestamp when status changes to delivered or cancelled
-            if (status === 'delivered') {
-                updateData.delivered_at = new Date().toISOString();
-            } else if (status === 'cancelled') {
-                updateData.cancelled_at = new Date().toISOString();
-            }
-
-            const { error: updateError } = await supabase
-                .from("orders")
-                .update(updateData)
-                .eq("id", orderId);
-
-            if (updateError) throw updateError;
+            // Use React Query mutation for optimistic update and cache management
+            const { updateData } = await updateStatusMutation.mutateAsync({
+                orderId,
+                status,
+                rejectionReason
+            });
 
             // Record status change to history table for timeline tracking
+            // Note: This is a side effect we still run directly
             if (previousOrder && previousOrder.status !== status) {
-                await supabase
+                // Fire and forget history insert to not block UI
+                supabase
                     .from("order_status_history")
                     .insert([{
                         order_id: orderId,
@@ -564,10 +563,12 @@ export function useOrders() {
                         to_status: status,
                         changed_at: new Date().toISOString(),
                         notes: rejectionReason || null,
-                    }]);
+                    }]).then(({ error }) => {
+                        if (error) console.error("Failed to record status history:", error);
+                    });
             }
 
-            // Update local state
+            // Update local state (redundant with RQ sync but ensures immediate responsiveness)
             setOrders((prev) =>
                 prev.map((order) =>
                     order.id === orderId ? { ...order, ...updateData } : order
@@ -598,42 +599,20 @@ export function useOrders() {
     async function updateOrder(orderId: string, updates: Partial<Order>, retryCount = 0): Promise<{ success: boolean; error?: string }> {
         try {
             // Remove any fields that shouldn't be sent to the database
-            // Note: id is auto-generated and should never be updated
-            // Note: created_at is intentionally NOT removed here - it can be updated by users via the edit modal
             const cleanUpdates = { ...updates };
-            delete (cleanUpdates as Record<string, unknown>).id;
+            delete (cleanUpdates as any).items;
+            delete (cleanUpdates as any).customer;
 
-            const { error: updateError, status } = await supabase
-                .from("orders")
-                .update(cleanUpdates)
-                .eq("id", orderId);
+            // Use React Query mutation for optimistic update
+            const { updates: appliedUpdates } = await updateOrderMutation.mutateAsync({
+                orderId,
+                updates: cleanUpdates
+            });
 
-            if (updateError) {
-                // Log detailed error info
-                console.error("Order update error:", {
-                    orderId,
-                    updates: cleanUpdates,
-                    error: updateError,
-                    status,
-                    code: updateError.code,
-                    details: updateError.details,
-                    hint: updateError.hint,
-                    message: updateError.message,
-                });
-
-                // Retry on conflict (409) if we haven't exceeded retry limit
-                if (status === 409 && retryCount < 2) {
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    return updateOrder(orderId, updates, retryCount + 1);
-                }
-
-                throw updateError;
-            }
-
-            // Update local state
+            // Update local state (redundant with RQ sync but ensures immediate responsiveness)
             setOrders((prev) =>
                 prev.map((order) =>
-                    order.id === orderId ? { ...order, ...updates } : order
+                    order.id === orderId ? { ...order, ...appliedUpdates } : order
                 )
             );
 
