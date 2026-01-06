@@ -119,14 +119,16 @@ export function Sidebar({
 
                     {NAV_ITEMS.map((item) => {
                         const isActive = pathname === item.href;
+                        // Pages that use orders data - prefetch on hover
+                        const usesOrdersData = ["/", "/orders", "/customers", "/analytics", "/printing"].includes(item.href);
                         return (
                             <Link
                                 key={item.href}
                                 href={item.href}
                                 prefetch={true}
                                 onMouseEnter={() => {
-                                    // Prefetch orders data on hover for instant navigation
-                                    if (item.href === "/orders") prefetchOrders();
+                                    // Prefetch orders data on hover for pages that need it
+                                    if (usesOrdersData) prefetchOrders();
                                 }}
                                 className={cn(
                                     "flex items-center py-3 rounded-2xl transition-all duration-300 group relative overflow-hidden",

@@ -9,9 +9,16 @@ import { validatePhoneDetailed } from "@/lib/order-utils";
 import { OrderCard } from "@/components/dashboard/order-card";
 import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
 import { OrderCardSkeleton } from "@/components/dashboard/order-card-skeleton";
-import { OrderDetailsModal } from "@/components/orders/order-details-modal";
-import { CreateOrderModal } from "@/components/orders/create-order-modal";
-// Dynamic imports for heavy components - reduces initial bundle by ~100KB
+// Dynamic imports for heavy modals - reduces initial bundle by ~150KB
+const OrderDetailsModal = dynamic(
+    () => import("@/components/orders/order-details-modal").then(mod => ({ default: mod.OrderDetailsModal })),
+    { ssr: false }
+);
+const CreateOrderModal = dynamic(
+    () => import("@/components/orders/create-order-modal").then(mod => ({ default: mod.CreateOrderModal })),
+    { ssr: false }
+);
+// Dynamic imports for other heavy components
 const KanbanBoard = dynamic(
     () => import("@/components/orders/kanban-board").then(mod => ({ default: mod.KanbanBoard })),
     { loading: () => <div className="skeleton w-full h-96 rounded-2xl" />, ssr: false }
