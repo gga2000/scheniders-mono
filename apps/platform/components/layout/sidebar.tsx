@@ -19,6 +19,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
+import { usePrefetchOrders } from "@/hooks/use-orders-query";
 import { useState } from "react";
 
 const NAV_ITEMS = [
@@ -50,6 +51,7 @@ export function Sidebar({
     const pathname = usePathname();
     const router = useRouter();
     const { user, profile, signOut, isLoading: authLoading } = useAuth();
+    const prefetchOrders = usePrefetchOrders();
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
     // On mobile, always show expanded sidebar in the drawer
@@ -117,11 +119,17 @@ export function Sidebar({
 
                     {NAV_ITEMS.map((item) => {
                         const isActive = pathname === item.href;
+                        // Pages that use orders data - prefetch on hover
+                        const usesOrdersData = ["/", "/orders", "/customers", "/analytics", "/printing"].includes(item.href);
                         return (
                             <Link
                                 key={item.href}
                                 href={item.href}
                                 prefetch={true}
+                                onMouseEnter={() => {
+                                    // Prefetch orders data on hover for pages that need it
+                                    if (usesOrdersData) prefetchOrders();
+                                }}
                                 className={cn(
                                     "flex items-center py-3 rounded-2xl transition-all duration-300 group relative overflow-hidden",
                                     collapsed
