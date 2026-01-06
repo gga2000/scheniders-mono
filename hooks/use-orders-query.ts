@@ -197,3 +197,109 @@ export function usePrefetchOrders() {
         });
     };
 }
+
+/**
+ * useDeleteOrderMutation - Optimistic delete
+ */
+export function useDeleteOrderMutation() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (orderId: string) => {
+            const { error } = await supabase
+                .from("orders")
+                .delete()
+                .eq("id", orderId);
+
+            if (error) throw error;
+            return orderId;
+        },
+        onMutate: async (orderId) => {
+            await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
+
+            const previousOrders = queryClient.getQueryData<Order[]>(orderKeys.lists());
+
+            // Optimistic update
+            queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) =>
+                old?.filter((order) => order.id !== orderId) || []
+            );
+
+            return { previousOrders };
+        },
+        onError: (err, variables, context) => {
+            if (context?.previousOrders) {
+                queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
+            }
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+        },
+    });
+}
+
+/**
+ * useCreateOrderMutation - Optimistic create
+ */
+export function useCreateOrderMutation() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (orderData: Omit<Order, "id" | "created_at" | "updated_at">) => {
+            // We can't use server actions here easily if we want to keep it purely client-side hook logic 
+            // but useOrders used createOrderAction. Let's stick to that or import it.
+            // Ideally this should invoke the server action or supabase directly. 
+            // Since createOrderAction is complex (generates ID etc), we should probably wrap it.
+            // However, for consistency with other mutations in this file, we might want to keep it simple.
+            // BUT createOrderAction handles ID generation which is crucial.
+            // Let's defer implementation of logic to the consumer or import the action.
+            // Ideally: import { createOrderAction } from "@/app/actions/orders";
+            // But we can't import server actions into this file easily if it's "use client"? 
+            // Actually we can.
+
+            // Wait, the previous file imported `createOrderAction` in `use-orders.ts`. 
+            // Passing it as a prop or importing it here? 
+            // Let's assume we can fetch it or pass it.
+            // Actually, the mutationFn can just call the server action. 
+            const { createOrderAction } = await import("@/app/actions/orders");
+            const result = await createOrderAction(orderData);
+            if (!result.success || !result.data) {
+                throw new Error(result.error || "Failed to create order");
+            }
+            return result.data;
+        },
+        onMutate: async (newOrder) => {
+            await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
+
+            const previousOrders = queryClient.getQueryData<Order[]>(orderKeys.lists());
+
+            // Create a temporary optimistic order
+            const tempId = `temp-${Date.now()}`;
+            const optimisticOrder = {
+                ...newOrder,
+                id: tempId,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                // Fill other required fields with defaults if missing
+                status: newOrder.status || "new",
+                is_archived: false,
+                payment_status: newOrder.payment_status || "cod",
+            } as Order;
+
+            // Optimistic update - add to top
+            queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) =>
+                [optimisticOrder, ...(old || [])]
+            );
+
+            return { previousOrders, tempId };
+        },
+        onError: (err, variables, context) => {
+            if (context?.previousOrders) {
+                queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
+            }
+        },
+        onSettled: () => {
+            // Invalidate to get the real ID and server-side fields
+            queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+        },
+    });
+}
