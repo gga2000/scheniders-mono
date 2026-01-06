@@ -38,6 +38,7 @@ import { AdvancedFilters } from "@/components/customers/advanced-filters";
 
 // Export utilities
 import { exportCustomersToCSV, exportCustomersToExcel, printCustomerReport } from "@/lib/customer-export";
+import { StatCardsSkeleton, CustomerCardSkeleton } from "@/components/ui/skeletons";
 
 export default function CustomersPage() {
     const [filters, setFilters] = useState<CustomerFilters>({
@@ -124,11 +125,15 @@ export default function CustomersPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 rounded-full border-4 border-[var(--pastel-yellow)] border-t-transparent animate-spin"></div>
-                    <p className="text-muted font-medium">Loading customers...</p>
+            <div className="min-h-screen p-6 md:p-8 space-y-6">
+                <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                        <div className="skeleton h-8 w-48" />
+                        <div className="skeleton h-4 w-32" />
+                    </div>
                 </div>
+                <StatCardsSkeleton count={5} />
+                <CustomerCardSkeleton count={5} />
             </div>
         );
     }
