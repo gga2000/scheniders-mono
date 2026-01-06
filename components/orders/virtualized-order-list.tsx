@@ -1,0 +1,149 @@
+"use client";
+
+import { useRef, memo, useCallback } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { Order, MessageTemplate } from "@/lib/supabase";
+import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
+
+interface VirtualizedOrderListProps {
+    orders: Order[];
+    loadingId: string | null;
+    selectedOrders: Set<string>;
+    messageTemplates: MessageTemplate[];
+    // Callbacks
+    onStatusUpdate: (id: string, status: Order["status"], reason?: string) => void;
+    onViewDetails: (order: Order) => void;
+    onToggleSelection: (orderId: string) => void;
+    onTogglePin: (orderId: string) => void;
+    onCloneOrder: (orderId: string) => void;
+    onScreenshot: (order: Order) => void;
+    onCancelWithReason: (order: Order) => void;
+    onRejectWithReason: (order: Order) => void;
+    onToggleReviewed: (orderId: string) => void;
+    onOpenTemplatePanel: (order: Order) => void;
+    onShowDuplicates: (order: Order) => void;
+    onMergeWithPrevious: (currentOrderId: string, previousOrderId: string) => void;
+    // Data helpers
+    isBlacklisted: (phone: string) => boolean;
+    getCustomerOrderCount: (phone: string, orderId: string) => number;
+    getCustomerHistory: (phone: string) => Order[];
+    getReturnOrderInfo: (orderId: string) => { returnOrderId: string; returnSequenceNumber?: number } | null;
+    getOriginalOrderInfo: (originalOrderId?: string) => { originalOrderId: string; originalSequenceNumber?: number } | null;
+    // Options
+    compactView?: boolean;
+}
+
+// Estimated card heights (will be measured dynamically)
+const ESTIMATED_CARD_HEIGHT = 180;
+const COMPACT_CARD_HEIGHT = 120;
+
+export const VirtualizedOrderList = memo(function VirtualizedOrderList({
+    orders,
+    loadingId,
+    selectedOrders,
+    messageTemplates,
+    onStatusUpdate,
+    onViewDetails,
+    onToggleSelection,
+    onTogglePin,
+    onCloneOrder,
+    onScreenshot,
+    onCancelWithReason,
+    onRejectWithReason,
+    onToggleReviewed,
+    onOpenTemplatePanel,
+    onShowDuplicates,
+    onMergeWithPrevious,
+    isBlacklisted,
+    getCustomerOrderCount,
+    getCustomerHistory,
+    getReturnOrderInfo,
+    getOriginalOrderInfo,
+    compactView = false,
+}: VirtualizedOrderListProps) {
+    const parentRef = useRef<HTMLDivElement>(null);
+
+    // Create virtualizer
+    const virtualizer = useVirtualizer({
+        count: orders.length,
+        getScrollElement: () => parentRef.current,
+        estimateSize: () => compactView ? COMPACT_CARD_HEIGHT : ESTIMATED_CARD_HEIGHT,
+        overscan: 5, // Render 5 extra items above/below viewport
+        gap: 12, // Gap between items
+    });
+
+    const items = virtualizer.getVirtualItems();
+
+    // Memoize callbacks to prevent re-renders
+    const handleStatusUpdate = useCallback(onStatusUpdate, [onStatusUpdate]);
+    const handleViewDetails = useCallback(onViewDetails, [onViewDetails]);
+
+    if (orders.length === 0) {
+        return null;
+    }
+
+    return (
+        <div
+            ref={parentRef}
+            className="h-[calc(100vh-280px)] overflow-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
+            style={{ contain: "strict" }}
+        >
+            <div
+                style={{
+                    height: `${virtualizer.getTotalSize()}px`,
+                    width: "100%",
+                    position: "relative",
+                }}
+            >
+                {items.map((virtualRow) => {
+                    const order = orders[virtualRow.index];
+                    const customerOrders = getCustomerHistory(order.phone);
+                    const orderCount = getCustomerOrderCount(order.phone, order.order_id);
+                    const previousOrder = customerOrders.find(o => o.id !== order.id) || null;
+
+                    return (
+                        <div
+                            key={order.id}
+                            data-index={virtualRow.index}
+                            ref={virtualizer.measureElement}
+                            style={{
+                                position: "absolute",
+                                top: 0,
+                                left: 0,
+                                width: "100%",
+                                transform: `translateY(${virtualRow.start}px)`,
+                            }}
+                        >
+                            <SwipeableOrderCard
+                                order={order}
+                                loadingId={loadingId}
+                                onStatusUpdate={handleStatusUpdate}
+                                onViewDetails={handleViewDetails}
+                                isBlacklisted={isBlacklisted(order.phone)}
+                                customerOrderCount={orderCount}
+                                previousOrder={previousOrder}
+                                onMergeWithPrevious={onMergeWithPrevious}
+                                onShowDuplicates={onShowDuplicates}
+                                onTogglePin={onTogglePin}
+                                onCloneOrder={onCloneOrder}
+                                onScreenshot={onScreenshot}
+                                onCancelWithReason={onCancelWithReason}
+                                onRejectWithReason={onRejectWithReason}
+                                onToggleReviewed={onToggleReviewed}
+                                returnOrderInfo={getReturnOrderInfo(order.id)}
+                                originalOrderInfo={getOriginalOrderInfo(order.original_order_id)}
+                                compact={compactView}
+                                onOpenTemplatePanel={onOpenTemplatePanel}
+                                messageTemplates={messageTemplates}
+                                isSelected={selectedOrders.has(order.id)}
+                                onToggleSelection={onToggleSelection}
+                            />
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+});
+
+VirtualizedOrderList.displayName = "VirtualizedOrderList";

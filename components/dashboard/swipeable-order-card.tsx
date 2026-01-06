@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Order, MessageTemplate } from "@/lib/supabase";
 import { OrderCard } from "./order-card";
@@ -50,7 +50,7 @@ interface SwipeableOrderCardProps {
 // Double tap detection timing (ms)
 const DOUBLE_TAP_DELAY = 300;
 
-export function SwipeableOrderCard(props: SwipeableOrderCardProps) {
+export const SwipeableOrderCard = memo(function SwipeableOrderCard(props: SwipeableOrderCardProps) {
     const {
         order,
         onStatusUpdate,
@@ -334,4 +334,6 @@ export function SwipeableOrderCard(props: SwipeableOrderCardProps) {
             )}
         </div>
     );
-}
+});
+
+SwipeableOrderCard.displayName = "SwipeableOrderCard";
