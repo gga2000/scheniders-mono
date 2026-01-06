@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, memo } from "react";
 import { createPortal } from "react-dom";
 import { Order, OrderPriority, MessageTemplate } from "@/lib/supabase";
 import { formatIQD, generateWhatsAppLink, getStatusLabel, copyOrderToClipboard, getGuaranteeDaysRemaining } from "@/lib/utils";
@@ -73,7 +73,7 @@ interface OrderCardProps {
     onToggleSelection?: (orderId: string) => void;
 }
 
-export function OrderCard({
+export const OrderCard = memo(function OrderCard({
     order,
     loadingId,
     onStatusUpdate,
@@ -1347,4 +1347,6 @@ export function OrderCard({
             </motion.div>
         </motion.div >
     );
-}
+});
+
+OrderCard.displayName = "OrderCard";
