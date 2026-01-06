@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, Fragment } from "react";
+import dynamic from "next/dynamic";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { Order, PaymentStatus } from "@/lib/supabase";
@@ -10,12 +11,25 @@ import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card"
 import { OrderCardSkeleton } from "@/components/dashboard/order-card-skeleton";
 import { OrderDetailsModal } from "@/components/orders/order-details-modal";
 import { CreateOrderModal } from "@/components/orders/create-order-modal";
-import { KanbanBoard } from "@/components/orders/kanban-board";
+// Dynamic imports for heavy components - reduces initial bundle by ~100KB
+const KanbanBoard = dynamic(
+    () => import("@/components/orders/kanban-board").then(mod => ({ default: mod.KanbanBoard })),
+    { loading: () => <div className="skeleton w-full h-96 rounded-2xl" />, ssr: false }
+);
 import { FloatingActionBar } from "@/components/orders/floating-action-bar";
 import { WorkflowTabs } from "@/components/orders/workflow-tabs";
-import { DuplicateComparisonModal } from "@/components/orders/duplicate-comparison-modal";
-import { ImportOrdersModal } from "@/components/orders/import-orders-modal";
-import { WhatsAppTemplatePanel } from "@/components/orders/whatsapp-template-panel";
+const DuplicateComparisonModal = dynamic(
+    () => import("@/components/orders/duplicate-comparison-modal").then(mod => ({ default: mod.DuplicateComparisonModal })),
+    { ssr: false }
+);
+const ImportOrdersModal = dynamic(
+    () => import("@/components/orders/import-orders-modal").then(mod => ({ default: mod.ImportOrdersModal })),
+    { ssr: false }
+);
+const WhatsAppTemplatePanel = dynamic(
+    () => import("@/components/orders/whatsapp-template-panel").then(mod => ({ default: mod.WhatsAppTemplatePanel })),
+    { ssr: false }
+);
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { EmptyState } from "@/components/ui/empty-states";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layout/page-transition";
