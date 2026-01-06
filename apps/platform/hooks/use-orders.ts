@@ -46,6 +46,8 @@ import {
     useOrdersQuery,
     useUpdateStatusMutation,
     useUpdateOrderMutation,
+    useDeleteOrderMutation,
+    useCreateOrderMutation,
     orderKeys
 } from "@/hooks/use-orders-query";
 
@@ -67,6 +69,8 @@ export function useOrders() {
     // Import mutations for optimistic updates
     const updateStatusMutation = useUpdateStatusMutation();
     const updateOrderMutation = useUpdateOrderMutation();
+    const deleteOrderMutation = useDeleteOrderMutation();
+    const createOrderMutation = useCreateOrderMutation();
 
     // Core state - now seeded from React Query cache
     const [orders, setOrders] = useState<Order[]>(() => {
@@ -577,12 +581,7 @@ export function useOrders() {
                     });
             }
 
-            // Update local state (redundant with RQ sync but ensures immediate responsiveness)
-            setOrders((prev) =>
-                prev.map((order) =>
-                    order.id === orderId ? { ...order, ...updateData } : order
-                )
-            );
+
 
             // Log activity
             if (previousOrder && previousOrder.status !== status) {
@@ -618,12 +617,7 @@ export function useOrders() {
                 updates: cleanUpdates
             });
 
-            // Update local state (redundant with RQ sync but ensures immediate responsiveness)
-            setOrders((prev) =>
-                prev.map((order) =>
-                    order.id === orderId ? { ...order, ...appliedUpdates } : order
-                )
-            );
+
 
             return { success: true };
         } catch (err) {
@@ -641,16 +635,8 @@ export function useOrders() {
 
 
         try {
-            const result = await createOrderAction(orderData);
-
-            if (!result.success || !result.data) {
-                throw new Error(result.error || "Failed to create order");
-            }
-
-            const data = result.data;
-
-            // Add to local state
-            setOrders((prev) => [data, ...prev]);
+            // Use React Query mutation for optimistic update
+            const data = await createOrderMutation.mutateAsync(orderData);
 
             // Log activity
             activityLogger.logOrderCreate(
@@ -696,23 +682,9 @@ export function useOrders() {
                 payment_status: originalOrder.payment_status || "cod",
                 is_return: false,
                 is_archived: false,
-                // Note: is_pinned is a frontend-only feature for now
             };
 
-            const { data, error: insertError } = await supabase
-                .from("orders")
-                .insert([clonedOrderData])
-                .select()
-                .single();
-
-            if (insertError) throw insertError;
-
-            // Add to local state
-            if (data) {
-                setOrders((prev) => [data, ...prev]);
-            }
-
-            return { success: true, data };
+            return createOrder(clonedOrderData);
         } catch (err) {
             console.error("Error cloning order:", err);
             return {
@@ -978,17 +950,11 @@ export function useOrders() {
     }
 
     // Delete a single order
+    // Delete a single order
     async function deleteOrder(orderId: string) {
         try {
-            const { error: deleteError } = await supabase
-                .from("orders")
-                .delete()
-                .eq("id", orderId);
-
-            if (deleteError) throw deleteError;
-
-            // Remove from local state
-            setOrders((prev) => prev.filter((order) => order.id !== orderId));
+            // Use React Query mutation for optimistic update
+            await deleteOrderMutation.mutateAsync(orderId);
 
             return { success: true };
         } catch (err) {
