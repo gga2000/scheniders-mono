@@ -75,25 +75,10 @@ export function useOrders() {
     const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
     const MAX_UNDO_STACK = 10;
 
-    // Helper to get today's date in YYYY-MM-DD format using LOCAL timezone
-    // Note: toISOString() converts to UTC which causes issues for users in positive
-    // UTC offset timezones (like Iraq UTC+3) after local midnight but before UTC midnight
-    const getLocalDateString = (date: Date = new Date()) => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    };
+    // getLocalDateString is now imported from @/lib/order-filter-utils
 
     // Filters state - default to today's orders
-    const [filters, setFilters] = useState<OrderFilters>(() => {
-        const today = getLocalDateString();
-        return {
-            status: "all",
-            dateFrom: today,
-            dateTo: today,
-        };
-    });
+    const [filters, setFilters] = useState<OrderFilters>(getDefaultFilters);
 
     // =============================================
     // INITIAL DATA FETCH
@@ -332,14 +317,8 @@ export function useOrders() {
     }
 
     function loadFilterPresets() {
-        try {
-            const saved = localStorage.getItem("order_filter_presets");
-            if (saved) {
-                setFilterPresets(JSON.parse(saved));
-            }
-        } catch (err) {
-            console.error("Error loading filter presets:", err);
-        }
+        const presets = loadFilterPresetsFromStorage();
+        setFilterPresets(presets);
     }
 
     // =============================================
@@ -479,16 +458,10 @@ export function useOrders() {
     // =============================================
 
     function saveFilterPreset(name: string) {
-        const preset: FilterPreset = {
-            id: crypto.randomUUID(),
-            name,
-            filters,
-            page: "orders",
-            created_at: new Date().toISOString(),
-        };
+        const preset = createFilterPreset(name, filters, "orders");
         const updated = [...filterPresets, preset];
         setFilterPresets(updated);
-        localStorage.setItem("order_filter_presets", JSON.stringify(updated));
+        saveFilterPresetsToStorage(updated);
         return preset;
     }
 
@@ -502,7 +475,7 @@ export function useOrders() {
     function deleteFilterPreset(presetId: string) {
         const updated = filterPresets.filter((p) => p.id !== presetId);
         setFilterPresets(updated);
-        localStorage.setItem("order_filter_presets", JSON.stringify(updated));
+        saveFilterPresetsToStorage(updated);
     }
 
     function clearFilters() {
