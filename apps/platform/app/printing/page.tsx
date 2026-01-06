@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { useOrders } from "@/hooks/use-orders";
+import { useOrdersContext } from "@/components/providers/orders-provider";
 import { usePrinting, LabelSettings } from "@/hooks/use-printing";
 import { PrintBatch } from "@/lib/supabase";
 import { Order } from "@/lib/supabase";
@@ -46,7 +46,7 @@ import { formatIQD, formatDate, getBaseOrderId } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 export default function PrintingPage() {
-    const { orders, loading, error, updateOrderStatus, bulkUpdateStatus } = useOrders();
+    const { orders, loading, error, updateOrderStatus, bulkUpdateStatus } = useOrdersContext();
     const printing = usePrinting(orders);
 
     // Selection state
