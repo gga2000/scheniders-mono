@@ -226,25 +226,11 @@ export function useOrders() {
         abortControllerRef.current = controller;
 
         try {
-            // Select only essential columns for list display to reduce payload
-            // Full order data is fetched on demand when viewing order details
+            // Note: Using select("*") because TypeScript Order type includes 
+            // some optional columns that may not exist in all DB schemas
             const { data, error: fetchError } = await supabase
                 .from("orders")
-                .select(`
-                    id, order_id, customer_name, phone, secondary_phone,
-                    city, governorate_code, address_details,
-                    items, price, status, priority, payment_status,
-                    created_at, updated_at, scheduled_date,
-                    notes, internal_notes, rejection_reason,
-                    delivery_fee, discount_amount, is_return, is_archived,
-                    is_pinned, tag_color, source, sequence_number,
-                    delivered_at, cancelled_at, printed_at, print_count,
-                    is_gift, needs_attention, attention_reasons,
-                    delivery_cost, delivery_order_id, contact_count,
-                    whatsapp_link, is_reviewed, is_verified_customer,
-                    address_status, address_issues, validated_governorate_code,
-                    original_order_id, last_batch_id, delivery_slot
-                `)
+                .select("*")
                 .eq("is_archived", false)
                 .order("created_at", { ascending: false })
                 .abortSignal(controller.signal);
