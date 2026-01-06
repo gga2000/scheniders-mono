@@ -55,12 +55,20 @@ export function useOrders() {
     // =============================================
     // Import the cached query - this provides instant data on repeat visits
     const queryClient = useQueryClient();
-    const { data: cachedOrders, isLoading: queryLoading, error: queryError } = useOrdersQuery();
+    const { data: cachedOrders, isLoading: queryLoading, error: queryError, isFetching } = useOrdersQuery();
 
     // Core state - now seeded from React Query cache
-    const [orders, setOrders] = useState<Order[]>([]);
+    const [orders, setOrders] = useState<Order[]>(() => {
+        // Initialize from cache if available to prevent flash of loading state
+        const cached = queryClient.getQueryData<Order[]>(["orders", "list"]);
+        return cached || [];
+    });
     const [archivedOrders, setArchivedOrders] = useState<Order[]>([]);
-    const [loading, setLoading] = useState(true);
+    // Start as false if we have cached data (prevents loading flash on navigation)
+    const [loading, setLoading] = useState(() => {
+        const cached = queryClient.getQueryData<Order[]>(["orders", "list"]);
+        return !cached; // Only show loading if no cache
+    });
     const [error, setError] = useState<string | null>(null);
     // Version counter to force re-renders on realtime updates
     const [realtimeVersion, setRealtimeVersion] = useState(0);
@@ -119,10 +127,10 @@ export function useOrders() {
         const subscriptionId = Math.random().toString(36).substring(7);
 
         // Note: Initial fetch is now handled by React Query
-        // We only need to set up realtime subscription and fetch auxiliary data
-        fetchRejectionReasons();
-        fetchMessageTemplates();
-        fetchBlacklist();
+        // Fetch auxiliary data only if not already loaded (prevents re-fetch on navigation)
+        if (rejectionReasons.length === 0) fetchRejectionReasons();
+        if (messageTemplates.length === 0) fetchMessageTemplates();
+        if (blacklistedPhones.size === 0) fetchBlacklist();
         loadFilterPresets();
 
         let pollingInterval: NodeJS.Timeout | null = null;

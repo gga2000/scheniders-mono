@@ -5,13 +5,13 @@ import { StatsGrid } from "@/components/dashboard/stats-grid";
 import { OrdersTable } from "@/components/dashboard/orders-table";
 import { LiveFeed } from "@/components/dashboard/live-feed";
 import { CreateOrderModal } from "@/components/orders/create-order-modal";
-import { useOrders } from "@/hooks/use-orders";
+import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useStats } from "@/hooks/use-stats";
 import { Plus, Search, Bell, User } from "lucide-react";
 import { PageGuard } from "@/components/auth/role-guard";
 
 export default function Home() {
-  const { orders, loading, error, updateOrderStatus, updateOrder, createOrder } = useOrders();
+  const { orders, loading, error, updateOrderStatus, updateOrder, createOrder } = useOrdersContext();
   const stats = useStats(orders);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
