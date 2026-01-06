@@ -37,6 +37,10 @@ const WhatsAppTemplatePanel = dynamic(
     () => import("@/components/orders/whatsapp-template-panel").then(mod => ({ default: mod.WhatsAppTemplatePanel })),
     { ssr: false }
 );
+const VirtualizedOrderList = dynamic(
+    () => import("@/components/orders/virtualized-order-list").then(mod => ({ default: mod.VirtualizedOrderList })),
+    { ssr: false }
+);
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { EmptyState } from "@/components/ui/empty-states";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layout/page-transition";
@@ -1435,71 +1439,119 @@ export default function OrdersPage() {
                             <>
                                 {/* Cards View */}
                                 {viewMode === "cards" && (
-                                    <StaggerContainer key={`orders-list-${realtimeVersion}`} className="space-y-3">
+                                    <>
                                         {displayedOrders.length === 0 ? (
                                             <EmptyState
                                                 type={(filters.status as any) || "all"}
                                                 searchQuery={filters.searchQuery}
                                                 hasFilters={!!(filters.dateFrom || filters.dateTo || filters.city || filters.product || filters.priority)}
                                             />
+                                        ) : displayedOrders.length >= 50 ? (
+                                            /* Use virtualized list for 50+ orders */
+                                            <VirtualizedOrderList
+                                                orders={displayedOrders}
+                                                loadingId={loadingId}
+                                                selectedOrders={selectedOrders}
+                                                messageTemplates={workflowTemplates}
+                                                onStatusUpdate={handleStatusUpdate}
+                                                onViewDetails={(o) => {
+                                                    setSelectedOrder(o);
+                                                    setIsModalOpen(true);
+                                                }}
+                                                onToggleSelection={toggleOrderSelection}
+                                                onTogglePin={togglePin}
+                                                onCloneOrder={cloneOrder}
+                                                onScreenshot={setScreenshotOrder}
+                                                onCancelWithReason={(o) => {
+                                                    setOrderToCancel(o);
+                                                    setCancelDialogOpen(true);
+                                                }}
+                                                onRejectWithReason={(o) => {
+                                                    setOrderToReject(o);
+                                                    setRejectDialogOpen(true);
+                                                }}
+                                                onToggleReviewed={toggleReviewed}
+                                                onOpenTemplatePanel={(o) => {
+                                                    setOrderForTemplate(o);
+                                                    setTemplatePanelOpen(true);
+                                                }}
+                                                onShowDuplicates={(o) => {
+                                                    setDuplicateOrder(o);
+                                                    setShowDuplicateModal(true);
+                                                }}
+                                                onMergeWithPrevious={async (keepId, archiveId) => {
+                                                    const result = await mergeOrders(keepId, archiveId);
+                                                    if (!result.success) {
+                                                        console.error('Merge failed:', result.error);
+                                                    }
+                                                }}
+                                                isBlacklisted={isBlacklisted}
+                                                getCustomerOrderCount={getCustomerOrderCount}
+                                                getCustomerHistory={getCustomerHistory}
+                                                getReturnOrderInfo={getReturnOrderInfo}
+                                                getOriginalOrderInfo={getOriginalOrderInfo}
+                                                compactView={compactView}
+                                            />
                                         ) : (
-                                            displayedOrders.map((order) => {
-                                                const customerOrders = getCustomerHistory(order.phone);
-                                                const orderCount = getCustomerOrderCount(order.phone, order.order_id);
-                                                // Find previous order (not the current one)
-                                                const previousOrder = customerOrders.find(o => o.id !== order.id) || null;
+                                            /* Use animated list for <50 orders */
+                                            <StaggerContainer key={`orders-list-${realtimeVersion}`} className="space-y-3">
+                                                {displayedOrders.map((order) => {
+                                                    const customerOrders = getCustomerHistory(order.phone);
+                                                    const orderCount = getCustomerOrderCount(order.phone, order.order_id);
+                                                    const previousOrder = customerOrders.find(o => o.id !== order.id) || null;
 
-                                                return (
-                                                    <StaggerItem key={`${order.id}-${order.updated_at || order.status}`}>
-                                                        <SwipeableOrderCard
-                                                            order={order}
-                                                            loadingId={loadingId}
-                                                            onStatusUpdate={handleStatusUpdate}
-                                                            onViewDetails={(o) => {
-                                                                setSelectedOrder(o);
-                                                                setIsModalOpen(true);
-                                                            }}
-                                                            isBlacklisted={isBlacklisted(order.phone)}
-                                                            customerOrderCount={orderCount}
-                                                            previousOrder={previousOrder}
-                                                            onMergeWithPrevious={async (keepId, archiveId) => {
-                                                                const result = await mergeOrders(keepId, archiveId);
-                                                                if (!result.success) {
-                                                                    console.error('Merge failed:', result.error);
-                                                                }
-                                                            }}
-                                                            onShowDuplicates={(o) => {
-                                                                setDuplicateOrder(o);
-                                                                setShowDuplicateModal(true);
-                                                            }}
-                                                            onTogglePin={togglePin}
-                                                            onCloneOrder={cloneOrder}
-                                                            onScreenshot={setScreenshotOrder}
-                                                            onCancelWithReason={(o) => {
-                                                                setOrderToCancel(o);
-                                                                setCancelDialogOpen(true);
-                                                            }}
-                                                            onRejectWithReason={(o) => {
-                                                                setOrderToReject(o);
-                                                                setRejectDialogOpen(true);
-                                                            }}
-                                                            onToggleReviewed={toggleReviewed}
-                                                            returnOrderInfo={getReturnOrderInfo(order.id)}
-                                                            originalOrderInfo={getOriginalOrderInfo(order.original_order_id)}
-                                                            compact={compactView}
-                                                            onOpenTemplatePanel={(o) => {
-                                                                setOrderForTemplate(o);
-                                                                setTemplatePanelOpen(true);
-                                                            }}
-                                                            messageTemplates={workflowTemplates}
-                                                            isSelected={selectedOrders.has(order.id)}
-                                                            onToggleSelection={toggleOrderSelection}
-                                                        />
-                                                    </StaggerItem>
-                                                );
-                                            })
+                                                    return (
+                                                        <StaggerItem key={`${order.id}-${order.updated_at || order.status}`}>
+                                                            <SwipeableOrderCard
+                                                                order={order}
+                                                                loadingId={loadingId}
+                                                                onStatusUpdate={handleStatusUpdate}
+                                                                onViewDetails={(o) => {
+                                                                    setSelectedOrder(o);
+                                                                    setIsModalOpen(true);
+                                                                }}
+                                                                isBlacklisted={isBlacklisted(order.phone)}
+                                                                customerOrderCount={orderCount}
+                                                                previousOrder={previousOrder}
+                                                                onMergeWithPrevious={async (keepId, archiveId) => {
+                                                                    const result = await mergeOrders(keepId, archiveId);
+                                                                    if (!result.success) {
+                                                                        console.error('Merge failed:', result.error);
+                                                                    }
+                                                                }}
+                                                                onShowDuplicates={(o) => {
+                                                                    setDuplicateOrder(o);
+                                                                    setShowDuplicateModal(true);
+                                                                }}
+                                                                onTogglePin={togglePin}
+                                                                onCloneOrder={cloneOrder}
+                                                                onScreenshot={setScreenshotOrder}
+                                                                onCancelWithReason={(o) => {
+                                                                    setOrderToCancel(o);
+                                                                    setCancelDialogOpen(true);
+                                                                }}
+                                                                onRejectWithReason={(o) => {
+                                                                    setOrderToReject(o);
+                                                                    setRejectDialogOpen(true);
+                                                                }}
+                                                                onToggleReviewed={toggleReviewed}
+                                                                returnOrderInfo={getReturnOrderInfo(order.id)}
+                                                                originalOrderInfo={getOriginalOrderInfo(order.original_order_id)}
+                                                                compact={compactView}
+                                                                onOpenTemplatePanel={(o) => {
+                                                                    setOrderForTemplate(o);
+                                                                    setTemplatePanelOpen(true);
+                                                                }}
+                                                                messageTemplates={workflowTemplates}
+                                                                isSelected={selectedOrders.has(order.id)}
+                                                                onToggleSelection={toggleOrderSelection}
+                                                            />
+                                                        </StaggerItem>
+                                                    );
+                                                })}
+                                            </StaggerContainer>
                                         )}
-                                    </StaggerContainer>
+                                    </>
                                 )}
 
                                 {/* Table View - State of the Art */}
