@@ -18,31 +18,29 @@ import { notificationService } from "@/lib/notification-service";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { cleanPhoneForExport } from "@/lib/export-utils";
 import { activityLogger } from "@/lib/activity-logger";
+// Extracted utility modules
+import {
+    applyOrderFilters,
+    sortOrders,
+    calculateStatusCounts,
+    getLocalDateString,
+    getDefaultFilters,
+    getAvailableCities,
+    getAvailableProducts,
+    loadFilterPresetsFromStorage,
+    saveFilterPresetsToStorage,
+    createFilterPreset,
+} from "@/lib/order-filter-utils";
+import {
+    normalizeOrder,
+    getBaseOrderId,
+    isOrderFinal,
+} from "@/lib/order-normalize-utils";
+import {
+    exportOrders as exportOrdersUtil,
+} from "@/lib/order-export-utils";
 
-// =============================================
-// HELPER: Normalize order data from DB/realtime
-// =============================================
-
-function normalizeOrder(order: Order): Order {
-    // Parse items if it's a JSON string (from import script)
-    let parsedItems = order.items;
-    if (typeof order.items === 'string') {
-        try {
-            parsedItems = JSON.parse(order.items);
-        } catch {
-            parsedItems = [];
-        }
-    }
-
-    return {
-        ...order,
-        items: parsedItems || [],
-        priority: order.priority || "normal",
-        payment_status: order.payment_status || "cod",
-        is_return: order.is_return || false,
-        is_archived: order.is_archived || false,
-    };
-}
+// normalizeOrder is now imported from @/lib/order-normalize-utils
 
 // =============================================
 // ENHANCED ORDERS HOOK
