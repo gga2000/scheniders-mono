@@ -649,6 +649,18 @@ export function useOrders() {
 
     async function createOrder(orderData: Omit<Order, "id" | "created_at" | "updated_at">, retryCount = 0): Promise<{ success: boolean; data?: Order; error?: string }> {
         const MAX_RETRIES = 5;
+        const TIMEOUT_MS = 30000; // 30 second timeout to prevent infinite loading when tab is backgrounded
+
+        // Timeout wrapper to prevent infinite hangs when browser throttles backgrounded tabs
+        const withTimeout = <T>(promiseLike: PromiseLike<T>, ms: number): Promise<T> => {
+            const promise = Promise.resolve(promiseLike);
+            return Promise.race([
+                promise,
+                new Promise<T>((_, reject) =>
+                    setTimeout(() => reject(new Error('Request timed out - please try again')), ms)
+                )
+            ]);
+        };
 
         try {
             // Generate smart order ID if not provided
@@ -670,12 +682,15 @@ export function useOrders() {
                 const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
                 const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
 
-                const { count } = await supabase
-                    .from('orders')
-                    .select('*', { count: 'exact', head: true })
-                    .gte('created_at', startOfDay)
-                    .lt('created_at', endOfDay)
-                    .like('order_id', `${sourceCode}${dateStr}%`);
+                const { count } = await withTimeout(
+                    supabase
+                        .from('orders')
+                        .select('*', { count: 'exact', head: true })
+                        .gte('created_at', startOfDay)
+                        .lt('created_at', endOfDay)
+                        .like('order_id', `${sourceCode}${dateStr}%`),
+                    TIMEOUT_MS
+                );
 
                 // Add retryCount to handle race conditions where multiple orders are created simultaneously
                 const sequence = ((count || 0) + 1 + retryCount).toString().padStart(3, '0');
@@ -683,12 +698,15 @@ export function useOrders() {
             }
 
             // Get next global sequence number
-            const { data: maxSeqData } = await supabase
-                .from('orders')
-                .select('sequence_number')
-                .order('sequence_number', { ascending: false })
-                .limit(1)
-                .single();
+            const { data: maxSeqData } = await withTimeout(
+                supabase
+                    .from('orders')
+                    .select('sequence_number')
+                    .order('sequence_number', { ascending: false })
+                    .limit(1)
+                    .single(),
+                TIMEOUT_MS
+            );
 
             const nextSequenceNumber = (maxSeqData?.sequence_number || 0) + 1 + retryCount;
 
@@ -704,11 +722,14 @@ export function useOrders() {
                 is_archived: false,
             };
 
-            const { data, error: insertError } = await supabase
-                .from("orders")
-                .insert([fullOrderData])
-                .select()
-                .single();
+            const { data, error: insertError } = await withTimeout(
+                supabase
+                    .from("orders")
+                    .insert([fullOrderData])
+                    .select()
+                    .single(),
+                TIMEOUT_MS
+            );
 
             if (insertError) {
                 // Handle duplicate key constraint violation - retry with incremented sequence
