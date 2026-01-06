@@ -6,7 +6,7 @@
  */
 
 import * as XLSX from 'xlsx';
-import { validateAddress, getAddressStatus, extractGovernorate, extractAndSeparateGovernorate } from './address-validator';
+import { extractAndSeparateGovernorate } from './address-validator';
 
 // =============================================
 // TYPES

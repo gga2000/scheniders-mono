@@ -488,7 +488,7 @@ export async function generateA6InvoiceHTML(order: Order, options: EnhancedLabel
     const formattedDate = orderDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
 
     // Use sequence_number if available (new format like #178), otherwise fallback to order_id
-    const displayOrderId = order.sequence_number ? `#${order.sequence_number}` : `#${order.order_id}`;
+
     // Display on invoice: use getBaseOrderId to extract just the number (e.g., 5434 from LF-5434-137)
     const displayOrderIdForInvoice = getBaseOrderId(order.order_id);
     // QR code should contain the same as displayed for consistency
@@ -519,11 +519,7 @@ export async function generateA6InvoiceHTML(order: Order, options: EnhancedLabel
     }
 
     // Payment badge
-    const paymentBadgeHTML = order.payment_status === "prepaid"
-        ? '<span style="background:#10b981;color:white;padding:2px 6px;border-radius:8px;font-size:6px;font-weight:600;">✓ PAID</span>'
-        : order.payment_status === "partial"
-            ? '<span style="background:#3b82f6;color:white;padding:2px 6px;border-radius:8px;font-size:6px;font-weight:600;">PARTIAL</span>'
-            : '<span style="background:#E3735E;color:white;padding:2px 6px;border-radius:8px;font-size:6px;font-weight:600;">COD</span>';
+
 
     // Company logo HTML (if provided and enabled)
     const companyLogoHTML = options.showCompanyLogo && options.companyLogoUrl

@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+
 
 // Tag color type matching database enum
 export type TagColor = 'yellow' | 'green' | 'blue' | 'pink' | 'purple' | 'orange' | 'red' | 'gray';

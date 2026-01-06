@@ -29,7 +29,6 @@ export async function exportOrdersToPrimeCSV(orderIds: string[], ordersData: Ord
     const selectedOrders = ordersData.filter((o) => orderIds.includes(o.id));
 
     // Dynamically import xlsx library
-    // @ts-ignore
     const XLSX = await import('xlsx');
 
     // Prime headers (Arabic, exact match to their sample)
@@ -199,7 +198,7 @@ export function exportToExcel(products: Product[], filename: string = "products"
     // Create XML spreadsheet
     const headers = Object.keys(worksheetData[0] || {});
 
-    let xmlContent = `<?xml version="1.0" encoding="UTF-8"?>
+    const xmlContent = `<?xml version="1.0" encoding="UTF-8"?>
 <?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
     xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
