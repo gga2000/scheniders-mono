@@ -42,19 +42,23 @@ async function fetchArchivedOrders(): Promise<Order[]> {
  * useOrdersQuery - React Query hook for fetching orders with caching
  * 
  * Benefits:
- * - Automatic caching (5 min stale, 30 min cache)
- * - Background refetching for fresh data
+ * - Automatic caching with optimized timings
+ * - Background refetching for fresh data on window focus
  * - Deduplication of parallel requests
- * - Instant data on repeat visits
+ * - Instant data on repeat visits (from cache)
  */
 export function useOrdersQuery() {
     return useQuery({
         queryKey: orderKeys.lists(),
         queryFn: fetchOrders,
-        // Data is fresh for 5 minutes
-        staleTime: 5 * 60 * 1000,
-        // Keep in cache for 30 minutes
-        gcTime: 30 * 60 * 1000,
+        // Data is fresh for 2 minutes (balance between freshness and performance)
+        staleTime: 2 * 60 * 1000,
+        // Keep in cache for 10 minutes (allows instant back-navigation)
+        gcTime: 10 * 60 * 1000,
+        // Refetch when window regains focus to catch missed updates
+        refetchOnWindowFocus: "always",
+        // Don't refetch on mount if data is in cache (use stale data, refetch in background)
+        refetchOnMount: false,
     });
 }
 
@@ -179,6 +183,7 @@ export function useUpdateStatusMutation() {
 
 /**
  * usePrefetchOrders - Prefetch orders data on hover/focus
+ * Call this on navigation link hover to preload data before user clicks
  */
 export function usePrefetchOrders() {
     const queryClient = useQueryClient();
@@ -187,7 +192,8 @@ export function usePrefetchOrders() {
         queryClient.prefetchQuery({
             queryKey: orderKeys.lists(),
             queryFn: fetchOrders,
-            staleTime: 5 * 60 * 1000,
+            // Match staleTime from useOrdersQuery
+            staleTime: 2 * 60 * 1000,
         });
     };
 }
