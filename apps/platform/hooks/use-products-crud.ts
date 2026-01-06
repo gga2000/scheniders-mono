@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase, Product, ProductVariant, ProductPriceHistory, getStockStatus } from "@/lib/supabase";
-import { useOrders } from "./use-orders";
+import { useOrdersContext } from "@/components/providers/orders-provider";
 
 interface ProductFormData {
     name: string;
@@ -29,7 +29,7 @@ export function useProductsCrud() {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const { orders } = useOrders();
+    const { orders } = useOrdersContext();
 
     // Fetch products from database
     const fetchProducts = useCallback(async () => {
