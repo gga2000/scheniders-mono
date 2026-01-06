@@ -5,6 +5,7 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PWAProvider } from "@/components/pwa/pwa-provider";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { OrdersProvider } from "@/components/providers/orders-provider";
+import { QueryProvider } from "@/components/providers/query-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -72,13 +73,15 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased selection:bg-pastel-yellow selection:text-black`}
       >
         <AuthProvider>
-          <OrdersProvider>
-            <PWAProvider>
-              <DashboardLayout>
-                {children}
-              </DashboardLayout>
-            </PWAProvider>
-          </OrdersProvider>
+          <QueryProvider>
+            <OrdersProvider>
+              <PWAProvider>
+                <DashboardLayout>
+                  {children}
+                </DashboardLayout>
+              </PWAProvider>
+            </OrdersProvider>
+          </QueryProvider>
         </AuthProvider>
       </body>
     </html>
