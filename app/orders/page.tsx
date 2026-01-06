@@ -447,7 +447,7 @@ export default function OrdersPage() {
         try {
             // 1. Create a batch for history
             const batchName = `Prime Export ${new Date().toLocaleDateString('en-GB')}`;
-            const { success: batchSuccess } = await createBatch(
+            const { success: batchSuccess, error: batchError } = await createBatch(
                 batchName,
                 ids,
                 "prime",
@@ -469,13 +469,13 @@ export default function OrdersPage() {
                     body: `${ids.length} orders exported and moved to In Transit`,
                 });
             } else {
-                throw new Error("Failed to create export batch");
+                throw new Error(batchError || "Failed to create export batch");
             }
         } catch (err) {
             console.error("Prime export error:", err);
             notificationService.showNotification({
                 title: "Export Failed",
-                body: "Could not complete the export process",
+                body: err instanceof Error ? err.message : "Could not complete the export process",
             });
         }
     };
