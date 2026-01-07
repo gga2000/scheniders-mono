@@ -17,6 +17,7 @@ import { getAllGovernorateCodes, extractGovernorate } from "@/lib/address-valida
 import { cn } from "@/lib/utils";
 import type { Order, OrderStatusHistory, OrderNote } from "@/lib/supabase";
 import { OrderTimeline } from "./order-timeline";
+import { PresenceAvatarGroup } from "./presence-avatar-group";
 import { ProductPicker } from "./product-picker";
 import { DiscountPresetSelector } from "./discount-preset-selector";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
@@ -515,6 +516,9 @@ export function OrderDetailsModal({
                                 </span>
                             </div>
                             <div className="flex items-center gap-2">
+                                {/* Presence Indicators */}
+                                <PresenceAvatarGroup orderId={order.id} className="mr-2 hidden sm:flex" />
+
                                 {/* Edit ID Warning Modal */}
                                 {showIdWarning && (
                                     <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">

@@ -9,6 +9,9 @@ import { Download, X } from "lucide-react";
 // =============================================
 
 export function registerServiceWorker() {
+    // Disable SW in development to prevent HMR issues
+    if (process.env.NODE_ENV === "development") return;
+
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
         window.addEventListener("load", async () => {
             try {

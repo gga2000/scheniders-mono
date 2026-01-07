@@ -3,9 +3,10 @@
 import { useState } from "react";
 import type { Order } from "@/lib/supabase";
 import { OrderDetailsModal } from "@/components/orders/order-details-modal";
-import { OrderCard } from "@/components/dashboard/order-card";
+import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { Search, Filter } from "lucide-react";
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 
 interface OrdersTableProps {
     orders: Order[];
@@ -117,35 +118,50 @@ export function OrdersTable({ orders, onUpdateStatus, onUpdateOrder }: OrdersTab
                 </div>
 
                 {/* Orders List */}
-                <div className="flex flex-col gap-4">
-                    {filteredOrders.length === 0 ? (
-                        <div className="pastel-card p-12 text-center">
-                            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--background)] flex items-center justify-center">
-                                <Filter className="h-8 w-8 text-[var(--foreground-subtle)]" />
-                            </div>
-                            <p className="text-lg font-medium text-foreground mb-1">لا توجد طلبات</p>
-                            <p className="text-sm text-muted">لا توجد طلبات تطابق بحثك</p>
-                        </div>
-                    ) : (
-                        filteredOrders.map((order, index) => (
-                            <div
-                                key={order.id}
-                                className="animate-fade-in-up"
-                                style={{ animationDelay: `${index * 50}ms` }}
-                            >
-                                <OrderCard
-                                    order={order}
-                                    loadingId={loading}
-                                    onStatusUpdate={handleStatusUpdate}
-                                    onViewDetails={(o) => {
-                                        setSelectedOrder(o);
-                                        setIsModalOpen(true);
-                                    }}
-                                />
-                            </div>
-                        ))
-                    )}
-                </div>
+                <LayoutGroup>
+                    <motion.div layout className="flex flex-col gap-4">
+                        <AnimatePresence mode="popLayout" initial={false}>
+                            {filteredOrders.length === 0 ? (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    className="pastel-card p-12 text-center"
+                                >
+                                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--background)] flex items-center justify-center">
+                                        <Filter className="h-8 w-8 text-[var(--foreground-subtle)]" />
+                                    </div>
+                                    <p className="text-lg font-medium text-foreground mb-1">لا توجد طلبات</p>
+                                    <p className="text-sm text-muted">لا توجد طلبات تطابق بحثك</p>
+                                </motion.div>
+                            ) : (
+                                filteredOrders.map((order) => (
+                                    <motion.div
+                                        layout
+                                        key={order.id}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, x: -100, transition: { duration: 0.2 } }}
+                                        transition={{
+                                            layout: { type: "spring", stiffness: 300, damping: 30 },
+                                            opacity: { duration: 0.2 }
+                                        }}
+                                    >
+                                        <SwipeableOrderCard
+                                            order={order}
+                                            loadingId={loading}
+                                            onStatusUpdate={handleStatusUpdate}
+                                            onViewDetails={(o) => {
+                                                setSelectedOrder(o);
+                                                setIsModalOpen(true);
+                                            }}
+                                        />
+                                    </motion.div>
+                                ))
+                            )}
+                        </AnimatePresence>
+                    </motion.div>
+                </LayoutGroup>
             </div>
 
             {/* Order Details Modal */}

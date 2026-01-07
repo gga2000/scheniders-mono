@@ -99,6 +99,8 @@ import { formatIQD } from "@/lib/utils";
 import { notificationService } from "@/lib/notification-service";
 import { exportOrdersToPrimeCSV } from "@/lib/export-utils";
 
+import { ErrorBoundary } from "@/components/ui/error-boundary";
+
 export default function OrdersPage() {
     const {
         orders,
@@ -969,116 +971,120 @@ export default function OrdersPage() {
                             >
                                 <div className="space-y-4">
                                     {/* Main Stats Grid */}
-                                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                                        {/* Today's Orders */}
-                                        <div className="pastel-card pastel-card-yellow p-4">
-                                            <p className="text-xs text-amber-700 font-medium uppercase tracking-wide">Today</p>
-                                            <p className="text-2xl font-bold text-amber-900 mt-1">{stats.todayOrders}</p>
-                                            <p className="text-xs text-amber-600 mt-1">orders</p>
-                                        </div>
 
-                                        {/* Total Revenue */}
-                                        <div className="pastel-card pastel-card-green p-4">
-                                            <p className="text-xs text-green-700 font-medium uppercase tracking-wide">Revenue</p>
-                                            <p className="text-2xl font-bold text-green-900 mt-1">{formatIQD(stats.totalRevenue)}</p>
-                                            <p className="text-xs text-green-600 mt-1">total</p>
-                                        </div>
-
-                                        {/* Pending (New) */}
-                                        <div className="pastel-card pastel-card-pink p-4">
-                                            <p className="text-xs text-rose-700 font-medium uppercase tracking-wide">Pending</p>
-                                            <p className="text-2xl font-bold text-rose-900 mt-1">{statusCounts.new || 0}</p>
-                                            <p className="text-xs text-rose-600 mt-1">new orders</p>
-                                        </div>
-
-                                        {/* Confirmed */}
-                                        <div className="pastel-card pastel-card-purple p-4">
-                                            <p className="text-xs text-purple-700 font-medium uppercase tracking-wide">Confirmed</p>
-                                            <p className="text-2xl font-bold text-purple-900 mt-1">{statusCounts.confirmed || 0}</p>
-                                            <p className="text-xs text-purple-600 mt-1">ready</p>
-                                        </div>
-
-                                        {/* Conversion Rate */}
-                                        <div className="pastel-card p-4">
-                                            <p className="text-xs text-muted font-medium uppercase tracking-wide">Conversion</p>
-                                            <div className="flex items-end gap-2 mt-1">
-                                                <p className="text-2xl font-bold text-foreground">{stats.conversionRate.toFixed(1)}%</p>
+                                    <ErrorBoundary name="Analytics Dashboard">
+                                        {/* Main Stats Grid */}
+                                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                            {/* Today's Orders */}
+                                            <div className="pastel-card pastel-card-yellow p-4">
+                                                <p className="text-xs text-amber-700 font-medium uppercase tracking-wide">Today</p>
+                                                <p className="text-2xl font-bold text-amber-900 mt-1">{stats.todayOrders}</p>
+                                                <p className="text-xs text-amber-600 mt-1">orders</p>
                                             </div>
-                                            <div className="w-full h-1.5 bg-gray-100 rounded-full mt-3 overflow-hidden">
-                                                <div
-                                                    className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-1000 ease-out"
-                                                    style={{ width: `${stats.conversionRate}%` }}
-                                                />
+
+                                            {/* Total Revenue */}
+                                            <div className="pastel-card pastel-card-green p-4">
+                                                <p className="text-xs text-green-700 font-medium uppercase tracking-wide">Revenue</p>
+                                                <p className="text-2xl font-bold text-green-900 mt-1">{formatIQD(stats.totalRevenue)}</p>
+                                                <p className="text-xs text-green-600 mt-1">total</p>
                                             </div>
-                                            <p className="text-[10px] text-muted mt-2">Confirmed vs Total</p>
-                                        </div>
 
-                                        {/* Average Order Value */}
-                                        <div className="pastel-card p-4">
-                                            <p className="text-xs text-muted font-medium uppercase tracking-wide">AVG Order</p>
-                                            <p className="text-2xl font-bold text-foreground mt-1">{formatIQD(stats.averageOrderValue)}</p>
-                                            <p className="text-xs text-muted mt-1">per order</p>
-                                        </div>
+                                            {/* Pending (New) */}
+                                            <div className="pastel-card pastel-card-pink p-4">
+                                                <p className="text-xs text-rose-700 font-medium uppercase tracking-wide">Pending</p>
+                                                <p className="text-2xl font-bold text-rose-900 mt-1">{statusCounts.new || 0}</p>
+                                                <p className="text-xs text-rose-600 mt-1">new orders</p>
+                                            </div>
 
-                                        {/* Peak Time */}
-                                        <div className="pastel-card pastel-bg-purple p-4">
-                                            <p className="text-xs text-purple-700 font-medium uppercase tracking-wide">Peak Time</p>
-                                            <p className="text-2xl font-bold text-purple-900 mt-1">{stats.peakTime}</p>
-                                            <p className="text-xs text-purple-600 mt-1">busiest hour</p>
-                                        </div>
-                                    </div>
+                                            {/* Confirmed */}
+                                            <div className="pastel-card pastel-card-purple p-4">
+                                                <p className="text-xs text-purple-700 font-medium uppercase tracking-wide">Confirmed</p>
+                                                <p className="text-2xl font-bold text-purple-900 mt-1">{statusCounts.confirmed || 0}</p>
+                                                <p className="text-xs text-purple-600 mt-1">ready</p>
+                                            </div>
 
-                                    {/* Revenue Trends & Velocity Metrics Row (only at level 2) */}
-                                    {analyticsLevel >= 2 && (
-                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                            {/* 7-Day Revenue Sparkline */}
+                                            {/* Conversion Rate */}
                                             <div className="pastel-card p-4">
-                                                <p className="text-xs text-muted font-medium uppercase tracking-wide mb-3">7-Day Revenue Trend</p>
-                                                <div className="flex items-end gap-1 h-16">
-                                                    {stats.revenueTrends.map((day, i) => {
-                                                        const maxRevenue = Math.max(...stats.revenueTrends.map(d => d.revenue), 1);
-                                                        const heightPercent = (day.revenue / maxRevenue) * 100;
-                                                        return (
-                                                            <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                                                                <div
-                                                                    className={cn(
-                                                                        "w-full rounded-t-sm transition-all",
-                                                                        i === 6 ? "bg-green-500" : "bg-green-200"
-                                                                    )}
-                                                                    style={{ height: `${Math.max(heightPercent, 4)}%` }}
-                                                                    title={`${formatIQD(day.revenue)}`}
-                                                                />
-                                                                <span className="text-[10px] text-muted">{day.date}</span>
-                                                            </div>
-                                                        );
-                                                    })}
+                                                <p className="text-xs text-muted font-medium uppercase tracking-wide">Conversion</p>
+                                                <div className="flex items-end gap-2 mt-1">
+                                                    <p className="text-2xl font-bold text-foreground">{stats.conversionRate.toFixed(1)}%</p>
                                                 </div>
+                                                <div className="w-full h-1.5 bg-gray-100 rounded-full mt-3 overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-1000 ease-out"
+                                                        style={{ width: `${stats.conversionRate}%` }}
+                                                    />
+                                                </div>
+                                                <p className="text-[10px] text-muted mt-2">Confirmed vs Total</p>
                                             </div>
 
-                                            {/* Velocity Metrics */}
+                                            {/* Average Order Value */}
                                             <div className="pastel-card p-4">
-                                                <p className="text-xs text-muted font-medium uppercase tracking-wide mb-3">Processing Speed</p>
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <div>
-                                                        <p className="text-lg font-bold text-foreground">{stats.velocityMetrics.avgNewToConfirmed}</p>
-                                                        <p className="text-xs text-muted">New → Confirmed</p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-lg font-bold text-foreground">{stats.velocityMetrics.avgConfirmedToDelivered}</p>
-                                                        <p className="text-xs text-muted">Confirmed → Delivered</p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-lg font-bold text-teal-600">{stats.velocityMetrics.totalProcessed}</p>
-                                                        <p className="text-xs text-muted">Delivered</p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-lg font-bold text-amber-600">{stats.velocityMetrics.pendingCount}</p>
-                                                        <p className="text-xs text-muted">In Pipeline</p>
+                                                <p className="text-xs text-muted font-medium uppercase tracking-wide">AVG Order</p>
+                                                <p className="text-2xl font-bold text-foreground mt-1">{formatIQD(stats.averageOrderValue)}</p>
+                                                <p className="text-xs text-muted mt-1">per order</p>
+                                            </div>
+
+                                            {/* Peak Time */}
+                                            <div className="pastel-card pastel-bg-purple p-4">
+                                                <p className="text-xs text-purple-700 font-medium uppercase tracking-wide">Peak Time</p>
+                                                <p className="text-2xl font-bold text-purple-900 mt-1">{stats.peakTime}</p>
+                                                <p className="text-xs text-purple-600 mt-1">busiest hour</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Revenue Trends & Velocity Metrics Row (only at level 2) */}
+                                        {analyticsLevel >= 2 && (
+                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                                {/* 7-Day Revenue Sparkline */}
+                                                <div className="pastel-card p-4">
+                                                    <p className="text-xs text-muted font-medium uppercase tracking-wide mb-3">7-Day Revenue Trend</p>
+                                                    <div className="flex items-end gap-1 h-16">
+                                                        {stats.revenueTrends.map((day, i) => {
+                                                            const maxRevenue = Math.max(...stats.revenueTrends.map(d => d.revenue), 1);
+                                                            const heightPercent = (day.revenue / maxRevenue) * 100;
+                                                            return (
+                                                                <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                                                                    <div
+                                                                        className={cn(
+                                                                            "w-full rounded-t-sm transition-all",
+                                                                            i === 6 ? "bg-green-500" : "bg-green-200"
+                                                                        )}
+                                                                        style={{ height: `${Math.max(heightPercent, 4)}%` }}
+                                                                        title={`${formatIQD(day.revenue)}`}
+                                                                    />
+                                                                    <span className="text-[10px] text-muted">{day.date}</span>
+                                                                </div>
+                                                            );
+                                                        })}
                                                     </div>
                                                 </div>
+
+                                                {/* Velocity Metrics */}
+                                                <div className="pastel-card p-4">
+                                                    <p className="text-xs text-muted font-medium uppercase tracking-wide mb-3">Processing Speed</p>
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div>
+                                                            <p className="text-lg font-bold text-foreground">{stats.velocityMetrics.avgNewToConfirmed}</p>
+                                                            <p className="text-xs text-muted">New → Confirmed</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-lg font-bold text-foreground">{stats.velocityMetrics.avgConfirmedToDelivered}</p>
+                                                            <p className="text-xs text-muted">Confirmed → Delivered</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-lg font-bold text-teal-600">{stats.velocityMetrics.totalProcessed}</p>
+                                                            <p className="text-xs text-muted">Delivered</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-lg font-bold text-amber-600">{stats.velocityMetrics.pendingCount}</p>
+                                                            <p className="text-xs text-muted">In Pipeline</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
+                                        )}
+                                    </ErrorBoundary>
                                 </div>
                             </motion.div>
                         )}
@@ -1508,7 +1514,7 @@ export default function OrdersPage() {
                                                     const previousOrder = customerOrders.find(o => o.id !== order.id) || null;
 
                                                     return (
-                                                        <StaggerItem key={`${order.id}-${order.updated_at || order.status}`}>
+                                                        <StaggerItem key={order.id}>
                                                             <SwipeableOrderCard
                                                                 order={order}
                                                                 loadingId={loadingId}
@@ -1520,24 +1526,24 @@ export default function OrdersPage() {
                                                                 isBlacklisted={isBlacklisted(order.phone)}
                                                                 customerOrderCount={orderCount}
                                                                 previousOrder={previousOrder}
-                                                                onMergeWithPrevious={async (keepId, archiveId) => {
+                                                                onMergeWithPrevious={async (keepId: string, archiveId: string) => {
                                                                     const result = await mergeOrders(keepId, archiveId);
                                                                     if (!result.success) {
                                                                         console.error('Merge failed:', result.error);
                                                                     }
                                                                 }}
-                                                                onShowDuplicates={(o) => {
+                                                                onShowDuplicates={(o: any) => {
                                                                     setDuplicateOrder(o);
                                                                     setShowDuplicateModal(true);
                                                                 }}
                                                                 onTogglePin={togglePin}
                                                                 onCloneOrder={cloneOrder}
                                                                 onScreenshot={setScreenshotOrder}
-                                                                onCancelWithReason={(o) => {
+                                                                onCancelWithReason={(o: any) => {
                                                                     setOrderToCancel(o);
                                                                     setCancelDialogOpen(true);
                                                                 }}
-                                                                onRejectWithReason={(o) => {
+                                                                onRejectWithReason={(o: any) => {
                                                                     setOrderToReject(o);
                                                                     setRejectDialogOpen(true);
                                                                 }}
@@ -1545,7 +1551,7 @@ export default function OrdersPage() {
                                                                 returnOrderInfo={getReturnOrderInfo(order.id)}
                                                                 originalOrderInfo={getOriginalOrderInfo(order.original_order_id)}
                                                                 compact={compactView}
-                                                                onOpenTemplatePanel={(o) => {
+                                                                onOpenTemplatePanel={(o: any) => {
                                                                     setOrderForTemplate(o);
                                                                     setTemplatePanelOpen(true);
                                                                 }}

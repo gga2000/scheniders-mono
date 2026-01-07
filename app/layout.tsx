@@ -6,6 +6,7 @@ import { PWAProvider } from "@/components/pwa/pwa-provider";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { OrdersProvider } from "@/components/providers/orders-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { DevServiceWorkerCleanup } from "@/components/pwa/dev-service-worker-cleanup";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -83,6 +84,7 @@ export default function RootLayout({
             </OrdersProvider>
           </QueryProvider>
         </AuthProvider>
+        <DevServiceWorkerCleanup />
       </body>
     </html>
   );

@@ -1,4 +1,13 @@
 import type { NextConfig } from "next";
+import withSerwistInit from "@serwist/next";
+
+const withSerwist = withSerwistInit({
+  swSrc: "app/sw.ts",
+  swDest: "public/sw.js",
+  reloadOnOnline: false, // Don't reload when coming back online
+  disable: process.env.NODE_ENV === "development", // Disable in dev to fix HMR
+  register: false, // We register manually in PWAProvider
+});
 
 const nextConfig: NextConfig = {
   // StrictMode helps catch bugs in development
@@ -38,6 +47,42 @@ const nextConfig: NextConfig = {
     }
     return config;
   },
+
+  // Edge Caching Strategy
+  async headers() {
+    return [
+      {
+        // Cache fonts aggressively (immutable)
+        source: '/fonts/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        // Cache images aggressively (immutable)
+        source: '/images/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        // General static assets
+        source: '/(.*).(png|jpg|jpeg|svg|webp|ico)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=86400, stale-while-revalidate=604800',
+          },
+        ],
+      },
+    ];
+  },
 };
 
-export default nextConfig;
+export default withSerwist(nextConfig);

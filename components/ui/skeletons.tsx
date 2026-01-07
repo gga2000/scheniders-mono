@@ -55,7 +55,10 @@ export function ChartSkeleton({ height = "h-64" }: { height?: string }) {
                     <Skeleton
                         key={i}
                         className="flex-1"
-                        style={{ height: `${Math.random() * 60 + 20}%` }}
+                        style={{
+                            // Deterministic "random" height based on index to prevent hydration mismatch
+                            height: `${((Math.sin(i) + 1) * 30) + 20}%`
+                        }}
                     />
                 ))}
             </div>
