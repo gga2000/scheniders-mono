@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, Fragment } from "react";
 import dynamic from "next/dynamic";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useProductsCrud } from "@/hooks/use-products-crud";
+import { useDebounce } from "@/hooks/use-debounce";
 import { Order, PaymentStatus } from "@/lib/supabase";
 import { validatePhoneDetailed } from "@/lib/order-utils";
 import { OrderCard } from "@/components/dashboard/order-card";
@@ -163,6 +164,7 @@ export default function OrdersPage() {
 
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
     const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
+    const debouncedColumnFilters = useDebounce(columnFilters, 300);
     const [groupBy, setGroupBy] = useState<'none' | 'status' | 'city' | 'verified'>('none');
     const [openFilterColumn, setOpenFilterColumn] = useState<string | null>(null);
     const [compactView, setCompactView] = useState(() => {
@@ -290,7 +292,7 @@ export default function OrdersPage() {
         let result = [...hookFilteredOrders];
 
         // 1. Apply Column Filters
-        Object.entries(columnFilters).forEach(([key, value]) => {
+        Object.entries(debouncedColumnFilters).forEach(([key, value]) => {
             if (!value) return;
             const lowerValue = value.toLowerCase();
             result = result.filter(o => {
@@ -299,6 +301,12 @@ export default function OrdersPage() {
                 if (key === 'city') return o.city?.toLowerCase().includes(lowerValue);
                 if (key === 'address_details') return (o.address_details?.toLowerCase().includes(lowerValue)) || (o.city?.toLowerCase().includes(lowerValue));
                 if (key === 'order_id') return o.order_id?.toLowerCase().includes(lowerValue) || String(o.sequence_number).includes(lowerValue);
+                // Also search in notes if searching globally
+                if (key === 'all') {
+                    // Optimized global search - join fields once per order vs checking all
+                    const searchStr = `${o.customer_name} ${o.phone} ${o.city} ${o.order_id} ${o.sequence_number} ${o.notes || ''}`.toLowerCase();
+                    return searchStr.includes(lowerValue);
+                }
                 return true;
             });
         });
@@ -308,7 +316,6 @@ export default function OrdersPage() {
             result = result.filter(o => getCustomerOrderCount(o.phone) > 1);
         }
 
-        // 2. Sort
         // 2. Sort
         result.sort((a, b) => {
             // Priority: Pinned first
@@ -334,7 +341,7 @@ export default function OrdersPage() {
         });
         return result;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [hookFilteredOrders, sortConfig, columnFilters, filterDuplicatesOnly, getCustomerOrderCount, realtimeVersion]);
+    }, [hookFilteredOrders, sortConfig, debouncedColumnFilters, filterDuplicatesOnly, getCustomerOrderCount, realtimeVersion]);
 
     const handleStatusUpdate = async (orderId: string, status: Order["status"], reason?: string) => {
         setLoadingId(orderId);
