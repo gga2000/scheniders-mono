@@ -107,16 +107,18 @@ function LogDetails({ log }: { log: ActivityLogEntry }) {
 
     if (log.action === "order.status_change") {
         return (
-            <div className="flex items-center gap-2">
-                <Badge>{details.from_status as string}</Badge>
-                <span>→</span>
-                <Badge variant="outline">{details.to_status as string}</Badge>
+            <>
+                <div className="flex items-center gap-2">
+                    <Badge>{String(details.from_status)}</Badge>
+                    <span>→</span>
+                    <Badge variant="outline">{String(details.to_status)}</Badge>
+                </div>
                 {details.reason && (
                     <p className="mt-1 text-xs italic text-orange-500">
-                        Reason: {details.reason as string}
+                        Reason: {String(details.reason)}
                     </p>
                 )}
-            </div>
+            </>
         );
     }
 
