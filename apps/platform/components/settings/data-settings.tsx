@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { supabase } from "@/lib/supabase";
 import { generateFullSnapshot, restoreFromSnapshot, downloadSnapshot } from "@/lib/backup-utils";
 import { AlertTriangle, Upload, CheckCircle, Database, Download, FileSpreadsheet, Loader2 } from "lucide-react";
 
