@@ -4,19 +4,34 @@ import { useState } from "react";
 import { StatsGrid } from "@/components/dashboard/stats-grid";
 import { OrdersTable } from "@/components/dashboard/orders-table";
 import { LiveFeed } from "@/components/dashboard/live-feed";
+// New Dashboard Widgets
+
 import { CreateOrderModal } from "@/components/orders/create-order-modal";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useStats } from "@/hooks/use-stats";
-import { Plus, Search, Bell, User } from "lucide-react";
+import { Plus, Search, Bell } from "lucide-react";
+import { useProductsCrud } from "@/hooks/use-products-crud";
+import { useDashboardMetrics } from "@/hooks/use-dashboard-metrics";
+import { UrgencyTriad } from "@/components/dashboard/widgets/urgency-triad";
+import { OrderFunnel } from "@/components/dashboard/widgets/funnel-chart";
+import { VelocityMatrix } from "@/components/dashboard/widgets/velocity-matrix";
+import { CohortGrid } from "@/components/dashboard/widgets/cohort-grid";
+import { TargetRings } from "@/components/dashboard/widgets/target-rings";
+import { ProfitPulse } from "@/components/dashboard/widgets/profit-pulse";
+import { Leaderboard } from "@/components/dashboard/widgets/leaderboard";
+import { GeoMap } from "@/components/dashboard/widgets/geo-map";
 import { PageGuard } from "@/components/auth/role-guard";
 import { PageSkeleton } from "@/components/ui/skeletons";
 
 export default function Home() {
-  const { orders, loading, error, updateOrderStatus, updateOrder, createOrder } = useOrdersContext();
+  const { orders, loading, error, updateOrderStatus, createOrder } = useOrdersContext();
+  const { products } = useProductsCrud();
   const stats = useStats(orders);
+  const dashboardMetrics = useDashboardMetrics(orders, products || []);
+
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  if (loading) {
+  if (loading || !dashboardMetrics) {
     return (
       <div className="min-h-screen bg-[var(--background)]">
         <PageSkeleton />
@@ -28,7 +43,7 @@ export default function Home() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--background)]">
         <div className="pastel-card pastel-card-pink p-8 max-w-md text-center">
-          <h2 className="text-xl font-bold text-rose-900 mb-2">خطأ في التحميل</h2>
+          <h2 className="text-xl font-bold text-rose-900 mb-2">Error Loading Dashboard</h2>
           <p className="text-rose-700">{error}</p>
         </div>
       </div>
@@ -46,28 +61,24 @@ export default function Home() {
   return (
     <PageGuard requiredPermission="system.analytics.view">
       <div className="min-h-screen p-6 md:p-8 bg-[var(--background)]">
-        <div className="max-w-[1800px] mx-auto space-y-8">
+        <div className="max-w-[1920px] mx-auto space-y-8">
 
           {/* Top Header Bar */}
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-            {/* Left: Greeting */}
             <div>
               <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
                 {getGreeting()}, Dr. Ali
               </h1>
               <p className="text-muted mt-2 text-lg">
-                Here is what's happening today.
+                Command Center & Real-time Intelligence
               </p>
             </div>
 
-            {/* Right: Actions */}
             <div className="flex items-center gap-3">
-              {/* Search Button */}
               <button className="w-12 h-12 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-foreground hover:bg-[var(--background)] transition-all shadow-sm">
                 <Search className="w-5 h-5" />
               </button>
 
-              {/* Notifications */}
               <button className="relative w-12 h-12 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-foreground hover:bg-[var(--background)] transition-all shadow-sm">
                 <Bell className="w-5 h-5" />
                 <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[var(--pastel-pink)] text-[10px] font-bold text-rose-900 flex items-center justify-center">
@@ -75,7 +86,6 @@ export default function Home() {
                 </span>
               </button>
 
-              {/* New Order Button */}
               <button
                 onClick={() => setIsCreateModalOpen(true)}
                 className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-[var(--button-success)] text-white shadow-lg shadow-green-500/20 hover:bg-[var(--button-success-hover)] hover:shadow-green-500/30 hover:scale-[1.02] transition-all font-semibold"
@@ -86,22 +96,61 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Stats Grid */}
+          {/* 1. Stats Grid (Legacy but loved) */}
           <StatsGrid stats={stats} />
 
-          {/* Main Content: Orders + Live Feed */}
-          <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-8">
-            {/* Orders Table */}
-            <OrdersTable
-              orders={orders}
-              onUpdateStatus={updateOrderStatus}
-              onUpdateOrder={updateOrder}
-            />
+          {/* 2. Urgency Triad (Immediate Action) */}
+          <UrgencyTriad
+            metrics={dashboardMetrics.urgency}
+            onAction={(type) => console.log('Action:', type)}
+          />
 
-            {/* Live Feed Sidebar - Hidden on mobile, shown on xl+ */}
-            <div className="hidden xl:block">
-              <LiveFeed />
+          {/* 3. Main Intelligence Grid (Bento Layout) */}
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+
+            {/* Left Column: Financials & Flows (8 cols) */}
+            <div className="xl:col-span-8 flex flex-col gap-6">
+
+              {/* Row 1: Pulse & Targets */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-[280px]">
+                <ProfitPulse data={dashboardMetrics.profitPulse} />
+                <TargetRings
+                  revenue={dashboardMetrics.profitPulse.today}
+                  orders={stats.todayOrders}
+                />
+              </div>
+
+              {/* Row 2: Funnel */}
+              <div className="h-[350px]">
+                <OrderFunnel data={dashboardMetrics.funnel} />
+              </div>
+
+              {/* Row 3: Cohorts */}
+              <div className="h-[300px]">
+                <CohortGrid data={dashboardMetrics.cohorts} />
+              </div>
+
             </div>
+
+            {/* Right Column: Geo & Products (4 cols) */}
+            <div className="xl:col-span-4 flex flex-col gap-6">
+
+              {/* Geo Map */}
+              <div className="h-[400px]">
+                <GeoMap data={dashboardMetrics.urgency} />
+              </div>
+
+              {/* Leaderboards */}
+              <div className="flex-1 min-h-[400px]">
+                <Leaderboard data={dashboardMetrics.leaderboard} />
+              </div>
+
+            </div>
+          </div>
+
+          {/* 4. Deep Dive: Velocity Matrix (Full Width) */}
+          <div className="h-[500px]">
+            <VelocityMatrix data={dashboardMetrics.velocity} />
           </div>
 
           {/* Create Order Modal */}

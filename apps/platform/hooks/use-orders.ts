@@ -51,8 +51,12 @@ import {
     orderKeys
 } from "@/hooks/use-orders-query";
 
+import { OrderSchema } from "@/lib/schemas";
+
 // normalizeOrder is now imported from @/lib/order-normalize-utils
 import { createOrderAction } from "@/app/actions/orders";
+
+import { SyncQueue } from "@/lib/sync-queue";
 
 // =============================================
 // ENHANCED ORDERS HOOK
@@ -632,9 +636,51 @@ export function useOrders() {
 
 
     async function createOrder(orderData: Omit<Order, "id" | "created_at" | "updated_at">): Promise<{ success: boolean; data?: Order; error?: string }> {
-
-
         try {
+            // Validate with Zod before creating
+            // We need to shape the data slightly to match the schema's expectation (some fields might be null vs undefined)
+            // Using safeParse for validation
+            const validationResult = OrderSchema.safeParse({
+                ...orderData,
+                // Ensure array presence defaults
+                items: orderData.items || [],
+            });
+
+            if (!validationResult.success) {
+                const errorMessage = validationResult.error.issues.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
+                console.error("Validation failed:", errorMessage);
+                return { success: false, error: `Validation Error: ${errorMessage}` };
+            }
+
+            // Use validated data or original data? 
+            // Better to use original as Zod might strip unknown fields if strict is set (not set here but good practice)
+            // But validation ensures validity.
+
+            // Offline handling: Check network status or catch network errors
+            if (!navigator.onLine) {
+                console.log("Offline: Queuing order creation");
+
+                // create a temp ID
+                const tempId = `temp-${Date.now()}`;
+                const offlineOrder = { ...orderData, id: tempId, created_at: new Date().toISOString() } as Order;
+
+                // Add to Sync Queue
+                await SyncQueue.enqueue({
+                    type: "CREATE_ORDER",
+                    payload: orderData,
+                });
+
+                // Optimistically update React Query cache
+                queryClient.setQueryData<Order[]>(["orders", "list"], (old) => {
+                    return [offlineOrder, ...(old || [])];
+                });
+
+                // Also update local state
+                setOrders(prev => [offlineOrder, ...prev]);
+
+                return { success: true, data: offlineOrder };
+            }
+
             // Use React Query mutation for optimistic update
             const data = await createOrderMutation.mutateAsync(orderData);
 
