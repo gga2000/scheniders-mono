@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useCustomers, CustomerFilters, Customer } from "@/hooks/use-customers";
+import { useDebounce } from "@/hooks/use-debounce";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layout/page-transition";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -47,6 +48,7 @@ export default function CustomersPage() {
         sortOrder: "desc",
     });
     const [searchQuery, setSearchQuery] = useState("");
+    const debouncedSearchQuery = useDebounce(searchQuery, 300);
     const [expandedCustomer, setExpandedCustomer] = useState<string | null>(null);
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -54,7 +56,7 @@ export default function CustomersPage() {
     const [showAnalytics, setShowAnalytics] = useState(false);
 
     // Apply search to filters
-    const activeFilters = { ...filters, search: searchQuery };
+    const activeFilters = { ...filters, search: debouncedSearchQuery };
 
     // Single source of truth for orders - prevents duplicate subscriptions
     const { orders, loading: ordersLoading, error } = useOrdersContext();
