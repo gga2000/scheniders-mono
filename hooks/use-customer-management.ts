@@ -1,53 +1,35 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/lib/supabase";
 import {
-    CustomerTag,
-    CustomerNote,
-    CustomerMetadata,
-    CustomerTagAssignment,
-    CustomerStatus
-} from "@/lib/customer-types";
+    useCustomerNotesQuery,
+    useAddNoteMutation,
+    useUpdateNoteMutation,
+    useDeleteNoteMutation,
+    useCustomerTagsQuery,
+    useCreateTagMutation,
+    useDeleteTagMutation,
+    useCustomerAssignmentsQuery,
+    useAssignTagMutation,
+    useRemoveTagMutation,
+    useCustomerMetadataQuery,
+    useUpdateMetadataMutation
+} from "@/hooks/use-customers-query";
+import { CustomerTag, CustomerNote, CustomerMetadata, CustomerTagAssignment, CustomerStatus } from "@/lib/customer-types";
 
 // =============================================
 // CUSTOMER NOTES HOOK
 // =============================================
 export function useCustomerNotes(customerPhone: string) {
-    const [notes, setNotes] = useState<CustomerNote[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { data: notes, isLoading: loading, refetch } = useCustomerNotesQuery(customerPhone);
 
-    const fetchNotes = useCallback(async () => {
-        if (!customerPhone) return;
-
-        try {
-            setLoading(true);
-            const { data, error } = await supabase
-                .from("customer_notes")
-                .select("*")
-                .eq("customer_phone", customerPhone)
-                .order("created_at", { ascending: false });
-
-            if (error) throw error;
-            setNotes(data || []);
-        } catch (err) {
-            console.error("Error fetching notes:", err);
-        } finally {
-            setLoading(false);
-        }
-    }, [customerPhone]);
+    const addNoteMutation = useAddNoteMutation();
+    const updateNoteMutation = useUpdateNoteMutation();
+    const deleteNoteMutation = useDeleteNoteMutation();
 
     const addNote = async (note: string): Promise<CustomerNote | null> => {
         try {
-            const { data, error } = await supabase
-                .from("customer_notes")
-                .insert([{ customer_phone: customerPhone, note }])
-                .select()
-                .single();
-
-            if (error) throw error;
-            await fetchNotes();
-            return data;
+            const data = await addNoteMutation.mutateAsync({ phone: customerPhone, note });
+            return data as CustomerNote;
         } catch (err) {
             console.error("Error adding note:", err);
             return null;
@@ -56,13 +38,7 @@ export function useCustomerNotes(customerPhone: string) {
 
     const updateNote = async (id: string, note: string): Promise<boolean> => {
         try {
-            const { error } = await supabase
-                .from("customer_notes")
-                .update({ note })
-                .eq("id", id);
-
-            if (error) throw error;
-            await fetchNotes();
+            await updateNoteMutation.mutateAsync({ id, note, phone: customerPhone });
             return true;
         } catch (err) {
             console.error("Error updating note:", err);
@@ -72,13 +48,7 @@ export function useCustomerNotes(customerPhone: string) {
 
     const deleteNote = async (id: string): Promise<boolean> => {
         try {
-            const { error } = await supabase
-                .from("customer_notes")
-                .delete()
-                .eq("id", id);
-
-            if (error) throw error;
-            await fetchNotes();
+            await deleteNoteMutation.mutateAsync({ id, phone: customerPhone });
             return true;
         } catch (err) {
             console.error("Error deleting note:", err);
@@ -86,48 +56,22 @@ export function useCustomerNotes(customerPhone: string) {
         }
     };
 
-    useEffect(() => {
-        fetchNotes();
-    }, [fetchNotes]);
-
-    return { notes, loading, addNote, updateNote, deleteNote, refetch: fetchNotes };
+    return { notes: notes || [], loading, addNote, updateNote, deleteNote, refetch };
 }
 
 // =============================================
 // CUSTOMER TAGS HOOK
 // =============================================
 export function useCustomerTags() {
-    const [tags, setTags] = useState<CustomerTag[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { data: tags, isLoading: loading, refetch } = useCustomerTagsQuery();
 
-    const fetchTags = useCallback(async () => {
-        try {
-            setLoading(true);
-            const { data, error } = await supabase
-                .from("customer_tags")
-                .select("*")
-                .order("name");
-
-            if (error) throw error;
-            setTags(data || []);
-        } catch (err) {
-            console.error("Error fetching tags:", err);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+    const createTagMutation = useCreateTagMutation();
+    const deleteTagMutation = useDeleteTagMutation();
 
     const createTag = async (name: string, color: string): Promise<CustomerTag | null> => {
         try {
-            const { data, error } = await supabase
-                .from("customer_tags")
-                .insert([{ name, color }])
-                .select()
-                .single();
-
-            if (error) throw error;
-            await fetchTags();
-            return data;
+            const data = await createTagMutation.mutateAsync({ name, color });
+            return data as CustomerTag;
         } catch (err) {
             console.error("Error creating tag:", err);
             return null;
@@ -136,13 +80,7 @@ export function useCustomerTags() {
 
     const deleteTag = async (id: string): Promise<boolean> => {
         try {
-            const { error } = await supabase
-                .from("customer_tags")
-                .delete()
-                .eq("id", id);
-
-            if (error) throw error;
-            await fetchTags();
+            await deleteTagMutation.mutateAsync(id);
             return true;
         } catch (err) {
             console.error("Error deleting tag:", err);
@@ -150,50 +88,21 @@ export function useCustomerTags() {
         }
     };
 
-    useEffect(() => {
-        fetchTags();
-    }, [fetchTags]);
-
-    return { tags, loading, createTag, deleteTag, refetch: fetchTags };
+    return { tags: tags || [], loading, createTag, deleteTag, refetch };
 }
 
 // =============================================
 // CUSTOMER TAG ASSIGNMENTS HOOK
 // =============================================
 export function useCustomerTagAssignments(customerPhone: string) {
-    const [assignments, setAssignments] = useState<CustomerTagAssignment[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { data: assignments, isLoading: loading, refetch } = useCustomerAssignmentsQuery(customerPhone);
 
-    const fetchAssignments = useCallback(async () => {
-        if (!customerPhone) return;
-
-        try {
-            setLoading(true);
-            const { data, error } = await supabase
-                .from("customer_tag_assignments")
-                .select(`
-                    *,
-                    tag:customer_tags(*)
-                `)
-                .eq("customer_phone", customerPhone);
-
-            if (error) throw error;
-            setAssignments(data || []);
-        } catch (err) {
-            console.error("Error fetching tag assignments:", err);
-        } finally {
-            setLoading(false);
-        }
-    }, [customerPhone]);
+    const assignTagMutation = useAssignTagMutation();
+    const removeTagMutation = useRemoveTagMutation();
 
     const assignTag = async (tagId: string): Promise<boolean> => {
         try {
-            const { error } = await supabase
-                .from("customer_tag_assignments")
-                .insert([{ customer_phone: customerPhone, tag_id: tagId }]);
-
-            if (error) throw error;
-            await fetchAssignments();
+            await assignTagMutation.mutateAsync({ phone: customerPhone, tagId });
             return true;
         } catch (err) {
             console.error("Error assigning tag:", err);
@@ -203,14 +112,7 @@ export function useCustomerTagAssignments(customerPhone: string) {
 
     const removeTag = async (tagId: string): Promise<boolean> => {
         try {
-            const { error } = await supabase
-                .from("customer_tag_assignments")
-                .delete()
-                .eq("customer_phone", customerPhone)
-                .eq("tag_id", tagId);
-
-            if (error) throw error;
-            await fetchAssignments();
+            await removeTagMutation.mutateAsync({ phone: customerPhone, tagId });
             return true;
         } catch (err) {
             console.error("Error removing tag:", err);
@@ -218,51 +120,20 @@ export function useCustomerTagAssignments(customerPhone: string) {
         }
     };
 
-    useEffect(() => {
-        fetchAssignments();
-    }, [fetchAssignments]);
-
-    return { assignments, loading, assignTag, removeTag, refetch: fetchAssignments };
+    return { assignments: assignments || [], loading, assignTag, removeTag, refetch };
 }
 
 // =============================================
 // CUSTOMER METADATA HOOK
 // =============================================
 export function useCustomerMetadata(customerPhone: string) {
-    const [metadata, setMetadata] = useState<CustomerMetadata | null>(null);
-    const [loading, setLoading] = useState(true);
+    const { data: metadata, isLoading: loading, refetch } = useCustomerMetadataQuery(customerPhone);
 
-    const fetchMetadata = useCallback(async () => {
-        if (!customerPhone) return;
-
-        try {
-            setLoading(true);
-            const { data, error } = await supabase
-                .from("customer_metadata")
-                .select("*")
-                .eq("customer_phone", customerPhone)
-                .single();
-
-            if (error && error.code !== "PGRST116") throw error; // PGRST116 = no rows
-            setMetadata(data || null);
-        } catch (err) {
-            console.error("Error fetching metadata:", err);
-        } finally {
-            setLoading(false);
-        }
-    }, [customerPhone]);
+    const updateMetadataMutation = useUpdateMetadataMutation();
 
     const updateMetadata = async (updates: { birthday?: string; manual_status?: CustomerStatus }): Promise<boolean> => {
         try {
-            const { error } = await supabase
-                .from("customer_metadata")
-                .upsert({
-                    customer_phone: customerPhone,
-                    ...updates,
-                }, { onConflict: "customer_phone" });
-
-            if (error) throw error;
-            await fetchMetadata();
+            await updateMetadataMutation.mutateAsync({ phone: customerPhone, updates });
             return true;
         } catch (err) {
             console.error("Error updating metadata:", err);
@@ -270,9 +141,5 @@ export function useCustomerMetadata(customerPhone: string) {
         }
     };
 
-    useEffect(() => {
-        fetchMetadata();
-    }, [fetchMetadata]);
-
-    return { metadata, loading, updateMetadata, refetch: fetchMetadata };
+    return { metadata, loading, updateMetadata, refetch };
 }
