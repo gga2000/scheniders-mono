@@ -1,5 +1,4 @@
 import { supabase } from "@/lib/supabase";
-import { toast } from "sonner"; // Assuming sonner is used, or replace with alert/custom toast
 
 // Define the shape of our snapshot
 export interface DatabaseSnapshot {
