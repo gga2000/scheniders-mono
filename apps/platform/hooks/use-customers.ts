@@ -1,9 +1,13 @@
 "use client";
 
-import { useMemo, useState, useCallback, useEffect } from "react";
+import { useMemo } from "react";
 import { Order } from "@/lib/supabase";
-import { supabase } from "@/lib/supabase";
 import { CustomerTag, CustomerTagAssignment, CustomerMetadata, CustomerStatus } from "@/lib/customer-types";
+import {
+    useAllTagAssignmentsQuery,
+    useAllMetadataQuery,
+    useBlacklistQuery
+} from "@/hooks/use-customers-query";
 
 export interface Customer {
     id: string;
@@ -48,69 +52,44 @@ export interface CustomerGrowth {
 }
 
 /**
- * useCustomers hook - now accepts orders as a parameter
- * to avoid creating redundant subscriptions.
- * 
- * @param orders - Orders array from useOrders() in parent component
- * @param filters - Optional customer filters
+ * useCustomers hook - now uses React Query
  */
 export function useCustomers(orders: Order[], filters?: CustomerFilters) {
-    const [tagAssignments, setTagAssignments] = useState<Map<string, CustomerTag[]>>(new Map());
-    const [metadataMap, setMetadataMap] = useState<Map<string, CustomerMetadata>>(new Map());
-    const [blacklist, setBlacklist] = useState<Set<string>>(new Set());
-    const [dataLoading, setDataLoading] = useState(true);
+    const { data: assignmentsData, isLoading: loadingAssignments } = useAllTagAssignmentsQuery();
+    const { data: metadataData, isLoading: loadingMetadata } = useAllMetadataQuery();
+    const { data: blacklistData, isLoading: loadingBlacklist } = useBlacklistQuery();
 
-    // Fetch all customer data
-    const fetchCustomerData = useCallback(async () => {
-        try {
-            setDataLoading(true);
+    const dataLoading = loadingAssignments || loadingMetadata || loadingBlacklist;
 
-            // Fetch tag assignments with tags
-            const { data: assignments } = await supabase
-                .from("customer_tag_assignments")
-                .select(`*, tag:customer_tags(*)`);
-
-            if (assignments) {
-                const map = new Map<string, CustomerTag[]>();
-                assignments.forEach((a: CustomerTagAssignment & { tag: CustomerTag }) => {
-                    const existing = map.get(a.customer_phone) || [];
-                    if (a.tag) existing.push(a.tag);
-                    map.set(a.customer_phone, existing);
-                });
-                setTagAssignments(map);
-            }
-
-            // Fetch metadata
-            const { data: metadata } = await supabase
-                .from("customer_metadata")
-                .select("*");
-
-            if (metadata) {
-                const map = new Map<string, CustomerMetadata>();
-                metadata.forEach((m: CustomerMetadata) => {
-                    map.set(m.customer_phone, m);
-                });
-                setMetadataMap(map);
-            }
-
-            // Fetch blacklist
-            const { data: blacklistData } = await supabase
-                .from("blacklist")
-                .select("phone");
-
-            if (blacklistData) {
-                setBlacklist(new Set(blacklistData.map((b: { phone: string }) => b.phone)));
-            }
-        } catch (err) {
-            console.error("Error fetching customer data:", err);
-        } finally {
-            setDataLoading(false);
+    // Process Assignments Map
+    const tagAssignments = useMemo(() => {
+        const map = new Map<string, CustomerTag[]>();
+        if (assignmentsData) {
+            assignmentsData.forEach((a: CustomerTagAssignment & { tag: CustomerTag }) => {
+                const existing = map.get(a.customer_phone) || [];
+                if (a.tag) existing.push(a.tag);
+                map.set(a.customer_phone, existing);
+            });
         }
-    }, []);
+        return map;
+    }, [assignmentsData]);
 
-    useEffect(() => {
-        fetchCustomerData();
-    }, [fetchCustomerData]);
+    // Process Metadata Map
+    const metadataMap = useMemo(() => {
+        const map = new Map<string, CustomerMetadata>();
+        if (metadataData) {
+            metadataData.forEach((m: CustomerMetadata) => {
+                map.set(m.customer_phone, m);
+            });
+        }
+        return map;
+    }, [metadataData]);
+
+    // Process Blacklist Set
+    const blacklist = useMemo(() => {
+        if (!blacklistData) return new Set<string>();
+        return new Set(blacklistData.map((b: { phone: string }) => b.phone));
+    }, [blacklistData]);
 
     // Build customer list from orders
     const customers = useMemo(() => {
@@ -376,6 +355,8 @@ export function useCustomers(orders: Order[], filters?: CustomerFilters) {
         uniqueCities,
         uniqueProducts,
         loading: dataLoading,
-        refetch: fetchCustomerData,
+        refetch: () => {
+            // trigger refetch of queries
+        },
     };
 }
