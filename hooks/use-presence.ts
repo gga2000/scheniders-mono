@@ -32,7 +32,7 @@ export function usePresence(channelId: string) {
                 const newState = channel.presenceState();
                 // presenceState returns { [key]: [PresenceUser, ...] }
                 // We flatten it to get a simple array of users
-                const users = Object.values(newState).flat() as PresenceUser[];
+                const users = Object.values(newState).flat() as unknown as PresenceUser[];
 
                 // Sort by online_at (most recent first) or by ordering preference
                 // Here we deduplicate by ID just in case (though key: user.id prevents this mostly)
