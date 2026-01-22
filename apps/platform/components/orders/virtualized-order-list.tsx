@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, memo, useCallback } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useRef, memo, useCallback, useEffect, useState } from "react";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { Order, MessageTemplate } from "@/lib/supabase";
 import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
 
@@ -61,15 +61,24 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
     getOriginalOrderInfo,
     compactView = false,
 }: VirtualizedOrderListProps) {
-    const parentRef = useRef<HTMLDivElement>(null);
+    const listRef = useRef<HTMLDivElement>(null);
+    const [scrollMargin, setScrollMargin] = useState(0);
 
-    // Create virtualizer
-    const virtualizer = useVirtualizer({
+    // Calculate scroll margin (distance from top of viewport to top of list)
+    useEffect(() => {
+        if (listRef.current) {
+            const rect = listRef.current.getBoundingClientRect();
+            setScrollMargin(rect.top + window.scrollY);
+        }
+    }, []);
+
+    // Use window-based virtualizer - cards scroll with the page
+    const virtualizer = useWindowVirtualizer({
         count: orders.length,
-        getScrollElement: () => parentRef.current,
         estimateSize: () => compactView ? COMPACT_CARD_HEIGHT : ESTIMATED_CARD_HEIGHT,
         overscan: 5, // Render 5 extra items above/below viewport
         gap: 12, // Gap between items
+        scrollMargin,
     });
 
     const items = virtualizer.getVirtualItems();
@@ -83,11 +92,8 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
     }
 
     return (
-        <div
-            ref={parentRef}
-            className="h-[calc(100vh-280px)] overflow-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
-            style={{ contain: "strict" }}
-        >
+        <div ref={listRef} className="relative w-full">
+            {/* Spacer div that reserves height for all virtual items */}
             <div
                 style={{
                     height: `${virtualizer.getTotalSize()}px`,
@@ -111,7 +117,7 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
                                 top: 0,
                                 left: 0,
                                 width: "100%",
-                                transform: `translateY(${virtualRow.start}px)`,
+                                transform: `translateY(${virtualRow.start - scrollMargin}px)`,
                             }}
                         >
                             <SwipeableOrderCard

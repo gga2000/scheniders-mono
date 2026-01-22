@@ -349,7 +349,7 @@ export const OrderCard = memo(function OrderCard({
         <motion.div
             layoutId={`order-card-${order.id}-${order.status}`}
             className={cn(
-                "group relative w-full",
+                "group relative w-full isolate",
                 order.status === "rejected" && "opacity-60"
             )}
             transition={{
@@ -358,20 +358,20 @@ export const OrderCard = memo(function OrderCard({
         >
             {/* Soft glow effect for new orders */}
             {isNew && (
-                <div className="absolute -inset-0.5 bg-orange-300 rounded-[22px] blur-md opacity-50 group-hover:opacity-70 transition-opacity animate-pulse" />
+                <div className="absolute -inset-0.5 bg-orange-300 rounded-[22px] blur-md opacity-50 group-hover:opacity-70 transition-opacity animate-pulse -z-10" />
             )}
             {/* Glow effect for urgent orders */}
             {isUrgent && !isReturn && (
-                <div className="absolute -inset-0.5 bg-red-400 rounded-[22px] blur-md opacity-40 group-hover:opacity-60 transition-opacity animate-pulse" />
+                <div className="absolute -inset-0.5 bg-red-400 rounded-[22px] blur-md opacity-40 group-hover:opacity-60 transition-opacity animate-pulse -z-10" />
             )}
             {/* Glow effect for return orders */}
             {isReturn && (
-                <div className="absolute -inset-0.5 bg-red-400 rounded-[22px] blur-md opacity-40 group-hover:opacity-60 transition-opacity" />
+                <div className="absolute -inset-0.5 bg-red-400 rounded-[22px] blur-md opacity-40 group-hover:opacity-60 transition-opacity -z-10" />
             )}
             {/* Glow for returning customers - orange if unverified, green if verified */}
             {hasDuplicates && !isReturn && !isUrgent && !isPinned && (
                 <div className={cn(
-                    "absolute -inset-0.5 rounded-[22px] blur-md transition-opacity",
+                    "absolute -inset-0.5 rounded-[22px] blur-md transition-opacity -z-10",
                     isVerifiedCustomer
                         ? "bg-emerald-400 opacity-30 group-hover:opacity-50"
                         : "bg-orange-400 opacity-50 group-hover:opacity-70 animate-pulse"
@@ -379,11 +379,11 @@ export const OrderCard = memo(function OrderCard({
             )}
             {/* Glow effect for pinned orders */}
             {isPinned && (
-                <div className="absolute -inset-0.5 bg-blue-400 rounded-[22px] blur-md opacity-40 group-hover:opacity-60 transition-opacity" />
+                <div className="absolute -inset-0.5 bg-blue-400 rounded-[22px] blur-md opacity-40 group-hover:opacity-60 transition-opacity -z-10" />
             )}
             {/* Subtle glow effect for reviewed delivered orders */}
             {isReviewed && isDelivered && !isPinned && (
-                <div className="absolute -inset-0.5 bg-cyan-400 rounded-[22px] blur-md opacity-25 group-hover:opacity-40 transition-opacity" />
+                <div className="absolute -inset-0.5 bg-cyan-400 rounded-[22px] blur-md opacity-25 group-hover:opacity-40 transition-opacity -z-10" />
             )}
 
             <motion.div
@@ -394,14 +394,14 @@ export const OrderCard = memo(function OrderCard({
                     "flex flex-col md:flex-row",
                     actionsOpen ? "overflow-visible z-50" : "overflow-hidden",
                     // Priority order: blacklisted > return > urgent > duplicates > new > refunded
-                    isBlacklisted && "ring-2 ring-red-500 ring-offset-2 ring-offset-[var(--background)]",
-                    !isBlacklisted && isReturn && "ring-2 ring-red-400 ring-offset-2 ring-offset-[var(--background)]",
-                    !isBlacklisted && !isReturn && isUrgent && "ring-2 ring-red-400 ring-offset-2 ring-offset-[var(--background)]",
-                    !isBlacklisted && !isReturn && !isUrgent && hasDuplicates && isVerifiedCustomer && "ring-2 ring-emerald-300 ring-offset-2 ring-offset-[var(--background)]",
-                    !isBlacklisted && !isReturn && !isUrgent && hasDuplicates && !isVerifiedCustomer && "ring-2 ring-orange-400 ring-offset-2 ring-offset-[var(--background)]",
-                    !isBlacklisted && !isReturn && !isUrgent && !hasDuplicates && isNew && "ring-2 ring-orange-300 ring-offset-2 ring-offset-[var(--background)]",
-                    // Refunded orders - dashed rose ring and slight opacity
-                    !isBlacklisted && !isReturn && !isUrgent && !hasDuplicates && !isNew && hasRefund && "ring-2 ring-rose-300 ring-offset-2 ring-offset-[var(--background)] opacity-80"
+                    isBlacklisted && "ring-2 ring-red-500",
+                    !isBlacklisted && isReturn && "ring-2 ring-red-400",
+                    !isBlacklisted && !isReturn && isUrgent && "ring-2 ring-red-400",
+                    !isBlacklisted && !isReturn && !isUrgent && hasDuplicates && isVerifiedCustomer && "ring-2 ring-emerald-300",
+                    !isBlacklisted && !isReturn && !isUrgent && hasDuplicates && !isVerifiedCustomer && "ring-2 ring-orange-400",
+                    !isBlacklisted && !isReturn && !isUrgent && !hasDuplicates && isNew && "ring-2 ring-orange-300",
+                    // Refunded orders - rose ring and slight opacity
+                    !isBlacklisted && !isReturn && !isUrgent && !hasDuplicates && !isNew && hasRefund && "ring-2 ring-rose-300 opacity-80"
                 )}
             >
                 {/* Status Accent Bar */}

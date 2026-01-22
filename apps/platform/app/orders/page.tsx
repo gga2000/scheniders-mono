@@ -49,6 +49,7 @@ import { SavedViewsTabs } from "@/components/orders/saved-views-tabs";
 import { OrderConfirmationCard } from "@/components/orders/order-confirmation-card";
 import { CancellationReasonDialog } from "@/components/orders/cancellation-reason-dialog";
 import { StickyFilterBar } from "@/components/orders/sticky-filter-bar";
+import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -93,6 +94,9 @@ import {
     Pin,
     CopyPlus,
     Check,
+    Minimize2,
+    Maximize2,
+    Command,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
@@ -274,6 +278,21 @@ export default function OrdersPage() {
         typeof window !== "undefined" && notificationService.isEnabled()
     );
 
+    // Toolbar collapse state - maximizes workspace for order cards
+    const [toolbarCollapsed, setToolbarCollapsed] = useState(() => {
+        if (typeof window !== "undefined") {
+            return localStorage.getItem("ordersToolbarCollapsed") === "true";
+        }
+        return false;
+    });
+
+    // Toggle toolbar collapse
+    const toggleToolbarCollapse = () => {
+        const newValue = !toolbarCollapsed;
+        setToolbarCollapsed(newValue);
+        localStorage.setItem("ordersToolbarCollapsed", String(newValue));
+    };
+
     // Toggle workflow mode
     const toggleWorkflowMode = () => {
         const newMode = !workflowMode;
@@ -286,6 +305,17 @@ export default function OrdersPage() {
         localStorage.setItem("ordersViewMode", viewMode);
     }, [viewMode]);
 
+    // Keyboard shortcut: Cmd/Ctrl + \ to toggle toolbar
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
+                e.preventDefault();
+                toggleToolbarCollapse();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [toolbarCollapsed]);
 
 
     // Sort hook's filtered orders
@@ -636,793 +666,902 @@ export default function OrdersPage() {
         <PageTransition>
             <div className="min-h-screen p-4 md:p-6 lg:p-8">
                 <div className="space-y-4 md:space-y-6">
-                    {/* Page Header - Mobile Optimized */}
-                    <motion.div
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.4, delay: 0.1 }}
-                        className="space-y-4"
-                    >
-                        {/* Title Row */}
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight flex items-center gap-2 md:gap-3">
-                                    <Package className="w-6 h-6 md:w-8 md:h-8" />
-                                    <span className="hidden sm:inline">Orders Management</span>
-                                    <span className="sm:hidden">Orders</span>
-                                </h1>
-                                <p className="text-muted mt-1 text-sm md:text-base lg:text-lg">
-                                    {filteredOrders.length} orders{selectedOrders.size > 0 && ` • ${selectedOrders.size} selected`}
-                                </p>
-                            </div>
-
-                            {/* Primary Actions - Hidden on mobile (FAB replaces it) */}
-                            <div className="hidden sm:flex items-center gap-2">
-                                <button
-                                    onClick={() => setIsCreateModalOpen(true)}
-                                    className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-[var(--button-success)] text-white shadow-lg shadow-green-500/20 hover:bg-[var(--button-success-hover)] transition-all font-semibold text-base"
-                                >
-                                    <Plus className="h-5 w-5" />
-                                    <span>New Order</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Controls Row - Scrollable on Mobile */}
-                        <div className="flex items-center gap-2 md:gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 md:overflow-visible md:flex-wrap">
-                            {/* Workflow Mode Toggle */}
-                            <div className="flex items-center bg-[var(--background)] border border-[var(--card-border)] rounded-xl p-1 flex-shrink-0">
-                                <button
-                                    onClick={() => {
-                                        if (workflowMode) toggleWorkflowMode();
-                                    }}
-                                    className={cn(
-                                        "px-2.5 md:px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all flex items-center gap-1.5 md:gap-2",
-                                        !workflowMode
-                                            ? "bg-[var(--foreground)] text-white shadow-sm"
-                                            : "text-muted hover:text-foreground"
-                                    )}
-                                >
-                                    <List className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                                    <span className="hidden md:inline">Simple</span>
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        if (!workflowMode) toggleWorkflowMode();
-                                    }}
-                                    className={cn(
-                                        "px-2.5 md:px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all flex items-center gap-1.5 md:gap-2",
-                                        workflowMode
-                                            ? "bg-[var(--foreground)] text-white shadow-sm"
-                                            : "text-muted hover:text-foreground"
-                                    )}
-                                >
-                                    <GitBranch className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                                    <span className="hidden md:inline">Workflow</span>
-                                </button>
-                            </div>
-
-                            {/* View Mode Toggle - Hidden on Mobile in Workflow Mode */}
-                            {!workflowMode && (
-                                <div className="hidden sm:flex items-center bg-[var(--background)] border border-[var(--card-border)] rounded-xl p-1 flex-shrink-0">
-                                    {[
-                                        { mode: "cards" as const, icon: LayoutGrid, label: "Cards" },
-                                        { mode: "table" as const, icon: Table, label: "Table" },
-                                        { mode: "kanban" as const, icon: Columns, label: "Kanban" },
-                                    ].map((v) => {
-                                        const Icon = v.icon;
-                                        return (
-                                            <button
-                                                key={v.mode}
-                                                onClick={() => setViewMode(v.mode)}
-                                                title={v.label}
-                                                className={cn(
-                                                    "p-2 rounded-lg transition-all",
-                                                    viewMode === v.mode
-                                                        ? "bg-[var(--foreground)] text-white shadow-sm"
-                                                        : "text-muted hover:text-foreground hover:bg-[var(--card-border)]"
-                                                )}
-                                            >
-                                                <Icon className="w-4 h-4" />
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            )}
-
-                            {/* Date Picker */}
-                            <div className="relative flex-shrink-0">
-                                <button
-                                    onClick={() => setShowDatePicker(!showDatePicker)}
-                                    className={cn(
-                                        "p-2.5 md:p-3 rounded-xl md:rounded-2xl border transition-all shadow-sm flex items-center gap-2",
-                                        (filters.dateFrom || filters.dateTo)
-                                            ? "bg-amber-100 border-amber-200 text-amber-700"
-                                            : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
-                                    )}
-                                    title="Date Filter"
-                                >
-                                    <CalendarDays className="w-4 h-4" />
-                                    {filters.dateFrom && (
-                                        <span className="text-xs font-medium hidden lg:inline">
-                                            {filters.dateFrom === filters.dateTo
-                                                ? new Date(filters.dateFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                                                : `${new Date(filters.dateFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${filters.dateTo ? new Date(filters.dateTo).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '...'}`
-                                            }
-                                        </span>
-                                    )}
-                                </button>
-
-                                {/* Date Picker Dropdown Panel */}
-                                {showDatePicker && (
-                                    <div className="absolute left-0 top-full mt-2 z-[100] shadow-2xl rounded-3xl border border-amber-100">
-                                        <DateRangePicker
-                                            inline
-                                            dateFrom={filters.dateFrom}
-                                            dateTo={filters.dateTo}
-                                            onDateChange={(from, to) => {
-                                                setFilters({ ...filters, dateFrom: from, dateTo: to });
-                                                setShowDatePicker(false);
-                                            }}
-                                        />
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Quick Toggles - Grouped */}
-                            <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
-                                {/* Notifications */}
-                                <button
-                                    onClick={async () => {
-                                        const newState = !notificationsEnabled;
-                                        if (newState) {
-                                            const granted = await notificationService.requestPermission();
-                                            if (granted) {
-                                                setNotificationsEnabled(true);
-                                                notificationService.showNotification({
-                                                    title: "Notifications Enabled",
-                                                    body: "You will now be notified of new orders",
-                                                });
-                                            }
-                                            setSoundEnabled(true);
-                                            notificationService.soundEnabled = true;
-                                        } else {
-                                            setNotificationsEnabled(false);
-                                            setSoundEnabled(false);
-                                            notificationService.soundEnabled = false;
-                                        }
-                                    }}
-                                    title={notificationsEnabled ? "Notifications ON" : "Enable Notifications"}
-                                    className={cn(
-                                        "p-2.5 md:p-3 rounded-xl md:rounded-2xl border transition-all shadow-sm",
-                                        notificationsEnabled
-                                            ? "bg-green-100 border-green-200 text-green-700"
-                                            : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
-                                    )}
-                                >
-                                    {notificationsEnabled ? (
-                                        <Bell className="w-4 h-4" />
-                                    ) : (
-                                        <BellOff className="w-4 h-4" />
-                                    )}
-                                </button>
-
-                                {/* Undo Button */}
-                                {canUndo && (
-                                    <motion.button
-                                        initial={{ opacity: 0, scale: 0.8 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        exit={{ opacity: 0, scale: 0.8 }}
-                                        onClick={async () => {
-                                            const result = await undoLastAction();
-                                        }}
-                                        title={`Undo: ${getLastUndoAction()?.action || 'last action'}`}
-                                        className="p-2.5 md:p-3 rounded-xl md:rounded-2xl border transition-all shadow-sm bg-amber-100 border-amber-200 text-amber-700 hover:bg-amber-200"
-                                    >
-                                        <RotateCcw className="w-4 h-4" />
-                                    </motion.button>
-                                )}
-
-                                {/* Stats Toggle - Hidden on Small Mobile */}
-                                <button
-                                    onClick={() => {
-                                        const newLevel = ((analyticsLevel + 1) % 3) as 0 | 1 | 2;
-                                        setAnalyticsLevel(newLevel);
-                                        localStorage.setItem("ordersAnalyticsLevel", String(newLevel));
-                                    }}
-                                    title={analyticsLevel === 0 ? "Show Stats" : analyticsLevel === 1 ? "Show Details" : "Hide Analytics"}
-                                    className={cn(
-                                        "hidden sm:flex p-2.5 md:p-3 rounded-xl md:rounded-2xl border transition-all shadow-sm items-center gap-2",
-                                        analyticsLevel > 0
-                                            ? "bg-blue-100 border-blue-200 text-blue-700"
-                                            : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
-                                    )}
-                                >
-                                    <BarChart3 className="w-4 h-4" />
-                                </button>
-
-                                {/* Filters Toggle */}
-                                <button
-                                    onClick={() => {
-                                        const newValue = !showSearchBar;
-                                        setShowSearchBar(newValue);
-                                        localStorage.setItem("ordersShowSearchBar", String(newValue));
-                                    }}
-                                    title={showSearchBar ? "Hide Filters" : "Show Filters"}
-                                    className={cn(
-                                        "p-2.5 md:p-3 rounded-xl md:rounded-2xl border transition-all shadow-sm",
-                                        showSearchBar
-                                            ? "bg-purple-100 border-purple-200 text-purple-700"
-                                            : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
-                                    )}
-                                >
-                                    <SlidersHorizontal className="w-4 h-4" />
-                                </button>
-                            </div>
-
-                            {/* Secondary Actions - Hidden on Mobile */}
-                            <div className="hidden md:flex items-center gap-2 flex-shrink-0">
-                                {/* Compact View Toggle */}
-                                {!workflowMode && viewMode === "cards" && (
-                                    <button
-                                        onClick={() => {
-                                            const newValue = !compactView;
-                                            setCompactView(newValue);
-                                            localStorage.setItem("ordersCompactView", String(newValue));
-                                        }}
-                                        title={compactView ? "Expanded View" : "Compact View"}
-                                        className={cn(
-                                            "p-3 rounded-2xl border transition-all shadow-sm",
-                                            compactView
-                                                ? "bg-purple-100 border-purple-200 text-purple-700"
-                                                : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
-                                        )}
-                                    >
-                                        {compactView ? <LayoutList className="w-4 h-4" /> : <Rows3 className="w-4 h-4" />}
-                                    </button>
-                                )}
-
-                                {/* Archive Toggle */}
-                                <button
-                                    onClick={async () => {
-                                        if (!showArchived && archivedOrders.length === 0) {
-                                            await fetchArchivedOrders();
-                                        }
-                                        setShowArchived(!showArchived);
-                                    }}
-                                    title={showArchived ? "Show Active Orders" : "Show Archived Orders"}
-                                    className={cn(
-                                        "p-3 rounded-2xl border transition-all shadow-sm flex items-center gap-2",
-                                        showArchived
-                                            ? "bg-amber-100 border-amber-200 text-amber-700"
-                                            : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
-                                    )}
-                                >
-                                    <Archive className="w-4 h-4" />
-                                    {showArchived && <span className="text-xs font-medium">Archived</span>}
-                                </button>
-
-                                {/* Import/Export */}
-                                <button
-                                    onClick={() => setIsImportModalOpen(true)}
-                                    className="px-4 py-3 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] text-foreground hover:bg-[var(--background)] transition-all shadow-sm flex items-center gap-2"
-                                >
-                                    <Upload className="w-4 h-4" />
-                                    <span className="hidden lg:inline">استيراد</span>
-                                </button>
-                                <button
-                                    onClick={handleExport}
-                                    className="px-4 py-3 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] text-foreground hover:bg-[var(--background)] transition-all shadow-sm flex items-center gap-2"
-                                >
-                                    <Download className="w-4 h-4" />
-                                    <span className="hidden lg:inline">Export</span>
-                                </button>
-                                <button
-                                    onClick={handlePrimeExport}
-                                    className="px-4 py-3 rounded-2xl bg-[#1e293b] text-white hover:bg-[#334155] border border-transparent transition-all shadow-sm flex items-center gap-2"
-                                >
-                                    <span className="hidden lg:inline">تصدير للشحن</span>
-                                    <span className="lg:hidden">Prime</span>
-                                </button>
-                            </div>
-                        </div>
-                    </motion.div>
-
-                    {/* Saved Views Tabs */}
-                    <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: 0.2 }}
-                    >
-                        <SavedViewsTabs
-                            presets={filterPresets}
-                            activePresetId={activePresetId}
-                            onSelect={(presetId) => {
-                                setActivePresetId(presetId);
-                                loadFilterPreset(presetId);
-                            }}
-                            onSave={(name) => {
-                                const preset = saveFilterPreset(name);
-                                setActivePresetId(preset.id);
-                            }}
-                            onDelete={(presetId) => {
-                                deleteFilterPreset(presetId);
-                                if (activePresetId === presetId) {
-                                    setActivePresetId(null);
-                                    clearFilters();
-                                }
-                            }}
-                            onClearFilter={() => {
-                                setActivePresetId(null);
-                                clearFilters();
-                            }}
-                        />
-                    </motion.div>
-
-                    {/* Collapsible Analytics Panel */}
+                    {/* Collapsed Toolbar Bar - Minimal floating header when collapsed */}
                     <AnimatePresence>
-                        {analyticsLevel >= 1 && (
+                        {toolbarCollapsed && (
                             <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: "auto" }}
-                                exit={{ opacity: 0, height: 0 }}
-                                transition={{ duration: 0.3 }}
-                                className="overflow-hidden"
+                                initial={{ opacity: 0, y: -20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -20 }}
+                                transition={{ duration: 0.3, ease: "easeOut" }}
+                                className="sticky top-2 z-50"
                             >
-                                <div className="space-y-4">
-                                    {/* Main Stats Grid */}
-
-                                    <ErrorBoundary name="Analytics Dashboard">
-                                        {/* Main Stats Grid */}
-                                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                                            {/* Today's Orders */}
-                                            <div className="pastel-card pastel-card-yellow p-4">
-                                                <p className="text-xs text-amber-700 font-medium uppercase tracking-wide">Today</p>
-                                                <p className="text-2xl font-bold text-amber-900 mt-1">{stats.todayOrders}</p>
-                                                <p className="text-xs text-amber-600 mt-1">orders</p>
-                                            </div>
-
-                                            {/* Total Revenue */}
-                                            <div className="pastel-card pastel-card-green p-4">
-                                                <p className="text-xs text-green-700 font-medium uppercase tracking-wide">Revenue</p>
-                                                <p className="text-2xl font-bold text-green-900 mt-1">{formatIQD(stats.totalRevenue)}</p>
-                                                <p className="text-xs text-green-600 mt-1">total</p>
-                                            </div>
-
-                                            {/* Pending (New) */}
-                                            <div className="pastel-card pastel-card-pink p-4">
-                                                <p className="text-xs text-rose-700 font-medium uppercase tracking-wide">Pending</p>
-                                                <p className="text-2xl font-bold text-rose-900 mt-1">{statusCounts.new || 0}</p>
-                                                <p className="text-xs text-rose-600 mt-1">new orders</p>
-                                            </div>
-
-                                            {/* Confirmed */}
-                                            <div className="pastel-card pastel-card-purple p-4">
-                                                <p className="text-xs text-purple-700 font-medium uppercase tracking-wide">Confirmed</p>
-                                                <p className="text-2xl font-bold text-purple-900 mt-1">{statusCounts.confirmed || 0}</p>
-                                                <p className="text-xs text-purple-600 mt-1">ready</p>
-                                            </div>
-
-                                            {/* Conversion Rate */}
-                                            <div className="pastel-card p-4">
-                                                <p className="text-xs text-muted font-medium uppercase tracking-wide">Conversion</p>
-                                                <div className="flex items-end gap-2 mt-1">
-                                                    <p className="text-2xl font-bold text-foreground">{stats.conversionRate.toFixed(1)}%</p>
-                                                </div>
-                                                <div className="w-full h-1.5 bg-gray-100 rounded-full mt-3 overflow-hidden">
-                                                    <div
-                                                        className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-1000 ease-out"
-                                                        style={{ width: `${stats.conversionRate}%` }}
-                                                    />
-                                                </div>
-                                                <p className="text-[10px] text-muted mt-2">Confirmed vs Total</p>
-                                            </div>
-
-                                            {/* Average Order Value */}
-                                            <div className="pastel-card p-4">
-                                                <p className="text-xs text-muted font-medium uppercase tracking-wide">AVG Order</p>
-                                                <p className="text-2xl font-bold text-foreground mt-1">{formatIQD(stats.averageOrderValue)}</p>
-                                                <p className="text-xs text-muted mt-1">per order</p>
-                                            </div>
-
-                                            {/* Peak Time */}
-                                            <div className="pastel-card pastel-bg-purple p-4">
-                                                <p className="text-xs text-purple-700 font-medium uppercase tracking-wide">Peak Time</p>
-                                                <p className="text-2xl font-bold text-purple-900 mt-1">{stats.peakTime}</p>
-                                                <p className="text-xs text-purple-600 mt-1">busiest hour</p>
-                                            </div>
+                                <div className="flex items-center justify-between gap-3 px-5 py-3.5 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] shadow-lg">
+                                    {/* Left: Select All + Order count and status */}
+                                    <div className="flex items-center gap-3">
+                                        {/* Select All Checkbox */}
+                                        <button
+                                            onClick={selectAll}
+                                            className={cn(
+                                                "w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
+                                                selectedOrders.size === filteredOrders.length && filteredOrders.length > 0
+                                                    ? "bg-[var(--foreground)] border-[var(--foreground)] text-white"
+                                                    : "border-[var(--card-border)] hover:border-[var(--foreground-muted)]"
+                                            )}
+                                            title="Select all"
+                                        >
+                                            {selectedOrders.size === filteredOrders.length && filteredOrders.length > 0 && (
+                                                <CheckSquare className="w-3 h-3" />
+                                            )}
+                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            <Package className="w-5 h-5 text-foreground" />
+                                            <span className="font-bold text-lg text-foreground">{filteredOrders.length}</span>
+                                            <span className="text-muted text-sm">orders</span>
                                         </div>
-
-                                        {/* Revenue Trends & Velocity Metrics Row (only at level 2) */}
-                                        {analyticsLevel >= 2 && (
-                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                                {/* 7-Day Revenue Sparkline */}
-                                                <div className="pastel-card p-4">
-                                                    <p className="text-xs text-muted font-medium uppercase tracking-wide mb-3">7-Day Revenue Trend</p>
-                                                    <div className="flex items-end gap-1 h-16">
-                                                        {stats.revenueTrends.map((day, i) => {
-                                                            const maxRevenue = Math.max(...stats.revenueTrends.map(d => d.revenue), 1);
-                                                            const heightPercent = (day.revenue / maxRevenue) * 100;
-                                                            return (
-                                                                <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                                                                    <div
-                                                                        className={cn(
-                                                                            "w-full rounded-t-sm transition-all",
-                                                                            i === 6 ? "bg-green-500" : "bg-green-200"
-                                                                        )}
-                                                                        style={{ height: `${Math.max(heightPercent, 4)}%` }}
-                                                                        title={`${formatIQD(day.revenue)}`}
-                                                                    />
-                                                                    <span className="text-[10px] text-muted">{day.date}</span>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-
-                                                {/* Velocity Metrics */}
-                                                <div className="pastel-card p-4">
-                                                    <p className="text-xs text-muted font-medium uppercase tracking-wide mb-3">Processing Speed</p>
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                        <div>
-                                                            <p className="text-lg font-bold text-foreground">{stats.velocityMetrics.avgNewToConfirmed}</p>
-                                                            <p className="text-xs text-muted">New → Confirmed</p>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-lg font-bold text-foreground">{stats.velocityMetrics.avgConfirmedToDelivered}</p>
-                                                            <p className="text-xs text-muted">Confirmed → Delivered</p>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-lg font-bold text-teal-600">{stats.velocityMetrics.totalProcessed}</p>
-                                                            <p className="text-xs text-muted">Delivered</p>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-lg font-bold text-amber-600">{stats.velocityMetrics.pendingCount}</p>
-                                                            <p className="text-xs text-muted">In Pipeline</p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                        {selectedOrders.size > 0 && (
+                                            <span className="px-2.5 py-1 text-xs font-semibold bg-[var(--pastel-purple-light)] text-purple-700 rounded-full">
+                                                {selectedOrders.size} selected
+                                            </span>
                                         )}
-                                    </ErrorBoundary>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                                        {filters.status && filters.status !== 'all' && (
+                                            <span className="px-2.5 py-1 text-xs font-semibold bg-[var(--pastel-yellow)] text-amber-800 rounded-full capitalize">
+                                                {filters.status.replace('_', ' ')}
+                                            </span>
+                                        )}
+                                    </div>
 
-                    {/* Filters & Search Bar */}
-                    <AnimatePresence>
-                        {showSearchBar && (
-                            <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: "auto" }}
-                                exit={{ opacity: 0, height: 0 }}
-                                transition={{ duration: 0.3 }}
-                                className="overflow-hidden"
-                            >
-                                <div className="pastel-card p-6 space-y-4">
-                                    <div className="flex flex-col lg:flex-row gap-4">
+                                    {/* Center: Quick search */}
+                                    <div className="hidden md:flex items-center gap-2 flex-1 max-w-md">
                                         <div className="relative flex-1">
-                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--foreground-subtle)]" />
+                                            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--foreground-subtle)]" />
                                             <input
                                                 type="text"
-                                                placeholder="Search by name, phone, or order ID..."
+                                                placeholder="Search orders..."
                                                 value={filters.searchQuery || ""}
                                                 onChange={(e) => setFilters({ ...filters, searchQuery: e.target.value || undefined })}
-                                                className="w-full pl-12 pr-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all"
+                                                className="w-full pl-10 pr-4 py-2.5 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                                             />
                                         </div>
-                                        {/* Sort dropdown removed in favor of column sorting */}
                                     </div>
 
-                                    {!isMobile && (
-                                        <StickyFilterBar
-                                            filters={filters}
-                                            setFilters={setFilters}
-                                            statusCounts={statusCounts}
-                                            showFilters={showFilters}
-                                            setShowFilters={setShowFilters}
-                                            hasActiveFilters={hasActiveFilters}
-                                            groupBy={groupBy}
-                                            setGroupBy={setGroupBy}
-                                            isMobile={false}
-                                        />
-                                    )}
+                                    {/* Right: Quick actions + Expand */}
+                                    <div className="flex items-center gap-2">
+                                        {/* New Order Button */}
+                                        <button
+                                            onClick={() => setIsCreateModalOpen(true)}
+                                            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[var(--button-success)] text-white shadow-sm hover:bg-[var(--button-success-hover)] transition-all text-sm font-semibold"
+                                        >
+                                            <Plus className="w-4 h-4" />
+                                            <span className="hidden sm:inline">New</span>
+                                        </button>
 
-                                    {/* Advanced Filters Panel */}
-                                    <AnimatePresence>
-                                        {showFilters && (
-                                            <motion.div
-                                                initial={{ opacity: 0, height: 0 }}
-                                                animate={{ opacity: 1, height: "auto" }}
-                                                exit={{ opacity: 0, height: 0 }}
-                                                className="overflow-hidden"
-                                            >
-                                                <div className="pt-4 border-t border-[var(--card-border)] space-y-4">
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                                        {/* City Filter */}
-                                                        <div>
-                                                            <label className="text-xs text-muted font-medium block mb-1.5">City</label>
-                                                            <div className="relative">
-                                                                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                                                                <select
-                                                                    value={filters.city || ""}
-                                                                    onChange={(e) => setFilters({ ...filters, city: e.target.value || undefined })}
-                                                                    className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all appearance-none cursor-pointer"
-                                                                >
-                                                                    <option value="">All Cities</option>
-                                                                    {availableCities.map((city) => (
-                                                                        <option key={city} value={city}>{city}</option>
-                                                                    ))}
-                                                                </select>
-                                                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Product Filter */}
-                                                        <div>
-                                                            <label className="text-xs text-muted font-medium block mb-1.5">Product</label>
-                                                            <div className="relative">
-                                                                <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                                                                <select
-                                                                    value={filters.product || ""}
-                                                                    onChange={(e) => setFilters({ ...filters, product: e.target.value || undefined })}
-                                                                    className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all appearance-none cursor-pointer"
-                                                                >
-                                                                    <option value="">All Products</option>
-                                                                    {availableProducts.map((product) => (
-                                                                        <option key={product} value={product}>{product}</option>
-                                                                    ))}
-                                                                </select>
-                                                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Payment Status Filter */}
-                                                        <div>
-                                                            <label className="text-xs text-muted font-medium block mb-1.5">Payment</label>
-                                                            <div className="relative">
-                                                                <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                                                                <select
-                                                                    value={filters.paymentStatus || ""}
-                                                                    onChange={(e) => setFilters({ ...filters, paymentStatus: (e.target.value as PaymentStatus) || undefined })}
-                                                                    className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all appearance-none cursor-pointer"
-                                                                >
-                                                                    <option value="">All Payments</option>
-                                                                    <option value="cod">Cash on Delivery</option>
-                                                                    <option value="prepaid">Prepaid (Digital)</option>
-                                                                    <option value="pending">Pending</option>
-                                                                    <option value="partial">Partial</option>
-                                                                </select>
-                                                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    {/* Filter Actions Row */}
-                                                    <div className="flex flex-wrap items-center gap-3">
-                                                        {/* Clear Filters Button */}
-                                                        {hasActiveFilters && (
-                                                            <button
-                                                                onClick={clearFilters}
-                                                                className="flex items-center gap-2 px-3 py-1.5 text-sm text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-all"
-                                                            >
-                                                                <X className="w-3.5 h-3.5" />
-                                                                Clear all filters
-                                                            </button>
-                                                        )}
-
-                                                        {/* Toggle Presets */}
-                                                        <button
-                                                            onClick={() => setShowPresets(!showPresets)}
-                                                            className={cn(
-                                                                "flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-all",
-                                                                showPresets || filterPresets.length > 0
-                                                                    ? "text-purple-600 hover:text-purple-700 hover:bg-purple-50"
-                                                                    : "text-muted hover:text-foreground hover:bg-gray-50"
-                                                            )}
-                                                        >
-                                                            <Bookmark className="w-3.5 h-3.5" />
-                                                            Presets {filterPresets.length > 0 && `(${filterPresets.length})`}
-                                                        </button>
-                                                    </div>
-
-                                                    {/* Filter Presets Panel */}
-                                                    <AnimatePresence>
-                                                        {showPresets && (
-                                                            <motion.div
-                                                                initial={{ opacity: 0, height: 0 }}
-                                                                animate={{ opacity: 1, height: "auto" }}
-                                                                exit={{ opacity: 0, height: 0 }}
-                                                                className="overflow-hidden"
-                                                            >
-                                                                <div className="pt-3 border-t border-dashed border-[var(--card-border)] space-y-3">
-                                                                    {/* Save Current Filter */}
-                                                                    {hasActiveFilters && (
-                                                                        <div className="flex gap-2">
-                                                                            <input
-                                                                                type="text"
-                                                                                placeholder="Name this filter..."
-                                                                                value={newPresetName}
-                                                                                onChange={(e) => setNewPresetName(e.target.value)}
-                                                                                className="flex-1 px-3 py-2 text-sm bg-white border border-[var(--card-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-200"
-                                                                            />
-                                                                            <button
-                                                                                onClick={() => {
-                                                                                    if (newPresetName.trim()) {
-                                                                                        saveFilterPreset(newPresetName.trim());
-                                                                                        setNewPresetName("");
-                                                                                    }
-                                                                                }}
-                                                                                disabled={!newPresetName.trim()}
-                                                                                className="flex items-center gap-1.5 px-3 py-2 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-all disabled:opacity-50"
-                                                                            >
-                                                                                <Save className="w-3.5 h-3.5" />
-                                                                                Save
-                                                                            </button>
-                                                                        </div>
-                                                                    )}
-
-                                                                    {/* Saved Presets List */}
-                                                                    {filterPresets.length > 0 ? (
-                                                                        <div className="flex flex-wrap gap-2">
-                                                                            {filterPresets.map((preset) => (
-                                                                                <div
-                                                                                    key={preset.id}
-                                                                                    className="flex items-center gap-1 pl-3 pr-1 py-1.5 bg-purple-50 border border-purple-100 rounded-lg group"
-                                                                                >
-                                                                                    <button
-                                                                                        onClick={() => loadFilterPreset(preset.id)}
-                                                                                        className="text-sm text-purple-700 hover:text-purple-900 font-medium"
-                                                                                    >
-                                                                                        {preset.name}
-                                                                                    </button>
-                                                                                    <button
-                                                                                        onClick={() => deleteFilterPreset(preset.id)}
-                                                                                        className="p-1 text-purple-400 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-all"
-                                                                                    >
-                                                                                        <Trash2 className="w-3 h-3" />
-                                                                                    </button>
-                                                                                </div>
-                                                                            ))}
-                                                                        </div>
-                                                                    ) : (
-                                                                        <p className="text-xs text-muted">No saved filters. Apply filters then save them here.</p>
-                                                                    )}
-                                                                </div>
-                                                            </motion.div>
-                                                        )}
-                                                    </AnimatePresence>
-                                                </div>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-
-                                    <AnimatePresence>
-                                        {selectedOrders.size > 0 && (
-                                            <motion.div
-                                                initial={{ opacity: 0, height: 0 }}
-                                                animate={{ opacity: 1, height: "auto" }}
-                                                exit={{ opacity: 0, height: 0 }}
-                                                className="flex items-center gap-3 pt-4 border-t border-[var(--card-border)] overflow-x-auto scrollbar-hide"
-                                            >
-                                                <span className="text-sm text-muted whitespace-nowrap">{selectedOrders.size} selected</span>
-
-                                                {/* Primary Actions */}
-                                                <button
-                                                    onClick={handleBulkConfirm}
-                                                    className="px-3 py-1.5 rounded-lg bg-[var(--pastel-green)] text-green-900 text-sm font-medium hover:bg-[var(--pastel-green-light)] transition-all whitespace-nowrap"
-                                                >
-                                                    Confirm
-                                                </button>
-                                                <button
-                                                    onClick={handleBulkDeliver}
-                                                    className="px-3 py-1.5 rounded-lg bg-[var(--pastel-purple)] text-purple-900 text-sm font-medium hover:bg-[var(--pastel-purple-light)] transition-all whitespace-nowrap"
-                                                >
-                                                    Deliver
-                                                </button>
-                                                <button
-                                                    onClick={handleBulkReject}
-                                                    className="px-3 py-1.5 rounded-lg bg-[var(--pastel-pink)] text-rose-900 text-sm font-medium hover:bg-[var(--pastel-pink-light)] transition-all whitespace-nowrap"
-                                                >
-                                                    Reject
-                                                </button>
-                                                <button
-                                                    onClick={handleBulkArchive}
-                                                    className="px-3 py-1.5 rounded-lg bg-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-300 transition-all whitespace-nowrap"
-                                                >
-                                                    Archive
-                                                </button>
-
-                                                {/* Divider */}
-                                                <div className="h-6 w-px bg-[var(--card-border)] flex-shrink-0" />
-
-                                                {/* Status Change Buttons */}
-                                                <button
-                                                    onClick={handleBulkNew}
-                                                    className="px-3 py-1.5 rounded-lg bg-blue-100 text-blue-700 text-sm font-medium hover:bg-blue-200 transition-all whitespace-nowrap"
-                                                >
-                                                    New
-                                                </button>
-                                                <button
-                                                    onClick={handleBulkContacted}
-                                                    className="px-3 py-1.5 rounded-lg bg-amber-100 text-amber-700 text-sm font-medium hover:bg-amber-200 transition-all whitespace-nowrap"
-                                                >
-                                                    Contacted
-                                                </button>
-                                                <button
-                                                    onClick={handleBulkInTransit}
-                                                    className="px-3 py-1.5 rounded-lg bg-orange-100 text-orange-700 text-sm font-medium hover:bg-orange-200 transition-all whitespace-nowrap"
-                                                >
-                                                    🚚 In Transit
-                                                </button>
-                                                <button
-                                                    onClick={handleBulkCompleted}
-                                                    className="px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 text-sm font-medium hover:bg-emerald-200 transition-all whitespace-nowrap"
-                                                >
-                                                    Completed
-                                                </button>
-                                                <button
-                                                    onClick={handleBulkNoResponse}
-                                                    className="px-3 py-1.5 rounded-lg bg-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-300 transition-all whitespace-nowrap"
-                                                >
-                                                    لم يرد
-                                                </button>
-
-                                                {/* Divider */}
-                                                <div className="h-6 w-px bg-[var(--card-border)] flex-shrink-0" />
-
-                                                {/* Destructive Action */}
-                                                <button
-                                                    onClick={handleBulkDelete}
-                                                    className="px-3 py-1.5 rounded-lg bg-red-100 text-red-700 text-sm font-medium hover:bg-red-200 transition-all whitespace-nowrap"
-                                                >
-                                                    Delete
-                                                </button>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
+                                        {/* Expand Button */}
+                                        <button
+                                            onClick={toggleToolbarCollapse}
+                                            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-muted hover:text-foreground hover:bg-[var(--card-bg)] transition-all text-sm font-medium"
+                                            title="Expand toolbar (⌘\\)"
+                                        >
+                                            <Maximize2 className="w-4 h-4" />
+                                            <span className="hidden lg:inline">Expand</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </motion.div>
                         )}
                     </AnimatePresence>
 
-                    {/* Mobile Sticky Filter Bar - Rendered outside overflow-hidden container */}
-                    {isMobile && showSearchBar && (
-                        <StickyFilterBar
-                            filters={filters}
-                            setFilters={setFilters}
-                            statusCounts={statusCounts}
-                            showFilters={showFilters}
-                            setShowFilters={setShowFilters}
-                            hasActiveFilters={hasActiveFilters}
-                            groupBy={groupBy}
-                            setGroupBy={setGroupBy}
-                            isMobile={true}
-                        />
-                    )}
+                    {/* Full Header - Hidden when collapsed */}
+                    <AnimatePresence>
+                        {!toolbarCollapsed && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ duration: 0.3, ease: "easeOut" }}
+                                className="overflow-hidden"
+                            >
+                                {/* Page Header - Mobile Optimized */}
+                                <motion.div
+                                    initial={{ opacity: 0, y: -20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.4, delay: 0.1 }}
+                                    className="space-y-4"
+                                >
+                                    {/* Title Row */}
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            {/* Select All Checkbox */}
+                                            <button
+                                                onClick={selectAll}
+                                                className={cn(
+                                                    "w-5 h-5 rounded border-2 flex items-center justify-center transition-all flex-shrink-0",
+                                                    selectedOrders.size === filteredOrders.length && filteredOrders.length > 0
+                                                        ? "bg-[var(--foreground)] border-[var(--foreground)] text-white"
+                                                        : "border-[var(--card-border)] hover:border-[var(--foreground-muted)]"
+                                                )}
+                                                title="Select all"
+                                            >
+                                                {selectedOrders.size === filteredOrders.length && filteredOrders.length > 0 && (
+                                                    <CheckSquare className="w-3 h-3" />
+                                                )}
+                                            </button>
+                                            <div>
+                                                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight flex items-center gap-2 md:gap-3">
+                                                    <Package className="w-6 h-6 md:w-8 md:h-8" />
+                                                    <span className="hidden sm:inline">Orders Management</span>
+                                                    <span className="sm:hidden">Orders</span>
+                                                </h1>
+                                                <p className="text-muted mt-1 text-sm md:text-base lg:text-lg">
+                                                    {filteredOrders.length} orders{selectedOrders.size > 0 && ` • ${selectedOrders.size} selected`}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {/* Primary Actions - Hidden on mobile (FAB replaces it) */}
+                                        <div className="hidden sm:flex items-center gap-2">
+                                            <button
+                                                onClick={() => setIsCreateModalOpen(true)}
+                                                className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-[var(--button-success)] text-white shadow-lg shadow-green-500/20 hover:bg-[var(--button-success-hover)] transition-all font-semibold text-base"
+                                            >
+                                                <Plus className="h-5 w-5" />
+                                                <span>New Order</span>
+                                            </button>
+
+                                            {/* Collapse Toolbar Button */}
+                                            <button
+                                                onClick={toggleToolbarCollapse}
+                                                className="p-3 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] text-muted hover:text-foreground hover:bg-[var(--background)] transition-all shadow-sm"
+                                                title="Collapse toolbar (⌘\\)"
+                                            >
+                                                <Minimize2 className="w-5 h-5" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Controls Row - Scrollable on Mobile */}
+                                    <div className="flex items-center gap-2 md:gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 md:overflow-visible md:flex-wrap">
+                                        {/* Workflow Mode Toggle */}
+                                        <div className="flex items-center bg-[var(--background)] border border-[var(--card-border)] rounded-xl p-1 flex-shrink-0">
+                                            <button
+                                                onClick={() => {
+                                                    if (workflowMode) toggleWorkflowMode();
+                                                }}
+                                                className={cn(
+                                                    "px-2.5 md:px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all flex items-center gap-1.5 md:gap-2",
+                                                    !workflowMode
+                                                        ? "bg-[var(--foreground)] text-white shadow-sm"
+                                                        : "text-muted hover:text-foreground"
+                                                )}
+                                            >
+                                                <List className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                                                <span className="hidden md:inline">Simple</span>
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    if (!workflowMode) toggleWorkflowMode();
+                                                }}
+                                                className={cn(
+                                                    "px-2.5 md:px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all flex items-center gap-1.5 md:gap-2",
+                                                    workflowMode
+                                                        ? "bg-[var(--foreground)] text-white shadow-sm"
+                                                        : "text-muted hover:text-foreground"
+                                                )}
+                                            >
+                                                <GitBranch className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                                                <span className="hidden md:inline">Workflow</span>
+                                            </button>
+                                        </div>
+
+                                        {/* View Mode Toggle - Hidden on Mobile in Workflow Mode */}
+                                        {!workflowMode && (
+                                            <div className="hidden sm:flex items-center bg-[var(--background)] border border-[var(--card-border)] rounded-xl p-1 flex-shrink-0">
+                                                {[
+                                                    { mode: "cards" as const, icon: LayoutGrid, label: "Cards" },
+                                                    { mode: "table" as const, icon: Table, label: "Table" },
+                                                    { mode: "kanban" as const, icon: Columns, label: "Kanban" },
+                                                ].map((v) => {
+                                                    const Icon = v.icon;
+                                                    return (
+                                                        <button
+                                                            key={v.mode}
+                                                            onClick={() => setViewMode(v.mode)}
+                                                            title={v.label}
+                                                            className={cn(
+                                                                "p-2 rounded-lg transition-all",
+                                                                viewMode === v.mode
+                                                                    ? "bg-[var(--foreground)] text-white shadow-sm"
+                                                                    : "text-muted hover:text-foreground hover:bg-[var(--card-border)]"
+                                                            )}
+                                                        >
+                                                            <Icon className="w-4 h-4" />
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+
+                                        {/* Date Picker */}
+                                        <div className="relative flex-shrink-0">
+                                            <button
+                                                onClick={() => setShowDatePicker(!showDatePicker)}
+                                                className={cn(
+                                                    "p-2.5 md:p-3 rounded-xl md:rounded-2xl border transition-all shadow-sm flex items-center gap-2",
+                                                    (filters.dateFrom || filters.dateTo)
+                                                        ? "bg-amber-100 border-amber-200 text-amber-700"
+                                                        : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                                )}
+                                                title="Date Filter"
+                                            >
+                                                <CalendarDays className="w-4 h-4" />
+                                                {filters.dateFrom && (
+                                                    <span className="text-xs font-medium hidden lg:inline">
+                                                        {filters.dateFrom === filters.dateTo
+                                                            ? new Date(filters.dateFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                                                            : `${new Date(filters.dateFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${filters.dateTo ? new Date(filters.dateTo).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '...'}`
+                                                        }
+                                                    </span>
+                                                )}
+                                            </button>
+
+                                            {/* Date Picker Dropdown Panel */}
+                                            {showDatePicker && (
+                                                <div className="absolute left-0 top-full mt-2 z-[100] shadow-2xl rounded-3xl border border-amber-100">
+                                                    <DateRangePicker
+                                                        inline
+                                                        dateFrom={filters.dateFrom}
+                                                        dateTo={filters.dateTo}
+                                                        onDateChange={(from, to) => {
+                                                            setFilters({ ...filters, dateFrom: from, dateTo: to });
+                                                            setShowDatePicker(false);
+                                                        }}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Quick Toggles - Grouped */}
+                                        <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
+                                            {/* Notifications */}
+                                            <button
+                                                onClick={async () => {
+                                                    const newState = !notificationsEnabled;
+                                                    if (newState) {
+                                                        const granted = await notificationService.requestPermission();
+                                                        if (granted) {
+                                                            setNotificationsEnabled(true);
+                                                            notificationService.showNotification({
+                                                                title: "Notifications Enabled",
+                                                                body: "You will now be notified of new orders",
+                                                            });
+                                                        }
+                                                        setSoundEnabled(true);
+                                                        notificationService.soundEnabled = true;
+                                                    } else {
+                                                        setNotificationsEnabled(false);
+                                                        setSoundEnabled(false);
+                                                        notificationService.soundEnabled = false;
+                                                    }
+                                                }}
+                                                title={notificationsEnabled ? "Notifications ON" : "Enable Notifications"}
+                                                className={cn(
+                                                    "p-2.5 md:p-3 rounded-xl md:rounded-2xl border transition-all shadow-sm",
+                                                    notificationsEnabled
+                                                        ? "bg-green-100 border-green-200 text-green-700"
+                                                        : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                                )}
+                                            >
+                                                {notificationsEnabled ? (
+                                                    <Bell className="w-4 h-4" />
+                                                ) : (
+                                                    <BellOff className="w-4 h-4" />
+                                                )}
+                                            </button>
+
+                                            {/* Undo Button */}
+                                            {canUndo && (
+                                                <motion.button
+                                                    initial={{ opacity: 0, scale: 0.8 }}
+                                                    animate={{ opacity: 1, scale: 1 }}
+                                                    exit={{ opacity: 0, scale: 0.8 }}
+                                                    onClick={async () => {
+                                                        const result = await undoLastAction();
+                                                    }}
+                                                    title={`Undo: ${getLastUndoAction()?.action || 'last action'}`}
+                                                    className="p-2.5 md:p-3 rounded-xl md:rounded-2xl border transition-all shadow-sm bg-amber-100 border-amber-200 text-amber-700 hover:bg-amber-200"
+                                                >
+                                                    <RotateCcw className="w-4 h-4" />
+                                                </motion.button>
+                                            )}
+
+                                            {/* Stats Toggle - Hidden on Small Mobile */}
+                                            <button
+                                                onClick={() => {
+                                                    const newLevel = ((analyticsLevel + 1) % 3) as 0 | 1 | 2;
+                                                    setAnalyticsLevel(newLevel);
+                                                    localStorage.setItem("ordersAnalyticsLevel", String(newLevel));
+                                                }}
+                                                title={analyticsLevel === 0 ? "Show Stats" : analyticsLevel === 1 ? "Show Details" : "Hide Analytics"}
+                                                className={cn(
+                                                    "hidden sm:flex p-2.5 md:p-3 rounded-xl md:rounded-2xl border transition-all shadow-sm items-center gap-2",
+                                                    analyticsLevel > 0
+                                                        ? "bg-blue-100 border-blue-200 text-blue-700"
+                                                        : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                                )}
+                                            >
+                                                <BarChart3 className="w-4 h-4" />
+                                            </button>
+
+                                            {/* Filters Toggle */}
+                                            <button
+                                                onClick={() => {
+                                                    const newValue = !showSearchBar;
+                                                    setShowSearchBar(newValue);
+                                                    localStorage.setItem("ordersShowSearchBar", String(newValue));
+                                                }}
+                                                title={showSearchBar ? "Hide Filters" : "Show Filters"}
+                                                className={cn(
+                                                    "p-2.5 md:p-3 rounded-xl md:rounded-2xl border transition-all shadow-sm",
+                                                    showSearchBar
+                                                        ? "bg-purple-100 border-purple-200 text-purple-700"
+                                                        : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                                )}
+                                            >
+                                                <SlidersHorizontal className="w-4 h-4" />
+                                            </button>
+                                        </div>
+
+                                        {/* Secondary Actions - Hidden on Mobile */}
+                                        <div className="hidden md:flex items-center gap-2 flex-shrink-0">
+                                            {/* Compact View Toggle */}
+                                            {!workflowMode && viewMode === "cards" && (
+                                                <button
+                                                    onClick={() => {
+                                                        const newValue = !compactView;
+                                                        setCompactView(newValue);
+                                                        localStorage.setItem("ordersCompactView", String(newValue));
+                                                    }}
+                                                    title={compactView ? "Expanded View" : "Compact View"}
+                                                    className={cn(
+                                                        "p-3 rounded-2xl border transition-all shadow-sm",
+                                                        compactView
+                                                            ? "bg-purple-100 border-purple-200 text-purple-700"
+                                                            : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                                    )}
+                                                >
+                                                    {compactView ? <LayoutList className="w-4 h-4" /> : <Rows3 className="w-4 h-4" />}
+                                                </button>
+                                            )}
+
+                                            {/* Archive Toggle */}
+                                            <button
+                                                onClick={async () => {
+                                                    if (!showArchived && archivedOrders.length === 0) {
+                                                        await fetchArchivedOrders();
+                                                    }
+                                                    setShowArchived(!showArchived);
+                                                }}
+                                                title={showArchived ? "Show Active Orders" : "Show Archived Orders"}
+                                                className={cn(
+                                                    "p-3 rounded-2xl border transition-all shadow-sm flex items-center gap-2",
+                                                    showArchived
+                                                        ? "bg-amber-100 border-amber-200 text-amber-700"
+                                                        : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                                )}
+                                            >
+                                                <Archive className="w-4 h-4" />
+                                                {showArchived && <span className="text-xs font-medium">Archived</span>}
+                                            </button>
+
+                                            {/* Import/Export */}
+                                            <button
+                                                onClick={() => setIsImportModalOpen(true)}
+                                                className="px-4 py-3 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] text-foreground hover:bg-[var(--background)] transition-all shadow-sm flex items-center gap-2"
+                                            >
+                                                <Upload className="w-4 h-4" />
+                                                <span className="hidden lg:inline">استيراد</span>
+                                            </button>
+                                            <button
+                                                onClick={handleExport}
+                                                className="px-4 py-3 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] text-foreground hover:bg-[var(--background)] transition-all shadow-sm flex items-center gap-2"
+                                            >
+                                                <Download className="w-4 h-4" />
+                                                <span className="hidden lg:inline">Export</span>
+                                            </button>
+                                            <button
+                                                onClick={handlePrimeExport}
+                                                className="px-4 py-3 rounded-2xl bg-[#1e293b] text-white hover:bg-[#334155] border border-transparent transition-all shadow-sm flex items-center gap-2"
+                                            >
+                                                <span className="hidden lg:inline">تصدير للشحن</span>
+                                                <span className="lg:hidden">Prime</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </motion.div>
+
+                                {/* Saved Views Tabs */}
+                                <motion.div
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.3, delay: 0.2 }}
+                                >
+                                    <SavedViewsTabs
+                                        presets={filterPresets}
+                                        activePresetId={activePresetId}
+                                        onSelect={(presetId) => {
+                                            setActivePresetId(presetId);
+                                            loadFilterPreset(presetId);
+                                        }}
+                                        onSave={(name) => {
+                                            const preset = saveFilterPreset(name);
+                                            setActivePresetId(preset.id);
+                                        }}
+                                        onDelete={(presetId) => {
+                                            deleteFilterPreset(presetId);
+                                            if (activePresetId === presetId) {
+                                                setActivePresetId(null);
+                                                clearFilters();
+                                            }
+                                        }}
+                                        onClearFilter={() => {
+                                            setActivePresetId(null);
+                                            clearFilters();
+                                        }}
+                                    />
+                                </motion.div>
+
+                                {/* Collapsible Analytics Panel */}
+                                <AnimatePresence>
+                                    {analyticsLevel >= 1 && (
+                                        <motion.div
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: "auto" }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            transition={{ duration: 0.3 }}
+                                            className="overflow-hidden"
+                                        >
+                                            <div className="space-y-4">
+                                                {/* Main Stats Grid */}
+
+                                                <ErrorBoundary name="Analytics Dashboard">
+                                                    {/* Main Stats Grid */}
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                                        {/* Today's Orders */}
+                                                        <div className="pastel-card pastel-card-yellow p-4">
+                                                            <p className="text-xs text-amber-700 font-medium uppercase tracking-wide">Today</p>
+                                                            <p className="text-2xl font-bold text-amber-900 mt-1">{stats.todayOrders}</p>
+                                                            <p className="text-xs text-amber-600 mt-1">orders</p>
+                                                        </div>
+
+                                                        {/* Total Revenue */}
+                                                        <div className="pastel-card pastel-card-green p-4">
+                                                            <p className="text-xs text-green-700 font-medium uppercase tracking-wide">Revenue</p>
+                                                            <p className="text-2xl font-bold text-green-900 mt-1">{formatIQD(stats.totalRevenue)}</p>
+                                                            <p className="text-xs text-green-600 mt-1">total</p>
+                                                        </div>
+
+                                                        {/* Pending (New) */}
+                                                        <div className="pastel-card pastel-card-pink p-4">
+                                                            <p className="text-xs text-rose-700 font-medium uppercase tracking-wide">Pending</p>
+                                                            <p className="text-2xl font-bold text-rose-900 mt-1">{statusCounts.new || 0}</p>
+                                                            <p className="text-xs text-rose-600 mt-1">new orders</p>
+                                                        </div>
+
+                                                        {/* Confirmed */}
+                                                        <div className="pastel-card pastel-card-purple p-4">
+                                                            <p className="text-xs text-purple-700 font-medium uppercase tracking-wide">Confirmed</p>
+                                                            <p className="text-2xl font-bold text-purple-900 mt-1">{statusCounts.confirmed || 0}</p>
+                                                            <p className="text-xs text-purple-600 mt-1">ready</p>
+                                                        </div>
+
+                                                        {/* Conversion Rate */}
+                                                        <div className="pastel-card p-4">
+                                                            <p className="text-xs text-muted font-medium uppercase tracking-wide">Conversion</p>
+                                                            <div className="flex items-end gap-2 mt-1">
+                                                                <p className="text-2xl font-bold text-foreground">{stats.conversionRate.toFixed(1)}%</p>
+                                                            </div>
+                                                            <div className="w-full h-1.5 bg-gray-100 rounded-full mt-3 overflow-hidden">
+                                                                <div
+                                                                    className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-1000 ease-out"
+                                                                    style={{ width: `${stats.conversionRate}%` }}
+                                                                />
+                                                            </div>
+                                                            <p className="text-[10px] text-muted mt-2">Confirmed vs Total</p>
+                                                        </div>
+
+                                                        {/* Average Order Value */}
+                                                        <div className="pastel-card p-4">
+                                                            <p className="text-xs text-muted font-medium uppercase tracking-wide">AVG Order</p>
+                                                            <p className="text-2xl font-bold text-foreground mt-1">{formatIQD(stats.averageOrderValue)}</p>
+                                                            <p className="text-xs text-muted mt-1">per order</p>
+                                                        </div>
+
+                                                        {/* Peak Time */}
+                                                        <div className="pastel-card pastel-bg-purple p-4">
+                                                            <p className="text-xs text-purple-700 font-medium uppercase tracking-wide">Peak Time</p>
+                                                            <p className="text-2xl font-bold text-purple-900 mt-1">{stats.peakTime}</p>
+                                                            <p className="text-xs text-purple-600 mt-1">busiest hour</p>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Revenue Trends & Velocity Metrics Row (only at level 2) */}
+                                                    {analyticsLevel >= 2 && (
+                                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                                            {/* 7-Day Revenue Sparkline */}
+                                                            <div className="pastel-card p-4">
+                                                                <p className="text-xs text-muted font-medium uppercase tracking-wide mb-3">7-Day Revenue Trend</p>
+                                                                <div className="flex items-end gap-1 h-16">
+                                                                    {stats.revenueTrends.map((day, i) => {
+                                                                        const maxRevenue = Math.max(...stats.revenueTrends.map(d => d.revenue), 1);
+                                                                        const heightPercent = (day.revenue / maxRevenue) * 100;
+                                                                        return (
+                                                                            <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                                                                                <div
+                                                                                    className={cn(
+                                                                                        "w-full rounded-t-sm transition-all",
+                                                                                        i === 6 ? "bg-green-500" : "bg-green-200"
+                                                                                    )}
+                                                                                    style={{ height: `${Math.max(heightPercent, 4)}%` }}
+                                                                                    title={`${formatIQD(day.revenue)}`}
+                                                                                />
+                                                                                <span className="text-[10px] text-muted">{day.date}</span>
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Velocity Metrics */}
+                                                            <div className="pastel-card p-4">
+                                                                <p className="text-xs text-muted font-medium uppercase tracking-wide mb-3">Processing Speed</p>
+                                                                <div className="grid grid-cols-2 gap-4">
+                                                                    <div>
+                                                                        <p className="text-lg font-bold text-foreground">{stats.velocityMetrics.avgNewToConfirmed}</p>
+                                                                        <p className="text-xs text-muted">New → Confirmed</p>
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-lg font-bold text-foreground">{stats.velocityMetrics.avgConfirmedToDelivered}</p>
+                                                                        <p className="text-xs text-muted">Confirmed → Delivered</p>
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-lg font-bold text-teal-600">{stats.velocityMetrics.totalProcessed}</p>
+                                                                        <p className="text-xs text-muted">Delivered</p>
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-lg font-bold text-amber-600">{stats.velocityMetrics.pendingCount}</p>
+                                                                        <p className="text-xs text-muted">In Pipeline</p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </ErrorBoundary>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+
+                                {/* Filters & Search Bar */}
+                                <AnimatePresence>
+                                    {showSearchBar && (
+                                        <motion.div
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: "auto" }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            transition={{ duration: 0.3 }}
+                                            className="overflow-hidden"
+                                        >
+                                            <div className="pastel-card p-6 space-y-4">
+                                                <div className="flex flex-col lg:flex-row gap-4">
+                                                    <div className="relative flex-1">
+                                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--foreground-subtle)]" />
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Search by name, phone, or order ID..."
+                                                            value={filters.searchQuery || ""}
+                                                            onChange={(e) => setFilters({ ...filters, searchQuery: e.target.value || undefined })}
+                                                            className="w-full pl-12 pr-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all"
+                                                        />
+                                                    </div>
+                                                    {/* Sort dropdown removed in favor of column sorting */}
+                                                </div>
+
+                                                {!isMobile && (
+                                                    <StickyFilterBar
+                                                        filters={filters}
+                                                        setFilters={setFilters}
+                                                        statusCounts={statusCounts}
+                                                        showFilters={showFilters}
+                                                        setShowFilters={setShowFilters}
+                                                        hasActiveFilters={hasActiveFilters}
+                                                        groupBy={groupBy}
+                                                        setGroupBy={setGroupBy}
+                                                        isMobile={false}
+                                                    />
+                                                )}
+
+                                                {/* Advanced Filters Panel */}
+                                                <AnimatePresence>
+                                                    {showFilters && (
+                                                        <motion.div
+                                                            initial={{ opacity: 0, height: 0 }}
+                                                            animate={{ opacity: 1, height: "auto" }}
+                                                            exit={{ opacity: 0, height: 0 }}
+                                                            className="overflow-hidden"
+                                                        >
+                                                            <div className="pt-4 border-t border-[var(--card-border)] space-y-4">
+                                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                                                    {/* City Filter */}
+                                                                    <div>
+                                                                        <label className="text-xs text-muted font-medium block mb-1.5">City</label>
+                                                                        <div className="relative">
+                                                                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                                                                            <select
+                                                                                value={filters.city || ""}
+                                                                                onChange={(e) => setFilters({ ...filters, city: e.target.value || undefined })}
+                                                                                className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all appearance-none cursor-pointer"
+                                                                            >
+                                                                                <option value="">All Cities</option>
+                                                                                {availableCities.map((city) => (
+                                                                                    <option key={city} value={city}>{city}</option>
+                                                                                ))}
+                                                                            </select>
+                                                                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {/* Product Filter */}
+                                                                    <div>
+                                                                        <label className="text-xs text-muted font-medium block mb-1.5">Product</label>
+                                                                        <div className="relative">
+                                                                            <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                                                                            <select
+                                                                                value={filters.product || ""}
+                                                                                onChange={(e) => setFilters({ ...filters, product: e.target.value || undefined })}
+                                                                                className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all appearance-none cursor-pointer"
+                                                                            >
+                                                                                <option value="">All Products</option>
+                                                                                {availableProducts.map((product) => (
+                                                                                    <option key={product} value={product}>{product}</option>
+                                                                                ))}
+                                                                            </select>
+                                                                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {/* Payment Status Filter */}
+                                                                    <div>
+                                                                        <label className="text-xs text-muted font-medium block mb-1.5">Payment</label>
+                                                                        <div className="relative">
+                                                                            <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                                                                            <select
+                                                                                value={filters.paymentStatus || ""}
+                                                                                onChange={(e) => setFilters({ ...filters, paymentStatus: (e.target.value as PaymentStatus) || undefined })}
+                                                                                className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all appearance-none cursor-pointer"
+                                                                            >
+                                                                                <option value="">All Payments</option>
+                                                                                <option value="cod">Cash on Delivery</option>
+                                                                                <option value="prepaid">Prepaid (Digital)</option>
+                                                                                <option value="pending">Pending</option>
+                                                                                <option value="partial">Partial</option>
+                                                                            </select>
+                                                                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                {/* Filter Actions Row */}
+                                                                <div className="flex flex-wrap items-center gap-3">
+                                                                    {/* Clear Filters Button */}
+                                                                    {hasActiveFilters && (
+                                                                        <button
+                                                                            onClick={clearFilters}
+                                                                            className="flex items-center gap-2 px-3 py-1.5 text-sm text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-all"
+                                                                        >
+                                                                            <X className="w-3.5 h-3.5" />
+                                                                            Clear all filters
+                                                                        </button>
+                                                                    )}
+
+                                                                    {/* Toggle Presets */}
+                                                                    <button
+                                                                        onClick={() => setShowPresets(!showPresets)}
+                                                                        className={cn(
+                                                                            "flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-all",
+                                                                            showPresets || filterPresets.length > 0
+                                                                                ? "text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                                                                                : "text-muted hover:text-foreground hover:bg-gray-50"
+                                                                        )}
+                                                                    >
+                                                                        <Bookmark className="w-3.5 h-3.5" />
+                                                                        Presets {filterPresets.length > 0 && `(${filterPresets.length})`}
+                                                                    </button>
+                                                                </div>
+
+                                                                {/* Filter Presets Panel */}
+                                                                <AnimatePresence>
+                                                                    {showPresets && (
+                                                                        <motion.div
+                                                                            initial={{ opacity: 0, height: 0 }}
+                                                                            animate={{ opacity: 1, height: "auto" }}
+                                                                            exit={{ opacity: 0, height: 0 }}
+                                                                            className="overflow-hidden"
+                                                                        >
+                                                                            <div className="pt-3 border-t border-dashed border-[var(--card-border)] space-y-3">
+                                                                                {/* Save Current Filter */}
+                                                                                {hasActiveFilters && (
+                                                                                    <div className="flex gap-2">
+                                                                                        <input
+                                                                                            type="text"
+                                                                                            placeholder="Name this filter..."
+                                                                                            value={newPresetName}
+                                                                                            onChange={(e) => setNewPresetName(e.target.value)}
+                                                                                            className="flex-1 px-3 py-2 text-sm bg-white border border-[var(--card-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-200"
+                                                                                        />
+                                                                                        <button
+                                                                                            onClick={() => {
+                                                                                                if (newPresetName.trim()) {
+                                                                                                    saveFilterPreset(newPresetName.trim());
+                                                                                                    setNewPresetName("");
+                                                                                                }
+                                                                                            }}
+                                                                                            disabled={!newPresetName.trim()}
+                                                                                            className="flex items-center gap-1.5 px-3 py-2 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-all disabled:opacity-50"
+                                                                                        >
+                                                                                            <Save className="w-3.5 h-3.5" />
+                                                                                            Save
+                                                                                        </button>
+                                                                                    </div>
+                                                                                )}
+
+                                                                                {/* Saved Presets List */}
+                                                                                {filterPresets.length > 0 ? (
+                                                                                    <div className="flex flex-wrap gap-2">
+                                                                                        {filterPresets.map((preset) => (
+                                                                                            <div
+                                                                                                key={preset.id}
+                                                                                                className="flex items-center gap-1 pl-3 pr-1 py-1.5 bg-purple-50 border border-purple-100 rounded-lg group"
+                                                                                            >
+                                                                                                <button
+                                                                                                    onClick={() => loadFilterPreset(preset.id)}
+                                                                                                    className="text-sm text-purple-700 hover:text-purple-900 font-medium"
+                                                                                                >
+                                                                                                    {preset.name}
+                                                                                                </button>
+                                                                                                <button
+                                                                                                    onClick={() => deleteFilterPreset(preset.id)}
+                                                                                                    className="p-1 text-purple-400 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-all"
+                                                                                                >
+                                                                                                    <Trash2 className="w-3 h-3" />
+                                                                                                </button>
+                                                                                            </div>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <p className="text-xs text-muted">No saved filters. Apply filters then save them here.</p>
+                                                                                )}
+                                                                            </div>
+                                                                        </motion.div>
+                                                                    )}
+                                                                </AnimatePresence>
+                                                            </div>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+
+                                                <AnimatePresence>
+                                                    {selectedOrders.size > 0 && (
+                                                        <motion.div
+                                                            initial={{ opacity: 0, height: 0 }}
+                                                            animate={{ opacity: 1, height: "auto" }}
+                                                            exit={{ opacity: 0, height: 0 }}
+                                                            className="flex items-center gap-3 pt-4 border-t border-[var(--card-border)] overflow-x-auto scrollbar-hide"
+                                                        >
+                                                            <span className="text-sm text-muted whitespace-nowrap">{selectedOrders.size} selected</span>
+
+                                                            {/* Primary Actions */}
+                                                            <button
+                                                                onClick={handleBulkConfirm}
+                                                                className="px-3 py-1.5 rounded-lg bg-[var(--pastel-green)] text-green-900 text-sm font-medium hover:bg-[var(--pastel-green-light)] transition-all whitespace-nowrap"
+                                                            >
+                                                                Confirm
+                                                            </button>
+                                                            <button
+                                                                onClick={handleBulkDeliver}
+                                                                className="px-3 py-1.5 rounded-lg bg-[var(--pastel-purple)] text-purple-900 text-sm font-medium hover:bg-[var(--pastel-purple-light)] transition-all whitespace-nowrap"
+                                                            >
+                                                                Deliver
+                                                            </button>
+                                                            <button
+                                                                onClick={handleBulkReject}
+                                                                className="px-3 py-1.5 rounded-lg bg-[var(--pastel-pink)] text-rose-900 text-sm font-medium hover:bg-[var(--pastel-pink-light)] transition-all whitespace-nowrap"
+                                                            >
+                                                                Reject
+                                                            </button>
+                                                            <button
+                                                                onClick={handleBulkArchive}
+                                                                className="px-3 py-1.5 rounded-lg bg-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-300 transition-all whitespace-nowrap"
+                                                            >
+                                                                Archive
+                                                            </button>
+
+                                                            {/* Divider */}
+                                                            <div className="h-6 w-px bg-[var(--card-border)] flex-shrink-0" />
+
+                                                            {/* Status Change Buttons */}
+                                                            <button
+                                                                onClick={handleBulkNew}
+                                                                className="px-3 py-1.5 rounded-lg bg-blue-100 text-blue-700 text-sm font-medium hover:bg-blue-200 transition-all whitespace-nowrap"
+                                                            >
+                                                                New
+                                                            </button>
+                                                            <button
+                                                                onClick={handleBulkContacted}
+                                                                className="px-3 py-1.5 rounded-lg bg-amber-100 text-amber-700 text-sm font-medium hover:bg-amber-200 transition-all whitespace-nowrap"
+                                                            >
+                                                                Contacted
+                                                            </button>
+                                                            <button
+                                                                onClick={handleBulkInTransit}
+                                                                className="px-3 py-1.5 rounded-lg bg-orange-100 text-orange-700 text-sm font-medium hover:bg-orange-200 transition-all whitespace-nowrap"
+                                                            >
+                                                                🚚 In Transit
+                                                            </button>
+                                                            <button
+                                                                onClick={handleBulkCompleted}
+                                                                className="px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 text-sm font-medium hover:bg-emerald-200 transition-all whitespace-nowrap"
+                                                            >
+                                                                Completed
+                                                            </button>
+                                                            <button
+                                                                onClick={handleBulkNoResponse}
+                                                                className="px-3 py-1.5 rounded-lg bg-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-300 transition-all whitespace-nowrap"
+                                                            >
+                                                                لم يرد
+                                                            </button>
+
+                                                            {/* Divider */}
+                                                            <div className="h-6 w-px bg-[var(--card-border)] flex-shrink-0" />
+
+                                                            {/* Destructive Action */}
+                                                            <button
+                                                                onClick={handleBulkDelete}
+                                                                className="px-3 py-1.5 rounded-lg bg-red-100 text-red-700 text-sm font-medium hover:bg-red-200 transition-all whitespace-nowrap"
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+
+                                {/* Mobile Sticky Filter Bar - Rendered outside overflow-hidden container */}
+                                {isMobile && showSearchBar && (
+                                    <StickyFilterBar
+                                        filters={filters}
+                                        setFilters={setFilters}
+                                        statusCounts={statusCounts}
+                                        showFilters={showFilters}
+                                        setShowFilters={setShowFilters}
+                                        hasActiveFilters={hasActiveFilters}
+                                        groupBy={groupBy}
+                                        setGroupBy={setGroupBy}
+                                        isMobile={true}
+                                    />
+                                )}
+
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     {/* Orders List */}
                     <div className="space-y-3">
-                        {/* Select All Row */}
-                        <div className="flex items-center gap-3 px-2">
-                            <button
-                                onClick={selectAll}
-                                className={cn(
-                                    "w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
-                                    selectedOrders.size === filteredOrders.length && filteredOrders.length > 0
-                                        ? "bg-[var(--foreground)] border-[var(--foreground)] text-white"
-                                        : "border-[var(--card-border)] hover:border-[var(--foreground-muted)]"
-                                )}
-                            >
-                                {selectedOrders.size === filteredOrders.length && filteredOrders.length > 0 && (
-                                    <CheckSquare className="w-3 h-3" />
-                                )}
-                            </button>
-                            <span className="text-sm text-muted">Select all</span>
-
-                            {/* Active Duplicates Filter Indicator */}
-                            {filterDuplicatesOnly && (
-                                <div className="flex items-center gap-2 ml-4 px-3 py-1.5 rounded-full bg-orange-100 border border-orange-200 text-orange-700">
+                        {/* Active Duplicates Filter Indicator */}
+                        {filterDuplicatesOnly && (
+                            <div className="flex items-center gap-2 px-2">
+                                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-100 border border-orange-200 text-orange-700">
                                     <span className="text-xs font-semibold">🔄 عرض المكررين فقط</span>
                                     <button
                                         onClick={() => setFilterDuplicatesOnly(false)}
@@ -1432,8 +1571,8 @@ export default function OrdersPage() {
                                         ✕
                                     </button>
                                 </div>
-                            )}
-                        </div>
+                            </div>
+                        )}
 
                         {/* Workflow Mode */}
                         {workflowMode ? (
@@ -2227,48 +2366,50 @@ export default function OrdersPage() {
                 />
 
                 {/* Duplicate Comparison Modal */}
-                {duplicateOrder && (
-                    <DuplicateComparisonModal
-                        open={showDuplicateModal}
-                        onClose={() => {
-                            setShowDuplicateModal(false);
-                            setDuplicateOrder(null);
-                        }}
-                        currentOrder={duplicateOrder}
-                        duplicateOrders={orders.filter(o =>
-                            o.id !== duplicateOrder.id &&
-                            o.phone === duplicateOrder.phone
-                        )}
-                        onMerge={async (targetId, sourceId) => {
-                            const result = await mergeOrders(targetId, sourceId);
-                            return result;
-                        }}
-                        onMarkAsSameCustomer={(orderId) => {
-                            // Mark this customer as verified returning customer
-                            markAsVerifiedCustomer(orderId);
-                            setShowDuplicateModal(false);
-                            setDuplicateOrder(null);
-                        }}
-                        onCancelOrder={async (orderId) => {
-                            const result = await updateOrderStatus(orderId, "cancelled", "Cancelled via duplicate comparison");
-                            return result;
-                        }}
-                        onViewOrder={(order) => {
-                            setShowDuplicateModal(false);
-                            setDuplicateOrder(null);
-                            setSelectedOrder(order);
-                            setIsModalOpen(true);
-                        }}
-                        onDismissDuplicate={async (phone, notes) => {
-                            await dismissDuplicate(phone, notes);
-                        }}
-                        onFilterDuplicates={() => {
-                            setFilterDuplicatesOnly(true);
-                        }}
-                        isBlacklisted={isBlacklisted}
-                        getCustomerOrders={getCustomerOrders}
-                    />
-                )}
+                {
+                    duplicateOrder && (
+                        <DuplicateComparisonModal
+                            open={showDuplicateModal}
+                            onClose={() => {
+                                setShowDuplicateModal(false);
+                                setDuplicateOrder(null);
+                            }}
+                            currentOrder={duplicateOrder}
+                            duplicateOrders={orders.filter(o =>
+                                o.id !== duplicateOrder.id &&
+                                o.phone === duplicateOrder.phone
+                            )}
+                            onMerge={async (targetId, sourceId) => {
+                                const result = await mergeOrders(targetId, sourceId);
+                                return result;
+                            }}
+                            onMarkAsSameCustomer={(orderId) => {
+                                // Mark this customer as verified returning customer
+                                markAsVerifiedCustomer(orderId);
+                                setShowDuplicateModal(false);
+                                setDuplicateOrder(null);
+                            }}
+                            onCancelOrder={async (orderId) => {
+                                const result = await updateOrderStatus(orderId, "cancelled", "Cancelled via duplicate comparison");
+                                return result;
+                            }}
+                            onViewOrder={(order) => {
+                                setShowDuplicateModal(false);
+                                setDuplicateOrder(null);
+                                setSelectedOrder(order);
+                                setIsModalOpen(true);
+                            }}
+                            onDismissDuplicate={async (phone, notes) => {
+                                await dismissDuplicate(phone, notes);
+                            }}
+                            onFilterDuplicates={() => {
+                                setFilterDuplicatesOnly(true);
+                            }}
+                            isBlacklisted={isBlacklisted}
+                            getCustomerOrders={getCustomerOrders}
+                        />
+                    )
+                }
 
                 {/* Cancellation Reason Dialog */}
                 <CancellationReasonDialog
@@ -2306,21 +2447,23 @@ export default function OrdersPage() {
                 />
 
                 {/* WhatsApp Template Panel */}
-                {orderForTemplate && (
-                    <WhatsAppTemplatePanel
-                        open={templatePanelOpen}
-                        onClose={() => {
-                            setTemplatePanelOpen(false);
-                            setOrderForTemplate(null);
-                        }}
-                        order={orderForTemplate}
-                        templates={workflowTemplates}
-                        onContactSent={async (orderId, newCount) => {
-                            // Update the order's contact_count
-                            await updateOrder(orderId, { contact_count: newCount });
-                        }}
-                    />
-                )}
+                {
+                    orderForTemplate && (
+                        <WhatsAppTemplatePanel
+                            open={templatePanelOpen}
+                            onClose={() => {
+                                setTemplatePanelOpen(false);
+                                setOrderForTemplate(null);
+                            }}
+                            order={orderForTemplate}
+                            templates={workflowTemplates}
+                            onContactSent={async (orderId, newCount) => {
+                                // Update the order's contact_count
+                                await updateOrder(orderId, { contact_count: newCount });
+                            }}
+                        />
+                    )
+                }
 
                 {/* Excel Import Modal */}
                 <ImportOrdersModal
@@ -2350,21 +2493,23 @@ export default function OrdersPage() {
                 />
 
                 {/* Mobile Floating Action Button for New Order */}
-                {isMobile && selectedOrders.size === 0 && (
-                    <motion.button
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0, opacity: 0 }}
-                        onClick={() => setIsCreateModalOpen(true)}
-                        className="fixed bottom-6 right-4 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-xl shadow-green-500/30 flex items-center justify-center active:scale-95 transition-transform"
-                        style={{
-                            bottom: 'calc(1.5rem + env(safe-area-inset-bottom))',
-                            right: 'calc(1rem + env(safe-area-inset-right))'
-                        }}
-                    >
-                        <Plus className="w-7 h-7" />
-                    </motion.button>
-                )}
+                {
+                    isMobile && selectedOrders.size === 0 && (
+                        <motion.button
+                            initial={{ scale: 0, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0, opacity: 0 }}
+                            onClick={() => setIsCreateModalOpen(true)}
+                            className="fixed bottom-6 right-4 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-xl shadow-green-500/30 flex items-center justify-center active:scale-95 transition-transform"
+                            style={{
+                                bottom: 'calc(1.5rem + env(safe-area-inset-bottom))',
+                                right: 'calc(1rem + env(safe-area-inset-right))'
+                            }}
+                        >
+                            <Plus className="w-7 h-7" />
+                        </motion.button>
+                    )
+                }
 
                 <FloatingActionBar
                     selectedCount={selectedOrders.size}
@@ -2373,6 +2518,9 @@ export default function OrdersPage() {
                     onArchive={handleBulkArchive}
                     onDelete={handleBulkDelete}
                 />
+
+                {/* Scroll to Top Button */}
+                <ScrollToTopButton />
 
                 {/* Order Confirmation Screenshot Modal */}
                 <AnimatePresence>
@@ -2383,7 +2531,7 @@ export default function OrdersPage() {
                         />
                     )}
                 </AnimatePresence>
-            </div>
+            </div >
         </PageTransition >
     );
 }

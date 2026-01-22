@@ -1,0 +1,154 @@
+"use client";
+
+import { motion } from "framer-motion";
+import { StatusFlowMetrics } from "@/lib/analytics/reports-calculations";
+import { ResponsiveContainer, FunnelChart, Funnel, LabelList, Tooltip, Cell } from "recharts";
+import { ArrowDown, Zap } from "lucide-react";
+
+interface StatusFlowDiagramProps {
+    data: StatusFlowMetrics[];
+}
+
+const STATUS_COLORS: Record<string, string> = {
+    new: "#3B82F6",
+    contacted: "#8B5CF6",
+    confirmed: "#10B981",
+    cancelled: "#6B7280",
+    no_response: "#F59E0B",
+    in_transit: "#06B6D4",
+    delivered: "#22C55E",
+    rejected: "#EF4444",
+    completed: "#14B8A6",
+    return_pending: "#F97316",
+    pending_checkout: "#A855F7",
+};
+
+export function StatusFlowDiagram({ data }: StatusFlowDiagramProps) {
+    if (!data.length) {
+        return (
+            <div className="pastel-card p-6 h-[400px] flex items-center justify-center">
+                <p className="text-muted">No status data available</p>
+            </div>
+        );
+    }
+
+    // Prepare funnel data
+    const funnelData = data.map(status => ({
+        name: status.label,
+        value: status.count,
+        fill: STATUS_COLORS[status.status] || "#64748B",
+        percentage: status.percentage,
+    })).slice(0, 8);
+
+    const totalOrders = data.reduce((sum, d) => sum + d.count, 0);
+    const deliveredCount = data.find(d => d.status === 'delivered' || d.status === 'completed')?.count || 0;
+    const conversionRate = totalOrders > 0 ? (deliveredCount / totalOrders * 100) : 0;
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="pastel-card p-6 overflow-hidden relative"
+        >
+            {/* Background glow */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-full blur-3xl" />
+
+            <div className="relative z-10">
+                <div className="flex items-start justify-between mb-6">
+                    <div>
+                        <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                            <div className="p-2 bg-indigo-100 rounded-xl text-indigo-600">
+                                <Zap className="w-5 h-5" />
+                            </div>
+                            Order Pipeline
+                        </h3>
+                        <p className="text-sm text-muted mt-1">Status flow visualization</p>
+                    </div>
+
+                    {/* Conversion rate badge */}
+                    <div className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl text-white shadow-lg shadow-emerald-500/20">
+                        <p className="text-xs opacity-80">Conversion</p>
+                        <p className="text-xl font-bold">{conversionRate.toFixed(1)}%</p>
+                    </div>
+                </div>
+
+                {/* Main content grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Funnel Chart */}
+                    <div className="h-[350px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <FunnelChart>
+                                <Tooltip
+                                    content={({ active, payload }) => {
+                                        if (active && payload && payload.length) {
+                                            const data = payload[0].payload;
+                                            return (
+                                                <div className="bg-white/95 backdrop-blur shadow-lg border border-border p-3 rounded-xl text-xs">
+                                                    <p className="font-bold mb-1 text-sm">{data.name}</p>
+                                                    <p>Count: <span className="font-bold">{data.value}</span></p>
+                                                    <p>Share: <span className="font-bold">{data.percentage.toFixed(1)}%</span></p>
+                                                </div>
+                                            );
+                                        }
+                                        return null;
+                                    }}
+                                />
+                                <Funnel
+                                    dataKey="value"
+                                    data={funnelData}
+                                    isAnimationActive
+                                >
+                                    {funnelData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                                    ))}
+                                    <LabelList
+                                        position="right"
+                                        fill="#374151"
+                                        stroke="none"
+                                        dataKey="name"
+                                        className="text-sm font-medium"
+                                    />
+                                </Funnel>
+                            </FunnelChart>
+                        </ResponsiveContainer>
+                    </div>
+
+                    {/* Status bars */}
+                    <div className="space-y-3">
+                        {data.slice(0, 8).map((status, index) => {
+                            const color = STATUS_COLORS[status.status] || "#64748B";
+                            const maxCount = Math.max(...data.map(d => d.count), 1);
+                            const width = (status.count / maxCount) * 100;
+
+                            return (
+                                <motion.div
+                                    key={status.status}
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: index * 0.05 }}
+                                    className="group"
+                                >
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="text-sm font-medium text-foreground">{status.label}</span>
+                                        <span className="text-sm text-muted">
+                                            {status.count.toLocaleString()} <span className="text-xs">({status.percentage.toFixed(1)}%)</span>
+                                        </span>
+                                    </div>
+                                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                        <motion.div
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${width}%` }}
+                                            transition={{ duration: 0.8, delay: index * 0.05 }}
+                                            className="h-full rounded-full transition-all group-hover:brightness-110"
+                                            style={{ backgroundColor: color }}
+                                        />
+                                    </div>
+                                </motion.div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+        </motion.div>
+    );
+}

@@ -78,8 +78,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
             <main
                 className={cn(
-                    "flex-1 min-w-0 transition-all duration-500 ease-in-out",
-                    !isMobile && "overflow-hidden"
+                    "flex-1 min-w-0 transition-all duration-500 ease-in-out"
                 )}
                 style={{
                     marginLeft: getMainMargin(),
