@@ -50,14 +50,22 @@ export async function createOrderAction(
         }
 
         // Get next global sequence number
-        const { data: maxSeqData } = await supabase
+        // Use maybeSingle() and filter nulls to get accurate max
+        const { data: maxSeqData, error: seqError } = await supabase
             .from('orders')
             .select('sequence_number')
+            .not('sequence_number', 'is', null)
             .order('sequence_number', { ascending: false })
             .limit(1)
-            .single();
+            .maybeSingle();
 
-        const nextSequenceNumber = (maxSeqData?.sequence_number || 0) + 1 + retryCount;
+        // Log for debugging if there's an issue
+        if (seqError) {
+            console.error('[createOrderAction] Error fetching max sequence:', seqError);
+        }
+
+        const currentMaxSeq = maxSeqData?.sequence_number ?? 0;
+        const nextSequenceNumber = currentMaxSeq + 1 + retryCount;
 
         // Prepare full order data
         const fullOrderData = {

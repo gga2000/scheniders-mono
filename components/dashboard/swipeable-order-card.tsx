@@ -54,11 +54,11 @@ export const SwipeableOrderCard = memo(function SwipeableOrderCard(props: Swipea
     }
 
     return (
-        <div className="relative overflow-hidden rounded-[20px]">
+        <div className="relative rounded-[20px]">
             {/* Background Layers */}
             <motion.div
                 style={{ backgroundColor: bgColor, opacity: bgOpacity }}
-                className="absolute inset-0 z-0 flex items-center justify-between px-6 pointer-events-none"
+                className="absolute inset-0 z-0 flex items-center justify-between px-6 pointer-events-none rounded-[20px] overflow-hidden"
             >
                 {/* Left Side (for Positive Drag) -> Confirm */}
                 <div className="flex items-center gap-2 text-green-800 font-bold">
@@ -79,7 +79,7 @@ export const SwipeableOrderCard = memo(function SwipeableOrderCard(props: Swipea
                 dragElastic={0.2} // bouncy feel
                 onDragEnd={handleDragEnd}
                 style={{ x }}
-                className="relative z-10 bg-[var(--card-bg)]"
+                className="relative z-10"
                 whileTap={{ cursor: "grabbing" }}
             >
                 <OrderCard {...props} />

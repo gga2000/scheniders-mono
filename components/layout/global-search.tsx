@@ -317,17 +317,46 @@ interface TopBarProps {
 export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
     const { user, profile } = useAuth();
     const router = useRouter();
-    // Assuming notificationService is available and has showNotification method, imported from lib
-    // If not, we can use a simple alert or just console log for now, but user mentioned it "doesn't do anything".
-    // I will use notificationService if I can import it, otherwise I'll just make it visual for now or use window.alert as a fallback temp.
-    // Actually, I'll skip notificationService import complexity if not already there, and just make it do *something*.
-    // Better: I'll use the existing notificationService if possible. It was used in OrdersPage.
+    const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+
+    // Track if orders toolbar is collapsed (read from localStorage)
+    const [isOrdersToolbarCollapsed, setIsOrdersToolbarCollapsed] = useState(false);
+    const isOrdersPage = pathname === '/orders' || pathname.startsWith('/orders?');
+
+    // Listen for localStorage changes and initial load
+    useEffect(() => {
+        // Initial check
+        const checkCollapsed = () => {
+            const collapsed = localStorage.getItem("ordersToolbarCollapsed") === "true";
+            setIsOrdersToolbarCollapsed(collapsed);
+        };
+        checkCollapsed();
+
+        // Listen for storage events (cross-tab sync)
+        const handleStorage = (e: StorageEvent) => {
+            if (e.key === "ordersToolbarCollapsed") {
+                setIsOrdersToolbarCollapsed(e.newValue === "true");
+            }
+        };
+        window.addEventListener("storage", handleStorage);
+
+        // Also poll for same-tab changes (localStorage doesn't fire events for same tab)
+        const interval = setInterval(checkCollapsed, 200);
+
+        return () => {
+            window.removeEventListener("storage", handleStorage);
+            clearInterval(interval);
+        };
+    }, []);
 
     const handleNotificationClick = () => {
-        // Placeholder for now as we don't have a notifications page/drawer yet
-        // We can use the service if imported, or just show a browser notification/alert
         alert("Notifications feature coming soon!");
     };
+
+    // Hide TopBar when on orders page and toolbar is collapsed
+    if (isOrdersPage && isOrdersToolbarCollapsed) {
+        return null;
+    }
 
     return (
         <header className="sticky top-0 z-40 px-4 md:px-6 py-3 md:py-4 bg-[var(--background)]">

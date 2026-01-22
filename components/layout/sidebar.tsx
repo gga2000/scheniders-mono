@@ -14,6 +14,7 @@ import {
     X,
     UsersRound,
     LogOut,
+    FileBarChart,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -28,6 +29,7 @@ const NAV_ITEMS = [
     { label: "Customers", icon: Users, href: "/customers" },
     { label: "Products", icon: ShoppingBag, href: "/products" },
     { label: "Analytics", icon: BarChart3, href: "/analytics" },
+    { label: "Reports", icon: FileBarChart, href: "/reports" },
     { label: "Printing", icon: Printer, href: "/printing" },
     { label: "Team", icon: UsersRound, href: "/team" },
     { label: "Settings", icon: Settings, href: "/settings" },

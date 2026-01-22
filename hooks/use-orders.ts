@@ -57,6 +57,7 @@ import { OrderSchema } from "@/lib/schemas";
 import { createOrderAction } from "@/app/actions/orders";
 
 import { SyncQueue } from "@/lib/sync-queue";
+import { useUserPreferences, PREFERENCE_KEYS } from "@/hooks/use-user-preferences";
 
 // =============================================
 // ENHANCED ORDERS HOOK
@@ -131,8 +132,53 @@ export function useOrders() {
 
     // getLocalDateString is now imported from @/lib/order-filter-utils
 
-    // Filters state - default to today's orders
-    const [filters, setFilters] = useState<OrderFilters>(getDefaultFilters);
+    // User preferences for persisting filters
+    const { getPreference, setPreference, userId } = useUserPreferences();
+
+    // Track if we've loaded user-specific preferences yet
+    const hasLoadedUserPrefs = useRef(false);
+
+    // Filters state - load from saved preferences or default to today's orders
+    const [filters, setFiltersState] = useState<OrderFilters>(() => {
+        // Try to load from localStorage immediately (will use anonymous if auth not ready)
+        if (typeof window !== "undefined") {
+            try {
+                // Direct localStorage read to avoid hook dependency issues
+                const stored = localStorage.getItem(`schneiders_prefs_anonymous_orderFilters`);
+                if (stored) {
+                    return JSON.parse(stored);
+                }
+            } catch (e) {
+                // Fall through to default
+            }
+        }
+        return getDefaultFilters();
+    });
+
+    // Reload filters when user auth resolves (goes from null to actual userId)
+    useEffect(() => {
+        if (userId && !hasLoadedUserPrefs.current) {
+            // User just logged in or auth just resolved - load their preferences
+            const saved = getPreference<OrderFilters>(PREFERENCE_KEYS.ORDER_FILTERS);
+            if (saved) {
+                setFiltersState(saved);
+            }
+            hasLoadedUserPrefs.current = true;
+        } else if (!userId) {
+            // User logged out - reset the flag
+            hasLoadedUserPrefs.current = false;
+        }
+    }, [userId, getPreference]);
+
+    // Wrapper to persist filters when they change
+    const setFilters = useCallback((newFilters: OrderFilters | ((prev: OrderFilters) => OrderFilters)) => {
+        setFiltersState(prev => {
+            const updated = typeof newFilters === 'function' ? newFilters(prev) : newFilters;
+            // Persist to user-scoped localStorage (debounced internally)
+            setPreference(PREFERENCE_KEYS.ORDER_FILTERS, updated);
+            return updated;
+        });
+    }, [setPreference]);
 
     // =============================================
     // INITIAL DATA FETCH (Real-time subscription only now)
@@ -1192,9 +1238,12 @@ export function useOrders() {
         const twentyFourHoursAfter = new Date(order.created_at);
         twentyFourHoursAfter.setHours(twentyFourHoursAfter.getHours() + 24);
 
+        const normalizedOrderPhone = normalizePhoneForSearch(order.phone);
+
         return orders.filter((o) => {
             if (o.id === orderId) return false;
-            if (o.phone !== order.phone) return false;
+            // Use normalized phone comparison
+            if (normalizePhoneForSearch(o.phone) !== normalizedOrderPhone) return false;
 
             const orderDate = new Date(o.created_at);
             return orderDate >= twentyFourHoursAgo && orderDate <= twentyFourHoursAfter;
@@ -1211,8 +1260,9 @@ export function useOrders() {
     // =============================================
 
     function getCustomerHistory(phone: string): Order[] {
+        const normalizedPhone = normalizePhoneForSearch(phone);
         return orders
-            .filter((order) => order.phone === phone)
+            .filter((order) => normalizePhoneForSearch(order.phone) === normalizedPhone)
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
 
@@ -1229,9 +1279,11 @@ export function useOrders() {
         };
 
         const currentBaseId = currentOrderId ? getBaseId(currentOrderId) : null;
+        const normalizedPhone = normalizePhoneForSearch(phone);
 
         return orders.filter((order) => {
-            if (order.phone !== phone || order.is_archived) return false;
+            // Use normalized phone comparison to handle different formats
+            if (normalizePhoneForSearch(order.phone) !== normalizedPhone || order.is_archived) return false;
             // Exclude orders with the same base ID (they're the same order in different format)
             if (currentBaseId && getBaseId(order.order_id) === currentBaseId) return false;
             return true;
