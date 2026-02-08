@@ -645,6 +645,7 @@ export function OrderDetailsModal({
                                         استرجاع
                                     </button>
                                 )}
+                                {/* Refund Status Buttons - Moved to Customer Card */}
                             </div>
                         </div>
 
@@ -829,13 +830,21 @@ export function OrderDetailsModal({
                                             <label className="block text-sm font-medium text-foreground mb-1.5">
                                                 سبب الاسترجاع
                                             </label>
-                                            <input
-                                                type="text"
+                                            <select
                                                 value={returnReason}
                                                 onChange={(e) => setReturnReason(e.target.value)}
-                                                placeholder="مثال: الزبون لم يعجبه المنتج"
-                                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-100"
-                                            />
+                                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-100 bg-white"
+                                            >
+                                                <option value="">-- اختر سبب الاسترجاع --</option>
+                                                <option value="لم يعجب الزبون المنتج">لم يعجب الزبون المنتج</option>
+                                                <option value="المنتج تالف أو معيب">المنتج تالف أو معيب</option>
+                                                <option value="المنتج خاطئ">المنتج خاطئ</option>
+                                                <option value="تأخر التوصيل">تأخر التوصيل</option>
+                                                <option value="الزبون غير موجود">الزبون غير موجود</option>
+                                                <option value="الزبون ألغى الطلب">الزبون ألغى الطلب</option>
+                                                <option value="العنوان غير صحيح">العنوان غير صحيح</option>
+                                                <option value="سبب آخر">سبب آخر</option>
+                                            </select>
                                         </div>
 
                                         {/* Deduct Delivery Fee Checkbox */}
@@ -875,28 +884,36 @@ export function OrderDetailsModal({
                                         </button>
                                         <button
                                             onClick={async () => {
-                                                if (!returnReason.trim()) {
-                                                    alert("الرجاء إدخال سبب الاسترجاع");
+                                                if (!returnReason) {
+                                                    alert("الرجاء اختيار سبب الاسترجاع");
                                                     return;
                                                 }
-                                                if (!onCreateReturn) return;
+                                                if (!onCreateReturn) {
+                                                    alert("خطأ: لا يمكن إنشاء الاسترجاع من هذا السياق");
+                                                    return;
+                                                }
                                                 setIsCreatingReturn(true);
-                                                const result = await onCreateReturn(order.id, {
-                                                    return_amount: Number(order.price),
-                                                    reason: returnReason,
-                                                    deductDeliveryFee,
-                                                });
-                                                setIsCreatingReturn(false);
-                                                if (result.success) {
-                                                    setShowReturnModal(false);
-                                                    setReturnReason("");
-                                                    setDeductDeliveryFee(false);
-                                                    onClose();
-                                                } else {
-                                                    alert(result.error || "حدث خطأ");
+                                                try {
+                                                    const result = await onCreateReturn(order.id, {
+                                                        return_amount: Number(order.price),
+                                                        reason: returnReason,
+                                                        deductDeliveryFee,
+                                                    });
+                                                    setIsCreatingReturn(false);
+                                                    if (result.success) {
+                                                        setShowReturnModal(false);
+                                                        setReturnReason("");
+                                                        setDeductDeliveryFee(false);
+                                                        onClose();
+                                                    } else {
+                                                        alert(result.error || "حدث خطأ أثناء إنشاء الاسترجاع");
+                                                    }
+                                                } catch (err) {
+                                                    setIsCreatingReturn(false);
+                                                    alert(`حدث خطأ: ${err instanceof Error ? err.message : "خطأ غير معروف"}`);
                                                 }
                                             }}
-                                            disabled={isCreatingReturn || !returnReason.trim()}
+                                            disabled={isCreatingReturn || !returnReason}
                                             className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                                         >
                                             {isCreatingReturn ? (
@@ -965,6 +982,27 @@ export function OrderDetailsModal({
                                         <User className="h-4 w-4 text-muted" />
                                         <span className="font-semibold text-foreground">معلومات العميل</span>
                                     </div>
+                                    {/* Refund Status Buttons - Only for return orders in return_pending status */}
+                                    {order.is_return && order.status === "return_pending" && onStatusUpdate && (
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => handleStatusChange("refund_delivered")}
+                                                disabled={isUpdatingStatus}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-all text-xs font-medium disabled:opacity-50"
+                                            >
+                                                <CheckCircle className="h-3.5 w-3.5" />
+                                                تم الاسترجاع
+                                            </button>
+                                            <button
+                                                onClick={() => handleStatusChange("refund_failed")}
+                                                disabled={isUpdatingStatus}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition-all text-xs font-medium disabled:opacity-50"
+                                            >
+                                                <XCircle className="h-3.5 w-3.5" />
+                                                فشل الاسترجاع
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="p-4 grid gap-4">
@@ -1286,6 +1324,7 @@ export function OrderDetailsModal({
                                                         <option value="meta">Instagram (Meta)</option>
                                                         <option value="tiktok">TikTok</option>
                                                         <option value="delivery_import">Delivery Import</option>
+                                                        <option value="shop">المحل (Shop)</option>
                                                         <option value="other">Other</option>
                                                     </select>
                                                     <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted">
@@ -1323,6 +1362,13 @@ export function OrderDetailsModal({
                                                                     <div className="flex items-center gap-2">
                                                                         <div className="w-2 h-2 rounded-full bg-black" />
                                                                         <span className="text-sm font-medium">TikTok</span>
+                                                                    </div>
+                                                                );
+                                                            case 'shop':
+                                                                return (
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="w-2 h-2 rounded-full bg-amber-500" />
+                                                                        <span className="text-sm font-medium">المحل</span>
                                                                     </div>
                                                                 );
                                                             default:

@@ -88,6 +88,12 @@ export async function createOrderAction(
             .single();
 
         if (insertError) {
+            console.error('[createOrderAction] Insert error:', JSON.stringify(insertError, null, 2));
+            console.error('[createOrderAction] Insert error code:', insertError.code);
+            console.error('[createOrderAction] Insert error message:', insertError.message);
+            console.error('[createOrderAction] Insert error details:', insertError.details);
+            console.error('[createOrderAction] Insert error hint:', insertError.hint);
+
             // Handle duplicate key violation (23505)
             if (insertError.code === '23505' && retryCount < MAX_RETRIES) {
                 // Recursive retry (calls logic again with higher retry count)
@@ -99,11 +105,23 @@ export async function createOrderAction(
         }
 
         return { success: true, data };
-    } catch (err) {
+    } catch (err: any) {
         console.error("Error creating order (server action):", err);
+        console.error("Order data that failed:", JSON.stringify(orderData, null, 2));
+
+        // Extract more detailed error information
+        let errorMessage = "Failed to create order";
+        if (err instanceof Error) {
+            errorMessage = err.message;
+        } else if (err?.message) {
+            errorMessage = err.message;
+        } else if (err?.code) {
+            errorMessage = `Database error: ${err.code} - ${err.details || err.hint || 'Unknown error'}`;
+        }
+
         return {
             success: false,
-            error: err instanceof Error ? err.message : "Failed to create order",
+            error: errorMessage,
         };
     }
 }

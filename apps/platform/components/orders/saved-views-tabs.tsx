@@ -11,6 +11,7 @@ import {
     Check,
     Trash2,
     Star,
+    ChevronDown,
 } from "lucide-react";
 
 interface SavedViewsTabsProps {
@@ -30,6 +31,7 @@ export function SavedViewsTabs({
     onDelete,
     onClearFilter,
 }: SavedViewsTabsProps) {
+    const [isOpen, setIsOpen] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [newName, setNewName] = useState("");
     const [showDelete, setShowDelete] = useState<string | null>(null);
@@ -48,121 +50,166 @@ export function SavedViewsTabs({
         } else if (e.key === "Escape") {
             setIsCreating(false);
             setNewName("");
+            setIsOpen(false);
         }
     };
 
+    // Find active preset name
+    const activePresetName = activePresetId
+        ? presets.find(p => p.id === activePresetId)?.name
+        : "All Orders";
+
     return (
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
-            {/* All Orders Tab */}
+        <div className="relative z-10">
             <button
-                onClick={onClearFilter}
+                onClick={() => setIsOpen(!isOpen)}
                 className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all",
-                    activePresetId === null
-                        ? "bg-[var(--foreground)] text-white shadow-md"
-                        : "bg-[var(--card-bg)] border border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                    "flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 shadow-sm border",
+                    isOpen
+                        ? "bg-white/80 ring-2 ring-primary/20 border-primary/30 text-primary"
+                        : "bg-white/60 backdrop-blur-md border-white/20 text-muted-foreground hover:bg-white/80 hover:text-foreground"
                 )}
             >
-                <Star className="w-3.5 h-3.5" />
-                All Orders
+                {activePresetId === null ? (
+                    <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                ) : (
+                    <Bookmark className="w-4 h-4 text-amber-500 fill-amber-500" />
+                )}
+                <span>{activePresetName}</span>
+                <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isOpen ? "rotate-180" : "")} />
             </button>
 
-            {/* Preset Tabs */}
-            <AnimatePresence mode="popLayout">
-                {presets.map((preset) => (
-                    <motion.div
-                        key={preset.id}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        className="relative"
-                        onMouseEnter={() => setShowDelete(preset.id)}
-                        onMouseLeave={() => setShowDelete(null)}
-                    >
-                        <button
-                            onClick={() => onSelect(preset.id)}
-                            className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all",
-                                activePresetId === preset.id
-                                    ? "bg-[var(--pastel-yellow)] text-amber-900 shadow-md"
-                                    : "bg-[var(--card-bg)] border border-[var(--card-border)] text-foreground hover:bg-[var(--background)]"
-                            )}
-                        >
-                            <Bookmark className="w-3.5 h-3.5" />
-                            {preset.name}
-                        </button>
-
-                        {/* Delete button on hover */}
-                        <AnimatePresence>
-                            {showDelete === preset.id && (
-                                <motion.button
-                                    initial={{ opacity: 0, scale: 0.8 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, scale: 0.8 }}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onDelete(preset.id);
-                                    }}
-                                    className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-md hover:bg-rose-600"
-                                >
-                                    <X className="w-3 h-3" />
-                                </motion.button>
-                            )}
-                        </AnimatePresence>
-                    </motion.div>
-                ))}
-            </AnimatePresence>
-
-            {/* Create New Preset Button / Input */}
-            <AnimatePresence mode="wait">
-                {isCreating ? (
-                    <motion.div
-                        key="input"
-                        initial={{ opacity: 0, width: 0 }}
-                        animate={{ opacity: 1, width: "auto" }}
-                        exit={{ opacity: 0, width: 0 }}
-                        className="flex items-center gap-1"
-                    >
-                        <input
-                            type="text"
-                            value={newName}
-                            onChange={(e) => setNewName(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            placeholder="View name..."
-                            autoFocus
-                            className="w-32 px-3 py-2 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
+            <AnimatePresence>
+                {isOpen && (
+                    <>
+                        {/* Backdrop to close */}
+                        <div
+                            className="fixed inset-0 z-10"
+                            onClick={() => setIsOpen(false)}
                         />
-                        <button
-                            onClick={handleSave}
-                            disabled={!newName.trim()}
-                            className="p-2 rounded-xl bg-[var(--pastel-green)] text-green-800 disabled:opacity-50 hover:bg-[var(--pastel-green-dark)]"
+
+                        {/* Dropdown Menu */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                            transition={{ duration: 0.2 }}
+                            className="absolute left-0 mt-2 w-72 p-2 rounded-2xl bg-white/90 backdrop-blur-xl border border-white/20 shadow-2xl z-20 flex flex-col gap-1"
                         >
-                            <Check className="w-4 h-4" />
-                        </button>
-                        <button
-                            onClick={() => {
-                                setIsCreating(false);
-                                setNewName("");
-                            }}
-                            className="p-2 rounded-xl bg-[var(--card-bg)] border border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
-                        >
-                            <X className="w-4 h-4" />
-                        </button>
-                    </motion.div>
-                ) : (
-                    <motion.button
-                        key="button"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={() => setIsCreating(true)}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap bg-[var(--card-bg)] border border-dashed border-[var(--card-border)] text-muted hover:bg-[var(--background)] hover:border-solid transition-all"
-                    >
-                        <Plus className="w-3.5 h-3.5" />
-                        Save View
-                    </motion.button>
+                            <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                Switch View
+                            </div>
+
+                            {/* All Orders Option */}
+                            <button
+                                onClick={() => {
+                                    onClearFilter();
+                                    setIsOpen(false);
+                                }}
+                                className={cn(
+                                    "flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-all",
+                                    activePresetId === null
+                                        ? "bg-primary/10 text-primary"
+                                        : "hover:bg-black/5 text-foreground"
+                                )}
+                            >
+                                <div className="flex items-center gap-2">
+                                    <Star className={cn("w-4 h-4", activePresetId === null ? "fill-primary text-primary" : "text-muted-foreground")} />
+                                    <span>All Orders</span>
+                                </div>
+                                {activePresetId === null && <Check className="w-4 h-4" />}
+                            </button>
+
+                            {/* Separator */}
+                            <div className="h-px bg-black/5 my-1" />
+
+                            {/* Presets List */}
+                            <div className="max-h-60 overflow-y-auto scrollbar-hide flex flex-col gap-1">
+                                {presets.map((preset) => (
+                                    <div
+                                        key={preset.id}
+                                        className={cn(
+                                            "group flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-all relative overflow-hidden",
+                                            activePresetId === preset.id
+                                                ? "bg-amber-500/10 text-amber-700"
+                                                : "hover:bg-black/5 text-foreground"
+                                        )}
+                                    >
+                                        <button
+                                            onClick={() => {
+                                                onSelect(preset.id);
+                                                setIsOpen(false);
+                                            }}
+                                            className="flex-1 flex items-center gap-2 text-left"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <Bookmark className={cn("w-4 h-4", activePresetId === preset.id ? "fill-amber-500 text-amber-500" : "text-muted-foreground")} />
+                                                <span className="truncate">{preset.name}</span>
+                                            </div>
+                                        </button>
+
+                                        {activePresetId === preset.id && <Check className="w-4 h-4 mr-2" />}
+
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onDelete(preset.id);
+                                            }}
+                                            className="opacity-0 group-hover:opacity-100 p-1 rounded-full hover:bg-rose-100 text-rose-500 transition-all"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Separator */}
+                            <div className="h-px bg-black/5 my-1" />
+
+                            {/* Save New View */}
+                            {isCreating ? (
+                                <div className="p-2 bg-black/5 rounded-xl">
+                                    <input
+                                        type="text"
+                                        value={newName}
+                                        onChange={(e) => setNewName(e.target.value)}
+                                        onKeyDown={handleKeyDown}
+                                        placeholder="View name..."
+                                        autoFocus
+                                        className="w-full px-3 py-2 text-sm bg-white border border-black/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 mb-2"
+                                    />
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={handleSave}
+                                            disabled={!newName.trim()}
+                                            className="flex-1 py-1.5 bg-primary text-primary-foreground text-xs font-semibold rounded-lg disabled:opacity-50"
+                                        >
+                                            Save
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setIsCreating(false);
+                                                setNewName("");
+                                            }}
+                                            className="px-3 py-1.5 bg-transparent border border-black/10 text-xs font-semibold rounded-lg"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => setIsCreating(true)}
+                                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:bg-black/5 hover:text-foreground transition-all"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    <span>Save Current View</span>
+                                </button>
+                            )}
+                        </motion.div>
+                    </>
                 )}
             </AnimatePresence>
-        </div>
+        </div >
     );
 }

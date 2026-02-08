@@ -67,5 +67,7 @@ export const STATUS_COLORS = {
     completed: "teal",
     no_response: "orange",
     return_pending: "pink",
+    refund_delivered: "emerald",
+    refund_failed: "red",
     pending_checkout: "purple",
 } as const;

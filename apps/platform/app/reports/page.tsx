@@ -13,6 +13,7 @@ import { PageSkeleton } from "@/components/ui/skeletons";
 import { cn } from "@/lib/utils";
 import { exportReportsToCSV, exportReportsToExcel, printOperationalReport } from "@/lib/reports-export";
 import { calculateEmployeePerformance, calculatePeriodComparison } from "@/lib/analytics/employee-metrics";
+import { calculateReturnAnalytics } from "@/lib/analytics/reports-calculations";
 import { CustomDatePicker } from "@/components/reports/custom-date-picker";
 
 // Dynamic imports for components
@@ -43,6 +44,11 @@ const TimeAnalysis = dynamic(
 
 const RejectionBreakdown = dynamic(
     () => import("@/components/reports/rejection-breakdown").then(mod => ({ default: mod.RejectionBreakdown })),
+    { loading: () => <div className="h-96 animate-pulse bg-white/5 rounded-3xl" /> }
+);
+
+const ReturnBreakdown = dynamic(
+    () => import("@/components/reports/return-breakdown").then(mod => ({ default: mod.ReturnBreakdown })),
     { loading: () => <div className="h-96 animate-pulse bg-white/5 rounded-3xl" /> }
 );
 
@@ -97,6 +103,12 @@ export default function ReportsPage() {
     const periodComparison = useMemo(() =>
         calculatePeriodComparison(orders, dateRange),
         [orders, dateRange]
+    );
+
+    // Calculate return analytics
+    const returnAnalytics = useMemo(() =>
+        calculateReturnAnalytics(orders),
+        [orders]
     );
 
     // Use real employee metrics from activity_logs
@@ -276,6 +288,11 @@ export default function ReportsPage() {
                         <div className="lg:col-span-1">
                             <RejectionBreakdown data={metrics.rejectionReasons} />
                         </div>
+                    </div>
+
+                    {/* Returns & Rejections Analysis */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <ReturnBreakdown data={returnAnalytics} />
                     </div>
 
                     {/* City Performance (Full Width) */}

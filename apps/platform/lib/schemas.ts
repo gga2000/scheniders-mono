@@ -15,13 +15,15 @@ export const OrderStatusEnum = z.enum([
     'completed',
     'no_response',
     'return_pending',
+    'refund_delivered',
+    'refund_failed',
     'pending_checkout'
 ]);
 
 export const OrderPriorityEnum = z.enum(['normal', 'high', 'urgent']);
 export const PaymentStatusEnum = z.enum(['pending', 'cod', 'prepaid', 'partial', 'paid']);
 export const DeliverySlotEnum = z.enum(['morning', 'afternoon', 'evening']);
-export const OrderSourceEnum = z.enum(['whatsapp', 'lightfunnels', 'meta', 'tiktok', 'delivery_import', 'other']);
+export const OrderSourceEnum = z.enum(['whatsapp', 'lightfunnels', 'meta', 'tiktok', 'delivery_import', 'shop', 'other']);
 export const TagColorEnum = z.enum(['yellow', 'green', 'blue', 'pink', 'purple']).nullable();
 export const AddressStatusEnum = z.enum(['valid', 'incomplete', 'invalid', 'needs_review']);
 
@@ -51,7 +53,7 @@ export const OrderSchema = z.object({
 
     order_id: z.string().optional(), // Auto-generated if not provided
     customer_name: z.string().min(1, "Customer name is required"),
-    phone: z.string().min(10, "Phone number must be valid"),
+    phone: z.string().refine((val) => val === '' || val.length >= 10, { message: "Phone number must be valid" }),
     secondary_phone: z.string().optional(),
 
     city: z.string().optional(),
@@ -60,7 +62,7 @@ export const OrderSchema = z.object({
 
     items: z.array(OrderItemSchema).min(1, "Order must have at least one item"),
 
-    price: z.number().min(0),
+    price: z.number(), // Can be negative for return orders
     status: OrderStatusEnum.default('new'),
 
     whatsapp_link: z.string().optional(),

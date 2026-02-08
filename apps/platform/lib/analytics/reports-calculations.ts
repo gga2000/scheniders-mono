@@ -399,3 +399,129 @@ export function calculateAttentionFlags(orders: Order[]): AttentionFlagMetrics[]
         { flagType: 'price_issues', label: 'Price Issues', count: priceIssues, severity: 'medium' as const, icon: '💰' },
     ].filter(flag => flag.count > 0);
 }
+
+// ============================================
+// RETURN ORDER ANALYSIS
+// ============================================
+
+export interface ReturnReasonMetrics {
+    reason: string;
+    count: number;
+    percentage: number;
+    totalAmount: number;
+    avgAmount: number;
+    topCity?: string;
+}
+
+export interface ReturnAnalyticsMetrics {
+    totalReturns: number;
+    totalReturnValue: number;
+    returnRate: number; // Returns / (Delivered + Completed) * 100
+    avgReturnValue: number;
+    returnsByReason: ReturnReasonMetrics[];
+    returnsByCity: { city: string; count: number; totalAmount: number }[];
+    returnTrend: 'up' | 'down' | 'stable';
+}
+
+/**
+ * Calculate comprehensive return/refund analytics
+ */
+export function calculateReturnAnalytics(orders: Order[]): ReturnAnalyticsMetrics {
+    // Get all return orders (is_return = true)
+    const returnOrders = orders.filter(o => o.is_return === true);
+
+    // Get delivered/completed orders for return rate calculation
+    const deliveredOrders = orders.filter(o =>
+        (o.status === 'delivered' || o.status === 'completed') && !o.is_return
+    );
+
+    const totalReturns = returnOrders.length;
+
+    // Return value is stored as negative, so we use Math.abs
+    const totalReturnValue = returnOrders.reduce((sum, o) =>
+        sum + Math.abs(Number(o.price) || 0), 0
+    );
+
+    const avgReturnValue = totalReturns > 0 ? totalReturnValue / totalReturns : 0;
+
+    // Return rate = returns / delivered orders
+    const returnRate = deliveredOrders.length > 0
+        ? (totalReturns / deliveredOrders.length) * 100
+        : 0;
+
+    // Parse return reasons from notes field
+    // Format: "استرجاع: {reason} | ..." or just use notes directly
+    const reasonCounts: Record<string, {
+        count: number;
+        totalAmount: number;
+        cities: Record<string, number>
+    }> = {};
+
+    const cityCounts: Record<string, { count: number; totalAmount: number }> = {};
+
+    returnOrders.forEach(order => {
+        // Extract reason from notes (format: "استرجاع: REASON | ...")
+        let reason = "غير محدد"; // Default: "Unspecified"
+        if (order.notes) {
+            const match = order.notes.match(/استرجاع:\s*([^|]+)/);
+            if (match && match[1]) {
+                reason = match[1].trim();
+            }
+        }
+
+        const city = order.city || "غير محدد";
+        const amount = Math.abs(Number(order.price) || 0);
+
+        // Aggregate by reason
+        if (!reasonCounts[reason]) {
+            reasonCounts[reason] = { count: 0, totalAmount: 0, cities: {} };
+        }
+        reasonCounts[reason].count++;
+        reasonCounts[reason].totalAmount += amount;
+        reasonCounts[reason].cities[city] = (reasonCounts[reason].cities[city] || 0) + 1;
+
+        // Aggregate by city
+        if (!cityCounts[city]) {
+            cityCounts[city] = { count: 0, totalAmount: 0 };
+        }
+        cityCounts[city].count++;
+        cityCounts[city].totalAmount += amount;
+    });
+
+    // Build returns by reason with percentages
+    const returnsByReason: ReturnReasonMetrics[] = Object.entries(reasonCounts)
+        .map(([reason, data]) => {
+            const topCity = Object.entries(data.cities)
+                .sort((a, b) => b[1] - a[1])[0]?.[0];
+
+            return {
+                reason,
+                count: data.count,
+                percentage: totalReturns > 0 ? (data.count / totalReturns) * 100 : 0,
+                totalAmount: data.totalAmount,
+                avgAmount: data.count > 0 ? data.totalAmount / data.count : 0,
+                topCity,
+            };
+        })
+        .sort((a, b) => b.count - a.count);
+
+    // Build returns by city
+    const returnsByCity = Object.entries(cityCounts)
+        .map(([city, data]) => ({
+            city,
+            count: data.count,
+            totalAmount: data.totalAmount,
+        }))
+        .sort((a, b) => b.count - a.count);
+
+    return {
+        totalReturns,
+        totalReturnValue,
+        returnRate,
+        avgReturnValue,
+        returnsByReason,
+        returnsByCity,
+        returnTrend: 'stable', // Would need historical data for actual trend
+    };
+}
+

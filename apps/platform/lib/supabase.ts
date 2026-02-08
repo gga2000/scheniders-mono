@@ -42,7 +42,7 @@ export interface Order {
     is_archived: boolean;
     is_pinned?: boolean;
     delivery_slot?: 'morning' | 'afternoon' | 'evening';
-    source?: 'whatsapp' | 'lightfunnels' | 'meta' | 'tiktok' | 'delivery_import' | 'other';
+    source?: 'whatsapp' | 'lightfunnels' | 'meta' | 'tiktok' | 'delivery_import' | 'shop' | 'other';
     sequence_number?: number; // Global order counter (#178, #179, etc.)
     // Delivery tracking
     delivered_at?: string; // Timestamp when marked delivered (activates 7-day guarantee)
@@ -52,6 +52,7 @@ export interface Order {
     print_count?: number; // Number of times printed
     last_batch_id?: string; // Last batch this order was printed in
     is_gift?: boolean; // If true, hide price on label
+    is_shop_order?: boolean; // True for in-person shop orders (no delivery)
     // Attention flags for orders needing manual review
     needs_attention?: boolean;
     attention_reasons?: string[]; // ['missing_phone', 'missing_product', 'price_changed', etc.]
@@ -78,7 +79,7 @@ export interface Order {
 // - completed: Delivery verified and finalized (طلب تام)
 // - no_response: Customer never responded to contact attempts (لم يرد)
 // - return_pending: Return order awaiting processing (استرجاع معلق)
-export type OrderStatus = 'new' | 'contacted' | 'confirmed' | 'cancelled' | 'in_transit' | 'delivered' | 'rejected' | 'completed' | 'no_response' | 'return_pending' | 'pending_checkout';
+export type OrderStatus = 'new' | 'contacted' | 'confirmed' | 'cancelled' | 'in_transit' | 'delivered' | 'rejected' | 'completed' | 'no_response' | 'return_pending' | 'refund_delivered' | 'refund_failed' | 'pending_checkout';
 
 // Order priority levels
 export type OrderPriority = 'normal' | 'high' | 'urgent';
