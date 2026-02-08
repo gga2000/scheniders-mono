@@ -33,6 +33,7 @@ import {
     MoreVertical,
     Camera,
     ClipboardCopy,
+    Store,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -100,6 +101,7 @@ export const OrderCard = memo(function OrderCard({
     const isLoading = loadingId === order.id;
     const isNew = order.status === "new";
     const isReturn = order.is_return;
+    const isShopOrder = order.source === "shop" || order.is_shop_order;
     const isUrgent = order.priority === "urgent";
     const isHighPriority = order.priority === "high";
     const hasDuplicates = customerOrderCount > 1;
@@ -338,6 +340,13 @@ export const OrderCard = memo(function OrderCard({
                         TikTok
                     </span>
                 );
+            case "shop":
+                return (
+                    <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-semibold rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                        <Store className="w-3 h-3" />
+                        Shop
+                    </span>
+                );
             default:
                 return null;
         }
@@ -393,17 +402,22 @@ export const OrderCard = memo(function OrderCard({
                     // Mobile: vertical layout, Desktop: horizontal
                     "flex flex-col md:flex-row",
                     actionsOpen ? "overflow-visible z-50" : "overflow-hidden",
-                    // Priority order: blacklisted > return > urgent > duplicates > new > refunded
+                    // Priority order: blacklisted > return > urgent > shop > duplicates > new > refunded
                     isBlacklisted && "ring-2 ring-red-500",
                     !isBlacklisted && isReturn && "ring-2 ring-red-400",
                     !isBlacklisted && !isReturn && isUrgent && "ring-2 ring-red-400",
-                    !isBlacklisted && !isReturn && !isUrgent && hasDuplicates && isVerifiedCustomer && "ring-2 ring-emerald-300",
-                    !isBlacklisted && !isReturn && !isUrgent && hasDuplicates && !isVerifiedCustomer && "ring-2 ring-orange-400",
-                    !isBlacklisted && !isReturn && !isUrgent && !hasDuplicates && isNew && "ring-2 ring-orange-300",
+                    !isBlacklisted && !isReturn && !isUrgent && isShopOrder && "ring-2 ring-amber-300 bg-amber-50/30",
+                    !isBlacklisted && !isReturn && !isUrgent && !isShopOrder && hasDuplicates && isVerifiedCustomer && "ring-2 ring-emerald-300",
+                    !isBlacklisted && !isReturn && !isUrgent && !isShopOrder && hasDuplicates && !isVerifiedCustomer && "ring-2 ring-orange-400",
+                    !isBlacklisted && !isReturn && !isUrgent && !isShopOrder && !hasDuplicates && isNew && "ring-2 ring-orange-300",
                     // Refunded orders - rose ring and slight opacity
-                    !isBlacklisted && !isReturn && !isUrgent && !hasDuplicates && !isNew && hasRefund && "ring-2 ring-rose-300 opacity-80"
+                    !isBlacklisted && !isReturn && !isUrgent && !isShopOrder && !hasDuplicates && !isNew && hasRefund && "ring-2 ring-rose-300 opacity-80"
                 )}
             >
+                {/* Shop Order Glow */}
+                {isShopOrder && !isReturn && !isBlacklisted && (
+                    <div className="absolute -inset-0.5 bg-amber-200 rounded-[22px] blur-md opacity-30 group-hover:opacity-50 transition-opacity -z-10" />
+                )}
                 {/* Status Accent Bar */}
                 <motion.div
                     layoutId={`order-accent-${order.id}-${order.status}`}
@@ -1337,6 +1351,33 @@ export const OrderCard = memo(function OrderCard({
                                     >
                                         <PhoneCall className="w-4 h-4" />
                                     </button>
+                                )}
+                                {/* Refund Status Actions - For orders in return_pending */}
+                                {order.status === "return_pending" && isReturn && (
+                                    <>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onStatusUpdate(order.id, "refund_delivered");
+                                            }}
+                                            disabled={isLoading}
+                                            className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 hover:bg-emerald-200 ring-2 ring-emerald-300/50 transition-all flex items-center justify-center disabled:opacity-50"
+                                            title="تم الاسترجاع - Refund Delivered"
+                                        >
+                                            <CheckCircle className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onStatusUpdate(order.id, "refund_failed");
+                                            }}
+                                            disabled={isLoading}
+                                            className="w-10 h-10 rounded-xl bg-red-100 text-red-700 hover:bg-red-200 ring-2 ring-red-300/50 transition-all flex items-center justify-center disabled:opacity-50"
+                                            title="فشل الاسترجاع - Refund Failed"
+                                        >
+                                            <XCircle className="w-4 h-4" />
+                                        </button>
+                                    </>
                                 )}
                             </>
                         )}

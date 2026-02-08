@@ -97,6 +97,7 @@ import {
     Minimize2,
     Maximize2,
     Command,
+    Truck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
@@ -761,354 +762,386 @@ export default function OrdersPage() {
                                 transition={{ duration: 0.3, ease: "easeOut" }}
                                 className="overflow-hidden"
                             >
-                                {/* Page Header - Mobile Optimized */}
+                                {/* Page Header - Premium State-of-the-Art Design */}
                                 <motion.div
                                     initial={{ opacity: 0, y: -20 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.4, delay: 0.1 }}
-                                    className="space-y-4"
+                                    transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+                                    className="space-y-3"
                                 >
-                                    {/* Title Row */}
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            {/* Select All Checkbox */}
+                                    {/* Title Row - Premium */}
+                                    <div className="flex items-center justify-between pb-2">
+                                        <div className="flex items-center gap-4">
+                                            {/* Select All - Custom Glass Checkbox */}
                                             <button
                                                 onClick={selectAll}
                                                 className={cn(
-                                                    "w-5 h-5 rounded border-2 flex items-center justify-center transition-all flex-shrink-0",
+                                                    "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-300 flex-shrink-0 group relative overflow-hidden",
                                                     selectedOrders.size === filteredOrders.length && filteredOrders.length > 0
-                                                        ? "bg-[var(--foreground)] border-[var(--foreground)] text-white"
-                                                        : "border-[var(--card-border)] hover:border-[var(--foreground-muted)]"
+                                                        ? "border-transparent text-white"
+                                                        : "border-muted-foreground/30 hover:border-primary/50"
                                                 )}
                                                 title="Select all"
                                             >
                                                 {selectedOrders.size === filteredOrders.length && filteredOrders.length > 0 && (
-                                                    <CheckSquare className="w-3 h-3" />
+                                                    <div className="absolute inset-0 bg-gradient-to-br from-primary to-violet-600 opacity-100" />
                                                 )}
+                                                <CheckSquare className={cn("w-3.5 h-3.5 z-10 transition-transform duration-300", selectedOrders.size > 0 ? "scale-100" : "scale-0")} />
                                             </button>
-                                            <div>
-                                                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight flex items-center gap-2 md:gap-3">
-                                                    <Package className="w-6 h-6 md:w-8 md:h-8" />
-                                                    <span className="hidden sm:inline">Orders Management</span>
-                                                    <span className="sm:hidden">Orders</span>
-                                                </h1>
-                                                <p className="text-muted mt-1 text-sm md:text-base lg:text-lg">
-                                                    {filteredOrders.length} orders{selectedOrders.size > 0 && ` • ${selectedOrders.size} selected`}
-                                                </p>
+
+                                            {/* Order Count - Glass Pill */}
+                                            <div className="flex items-center gap-3 pl-2 pr-5 py-2 rounded-full bg-white/40 backdrop-blur-md border border-white/20 ring-1 ring-black/5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
+                                                <div className="p-2 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/30">
+                                                    <Package className="w-4 h-4" />
+                                                </div>
+                                                <div className="flex flex-col leading-none">
+                                                    <div className="flex items-baseline gap-1.5">
+                                                        <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-br from-foreground to-foreground/70">
+                                                            {filteredOrders.length}
+                                                        </span>
+                                                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Orders</span>
+                                                    </div>
+                                                </div>
                                             </div>
+
+                                            {/* Selection Indicator */}
+                                            <AnimatePresence>
+                                                {selectedOrders.size > 0 && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, scale: 0.8, x: -20 }}
+                                                        animate={{ opacity: 1, scale: 1, x: 0 }}
+                                                        exit={{ opacity: 0, scale: 0.8, x: -20 }}
+                                                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-violet-500 text-white shadow-lg shadow-violet-500/25"
+                                                    >
+                                                        <span className="text-sm font-bold">{selectedOrders.size}</span>
+                                                        <span className="text-xs font-medium opacity-80">Selected</span>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
                                         </div>
 
-                                        {/* Primary Actions - Hidden on mobile (FAB replaces it) */}
-                                        <div className="hidden sm:flex items-center gap-2">
-                                            <button
-                                                onClick={() => setIsCreateModalOpen(true)}
-                                                className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-[var(--button-success)] text-white shadow-lg shadow-green-500/20 hover:bg-[var(--button-success-hover)] transition-all font-semibold text-base"
-                                            >
-                                                <Plus className="h-5 w-5" />
-                                                <span>New Order</span>
-                                            </button>
-
-                                            {/* Collapse Toolbar Button */}
-                                            <button
-                                                onClick={toggleToolbarCollapse}
-                                                className="p-3 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] text-muted hover:text-foreground hover:bg-[var(--background)] transition-all shadow-sm"
-                                                title="Collapse toolbar (⌘\\)"
-                                            >
-                                                <Minimize2 className="w-5 h-5" />
-                                            </button>
-                                        </div>
+                                        {/* Actions */}
+                                        {/* Old Actions Location Removed */}
                                     </div>
 
-                                    {/* Controls Row - Scrollable on Mobile */}
-                                    <div className="flex items-center gap-2 md:gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 md:overflow-visible md:flex-wrap">
-                                        {/* Workflow Mode Toggle */}
-                                        <div className="flex items-center bg-[var(--background)] border border-[var(--card-border)] rounded-xl p-1 flex-shrink-0">
-                                            <button
-                                                onClick={() => {
-                                                    if (workflowMode) toggleWorkflowMode();
-                                                }}
-                                                className={cn(
-                                                    "px-2.5 md:px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all flex items-center gap-1.5 md:gap-2",
-                                                    !workflowMode
-                                                        ? "bg-[var(--foreground)] text-white shadow-sm"
-                                                        : "text-muted hover:text-foreground"
-                                                )}
-                                            >
-                                                <List className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                                                <span className="hidden md:inline">Simple</span>
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    if (!workflowMode) toggleWorkflowMode();
-                                                }}
-                                                className={cn(
-                                                    "px-2.5 md:px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all flex items-center gap-1.5 md:gap-2",
-                                                    workflowMode
-                                                        ? "bg-[var(--foreground)] text-white shadow-sm"
-                                                        : "text-muted hover:text-foreground"
-                                                )}
-                                            >
-                                                <GitBranch className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                                                <span className="hidden md:inline">Workflow</span>
-                                            </button>
-                                        </div>
+                                    {/* Row 2: Control Groups - Premium Glass Cards */}
+                                    <div className="flex items-start gap-4 overflow-x-auto pb-6 scrollbar-hide -mx-4 px-4 md:mx-0 md:pl-2 md:pr-24 pt-2">
 
-                                        {/* View Mode Toggle - Hidden on Mobile in Workflow Mode */}
-                                        {!workflowMode && (
-                                            <div className="hidden sm:flex items-center bg-[var(--background)] border border-[var(--card-border)] rounded-xl p-1 flex-shrink-0">
-                                                {[
+                                        {/* View Group */}
+
+
+                                        {/* View Group */}
+                                        <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm flex-shrink-0 min-w-min">
+                                            <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">View</span>
+                                            <div className="flex items-center gap-2">
+                                                {/* Saved Views Dropdown */}
+                                                <SavedViewsTabs
+                                                    presets={filterPresets}
+                                                    activePresetId={activePresetId}
+                                                    onSelect={(presetId) => {
+                                                        setActivePresetId(presetId);
+                                                        loadFilterPreset(presetId);
+                                                    }}
+                                                    onSave={(name) => {
+                                                        const preset = saveFilterPreset(name);
+                                                        setActivePresetId(preset.id);
+                                                    }}
+                                                    onDelete={(presetId) => {
+                                                        deleteFilterPreset(presetId);
+                                                        if (activePresetId === presetId) {
+                                                            setActivePresetId(null);
+                                                            clearFilters();
+                                                        }
+                                                    }}
+                                                    onClearFilter={() => {
+                                                        setActivePresetId(null);
+                                                        clearFilters();
+                                                    }}
+                                                />
+
+                                                <div className="w-px h-8 bg-black/5 mx-1" />
+                                                {/* Workflow Toggle */}
+                                                <div className="flex items-center bg-black/5 rounded-xl p-1 gap-1">
+                                                    <button
+                                                        onClick={() => workflowMode && toggleWorkflowMode()}
+                                                        className={cn(
+                                                            "px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2",
+                                                            !workflowMode
+                                                                ? "bg-white text-foreground shadow-sm"
+                                                                : "text-muted-foreground hover:text-foreground"
+                                                        )}
+                                                    >
+                                                        <List className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => !workflowMode && toggleWorkflowMode()}
+                                                        className={cn(
+                                                            "px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2",
+                                                            workflowMode
+                                                                ? "bg-white text-foreground shadow-sm"
+                                                                : "text-muted-foreground hover:text-foreground"
+                                                        )}
+                                                    >
+                                                        <GitBranch className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+
+                                                <div className="w-px h-8 bg-black/5 mx-1" />
+
+                                                {/* Layout Toggles */}
+                                                {!workflowMode && [
                                                     { mode: "cards" as const, icon: LayoutGrid, label: "Cards" },
                                                     { mode: "table" as const, icon: Table, label: "Table" },
                                                     { mode: "kanban" as const, icon: Columns, label: "Kanban" },
-                                                ].map((v) => {
-                                                    const Icon = v.icon;
-                                                    return (
-                                                        <button
-                                                            key={v.mode}
-                                                            onClick={() => setViewMode(v.mode)}
-                                                            title={v.label}
-                                                            className={cn(
-                                                                "p-2 rounded-lg transition-all",
-                                                                viewMode === v.mode
-                                                                    ? "bg-[var(--foreground)] text-white shadow-sm"
-                                                                    : "text-muted hover:text-foreground hover:bg-[var(--card-border)]"
-                                                            )}
-                                                        >
-                                                            <Icon className="w-4 h-4" />
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
+                                                ].map((v) => (
+                                                    <button
+                                                        key={v.mode}
+                                                        onClick={() => setViewMode(v.mode)}
+                                                        title={v.label}
+                                                        className={cn(
+                                                            "p-2.5 rounded-xl transition-all duration-300",
+                                                            viewMode === v.mode
+                                                                ? "bg-white text-foreground shadow-sm ring-1 ring-black/5"
+                                                                : "text-muted-foreground hover:bg-white/40 hover:text-foreground"
+                                                        )}
+                                                    >
+                                                        <v.icon className="w-4 h-4" />
+                                                    </button>
+                                                ))}
 
-                                        {/* Date Picker */}
-                                        <div className="relative flex-shrink-0">
-                                            <button
-                                                onClick={() => setShowDatePicker(!showDatePicker)}
-                                                className={cn(
-                                                    "p-2.5 md:p-3 rounded-xl md:rounded-2xl border transition-all shadow-sm flex items-center gap-2",
-                                                    (filters.dateFrom || filters.dateTo)
-                                                        ? "bg-amber-100 border-amber-200 text-amber-700"
-                                                        : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
-                                                )}
-                                                title="Date Filter"
-                                            >
-                                                <CalendarDays className="w-4 h-4" />
-                                                {filters.dateFrom && (
-                                                    <span className="text-xs font-medium hidden lg:inline">
-                                                        {filters.dateFrom === filters.dateTo
-                                                            ? new Date(filters.dateFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                                                            : `${new Date(filters.dateFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${filters.dateTo ? new Date(filters.dateTo).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '...'}`
-                                                        }
-                                                    </span>
-                                                )}
-                                            </button>
-
-                                            {/* Date Picker Dropdown Panel */}
-                                            {showDatePicker && (
-                                                <div className="absolute left-0 top-full mt-2 z-[100] shadow-2xl rounded-3xl border border-amber-100">
-                                                    <DateRangePicker
-                                                        inline
-                                                        dateFrom={filters.dateFrom}
-                                                        dateTo={filters.dateTo}
-                                                        onDateChange={(from, to) => {
-                                                            setFilters({ ...filters, dateFrom: from, dateTo: to });
-                                                            setShowDatePicker(false);
+                                                {/* Compact Toggle */}
+                                                {!workflowMode && viewMode === "cards" && (
+                                                    <button
+                                                        onClick={() => {
+                                                            const newValue = !compactView;
+                                                            setCompactView(newValue);
+                                                            localStorage.setItem("ordersCompactView", String(newValue));
                                                         }}
-                                                    />
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Quick Toggles - Grouped */}
-                                        <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
-                                            {/* Notifications */}
-                                            <button
-                                                onClick={async () => {
-                                                    const newState = !notificationsEnabled;
-                                                    if (newState) {
-                                                        const granted = await notificationService.requestPermission();
-                                                        if (granted) {
-                                                            setNotificationsEnabled(true);
-                                                            notificationService.showNotification({
-                                                                title: "Notifications Enabled",
-                                                                body: "You will now be notified of new orders",
-                                                            });
-                                                        }
-                                                        setSoundEnabled(true);
-                                                        notificationService.soundEnabled = true;
-                                                    } else {
-                                                        setNotificationsEnabled(false);
-                                                        setSoundEnabled(false);
-                                                        notificationService.soundEnabled = false;
-                                                    }
-                                                }}
-                                                title={notificationsEnabled ? "Notifications ON" : "Enable Notifications"}
-                                                className={cn(
-                                                    "p-2.5 md:p-3 rounded-xl md:rounded-2xl border transition-all shadow-sm",
-                                                    notificationsEnabled
-                                                        ? "bg-green-100 border-green-200 text-green-700"
-                                                        : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                                        className={cn(
+                                                            "p-2.5 rounded-xl transition-all duration-300",
+                                                            compactView
+                                                                ? "bg-purple-100 text-purple-600 shadow-sm"
+                                                                : "text-muted-foreground hover:bg-white/40 hover:text-foreground"
+                                                        )}
+                                                        title={compactView ? "Compact View Active" : "Switch to Compact"}
+                                                    >
+                                                        {compactView ? <LayoutList className="w-4 h-4" /> : <Rows3 className="w-4 h-4" />}
+                                                    </button>
                                                 )}
-                                            >
-                                                {notificationsEnabled ? (
-                                                    <Bell className="w-4 h-4" />
-                                                ) : (
-                                                    <BellOff className="w-4 h-4" />
-                                                )}
-                                            </button>
 
-                                            {/* Undo Button */}
-                                            {canUndo && (
-                                                <motion.button
-                                                    initial={{ opacity: 0, scale: 0.8 }}
-                                                    animate={{ opacity: 1, scale: 1 }}
-                                                    exit={{ opacity: 0, scale: 0.8 }}
-                                                    onClick={async () => {
-                                                        const result = await undoLastAction();
-                                                    }}
-                                                    title={`Undo: ${getLastUndoAction()?.action || 'last action'}`}
-                                                    className="p-2.5 md:p-3 rounded-xl md:rounded-2xl border transition-all shadow-sm bg-amber-100 border-amber-200 text-amber-700 hover:bg-amber-200"
+                                                <div className="w-px h-8 bg-black/5 mx-1" />
+
+                                                {/* Collapse Toolbar */}
+                                                <button
+                                                    onClick={toggleToolbarCollapse}
+                                                    className="p-2.5 rounded-xl text-muted-foreground hover:bg-white/40 hover:text-foreground transition-all duration-300 hover:rotate-90 active:scale-95"
+                                                    title="Collapse toolbar"
                                                 >
-                                                    <RotateCcw className="w-4 h-4" />
-                                                </motion.button>
-                                            )}
-
-                                            {/* Stats Toggle - Hidden on Small Mobile */}
-                                            <button
-                                                onClick={() => {
-                                                    const newLevel = ((analyticsLevel + 1) % 3) as 0 | 1 | 2;
-                                                    setAnalyticsLevel(newLevel);
-                                                    localStorage.setItem("ordersAnalyticsLevel", String(newLevel));
-                                                }}
-                                                title={analyticsLevel === 0 ? "Show Stats" : analyticsLevel === 1 ? "Show Details" : "Hide Analytics"}
-                                                className={cn(
-                                                    "hidden sm:flex p-2.5 md:p-3 rounded-xl md:rounded-2xl border transition-all shadow-sm items-center gap-2",
-                                                    analyticsLevel > 0
-                                                        ? "bg-blue-100 border-blue-200 text-blue-700"
-                                                        : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
-                                                )}
-                                            >
-                                                <BarChart3 className="w-4 h-4" />
-                                            </button>
-
-                                            {/* Filters Toggle */}
-                                            <button
-                                                onClick={() => {
-                                                    const newValue = !showSearchBar;
-                                                    setShowSearchBar(newValue);
-                                                    localStorage.setItem("ordersShowSearchBar", String(newValue));
-                                                }}
-                                                title={showSearchBar ? "Hide Filters" : "Show Filters"}
-                                                className={cn(
-                                                    "p-2.5 md:p-3 rounded-xl md:rounded-2xl border transition-all shadow-sm",
-                                                    showSearchBar
-                                                        ? "bg-purple-100 border-purple-200 text-purple-700"
-                                                        : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
-                                                )}
-                                            >
-                                                <SlidersHorizontal className="w-4 h-4" />
-                                            </button>
+                                                    <Minimize2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </div>
 
-                                        {/* Secondary Actions - Hidden on Mobile */}
-                                        <div className="hidden md:flex items-center gap-2 flex-shrink-0">
-                                            {/* Compact View Toggle */}
-                                            {!workflowMode && viewMode === "cards" && (
+                                        {/* Filter Group */}
+                                        <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm flex-shrink-0">
+                                            <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">Filter</span>
+                                            <div className="flex items-center gap-2">
+                                                {/* Date Picker */}
+                                                <div className="relative">
+                                                    <button
+                                                        onClick={() => setShowDatePicker(!showDatePicker)}
+                                                        className={cn(
+                                                            "px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300 flex items-center gap-2 border",
+                                                            (filters.dateFrom || filters.dateTo)
+                                                                ? "bg-amber-100/50 border-amber-200/50 text-amber-700 shadow-sm"
+                                                                : "bg-white/50 border-transparent hover:bg-white/80 text-muted-foreground hover:text-foreground"
+                                                        )}
+                                                    >
+                                                        <CalendarDays className="w-4 h-4" />
+                                                        <span className="hidden lg:inline">
+                                                            {filters.dateFrom
+                                                                ? `${new Date(filters.dateFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                                                                : "Date Range"}
+                                                        </span>
+                                                    </button>
+                                                    {showDatePicker && (
+                                                        <div className="absolute left-0 top-full mt-2 z-[100] p-2 bg-white/80 backdrop-blur-xl shadow-2xl rounded-3xl border border-white/20 ring-1 ring-black/5">
+                                                            <DateRangePicker
+                                                                inline
+                                                                dateFrom={filters.dateFrom}
+                                                                dateTo={filters.dateTo}
+                                                                onDateChange={(from, to) => {
+                                                                    setFilters({ ...filters, dateFrom: from, dateTo: to });
+                                                                    setShowDatePicker(false);
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Advanced Filters Toggle */}
                                                 <button
                                                     onClick={() => {
-                                                        const newValue = !compactView;
-                                                        setCompactView(newValue);
-                                                        localStorage.setItem("ordersCompactView", String(newValue));
+                                                        const newValue = !showSearchBar;
+                                                        setShowSearchBar(newValue);
+                                                        localStorage.setItem("ordersShowSearchBar", String(newValue));
                                                     }}
-                                                    title={compactView ? "Expanded View" : "Compact View"}
                                                     className={cn(
-                                                        "p-3 rounded-2xl border transition-all shadow-sm",
-                                                        compactView
-                                                            ? "bg-purple-100 border-purple-200 text-purple-700"
-                                                            : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                                        "p-2.5 rounded-xl transition-all duration-300",
+                                                        showSearchBar
+                                                            ? "bg-blue-100 text-blue-600 shadow-sm"
+                                                            : "text-muted-foreground hover:bg-white/40 hover:text-foreground"
+                                                    )}
+                                                    title="Advanced Filters"
+                                                >
+                                                    <SlidersHorizontal className="w-4 h-4" />
+                                                </button>
+
+                                                <div className="w-px h-8 bg-black/5 mx-1" />
+
+                                                {/* Archive Toggle */}
+                                                <button
+                                                    onClick={async () => {
+                                                        if (!showArchived && archivedOrders.length === 0) {
+                                                            await fetchArchivedOrders();
+                                                        }
+                                                        setShowArchived(!showArchived);
+                                                    }}
+                                                    className={cn(
+                                                        "px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300 flex items-center gap-2",
+                                                        showArchived
+                                                            ? "bg-orange-100/50 text-orange-700 shadow-sm"
+                                                            : "text-muted-foreground hover:bg-white/40 hover:text-foreground"
                                                     )}
                                                 >
-                                                    {compactView ? <LayoutList className="w-4 h-4" /> : <Rows3 className="w-4 h-4" />}
+                                                    <Archive className="w-4 h-4" />
+                                                    <span className="hidden xl:inline">{showArchived ? "Archived" : "Archive"}</span>
                                                 </button>
-                                            )}
+                                            </div>
+                                        </div>
 
-                                            {/* Archive Toggle */}
-                                            <button
-                                                onClick={async () => {
-                                                    if (!showArchived && archivedOrders.length === 0) {
-                                                        await fetchArchivedOrders();
-                                                    }
-                                                    setShowArchived(!showArchived);
-                                                }}
-                                                title={showArchived ? "Show Active Orders" : "Show Archived Orders"}
-                                                className={cn(
-                                                    "p-3 rounded-2xl border transition-all shadow-sm flex items-center gap-2",
-                                                    showArchived
-                                                        ? "bg-amber-100 border-amber-200 text-amber-700"
-                                                        : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
-                                                )}
-                                            >
-                                                <Archive className="w-4 h-4" />
-                                                {showArchived && <span className="text-xs font-medium">Archived</span>}
-                                            </button>
+                                        {/* Tools Group - NEW */}
+                                        <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm flex-shrink-0">
+                                            <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">Tools</span>
+                                            <div className="flex items-center gap-2">
+                                                {/* Notifications */}
+                                                <button
+                                                    onClick={async () => {
+                                                        const newState = !notificationsEnabled;
+                                                        if (newState) {
+                                                            const granted = await notificationService.requestPermission();
+                                                            if (granted) {
+                                                                setNotificationsEnabled(true);
+                                                                notificationService.showNotification({
+                                                                    title: "Notifications Enabled",
+                                                                    body: "You will now be notified of new orders",
+                                                                });
+                                                            }
+                                                            setSoundEnabled(true);
+                                                            notificationService.soundEnabled = true;
+                                                        } else {
+                                                            setNotificationsEnabled(false);
+                                                            setSoundEnabled(false);
+                                                            notificationService.soundEnabled = false;
+                                                        }
+                                                    }}
+                                                    className={cn(
+                                                        "p-2.5 rounded-xl transition-all duration-300",
+                                                        notificationsEnabled
+                                                            ? "bg-green-100 text-green-600 shadow-sm"
+                                                            : "text-muted-foreground hover:bg-white/40 hover:text-foreground"
+                                                    )}
+                                                    title="Notifications"
+                                                >
+                                                    {notificationsEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+                                                </button>
 
-                                            {/* Import/Export */}
-                                            <button
-                                                onClick={() => setIsImportModalOpen(true)}
-                                                className="px-4 py-3 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] text-foreground hover:bg-[var(--background)] transition-all shadow-sm flex items-center gap-2"
-                                            >
-                                                <Upload className="w-4 h-4" />
-                                                <span className="hidden lg:inline">استيراد</span>
-                                            </button>
-                                            <button
-                                                onClick={handleExport}
-                                                className="px-4 py-3 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] text-foreground hover:bg-[var(--background)] transition-all shadow-sm flex items-center gap-2"
-                                            >
-                                                <Download className="w-4 h-4" />
-                                                <span className="hidden lg:inline">Export</span>
-                                            </button>
-                                            <button
-                                                onClick={handlePrimeExport}
-                                                className="px-4 py-3 rounded-2xl bg-[#1e293b] text-white hover:bg-[#334155] border border-transparent transition-all shadow-sm flex items-center gap-2"
-                                            >
-                                                <span className="hidden lg:inline">تصدير للشحن</span>
-                                                <span className="lg:hidden">Prime</span>
-                                            </button>
+                                                {/* Stats Toggle */}
+                                                <button
+                                                    onClick={() => {
+                                                        const newLevel = ((analyticsLevel + 1) % 3) as 0 | 1 | 2;
+                                                        setAnalyticsLevel(newLevel);
+                                                        localStorage.setItem("ordersAnalyticsLevel", String(newLevel));
+                                                    }}
+                                                    className={cn(
+                                                        "p-2.5 rounded-xl transition-all duration-300",
+                                                        analyticsLevel > 0
+                                                            ? "bg-indigo-100 text-indigo-600 shadow-sm"
+                                                            : "text-muted-foreground hover:bg-white/40 hover:text-foreground"
+                                                    )}
+                                                    title="Analytics"
+                                                >
+                                                    <BarChart3 className="w-4 h-4" />
+                                                </button>
+
+                                                {/* Undo Button */}
+                                                <AnimatePresence>
+                                                    {canUndo && (
+                                                        <motion.button
+                                                            initial={{ opacity: 0, scale: 0.8 }}
+                                                            animate={{ opacity: 1, scale: 1 }}
+                                                            exit={{ opacity: 0, scale: 0.8 }}
+                                                            onClick={async () => { await undoLastAction(); }}
+                                                            className="p-2.5 rounded-xl bg-amber-100/50 text-amber-700 hover:bg-amber-100 transition-all shadow-sm"
+                                                            title="Undo Last Action"
+                                                        >
+                                                            <RotateCcw className="w-4 h-4" />
+                                                        </motion.button>
+                                                    )}
+                                                </AnimatePresence>
+                                            </div>
+                                        </div>
+
+                                        {/* Export Group */}
+                                        <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm flex-shrink-0">
+                                            <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">Export</span>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => setIsImportModalOpen(true)}
+                                                    className="p-2.5 rounded-xl text-muted-foreground hover:bg-white/40 hover:text-foreground transition-all duration-300"
+                                                    title="Import"
+                                                >
+                                                    <Upload className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={handleExport}
+                                                    className="p-2.5 rounded-xl text-muted-foreground hover:bg-white/40 hover:text-foreground transition-all duration-300"
+                                                    title="Export"
+                                                >
+                                                    <Download className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={handlePrimeExport}
+                                                    className="p-2.5 rounded-xl bg-slate-800 text-white text-sm font-medium hover:bg-slate-700 shadow-lg shadow-slate-900/20 transition-all duration-300 flex items-center gap-2"
+                                                    title="Ship"
+                                                >
+                                                    <Truck className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Action Group - Moved to End */}
+                                        <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm flex-shrink-0 min-w-min">
+                                            <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">Actions</span>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => setIsCreateModalOpen(true)}
+                                                    className="group relative px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 transition-all duration-300 overflow-hidden"
+                                                >
+                                                    <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                                                    <div className="relative flex items-center gap-2 font-semibold text-sm">
+                                                        <Plus className="w-4 h-4" />
+                                                        <span className="whitespace-nowrap hidden lg:inline">New Order</span>
+                                                        <span className="whitespace-nowrap lg:hidden">New</span>
+                                                    </div>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </motion.div>
 
                                 {/* Saved Views Tabs */}
-                                <motion.div
-                                    initial={{ opacity: 0, y: -10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.3, delay: 0.2 }}
-                                >
-                                    <SavedViewsTabs
-                                        presets={filterPresets}
-                                        activePresetId={activePresetId}
-                                        onSelect={(presetId) => {
-                                            setActivePresetId(presetId);
-                                            loadFilterPreset(presetId);
-                                        }}
-                                        onSave={(name) => {
-                                            const preset = saveFilterPreset(name);
-                                            setActivePresetId(preset.id);
-                                        }}
-                                        onDelete={(presetId) => {
-                                            deleteFilterPreset(presetId);
-                                            if (activePresetId === presetId) {
-                                                setActivePresetId(null);
-                                                clearFilters();
-                                            }
-                                        }}
-                                        onClearFilter={() => {
-                                            setActivePresetId(null);
-                                            clearFilters();
-                                        }}
-                                    />
-                                </motion.div>
+                                {/* Old Saved Views Location Removed */}
 
                                 {/* Collapsible Analytics Panel */}
                                 <AnimatePresence>
@@ -2232,11 +2265,13 @@ export default function OrdersPage() {
                                                                                     order.source === "lightfunnels" && "bg-purple-100 text-purple-700",
                                                                                     order.source === "delivery_import" && "bg-blue-100 text-blue-700",
                                                                                     order.source === "whatsapp" && "bg-green-100 text-green-700",
+                                                                                    order.source === "shop" && "bg-amber-100 text-amber-700",
                                                                                     !order.source && "bg-gray-100 text-gray-500",
                                                                                 )}>
                                                                                     {order.source === "lightfunnels" ? "LF" :
                                                                                         order.source === "delivery_import" ? "DLV" :
-                                                                                            order.source === "whatsapp" ? "WA" : "—"}
+                                                                                            order.source === "whatsapp" ? "WA" :
+                                                                                                order.source === "shop" ? "محل" : "—"}
                                                                                 </span>
                                                                             </td>
 

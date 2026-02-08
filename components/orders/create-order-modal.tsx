@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
     Dialog,
     DialogContent,
@@ -33,6 +33,10 @@ import {
     Hash,
     AlertTriangle,
     Check,
+    Store,
+    Truck,
+    MoreHorizontal,
+    Pencil,
 } from "lucide-react";
 import { ProductPicker } from "./product-picker";
 import { DiscountPresetSelector } from "./discount-preset-selector";
@@ -55,7 +59,11 @@ const ORDER_SOURCES = [
     { id: "whatsapp", label: "واتساب", icon: MessageCircle, color: "text-green-600" },
     { id: "meta", label: "Meta", icon: Instagram, color: "text-pink-600" },
     { id: "tiktok", label: "TikTok", icon: TikTokIcon, color: "text-gray-800" },
+    { id: "shop", label: "المحل", icon: Store, color: "text-amber-600" },
+    { id: "other", label: "أخرى", icon: MoreHorizontal, color: "text-gray-500" },
 ];
+
+type OrderType = "delivery" | "shop";
 
 export function CreateOrderModal({
     open,
@@ -63,6 +71,7 @@ export function CreateOrderModal({
     onCreate,
     checkOrderIdExists,
 }: CreateOrderModalProps) {
+    const [orderType, setOrderType] = useState<OrderType>("delivery");
     const [formData, setFormData] = useState<OrderFormData & { secondary_phone?: string; source?: string; order_id?: string }>({
         customer_name: "",
         phone: "",
@@ -83,9 +92,27 @@ export function CreateOrderModal({
     const [discount, setDiscount] = useState(0);
     const [orderIdStatus, setOrderIdStatus] = useState<"idle" | "checking" | "available" | "exists">("idle");
     const [isCheckingId, setIsCheckingId] = useState(false);
+    const [deliveryFee, setDeliveryFee] = useState(5000);
+    const [includeDeliveryFee, setIncludeDeliveryFee] = useState(true);
+    const [editingPriceIndex, setEditingPriceIndex] = useState<number | null>(null);
+
+    // Handle order type change
+    const handleOrderTypeChange = (type: OrderType) => {
+        setOrderType(type);
+        if (type === "shop") {
+            // Shop orders: auto-set source, disable delivery fee
+            updateField("source", "shop");
+            setIncludeDeliveryFee(false);
+        } else {
+            updateField("source", "whatsapp");
+            setIncludeDeliveryFee(true);
+            setDiscount(0);
+        }
+    };
 
     const handleClose = () => {
         if (isCreating) return;
+        setOrderType("delivery");
         setFormData({
             customer_name: "",
             phone: "",
@@ -101,7 +128,10 @@ export function CreateOrderModal({
         });
         setErrors({});
         setDiscount(0);
+        setDeliveryFee(5000);
+        setIncludeDeliveryFee(true);
         setOrderIdStatus("idle");
+        setEditingPriceIndex(null);
         onClose();
     };
 
@@ -154,9 +184,15 @@ export function CreateOrderModal({
         if (!formData.customer_name.trim()) {
             newErrors.customer_name = "اسم العميل مطلوب";
         }
-        if (!formData.phone.trim()) {
-            newErrors.phone = "رقم الهاتف مطلوب";
-        } else if (!/^07\d{8,9}$/.test(formData.phone.trim())) {
+        // Phone required only for delivery orders
+        if (orderType === "delivery") {
+            if (!formData.phone.trim()) {
+                newErrors.phone = "رقم الهاتف مطلوب";
+            } else if (!/^07\d{8,9}$/.test(formData.phone.trim())) {
+                newErrors.phone = "رقم الهاتف غير صحيح";
+            }
+        } else if (formData.phone.trim() && !/^07\d{8,9}$/.test(formData.phone.trim())) {
+            // For shop orders, validate phone only if provided
             newErrors.phone = "رقم الهاتف غير صحيح";
         }
         if (formData.items.length === 0) {
@@ -168,19 +204,23 @@ export function CreateOrderModal({
             return;
         }
 
-
         setIsCreating(true);
         try {
 
             // Calculate total price from items
             const itemsTotal = formData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            const finalPrice = Math.max(0, itemsTotal - discount);
+            const actualDeliveryFee = orderType === "shop" ? 0 : (includeDeliveryFee ? deliveryFee : 0);
+            const finalPrice = Math.max(0, itemsTotal - discount + actualDeliveryFee);
 
 
             const result = await onCreate({
                 ...formData,
                 price: finalPrice,
                 discount_amount: discount,
+                delivery_fee: actualDeliveryFee,
+                is_shop_order: orderType === "shop",
+                status: orderType === "shop" ? "completed" : "new",
+                notes: orderType === "shop" ? `[طلب محل] ${formData.notes || ''}`.trim() : formData.notes,
                 items: formData.items.filter(item => item.name.trim()),
             });
 
@@ -197,7 +237,8 @@ export function CreateOrderModal({
     };
 
     const subtotal = calculateTotal(formData.items);
-    const total = Math.max(0, subtotal - discount);
+    const actualDeliveryFee = orderType === "shop" ? 0 : (includeDeliveryFee ? deliveryFee : 0);
+    const total = Math.max(0, subtotal - discount + actualDeliveryFee);
 
     return (
         <>
@@ -217,6 +258,44 @@ export function CreateOrderModal({
                     </DialogHeader>
 
                     <div className="p-6 space-y-5 max-h-[65vh] overflow-y-auto">
+                        {/* Order Type Toggle */}
+                        <div className="space-y-2">
+                            <Label className="text-xs text-muted">نوع الطلب</Label>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => handleOrderTypeChange("delivery")}
+                                    className={cn(
+                                        "flex items-center justify-center gap-2 py-3 rounded-xl border-2 text-sm font-semibold transition-all",
+                                        orderType === "delivery"
+                                            ? "border-green-500 bg-green-50 text-green-700 shadow-sm"
+                                            : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                                    )}
+                                >
+                                    <Truck className="h-4 w-4" />
+                                    طلب توصيل
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleOrderTypeChange("shop")}
+                                    className={cn(
+                                        "flex items-center justify-center gap-2 py-3 rounded-xl border-2 text-sm font-semibold transition-all",
+                                        orderType === "shop"
+                                            ? "border-amber-500 bg-amber-50 text-amber-700 shadow-sm"
+                                            : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                                    )}
+                                >
+                                    <Store className="h-4 w-4" />
+                                    طلب من المحل
+                                </button>
+                            </div>
+                            {orderType === "shop" && (
+                                <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">
+                                    ✨ طلب المحل: رقم الهاتف اختياري، بدون رسوم توصيل
+                                </p>
+                            )}
+                        </div>
+
                         {/* Optional Order ID */}
                         <div className="space-y-1.5">
                             <Label className="text-xs text-muted flex items-center gap-1">
@@ -294,7 +373,7 @@ export function CreateOrderModal({
                                 <div className="space-y-1.5">
                                     <Label className="text-xs text-muted flex items-center gap-1">
                                         <Phone className="h-3 w-3" />
-                                        رقم الهاتف <span className="text-red-500">*</span>
+                                        رقم الهاتف {orderType === "delivery" ? <span className="text-red-500">*</span> : "(اختياري)"}
                                     </Label>
                                     <Input
                                         value={formData.phone}
@@ -328,67 +407,71 @@ export function CreateOrderModal({
                                     />
                                 </div>
 
-                                {/* Governorate (City) */}
-                                <div className="space-y-1.5">
-                                    <Label className="text-xs text-muted">المحافظة</Label>
-                                    <div className="relative">
-                                        <select
-                                            value={formData.city}
-                                            onChange={(e) => {
-                                                const selectedName = e.target.value;
-                                                updateField("city", selectedName);
-                                            }}
-                                            className={cn(
-                                                "h-10 w-full appearance-none rounded-lg border-[var(--card-border)] bg-[var(--background)] px-3 text-sm outline-none transition-all focus:ring-2 focus:ring-[var(--card-border)]",
-                                                !formData.city && "text-muted-foreground"
-                                            )}
-                                        >
-                                            <option value="" disabled>اختر المحافظة...</option>
-                                            {governorates.map((gov) => (
-                                                <option key={gov.code} value={gov.nameAr}>
-                                                    {gov.nameAr}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-down"><path d="m6 9 6 6 6-6" /></svg>
+                                {/* Governorate (City) - Hidden for shop orders */}
+                                {orderType === "delivery" && (
+                                    <div className="space-y-1.5">
+                                        <Label className="text-xs text-muted">المحافظة</Label>
+                                        <div className="relative">
+                                            <select
+                                                value={formData.city}
+                                                onChange={(e) => {
+                                                    const selectedName = e.target.value;
+                                                    updateField("city", selectedName);
+                                                }}
+                                                className={cn(
+                                                    "h-10 w-full appearance-none rounded-lg border-[var(--card-border)] bg-[var(--background)] px-3 text-sm outline-none transition-all focus:ring-2 focus:ring-[var(--card-border)]",
+                                                    !formData.city && "text-muted-foreground"
+                                                )}
+                                            >
+                                                <option value="" disabled>اختر المحافظة...</option>
+                                                {governorates.map((gov) => (
+                                                    <option key={gov.code} value={gov.nameAr}>
+                                                        {gov.nameAr}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-down"><path d="m6 9 6 6 6-6" /></svg>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
 
-                            {/* Address */}
-                            <div className="space-y-1.5">
-                                <Label className="text-xs text-muted flex items-center gap-1">
-                                    <MapPin className="h-3 w-3" />
-                                    العنوان الكامل
-                                </Label>
-                                <Textarea
-                                    value={formData.address_details}
-                                    onChange={(e) => updateField("address_details", e.target.value)}
-                                    placeholder="أدخل العنوان التفصيلي..."
-                                    rows={2}
-                                    className="rounded-lg border-[var(--card-border)] bg-[var(--background)] resize-none"
-                                />
-                            </div>
+                            {/* Address - Hidden for shop orders */}
+                            {orderType === "delivery" && (
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs text-muted flex items-center gap-1">
+                                        <MapPin className="h-3 w-3" />
+                                        العنوان الكامل
+                                    </Label>
+                                    <Textarea
+                                        value={formData.address_details}
+                                        onChange={(e) => updateField("address_details", e.target.value)}
+                                        placeholder="أدخل العنوان التفصيلي..."
+                                        rows={2}
+                                        className="rounded-lg border-[var(--card-border)] bg-[var(--background)] resize-none"
+                                    />
+                                </div>
+                            )}
 
                             {/* Order Source */}
                             <div className="space-y-1.5">
                                 <Label className="text-xs text-muted">مصدر الطلب</Label>
-                                <div className="flex gap-2">
+                                <div className="flex flex-wrap gap-2">
                                     {ORDER_SOURCES.map((source) => (
                                         <button
                                             key={source.id}
                                             type="button"
                                             onClick={() => updateField("source", source.id)}
                                             className={cn(
-                                                "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-medium transition-all",
+                                                "flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium transition-all",
                                                 formData.source === source.id
                                                     ? "border-[var(--pastel-green-dark)] bg-[var(--pastel-green-light)] text-foreground"
                                                     : "border-[var(--card-border)] bg-white hover:bg-[var(--background)]"
                                             )}
                                         >
-                                            <source.icon className={cn("h-4 w-4", source.color)} />
+                                            <source.icon className={cn("h-3.5 w-3.5", source.color)} />
                                             {source.label}
                                         </button>
                                     ))}
@@ -441,7 +524,29 @@ export function CreateOrderModal({
 
                                             <div className="flex-1 min-w-0">
                                                 <p className="font-medium text-sm text-foreground truncate">{item.name}</p>
-                                                <p className="text-xs text-muted">{formatIQD(item.price)} × {item.quantity}</p>
+                                                {editingPriceIndex === index ? (
+                                                    <div className="flex items-center gap-1 mt-1">
+                                                        <Input
+                                                            type="number"
+                                                            value={item.price}
+                                                            onChange={(e) => updateItem(index, "price", parseFloat(e.target.value) || 0)}
+                                                            className="w-24 h-6 text-xs px-2 rounded border-green-300"
+                                                            autoFocus
+                                                            onBlur={() => setEditingPriceIndex(null)}
+                                                            onKeyDown={(e) => e.key === "Enter" && setEditingPriceIndex(null)}
+                                                        />
+                                                        <span className="text-xs text-muted">× {item.quantity}</span>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setEditingPriceIndex(index)}
+                                                        className="text-xs text-muted hover:text-green-600 flex items-center gap-1 group"
+                                                    >
+                                                        {formatIQD(item.price)} × {item.quantity}
+                                                        <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                    </button>
+                                                )}
                                             </div>
 
                                             <div className="flex items-center gap-2">
@@ -508,6 +613,36 @@ export function CreateOrderModal({
                                             placeholder="0"
                                         />
                                     </div>
+
+                                    {/* Delivery Fee - Only for delivery orders */}
+                                    {orderType === "delivery" && (
+                                        <div className="space-y-2 p-3 bg-blue-50/50 rounded-lg border border-blue-100">
+                                            <div className="flex items-center justify-between">
+                                                <label className="flex items-center gap-2 cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={includeDeliveryFee}
+                                                        onChange={(e) => setIncludeDeliveryFee(e.target.checked)}
+                                                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                    />
+                                                    <Truck className="w-3.5 h-3.5 text-blue-600" />
+                                                    <span className="text-sm text-blue-800">رسوم التوصيل</span>
+                                                </label>
+                                                {includeDeliveryFee && (
+                                                    <Input
+                                                        type="number"
+                                                        min="0"
+                                                        value={deliveryFee}
+                                                        onChange={(e) => setDeliveryFee(parseFloat(e.target.value) || 0)}
+                                                        className="w-24 h-7 rounded border-blue-200 bg-white text-xs font-mono text-right"
+                                                    />
+                                                )}
+                                            </div>
+                                            {includeDeliveryFee && (
+                                                <p className="text-xs text-blue-600/70">سيتم إضافة {formatIQD(deliveryFee)} للمجموع</p>
+                                            )}
+                                        </div>
+                                    )}
 
                                     {/* Total */}
                                     <div className="flex items-center justify-between pt-2 border-t border-[var(--card-border)]">

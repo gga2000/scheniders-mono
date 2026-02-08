@@ -1164,6 +1164,11 @@ export function useOrders() {
             return { success: false, error: "Original order not found" };
         }
 
+        // Check if the original order has items
+        if (!originalOrder.items || originalOrder.items.length === 0) {
+            return { success: false, error: "الطلب الأصلي لا يحتوي على منتجات" };
+        }
+
         // Count existing returns for this order to generate unique RTN ID
         const existingReturns = orders.filter(o =>
             o.is_return && o.original_order_id === originalOrderId
@@ -1172,7 +1177,7 @@ export function useOrders() {
 
         // Generate RTN ID: RTN-{original_sequence_number}-{return_count}
         const sequenceNum = originalOrder.sequence_number || originalOrder.order_id;
-        const returnOrderId = `RTN - ${sequenceNum} -${returnCount} `;
+        const returnOrderId = `RTN-${sequenceNum}-${returnCount}`;
 
         // Calculate return amount (deduct 5000 IQD delivery fee if checked)
         const deliveryFeeDeduction = returnData.deductDeliveryFee ? 5000 : 0;
@@ -1189,14 +1194,15 @@ export function useOrders() {
             price: -finalReturnAmount, // Negative amount for returns
             status: "return_pending",
             notes: returnData.deductDeliveryFee
-                ? `استرجاع: ${returnData.reason} | خصم التوصيل: 5,000 | الطلب الأصلي: #${originalOrder.order_id} `
-                : `استرجاع: ${returnData.reason} | الطلب الأصلي: #${originalOrder.order_id} `,
+                ? `استرجاع: ${returnData.reason} | خصم التوصيل: 5,000 | الطلب الأصلي: #${originalOrder.order_id}`
+                : `استرجاع: ${returnData.reason} | الطلب الأصلي: #${originalOrder.order_id}`,
             is_return: true,
             original_order_id: originalOrderId,
             priority: "high", // Returns are usually high priority
             payment_status: "pending",
             is_archived: false,
             delivery_fee: deliveryFeeDeduction, // Store fee deducted
+            source: originalOrder.source || "other", // Inherit source from original order
         };
 
         return createOrder(returnOrder);

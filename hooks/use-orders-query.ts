@@ -263,6 +263,8 @@ export function useCreateOrderMutation() {
             const { createOrderAction } = await import("@/app/actions/orders");
             const result = await createOrderAction(orderData);
             if (!result.success || !result.data) {
+                console.error("[createOrderMutation] Server action failed:", result.error);
+                console.error("[createOrderMutation] Order data:", JSON.stringify(orderData, null, 2));
                 throw new Error(result.error || "Failed to create order");
             }
             return result.data;
