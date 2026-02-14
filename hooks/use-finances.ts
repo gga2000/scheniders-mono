@@ -376,6 +376,8 @@ export function useFinances(orders: Order[], products: Product[], dateRange?: Da
             completed: { count: 0, revenue: 0 },
             no_response: { count: 0, revenue: 0 },
             return_pending: { count: 0, revenue: 0 },
+            refund_delivered: { count: 0, revenue: 0 },
+            refund_failed: { count: 0, revenue: 0 },
             pending_checkout: { count: 0, revenue: 0 },
         };
 
