@@ -147,7 +147,7 @@ function GoalCard({
                         <motion.div
                             initial={{ scale: 0, rotate: -180 }}
                             animate={{ scale: 1, rotate: 0 }}
-                            type="spring"
+                            transition={{ type: "spring" }}
                             className="w-10 h-10 rounded-full bg-[#10B981] flex items-center justify-center shadow-lg border-2 border-white"
                         >
                             <Trophy className="w-5 h-5 text-white" />
