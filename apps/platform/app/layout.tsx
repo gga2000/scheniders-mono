@@ -6,6 +6,7 @@ import { PWAProvider } from "@/components/pwa/pwa-provider";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { OrdersProvider } from "@/components/providers/orders-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { ThemeProvider } from "@/components/providers/theme-provider";
 import { DevServiceWorkerCleanup } from "@/components/pwa/dev-service-worker-cleanup";
 
 const geistSans = Geist({
@@ -60,7 +61,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" dir="ltr">
+    <html lang="en" dir="ltr" suppressHydrationWarning>
       <head>
         {/* PWA Meta Tags */}
         <meta name="mobile-web-app-capable" content="yes" />
@@ -77,9 +78,16 @@ export default function RootLayout({
           <QueryProvider>
             <OrdersProvider>
               <PWAProvider>
-                <DashboardLayout>
-                  {children}
-                </DashboardLayout>
+                <ThemeProvider
+                  attribute="data-theme"
+                  defaultTheme="system"
+                  enableSystem
+                  disableTransitionOnChange
+                >
+                  <DashboardLayout>
+                    {children}
+                  </DashboardLayout>
+                </ThemeProvider>
               </PWAProvider>
             </OrdersProvider>
           </QueryProvider>

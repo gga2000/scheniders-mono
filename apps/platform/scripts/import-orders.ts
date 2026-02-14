@@ -73,7 +73,7 @@ function formatPhone(phone: number | string): string {
 async function importOrders() {
     console.log('📂 Reading Excel file...');
 
-    const workbook = XLSX.readFile('/Users/ali/Scheniders/Copy of طلبات شنايدر.xlsx');
+    const workbook = XLSX.readFile('/Users/ali/Scheniders/resources/excel_imports/Copy of طلبات شنايدر.xlsx');
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
 
