@@ -8,6 +8,7 @@ import { OrdersProvider } from "@/components/providers/orders-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { DevServiceWorkerCleanup } from "@/components/pwa/dev-service-worker-cleanup";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -92,6 +93,7 @@ export default function RootLayout({
             </OrdersProvider>
           </QueryProvider>
         </AuthProvider>
+        <SpeedInsights />
         <DevServiceWorkerCleanup />
       </body>
     </html>
