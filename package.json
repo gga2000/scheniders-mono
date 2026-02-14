@@ -40,6 +40,7 @@
     "jspdf": "^3.0.4",
     "lucide-react": "^0.468.0",
     "next": "16.0.10",
+    "next-themes": "^0.4.6",
     "qrcode": "^1.5.4",
     "react": "19.2.1",
     "react-dom": "19.2.1",
@@ -50,6 +51,10 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
+    "@storybook/addon-a11y": "^10.1.11",
+    "@storybook/addon-docs": "^10.1.11",
+    "@storybook/addon-onboarding": "^10.1.11",
+    "@storybook/nextjs": "^10.1.11",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -57,17 +62,13 @@
     "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "16.0.10",
+    "eslint-plugin-storybook": "^10.1.11",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
+    "storybook": "^10.1.11",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "webpack-bundle-analyzer": "^5.1.0",
-    "storybook": "^10.1.11",
-    "@storybook/nextjs": "^10.1.11",
-    "@storybook/addon-a11y": "^10.1.11",
-    "@storybook/addon-docs": "^10.1.11",
-    "@storybook/addon-onboarding": "^10.1.11",
-    "eslint-plugin-storybook": "^10.1.11"
+    "webpack-bundle-analyzer": "^5.1.0"
   },
   "lint-staged": {
     "*.{js,ts,jsx,tsx}": [

@@ -2,7 +2,7 @@
  * Generate SQL to fix orders with product links
  */
 const XLSX = require("xlsx");
-const workbook = XLSX.readFile("jjj.xlsx");
+const workbook = XLSX.readFile("../resources/excel_imports/jjj.xlsx");
 const sheet = workbook.Sheets[workbook.SheetNames[0]];
 const data = XLSX.utils.sheet_to_json(sheet, { raw: true });
 

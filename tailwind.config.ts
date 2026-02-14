@@ -8,6 +8,7 @@ import type { Config } from "tailwindcss";
  * This config file is for extending functionality and plugins
  */
 const config: Config = {
+  darkMode: ['selector', '[data-theme="dark"]'],
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -17,35 +18,35 @@ const config: Config = {
     extend: {
       colors: {
         // Intelly Pastel Design System Colors
-        background: "#FDFBF7", // Cream/Beige
-        foreground: "#1E1E1E", // Dark Grey/Black text
+        background: "var(--background)",
+        foreground: "var(--foreground)",
 
         sidebar: {
-          DEFAULT: "#1E1E1E",
-          foreground: "#FFFFFF",
+          DEFAULT: "var(--sidebar-bg)",
+          foreground: "var(--sidebar-fg)",
         },
 
         // Pastel Accents
         pastel: {
-          rose: "#F4C7CF",
-          yellow: "#FBE38E",
-          green: "#C0EBA6",
-          blue: "#A6C8FF",
-          purple: "#E4C1F9",
+          rose: "var(--pastel-pink)",
+          yellow: "var(--pastel-yellow)",
+          green: "var(--pastel-green)",
+          blue: "var(--pastel-blue)",
+          purple: "var(--pastel-purple)",
         },
 
         // Semantic Colors re-mapped to Pastel Theme
         primary: {
-          DEFAULT: "#1E1E1E", // Primary actions are often dark in this theme
-          foreground: "#FFFFFF",
+          DEFAULT: "var(--primary)",
+          foreground: "var(--primary-fg)",
         },
         destructive: {
-          DEFAULT: "#F4C7CF", // Pastel Rose for negative/warn
-          foreground: "#1E1E1E",
+          DEFAULT: "var(--destructive)",
+          foreground: "var(--destructive-fg)",
         },
         financial: {
-          DEFAULT: "#FBE38E", // Pastel Yellow
-          foreground: "#1E1E1E",
+          DEFAULT: "var(--financial)",
+          foreground: "var(--financial-fg)",
         },
 
         // Neutral scale (Warm Greys)
@@ -64,14 +65,14 @@ const config: Config = {
         },
 
         // Border colors
-        border: "#E7E5E4",
-        "border-hover": "#D6D3D1",
+        border: "var(--border)",
+        "border-hover": "var(--border-hover)",
 
         // Keep status colors for utility
-        success: "#C0EBA6",
-        warning: "#FBE38E",
-        error: "#F4C7CF",
-        info: "#A6C8FF",
+        success: "var(--status-success)",
+        warning: "var(--status-warning)",
+        error: "var(--status-error)",
+        info: "var(--status-info)",
       },
       fontFamily: {
         sans: ["var(--font-geist-sans)", "sans-serif"],

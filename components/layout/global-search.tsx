@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD, getBaseOrderId } from "@/lib/utils";
+import { ThemeToggle } from "./theme-toggle";
 
 type SearchCategory = "all" | "orders" | "customers" | "products";
 
@@ -389,6 +390,9 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
 
                 {/* Right Side Actions - Hidden on mobile (available in sidebar) */}
                 <div className="hidden md:flex items-center gap-2">
+                    {/* Theme Toggle */}
+                    <ThemeToggle />
+
                     {/* Notifications */}
                     <button
                         onClick={handleNotificationClick}
