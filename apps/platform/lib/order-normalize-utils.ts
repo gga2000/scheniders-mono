@@ -186,6 +186,8 @@ export function getStatusLabel(status: Order["status"]): string {
         completed: "Completed",
         no_response: "No Response",
         return_pending: "Return Pending",
+        refund_delivered: "Refund Delivered",
+        refund_failed: "Refund Failed",
         pending_checkout: "Pending Checkout",
     };
     return labels[status] || status;
@@ -206,6 +208,8 @@ export function getStatusColor(status: Order["status"]): string {
         completed: "bg-teal-100 text-teal-800",
         no_response: "bg-orange-100 text-orange-800",
         return_pending: "bg-pink-100 text-pink-800",
+        refund_delivered: "bg-pink-200 text-pink-900",
+        refund_failed: "bg-red-200 text-red-900",
         pending_checkout: "bg-indigo-100 text-indigo-800",
     };
     return colors[status] || "bg-gray-100 text-gray-800";

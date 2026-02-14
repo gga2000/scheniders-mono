@@ -79,6 +79,8 @@ export function OrderConfirmationCard({ order, onClose }: OrderConfirmationCardP
         completed: { label: "طلب تام", color: "bg-emerald-200 text-emerald-900" },
         no_response: { label: "لم يرد", color: "bg-slate-100 text-slate-600" },
         return_pending: { label: "استرجاع معلق", color: "bg-rose-200 text-rose-800" },
+        refund_delivered: { label: "تم الاسترجاع", color: "bg-pink-200 text-pink-900" },
+        refund_failed: { label: "فشل الاسترجاع", color: "bg-red-200 text-red-900" },
         pending_checkout: { label: "قيد الدفع", color: "bg-yellow-100 text-yellow-800" },
     };
 
