@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo, Fragment } from "react";
+import { useState, useEffect, useMemo, Fragment, useRef } from "react";
+import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useProductsCrud } from "@/hooks/use-products-crud";
@@ -275,6 +276,32 @@ export default function OrdersPage() {
         return false;
     });
     const [showDatePicker, setShowDatePicker] = useState(false);
+    const dateButtonRef = useRef<HTMLButtonElement>(null);
+    const datePickerRef = useRef<HTMLDivElement>(null);
+    const [datePickerPos, setDatePickerPos] = useState({ top: 0, left: 0 });
+
+    // Update date picker position when opened
+    useEffect(() => {
+        if (showDatePicker && dateButtonRef.current) {
+            const rect = dateButtonRef.current.getBoundingClientRect();
+            setDatePickerPos({ top: rect.bottom + 8, left: rect.left });
+        }
+    }, [showDatePicker]);
+
+    // Close date picker on click outside
+    useEffect(() => {
+        if (!showDatePicker) return;
+        const handleClickOutside = (e: MouseEvent) => {
+            if (
+                dateButtonRef.current && !dateButtonRef.current.contains(e.target as Node) &&
+                datePickerRef.current && !datePickerRef.current.contains(e.target as Node)
+            ) {
+                setShowDatePicker(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [showDatePicker]);
     const [notificationsEnabled, setNotificationsEnabled] = useState(
         typeof window !== "undefined" && notificationService.isEnabled()
     );
@@ -947,8 +974,9 @@ export default function OrdersPage() {
                                             <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">Filter</span>
                                             <div className="flex items-center gap-2">
                                                 {/* Date Picker */}
-                                                <div className="relative">
+                                                <div>
                                                     <button
+                                                        ref={dateButtonRef}
                                                         onClick={() => setShowDatePicker(!showDatePicker)}
                                                         className={cn(
                                                             "px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300 flex items-center gap-2 border",
@@ -964,8 +992,12 @@ export default function OrdersPage() {
                                                                 : "Date Range"}
                                                         </span>
                                                     </button>
-                                                    {showDatePicker && (
-                                                        <div className="absolute left-0 top-full mt-2 z-[100] p-2 bg-white/80 backdrop-blur-xl shadow-2xl rounded-3xl border border-white/20 ring-1 ring-black/5">
+                                                    {showDatePicker && createPortal(
+                                                        <div
+                                                            ref={datePickerRef}
+                                                            className="fixed z-[9999] p-2 bg-white/80 backdrop-blur-xl shadow-2xl rounded-3xl border border-white/20 ring-1 ring-black/5"
+                                                            style={{ top: datePickerPos.top, left: datePickerPos.left }}
+                                                        >
                                                             <DateRangePicker
                                                                 inline
                                                                 dateFrom={filters.dateFrom}
@@ -975,7 +1007,8 @@ export default function OrdersPage() {
                                                                     setShowDatePicker(false);
                                                                 }}
                                                             />
-                                                        </div>
+                                                        </div>,
+                                                        document.body
                                                     )}
                                                 </div>
 
