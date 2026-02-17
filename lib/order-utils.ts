@@ -21,8 +21,8 @@ export function generateOrderId(): string {
 export function validatePhone(phone: string): boolean {
     if (!phone) return false;
 
-    // Remove all spaces and dashes
-    const cleaned = phone.replace(/[\s-]/g, '');
+    // Remove all non-digit and non-plus characters
+    const cleaned = phone.replace(/[^\d+]/g, '');
 
     // Check Iraqi formats
     const patterns = [
@@ -60,8 +60,8 @@ export function validatePhoneDetailed(phone: string | undefined | null): PhoneVa
         };
     }
 
-    // Remove all spaces, dashes, and parentheses
-    let cleaned = phone.replace(/[\s\-\(\)]/g, '');
+    // Remove all non-digit and non-plus characters (handles invisible chars, dots, etc.)
+    let cleaned = phone.replace(/[^\d+]/g, '');
 
     // Normalize: convert +964 or 964 prefix to 0
     if (cleaned.startsWith('+964')) {
@@ -129,7 +129,7 @@ export function validatePhoneDetailed(phone: string | undefined | null): PhoneVa
 export function formatPhoneForDisplay(phone: string | undefined | null): string {
     if (!phone) return '';
 
-    let cleaned = phone.replace(/[\s\-\(\)]/g, '');
+    let cleaned = phone.replace(/[^\d+]/g, '');
 
     // Remove +964 or 964 prefix
     if (cleaned.startsWith('+964')) {
@@ -255,7 +255,7 @@ export function validateOrderForm(data: OrderFormData): ValidationErrors {
  * Converts to +9647XXXXXXXX format
  */
 export function formatPhoneToStandard(phone: string): string {
-    const cleaned = phone.replace(/[\s-]/g, '');
+    const cleaned = phone.replace(/[^\d+]/g, '');
 
     // If starts with 07, replace with +9647
     if (cleaned.startsWith('07')) {

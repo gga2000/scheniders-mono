@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useLanguage } from "@/hooks/use-language";
 import {
     Dialog,
     DialogContent,
@@ -20,6 +21,9 @@ import { OrderTimeline } from "./order-timeline";
 import { PresenceAvatarGroup } from "./presence-avatar-group";
 import { ProductPicker } from "./product-picker";
 import { DiscountPresetSelector } from "./discount-preset-selector";
+import { DiscountBadge } from "./discount-badge";
+import { SplitOrderDialog } from "./split-order-dialog";
+import { useOrdersContext } from "@/components/providers/orders-provider";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
 import {
     MapPin,
@@ -48,6 +52,9 @@ import {
     AlertTriangle,
     RotateCcw,
     Globe,
+    Scissors,
+    Minus,
+    Sun,
 } from "lucide-react";
 
 interface OrderDetailsModalProps {
@@ -80,6 +87,7 @@ export function OrderDetailsModal({
     const [order, setOrder] = useState<Order | null>(propOrder);
     const governorates = getAllGovernorateCodes();
     const isMobile = useIsMobile();
+    const { t } = useLanguage();
 
     // Sync local state with prop updates
     useEffect(() => {
@@ -105,6 +113,20 @@ export function OrderDetailsModal({
     const [returnReason, setReturnReason] = useState("");
     const [deductDeliveryFee, setDeductDeliveryFee] = useState(false);
     const [isCreatingReturn, setIsCreatingReturn] = useState(false);
+    // Split Order state
+    const [showSplitDialog, setShowSplitDialog] = useState(false);
+    const { splitOrder } = useOrdersContext();
+
+    const handleSplitOrder = async (kept: any[], returned: any[]) => {
+        if (!order || !splitOrder) return;
+        const result = await splitOrder(order.id, kept, returned);
+        if (result.success) {
+            onClose(); // Close modal as the order is now split and changed significantly
+            // Optionally show toast success
+        } else {
+            alert("Failed to split: " + result.error);
+        }
+    };
 
     // ID Edit State
     const [isEditingId, setIsEditingId] = useState(false);
@@ -185,6 +207,8 @@ export function OrderDetailsModal({
         setDeleteCountdown(5);
     };
 
+
+
     const startIdEdit = () => {
         setTempOrderId(getBaseOrderId(order?.order_id || ""));
         setIdError(null);
@@ -202,7 +226,7 @@ export function OrderDetailsModal({
         setIdError(null);
 
         if (!val.trim()) {
-            setIdError("ID cannot be empty");
+            setIdError(t("orderDetail.idEmpty"));
             return;
         }
 
@@ -211,7 +235,7 @@ export function OrderDetailsModal({
             const exists = await checkOrderIdExists(val, order?.id);
             setIsCheckingId(false);
             if (exists) {
-                setIdError("This ID is already used by another order!");
+                setIdError(t("orderDetail.idExists"));
             }
         }
     };
@@ -281,7 +305,7 @@ export function OrderDetailsModal({
             setIsEditing(false);
             setFormData({});
         } else {
-            alert(`فشل الحفظ: ${result.error}`);
+            alert(`${t("orderDetail.saveFailed")} ${result.error}`);
         }
 
         setIsSaving(false);
@@ -302,7 +326,7 @@ export function OrderDetailsModal({
                 setNotes(updatedNotes);
             }
         } else {
-            alert(`فشل إضافة الملاحظة: ${result.error}`);
+            alert(`${t("orderDetail.noteFailed")} ${result.error}`);
         }
         setIsAddingNote(false);
     };
@@ -319,7 +343,7 @@ export function OrderDetailsModal({
 
         let rejectionReason: string | undefined;
         if (newStatus === "cancelled") {
-            const promptResult = prompt("سبب الإلغاء (اختياري):");
+            const promptResult = prompt(t("orderDetail.cancelReason"));
             if (promptResult === null) {
                 // User cancelled, revert
                 setOrder(prev => prev ? { ...prev, status: previousStatus } : null);
@@ -332,7 +356,7 @@ export function OrderDetailsModal({
         const result = await onStatusUpdate(order.id, newStatus, rejectionReason);
 
         if (!result.success) {
-            alert(`فشل تحديث الحالة: ${result.error}`);
+            alert(`${t("orderDetail.statusFailed")} ${result.error}`);
             // Revert on failure
             setOrder(prev => prev ? { ...prev, status: previousStatus } : null);
         }
@@ -427,8 +451,7 @@ export function OrderDetailsModal({
         // Return to New option (only for contacted orders)
         ...(showReturnToNew ? [{
             status: "new" as Order["status"],
-            label: "Return New",
-            labelAr: "إرجاع جديد",
+            label: t("orderDetail.newReturn"),
             icon: Clock,
             bgColor: "bg-orange-100",
             textColor: "text-orange-900",
@@ -437,8 +460,7 @@ export function OrderDetailsModal({
         }] : []),
         {
             status: "contacted" as Order["status"],
-            label: "Contacted",
-            labelAr: "تم الاتصال",
+            label: t("orderDetail.contacted"),
             icon: PhoneCall,
             bgColor: "bg-[var(--pastel-yellow)]",
             textColor: "text-amber-900",
@@ -447,8 +469,7 @@ export function OrderDetailsModal({
         },
         {
             status: "confirmed" as Order["status"],
-            label: "Confirmed",
-            labelAr: "مؤكد",
+            label: t("orderDetail.confirmed"),
             icon: CheckCircle,
             bgColor: "bg-[var(--pastel-green)]",
             textColor: "text-green-900",
@@ -457,8 +478,7 @@ export function OrderDetailsModal({
         },
         {
             status: "delivered" as Order["status"],
-            label: "Delivered",
-            labelAr: "تم التوصيل",
+            label: t("orderDetail.delivered"),
             icon: Truck,
             bgColor: "bg-[var(--pastel-mint)]",
             textColor: "text-teal-900",
@@ -467,8 +487,7 @@ export function OrderDetailsModal({
         },
         {
             status: "cancelled" as Order["status"],
-            label: "Cancel",
-            labelAr: "إلغاء",
+            label: t("orderDetail.cancel"),
             icon: XCircle,
             bgColor: "bg-[var(--pastel-pink)]",
             textColor: "text-rose-900",
@@ -528,9 +547,9 @@ export function OrderDetailsModal({
                                                     <AlertTriangle className="w-8 h-8 text-red-600" />
                                                 </div>
                                                 <div>
-                                                    <h3 className="text-xl font-bold text-gray-900">Warning: Changing Order ID</h3>
+                                                    <h3 className="text-xl font-bold text-gray-900">{t("orderDetail.warningChangeId")}</h3>
                                                     <p className="text-sm text-gray-500 mt-2">
-                                                        Changing the Order ID is a critical action. It may affect tracking and referencing.
+                                                        {t("orderDetail.warningChangeIdDesc")}
                                                     </p>
                                                     <div className="mt-4 p-3 bg-gray-50 rounded-xl border border-gray-100">
                                                         <div className="flex items-center justify-center gap-2 text-sm">
@@ -548,18 +567,18 @@ export function OrderDetailsModal({
                                                         className="w-full py-3 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all relative overflow-hidden"
                                                     >
                                                         {idCountdown > 0 ? (
-                                                            <span>Wait {idCountdown}s...</span>
+                                                            <span>{t("orderDetail.waitConfirm").replace("{n}", String(idCountdown))}</span>
                                                         ) : isSavingId ? (
-                                                            <span>Saving...</span>
+                                                            <span>{t("orderDetail.saving")}</span>
                                                         ) : (
-                                                            <span>Confirm Change</span>
+                                                            <span>{t("orderDetail.confirmChange")}</span>
                                                         )}
                                                     </button>
                                                     <button
                                                         onClick={() => setShowIdWarning(false)}
                                                         className="mt-3 text-sm text-muted hover:text-foreground font-medium"
                                                     >
-                                                        Cancel
+                                                        {t("orderDetail.cancel")}
                                                     </button>
                                                 </div>
                                             </div>
@@ -623,7 +642,7 @@ export function OrderDetailsModal({
                                     )}
                                 >
                                     <History className="h-3.5 w-3.5" />
-                                    السجل
+                                    {t("orderDetail.history")}
                                 </button>
                                 {/* Edit Button */}
                                 {!isEditing && (
@@ -632,7 +651,7 @@ export function OrderDetailsModal({
                                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--background)] border border-[var(--card-border)] text-foreground hover:bg-[var(--card-border)] transition-all text-xs font-medium"
                                     >
                                         <Edit2 className="h-3.5 w-3.5" />
-                                        تعديل
+                                        {t("orderDetail.edit")}
                                     </button>
                                 )}
                                 {/* Return Button - Only for delivered/completed orders */}
@@ -642,7 +661,7 @@ export function OrderDetailsModal({
                                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 transition-all text-xs font-medium"
                                     >
                                         <RotateCcw className="h-3.5 w-3.5" />
-                                        استرجاع
+                                        {t("orderDetail.return")}
                                     </button>
                                 )}
                                 {/* Refund Status Buttons - Moved to Customer Card */}
@@ -650,15 +669,12 @@ export function OrderDetailsModal({
                         </div>
 
                         {/* Quick Actions Row - Mobile Optimized */}
+                        {/* Quick Actions Row - Mobile Optimized */}
                         {!isEditing && (
-                            <div className="py-3 border-y border-[var(--card-border)] space-y-3">
-                                {/* Status Actions - Mobile-first grid layout */}
+                            <div className="py-3 border-y border-[var(--card-border)] flex flex-wrap items-center gap-2">
+                                {/* Status Actions */}
                                 {onStatusUpdate && (
-                                    <div className={cn(
-                                        "grid gap-2",
-                                        // Mobile: 2 columns with larger buttons
-                                        "grid-cols-2 md:flex md:flex-wrap md:items-center"
-                                    )}>
+                                    <div className="flex flex-wrap items-center gap-2">
                                         {quickActions.map((action) => {
                                             const Icon = action.icon;
                                             const isCurrentStatus = order.status === action.status;
@@ -668,142 +684,82 @@ export function OrderDetailsModal({
                                                     onClick={() => handleStatusChange(action.status)}
                                                     disabled={isUpdatingStatus || isCurrentStatus}
                                                     className={cn(
-                                                        // Base styles
-                                                        "flex items-center justify-center gap-2 font-semibold transition-all",
-                                                        // Mobile: Large touch targets (48px min height)
-                                                        "min-h-[48px] px-4 py-3 rounded-2xl text-sm",
-                                                        // Desktop: Smaller
-                                                        "md:min-h-0 md:px-3 md:py-1.5 md:rounded-lg md:text-xs md:font-medium",
-                                                        // Active/Current state
+                                                        "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
                                                         isCurrentStatus
-                                                            ? "bg-[var(--foreground)] text-white ring-2 ring-offset-2 ring-[var(--foreground)] shadow-lg"
-                                                            : cn(action.bgColor, action.textColor, action.hoverColor, "active:scale-95 shadow-sm"),
-                                                        // Loading state
+                                                            ? "bg-[var(--foreground)] text-white ring-2 ring-offset-1 ring-[var(--foreground)] shadow-sm"
+                                                            : cn(action.bgColor, action.textColor, action.hoverColor, "active:scale-95 border border-transparent hover:border-black/5"),
                                                         isUpdatingStatus && "opacity-50 cursor-wait"
                                                     )}
                                                 >
-                                                    <Icon className="w-5 h-5 md:w-3.5 md:h-3.5" />
-                                                    <span>{action.labelAr}</span>
+                                                    <Icon className="w-3.5 h-3.5" />
+                                                    <span>{action.label}</span>
                                                 </button>
                                             );
                                         })}
                                     </div>
                                 )}
 
-                                {/* Secondary Actions Row - Priority, Schedule, Return */}
-                                <div className="flex flex-wrap items-center gap-2">
-                                    {/* Priority Buttons */}
-                                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                                        {[
-                                            { value: 'normal', label: 'عادي', bg: 'bg-gray-100', text: 'text-gray-700', hover: 'hover:bg-gray-200' },
-                                            { value: 'high', label: 'هام', bg: 'bg-amber-100', text: 'text-amber-800', hover: 'hover:bg-amber-200', icon: Flag },
-                                            { value: 'urgent', label: 'عاجل', bg: 'bg-red-100', text: 'text-red-800', hover: 'hover:bg-red-200', icon: Flame },
-                                        ].map((p) => {
-                                            const Icon = p.icon;
-                                            const isActive = order.priority === p.value || (!order.priority && p.value === 'normal');
-                                            return (
-                                                <button
-                                                    key={p.value}
-                                                    onClick={async () => {
-                                                        if (!order) return;
-                                                        const oldPriority = order.priority;
-                                                        const newPriority = p.value as Order["priority"];
-                                                        setOrder(prev => prev ? { ...prev, priority: newPriority } : null);
+                                {/* Priority & Schedule Icons (Right Side) */}
+                                <div className="flex items-center gap-1.5 ml-auto border-l border-[var(--card-border)] pl-2">
+                                    {/* Priority Icons */}
+                                    {[
+                                        { value: 'normal', label: t("orderDetail.priority.normal"), icon: Minus, color: "text-gray-500 hover:bg-gray-100" },
+                                        { value: 'high', label: t("orderDetail.priority.high"), icon: Flag, color: "text-amber-600 hover:bg-amber-50" },
+                                        { value: 'urgent', label: t("orderDetail.priority.urgent"), icon: Flame, color: "text-red-600 hover:bg-red-50" },
+                                    ].map((p) => {
+                                        const Icon = p.icon;
+                                        const isActive = order.priority === p.value || (!order.priority && p.value === 'normal');
+                                        return (
+                                            <button
+                                                key={p.value}
+                                                onClick={async () => {
+                                                    if (!order) return;
+                                                    const oldPriority = order.priority;
+                                                    const newPriority = p.value as Order["priority"];
+                                                    setOrder(prev => prev ? { ...prev, priority: newPriority } : null);
 
-                                                        const result = await onUpdate(order.id, { priority: newPriority } as Partial<Order>);
-                                                        if (!result.success) {
-                                                            setOrder(prev => prev ? { ...prev, priority: oldPriority } : null);
-                                                        }
-                                                    }}
-                                                    className={cn(
-                                                        "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95",
-                                                        isActive
-                                                            ? "bg-[var(--foreground)] text-white"
-                                                            : cn(p.bg, p.text, p.hover)
-                                                    )}
-                                                >
-                                                    {Icon && <Icon className="w-3 h-3" />}
-                                                    {p.label}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
+                                                    const result = await onUpdate(order.id, { priority: newPriority } as Partial<Order>);
+                                                    if (!result.success) {
+                                                        setOrder(prev => prev ? { ...prev, priority: oldPriority } : null);
+                                                    }
+                                                }}
+                                                className={cn(
+                                                    "w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95",
+                                                    isActive
+                                                        ? "bg-[var(--foreground)] text-white shadow-sm"
+                                                        : p.color
+                                                )}
+                                                title={p.label}
+                                            >
+                                                <Icon className="w-4 h-4" />
+                                            </button>
+                                        );
+                                    })}
 
-                                    {/* Schedule Buttons */}
-                                    <div className="relative flex items-center gap-1.5">
-                                        <button
-                                            onClick={() => {
-                                                setTempDate(order.scheduled_date || new Date().toISOString().split('T')[0]);
-                                                setShowDatePicker(!showDatePicker);
-                                            }}
-                                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all bg-blue-100 text-blue-700 hover:bg-blue-200 active:scale-95"
-                                        >
-                                            <CalendarDays className="w-3.5 h-3.5" />
-                                            {order.scheduled_date
-                                                ? new Date(order.scheduled_date).toLocaleDateString('ar-IQ', { day: 'numeric', month: 'short' })
-                                                : 'موعد'
+                                    {/* Tomorrow Icon */}
+                                    <button
+                                        onClick={async () => {
+                                            if (!order) return;
+                                            const tomorrow = new Date();
+                                            tomorrow.setDate(tomorrow.getDate() + 1);
+                                            const dateStr = tomorrow.toISOString().split('T')[0];
+
+                                            const oldDate = order.scheduled_date;
+                                            setOrder(prev => prev ? { ...prev, scheduled_date: dateStr } : null);
+
+                                            const result = await onUpdate(order.id, { scheduled_date: dateStr } as Partial<Order>);
+                                            if (!result.success) {
+                                                setOrder(prev => prev ? { ...prev, scheduled_date: oldDate } : null);
                                             }
-                                        </button>
-
-                                        {/* Date Picker Dropdown */}
-                                        {showDatePicker && (
-                                            <div className="absolute top-full left-0 mt-1 p-3 bg-white border border-gray-200 rounded-xl shadow-xl z-50 min-w-[200px]">
-                                                <label className="block text-xs text-muted mb-1.5">موعد التوصيل</label>
-                                                <input
-                                                    type="date"
-                                                    value={tempDate}
-                                                    onChange={(e) => setTempDate(e.target.value)}
-                                                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100"
-                                                />
-                                                <div className="flex gap-2 mt-2">
-                                                    <button
-                                                        onClick={() => setShowDatePicker(false)}
-                                                        className="flex-1 px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 transition-all"
-                                                    >
-                                                        إلغاء
-                                                    </button>
-                                                    <button
-                                                        onClick={async () => {
-                                                            if (!order || !tempDate) return;
-                                                            const oldDate = order.scheduled_date;
-                                                            setOrder(prev => prev ? { ...prev, scheduled_date: tempDate } : null);
-                                                            setShowDatePicker(false);
-
-                                                            const result = await onUpdate(order.id, { scheduled_date: tempDate } as Partial<Order>);
-                                                            if (!result.success) {
-                                                                setOrder(prev => prev ? { ...prev, scheduled_date: oldDate } : null);
-                                                            }
-                                                        }}
-                                                        className="flex-1 px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
-                                                    >
-                                                        حفظ
-                                                    </button>
-                                                </div>
-                                            </div>
+                                        }}
+                                        className={cn(
+                                            "w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-blue-600 hover:bg-blue-50",
+                                            order.scheduled_date === new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0] && "bg-blue-100 ring-1 ring-blue-200"
                                         )}
-
-                                        <button
-                                            onClick={async () => {
-                                                if (!order) return;
-                                                const tomorrow = new Date();
-                                                tomorrow.setDate(tomorrow.getDate() + 1);
-                                                const dateStr = tomorrow.toISOString().split('T')[0];
-
-                                                const oldDate = order.scheduled_date;
-                                                setOrder(prev => prev ? { ...prev, scheduled_date: dateStr } : null);
-
-                                                const result = await onUpdate(order.id, { scheduled_date: dateStr } as Partial<Order>);
-                                                if (!result.success) {
-                                                    setOrder(prev => prev ? { ...prev, scheduled_date: oldDate } : null);
-                                                }
-                                            }}
-                                            className="px-2.5 py-1.5 text-xs rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all active:scale-95"
-                                        >
-                                            غداً
-                                        </button>
-                                    </div>
-
-
+                                        title={t("orderDetail.tomorrow")}
+                                    >
+                                        <Sun className="w-4 h-4" />
+                                    </button>
                                 </div>
                             </div>
                         )}
@@ -814,36 +770,36 @@ export function OrderDetailsModal({
                                 <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
                                     <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
                                         <RotateCcw className="w-5 h-5 text-red-600" />
-                                        إنشاء طلب استرجاع
+                                        {t("orderDetail.createReturn")}
                                     </h3>
 
                                     <div className="space-y-4">
                                         {/* Order Info */}
                                         <div className="bg-gray-50 p-3 rounded-xl text-sm">
-                                            <p className="text-muted">الطلب الأصلي:</p>
+                                            <p className="text-muted">{t("orderDetail.originalOrder")}</p>
                                             <p className="font-bold">#{getBaseOrderId(order.order_id)} - {order.customer_name}</p>
-                                            <p className="text-muted">المبلغ: {formatIQD(order.price)}</p>
+                                            <p className="text-muted">{t("orderDetail.amount")} {formatIQD(order.price)}</p>
                                         </div>
 
                                         {/* Reason Input */}
                                         <div>
                                             <label className="block text-sm font-medium text-foreground mb-1.5">
-                                                سبب الاسترجاع
+                                                {t("orderDetail.returnReason")}
                                             </label>
                                             <select
                                                 value={returnReason}
                                                 onChange={(e) => setReturnReason(e.target.value)}
                                                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-100 bg-white"
                                             >
-                                                <option value="">-- اختر سبب الاسترجاع --</option>
-                                                <option value="لم يعجب الزبون المنتج">لم يعجب الزبون المنتج</option>
-                                                <option value="المنتج تالف أو معيب">المنتج تالف أو معيب</option>
-                                                <option value="المنتج خاطئ">المنتج خاطئ</option>
-                                                <option value="تأخر التوصيل">تأخر التوصيل</option>
-                                                <option value="الزبون غير موجود">الزبون غير موجود</option>
-                                                <option value="الزبون ألغى الطلب">الزبون ألغى الطلب</option>
-                                                <option value="العنوان غير صحيح">العنوان غير صحيح</option>
-                                                <option value="سبب آخر">سبب آخر</option>
+                                                <option value="">{t("orderDetail.selectReturnReason")}</option>
+                                                <option value="لم يعجب الزبون المنتج">{t("orderDetail.reason.didntLike")}</option>
+                                                <option value="المنتج تالف أو معيب">{t("orderDetail.reason.damaged")}</option>
+                                                <option value="المنتج خاطئ">{t("orderDetail.reason.wrong")}</option>
+                                                <option value="تأخر التوصيل">{t("orderDetail.reason.lateDelivery")}</option>
+                                                <option value="الزبون غير موجود">{t("orderDetail.reason.notFound")}</option>
+                                                <option value="الزبون ألغى الطلب">{t("orderDetail.reason.cancelled")}</option>
+                                                <option value="العنوان غير صحيح">{t("orderDetail.reason.wrongAddress")}</option>
+                                                <option value="سبب آخر">{t("orderDetail.reason.other")}</option>
                                             </select>
                                         </div>
 
@@ -856,14 +812,14 @@ export function OrderDetailsModal({
                                                 className="w-5 h-5 rounded border-amber-300 text-amber-600 focus:ring-amber-200"
                                             />
                                             <div>
-                                                <p className="font-medium text-amber-800">خصم رسوم التوصيل</p>
-                                                <p className="text-xs text-amber-600">سيتم خصم 5,000 IQD من مبلغ الاسترجاع</p>
+                                                <p className="font-medium text-amber-800">{t("orderDetail.deductDeliveryFee")}</p>
+                                                <p className="text-xs text-amber-600">{t("orderDetail.deductDeliveryDesc")}</p>
                                             </div>
                                         </label>
 
                                         {/* Preview */}
                                         <div className="bg-red-50 p-3 rounded-xl border border-red-100">
-                                            <p className="text-sm text-red-700">مبلغ الاسترجاع:</p>
+                                            <p className="text-sm text-red-700">{t("orderDetail.refundAmount")}</p>
                                             <p className="text-2xl font-bold text-red-700">
                                                 -{formatIQD(Number(order.price) - (deductDeliveryFee ? 5000 : 0))}
                                             </p>
@@ -880,16 +836,16 @@ export function OrderDetailsModal({
                                             }}
                                             className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-all"
                                         >
-                                            إلغاء
+                                            {t("orderDetail.cancel")}
                                         </button>
                                         <button
                                             onClick={async () => {
                                                 if (!returnReason) {
-                                                    alert("الرجاء اختيار سبب الاسترجاع");
+                                                    alert(t("orderDetail.selectReasonError"));
                                                     return;
                                                 }
                                                 if (!onCreateReturn) {
-                                                    alert("خطأ: لا يمكن إنشاء الاسترجاع من هذا السياق");
+                                                    alert(t("orderDetail.noReturnContext"));
                                                     return;
                                                 }
                                                 setIsCreatingReturn(true);
@@ -906,11 +862,11 @@ export function OrderDetailsModal({
                                                         setDeductDeliveryFee(false);
                                                         onClose();
                                                     } else {
-                                                        alert(result.error || "حدث خطأ أثناء إنشاء الاسترجاع");
+                                                        alert(result.error || t("orderDetail.returnError"));
                                                     }
                                                 } catch (err) {
                                                     setIsCreatingReturn(false);
-                                                    alert(`حدث خطأ: ${err instanceof Error ? err.message : "خطأ غير معروف"}`);
+                                                    alert(`${t("orderDetail.returnError")}: ${err instanceof Error ? err.message : "Unknown error"}`);
                                                 }
                                             }}
                                             disabled={isCreatingReturn || !returnReason}
@@ -921,7 +877,7 @@ export function OrderDetailsModal({
                                             ) : (
                                                 <RotateCcw className="w-4 h-4" />
                                             )}
-                                            إنشاء الاسترجاع
+                                            {t("orderDetail.confirmReturn")}
                                         </button>
                                     </div>
                                 </div>
@@ -941,7 +897,7 @@ export function OrderDetailsModal({
                                 <textarea
                                     value={newNote}
                                     onChange={(e) => setNewNote(e.target.value)}
-                                    placeholder="Add an internal note..."
+                                    placeholder={t("orderDetail.addNoteInternal")}
                                     className="w-full text-sm bg-white border border-gray-200 rounded-lg p-3 min-h-[80px] focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none mb-2"
                                 />
                                 <div className="flex justify-end">
@@ -955,7 +911,7 @@ export function OrderDetailsModal({
                                         ) : (
                                             <Save className="w-3 h-3" />
                                         )}
-                                        Save Note
+                                        {t("orderDetail.saveNote")}
                                     </button>
                                 </div>
                             </div>
@@ -963,7 +919,7 @@ export function OrderDetailsModal({
                             {loadingTimeline ? (
                                 <div className="text-center py-8">
                                     <div className="w-6 h-6 border-2 border-[var(--foreground)] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                                    <p className="text-sm text-muted">Loading timeline...</p>
+                                    <p className="text-sm text-muted">{t("orderDetail.loadingTimeline")}</p>
                                 </div>
                             ) : (
                                 <OrderTimeline statusHistory={timeline} notes={notes} />
@@ -980,7 +936,7 @@ export function OrderDetailsModal({
                                 <div className="px-4 py-3 bg-[var(--background)] border-b border-[var(--card-border)] flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                         <User className="h-4 w-4 text-muted" />
-                                        <span className="font-semibold text-foreground">معلومات العميل</span>
+                                        <span className="font-semibold text-foreground">{t("orderDetail.customerInfo")}</span>
                                     </div>
                                     {/* Refund Status Buttons - Only for return orders in return_pending status */}
                                     {order.is_return && order.status === "return_pending" && onStatusUpdate && (
@@ -991,7 +947,7 @@ export function OrderDetailsModal({
                                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-all text-xs font-medium disabled:opacity-50"
                                             >
                                                 <CheckCircle className="h-3.5 w-3.5" />
-                                                تم الاسترجاع
+                                                {t("orderDetail.refundDelivered")}
                                             </button>
                                             <button
                                                 onClick={() => handleStatusChange("refund_failed")}
@@ -999,7 +955,7 @@ export function OrderDetailsModal({
                                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition-all text-xs font-medium disabled:opacity-50"
                                             >
                                                 <XCircle className="h-3.5 w-3.5" />
-                                                فشل الاسترجاع
+                                                {t("orderDetail.refundFailed")}
                                             </button>
                                         </div>
                                     )}
@@ -1010,7 +966,7 @@ export function OrderDetailsModal({
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                         {/* Name */}
                                         <div>
-                                            <span className="text-xs text-muted uppercase tracking-wider block mb-1">الاسم</span>
+                                            <span className="text-xs text-muted uppercase tracking-wider block mb-1">{t("orderDetail.name")}</span>
                                             {isEditing ? (
                                                 <input
                                                     value={displayValue("customer_name") as string}
@@ -1018,12 +974,14 @@ export function OrderDetailsModal({
                                                     className="w-full h-[38px] px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-medium focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
                                                 />
                                             ) : (
-                                                <p className="text-base font-bold text-foreground">{order.customer_name}</p>
+                                                <div className="h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg">
+                                                    <p className="text-sm font-medium text-foreground">{order.customer_name}</p>
+                                                </div>
                                             )}
                                         </div>
                                         {/* Governorate */}
                                         <div>
-                                            <span className="text-xs text-muted uppercase tracking-wider block mb-1">المحافظة</span>
+                                            <span className="text-xs text-muted uppercase tracking-wider block mb-1">{t("orderDetail.province")}</span>
                                             {isEditing ? (
                                                 <div className="relative">
                                                     <select
@@ -1038,7 +996,7 @@ export function OrderDetailsModal({
                                                         }}
                                                         className="w-full h-[38px] px-3 pr-8 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
                                                     >
-                                                        <option value="" disabled>اختر المحافظة...</option>
+                                                        <option value="" disabled>{t("orderDetail.selectProvince")}</option>
                                                         {governorates.map((gov) => (
                                                             <option key={gov.code} value={gov.nameAr}>
                                                                 {gov.nameAr}
@@ -1050,12 +1008,14 @@ export function OrderDetailsModal({
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <p className="text-base font-medium text-foreground">{order.city || "—"}</p>
+                                                <div className="h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg">
+                                                    <p className="text-sm font-medium text-foreground">{order.city || "—"}</p>
+                                                </div>
                                             )}
                                         </div>
                                         {/* Governorate Code */}
                                         <div>
-                                            <span className="text-xs text-muted uppercase tracking-wider block mb-1">كود المحافظة</span>
+                                            <span className="text-xs text-muted uppercase tracking-wider block mb-1">{t("orderDetail.provinceCode")}</span>
                                             {isEditing ? (
                                                 <div className="relative">
                                                     <select
@@ -1065,7 +1025,7 @@ export function OrderDetailsModal({
                                                         }}
                                                         className="w-full h-[38px] px-3 pr-8 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-mono font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
                                                     >
-                                                        <option value="">بدون كود</option>
+                                                        <option value="">{t("orderDetail.noCode")}</option>
                                                         {governorates.map((gov) => (
                                                             <option key={gov.code} value={gov.code}>
                                                                 {gov.code} - {gov.nameAr}
@@ -1077,18 +1037,20 @@ export function OrderDetailsModal({
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <p className="text-base font-medium text-foreground font-mono">
-                                                    {(() => {
-                                                        const code = order.governorate_code || order.validated_governorate_code;
-                                                        if (code) return code;
-                                                        // If not stored, extract from city
-                                                        if (order.city) {
-                                                            const { governorate } = extractGovernorate(order.city, undefined, order.address_details);
-                                                            if (governorate?.code) return governorate.code;
-                                                        }
-                                                        return <span className="text-muted">—</span>;
-                                                    })()}
-                                                </p>
+                                                <div className="h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg">
+                                                    <p className="text-sm font-medium text-foreground font-mono">
+                                                        {(() => {
+                                                            const code = order.governorate_code || order.validated_governorate_code;
+                                                            if (code) return code;
+                                                            // If not stored, extract from city
+                                                            if (order.city) {
+                                                                const { governorate } = extractGovernorate(order.city, undefined, order.address_details);
+                                                                if (governorate?.code) return governorate.code;
+                                                            }
+                                                            return <span className="text-muted">—</span>;
+                                                        })()}
+                                                    </p>
+                                                </div>
                                             )}
                                         </div>
                                     </div>
@@ -1097,7 +1059,7 @@ export function OrderDetailsModal({
                                     <div>
                                         <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1 mb-1">
                                             <MapPin className="h-3 w-3" />
-                                            العنوان الكامل
+                                            {t("orderDetail.fullAddress")}
                                             {(!order.address_details || order.address_details.trim() === '') && (
                                                 <span className="relative flex h-2.5 w-2.5 ml-1" title="لا يوجد تفاصيل عنوان">
                                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75" />
@@ -1113,8 +1075,8 @@ export function OrderDetailsModal({
                                                 className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[var(--card-border)] resize-none"
                                             />
                                         ) : (
-                                            <p className="text-sm font-medium text-foreground bg-[var(--background)] px-3 py-2.5 rounded-lg leading-relaxed">
-                                                {order.address_details || "لم يتم تحديد العنوان"}
+                                            <p className="text-sm font-medium text-foreground bg-[var(--background)] border border-[var(--card-border)] px-3 py-2.5 rounded-lg leading-relaxed min-h-[38px] flex items-center">
+                                                {order.address_details || t("orderDetail.noAddress")}
                                             </p>
                                         )}
                                     </div>
@@ -1125,7 +1087,7 @@ export function OrderDetailsModal({
                                         <div>
                                             <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1">
                                                 <Phone className="w-3 h-3" />
-                                                الرقم الأساسي
+                                                {t("orderDetail.primaryPhone")}
                                                 {!isEditing && !validatePhoneDetailed(order.phone).isValid && (
                                                     <span className="relative flex h-2.5 w-2.5 ml-1">
                                                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
@@ -1160,15 +1122,20 @@ export function OrderDetailsModal({
                                                         )}
                                                     </div>
                                                 ) : (
-                                                    <span
-                                                        className={cn(
-                                                            "flex-1 font-mono text-base",
-                                                            !validatePhoneDetailed(order.phone).isValid && "text-red-600"
-                                                        )}
-                                                        dir="ltr"
-                                                    >
-                                                        {formatPhoneForDisplay(order.phone) || "—"}
-                                                    </span>
+                                                    <div className={cn(
+                                                        "flex-1 h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg",
+                                                        !validatePhoneDetailed(order.phone).isValid && "border-red-200 bg-red-50"
+                                                    )}>
+                                                        <span
+                                                            className={cn(
+                                                                "font-mono text-sm font-medium text-foreground",
+                                                                !validatePhoneDetailed(order.phone).isValid && "text-red-600"
+                                                            )}
+                                                            dir="ltr"
+                                                        >
+                                                            {formatPhoneForDisplay(order.phone) || "—"}
+                                                        </span>
+                                                    </div>
                                                 )}
                                                 <button
                                                     onClick={handleWhatsApp}
@@ -1179,7 +1146,7 @@ export function OrderDetailsModal({
                                                             ? "bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)]"
                                                             : "bg-gray-200 text-gray-400 cursor-not-allowed"
                                                     )}
-                                                    title={validatePhoneDetailed(order.phone).isValid ? "واتساب" : validatePhoneDetailed(order.phone).errorMessageAr}
+                                                    title={validatePhoneDetailed(order.phone).isValid ? t("orderDetail.whatsApp") : validatePhoneDetailed(order.phone).errorMessageAr}
                                                 >
                                                     <MessageCircle className="h-4 w-4" />
                                                 </button>
@@ -1189,7 +1156,7 @@ export function OrderDetailsModal({
                                         <div>
                                             <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1">
                                                 <Phone className="w-3 h-3" />
-                                                الرقم الثانوي
+                                                {t("orderDetail.secondaryPhone")}
                                                 {!isEditing && order.secondary_phone && !validatePhoneDetailed(order.secondary_phone).isValid && (
                                                     <span className="relative flex h-2.5 w-2.5 ml-1">
                                                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
@@ -1204,7 +1171,7 @@ export function OrderDetailsModal({
                                                             value={(displayValue("secondary_phone") || "") as string}
                                                             onChange={(e) => updateFormData("secondary_phone", e.target.value)}
                                                             dir="ltr"
-                                                            placeholder="اختياري"
+                                                            placeholder={t("orderDetail.optional")}
                                                             className={cn(
                                                                 "w-full h-[38px] px-3 bg-[var(--background)] border rounded-lg text-foreground font-mono focus:outline-none focus:ring-2",
                                                                 (displayValue("secondary_phone") as string) && !validatePhoneDetailed(displayValue("secondary_phone") as string).isValid
@@ -1225,15 +1192,20 @@ export function OrderDetailsModal({
                                                         )}
                                                     </div>
                                                 ) : (
-                                                    <span
-                                                        className={cn(
-                                                            "flex-1 font-mono text-base",
-                                                            order.secondary_phone && !validatePhoneDetailed(order.secondary_phone).isValid && "text-red-600"
-                                                        )}
-                                                        dir="ltr"
-                                                    >
-                                                        {formatPhoneForDisplay(order.secondary_phone) || "—"}
-                                                    </span>
+                                                    <div className={cn(
+                                                        "flex-1 h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg",
+                                                        order.secondary_phone && !validatePhoneDetailed(order.secondary_phone).isValid && "border-red-200 bg-red-50"
+                                                    )}>
+                                                        <span
+                                                            className={cn(
+                                                                "font-mono text-sm font-medium text-foreground",
+                                                                order.secondary_phone && !validatePhoneDetailed(order.secondary_phone).isValid && "text-red-600"
+                                                            )}
+                                                            dir="ltr"
+                                                        >
+                                                            {formatPhoneForDisplay(order.secondary_phone) || "—"}
+                                                        </span>
+                                                    </div>
                                                 )}
                                                 {order.secondary_phone && validatePhoneDetailed(order.secondary_phone).isValid && (
                                                     <button
@@ -1245,7 +1217,7 @@ export function OrderDetailsModal({
                                                             window.open(link, "_blank");
                                                         }}
                                                         className="w-9 h-9 rounded-lg bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)] transition-all flex items-center justify-center flex-shrink-0"
-                                                        title="واتساب"
+                                                        title={t("orderDetail.whatsApp")}
                                                     >
                                                         <MessageCircle className="h-4 w-4" />
                                                     </button>
@@ -1260,7 +1232,7 @@ export function OrderDetailsModal({
                                         <div>
                                             <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1">
                                                 <Calendar className="w-3 h-3" />
-                                                تاريخ الطلب
+                                                {t("orderDetail.orderDate")}
                                             </span>
                                             {isEditing ? (
                                                 <DateTimePicker
@@ -1288,20 +1260,20 @@ export function OrderDetailsModal({
                                         <div>
                                             <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1">
                                                 <Truck className="w-3 h-3" />
-                                                رقم شركة التوصيل (اختياري)
+                                                {t("orderDetail.trackingNo")}
                                             </span>
                                             {isEditing ? (
                                                 <input
                                                     value={(displayValue("delivery_order_id") || "") as string}
                                                     onChange={(e) => updateFormData("delivery_order_id", e.target.value)}
                                                     dir="ltr"
-                                                    placeholder="مثال: DHL-12345"
+                                                    placeholder={t("orderDetail.trackingPlaceholder")}
                                                     className="w-full h-[38px] px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
                                                 />
                                             ) : (
                                                 <div className="h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg">
                                                     <span className="font-mono text-sm text-foreground">
-                                                        {order.delivery_order_id || <span className="text-muted">لم يتم التحديد</span>}
+                                                        {order.delivery_order_id || <span className="text-muted">{t("orderDetail.notSet")}</span>}
                                                     </span>
                                                 </div>
                                             )}
@@ -1310,7 +1282,7 @@ export function OrderDetailsModal({
                                         <div>
                                             <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1">
                                                 <Globe className="w-3 h-3" />
-                                                المصدر
+                                                {t("orderDetail.source")}
                                             </span>
                                             {isEditing ? (
                                                 <div className="relative">
@@ -1324,7 +1296,7 @@ export function OrderDetailsModal({
                                                         <option value="meta">Instagram (Meta)</option>
                                                         <option value="tiktok">TikTok</option>
                                                         <option value="delivery_import">Delivery Import</option>
-                                                        <option value="shop">المحل (Shop)</option>
+                                                        <option value="shop">{t("orderDetail.source.shop")}</option>
                                                         <option value="other">Other</option>
                                                     </select>
                                                     <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted">
@@ -1368,7 +1340,7 @@ export function OrderDetailsModal({
                                                                 return (
                                                                     <div className="flex items-center gap-2">
                                                                         <div className="w-2 h-2 rounded-full bg-amber-500" />
-                                                                        <span className="text-sm font-medium">المحل</span>
+                                                                        <span className="text-sm font-medium">{t("orderDetail.source.shop")}</span>
                                                                     </div>
                                                                 );
                                                             default:
@@ -1392,7 +1364,7 @@ export function OrderDetailsModal({
                                         <div>
                                             <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1 mb-1.5">
                                                 <Banknote className="h-3 w-3" />
-                                                حالة الدفع
+                                                {t("orderDetail.paymentStatus")}
                                             </span>
                                             {isEditing ? (
                                                 <div className="flex bg-[var(--background)] rounded-lg border border-[var(--card-border)] p-1">
@@ -1407,12 +1379,12 @@ export function OrderDetailsModal({
                                                                     : "text-muted hover:text-foreground hover:bg-white/50"
                                                             )}
                                                         >
-                                                            {status === "cod" ? "دفع عند الاستلام" : status === "prepaid" ? "مدفوع" : status === "partial" ? "جزئي" : "معلق"}
+                                                            {status === "cod" ? t("orderDetail.payment.cod") : status === "prepaid" ? t("orderDetail.payment.prepaid") : status === "partial" ? t("orderDetail.payment.partial") : t("orderDetail.pending")}
                                                         </button>
                                                     ))}
                                                 </div>
                                             ) : (
-                                                <div className="flex items-center gap-2">
+                                                <div className="h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg">
                                                     <span className={cn(
                                                         "px-2.5 py-1 rounded-full text-xs font-semibold",
                                                         order.payment_status === "prepaid" ? "bg-emerald-100 text-emerald-800" :
@@ -1420,7 +1392,7 @@ export function OrderDetailsModal({
                                                                 order.payment_status === "partial" ? "bg-blue-100 text-blue-800" :
                                                                     "bg-gray-100 text-gray-800"
                                                     )}>
-                                                        {order.payment_status === "cod" ? "دفع عند الاستلام" : order.payment_status === "prepaid" ? "مدفوع مسبقاً" : order.payment_status === "partial" ? "دفع جزئي" : "معلق"}
+                                                        {order.payment_status === "cod" ? t("orderDetail.payment.cod") : order.payment_status === "prepaid" ? t("orderDetail.payment.prepaidFull") : order.payment_status === "partial" ? t("orderDetail.payment.partialFull") : t("orderDetail.pending")}
                                                     </span>
                                                 </div>
                                             )}
@@ -1430,14 +1402,14 @@ export function OrderDetailsModal({
                                         <div>
                                             <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1 mb-1.5">
                                                 <Clock className="h-3 w-3" />
-                                                وقت التوصيل المفضل
+                                                {t("orderDetail.preferredDelivery")}
                                             </span>
                                             {isEditing ? (
                                                 <div className="flex bg-[var(--background)] rounded-lg border border-[var(--card-border)] p-1">
                                                     {[
-                                                        { id: "morning", label: "صباحاً (9-12)" },
-                                                        { id: "afternoon", label: "ظهراً (12-4)" },
-                                                        { id: "evening", label: "مساءً (4-8)" }
+                                                        { id: "morning", label: t("orderDetail.slot.morning") },
+                                                        { id: "afternoon", label: t("orderDetail.slot.afternoon") },
+                                                        { id: "evening", label: t("orderDetail.slot.evening") }
                                                     ].map((slot) => (
                                                         <button
                                                             key={slot.id}
@@ -1454,14 +1426,16 @@ export function OrderDetailsModal({
                                                     ))}
                                                 </div>
                                             ) : (
-                                                <span className="text-sm text-foreground font-medium">
-                                                    {order.delivery_slot ?
-                                                        (order.delivery_slot === "morning" ? "☀️ صباحاً (9:00 - 12:00)" :
-                                                            order.delivery_slot === "afternoon" ? "🌤️ ظهراً (12:00 - 4:00)" :
-                                                                "🌙 مساءً (4:00 - 8:00)")
-                                                        : "غير محدد"
-                                                    }
-                                                </span>
+                                                <div className="h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg">
+                                                    <span className="text-sm text-foreground font-medium">
+                                                        {order.delivery_slot ?
+                                                            (order.delivery_slot === "morning" ? t("orderDetail.slot.morningFull") :
+                                                                order.delivery_slot === "afternoon" ? t("orderDetail.slot.afternoonFull") :
+                                                                    t("orderDetail.slot.eveningFull"))
+                                                            : t("orderDetail.unspecified")
+                                                        }
+                                                    </span>
+                                                </div>
                                             )}
                                         </div>
                                     </div>
@@ -1474,9 +1448,9 @@ export function OrderDetailsModal({
                             <div className="bg-white rounded-xl border border-[var(--card-border)] overflow-hidden">
                                 <div className="flex items-center gap-3 px-4 py-3 bg-[var(--background)] border-b border-[var(--card-border)]">
                                     <Package className="h-4 w-4 text-muted" />
-                                    <span className="font-semibold text-foreground">المنتجات</span>
+                                    <span className="font-semibold text-foreground">{t("orderDetail.products")}</span>
                                     <span className="text-xs text-muted">
-                                        {order.items?.length || 0} عنصر
+                                        {order.items?.length || 0} {t("orderDetail.item")}
                                     </span>
                                     {/* Add Product Button */}
                                     {isEditing && (
@@ -1484,7 +1458,7 @@ export function OrderDetailsModal({
                                             className="ml-auto px-3 py-1.5 text-xs font-medium bg-green-50 border border-green-200 text-green-700 rounded-lg hover:bg-green-100 transition-all flex items-center gap-1"
                                             onClick={handleAddItem}
                                         >
-                                            <span className="text-sm">+</span> إضافة منتج
+                                            <span className="text-sm">+</span> {t("orderDetail.addProduct")}
                                         </button>
                                     )}
                                 </div>
@@ -1537,7 +1511,7 @@ export function OrderDetailsModal({
                                                         <button
                                                             className="w-8 h-8 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition-all flex items-center justify-center"
                                                             onClick={() => handleRemoveItem(index)}
-                                                            title="حذف"
+                                                            title={t("orderDetail.deleteItem")}
                                                         >
                                                             <X className="w-4 h-4" />
                                                         </button>
@@ -1545,7 +1519,7 @@ export function OrderDetailsModal({
                                                 </div>
                                             ))
                                         ) : (
-                                            <div className="p-6 text-center text-muted">لا توجد عناصر</div>
+                                            <div className="p-6 text-center text-muted">{t("orderDetail.noItems")}</div>
                                         );
                                     })()}
                                 </div>
@@ -1563,7 +1537,7 @@ export function OrderDetailsModal({
                                     )}
                                     {/* Discount Row */}
                                     <div className="flex items-center justify-between px-4 py-2">
-                                        <span className="text-sm text-muted">خصم مخصص</span>
+                                        <span className="text-sm text-muted">{t("orderDetail.customDiscount")}</span>
                                         {isEditing ? (
                                             <input
                                                 type="number"
@@ -1573,14 +1547,20 @@ export function OrderDetailsModal({
                                                 placeholder="0"
                                             />
                                         ) : (
-                                            <span className="font-mono text-muted">
-                                                {order.discount_amount ? `- ${formatIQD(order.discount_amount)}` : "—"}
-                                            </span>
+                                            order.discount_amount ? (
+                                                <DiscountBadge
+                                                    price={Number(order.price)}
+                                                    discountAmount={order.discount_amount}
+                                                    className="text-xs px-2.5 py-1"
+                                                />
+                                            ) : (
+                                                <span className="font-mono text-muted">—</span>
+                                            )
                                         )}
                                     </div>
                                     {/* Total */}
                                     <div className="flex items-center justify-between px-4 py-3 bg-[var(--background)]">
-                                        <span className="font-semibold text-foreground">المجموع</span>
+                                        <span className="font-semibold text-foreground">{t("orderDetail.grandTotal")}</span>
                                         {isEditing ? (
                                             <div className="flex flex-col items-end gap-1">
                                                 <div className="flex items-center gap-2">
@@ -1602,7 +1582,7 @@ export function OrderDetailsModal({
                                                     if (diff !== 0) {
                                                         return (
                                                             <div className="flex items-center gap-1.5 text-xs">
-                                                                <span className="text-muted">المحسوب: {formatIQD(calculatedTotal)}</span>
+                                                                <span className="text-muted">{t("orderDetail.calculated")} {formatIQD(calculatedTotal)}</span>
                                                                 <span className={cn(
                                                                     "px-1.5 py-0.5 rounded font-medium",
                                                                     diff > 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
@@ -1631,8 +1611,8 @@ export function OrderDetailsModal({
                                     <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border-b border-amber-200">
                                         <FileText className="h-4 w-4 text-amber-600" />
                                         <div>
-                                            <span className="font-semibold text-amber-900">ملاحظات الطلب</span>
-                                            <span className="text-xs text-amber-600 mr-2">(تظهر في الفاتورة)</span>
+                                            <span className="font-semibold text-amber-900">{t("orderDetail.orderNotes")}</span>
+                                            <span className="text-xs text-amber-600 mr-2">{t("orderDetail.invoiceNote")}</span>
                                         </div>
                                     </div>
                                     <div className="p-4">
@@ -1640,13 +1620,13 @@ export function OrderDetailsModal({
                                             <textarea
                                                 value={(displayValue("notes") || "") as string}
                                                 onChange={(e) => updateFormData("notes", e.target.value)}
-                                                placeholder="ملاحظات تظهر للزبون في الفاتورة..."
+                                                placeholder={t("orderDetail.orderNotesPlaceholder")}
                                                 rows={2}
                                                 className="w-full px-3 py-2 bg-amber-50/50 border border-amber-200 rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 resize-none"
                                             />
                                         ) : (
                                             <p className="text-sm text-amber-800 min-h-[40px]">
-                                                {order.notes || <span className="text-muted italic">لا توجد ملاحظات</span>}
+                                                {order.notes || <span className="text-muted italic">{t("orderDetail.noNotes")}</span>}
                                             </p>
                                         )}
                                     </div>
@@ -1657,8 +1637,8 @@ export function OrderDetailsModal({
                                     <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 border-b border-blue-200">
                                         <FileText className="h-4 w-4 text-blue-600" />
                                         <div>
-                                            <span className="font-semibold text-blue-900">ملاحظات داخلية</span>
-                                            <span className="text-xs text-blue-600 mr-2">(للموظفين فقط)</span>
+                                            <span className="font-semibold text-blue-900">{t("orderDetail.internalNotes")}</span>
+                                            <span className="text-xs text-blue-600 mr-2">{t("orderDetail.employeesOnly")}</span>
                                         </div>
                                     </div>
                                     <div className="p-4">
@@ -1666,13 +1646,13 @@ export function OrderDetailsModal({
                                             <textarea
                                                 value={(displayValue("internal_notes") || "") as string}
                                                 onChange={(e) => updateFormData("internal_notes", e.target.value)}
-                                                placeholder="ملاحظات داخلية بين الموظفين..."
+                                                placeholder={t("orderDetail.internalNotesPlaceholder")}
                                                 rows={2}
                                                 className="w-full px-3 py-2 bg-blue-50/50 border border-blue-200 rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
                                             />
                                         ) : (
                                             <p className="text-sm text-blue-800 min-h-[40px]">
-                                                {order.internal_notes || <span className="text-muted italic">لا توجد ملاحظات داخلية</span>}
+                                                {order.internal_notes || <span className="text-muted italic">{t("orderDetail.noInternalNotes")}</span>}
                                             </p>
                                         )}
                                     </div>
@@ -1685,7 +1665,7 @@ export function OrderDetailsModal({
                                     <div className="bg-[var(--background)] rounded-xl border border-[var(--card-border)] p-4">
                                         <h4 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-2">
                                             <XCircle className="w-4 h-4 text-muted" />
-                                            سبب الرفض
+                                            {t("orderDetail.rejectionReason")}
                                         </h4>
                                         <p className="text-sm text-muted">{order.rejection_reason}</p>
                                     </div>
@@ -1694,97 +1674,123 @@ export function OrderDetailsModal({
                         </div>
                     )}
 
-                    <DialogFooter className="flex-col gap-4">
-                        {/* Delete Confirmation Warning */}
-                        {showDeleteConfirm && (
-                            <div className="w-full p-4 rounded-xl bg-rose-50 border-2 border-rose-200 animate-in slide-in-from-bottom-2">
-                                <div className="flex items-start gap-3 mb-3">
-                                    <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center flex-shrink-0">
-                                        <AlertTriangle className="w-5 h-5 text-rose-600" />
+                    <DialogFooter>
+                        <div className="w-full flex flex-col gap-4">
+                            {/* Delete Confirmation Warning */}
+                            {showDeleteConfirm && (
+                                <div className="w-full p-4 rounded-xl bg-rose-50 border-2 border-rose-200 animate-in slide-in-from-bottom-2">
+                                    <div className="flex items-start gap-3 mb-3">
+                                        <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center flex-shrink-0">
+                                            <AlertTriangle className="w-5 h-5 text-rose-600" />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-rose-900">{t("orderDetail.deleteOrderTitle")}</h4>
+                                            <p className="text-sm text-rose-700">
+                                                {t("orderDetail.deleteOrderMsg").replace("{id}", order.order_id)}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h4 className="font-bold text-rose-900">حذف الطلب نهائياً؟</h4>
-                                        <p className="text-sm text-rose-700">
-                                            سيتم حذف الطلب #{order.order_id} بشكل نهائي ولا يمكن التراجع.
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={handleCancelDelete}
-                                        className="flex-1 px-4 py-2.5 rounded-xl bg-white border border-rose-200 text-rose-700 font-medium hover:bg-rose-50 transition-all"
-                                    >
-                                        إلغاء
-                                    </button>
-                                    <button
-                                        onClick={handleDeleteConfirm}
-                                        disabled={deleteCountdown > 0 || isDeleting}
-                                        className={cn(
-                                            "flex-1 px-4 py-2.5 rounded-xl font-semibold transition-all flex items-center justify-center gap-2",
-                                            deleteCountdown > 0
-                                                ? "bg-rose-200 text-rose-400 cursor-not-allowed"
-                                                : "bg-rose-600 text-white hover:bg-rose-700"
-                                        )}
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                        {deleteCountdown > 0 ? `انتظر ${deleteCountdown}...` : isDeleting ? "جاري الحذف..." : "حذف نهائي"}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Normal Footer Buttons */}
-                        <div className="flex gap-2 w-full">
-                            {isEditing ? (
-                                <>
-                                    <button
-                                        onClick={handleCancel}
-                                        disabled={isSaving}
-                                        className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-foreground hover:bg-[var(--card-border)] transition-all font-medium"
-                                    >
-                                        <X className="h-4 w-4" />
-                                        إلغاء
-                                    </button>
-                                    <button
-                                        onClick={handleSave}
-                                        disabled={isSaving}
-                                        className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)] transition-all font-semibold shadow-md shadow-green-500/20 disabled:opacity-50"
-                                    >
-                                        <Save className="h-4 w-4" />
-                                        حفظ التعديلات
-                                    </button>
-                                </>
-                            ) : (
-                                <>
-                                    {/* Delete Button */}
-                                    {onDelete && !showDeleteConfirm && (
+                                    <div className="flex gap-2">
                                         <button
-                                            onClick={handleDeleteClick}
-                                            className="flex items-center gap-2 px-3 py-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100 transition-all font-medium"
-                                            title="حذف الطلب"
+                                            onClick={handleCancelDelete}
+                                            className="flex-1 px-4 py-2.5 rounded-xl bg-white border border-rose-200 text-rose-700 font-medium hover:bg-rose-50 transition-all"
                                         >
-                                            <Trash2 className="h-4 w-4" />
+                                            {t("orderDetail.cancel")}
                                         </button>
+                                        <button
+                                            onClick={handleDeleteConfirm}
+                                            disabled={deleteCountdown > 0 || isDeleting}
+                                            className={cn(
+                                                "flex-1 px-4 py-2.5 rounded-xl font-semibold transition-all flex items-center justify-center gap-2",
+                                                deleteCountdown > 0
+                                                    ? "bg-rose-200 text-rose-400 cursor-not-allowed"
+                                                    : "bg-rose-600 text-white hover:bg-rose-700"
+                                            )}
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                            {deleteCountdown > 0 ? t("orderDetail.waitDelete").replace("{n}", String(deleteCountdown)) : isDeleting ? t("orderDetail.deleting") : t("orderDetail.permanentDelete")}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Normal Footer Buttons */}
+                            {!showDeleteConfirm && (
+                                <div className="flex gap-2 w-full">
+                                    {isEditing ? (
+                                        <>
+                                            <button
+                                                onClick={handleCancel}
+                                                disabled={isSaving}
+                                                className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-foreground hover:bg-[var(--card-border)] transition-all font-medium"
+                                            >
+                                                <X className="h-4 w-4" />
+                                                {t("orderDetail.cancel")}
+                                            </button>
+                                            <button
+                                                onClick={handleSave}
+                                                disabled={isSaving}
+                                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)] transition-all font-semibold shadow-md shadow-green-500/20 disabled:opacity-50 ml-auto"
+                                            >
+                                                <Save className="h-4 w-4" />
+                                                {t("orderDetail.saveChanges")}
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            {/* Split Order Button (Only for multi-item confirmed/in_transit orders) */}
+                                            {(order.status === "confirmed" || order.status === "in_transit" || order.status === "delivered") &&
+                                                !order.is_return &&
+                                                order.items && order.items.length > 1 && (
+                                                    <button
+                                                        onClick={() => setShowSplitDialog(true)}
+                                                        className="flex items-center gap-2 px-3 py-3 rounded-xl bg-orange-50 border border-orange-200 text-orange-600 hover:bg-orange-100 transition-all font-medium"
+                                                        title="Split Order"
+                                                    >
+                                                        <Scissors className="h-4 w-4" />
+                                                    </button>
+                                                )}
+
+                                            {/* Delete Button */}
+                                            {onDelete && !showDeleteConfirm && (
+                                                <button
+                                                    onClick={handleDeleteClick}
+                                                    className="flex items-center gap-2 px-3 py-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100 transition-all font-medium"
+                                                    title={t("orderDetail.deleteOrder")}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={onClose}
+                                                className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-foreground hover:bg-[var(--card-border)] transition-all font-medium ml-auto"
+                                            >
+                                                {t("orderDetail.close")}
+                                            </button>
+                                            <button
+                                                onClick={handleWhatsApp}
+                                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)] transition-all font-semibold shadow-md shadow-green-500/20"
+                                            >
+                                                <MessageCircle className="h-4 w-4" />
+                                                {t("orderDetail.openWhatsApp")}
+                                            </button>
+                                        </>
                                     )}
-                                    <button
-                                        onClick={onClose}
-                                        className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-foreground hover:bg-[var(--card-border)] transition-all font-medium"
-                                    >
-                                        إغلاق
-                                    </button>
-                                    <button
-                                        onClick={handleWhatsApp}
-                                        className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)] transition-all font-semibold shadow-md shadow-green-500/20"
-                                    >
-                                        <MessageCircle className="h-4 w-4" />
-                                        فتح واتساب
-                                    </button>
-                                </>
+                                </div>
                             )}
                         </div>
                     </DialogFooter>
                 </ContentWrapper>
             </Dialog >
+
+            {showSplitDialog && order && (
+                <SplitOrderDialog
+                    order={order}
+                    open={showSplitDialog}
+                    onClose={() => setShowSplitDialog(false)}
+                    onConfirm={handleSplitOrder}
+                />
+            )}
 
             {/* Product Picker Modal - Outside Dialog for proper z-index */}
             < ProductPicker

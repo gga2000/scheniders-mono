@@ -8,10 +8,14 @@ import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Order, PaymentStatus } from "@/lib/supabase";
 import { validatePhoneDetailed } from "@/lib/order-utils";
+import { isOrderFlagged } from "@/lib/data-quality-utils";
 import { OrderCard } from "@/components/dashboard/order-card";
 import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
 import { OrderCardSkeleton } from "@/components/dashboard/order-card-skeleton";
-// Dynamic imports for heavy modals - reduces initial bundle by ~150KB
+// This was a thought trace, not the actual replacement content yet. I need to view OrderCard first.
+// But I can add the imports to Page.tsx now.
+import { useBatchRiskAssessment } from "@/hooks/use-risk-assessment";
+import { RiskBadge } from "@/components/orders/risk-badge";
 const OrderDetailsModal = dynamic(
     () => import("@/components/orders/order-details-modal").then(mod => ({ default: mod.OrderDetailsModal })),
     { ssr: false }
@@ -37,6 +41,10 @@ const ImportOrdersModal = dynamic(
 );
 const WhatsAppTemplatePanel = dynamic(
     () => import("@/components/orders/whatsapp-template-panel").then(mod => ({ default: mod.WhatsAppTemplatePanel })),
+    { ssr: false }
+);
+const SplitOrderDialog = dynamic(
+    () => import("@/components/orders/split-order-dialog").then(mod => ({ default: mod.SplitOrderDialog })),
     { ssr: false }
 );
 const VirtualizedOrderList = dynamic(
@@ -95,10 +103,16 @@ import {
     Pin,
     CopyPlus,
     Check,
+    ShieldCheck,
     Minimize2,
     Maximize2,
     Command,
     Truck,
+    Sparkles,
+    PhoneCall,
+    CheckCircle2,
+    Activity,
+    AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
@@ -106,6 +120,7 @@ import { notificationService } from "@/lib/notification-service";
 import { exportOrdersToPrimeCSV } from "@/lib/export-utils";
 
 import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { useLanguage } from "@/hooks/use-language";
 
 export default function OrdersPage() {
     const {
@@ -169,6 +184,9 @@ export default function OrdersPage() {
     // Get products for Excel import matching
     const { products } = useProductsCrud();
     const isMobile = useIsMobile();
+    const { t } = useLanguage();
+    const [isFilterPanelAnimating, setIsFilterPanelAnimating] = useState(false);
+    const [isHeaderAnimating, setIsHeaderAnimating] = useState(false);
 
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
     const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
@@ -193,7 +211,6 @@ export default function OrdersPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
-    // State for showing filters panel
     const [showFilters, setShowFilters] = useState(false);
 
     // State for active saved view
@@ -216,6 +233,26 @@ export default function OrdersPage() {
     const [orderForTemplate, setOrderForTemplate] = useState<Order | null>(null);
     // State for import modal
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    // State for split order dialog
+    const [splitOrderDialog, setSplitOrderDialog] = useState<{ open: boolean; order: Order | null }>({
+        open: false,
+        order: null
+    });
+    const { splitOrder } = useOrdersContext();
+
+    const handleSplitOrder = async (keptItems: any[], returnedItems: any[]) => {
+        if (!splitOrderDialog.order) return;
+
+        const result = await splitOrder(splitOrderDialog.order.id, keptItems, returnedItems);
+
+        if (result.success) {
+            setSplitOrderDialog({ open: false, order: null });
+            refreshOrders();
+            // Optional: Show success feedback via UI update or simple alert if critical
+        } else {
+            window.alert(result.error || t("orderDetail.splitError"));
+        }
+    };
 
     // Get workflow templates for the template panel
     const workflowTemplates = useMemo(() =>
@@ -346,6 +383,9 @@ export default function OrdersPage() {
     }, [toolbarCollapsed]);
 
 
+    // Batch Risk Assessment
+    const { getRiskLevel, getAssessment, loading: riskLoading } = useBatchRiskAssessment(hookFilteredOrders);
+
     // Sort hook's filtered orders
     // Advanced Filtering & Sorting
     const filteredOrders = useMemo(() => {
@@ -370,6 +410,18 @@ export default function OrdersPage() {
                 return true;
             });
         });
+
+        // 1.2. Apply Risk/Flagged Filter
+        if (filters.riskLevel) {
+            if (filters.riskLevel === 'flagged') {
+                // "Flagged" = data quality issues OR rejected orders
+                // Uses the shared isOrderFlagged helper which matches the red/yellow dots on cards
+                result = result.filter(o => isOrderFlagged(o) || o.status === 'rejected');
+            } else if (!riskLoading) {
+                // Other risk levels use the fraud detector (only filter after assessments load)
+                result = result.filter(o => getRiskLevel(o.phone) === filters.riskLevel);
+            }
+        }
 
         // 1.5. Apply Duplicates-Only Filter
         if (filterDuplicatesOnly) {
@@ -401,7 +453,26 @@ export default function OrdersPage() {
         });
         return result;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [hookFilteredOrders, sortConfig, debouncedColumnFilters, filterDuplicatesOnly, getCustomerOrderCount, realtimeVersion]);
+    }, [hookFilteredOrders, sortConfig, debouncedColumnFilters, filterDuplicatesOnly, getCustomerOrderCount, realtimeVersion, filters.riskLevel, getRiskLevel, riskLoading]);
+
+
+
+    // Calculate flagged orders count for "Needs Attention" card (data quality issues + rejected orders)
+    // Calculate flagged orders count for "Needs Attention" card (data quality issues + rejected orders)
+    const flaggedCount = useMemo(() => {
+        return hookFilteredOrders.filter(o => isOrderFlagged(o) || o.status === 'rejected').length;
+    }, [hookFilteredOrders]);
+
+    // Calculate global risk count for the key filter button (all orders)
+    const totalRiskCount = useMemo(() => {
+        if (!orders) return 0;
+        return orders.filter(o => isOrderFlagged(o) || o.status === 'rejected').length;
+    }, [orders]);
+
+    // Scroll to top when filters change to prevent empty list illusion
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, [filters, filterDuplicatesOnly]);
 
     const handleStatusUpdate = async (orderId: string, status: Order["status"], reason?: string) => {
         setLoadingId(orderId);
@@ -615,15 +686,16 @@ export default function OrdersPage() {
     }).length;
 
     const filterOptions = [
-        { id: "all", label: "All Orders", count: statusCounts.all },
-        { id: "new", label: "New", count: statusCounts.new || 0 },
-        { id: "contacted", label: "Contacted", count: statusCounts.contacted || 0 },
-        { id: "confirmed", label: "Confirmed", count: statusCounts.confirmed || 0 },
-        { id: "in_transit", label: "🚚 In Transit", count: statusCounts.in_transit || 0 },
-        { id: "delivered", label: "Delivered", count: statusCounts.delivered || 0 },
-        { id: "completed", label: "Completed", count: statusCounts.completed || 0 },
-        { id: "rejected", label: "Rejected", count: statusCounts.rejected || 0 },
-        { id: "no_response", label: "لم يرد", count: statusCounts.no_response || 0 },
+        { id: "all", label: t("orders.status.all"), count: statusCounts.all },
+        { id: "new", label: t("orders.status.new"), count: statusCounts.new || 0 },
+        { id: "contacted", label: t("orders.status.contacted"), count: statusCounts.contacted || 0 },
+        { id: "confirmed", label: t("orders.status.confirmed"), count: statusCounts.confirmed || 0 },
+        { id: "in_transit", label: t("orders.status.inTransit"), count: statusCounts.in_transit || 0 },
+        { id: "delivered", label: t("orders.status.delivered"), count: statusCounts.delivered || 0 },
+        { id: "completed", label: t("orders.status.completed"), count: statusCounts.completed || 0 },
+        { id: "rejected", label: t("orders.status.rejected"), count: statusCounts.rejected || 0 },
+        { id: "return_pending", label: t("orders.status.returnPending"), count: statusCounts.return_pending || 0 },
+        { id: "no_response", label: t("orders.status.noResponse"), count: statusCounts.no_response || 0 },
     ];
 
     // Check if any advanced filters are active
@@ -683,7 +755,7 @@ export default function OrdersPage() {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <div className="pastel-card pastel-card-pink p-8 text-center">
-                    <h2 className="text-xl font-bold text-rose-900 mb-2">Error Loading Orders</h2>
+                    <h2 className="text-xl font-bold text-rose-900 mb-2">{t("orders.errorTitle")}</h2>
                     <p className="text-rose-700">{error}</p>
                 </div>
             </div>
@@ -787,7 +859,11 @@ export default function OrdersPage() {
                                 animate={{ opacity: 1, height: "auto" }}
                                 exit={{ opacity: 0, height: 0 }}
                                 transition={{ duration: 0.3, ease: "easeOut" }}
-                                className="overflow-hidden"
+                                onAnimationStart={() => setIsHeaderAnimating(true)}
+                                onAnimationComplete={() => setIsHeaderAnimating(false)}
+                                className={cn(
+                                    isHeaderAnimating ? "overflow-hidden" : "overflow-visible"
+                                )}
                             >
                                 {/* Page Header - Premium State-of-the-Art Design */}
                                 <motion.div
@@ -826,7 +902,7 @@ export default function OrdersPage() {
                                                         <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-br from-foreground to-foreground/70">
                                                             {filteredOrders.length}
                                                         </span>
-                                                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Orders</span>
+                                                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("orders.title")}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -841,7 +917,7 @@ export default function OrdersPage() {
                                                         className="flex items-center gap-2 px-4 py-2 rounded-full bg-violet-500 text-white shadow-lg shadow-violet-500/25"
                                                     >
                                                         <span className="text-sm font-bold">{selectedOrders.size}</span>
-                                                        <span className="text-xs font-medium opacity-80">Selected</span>
+                                                        <span className="text-xs font-medium opacity-80">{t("orders.selected")}</span>
                                                     </motion.div>
                                                 )}
                                             </AnimatePresence>
@@ -859,7 +935,7 @@ export default function OrdersPage() {
 
                                         {/* View Group */}
                                         <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm flex-shrink-0 min-w-min">
-                                            <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">View</span>
+                                            <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.view")}</span>
                                             <div className="flex items-center gap-2">
                                                 {/* Saved Views Dropdown */}
                                                 <SavedViewsTabs
@@ -971,7 +1047,7 @@ export default function OrdersPage() {
 
                                         {/* Filter Group */}
                                         <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm flex-shrink-0">
-                                            <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">Filter</span>
+                                            <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.filter")}</span>
                                             <div className="flex items-center gap-2">
                                                 {/* Date Picker */}
                                                 <div>
@@ -989,7 +1065,7 @@ export default function OrdersPage() {
                                                         <span className="hidden lg:inline">
                                                             {filters.dateFrom
                                                                 ? `${new Date(filters.dateFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
-                                                                : "Date Range"}
+                                                                : t("orders.dateRange")}
                                                         </span>
                                                     </button>
                                                     {showDatePicker && createPortal(
@@ -1048,14 +1124,14 @@ export default function OrdersPage() {
                                                     )}
                                                 >
                                                     <Archive className="w-4 h-4" />
-                                                    <span className="hidden xl:inline">{showArchived ? "Archived" : "Archive"}</span>
+                                                    <span className="hidden xl:inline">{showArchived ? t("orders.archived") : t("orders.archive")}</span>
                                                 </button>
                                             </div>
                                         </div>
 
                                         {/* Tools Group - NEW */}
                                         <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm flex-shrink-0">
-                                            <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">Tools</span>
+                                            <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.tools")}</span>
                                             <div className="flex items-center gap-2">
                                                 {/* Notifications */}
                                                 <button
@@ -1127,7 +1203,7 @@ export default function OrdersPage() {
 
                                         {/* Export Group */}
                                         <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm flex-shrink-0">
-                                            <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">Export</span>
+                                            <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.export")}</span>
                                             <div className="flex items-center gap-2">
                                                 <button
                                                     onClick={() => setIsImportModalOpen(true)}
@@ -1155,7 +1231,7 @@ export default function OrdersPage() {
 
                                         {/* Action Group - Moved to End */}
                                         <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm flex-shrink-0 min-w-min">
-                                            <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">Actions</span>
+                                            <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.actions")}</span>
                                             <div className="flex items-center gap-2">
                                                 <button
                                                     onClick={() => setIsCreateModalOpen(true)}
@@ -1164,8 +1240,8 @@ export default function OrdersPage() {
                                                     <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                                                     <div className="relative flex items-center gap-2 font-semibold text-sm">
                                                         <Plus className="w-4 h-4" />
-                                                        <span className="whitespace-nowrap hidden lg:inline">New Order</span>
-                                                        <span className="whitespace-nowrap lg:hidden">New</span>
+                                                        <span className="whitespace-nowrap hidden lg:inline">{t("orders.newOrder")}</span>
+                                                        <span className="whitespace-nowrap lg:hidden">{t("orders.newOrderShort")}</span>
                                                     </div>
                                                 </button>
                                             </div>
@@ -1186,116 +1262,194 @@ export default function OrdersPage() {
                                             transition={{ duration: 0.3 }}
                                             className="overflow-hidden"
                                         >
-                                            <div className="space-y-4">
+                                            <div className="space-y-4 pb-6">
                                                 {/* Main Stats Grid */}
 
                                                 <ErrorBoundary name="Analytics Dashboard">
                                                     {/* Main Stats Grid */}
-                                                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                                                        {/* Today's Orders */}
-                                                        <div className="pastel-card pastel-card-yellow p-4">
-                                                            <p className="text-xs text-amber-700 font-medium uppercase tracking-wide">Today</p>
-                                                            <p className="text-2xl font-bold text-amber-900 mt-1">{stats.todayOrders}</p>
-                                                            <p className="text-xs text-amber-600 mt-1">orders</p>
-                                                        </div>
-
-                                                        {/* Total Revenue */}
-                                                        <div className="pastel-card pastel-card-green p-4">
-                                                            <p className="text-xs text-green-700 font-medium uppercase tracking-wide">Revenue</p>
-                                                            <p className="text-2xl font-bold text-green-900 mt-1">{formatIQD(stats.totalRevenue)}</p>
-                                                            <p className="text-xs text-green-600 mt-1">total</p>
-                                                        </div>
-
-                                                        {/* Pending (New) */}
-                                                        <div className="pastel-card pastel-card-pink p-4">
-                                                            <p className="text-xs text-rose-700 font-medium uppercase tracking-wide">Pending</p>
-                                                            <p className="text-2xl font-bold text-rose-900 mt-1">{statusCounts.new || 0}</p>
-                                                            <p className="text-xs text-rose-600 mt-1">new orders</p>
-                                                        </div>
-
-                                                        {/* Confirmed */}
-                                                        <div className="pastel-card pastel-card-purple p-4">
-                                                            <p className="text-xs text-purple-700 font-medium uppercase tracking-wide">Confirmed</p>
-                                                            <p className="text-2xl font-bold text-purple-900 mt-1">{statusCounts.confirmed || 0}</p>
-                                                            <p className="text-xs text-purple-600 mt-1">ready</p>
-                                                        </div>
-
-                                                        {/* Conversion Rate */}
-                                                        <div className="pastel-card p-4">
-                                                            <p className="text-xs text-muted font-medium uppercase tracking-wide">Conversion</p>
-                                                            <div className="flex items-end gap-2 mt-1">
-                                                                <p className="text-2xl font-bold text-foreground">{stats.conversionRate.toFixed(1)}%</p>
+                                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                                                        {/* New Orders - Premium Card */}
+                                                        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-rose-50 to-rose-100/50 border border-rose-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
+                                                            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
+                                                                <Sparkles className="w-16 h-16 text-rose-500 rotate-12 group-hover:scale-110 transition-transform duration-500" />
                                                             </div>
-                                                            <div className="w-full h-1.5 bg-gray-100 rounded-full mt-3 overflow-hidden">
-                                                                <div
-                                                                    className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-1000 ease-out"
-                                                                    style={{ width: `${stats.conversionRate}%` }}
-                                                                />
+                                                            <div className="p-5 relative z-10">
+                                                                <div className="flex items-center gap-2 mb-2">
+                                                                    <div className="p-1.5 rounded-lg bg-rose-100 text-rose-600">
+                                                                        <Sparkles className="w-4 h-4" />
+                                                                    </div>
+                                                                    <span className="text-xs font-bold text-rose-600 uppercase tracking-wider">New</span>
+                                                                </div>
+                                                                <div className="flex items-baseline gap-1">
+                                                                    <h3 className="text-3xl font-bold text-rose-900">{statusCounts.new || 0}</h3>
+                                                                    <span className="text-sm font-medium text-rose-600/80">orders</span>
+                                                                </div>
                                                             </div>
-                                                            <p className="text-[10px] text-muted mt-2">Confirmed vs Total</p>
                                                         </div>
 
-                                                        {/* Average Order Value */}
-                                                        <div className="pastel-card p-4">
-                                                            <p className="text-xs text-muted font-medium uppercase tracking-wide">AVG Order</p>
-                                                            <p className="text-2xl font-bold text-foreground mt-1">{formatIQD(stats.averageOrderValue)}</p>
-                                                            <p className="text-xs text-muted mt-1">per order</p>
+                                                        {/* Contacted - Premium Card */}
+                                                        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100/50 border border-amber-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
+                                                            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
+                                                                <PhoneCall className="w-16 h-16 text-amber-500 rotate-12 group-hover:scale-110 transition-transform duration-500" />
+                                                            </div>
+                                                            <div className="p-5 relative z-10">
+                                                                <div className="flex items-center gap-2 mb-2">
+                                                                    <div className="p-1.5 rounded-lg bg-amber-100 text-amber-600">
+                                                                        <PhoneCall className="w-4 h-4" />
+                                                                    </div>
+                                                                    <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">Contacted</span>
+                                                                </div>
+                                                                <div className="flex items-baseline gap-1">
+                                                                    <h3 className="text-3xl font-bold text-amber-900">{statusCounts.contacted || 0}</h3>
+                                                                    <span className="text-sm font-medium text-amber-600/80">active</span>
+                                                                </div>
+                                                            </div>
                                                         </div>
 
-                                                        {/* Peak Time */}
-                                                        <div className="pastel-card pastel-bg-purple p-4">
-                                                            <p className="text-xs text-purple-700 font-medium uppercase tracking-wide">Peak Time</p>
-                                                            <p className="text-2xl font-bold text-purple-900 mt-1">{stats.peakTime}</p>
-                                                            <p className="text-xs text-purple-600 mt-1">busiest hour</p>
+                                                        {/* Confirmed - Premium Card */}
+                                                        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-50 to-purple-100/50 border border-violet-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
+                                                            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
+                                                                <CheckCircle2 className="w-16 h-16 text-violet-500 rotate-12 group-hover:scale-110 transition-transform duration-500" />
+                                                            </div>
+                                                            <div className="p-5 relative z-10">
+                                                                <div className="flex items-center gap-2 mb-2">
+                                                                    <div className="p-1.5 rounded-lg bg-violet-100 text-violet-600">
+                                                                        <CheckCircle2 className="w-4 h-4" />
+                                                                    </div>
+                                                                    <span className="text-xs font-bold text-violet-600 uppercase tracking-wider">Confirmed</span>
+                                                                </div>
+                                                                <div className="flex items-baseline gap-1">
+                                                                    <h3 className="text-3xl font-bold text-violet-900">{statusCounts.confirmed || 0}</h3>
+                                                                    <span className="text-sm font-medium text-violet-600/80">ready</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* In Transit - Premium Card */}
+                                                        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-50 to-orange-100/50 border border-orange-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
+                                                            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
+                                                                <Truck className="w-16 h-16 text-orange-500 -rotate-12 group-hover:scale-110 group-hover:translate-x-2 transition-transform duration-500" />
+                                                            </div>
+                                                            <div className="p-5 relative z-10">
+                                                                <div className="flex items-center gap-2 mb-2">
+                                                                    <div className="p-1.5 rounded-lg bg-orange-100 text-orange-600">
+                                                                        <Truck className="w-4 h-4" />
+                                                                    </div>
+                                                                    <span className="text-xs font-bold text-orange-600 uppercase tracking-wider">Transit</span>
+                                                                </div>
+                                                                <div className="flex items-baseline gap-1">
+                                                                    <h3 className="text-3xl font-bold text-orange-900">{statusCounts.in_transit || 0}</h3>
+                                                                    <span className="text-sm font-medium text-orange-600/80">shipped</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Conversion Rate - Premium Card */}
+                                                        <div className="relative overflow-hidden rounded-2xl bg-white/60 backdrop-blur-md border border-white/40 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group ring-1 ring-black/5">
+                                                            <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity duration-300">
+                                                                <TrendingUp className="w-16 h-16 text-emerald-500 -rotate-12 group-hover:scale-110 transition-transform duration-500" />
+                                                            </div>
+                                                            <div className="p-5 relative z-10">
+                                                                <div className="flex items-center gap-2 mb-2">
+                                                                    <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-600">
+                                                                        <TrendingUp className="w-4 h-4" />
+                                                                    </div>
+                                                                    <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Conversion</span>
+                                                                </div>
+                                                                <div className="flex items-end gap-2">
+                                                                    <h3 className="text-3xl font-bold text-foreground">{stats.conversionRate.toFixed(1)}%</h3>
+                                                                </div>
+                                                                {/* Animated Progress Bar */}
+                                                                <div className="w-full h-1.5 bg-gray-100 rounded-full mt-3 overflow-hidden">
+                                                                    <div
+                                                                        className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-1000 ease-out relative"
+                                                                        style={{ width: `${stats.conversionRate}%` }}
+                                                                    >
+                                                                        <div className="absolute inset-0 bg-white/30 w-full animate-[shimmer_2s_infinite]" />
+                                                                    </div>
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     </div>
 
                                                     {/* Revenue Trends & Velocity Metrics Row (only at level 2) */}
                                                     {analyticsLevel >= 2 && (
-                                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                                            {/* 7-Day Revenue Sparkline */}
-                                                            <div className="pastel-card p-4">
-                                                                <p className="text-xs text-muted font-medium uppercase tracking-wide mb-3">7-Day Revenue Trend</p>
-                                                                <div className="flex items-end gap-1 h-16">
-                                                                    {stats.revenueTrends.map((day, i) => {
-                                                                        const maxRevenue = Math.max(...stats.revenueTrends.map(d => d.revenue), 1);
-                                                                        const heightPercent = (day.revenue / maxRevenue) * 100;
-                                                                        return (
-                                                                            <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                                                                                <div
-                                                                                    className={cn(
-                                                                                        "w-full rounded-t-sm transition-all",
-                                                                                        i === 6 ? "bg-green-500" : "bg-green-200"
-                                                                                    )}
-                                                                                    style={{ height: `${Math.max(heightPercent, 4)}%` }}
-                                                                                    title={`${formatIQD(day.revenue)}`}
-                                                                                />
-                                                                                <span className="text-[10px] text-muted">{day.date}</span>
-                                                                            </div>
-                                                                        );
-                                                                    })}
+                                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                            {/* Operational Velocity */}
+                                                            <div className="pastel-card p-5 relative overflow-hidden group">
+                                                                <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
+                                                                    <Activity className="w-16 h-16 text-blue-500 rotate-12" />
+                                                                </div>
+                                                                <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-4">Operational Velocity</h4>
+                                                                <div className="space-y-4 relative z-10">
+                                                                    <div className="flex justify-between items-center">
+                                                                        <span className="text-sm text-foreground/70">Confirm Speed</span>
+                                                                        <span className="font-bold text-foreground">{stats.velocityMetrics.avgNewToConfirmed}</span>
+                                                                    </div>
+                                                                    <div className="flex justify-between items-center">
+                                                                        <span className="text-sm text-foreground/70">Delivery Speed</span>
+                                                                        <span className="font-bold text-foreground">{stats.velocityMetrics.avgConfirmedToDelivered}</span>
+                                                                    </div>
+                                                                    <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-100">
+                                                                        <span className="text-sm text-foreground/70">Peak Hour</span>
+                                                                        <span className="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">{stats.peakTime}</span>
+                                                                    </div>
                                                                 </div>
                                                             </div>
 
-                                                            {/* Velocity Metrics */}
-                                                            <div className="pastel-card p-4">
-                                                                <p className="text-xs text-muted font-medium uppercase tracking-wide mb-3">Processing Speed</p>
-                                                                <div className="grid grid-cols-2 gap-4">
-                                                                    <div>
-                                                                        <p className="text-lg font-bold text-foreground">{stats.velocityMetrics.avgNewToConfirmed}</p>
-                                                                        <p className="text-xs text-muted">New → Confirmed</p>
+                                                            {/* Needs Attention */}
+                                                            <div className="pastel-card p-5 relative overflow-hidden group">
+                                                                <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
+                                                                    <AlertTriangle className="w-16 h-16 text-red-500 -rotate-12" />
+                                                                </div>
+                                                                <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-4">Needs Attention</h4>
+                                                                <div className="space-y-4 relative z-10">
+                                                                    <div className="flex justify-between items-center group/item hover:bg-rose-50/50 p-1 rounded-lg transition-colors cursor-pointer" onClick={() => setFilters({ ...filters, riskLevel: 'flagged' })}>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <ShieldCheck className="w-4 h-4 text-rose-600" />
+                                                                            <span className="text-sm text-foreground/70">Flagged</span>
+                                                                        </div>
+                                                                        <span className="font-bold text-rose-600">{flaggedCount}</span>
                                                                     </div>
-                                                                    <div>
-                                                                        <p className="text-lg font-bold text-foreground">{stats.velocityMetrics.avgConfirmedToDelivered}</p>
-                                                                        <p className="text-xs text-muted">Confirmed → Delivered</p>
+                                                                    <div className="flex justify-between items-center group/item hover:bg-red-50/50 p-1 rounded-lg transition-colors cursor-pointer" onClick={() => setFilters({ ...filters, priority: 'urgent' })}>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                                                                            <span className="text-sm text-foreground/70">Urgent</span>
+                                                                        </div>
+                                                                        <span className="font-bold text-red-600">{stats.urgentOrders}</span>
                                                                     </div>
-                                                                    <div>
-                                                                        <p className="text-lg font-bold text-teal-600">{stats.velocityMetrics.totalProcessed}</p>
-                                                                        <p className="text-xs text-muted">Delivered</p>
+                                                                    <div className="flex justify-between items-center group/item hover:bg-orange-50/50 p-1 rounded-lg transition-colors cursor-pointer" onClick={() => setFilters({ ...filters, status: 'no_response' })}>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="w-2 h-2 rounded-full bg-orange-400" />
+                                                                            <span className="text-sm text-foreground/70">No Response</span>
+                                                                        </div>
+                                                                        <span className="font-bold text-orange-600">{stats.noResponseOrders}</span>
                                                                     </div>
-                                                                    <div>
-                                                                        <p className="text-lg font-bold text-amber-600">{stats.velocityMetrics.pendingCount}</p>
-                                                                        <p className="text-xs text-muted">In Pipeline</p>
+                                                                    <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-100 group/item hover:bg-yellow-50/50 p-1 rounded-lg transition-colors cursor-pointer" onClick={() => setFilters({ ...filters, status: 'return_pending' })}>
+                                                                        <span className="text-sm text-foreground/70">Returns Pending</span>
+                                                                        <span className="font-bold text-yellow-600">{stats.returnPendingOrders}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Business Pulse */}
+                                                            <div className="pastel-card p-5 relative overflow-hidden group">
+                                                                <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
+                                                                    <BarChart3 className="w-16 h-16 text-emerald-500 rotate-6" />
+                                                                </div>
+                                                                <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-4">Business Pulse (Today)</h4>
+                                                                <div className="space-y-4 relative z-10">
+                                                                    <div className="flex justify-between items-center">
+                                                                        <span className="text-sm text-foreground/70">Revenue</span>
+                                                                        <span className="font-bold text-emerald-600">{formatIQD(stats.todayRevenue)}</span>
+                                                                    </div>
+                                                                    <div className="flex justify-between items-center">
+                                                                        <span className="text-sm text-foreground/70">Orders</span>
+                                                                        <span className="font-bold text-foreground">{stats.todayOrders}</span>
+                                                                    </div>
+                                                                    <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-100">
+                                                                        <span className="text-sm text-foreground/70">Avg. Order Value</span>
+                                                                        <span className="font-bold text-foreground">{formatIQD(stats.averageOrderValue)}</span>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -1315,7 +1469,11 @@ export default function OrdersPage() {
                                             animate={{ opacity: 1, height: "auto" }}
                                             exit={{ opacity: 0, height: 0 }}
                                             transition={{ duration: 0.3 }}
-                                            className="overflow-hidden"
+                                            onAnimationStart={() => setIsFilterPanelAnimating(true)}
+                                            onAnimationComplete={() => setIsFilterPanelAnimating(false)}
+                                            className={cn(
+                                                isFilterPanelAnimating ? "overflow-hidden" : "overflow-visible"
+                                            )}
                                         >
                                             <div className="pastel-card p-6 space-y-4">
                                                 <div className="flex flex-col lg:flex-row gap-4">
@@ -1323,7 +1481,7 @@ export default function OrdersPage() {
                                                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--foreground-subtle)]" />
                                                         <input
                                                             type="text"
-                                                            placeholder="Search by name, phone, or order ID..."
+                                                            placeholder={t("orders.searchPlaceholder")}
                                                             value={filters.searchQuery || ""}
                                                             onChange={(e) => setFilters({ ...filters, searchQuery: e.target.value || undefined })}
                                                             className="w-full pl-12 pr-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all"
@@ -1337,6 +1495,7 @@ export default function OrdersPage() {
                                                         filters={filters}
                                                         setFilters={setFilters}
                                                         statusCounts={statusCounts}
+                                                        totalRiskCount={totalRiskCount}
                                                         showFilters={showFilters}
                                                         setShowFilters={setShowFilters}
                                                         hasActiveFilters={hasActiveFilters}
@@ -1522,32 +1681,32 @@ export default function OrdersPage() {
                                                             exit={{ opacity: 0, height: 0 }}
                                                             className="flex items-center gap-3 pt-4 border-t border-[var(--card-border)] overflow-x-auto scrollbar-hide"
                                                         >
-                                                            <span className="text-sm text-muted whitespace-nowrap">{selectedOrders.size} selected</span>
+                                                            <span className="text-sm text-muted whitespace-nowrap">{selectedOrders.size} {t("orders.selected")}</span>
 
                                                             {/* Primary Actions */}
                                                             <button
                                                                 onClick={handleBulkConfirm}
                                                                 className="px-3 py-1.5 rounded-lg bg-[var(--pastel-green)] text-green-900 text-sm font-medium hover:bg-[var(--pastel-green-light)] transition-all whitespace-nowrap"
                                                             >
-                                                                Confirm
+                                                                {t("orders.bulk.confirm")}
                                                             </button>
                                                             <button
                                                                 onClick={handleBulkDeliver}
                                                                 className="px-3 py-1.5 rounded-lg bg-[var(--pastel-purple)] text-purple-900 text-sm font-medium hover:bg-[var(--pastel-purple-light)] transition-all whitespace-nowrap"
                                                             >
-                                                                Deliver
+                                                                {t("orders.bulk.deliver")}
                                                             </button>
                                                             <button
                                                                 onClick={handleBulkReject}
                                                                 className="px-3 py-1.5 rounded-lg bg-[var(--pastel-pink)] text-rose-900 text-sm font-medium hover:bg-[var(--pastel-pink-light)] transition-all whitespace-nowrap"
                                                             >
-                                                                Reject
+                                                                {t("orders.bulk.reject")}
                                                             </button>
                                                             <button
                                                                 onClick={handleBulkArchive}
                                                                 className="px-3 py-1.5 rounded-lg bg-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-300 transition-all whitespace-nowrap"
                                                             >
-                                                                Archive
+                                                                {t("orders.bulk.archive")}
                                                             </button>
 
                                                             {/* Divider */}
@@ -1558,31 +1717,31 @@ export default function OrdersPage() {
                                                                 onClick={handleBulkNew}
                                                                 className="px-3 py-1.5 rounded-lg bg-blue-100 text-blue-700 text-sm font-medium hover:bg-blue-200 transition-all whitespace-nowrap"
                                                             >
-                                                                New
+                                                                {t("orders.bulk.new")}
                                                             </button>
                                                             <button
                                                                 onClick={handleBulkContacted}
                                                                 className="px-3 py-1.5 rounded-lg bg-amber-100 text-amber-700 text-sm font-medium hover:bg-amber-200 transition-all whitespace-nowrap"
                                                             >
-                                                                Contacted
+                                                                {t("orders.bulk.contacted")}
                                                             </button>
                                                             <button
                                                                 onClick={handleBulkInTransit}
                                                                 className="px-3 py-1.5 rounded-lg bg-orange-100 text-orange-700 text-sm font-medium hover:bg-orange-200 transition-all whitespace-nowrap"
                                                             >
-                                                                🚚 In Transit
+                                                                {t("orders.bulk.inTransit")}
                                                             </button>
                                                             <button
                                                                 onClick={handleBulkCompleted}
                                                                 className="px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 text-sm font-medium hover:bg-emerald-200 transition-all whitespace-nowrap"
                                                             >
-                                                                Completed
+                                                                {t("orders.bulk.completed")}
                                                             </button>
                                                             <button
                                                                 onClick={handleBulkNoResponse}
                                                                 className="px-3 py-1.5 rounded-lg bg-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-300 transition-all whitespace-nowrap"
                                                             >
-                                                                لم يرد
+                                                                {t("orders.status.noResponse")}
                                                             </button>
 
                                                             {/* Divider */}
@@ -1593,7 +1752,7 @@ export default function OrdersPage() {
                                                                 onClick={handleBulkDelete}
                                                                 className="px-3 py-1.5 rounded-lg bg-red-100 text-red-700 text-sm font-medium hover:bg-red-200 transition-all whitespace-nowrap"
                                                             >
-                                                                Delete
+                                                                {t("orders.bulk.delete")}
                                                             </button>
                                                         </motion.div>
                                                     )}
@@ -1609,6 +1768,7 @@ export default function OrdersPage() {
                                         filters={filters}
                                         setFilters={setFilters}
                                         statusCounts={statusCounts}
+                                        totalRiskCount={totalRiskCount}
                                         showFilters={showFilters}
                                         setShowFilters={setShowFilters}
                                         hasActiveFilters={hasActiveFilters}
@@ -1704,11 +1864,13 @@ export default function OrdersPage() {
                                                     }
                                                 }}
                                                 isBlacklisted={isBlacklisted}
+                                                getRiskAssessment={getAssessment}
                                                 getCustomerOrderCount={getCustomerOrderCount}
                                                 getCustomerHistory={getCustomerHistory}
                                                 getReturnOrderInfo={getReturnOrderInfo}
                                                 getOriginalOrderInfo={getOriginalOrderInfo}
                                                 compactView={compactView}
+                                                getRiskLevel={getRiskLevel}
                                             />
                                         ) : (
                                             /* Use animated list for <50 orders */
@@ -1729,6 +1891,8 @@ export default function OrdersPage() {
                                                                     setIsModalOpen(true);
                                                                 }}
                                                                 isBlacklisted={isBlacklisted(order.phone)}
+                                                                riskLevel={getRiskLevel(order.phone)}
+                                                                riskAssessment={getAssessment(order.phone)}
                                                                 customerOrderCount={orderCount}
                                                                 previousOrder={previousOrder}
                                                                 onMergeWithPrevious={async (keepId: string, archiveId: string) => {
@@ -2115,14 +2279,16 @@ export default function OrdersPage() {
                                                                                 onClick={() => { setSelectedOrder(order); setIsModalOpen(true); }}
                                                                             >
                                                                                 <div className="flex items-center gap-2">
-                                                                                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">
-                                                                                        {order.source === "lightfunnels" ? "LF" : "M"}
-                                                                                    </div>
-                                                                                    <span className="text-sm font-medium truncate max-w-[100px]" title={order.customer_name}>
+                                                                                    <span className="font-medium text-sm text-foreground">
                                                                                         {order.customer_name}
                                                                                     </span>
+                                                                                    {getRiskLevel(order.phone) && (getRiskLevel(order.phone) === 'high' || getRiskLevel(order.phone) === 'blocked' || getRiskLevel(order.phone) === 'medium') && (
+                                                                                        <RiskBadge level={getRiskLevel(order.phone)} showLabel={false} />
+                                                                                    )}
                                                                                 </div>
+
                                                                             </td>
+
 
                                                                             {/* Phone 1 - Iraqi format with WhatsApp indicator */}
                                                                             <td className="px-2 py-2.5">
@@ -2385,8 +2551,8 @@ export default function OrdersPage() {
 
                                         {/* Table Footer with Stats */}
                                         <div className="px-4 py-3 bg-[var(--background)] border-t border-[var(--card-border)] flex items-center justify-between text-xs text-muted">
-                                            <span>Showing {displayedOrders.length} of {filteredOrders.length} orders</span>
-                                            <span>Total: <strong className="text-emerald-600">{formatIQD(displayedOrders.reduce((sum, o) => sum + Math.abs(Number(o.price)), 0))}</strong></span>
+                                            <span>{t("orders.showingOf").replace("{shown}", String(displayedOrders.length)).replace("{total}", String(filteredOrders.length))}</span>
+                                            <span>{t("orders.total")} <strong className="text-emerald-600">{formatIQD(displayedOrders.reduce((sum, o) => sum + Math.abs(Number(o.price)), 0))}</strong></span>
                                         </div>
                                     </div>
                                 )}
@@ -2408,16 +2574,17 @@ export default function OrdersPage() {
                             </>
                         )}
                     </div>
-                </div>
+                </div >
 
                 {/* Modals */}
-                <OrderDetailsModal
+                < OrderDetailsModal
                     order={selectedOrder}
                     open={isModalOpen}
                     onClose={() => {
                         setIsModalOpen(false);
                         setSelectedOrder(null);
-                    }}
+                    }
+                    }
                     onUpdate={updateOrder}
                     onStatusUpdate={updateOrderStatus}
                     onGetTimeline={getOrderTimeline}
@@ -2479,105 +2646,15 @@ export default function OrdersPage() {
                     )
                 }
 
-                {/* Cancellation Reason Dialog */}
-                <CancellationReasonDialog
-                    open={cancelDialogOpen}
-                    onClose={() => {
-                        setCancelDialogOpen(false);
-                        setOrderToCancel(null);
-                    }}
-                    onConfirm={async (reason) => {
-                        if (orderToCancel) {
-                            await handleStatusUpdate(orderToCancel.id, "cancelled", reason);
-                            setOrderToCancel(null);
-                        }
-                    }}
-                    customerName={orderToCancel?.customer_name}
-                    orderId={orderToCancel?.order_id}
-                />
-
-                {/* Rejection Reason Dialog */}
-                <CancellationReasonDialog
-                    open={rejectDialogOpen}
-                    onClose={() => {
-                        setRejectDialogOpen(false);
-                        setOrderToReject(null);
-                    }}
-                    onConfirm={async (reason) => {
-                        if (orderToReject) {
-                            await handleStatusUpdate(orderToReject.id, "rejected", reason);
-                            setOrderToReject(null);
-                        }
-                    }}
-                    customerName={orderToReject?.customer_name}
-                    orderId={orderToReject?.order_id}
-                    type="reject"
-                />
-
-                {/* WhatsApp Template Panel */}
-                {
-                    orderForTemplate && (
-                        <WhatsAppTemplatePanel
-                            open={templatePanelOpen}
-                            onClose={() => {
-                                setTemplatePanelOpen(false);
-                                setOrderForTemplate(null);
-                            }}
-                            order={orderForTemplate}
-                            templates={workflowTemplates}
-                            onContactSent={async (orderId, newCount) => {
-                                // Update the order's contact_count
-                                await updateOrder(orderId, { contact_count: newCount });
-                            }}
-                        />
-                    )
-                }
-
-                {/* Excel Import Modal */}
-                <ImportOrdersModal
-                    open={isImportModalOpen}
-                    onClose={() => setIsImportModalOpen(false)}
-                    existingOrderIds={orders.map(o => o.order_id)}
-                    productCatalogue={products.map(p => ({ id: p.id, name: p.name, image_url: p.image_url, tag_color: p.tag_color }))}
-                    onImport={async (ordersToImport) => {
-                        let imported = 0;
-                        const errors: string[] = [];
-
-                        for (const orderData of ordersToImport) {
-                            try {
-                                const result = await createOrder(orderData as any);
-                                if (result.success) {
-                                    imported++;
-                                } else {
-                                    errors.push(`${orderData.order_id}: ${result.error}`);
-                                }
-                            } catch (error) {
-                                errors.push(`${orderData.order_id}: ${error}`);
-                            }
-                        }
-
-                        return { success: imported > 0, imported, errors };
-                    }}
-                />
-
-                {/* Mobile Floating Action Button for New Order */}
-                {
-                    isMobile && selectedOrders.size === 0 && (
-                        <motion.button
-                            initial={{ scale: 0, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0, opacity: 0 }}
-                            onClick={() => setIsCreateModalOpen(true)}
-                            className="fixed bottom-6 right-4 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-xl shadow-green-500/30 flex items-center justify-center active:scale-95 transition-transform"
-                            style={{
-                                bottom: 'calc(1.5rem + env(safe-area-inset-bottom))',
-                                right: 'calc(1rem + env(safe-area-inset-right))'
-                            }}
-                        >
-                            <Plus className="w-7 h-7" />
-                        </motion.button>
-                    )
-                }
+                {/* Split Order Dialog */}
+                {splitOrderDialog.open && splitOrderDialog.order && (
+                    <SplitOrderDialog
+                        order={splitOrderDialog.order}
+                        open={splitOrderDialog.open}
+                        onClose={() => setSplitOrderDialog({ open: false, order: null })}
+                        onConfirm={handleSplitOrder}
+                    />
+                )}
 
                 <FloatingActionBar
                     selectedCount={selectedOrders.size}
@@ -2586,6 +2663,7 @@ export default function OrdersPage() {
                     onArchive={handleBulkArchive}
                     onDelete={handleBulkDelete}
                 />
+
 
                 {/* Scroll to Top Button */}
                 <ScrollToTopButton />

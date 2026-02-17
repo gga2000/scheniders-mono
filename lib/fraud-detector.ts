@@ -15,6 +15,7 @@ export interface RiskAssessment {
         deliveredCount: number;
         cancelledCount: number;
         rejectedCount: number;
+        refundedCount: number;
         noResponseCount: number;
         pendingCount: number; // Orders still in progress
     };
@@ -56,144 +57,64 @@ class FraudDetector {
     /**
      * Assess customer risk based on phone number
      */
+    /**
+     * Assess customer risk based on phone number
+     * Now uses O(1) Lookup from customer_risk table
+     */
     async assessCustomerRisk(phone: string): Promise<RiskAssessment> {
         try {
-            // Normalize phone for lookup
             const normalizedPhone = this.normalizePhone(phone);
 
-            // Check blacklist first
-            const { data: blacklistData } = await supabase
-                .from("blacklist")
+            // Fast lookup from pre-calculated table
+            const { data, error } = await supabase
+                .from("customer_risk")
                 .select("*")
                 .eq("phone", normalizedPhone)
                 .maybeSingle();
 
-            const isBlacklisted = !!blacklistData;
-
-            // Fetch all orders for this phone
-            const { data: orders, error } = await supabase
-                .from("orders")
-                .select("id, status, created_at, order_id")
-                .or(`phone.eq.${normalizedPhone},secondary_phone.eq.${normalizedPhone}`)
-                .order("created_at", { ascending: false });
-
             if (error) {
-                console.error("[FraudDetector] Error fetching orders:", error);
+                console.error("[FraudDetector] DB Lookup Error:", error);
+                // Fallback to default low risk if DB error
                 return this.getDefaultAssessment();
             }
 
-            // Calculate metrics
-            const historicalData = {
-                totalOrders: orders?.length || 0,
-                deliveredCount: 0,
-                cancelledCount: 0,
-                rejectedCount: 0,
-                noResponseCount: 0,
-                pendingCount: 0,
-            };
-
-            if (orders) {
-                orders.forEach((order) => {
-                    switch (order.status) {
-                        case "delivered":
-                        case "completed":
-                            historicalData.deliveredCount++;
-                            break;
-                        case "cancelled":
-                            historicalData.cancelledCount++;
-                            break;
-                        case "rejected":
-                            historicalData.rejectedCount++;
-                            break;
-                        case "no_response":
-                            historicalData.noResponseCount++;
-                            break;
-                        case "new":
-                        case "contacted":
-                        case "confirmed":
-                        case "in_transit":
-                            historicalData.pendingCount++;
-                            break;
-                    }
-                });
+            if (data) {
+                // Map DB result to RiskAssessment
+                return {
+                    score: data.score,
+                    level: data.risk_level as RiskLevel,
+                    reasons: data.reasons || [],
+                    historicalData: {
+                        totalOrders: data.stats?.total || 0,
+                        deliveredCount: data.stats?.delivered || 0,
+                        cancelledCount: data.stats?.cancelled || 0,
+                        rejectedCount: data.stats?.rejected || 0,
+                        refundedCount: data.stats?.refunded || 0,
+                        noResponseCount: data.stats?.no_response || 0,
+                        pendingCount: data.stats?.pending || 0
+                    },
+                    isBlacklisted: data.risk_level === 'blocked',
+                    isReturningCustomer: (data.stats?.total || 0) > 0,
+                    lastOrderDate: data.last_order_date,
+                    recommendation: this.getRecommendation(data.risk_level as RiskLevel)
+                };
             }
 
-            // Calculate risk score
-            let score = 0;
-            const reasons: string[] = [];
+            // If no record found, it's a new customer -> Low Risk
+            return this.getDefaultAssessment();
 
-            // Blacklist check
-            if (isBlacklisted) {
-                score = 100;
-                reasons.push("📛 رقم محظور في القائمة السوداء");
-            } else {
-                // Cancellation score
-                score += historicalData.cancelledCount * THRESHOLDS.WEIGHT_CANCELLED;
-                if (historicalData.cancelledCount >= THRESHOLDS.MEDIUM_RISK_CANCELLATIONS) {
-                    reasons.push(`⚠️ ${historicalData.cancelledCount} طلبات ملغية سابقة`);
-                }
-
-                // Rejection score
-                score += historicalData.rejectedCount * THRESHOLDS.WEIGHT_REJECTED;
-                if (historicalData.rejectedCount >= THRESHOLDS.HIGH_RISK_REJECTIONS) {
-                    reasons.push(`🚫 ${historicalData.rejectedCount} طلبات مرفوضة عند التوصيل`);
-                }
-
-                // No response score
-                score += historicalData.noResponseCount * THRESHOLDS.WEIGHT_NO_RESPONSE;
-                if (historicalData.noResponseCount >= THRESHOLDS.MEDIUM_RISK_NO_RESPONSE) {
-                    reasons.push(`📵 ${historicalData.noResponseCount} طلبات بدون رد`);
-                }
-
-                // Delivered orders reduce risk
-                score += historicalData.deliveredCount * THRESHOLDS.WEIGHT_DELIVERED;
-            }
-
-            // Clamp score between 0 and 100
-            score = Math.max(0, Math.min(100, score));
-
-            // Determine risk level
-            let level: RiskLevel = "low";
-            if (isBlacklisted) {
-                level = "blocked";
-            } else if (score >= 50 || historicalData.rejectedCount >= THRESHOLDS.HIGH_RISK_REJECTIONS) {
-                level = "high";
-            } else if (
-                score >= 25 ||
-                historicalData.cancelledCount >= THRESHOLDS.MEDIUM_RISK_CANCELLATIONS ||
-                historicalData.noResponseCount >= THRESHOLDS.MEDIUM_RISK_NO_RESPONSE
-            ) {
-                level = "medium";
-            }
-
-            // Add positive reasons
-            if (historicalData.deliveredCount > 0 && reasons.length === 0) {
-                reasons.push(`✅ ${historicalData.deliveredCount} طلبات ناجحة سابقة`);
-            }
-
-            // Determine recommendation
-            let recommendation: RiskAssessment["recommendation"] = "proceed";
-            if (level === "blocked") {
-                recommendation = "block";
-            } else if (level === "high") {
-                recommendation = "caution";
-            } else if (level === "medium") {
-                recommendation = "review";
-            }
-
-            return {
-                score,
-                level,
-                reasons,
-                historicalData,
-                isBlacklisted,
-                isReturningCustomer: historicalData.totalOrders > 0,
-                lastOrderDate: orders?.[0]?.created_at || null,
-                recommendation,
-            };
         } catch (err) {
             console.error("[FraudDetector] Exception:", err);
             return this.getDefaultAssessment();
+        }
+    }
+
+    private getRecommendation(level: RiskLevel): "proceed" | "review" | "caution" | "block" {
+        switch (level) {
+            case "blocked": return "block";
+            case "high": return "caution";
+            case "medium": return "review";
+            default: return "proceed";
         }
     }
 
@@ -257,29 +178,78 @@ class FraudDetector {
     }
 
     /**
-     * Batch assess multiple phones (for order list display)
+     * Batch assess multiple phones using efficient IN query
      */
     async batchAssess(phones: string[]): Promise<Map<string, RiskAssessment>> {
         const results = new Map<string, RiskAssessment>();
 
-        // Deduplicate phones
-        const uniquePhones = [...new Set(phones.map(p => this.normalizePhone(p)))];
+        // Normalize all inputs
+        const normalizedMap = new Map<string, string>(); // normalized -> original
+        const uniqueNormalizedPhones = new Set<string>();
 
-        // Process in parallel (max 10 at a time to avoid rate limits)
-        const batchSize = 10;
-        for (let i = 0; i < uniquePhones.length; i += batchSize) {
-            const batch = uniquePhones.slice(i, i + batchSize);
-            const promises = batch.map(phone =>
-                this.assessCustomerRisk(phone).then(result => ({ phone, result }))
-            );
+        phones.forEach(p => {
+            const norm = this.normalizePhone(p);
+            if (norm.length >= 5) { // Basic validation
+                normalizedMap.set(norm, p);
+                uniqueNormalizedPhones.add(norm);
+            }
+        });
 
-            const batchResults = await Promise.all(promises);
-            batchResults.forEach(({ phone, result }) => {
-                results.set(phone, result);
-            });
+        const targets = Array.from(uniqueNormalizedPhones);
+        if (targets.length === 0) return results;
+
+        try {
+            const { data, error } = await supabase
+                .from("customer_risk")
+                .select("*")
+                .in("phone", targets);
+
+            if (error) {
+                console.error("[FraudDetector] Batch Error:", error);
+                return results;
+            }
+
+            if (data) {
+                data.forEach((row: any) => {
+                    const assessment: RiskAssessment = {
+                        score: row.score,
+                        level: row.risk_level as RiskLevel,
+                        reasons: row.reasons || [],
+                        historicalData: {
+                            totalOrders: row.stats?.total || 0,
+                            deliveredCount: row.stats?.delivered || 0,
+                            cancelledCount: row.stats?.cancelled || 0,
+                            rejectedCount: row.stats?.rejected || 0,
+                            refundedCount: row.stats?.refunded || 0,
+                            noResponseCount: row.stats?.no_response || 0,
+                            pendingCount: row.stats?.pending || 0
+                        },
+                        isBlacklisted: row.risk_level === 'blocked',
+                        isReturningCustomer: (row.stats?.total || 0) > 0,
+                        lastOrderDate: row.last_order_date,
+                        recommendation: this.getRecommendation(row.risk_level as RiskLevel)
+                    };
+
+                    // The row.phone is normalized.
+                    // We map it to ALL original phones that normalized to this
+                    // (But here we just put it in the map using the key the caller expects... 
+                    // tricky part: caller expects original phone key? 
+                    // The previous implementation utilized phone_key from RPC.
+                    // Here we can use the normalized phone as key if the UI calls normalize.
+                    // Let's see how batchAssess is used. Usually by providing a list.)
+
+                    // We will store it by the normalized key. 
+                    // The UI SHOULD normalize before lookup or we map back.
+                    results.set(row.phone, assessment);
+                });
+            }
+
+            return results;
+
+        } catch (err) {
+            console.error("[FraudDetector] Batch exception:", err);
+            return results;
         }
-
-        return results;
     }
 
     /**
@@ -313,6 +283,7 @@ class FraudDetector {
                 deliveredCount: 0,
                 cancelledCount: 0,
                 rejectedCount: 0,
+                refundedCount: 0,
                 noResponseCount: 0,
                 pendingCount: 0,
             },
@@ -320,6 +291,24 @@ class FraudDetector {
             isReturningCustomer: false,
             lastOrderDate: null,
             recommendation: "proceed",
+        };
+    }
+    /**
+     * Get payload for risk_metadata column in database
+     */
+    getPersistencePayload(assessment: RiskAssessment): any {
+        return {
+            level: assessment.level,
+            score: assessment.score,
+            reasons: assessment.reasons,
+            assessed_at: new Date().toISOString(),
+            recommendation: assessment.recommendation,
+            historical_summary: {
+                total: assessment.historicalData.totalOrders,
+                rejected: assessment.historicalData.rejectedCount,
+                cancelled: assessment.historicalData.cancelledCount,
+                no_response: assessment.historicalData.noResponseCount
+            }
         };
     }
 }

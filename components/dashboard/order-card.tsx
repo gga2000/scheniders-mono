@@ -3,10 +3,14 @@
 import { useState, useRef, useEffect, memo } from "react";
 import { createPortal } from "react-dom";
 import { Order, OrderPriority, MessageTemplate } from "@/lib/supabase";
-import { formatIQD, generateWhatsAppLink, getStatusLabel, copyOrderToClipboard, getGuaranteeDaysRemaining } from "@/lib/utils";
+import { RiskLevel, RiskAssessment } from "@/lib/fraud-detector";
+import { RiskBadge } from "@/components/orders/risk-badge";
+import { DiscountBadge } from "@/components/orders/discount-badge";
+// ... existing imports ...
+
+import { formatIQD, generateWhatsAppLink, getStatusLabel, copyOrderToClipboard, getGuaranteeDaysRemaining, cn } from "@/lib/utils";
 import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
 import { extractGovernorate } from "@/lib/address-validator";
-import { cn } from "@/lib/utils";
 import {
     MessageCircle,
     Edit,
@@ -24,18 +28,22 @@ import {
     RotateCcw,
     Flag,
     Flame,
+    Clipboard,
+    Store,
     FileText,
-    Copy,
-    Link2,
-    Clock,
     Pin,
+    Clock,
+    Copy,
     CopyPlus,
     MoreVertical,
     Camera,
     ClipboardCopy,
-    Store,
+    Link2,
+    PhoneOff,
+    Scissors
 } from "lucide-react";
 import { motion } from "framer-motion";
+
 
 interface OrderCardProps {
     order: Order;
@@ -43,6 +51,8 @@ interface OrderCardProps {
     onStatusUpdate: (id: string, status: Order["status"], reason?: string) => void;
     onViewDetails: (order: Order) => void;
     isBlacklisted?: boolean;
+    riskLevel?: RiskLevel;
+    riskAssessment?: RiskAssessment;
     // Duplicate detection props
     customerOrderCount?: number;
     previousOrder?: Order | null;
@@ -72,6 +82,8 @@ interface OrderCardProps {
     // Selection
     isSelected?: boolean;
     onToggleSelection?: (orderId: string) => void;
+    // Split functionality
+    onSplit?: () => void;
 }
 
 export const OrderCard = memo(function OrderCard({
@@ -80,6 +92,8 @@ export const OrderCard = memo(function OrderCard({
     onStatusUpdate,
     onViewDetails,
     isBlacklisted,
+    riskLevel,
+    riskAssessment,
     customerOrderCount = 1,
     previousOrder,
     onMergeWithPrevious,
@@ -97,6 +111,7 @@ export const OrderCard = memo(function OrderCard({
     messageTemplates = [],
     isSelected = false,
     onToggleSelection,
+    onSplit,
 }: OrderCardProps) {
     const isLoading = loadingId === order.id;
     const isNew = order.status === "new";
@@ -469,6 +484,8 @@ export const OrderCard = memo(function OrderCard({
                     </>
                 )}
 
+
+
                 {/* Main Content Row */}
                 <div
                     className={cn(
@@ -497,11 +514,25 @@ export const OrderCard = memo(function OrderCard({
                         >
                             {isPinned && <Pin className="w-4 h-4 text-blue-500 -rotate-45" />}
                             {isNew && !isPinned && <Sparkles className="w-4 h-4 text-orange-500 animate-pulse" />}
-                            {isReturn && <RotateCcw className="w-4 h-4 text-red-600" />}
-                            <span className="font-bold text-foreground text-base">
+
+                            {/* Return Badge */}
+                            {order.is_return && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 text-[10px] font-bold border border-rose-200">
+                                    <RotateCcw className="w-3 h-3" />
+                                    <span>راجع</span>
+                                </span>
+                            )}
+
+                            <span className={cn(
+                                "font-bold text-base",
+                                order.is_return ? "text-rose-700" : "text-foreground"
+                            )}>
                                 {order.customer_name}
                             </span>
-                            {isBlacklisted && (
+
+
+
+                            {!riskLevel && isBlacklisted && (
                                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold rounded bg-red-100 text-red-700" title="Blacklisted customer">
                                     <AlertTriangle className="w-3 h-3" />
                                 </span>
@@ -567,6 +598,33 @@ export const OrderCard = memo(function OrderCard({
                                                 🚚 {order.delivery_order_id}
                                             </span>
                                         )}
+                                        {/* Original Order Reference in Header */}
+                                        {order.is_return && order.original_order_id && (
+                                            <span
+                                                className="px-1.5 py-0.5 rounded text-[9px] font-bold border cursor-pointer transition-all flex items-center gap-1 bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100"
+                                                title="طلب راجع من"
+                                            >
+                                                <span>من: {order.original_order_id}</span>
+                                            </span>
+                                        )}
+                                        {previousOrder && (
+                                            <span
+                                                className={cn(
+                                                    "px-1.5 py-0.5 rounded text-[9px] font-bold border cursor-pointer transition-all flex items-center gap-1",
+                                                    isVerifiedCustomer
+                                                        ? "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200"
+                                                        : "bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200"
+                                                )}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onViewDetails(previousOrder);
+                                                }}
+                                                title="عرض الطلب الاصلي"
+                                            >
+                                                <CopyPlus className="w-3 h-3" />
+                                                الطلب الاصلي #{previousOrder.order_id}
+                                            </span>
+                                        )}
                                     </>
                                 );
                             })()}
@@ -610,6 +668,39 @@ export const OrderCard = memo(function OrderCard({
                                 {isReturn && <RotateCcw className="w-3 h-3" />}
                                 {isReturn ? "استرجاع" : getStatusLabel(order.status)}
                             </motion.span>
+
+                            {/* Detailed Risk Warning - STATE OF THE ART: Only show on ACTIVE/ACTIONABLE orders */}
+                            {(riskLevel === 'high' || riskLevel === 'blocked' || riskLevel === 'medium') &&
+                                ['new', 'contacted', 'confirmed', 'in_transit', 'return_pending'].includes(order.status) && (
+                                    <>
+                                        <RiskBadge level={riskLevel} showLabel={true} className="h-6" />
+
+
+
+                                        {/* Dynamic History Details: Rejected vs No Response */}
+                                        {((riskAssessment?.historicalData?.rejectedCount ?? 0) > 0) && (
+                                            <span className="inline-flex h-6 items-center gap-1 px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-bold border border-rose-200">
+                                                <XCircle className="w-3 h-3" />
+                                                طلبات سابقة مرفوضة
+                                            </span>
+                                        )}
+                                        {/* Previous Refund - PURPLE */}
+                                        {(riskAssessment?.historicalData?.refundedCount ?? 0) > 0 && (
+                                            <span className="inline-flex h-6 items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200">
+                                                <RotateCcw className="w-3 h-3" />
+                                                طلبات سابقة مسترجعة ({riskAssessment?.historicalData?.refundedCount})
+                                            </span>
+                                        )}
+
+                                        {/* No Response History - ORANGE */}
+                                        {((riskAssessment?.historicalData?.noResponseCount ?? 0) > 0) && (
+                                            <span className="inline-flex h-6 items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-bold border border-orange-200">
+                                                <PhoneOff className="w-3 h-3" />
+                                                لم يتم الرد سابقاً
+                                            </span>
+                                        )}
+                                    </>
+                                )}
 
 
                             {/* Original Order Link for Returns */}
@@ -670,10 +761,23 @@ export const OrderCard = memo(function OrderCard({
                                 </span>
                             )}
 
-                            {/* Refund Indicator - Show when this order has a return order */}
-                            {hasRefund && returnOrderInfo && (
+                            {/* Refund Indicator - Show when this order has a return order (Parent Order) */}
+                            {!isReturn && hasRefund && returnOrderInfo && (
+                                <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full bg-orange-100 text-orange-700 border border-orange-200">
+                                    <Scissors className="w-3 h-3" />
+                                    تم الارجاع جزئياً #{returnOrderInfo.returnOrderId}
+                                </span>
+                            )}
+
+                            {/* Return Source Indicator - Show when this is a return order (Child Order) */}
+                            {isReturn && originalOrderInfo && (
                                 <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full bg-rose-100 text-rose-700 border border-rose-200">
-                                    تم الاسترجاع #{returnOrderInfo.returnOrderId}
+                                    <RotateCcw className="w-3 h-3" />
+                                    راجع من #{(() => {
+                                        const orderId = originalOrderInfo.originalOrderId;
+                                        const lfMatch = orderId.match(/LF-(\d+)-\d+$/);
+                                        return lfMatch ? lfMatch[1] : (originalOrderInfo.originalSequenceNumber || orderId);
+                                    })()}
                                 </span>
                             )}
 
@@ -700,6 +804,9 @@ export const OrderCard = memo(function OrderCard({
                                     {customerOrderCount} طلبات
                                 </span>
                             )}
+
+                            {/* Duplicate Reference Tag - Shows original order ID */}
+
                         </div>
                     </motion.div>
 
@@ -755,6 +862,13 @@ export const OrderCard = memo(function OrderCard({
                                                 </span>
                                             );
                                         })}
+                                        {/* Review Required Tag - Next to items */}
+                                        {(riskLevel === 'high' || riskLevel === 'blocked') &&
+                                            ['new', 'contacted', 'confirmed'].includes(order.status) && (
+                                                <span className="inline-flex h-7 items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-bold bg-red-100 text-red-700 animate-pulse border border-red-200">
+                                                    Review Required
+                                                </span>
+                                            )}
                                     </div>
                                 ) : (
                                     <span className="text-sm text-muted">No products</span>
@@ -875,14 +989,41 @@ export const OrderCard = memo(function OrderCard({
                                 </p>
                             </>
                         ) : (
-                            <p className={cn(
-                                "text-lg font-bold tracking-tight",
-                                isReturn ? "text-red-600" : "text-foreground",
-                                hasRefund && "line-through opacity-50"
-                            )}>
-                                {isReturn && "-"}
-                                {formatIQD(Math.abs(Number(order.price)))}
-                            </p>
+                            <div className="flex flex-col items-end">
+                                {order.discount_amount ? (
+                                    <>
+                                        <div className="flex items-center justify-end gap-1.5 mb-0.5">
+                                            <span className="text-xs text-muted line-through decoration-red-400 decoration-2 font-mono">
+                                                {formatIQD(Math.abs(Number(order.price)) + order.discount_amount)}
+                                            </span>
+                                        </div>
+                                        <p className={cn(
+                                            "text-lg font-bold tracking-tight",
+                                            isReturn ? "text-red-600" : "text-foreground",
+                                            hasRefund && "line-through opacity-50"
+                                        )}>
+                                            {isReturn && "-"}
+                                            {formatIQD(Math.abs(Number(order.price)))}
+                                        </p>
+                                        <div className="mt-1">
+                                            <DiscountBadge
+                                                price={Number(order.price)}
+                                                discountAmount={order.discount_amount}
+                                                className="scale-90 origin-right"
+                                            />
+                                        </div>
+                                    </>
+                                ) : (
+                                    <p className={cn(
+                                        "text-lg font-bold tracking-tight",
+                                        isReturn ? "text-red-600" : "text-foreground",
+                                        hasRefund && "line-through opacity-50"
+                                    )}>
+                                        {isReturn && "-"}
+                                        {formatIQD(Math.abs(Number(order.price)))}
+                                    </p>
+                                )}
+                            </div>
                         )}
                     </motion.div>
 
@@ -947,14 +1088,38 @@ export const OrderCard = memo(function OrderCard({
                                 ) : (
                                     <div className="flex flex-col items-end">
                                         <span className="text-[10px] text-muted uppercase tracking-wider">المبلغ</span>
-                                        <span className={cn(
-                                            "text-xl font-bold tabular-nums",
-                                            isReturn ? "text-red-600" : "text-foreground",
-                                            hasRefund && "line-through opacity-50"
-                                        )}>
-                                            {isReturn && "-"}
-                                            {formatIQD(Math.abs(Number(order.price)))}
-                                        </span>
+
+                                        {order.discount_amount ? (
+                                            <>
+                                                <span className="text-xs text-muted line-through decoration-red-400 decoration-2 font-mono mb-0.5">
+                                                    {formatIQD(Math.abs(Number(order.price)) + order.discount_amount)}
+                                                </span>
+                                                <span className={cn(
+                                                    "text-xl font-bold tabular-nums",
+                                                    isReturn ? "text-red-600" : "text-foreground",
+                                                    hasRefund && "line-through opacity-50"
+                                                )}>
+                                                    {isReturn && "-"}
+                                                    {formatIQD(Math.abs(Number(order.price)))}
+                                                </span>
+                                                <div className="mt-1">
+                                                    <DiscountBadge
+                                                        price={Number(order.price)}
+                                                        discountAmount={order.discount_amount}
+                                                        className="scale-90 origin-right"
+                                                    />
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <span className={cn(
+                                                "text-xl font-bold tabular-nums",
+                                                isReturn ? "text-red-600" : "text-foreground",
+                                                hasRefund && "line-through opacity-50"
+                                            )}>
+                                                {isReturn && "-"}
+                                                {formatIQD(Math.abs(Number(order.price)))}
+                                            </span>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -1254,6 +1419,24 @@ export const OrderCard = memo(function OrderCard({
                                         <CheckCircle className="w-4 h-4" />
                                     </button>
                                 )}
+
+                                {/* Split Order - For confirmed/in_transit/delivered orders with multiple items */}
+                                {onSplit &&
+                                    (order.status === "confirmed" || order.status === "in_transit" || order.status === "delivered") &&
+                                    (!order.is_return) &&
+                                    (order.items && order.items.length > 1) && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onSplit();
+                                            }}
+                                            disabled={isLoading}
+                                            className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-all flex items-center justify-center disabled:opacity-50"
+                                            title="Split Order"
+                                        >
+                                            <Scissors className="w-4 h-4" />
+                                        </button>
+                                    )}
 
                                 {/* In Transit - Blue (order shipped) - only for confirmed orders */}
                                 {order.status === "confirmed" && (

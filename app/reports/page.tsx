@@ -11,6 +11,7 @@ import { useBatchAnalytics } from "@/hooks/use-batch-analytics";
 import { PageGuard } from "@/components/auth/role-guard";
 import { PageSkeleton } from "@/components/ui/skeletons";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 import { exportReportsToCSV, exportReportsToExcel, printOperationalReport } from "@/lib/reports-export";
 import { calculateEmployeePerformance, calculatePeriodComparison } from "@/lib/analytics/employee-metrics";
 import { calculateReturnAnalytics } from "@/lib/analytics/reports-calculations";
@@ -181,11 +182,13 @@ export default function ReportsPage() {
         );
     }
 
+    const { t } = useLanguage();
+
     if (error) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-[var(--background)]">
                 <div className="pastel-card pastel-card-pink p-8 max-w-md text-center">
-                    <h2 className="text-xl font-bold text-rose-900 mb-2">Error Loading Reports</h2>
+                    <h2 className="text-xl font-bold text-rose-900 mb-2">{t("reports.errorTitle")}</h2>
                     <p className="text-rose-700">{error}</p>
                 </div>
             </div>
@@ -199,8 +202,8 @@ export default function ReportsPage() {
                     <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center mx-auto mb-6">
                         <FileBarChart className="w-10 h-10 text-indigo-600" />
                     </div>
-                    <h2 className="text-2xl font-bold text-foreground mb-2">No Data Available</h2>
-                    <p className="text-muted">Start adding orders to see your operational reports</p>
+                    <h2 className="text-2xl font-bold text-foreground mb-2">{t("reports.noData")}</h2>
+                    <p className="text-muted">{t("reports.noDataDesc")}</p>
                 </div>
             </div>
         );
@@ -223,10 +226,10 @@ export default function ReportsPage() {
                             </div>
                             <div>
                                 <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
-                                    Operational Reports
+                                    {t("reports.title")}
                                 </h1>
                                 <p className="text-muted mt-1 text-lg">
-                                    Technical insights & performance metrics
+                                    {t("reports.subtitle")}
                                 </p>
                             </div>
                         </div>

@@ -3,6 +3,7 @@
 import React, { useState, useRef, useCallback, memo } from "react";
 import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from "framer-motion";
 import { Order, MessageTemplate } from "@/lib/supabase";
+import { RiskLevel } from "@/lib/fraud-detector";
 import { OrderCard } from "./order-card";
 import { CheckCircle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,8 @@ interface SwipeableOrderCardProps {
     loadingId: string | null;
     onStatusUpdate: (id: string, status: Order["status"], reason?: string) => void;
     onViewDetails: (order: Order) => void;
+    riskLevel?: RiskLevel;
+    riskAssessment?: any; // Pass through risk assessment
     // ... all other props pass through
     [key: string]: any;
 }
