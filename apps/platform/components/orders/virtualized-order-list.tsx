@@ -4,6 +4,7 @@ import { useRef, memo, useCallback, useEffect, useState } from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { Order, MessageTemplate } from "@/lib/supabase";
 import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
+import { RiskLevel } from "@/lib/fraud-detector";
 
 interface VirtualizedOrderListProps {
     orders: Order[];
@@ -25,12 +26,15 @@ interface VirtualizedOrderListProps {
     onMergeWithPrevious: (currentOrderId: string, previousOrderId: string) => void;
     // Data helpers
     isBlacklisted: (phone: string) => boolean;
+    getRiskLevel: (phone: string) => RiskLevel;
+    getRiskAssessment?: (phone: string) => any; // New helper for full assessment
     getCustomerOrderCount: (phone: string, orderId: string) => number;
     getCustomerHistory: (phone: string) => Order[];
     getReturnOrderInfo: (orderId: string) => { returnOrderId: string; returnSequenceNumber?: number } | null;
     getOriginalOrderInfo: (originalOrderId?: string) => { originalOrderId: string; originalSequenceNumber?: number } | null;
     // Options
     compactView?: boolean;
+    onSplitOrder?: (order: any) => void;
 }
 
 // Estimated card heights (will be measured dynamically)
@@ -60,6 +64,9 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
     getReturnOrderInfo,
     getOriginalOrderInfo,
     compactView = false,
+    getRiskLevel,
+    getRiskAssessment,
+    onSplitOrder,
 }: VirtualizedOrderListProps) {
     const listRef = useRef<HTMLDivElement>(null);
     const [scrollMargin, setScrollMargin] = useState(0);
@@ -126,6 +133,8 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
                                 onStatusUpdate={handleStatusUpdate}
                                 onViewDetails={handleViewDetails}
                                 isBlacklisted={isBlacklisted(order.phone)}
+                                riskLevel={getRiskLevel(order.phone)}
+                                riskAssessment={getRiskAssessment?.(order.phone)} // Pass full assessment
                                 customerOrderCount={orderCount}
                                 previousOrder={previousOrder}
                                 onMergeWithPrevious={onMergeWithPrevious}
@@ -136,6 +145,7 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
                                 onCancelWithReason={onCancelWithReason}
                                 onRejectWithReason={onRejectWithReason}
                                 onToggleReviewed={onToggleReviewed}
+                                onSplitOrder={onSplitOrder}
                                 returnOrderInfo={getReturnOrderInfo(order.id)}
                                 originalOrderInfo={getOriginalOrderInfo(order.original_order_id)}
                                 compact={compactView}

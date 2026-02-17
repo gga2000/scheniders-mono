@@ -16,6 +16,7 @@ import { MarkAsShippedDialog, MarkAsDeliveredDialog } from "@/components/printin
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { EnhancedLabelOptions, printBulkEnhancedLabels, printBulkInvoices, generateBulkA6InvoicesHTML } from "@/lib/enhanced-label-generator";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLanguage } from "@/hooks/use-language";
 import {
     Printer,
     Package,
@@ -325,11 +326,13 @@ export default function PrintingPage() {
         );
     }
 
+    const { t } = useLanguage();
+
     if (error) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <div className="pastel-card pastel-card-pink p-8 text-center">
-                    <h2 className="text-xl font-bold text-rose-900 mb-2">Error Loading Print Queue</h2>
+                    <h2 className="text-xl font-bold text-rose-900 mb-2">{t("printing.errorTitle")}</h2>
                     <p className="text-rose-700">{error}</p>
                 </div>
             </div>
@@ -351,7 +354,7 @@ export default function PrintingPage() {
                             <div>
                                 <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight flex items-center gap-3">
                                     <Printer className="w-8 h-8" />
-                                    Print Queue
+                                    {t("printing.title")}
                                 </h1>
                                 <p className="text-muted mt-1 text-lg">
                                     {sortedOrders.length} confirmed orders ready to print

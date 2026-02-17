@@ -22,12 +22,14 @@ import { Leaderboard } from "@/components/dashboard/widgets/leaderboard";
 import { GeoMap } from "@/components/dashboard/widgets/geo-map";
 import { PageGuard } from "@/components/auth/role-guard";
 import { PageSkeleton } from "@/components/ui/skeletons";
+import { useLanguage } from "@/hooks/use-language";
 
 export default function Home() {
   const { orders, loading, error, updateOrderStatus, createOrder } = useOrdersContext();
   const { products } = useProductsCrud();
   const stats = useStats(orders);
   const dashboardMetrics = useDashboardMetrics(orders, products || []);
+  const { t } = useLanguage();
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
@@ -43,7 +45,7 @@ export default function Home() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--background)]">
         <div className="pastel-card pastel-card-pink p-8 max-w-md text-center">
-          <h2 className="text-xl font-bold text-rose-900 mb-2">Error Loading Dashboard</h2>
+          <h2 className="text-xl font-bold text-rose-900 mb-2">{t("dashboard.errorTitle")}</h2>
           <p className="text-rose-700">{error}</p>
         </div>
       </div>
@@ -53,9 +55,9 @@ export default function Home() {
   // Get current greeting based on time
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 18) return "Good afternoon";
-    return "Good evening";
+    if (hour < 12) return t("dashboard.greeting.morning");
+    if (hour < 18) return t("dashboard.greeting.afternoon");
+    return t("dashboard.greeting.evening");
   };
 
   return (
@@ -70,7 +72,7 @@ export default function Home() {
                 {getGreeting()}, Dr. Ali
               </h1>
               <p className="text-muted mt-2 text-lg">
-                Command Center & Real-time Intelligence
+                {t("dashboard.subtitle")}
               </p>
             </div>
 
@@ -91,7 +93,7 @@ export default function Home() {
                 className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-[var(--button-success)] text-white shadow-lg shadow-green-500/20 hover:bg-[var(--button-success-hover)] hover:shadow-green-500/30 hover:scale-[1.02] transition-all font-semibold"
               >
                 <Plus className="h-5 w-5" />
-                <span>New Order</span>
+                <span>{t("dashboard.newOrder")}</span>
               </button>
             </div>
           </div>

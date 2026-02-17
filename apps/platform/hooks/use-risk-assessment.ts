@@ -68,6 +68,8 @@ export function useRiskAssessment(phone: string | undefined | null) {
         isReturningCustomer: assessment?.isReturningCustomer || false,
         riskLevel: assessment?.level || "low",
         riskScore: assessment?.score || 0,
+        riskReasons: assessment?.reasons || [],
+        riskAssessment: assessment,
     };
 }
 
@@ -92,19 +94,37 @@ export function useBatchRiskAssessment(orders: OrderWithPhone[]) {
 
     // Only fetch if phones have changed
     useEffect(() => {
+        // Optimization removed: We need to re-fetch even if the list of phones hasn't changed,
+        // because the *status* of orders for those phones might have changed (e.g. a new rejection),
+        // which affects the risk score.
+        // The `phones` array reference changes whenever `orders` updates, so this effect will run
+        // on every order update.
+
+        /*
         const phonesChanged =
             phones.length !== lastFetchedPhones.length ||
             phones.some((p, i) => p !== lastFetchedPhones[i]);
 
-        if (!phonesChanged || phones.length === 0) return;
+        console.log("[useBatchRiskAssessment] Effect triggered. Phones:", phones.length, "Changed:", phonesChanged);
+
+        if (!phonesChanged || phones.length === 0) {
+            console.log("[useBatchRiskAssessment] Skipping fetch. Phones:", phones.length, "Changed:", phonesChanged);
+            return;
+        }
+        */
+
+        if (phones.length === 0) return;
 
         let cancelled = false;
         setLoading(true);
+
+        console.log("[useBatchRiskAssessment] Starting batch assess for", phones.length, "phones");
 
         fraudDetector
             .batchAssess(phones)
             .then((results) => {
                 if (!cancelled) {
+                    console.log("[useBatchRiskAssessment] Assessments loaded:", results.size);
                     setAssessments(results);
                     setLastFetchedPhones(phones);
                     setLoading(false);
@@ -120,40 +140,110 @@ export function useBatchRiskAssessment(orders: OrderWithPhone[]) {
         return () => {
             cancelled = true;
         };
-    }, [phones, lastFetchedPhones]);
+    }, [phones]); // Depend on phones array reference (updates with orders)
 
-    // Get assessment for a specific phone
+    // =============================================
+    // CLIENT-SIDE PRE-FLIGHT (Instant Feedback)
+    // =============================================
+
+    // Calculate provisional risk based ONLY on loaded orders
+    // This gives 0ms feedback while the RPC runs
+    const localRiskMap = useMemo(() => {
+        const map = new Map<string, RiskAssessment>();
+
+        // Group orders by phone (normalized)
+        const ordersByPhone = new Map<string, any[]>();
+
+        orders.forEach(o => {
+            if (!o.phone) return;
+            const norm = o.phone.replace(/\D/g, "").replace(/^964/, "").replace(/^0/, "");
+            if (!ordersByPhone.has(norm)) ordersByPhone.set(norm, []);
+            ordersByPhone.get(norm)?.push(o);
+        });
+
+        // Generate quick assessments
+        ordersByPhone.forEach((customerOrders, phone) => {
+            // Check for obvious red flags
+            const rejected = customerOrders.filter(o => ['rejected', 'refund_delivered', 'refund_failed'].includes(o.status)).length;
+            const cancelled = customerOrders.filter(o => o.status === 'cancelled').length;
+            const delivered = customerOrders.filter(o => ['delivered', 'completed'].includes(o.status)).length;
+
+            // If we see risk locally, flag it immediately
+            if (rejected > 0 || cancelled >= 2) {
+                // Construct a simplified assessment
+                map.set(phone, {
+                    score: rejected > 0 ? 80 : 40,
+                    level: rejected > 0 ? 'high' : 'medium',
+                    reasons: [
+                        ...(rejected > 0 ? ['⚠️ Local: Found rejected order'] : []),
+                        ...(cancelled >= 2 ? ['⚠️ Local: Found multiple cancellations'] : [])
+                    ],
+                    historicalData: {
+                        totalOrders: customerOrders.length,
+                        deliveredCount: delivered,
+                        cancelledCount: cancelled,
+                        rejectedCount: rejected,
+                        refundedCount: 0,
+                        noResponseCount: 0,
+                        pendingCount: 0,
+                    },
+                    isBlacklisted: false,
+                    isReturningCustomer: customerOrders.length > 1,
+                    lastOrderDate: null,
+                    recommendation: rejected > 0 ? 'caution' : 'review'
+                });
+            }
+        });
+
+        return map;
+    }, [orders]);
+
+    // Combined getter: Server > Local
+    // If server data exists, use it (more accurate/complete)
+    // If not, fall back to local (immediate)
     const getAssessment = useCallback((phone: string): RiskAssessment | undefined => {
+        if (!phone) return undefined;
         // Normalize phone for lookup
         const normalized = phone.replace(/\D/g, "").replace(/^964/, "").replace(/^0/, "");
-        return assessments.get(normalized);
-    }, [assessments]);
 
-    // Get risk level for a specific phone
-    const getRiskLevel = useCallback((phone: string): RiskLevel => {
-        return getAssessment(phone)?.level || "low";
-    }, [getAssessment]);
+        return assessments.get(normalized) || localRiskMap.get(normalized);
+    }, [assessments, localRiskMap]);
 
     // Check if a phone is high risk
     const isHighRisk = useCallback((phone: string): boolean => {
-        const level = getRiskLevel(phone);
-        return level === "high" || level === "blocked";
-    }, [getRiskLevel]);
+        const assessment = getAssessment(phone);
+        return assessment?.level === "high" || assessment?.level === "blocked";
+    }, [getAssessment]);
 
     // Get counts of risk levels
+    // We need to merge assessments and localRiskMap for accurate counts
     const riskCounts = useMemo(() => {
         const counts = { low: 0, medium: 0, high: 0, blocked: 0 };
-        assessments.forEach((a) => {
-            counts[a.level]++;
+
+        // Use a set of all known phones to avoid double counting
+        const allPhones = new Set([...assessments.keys(), ...localRiskMap.keys()]);
+
+        allPhones.forEach(phone => {
+            // Assessment takes precedence over local
+            const assessment = assessments.get(phone) || localRiskMap.get(phone);
+            if (assessment) {
+                counts[assessment.level]++;
+            }
         });
+
         return counts;
-    }, [assessments]);
+    }, [assessments, localRiskMap]);
 
     return {
         assessments,
         loading,
         getAssessment,
-        getRiskLevel,
+        // Helper to check if we are relying on local data (for UI indication if needed)
+        isLocalData: (phone: string) => {
+            const norm = phone?.replace(/\D/g, "").replace(/^964/, "").replace(/^0/, "");
+            return !assessments.has(norm) && localRiskMap.has(norm);
+        },
+        getRiskLevel: useCallback((phone: string) => getAssessment(phone)?.level || "low", [getAssessment]),
         isHighRisk,
         riskCounts,
     };

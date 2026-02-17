@@ -6,6 +6,7 @@ import { useCustomers, CustomerFilters, Customer } from "@/hooks/use-customers";
 import { useDebounce } from "@/hooks/use-debounce";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layout/page-transition";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLanguage } from "@/hooks/use-language";
 import {
     Search,
     Users,
@@ -140,11 +141,13 @@ export default function CustomersPage() {
         );
     }
 
+    const { t } = useLanguage();
+
     if (error) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <div className="pastel-card pastel-card-pink p-8 text-center">
-                    <h2 className="text-xl font-bold text-rose-900 mb-2">Error Loading Customers</h2>
+                    <h2 className="text-xl font-bold text-rose-900 mb-2">{t("customers.errorTitle")}</h2>
                     <p className="text-rose-700">{error}</p>
                 </div>
             </div>
@@ -165,7 +168,7 @@ export default function CustomersPage() {
                         <div>
                             <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight flex items-center gap-3">
                                 <Users className="w-8 h-8" />
-                                Customers
+                                {t("customers.title")}
                             </h1>
                             <p className="text-muted mt-2 text-lg">
                                 {stats.total} customers • {formatIQD(stats.totalRevenue)} total revenue
@@ -247,7 +250,7 @@ export default function CustomersPage() {
                                 </div>
                                 <div>
                                     <p className="text-2xl font-bold text-amber-900">{stats.total}</p>
-                                    <p className="text-xs text-amber-700">Total Customers</p>
+                                    <p className="text-xs text-amber-700">{t("customers.totalCustomers")}</p>
                                 </div>
                             </div>
                         </div>
@@ -258,7 +261,7 @@ export default function CustomersPage() {
                                 </div>
                                 <div>
                                     <p className="text-2xl font-bold text-green-900">{stats.vipCustomers}</p>
-                                    <p className="text-xs text-green-700">VIP Customers</p>
+                                    <p className="text-xs text-green-700">{t("customers.vipCustomers")}</p>
                                 </div>
                             </div>
                         </div>
@@ -269,7 +272,7 @@ export default function CustomersPage() {
                                 </div>
                                 <div>
                                     <p className="text-2xl font-bold text-teal-900">{formatIQD(stats.averageOrderValue)}</p>
-                                    <p className="text-xs text-teal-700">Avg Order Value</p>
+                                    <p className="text-xs text-teal-700">{t("customers.avgOrderValue")}</p>
                                 </div>
                             </div>
                         </div>
@@ -280,7 +283,7 @@ export default function CustomersPage() {
                                 </div>
                                 <div>
                                     <p className="text-2xl font-bold text-blue-900">{stats.retentionRate.toFixed(1)}%</p>
-                                    <p className="text-xs text-blue-700">Retention Rate</p>
+                                    <p className="text-xs text-blue-700">{t("customers.retentionRate")}</p>
                                 </div>
                             </div>
                         </div>
@@ -291,7 +294,7 @@ export default function CustomersPage() {
                                 </div>
                                 <div>
                                     <p className="text-2xl font-bold text-rose-900">{formatIQD(stats.totalRevenue)}</p>
-                                    <p className="text-xs text-rose-700">Total Revenue</p>
+                                    <p className="text-xs text-rose-700">{t("customers.totalRevenue")}</p>
                                 </div>
                             </div>
                         </div>

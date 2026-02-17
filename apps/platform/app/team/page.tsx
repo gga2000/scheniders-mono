@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLanguage } from "@/hooks/use-language";
 import {
     Trophy,
     Activity,
@@ -382,6 +383,7 @@ function AccessDenied() {
 export default function TeamPage() {
     const { profile, isLoading: authLoading } = useAuth();
     const isAdmin = profile?.role === "admin";
+    const { t } = useLanguage();
 
     // State
     const [timeRange, setTimeRange] = useState<TimeRange>("week");
@@ -613,11 +615,11 @@ export default function TeamPage() {
                     <div>
                         <div className="flex items-center gap-3">
                             <h1 className="text-2xl font-bold text-[#1E1E1E]">
-                                لوحة مراقبة الفريق
+                                {t("team.title")}
                             </h1>
                             <LiveIndicator isConnected={isConnected} />
                         </div>
-                        <p className="text-[#6B6B6B] mt-0.5">تتبع أداء الموظفين والنشاطات بشكل مفصّل</p>
+                        <p className="text-[#6B6B6B] mt-0.5">{t("team.subtitle")}</p>
                     </div>
                 </div>
 

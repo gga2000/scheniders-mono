@@ -1,9 +1,16 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Filter, Layers, ChevronDown } from "lucide-react";
+import { Filter, Layers, ChevronDown, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Order, OrderStatus, OrderPriority } from "@/lib/supabase";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useLanguage } from "@/hooks/use-language";
 
 interface FilterState {
     status?: OrderStatus | "all";
@@ -13,12 +20,15 @@ interface FilterState {
     city?: string;
     product?: string;
     priority?: OrderPriority;
+    riskLevel?: 'low' | 'medium' | 'high' | 'blocked' | 'flagged';
+    isReturn?: boolean;
 }
 
 interface StickyFilterBarProps {
     filters: FilterState;
     setFilters: (filters: FilterState) => void;
     statusCounts: Record<string, number>;
+    totalRiskCount?: number;
     showFilters: boolean;
     setShowFilters: (show: boolean) => void;
     hasActiveFilters: boolean;
@@ -32,6 +42,7 @@ export function StickyFilterBar({
     filters,
     setFilters,
     statusCounts,
+    totalRiskCount,
     showFilters,
     setShowFilters,
     hasActiveFilters,
@@ -40,17 +51,18 @@ export function StickyFilterBar({
     className,
     isMobile = false
 }: StickyFilterBarProps) {
+    const { t } = useLanguage();
 
     const filterOptions = [
-        { id: "all", label: "All", fullLabel: "All Orders", count: statusCounts.all },
-        { id: "new", label: "New", count: statusCounts.new || 0 },
-        { id: "contacted", label: "Contacted", count: statusCounts.contacted || 0 },
-        { id: "confirmed", label: "Confirmed", count: statusCounts.confirmed || 0 },
-        { id: "in_transit", label: "In Transit", count: statusCounts.in_transit || 0 },
-        { id: "delivered", label: "Delivered", count: statusCounts.delivered || 0 },
-        { id: "completed", label: "Completed", count: statusCounts.completed || 0 },
-        { id: "rejected", label: "Rejected", count: statusCounts.rejected || 0 },
-        { id: "no_response", label: "No Response", count: statusCounts.no_response || 0 },
+        { id: "all", label: t("orders.status.all"), fullLabel: t("orders.status.all"), count: statusCounts.all },
+        { id: "new", label: t("orders.status.new"), count: statusCounts.new || 0 },
+        { id: "contacted", label: t("orders.status.contacted"), count: statusCounts.contacted || 0 },
+        { id: "confirmed", label: t("orders.status.confirmed"), count: statusCounts.confirmed || 0 },
+        { id: "in_transit", label: t("orders.status.inTransit"), count: statusCounts.in_transit || 0 },
+        { id: "delivered", label: t("orders.status.delivered"), count: statusCounts.delivered || 0 },
+        { id: "completed", label: t("orders.status.completed"), count: statusCounts.completed || 0 },
+        { id: "rejected", label: t("orders.status.rejected"), count: statusCounts.rejected || 0 },
+        { id: "no_response", label: t("orders.status.noResponse"), count: statusCounts.no_response || 0 },
     ];
 
     return (
@@ -63,7 +75,7 @@ export function StickyFilterBar({
             )}
         >
             <div className={cn(
-                "flex items-center gap-2 overflow-x-auto scrollbar-hide snap-x py-1",
+                "flex items-center gap-2 overflow-x-auto scrollbar-hide snap-x py-6 px-6",
                 // Mobile adjustments for touch targets
                 isMobile ? "min-h-[50px]" : ""
             )}>
@@ -89,7 +101,7 @@ export function StickyFilterBar({
                             "px-2 py-0.5 rounded-full text-[11px] font-bold min-w-[24px] text-center",
                             filters.status === option.id || (option.id === "all" && !filters.status)
                                 ? "bg-background/20 text-current"
-                                : "bg-muted text-muted-foreground"
+                                : "bg-muted-foreground/10 text-muted-foreground group-hover/filters:bg-muted-foreground/20"
                         )}>
                             {option.count}
                         </span>
@@ -111,41 +123,104 @@ export function StickyFilterBar({
                     )}
                 >
                     <Filter className="w-4 h-4" />
-                    {!isMobile && "Filters"}
+                    {!isMobile && t("orders.toolbar.filter")}
                     {hasActiveFilters && (
                         <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
                     )}
                 </button>
 
                 {/* Grouping Toggle */}
-                <div className="relative group/dropdown flex-shrink-0">
-                    <button
-                        className={cn(
-                            "rounded-full whitespace-nowrap transition-all flex items-center gap-2 border",
-                            isMobile ? "px-4 py-2.5 text-sm" : "px-4 py-2 text-sm font-medium",
-                            groupBy !== 'none'
-                                ? "bg-purple-100 text-purple-700 border-purple-200"
-                                : "bg-background text-muted-foreground border-border/50 hover:bg-muted"
-                        )}
-                    >
-                        <Layers className="w-4 h-4" />
-                        {!isMobile && `Group: ${groupBy === 'none' ? 'None' : groupBy.charAt(0).toUpperCase() + groupBy.slice(1)}`}
-                        {isMobile && groupBy !== 'none' && (groupBy.charAt(0).toUpperCase() + groupBy.slice(1))}
-                        <ChevronDown className="w-3 h-3 opacity-50" />
-                    </button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button
+                            className={cn(
+                                "rounded-full whitespace-nowrap transition-all flex items-center gap-2 border",
+                                isMobile ? "px-4 py-2.5 text-sm" : "px-4 py-2 text-sm font-medium",
+                                groupBy !== 'none'
+                                    ? "bg-purple-100 text-purple-700 border-purple-200"
+                                    : "bg-background text-muted-foreground border-border/50 hover:bg-muted"
+                            )}
+                        >
+                            <Layers className="w-4 h-4" />
+                            {!isMobile && `${t("common.group")}: ${groupBy === 'none' ? t("common.none") : t(`common.${groupBy}`)}`}
+                            {isMobile && groupBy !== 'none' && t(`common.${groupBy}`)}
+                            <ChevronDown className="w-3 h-3 opacity-50" />
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={() => setGroupBy('none')}>{t("common.none")}</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setGroupBy('status')}>{t("common.status")}</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setGroupBy('city')}>{t("common.city")}</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setGroupBy('verified')}>{t("common.verified")}</DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
 
-                    {/* Simple Dropdown using native select for mobile to avoid portal issues, or custom for consistency? 
-                        Let's keep the custom one but ensure z-index. 
-                        Actually, for mobile, a native select overlaid purely for functionality is often robust.
-                        But to match the design, let's Stick to the existing pattern but careful with z-index.
-                    */}
-                    <div className="absolute top-full right-0 mt-2 w-48 bg-background rounded-xl shadow-xl border border-border p-1 z-50 hidden group-hover/dropdown:block">
-                        <button onClick={() => setGroupBy('none')} className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-muted text-foreground">None</button>
-                        <button onClick={() => setGroupBy('status')} className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-muted text-foreground">Status</button>
-                        <button onClick={() => setGroupBy('city')} className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-muted text-foreground">City</button>
-                        <button onClick={() => setGroupBy('verified')} className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-muted text-foreground">Verified</button>
+                {/* Return Filter Toggle */}
+                <button
+                    onClick={() => {
+                        setFilters({ ...filters, isReturn: !filters.isReturn });
+                    }}
+                    className={cn(
+                        "rounded-full whitespace-nowrap transition-all flex items-center gap-2 border",
+                        isMobile ? "px-4 py-2.5 text-sm" : "px-4 py-2 text-sm font-medium",
+                        filters.isReturn
+                            ? "bg-purple-100 text-purple-700 border-purple-300 shadow-sm"
+                            : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95"
+                    )}
+                >
+                    <div className="flex items-center gap-1.5">
+                        {/* Simple Return Icon */}
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="w-4 h-4"
+                        >
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                            <path d="M3 3v5h5" />
+                        </svg>
+                        <span>{!isMobile && "المرتجعات"}</span>
                     </div>
-                </div>
+                </button>
+
+                {/* Risk Filter Toggle */}
+                <button
+                    onClick={() => {
+                        if (filters.riskLevel) {
+                            // Toggle OFF — just remove the risk filter
+                            setFilters({ ...filters, riskLevel: undefined });
+                        } else {
+                            // Toggle ON — clear date/status filters so all flagged/rejected orders show
+                            setFilters({ ...filters, riskLevel: 'flagged', status: 'all', dateFrom: undefined, dateTo: undefined });
+                        }
+                    }}
+                    className={cn(
+                        "rounded-full whitespace-nowrap transition-all flex items-center gap-2 border",
+                        isMobile ? "px-4 py-2.5 text-sm" : "px-4 py-2 text-sm font-medium",
+                        filters.riskLevel
+                            ? "bg-red-100 text-red-700 border-red-300 shadow-sm"
+                            : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95"
+                    )}
+                >
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>{!isMobile && t("common.risk")}</span>
+                    {totalRiskCount !== undefined && totalRiskCount > 0 && (
+                        <span className={cn(
+                            "px-2 py-0.5 rounded-full text-[11px] font-bold min-w-[24px] text-center",
+                            filters.riskLevel
+                                ? "bg-red-200 text-red-800"
+                                : "bg-muted-foreground/10 text-muted-foreground group-hover/filters:bg-muted-foreground/20"
+                        )}>
+                            {totalRiskCount}
+                        </span>
+                    )}
+                </button>
             </div>
         </div>
     );

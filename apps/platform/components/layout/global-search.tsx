@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { formatIQD, getBaseOrderId } from "@/lib/utils";
 import { ThemeToggle } from "./theme-toggle";
+import { LanguageToggle } from "./language-toggle";
 
 type SearchCategory = "all" | "orders" | "customers" | "products";
 
@@ -392,6 +393,9 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
                 <div className="hidden md:flex items-center gap-2">
                     {/* Theme Toggle */}
                     <ThemeToggle />
+
+                    {/* Language Toggle */}
+                    <LanguageToggle />
 
                     {/* Notifications */}
                     <button

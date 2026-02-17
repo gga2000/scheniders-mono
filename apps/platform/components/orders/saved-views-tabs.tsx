@@ -4,6 +4,7 @@ import { useState } from "react";
 import { FilterPreset } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 import {
     Bookmark,
     Plus,
@@ -35,6 +36,7 @@ export function SavedViewsTabs({
     const [isCreating, setIsCreating] = useState(false);
     const [newName, setNewName] = useState("");
     const [showDelete, setShowDelete] = useState<string | null>(null);
+    const { t } = useLanguage();
 
     const handleSave = () => {
         if (newName.trim()) {
@@ -57,7 +59,7 @@ export function SavedViewsTabs({
     // Find active preset name
     const activePresetName = activePresetId
         ? presets.find(p => p.id === activePresetId)?.name
-        : "All Orders";
+        : t("orders.views.allOrders");
 
     return (
         <div className="relative z-10">
@@ -97,7 +99,7 @@ export function SavedViewsTabs({
                             className="absolute left-0 mt-2 w-72 p-2 rounded-2xl bg-white/90 backdrop-blur-xl border border-white/20 shadow-2xl z-20 flex flex-col gap-1"
                         >
                             <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                Switch View
+                                {t("orders.views.switchView")}
                             </div>
 
                             {/* All Orders Option */}
@@ -115,7 +117,7 @@ export function SavedViewsTabs({
                             >
                                 <div className="flex items-center gap-2">
                                     <Star className={cn("w-4 h-4", activePresetId === null ? "fill-primary text-primary" : "text-muted-foreground")} />
-                                    <span>All Orders</span>
+                                    <span>{t("orders.views.allOrders")}</span>
                                 </div>
                                 {activePresetId === null && <Check className="w-4 h-4" />}
                             </button>
@@ -174,7 +176,7 @@ export function SavedViewsTabs({
                                         value={newName}
                                         onChange={(e) => setNewName(e.target.value)}
                                         onKeyDown={handleKeyDown}
-                                        placeholder="View name..."
+                                        placeholder={t("orders.views.viewNamePlaceholder")}
                                         autoFocus
                                         className="w-full px-3 py-2 text-sm bg-white border border-black/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 mb-2"
                                     />
@@ -184,7 +186,7 @@ export function SavedViewsTabs({
                                             disabled={!newName.trim()}
                                             className="flex-1 py-1.5 bg-primary text-primary-foreground text-xs font-semibold rounded-lg disabled:opacity-50"
                                         >
-                                            Save
+                                            {t("orders.views.save")}
                                         </button>
                                         <button
                                             onClick={() => {
@@ -193,7 +195,7 @@ export function SavedViewsTabs({
                                             }}
                                             className="px-3 py-1.5 bg-transparent border border-black/10 text-xs font-semibold rounded-lg"
                                         >
-                                            Cancel
+                                            {t("orders.views.cancel")}
                                         </button>
                                     </div>
                                 </div>
@@ -203,7 +205,7 @@ export function SavedViewsTabs({
                                     className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:bg-black/5 hover:text-foreground transition-all"
                                 >
                                     <Plus className="w-4 h-4" />
-                                    <span>Save Current View</span>
+                                    <span>{t("orders.views.saveCurrentView")}</span>
                                 </button>
                             )}
                         </motion.div>

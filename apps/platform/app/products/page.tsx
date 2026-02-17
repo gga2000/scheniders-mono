@@ -5,6 +5,7 @@ import { useProductsCrud } from "@/hooks/use-products-crud";
 import { Product, getStockStatus } from "@/lib/supabase";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layout/page-transition";
 import { motion } from "framer-motion";
+import { useLanguage } from "@/hooks/use-language";
 import {
     Search,
     Package,
@@ -282,11 +283,13 @@ export default function ProductsPage() {
         );
     }
 
+    const { t } = useLanguage();
+
     if (error) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <div className="pastel-card pastel-card-pink p-8 text-center">
-                    <h2 className="text-xl font-bold text-rose-900 mb-2">Error Loading Products</h2>
+                    <h2 className="text-xl font-bold text-rose-900 mb-2">{t("products.errorTitle")}</h2>
                     <p className="text-rose-700">{error}</p>
                 </div>
             </div>
@@ -307,7 +310,7 @@ export default function ProductsPage() {
                         <div>
                             <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight flex items-center gap-3">
                                 <Package className="w-8 h-8" />
-                                Products
+                                {t("products.title")}
                             </h1>
                             <p className="text-muted mt-2 text-lg">
                                 {stats.totalProducts} products • {stats.totalSold} units sold
@@ -353,7 +356,7 @@ export default function ProductsPage() {
                                 </div>
                                 <div>
                                     <p className="text-2xl font-bold text-amber-900">{stats.totalProducts}</p>
-                                    <p className="text-xs text-amber-700">Products</p>
+                                    <p className="text-xs text-amber-700">{t("products.title")}</p>
                                 </div>
                             </div>
                         </div>
@@ -364,7 +367,7 @@ export default function ProductsPage() {
                                 </div>
                                 <div>
                                     <p className="text-2xl font-bold text-green-900">{stats.totalSold}</p>
-                                    <p className="text-xs text-green-700">Units Sold</p>
+                                    <p className="text-xs text-green-700">{t("products.unitsSold")}</p>
                                 </div>
                             </div>
                         </div>
@@ -375,7 +378,7 @@ export default function ProductsPage() {
                                 </div>
                                 <div>
                                     <p className="text-2xl font-bold text-teal-900">{formatIQD(stats.totalRevenue)}</p>
-                                    <p className="text-xs text-teal-700">Total Revenue</p>
+                                    <p className="text-xs text-teal-700">{t("products.totalRevenue")}</p>
                                 </div>
                             </div>
                         </div>
@@ -386,7 +389,7 @@ export default function ProductsPage() {
                                 </div>
                                 <div>
                                     <p className="text-2xl font-bold text-blue-900">{formatIQD(stats.averageOrderValue)}</p>
-                                    <p className="text-xs text-blue-700">Avg Order Value</p>
+                                    <p className="text-xs text-blue-700">{t("products.avgOrderValue")}</p>
                                 </div>
                             </div>
                         </div>
@@ -397,7 +400,7 @@ export default function ProductsPage() {
                                 </div>
                                 <div>
                                     <p className="text-lg font-bold text-rose-900 truncate">{stats.bestSeller?.name || "-"}</p>
-                                    <p className="text-xs text-rose-700">Best Seller</p>
+                                    <p className="text-xs text-rose-700">{t("products.bestSeller")}</p>
                                 </div>
                             </div>
                         </div>

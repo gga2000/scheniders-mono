@@ -19,47 +19,48 @@ import { DataSettings } from "@/components/settings/data-settings";
 import { LightfunnelsSettings } from "@/components/settings/lightfunnels-settings";
 import { PageSettings } from "@/components/settings/pages-settings";
 import { UsersRound } from "lucide-react";
+import { useLanguage } from "@/hooks/use-language";
 
 const SECTIONS = [
     {
         id: "general",
-        label: "General",
+        key: "settings.section.general",
         icon: Store,
         component: GeneralSettings,
     },
     {
         id: "team",
-        label: "Team & Roles",
+        key: "settings.section.team",
         icon: UsersRound,
         component: TeamSettings,
     },
     {
         id: "orders",
-        label: "Order Workflow",
+        key: "settings.section.orders",
         icon: Package,
         component: OrderSettings,
     },
     {
         id: "printing",
-        label: "Printing",
+        key: "settings.section.printing",
         icon: Printer,
         component: PrintingSettings,
     },
     {
         id: "lightfunnels",
-        label: "Lightfunnels",
+        key: "settings.section.lightfunnels",
         icon: Cloud,
         component: LightfunnelsSettings,
     },
     {
         id: "pages",
-        label: "Pages Access",
+        key: "settings.section.pages",
         icon: LayoutDashboard,
         component: PageSettings,
     },
     {
         id: "data",
-        label: "Data & Backup",
+        key: "settings.section.data",
         icon: Database,
         component: DataSettings,
     },
@@ -67,6 +68,7 @@ const SECTIONS = [
 
 export default function SettingsPage() {
     const [activeSection, setActiveSection] = useState("general");
+    const { t } = useLanguage();
 
     const ActiveComponent = SECTIONS.find((s) => s.id === activeSection)?.component || GeneralSettings;
 
@@ -77,9 +79,9 @@ export default function SettingsPage() {
                 <div className="mb-6 px-2">
                     <h1 className="text-xl font-bold flex items-center gap-2">
                         <Settings className="w-6 h-6" />
-                        Settings
+                        {t("settings.title")}
                     </h1>
-                    <p className="text-xs text-muted-foreground mt-1 ml-8">System Configuration</p>
+                    <p className="text-xs text-muted-foreground mt-1 ml-8">{t("settings.subtitle")}</p>
                 </div>
 
                 {SECTIONS.map((section) => (
@@ -94,16 +96,16 @@ export default function SettingsPage() {
                         )}
                     >
                         <section.icon className="w-4 h-4" />
-                        {section.label}
+                        {t(section.key)}
                     </button>
                 ))}
 
                 {/* Helper Links */}
                 <div className="mt-8 pt-6 border-t">
-                    <h3 className="px-2 text-xs font-semibold text-muted-foreground mb-2">Help</h3>
+                    <h3 className="px-2 text-xs font-semibold text-muted-foreground mb-2">{t("settings.help")}</h3>
                     <a href="#" className="flex items-center gap-3 px-3 py-2 text-sm text-muted-foreground hover:text-foreground rounded-md hover:bg-muted/50">
                         <LayoutDashboard className="w-4 h-4" />
-                        Documentation
+                        {t("settings.documentation")}
                     </a>
                 </div>
             </aside>

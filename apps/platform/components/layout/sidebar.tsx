@@ -21,18 +21,19 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { usePrefetchOrders } from "@/hooks/use-orders-query";
+import { useLanguage } from "@/hooks/use-language";
 import { useState } from "react";
 
 const NAV_ITEMS = [
-    { label: "Dashboard", icon: LayoutDashboard, href: "/" },
-    { label: "Orders", icon: Package, href: "/orders" },
-    { label: "Customers", icon: Users, href: "/customers" },
-    { label: "Products", icon: ShoppingBag, href: "/products" },
-    { label: "Analytics", icon: BarChart3, href: "/analytics" },
-    { label: "Reports", icon: FileBarChart, href: "/reports" },
-    { label: "Printing", icon: Printer, href: "/printing" },
-    { label: "Team", icon: UsersRound, href: "/team" },
-    { label: "Settings", icon: Settings, href: "/settings" },
+    { key: "nav.dashboard", icon: LayoutDashboard, href: "/" },
+    { key: "nav.orders", icon: Package, href: "/orders" },
+    { key: "nav.customers", icon: Users, href: "/customers" },
+    { key: "nav.products", icon: ShoppingBag, href: "/products" },
+    { key: "nav.analytics", icon: BarChart3, href: "/analytics" },
+    { key: "nav.reports", icon: FileBarChart, href: "/reports" },
+    { key: "nav.printing", icon: Printer, href: "/printing" },
+    { key: "nav.team", icon: UsersRound, href: "/team" },
+    { key: "nav.settings", icon: Settings, href: "/settings" },
 ];
 
 interface SidebarProps {
@@ -54,6 +55,7 @@ export function Sidebar({
     const router = useRouter();
     const { user, profile, signOut, isLoading: authLoading } = useAuth();
     const prefetchOrders = usePrefetchOrders();
+    const { t } = useLanguage();
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
     // On mobile, always show expanded sidebar in the drawer
@@ -115,7 +117,7 @@ export function Sidebar({
                 <nav className="flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden scrollbar-hide px-2">
                     {!collapsed && (
                         <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-3 px-1 transition-opacity duration-300">
-                            General
+                            {t("nav.general")}
                         </div>
                     )}
 
@@ -141,7 +143,7 @@ export function Sidebar({
                                         ? "bg-white/10 text-white"
                                         : "text-zinc-500 hover:text-white hover:bg-white/[0.03]"
                                 )}
-                                title={collapsed ? item.label : undefined}
+                                title={collapsed ? t(item.key) : undefined}
                             >
                                 <item.icon className={cn(
                                     "w-[22px] h-[22px] transition-colors flex-shrink-0",
@@ -152,7 +154,7 @@ export function Sidebar({
                                     "font-medium text-[15px] transition-all duration-500 whitespace-nowrap",
                                     collapsed ? "w-0 opacity-0 hidden" : "opacity-100"
                                 )}>
-                                    {item.label}
+                                    {t(item.key)}
                                 </span>
 
                                 {isActive && !collapsed && (
@@ -175,7 +177,7 @@ export function Sidebar({
                     )}>
                         {!collapsed && (
                             <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-3 px-1">
-                                Account
+                                {t("nav.account")}
                             </div>
                         )}
 
@@ -223,11 +225,11 @@ export function Sidebar({
                                     "text-zinc-500 hover:text-white hover:bg-white/[0.05]",
                                     collapsed ? "justify-center" : "px-3"
                                 )}
-                                title={collapsed ? "Logout" : undefined}
+                                title={collapsed ? t("nav.logout") : undefined}
                             >
                                 <LogOut className="w-[20px] h-[20px]" />
                                 {!collapsed && (
-                                    <span className="text-sm font-medium">Logout</span>
+                                    <span className="text-sm font-medium">{t("nav.logout")}</span>
                                 )}
                             </button>
                         ) : (
@@ -251,7 +253,7 @@ export function Sidebar({
                                             collapsed ? "px-2" : ""
                                         )}
                                     >
-                                        {collapsed ? "Yes" : "Logout"}
+                                        {collapsed ? "Yes" : t("nav.logout")}
                                     </button>
                                     <button
                                         onClick={() => setShowLogoutConfirm(false)}
@@ -261,7 +263,7 @@ export function Sidebar({
                                             collapsed ? "px-2" : ""
                                         )}
                                     >
-                                        {collapsed ? "No" : "Cancel"}
+                                        {collapsed ? "No" : t("common.cancel")}
                                     </button>
                                 </div>
                             </div>
@@ -316,7 +318,7 @@ export function Sidebar({
                         {/* Navigation */}
                         <nav className="flex-1 space-y-1 overflow-y-auto scrollbar-hide">
                             <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-3 px-3">
-                                General
+                                {t("nav.general")}
                             </div>
 
                             {NAV_ITEMS.map((item) => {
@@ -336,7 +338,7 @@ export function Sidebar({
                                     >
                                         <item.icon className="w-5 h-5 flex-shrink-0" />
                                         <span className="font-medium text-base">
-                                            {item.label}
+                                            {t(item.key)}
                                         </span>
                                         {isActive && (
                                             <div className="ml-auto w-2 h-2 rounded-full bg-pastel-rose shadow-[0_0_10px_rgba(244,199,207,0.6)]" />
@@ -375,7 +377,7 @@ export function Sidebar({
                                     className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white/10 text-white font-medium hover:bg-white/20 transition-colors"
                                 >
                                     <LogOut className="w-5 h-5" />
-                                    <span>Logout</span>
+                                    <span>{t("nav.logout")}</span>
                                 </button>
                             </div>
                         )}

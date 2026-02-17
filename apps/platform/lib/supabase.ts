@@ -66,6 +66,7 @@ export interface Order {
     address_status?: 'valid' | 'incomplete' | 'invalid' | 'needs_review';
     address_issues?: string[]; // ['missing_governorate', 'incomplete_address', 'possible_typo']
     validated_governorate_code?: string; // Our standardized code (BGD, NAS, etc.)
+    risk_metadata?: any; // JSONB storage for risk assessment details
 }
 
 // Order status types
@@ -217,6 +218,7 @@ export interface OrderFilters {
     isReturn?: boolean;
     isArchived?: boolean;
     searchQuery?: string;
+    riskLevel?: 'low' | 'medium' | 'high' | 'blocked' | 'flagged';
 }
 
 // WhatsApp message templates

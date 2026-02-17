@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
+import { useLanguage } from "@/hooks/use-language";
 import {
     DollarSign,
     Plus,
@@ -244,6 +245,8 @@ export default function AnalyticsPage() {
         { id: "expenses" as const, label: "Expenses", icon: PieChart },
     ];
 
+    const { t } = useLanguage();
+
     return (
         <PageGuard requiredPermission="system.analytics.view">
             <div className="min-h-screen p-4 md:p-6 lg:p-8">
@@ -256,7 +259,7 @@ export default function AnalyticsPage() {
                             </div>
                             Analytics & Finances
                         </h1>
-                        <p className="text-muted mt-1">Detailed profit analysis with all costs breakdown</p>
+                        <p className="text-muted mt-1">{t("analytics.subtitle")}</p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">

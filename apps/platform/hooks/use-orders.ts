@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/components/auth/auth-provider";
 
 import {
     supabase,
@@ -76,6 +77,8 @@ export function useOrders() {
     const updateOrderMutation = useUpdateOrderMutation();
     const deleteOrderMutation = useDeleteOrderMutation();
     const createOrderMutation = useCreateOrderMutation();
+
+    const { user, profile } = useAuth();
 
     // Core state - now seeded from React Query cache
     const [orders, setOrders] = useState<Order[]>(() => {
@@ -626,6 +629,7 @@ export function useOrders() {
                         to_status: status,
                         changed_at: new Date().toISOString(),
                         notes: rejectionReason || null,
+                        changed_by: profile?.display_name || user?.email || 'System',
                     }]).then(({ error }) => {
                         if (error) console.error("Failed to record status history:", error);
                     });
@@ -727,6 +731,32 @@ export function useOrders() {
                 return { success: true, data: offlineOrder };
             }
 
+            // Calculate risk assessment before creation to persist it
+            // This ensures "state-of-the-art" recording of risk at the moment of order creation
+            try {
+                if (orderData.phone) {
+                    // Dynamic import to avoid circular dependencies if any
+                    const { fraudDetector } = await import("@/lib/fraud-detector");
+                    const riskAssessment = await fraudDetector.assessCustomerRisk(orderData.phone);
+                    const riskPayload = fraudDetector.getPersistencePayload(riskAssessment);
+
+                    // Attach to order data
+                    // @ts-ignore - risk_metadata is added to schema but TypeScript might lag
+                    orderData.risk_metadata = riskPayload;
+
+                    // Also add to attention flags if high risk
+                    if (riskAssessment.level === 'high' || riskAssessment.level === 'blocked') {
+                        // @ts-ignore
+                        orderData.needs_attention = true;
+                        // @ts-ignore
+                        orderData.attention_reasons = [...(orderData.attention_reasons || []), 'high_risk_customer'];
+                    }
+                }
+            } catch (riskErr) {
+                console.error("Error calculating initial risk:", riskErr);
+                // Continue creation even if risk check fails
+            }
+
             // Use React Query mutation for optimistic update
             const data = await createOrderMutation.mutateAsync(orderData);
 
@@ -782,6 +812,106 @@ export function useOrders() {
             return {
                 success: false,
                 error: err instanceof Error ? err.message : "Failed to clone order",
+            };
+        }
+    }
+
+    async function splitOrder(originalOrderId: string, keptItems: any[], returnedItems: any[]): Promise<{ success: boolean; error?: string }> {
+        try {
+            const originalOrder = orders.find(o => o.id === originalOrderId);
+            if (!originalOrder) throw new Error("Order not found");
+
+            // 1. Calculate new financials
+            const calculateTotal = (items: any[]) => items.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
+            const keptTotal = calculateTotal(keptItems);
+            const returnedTotal = calculateTotal(returnedItems);
+
+            // Proportional discount logic - simplistic but fair
+            const totalOriginal = keptTotal + returnedTotal;
+            const keptRatio = totalOriginal > 0 ? keptTotal / totalOriginal : 1;
+
+            const originalDiscount = originalOrder.discount_amount || 0;
+            const newDiscount = Math.round(originalDiscount * keptRatio);
+            const returnDiscount = originalDiscount - newDiscount;
+
+            const newPrice = keptTotal - newDiscount;
+            // For return order, price usually indicates value to be refunded/returned
+            // We use positive value for price, but is_return=true handles the logic
+            const returnPrice = returnedTotal - returnDiscount;
+
+            // 2. Update Original Order (The Kept Part)
+            // We kept the ID and just updated items/price/status
+            const updateOriginal = await updateOrder(originalOrderId, {
+                items: keptItems,
+                price: newPrice,
+                discount_amount: newDiscount,
+                status: 'delivered', // Mark as successfully delivered
+                internal_notes: (originalOrder.internal_notes || "") + `\n[Partial Delivery] Split from initial order.`,
+            });
+
+            if (!updateOriginal.success) throw new Error(updateOriginal.error);
+
+            // 3. Create Return Order (The Split Part)
+            const returnOrderData = {
+                ...originalOrder,
+                id: undefined, // New ID will be generated
+                created_at: undefined,
+                updated_at: undefined,
+                order_id: undefined, // Will be auto-generated
+                items: returnedItems,
+                price: returnPrice,
+                discount_amount: returnDiscount,
+                status: 'return_pending', // Actionable: needs to be returned/processed
+                is_return: true, // Mark as return
+                original_order_id: originalOrder.id, // Link to parent (Needs UUID)
+                rejection_reason: 'Partial Return',
+                notes: (originalOrder.notes || "") + `\n[Partial Return] Items returned from original order.`,
+                internal_notes: `Split from order ${originalOrder.order_id}`,
+
+                // Sanitize fields that might be null in DB but Zod expects string/undefined
+                whatsapp_link: originalOrder.whatsapp_link || undefined,
+                scheduled_date: originalOrder.scheduled_date || undefined,
+                delivery_slot: originalOrder.delivery_slot || undefined,
+                governorate_code: originalOrder.governorate_code || undefined,
+                validated_governorate_code: originalOrder.validated_governorate_code || undefined,
+                city: originalOrder.city || undefined,
+                address_details: originalOrder.address_details || undefined,
+                last_batch_id: undefined, // Reset for new order
+                delivery_order_id: undefined, // Reset for new order
+
+                // Reset tracking fields
+                delivered_at: undefined,
+                cancelled_at: undefined,
+                printed_at: undefined,
+                print_count: 0,
+            };
+
+            // Remove ID-like fields just in case
+            delete (returnOrderData as any).id;
+
+            // We need to cast because createOrder expects Order input but we are constructing it
+            const createReturn = await createOrder(returnOrderData as any);
+
+            if (!createReturn.success) throw new Error(createReturn.error);
+
+            // 4. Log unique activity
+            activityLogger.log({
+                action: 'order.edit',
+                entityType: 'order',
+                entityId: originalOrderId,
+                details: {
+                    order_id: originalOrder.order_id,
+                    note: `Split order: Kept ${keptItems.length} items (${keptTotal}), Returned ${returnedItems.length} items (${returnedTotal})`
+                }
+            });
+
+            return { success: true };
+
+        } catch (err) {
+            console.error("Split order failed:", err);
+            return {
+                success: false,
+                error: err instanceof Error ? err.message : "Failed to split order"
             };
         }
     }
@@ -1021,6 +1151,14 @@ export function useOrders() {
 
     async function bulkDelete(orderIds: string[]) {
         try {
+            // Unlink any child orders first (set original_order_id to null)
+            const { error: unlinkError } = await supabase
+                .from("orders")
+                .update({ original_order_id: null })
+                .in("original_order_id", orderIds);
+
+            if (unlinkError) console.warn("Error unlinking child orders:", unlinkError);
+
             const { error: deleteError } = await supabase
                 .from("orders")
                 .delete()
@@ -1042,9 +1180,15 @@ export function useOrders() {
     }
 
     // Delete a single order
-    // Delete a single order
     async function deleteOrder(orderId: string) {
         try {
+            // Unlink any child orders first (set original_order_id to null)
+            // We do this directly because the mutation might just try to delete
+            await supabase
+                .from("orders")
+                .update({ original_order_id: null })
+                .eq("original_order_id", orderId);
+
             // Use React Query mutation for optimistic update
             await deleteOrderMutation.mutateAsync(orderId);
 
@@ -1276,7 +1420,8 @@ export function useOrders() {
     // Excludes orders with the same base ID (e.g., 10004 vs LF-10004-044 are same order)
     function getCustomerOrderCount(phone: string, currentOrderId?: string): number {
         // Helper to extract base order ID
-        const getBaseId = (orderId: string): string => {
+        const getBaseId = (orderId: string | undefined | null): string => {
+            if (!orderId) return '';
             const lfMatch = orderId.match(/LF-(\d+)-\d+$/);
             if (lfMatch) return lfMatch[1];
             if (orderId.startsWith('DLV-')) return orderId.replace('DLV-', '');
@@ -1770,6 +1915,7 @@ export function useOrders() {
         updateOrder,
         createOrder,
         cloneOrder,
+        splitOrder,
         setScheduledDate,
         setPriority,
         setPaymentStatus,

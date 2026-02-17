@@ -17,24 +17,26 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useLanguage } from "@/hooks/use-language";
 
 const PRIMARY_NAV_ITEMS = [
-    { label: "Dashboard", icon: LayoutDashboard, href: "/" },
-    { label: "Orders", icon: Package, href: "/orders" },
-    { label: "Customers", icon: Users, href: "/customers" },
-    { label: "Products", icon: ShoppingBag, href: "/products" },
+    { key: "nav.dashboard", icon: LayoutDashboard, href: "/" },
+    { key: "nav.orders", icon: Package, href: "/orders" },
+    { key: "nav.customers", icon: Users, href: "/customers" },
+    { key: "nav.products", icon: ShoppingBag, href: "/products" },
 ];
 
 const MORE_NAV_ITEMS = [
-    { label: "Analytics", icon: BarChart3, href: "/analytics" },
-    { label: "Printing", icon: Printer, href: "/printing" },
-    { label: "Team", icon: UsersRound, href: "/team" },
-    { label: "Settings", icon: Settings, href: "/settings" },
+    { key: "nav.analytics", icon: BarChart3, href: "/analytics" },
+    { key: "nav.printing", icon: Printer, href: "/printing" },
+    { key: "nav.team", icon: UsersRound, href: "/team" },
+    { key: "nav.settings", icon: Settings, href: "/settings" },
 ];
 
 export function MobileNav() {
     const pathname = usePathname();
     const [showMore, setShowMore] = useState(false);
+    const { t } = useLanguage();
 
     // Check if any "more" item is active
     const isMoreActive = MORE_NAV_ITEMS.some(item => pathname === item.href);
@@ -70,7 +72,7 @@ export function MobileNav() {
 
                             {/* Header */}
                             <div className="flex items-center justify-between px-6 pb-4">
-                                <h3 className="text-lg font-semibold text-foreground">More</h3>
+                                <h3 className="text-lg font-semibold text-foreground">{t("nav.more")}</h3>
                                 <button
                                     onClick={() => setShowMore(false)}
                                     className="w-8 h-8 rounded-full bg-[var(--background)] flex items-center justify-center"
@@ -96,7 +98,7 @@ export function MobileNav() {
                                             )}
                                         >
                                             <item.icon className="w-5 h-5" />
-                                            <span className="font-medium">{item.label}</span>
+                                            <span className="font-medium">{t(item.key)}</span>
                                         </Link>
                                     );
                                 })}
@@ -123,7 +125,7 @@ export function MobileNav() {
                                 "w-6 h-6 transition-transform",
                                 isActive && "scale-110"
                             )} />
-                            <span>{item.label}</span>
+                            <span>{t(item.key)}</span>
                             {isActive && (
                                 <motion.div
                                     layoutId="mobile-nav-indicator"
@@ -146,7 +148,7 @@ export function MobileNav() {
                         "w-6 h-6 transition-transform",
                         isMoreActive && "scale-110"
                     )} />
-                    <span>More</span>
+                    <span>{t("nav.more")}</span>
                     {isMoreActive && (
                         <div className="absolute -top-0.5 w-8 h-1 rounded-full bg-[var(--pastel-yellow)]" />
                     )}

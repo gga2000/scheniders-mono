@@ -107,7 +107,8 @@ export const OrderSchema = z.object({
 
     address_status: AddressStatusEnum.optional(),
     address_issues: z.array(z.string()).optional(),
-    validated_governorate_code: z.string().optional()
+    validated_governorate_code: z.string().optional(),
+    risk_metadata: z.any().optional()
 });
 
 export const ProductSchema = z.object({
