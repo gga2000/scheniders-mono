@@ -282,7 +282,7 @@ export default function AnalyticsPage() {
                         <div className="relative">
                             <button
                                 onClick={() => setExportMenuOpen(!exportMenuOpen)}
-                                className="flex items-center gap-2 px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground hover:border-[var(--foreground)] transition-all"
+                                className="flex items-center gap-2 px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground hover:border-[var(--ink)] transition-all"
                             >
                                 <Download className="w-4 h-4" />
                                 <span className="hidden md:inline">Export</span>
@@ -321,7 +321,7 @@ export default function AnalyticsPage() {
 
                         <button
                             onClick={handleAddExpense}
-                            className="flex items-center gap-2 px-4 py-3 bg-[var(--foreground)] text-white rounded-xl font-medium hover:opacity-90 transition-all"
+                            className="flex items-center gap-2 px-4 py-3 bg-[var(--ink)] text-white rounded-xl font-medium hover:opacity-90 transition-all"
                         >
                             <Plus className="w-4 h-4" />
                             <span className="hidden md:inline">Add Expense</span>
@@ -340,7 +340,7 @@ export default function AnalyticsPage() {
                                 className={cn(
                                     "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
                                     activeTab === tab.id
-                                        ? "bg-[var(--foreground)] text-white"
+                                        ? "bg-[var(--ink)] text-white"
                                         : "text-muted hover:text-foreground"
                                 )}
                             >

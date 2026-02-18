@@ -105,7 +105,7 @@ export function OrdersTable({ orders, onUpdateStatus, onUpdateOrder }: OrdersTab
                                     className={`
                                         px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all
                                         ${filter === item.id
-                                            ? "bg-[var(--foreground)] text-white shadow-md"
+                                            ? "bg-[var(--ink)] text-white shadow-md"
                                             : "bg-[var(--background)] text-[var(--foreground-muted)] hover:bg-[var(--card-border)] border border-[var(--card-border)]"
                                         }
                                     `}

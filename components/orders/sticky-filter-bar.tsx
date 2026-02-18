@@ -62,13 +62,14 @@ export function StickyFilterBar({
         { id: "delivered", label: t("orders.status.delivered"), count: statusCounts.delivered || 0 },
         { id: "completed", label: t("orders.status.completed"), count: statusCounts.completed || 0 },
         { id: "rejected", label: t("orders.status.rejected"), count: statusCounts.rejected || 0 },
+        { id: "return_pending", label: t("orders.status.returnPending"), count: statusCounts.return_pending || 0 },
         { id: "no_response", label: t("orders.status.noResponse"), count: statusCounts.no_response || 0 },
     ];
 
     return (
         <div
             className={cn(
-                "group/filters transition-all duration-300 z-30",
+                "group/filters orders-sticky-filter transition-all duration-300 z-30",
                 // Mobile Sticky Styles
                 isMobile ? "sticky top-[78px] -mx-4 px-4 py-2 backdrop-blur-xl bg-background/80 border-b border-white/10 shadow-sm" : "",
                 className
@@ -92,8 +93,8 @@ export function StickyFilterBar({
                                 : "px-4 py-2 text-sm font-medium",
 
                             filters.status === option.id || (option.id === "all" && !filters.status)
-                                ? "bg-foreground text-background border-foreground shadow-lg scale-105"
-                                : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95"
+                                ? "bg-[var(--ink)] text-[var(--ink-contrast)] border-[var(--ink)] shadow-lg scale-105"
+                                : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95 dark:hover:bg-white/5 dark:hover:border-[#4a5f87]"
                         )}
                     >
                         <span>{isMobile ? option.label : (option.fullLabel || option.label)}</span>
@@ -118,8 +119,8 @@ export function StickyFilterBar({
                         "rounded-full whitespace-nowrap transition-all flex items-center gap-2 flex-shrink-0 border",
                         isMobile ? "px-4 py-2.5 text-sm" : "px-4 py-2 text-sm font-medium",
                         showFilters || hasActiveFilters
-                            ? "bg-blue-100 text-blue-700 border-blue-200"
-                            : "bg-background text-muted-foreground border-border/50 hover:bg-muted"
+                            ? "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-400/15 dark:text-blue-200 dark:border-blue-400/35"
+                            : "bg-background text-muted-foreground border-border/50 hover:bg-muted dark:hover:bg-white/5 dark:hover:border-[#4a5f87]"
                     )}
                 >
                     <Filter className="w-4 h-4" />
@@ -137,8 +138,8 @@ export function StickyFilterBar({
                                 "rounded-full whitespace-nowrap transition-all flex items-center gap-2 border",
                                 isMobile ? "px-4 py-2.5 text-sm" : "px-4 py-2 text-sm font-medium",
                                 groupBy !== 'none'
-                                    ? "bg-purple-100 text-purple-700 border-purple-200"
-                                    : "bg-background text-muted-foreground border-border/50 hover:bg-muted"
+                                    ? "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-400/15 dark:text-purple-200 dark:border-purple-400/35"
+                                    : "bg-background text-muted-foreground border-border/50 hover:bg-muted dark:hover:bg-white/5 dark:hover:border-[#4a5f87]"
                             )}
                         >
                             <Layers className="w-4 h-4" />
@@ -164,8 +165,8 @@ export function StickyFilterBar({
                         "rounded-full whitespace-nowrap transition-all flex items-center gap-2 border",
                         isMobile ? "px-4 py-2.5 text-sm" : "px-4 py-2 text-sm font-medium",
                         filters.isReturn
-                            ? "bg-purple-100 text-purple-700 border-purple-300 shadow-sm"
-                            : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95"
+                            ? "bg-purple-100 text-purple-700 border-purple-300 shadow-sm dark:bg-purple-400/15 dark:text-purple-200 dark:border-purple-400/35"
+                            : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95 dark:hover:bg-white/5 dark:hover:border-[#4a5f87]"
                     )}
                 >
                     <div className="flex items-center gap-1.5">
@@ -204,8 +205,8 @@ export function StickyFilterBar({
                         "rounded-full whitespace-nowrap transition-all flex items-center gap-2 border",
                         isMobile ? "px-4 py-2.5 text-sm" : "px-4 py-2 text-sm font-medium",
                         filters.riskLevel
-                            ? "bg-red-100 text-red-700 border-red-300 shadow-sm"
-                            : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95"
+                            ? "bg-red-100 text-red-700 border-red-300 shadow-sm dark:bg-red-400/15 dark:text-red-200 dark:border-red-400/35"
+                            : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95 dark:hover:bg-white/5 dark:hover:border-[#4a5f87]"
                     )}
                 >
                     <ShieldCheck className="w-4 h-4" />

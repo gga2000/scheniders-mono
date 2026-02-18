@@ -91,7 +91,7 @@ export function DateRangePicker({ startDate, endDate, onChange }: DateRangePicke
         <div ref={menuRef} className="relative">
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground hover:border-[var(--foreground)] transition-all"
+                className="flex items-center gap-2 px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground hover:border-[var(--ink)] transition-all"
             >
                 <Calendar className="w-4 h-4 text-muted" />
                 <span className="font-medium">{formatDisplayDate()}</span>
@@ -121,7 +121,7 @@ export function DateRangePicker({ startDate, endDate, onChange }: DateRangePicke
                                         key={item.key}
                                         onClick={() => handleQuickRange(item.key as QuickRange)}
                                         className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${activeRange === item.key
-                                                ? "bg-[var(--foreground)] text-white"
+                                                ? "bg-[var(--ink)] text-white"
                                                 : "bg-[var(--background)] text-muted hover:text-foreground"
                                             }`}
                                     >
@@ -156,7 +156,7 @@ export function DateRangePicker({ startDate, endDate, onChange }: DateRangePicke
                                 </div>
                                 <button
                                     onClick={handleCustomApply}
-                                    className="w-full px-4 py-2 bg-[var(--foreground)] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-colors"
+                                    className="w-full px-4 py-2 bg-[var(--ink)] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-colors"
                                 >
                                     Apply Range
                                 </button>

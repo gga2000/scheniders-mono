@@ -55,7 +55,7 @@ import {
 import { OrderSchema } from "@/lib/schemas";
 
 // normalizeOrder is now imported from @/lib/order-normalize-utils
-import { createOrderAction } from "@/app/actions/orders";
+import { createOrderAction, splitOrderAction } from "@/app/actions/orders";
 
 import { SyncQueue } from "@/lib/sync-queue";
 import { useUserPreferences, PREFERENCE_KEYS } from "@/hooks/use-user-preferences";
@@ -501,7 +501,10 @@ export function useOrders() {
                     const matchesPhone = normalizePhoneForSearch(order.phone).includes(normalizePhoneForSearch(activeFilters.searchQuery));
                     const matchesOrderId = order.order_id?.toLowerCase().includes(query);
                     const matchesDeliveryId = order.delivery_order_id?.toLowerCase().includes(query);
-                    if (!matchesName && !matchesPhone && !matchesOrderId && !matchesDeliveryId) return false;
+                    // Also search in original_order_id so return orders show up when searching for the parent
+                    const matchesOriginalOrderId = order.original_order_id?.toLowerCase().includes(query);
+
+                    if (!matchesName && !matchesPhone && !matchesOrderId && !matchesDeliveryId && !matchesOriginalOrderId) return false;
                 }
 
                 return true;
@@ -662,7 +665,7 @@ export function useOrders() {
         try {
             // Remove any fields that shouldn't be sent to the database
             const cleanUpdates = { ...updates };
-            delete (cleanUpdates as any).items;
+            // delete (cleanUpdates as any).items; // We NEED to update items for split order
             delete (cleanUpdates as any).customer;
 
             // Use React Query mutation for optimistic update
@@ -819,93 +822,40 @@ export function useOrders() {
     async function splitOrder(originalOrderId: string, keptItems: any[], returnedItems: any[]): Promise<{ success: boolean; error?: string }> {
         try {
             const originalOrder = orders.find(o => o.id === originalOrderId);
-            if (!originalOrder) throw new Error("Order not found");
+            // We don't throw here if not found locally, we let server handle it, 
+            // but we need it for logging if successful.
 
-            // 1. Calculate new financials
-            const calculateTotal = (items: any[]) => items.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
-            const keptTotal = calculateTotal(keptItems);
-            const returnedTotal = calculateTotal(returnedItems);
+            const result = await splitOrderAction(originalOrderId, keptItems, returnedItems);
 
-            // Proportional discount logic - simplistic but fair
-            const totalOriginal = keptTotal + returnedTotal;
-            const keptRatio = totalOriginal > 0 ? keptTotal / totalOriginal : 1;
+            if (result.success) {
+                // Force refresh of orders list to show the new rejected order and updated original order
+                await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
 
-            const originalDiscount = originalOrder.discount_amount || 0;
-            const newDiscount = Math.round(originalDiscount * keptRatio);
-            const returnDiscount = originalDiscount - newDiscount;
+                // 4. Log unique activity
+                if (originalOrder) {
+                    const calculateTotal = (items: any[]) => items.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
+                    const keptTotal = calculateTotal(keptItems);
+                    const returnedTotal = calculateTotal(returnedItems);
 
-            const newPrice = keptTotal - newDiscount;
-            // For return order, price usually indicates value to be refunded/returned
-            // We use positive value for price, but is_return=true handles the logic
-            const returnPrice = returnedTotal - returnDiscount;
-
-            // 2. Update Original Order (The Kept Part)
-            // We kept the ID and just updated items/price/status
-            const updateOriginal = await updateOrder(originalOrderId, {
-                items: keptItems,
-                price: newPrice,
-                discount_amount: newDiscount,
-                status: 'delivered', // Mark as successfully delivered
-                internal_notes: (originalOrder.internal_notes || "") + `\n[Partial Delivery] Split from initial order.`,
-            });
-
-            if (!updateOriginal.success) throw new Error(updateOriginal.error);
-
-            // 3. Create Return Order (The Split Part)
-            const returnOrderData = {
-                ...originalOrder,
-                id: undefined, // New ID will be generated
-                created_at: undefined,
-                updated_at: undefined,
-                order_id: undefined, // Will be auto-generated
-                items: returnedItems,
-                price: returnPrice,
-                discount_amount: returnDiscount,
-                status: 'return_pending', // Actionable: needs to be returned/processed
-                is_return: true, // Mark as return
-                original_order_id: originalOrder.id, // Link to parent (Needs UUID)
-                rejection_reason: 'Partial Return',
-                notes: (originalOrder.notes || "") + `\n[Partial Return] Items returned from original order.`,
-                internal_notes: `Split from order ${originalOrder.order_id}`,
-
-                // Sanitize fields that might be null in DB but Zod expects string/undefined
-                whatsapp_link: originalOrder.whatsapp_link || undefined,
-                scheduled_date: originalOrder.scheduled_date || undefined,
-                delivery_slot: originalOrder.delivery_slot || undefined,
-                governorate_code: originalOrder.governorate_code || undefined,
-                validated_governorate_code: originalOrder.validated_governorate_code || undefined,
-                city: originalOrder.city || undefined,
-                address_details: originalOrder.address_details || undefined,
-                last_batch_id: undefined, // Reset for new order
-                delivery_order_id: undefined, // Reset for new order
-
-                // Reset tracking fields
-                delivered_at: undefined,
-                cancelled_at: undefined,
-                printed_at: undefined,
-                print_count: 0,
-            };
-
-            // Remove ID-like fields just in case
-            delete (returnOrderData as any).id;
-
-            // We need to cast because createOrder expects Order input but we are constructing it
-            const createReturn = await createOrder(returnOrderData as any);
-
-            if (!createReturn.success) throw new Error(createReturn.error);
-
-            // 4. Log unique activity
-            activityLogger.log({
-                action: 'order.edit',
-                entityType: 'order',
-                entityId: originalOrderId,
-                details: {
-                    order_id: originalOrder.order_id,
-                    note: `Split order: Kept ${keptItems.length} items (${keptTotal}), Returned ${returnedItems.length} items (${returnedTotal})`
+                    activityLogger.log({
+                        action: 'order.edit',
+                        entityType: 'order',
+                        entityId: originalOrderId,
+                        details: {
+                            order_id: originalOrder.order_id,
+                            note: `Split order: Kept ${keptItems.length} items (${keptTotal}), Returned ${returnedItems.length} items (${returnedTotal}). New Return Order: ${result.data?.order_id || 'Generated'}`
+                        }
+                    });
                 }
-            });
 
-            return { success: true };
+                return { success: true };
+
+            } else {
+                return {
+                    success: false,
+                    error: result.error || "Failed to split order"
+                };
+            }
 
         } catch (err) {
             console.error("Split order failed:", err);

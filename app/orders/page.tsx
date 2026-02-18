@@ -243,14 +243,24 @@ export default function OrdersPage() {
     const handleSplitOrder = async (keptItems: any[], returnedItems: any[]) => {
         if (!splitOrderDialog.order) return;
 
+        // Show loading state could be nice here if dialog supported it
         const result = await splitOrder(splitOrderDialog.order.id, keptItems, returnedItems);
 
         if (result.success) {
             setSplitOrderDialog({ open: false, order: null });
-            refreshOrders();
-            // Optional: Show success feedback via UI update or simple alert if critical
+
+            // Force data refresh to show new orders
+            await refreshOrders();
+
+            notificationService.showNotification({
+                title: t("common.success"),
+                body: "Order has been split successfully. Return order created."
+            });
         } else {
-            window.alert(result.error || t("orderDetail.splitError"));
+            notificationService.showNotification({
+                title: t("common.error"),
+                body: result.error || t("orderDetail.splitError")
+            });
         }
     };
 
@@ -685,18 +695,7 @@ export default function OrdersPage() {
         return false;
     }).length;
 
-    const filterOptions = [
-        { id: "all", label: t("orders.status.all"), count: statusCounts.all },
-        { id: "new", label: t("orders.status.new"), count: statusCounts.new || 0 },
-        { id: "contacted", label: t("orders.status.contacted"), count: statusCounts.contacted || 0 },
-        { id: "confirmed", label: t("orders.status.confirmed"), count: statusCounts.confirmed || 0 },
-        { id: "in_transit", label: t("orders.status.inTransit"), count: statusCounts.in_transit || 0 },
-        { id: "delivered", label: t("orders.status.delivered"), count: statusCounts.delivered || 0 },
-        { id: "completed", label: t("orders.status.completed"), count: statusCounts.completed || 0 },
-        { id: "rejected", label: t("orders.status.rejected"), count: statusCounts.rejected || 0 },
-        { id: "return_pending", label: t("orders.status.returnPending"), count: statusCounts.return_pending || 0 },
-        { id: "no_response", label: t("orders.status.noResponse"), count: statusCounts.no_response || 0 },
-    ];
+
 
     // Check if any advanced filters are active
     const hasActiveFilters = !!(filters.dateFrom || filters.dateTo || filters.city || filters.product || filters.priority);
@@ -724,7 +723,7 @@ export default function OrdersPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen p-4 md:p-6 lg:p-8">
+            <div className="min-h-screen p-4 md:p-6 lg:p-8 orders-page">
                 <div className="space-y-4">
                     {/* Skeleton header */}
                     <div className="flex items-center justify-between">
@@ -764,7 +763,7 @@ export default function OrdersPage() {
 
     return (
         <PageTransition>
-            <div className="min-h-screen p-4 md:p-6 lg:p-8">
+            <div className="min-h-screen p-4 md:p-6 lg:p-8 orders-page">
                 <div className="space-y-4 md:space-y-6">
                     {/* Collapsed Toolbar Bar - Minimal floating header when collapsed */}
                     <AnimatePresence>
@@ -776,7 +775,7 @@ export default function OrdersPage() {
                                 transition={{ duration: 0.3, ease: "easeOut" }}
                                 className="sticky top-2 z-50"
                             >
-                                <div className="flex items-center justify-between gap-3 px-5 py-3.5 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] shadow-lg">
+                                <div className="flex items-center justify-between gap-3 px-5 py-3.5 rounded-2xl orders-collapsed-toolbar bg-[var(--card-bg)] border border-[var(--card-border)] shadow-lg">
                                     {/* Left: Select All + Order count and status */}
                                     <div className="flex items-center gap-3">
                                         {/* Select All Checkbox */}
@@ -785,7 +784,7 @@ export default function OrdersPage() {
                                             className={cn(
                                                 "w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
                                                 selectedOrders.size === filteredOrders.length && filteredOrders.length > 0
-                                                    ? "bg-[var(--foreground)] border-[var(--foreground)] text-white"
+                                                    ? "bg-[var(--ink)] border-[var(--ink)] text-white"
                                                     : "border-[var(--card-border)] hover:border-[var(--foreground-muted)]"
                                             )}
                                             title="Select all"
@@ -893,7 +892,7 @@ export default function OrdersPage() {
                                             </button>
 
                                             {/* Order Count - Glass Pill */}
-                                            <div className="flex items-center gap-3 pl-2 pr-5 py-2 rounded-full bg-white/40 backdrop-blur-md border border-white/20 ring-1 ring-black/5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
+                                            <div className="flex items-center gap-3 pl-2 pr-5 py-2 rounded-full bg-white/40 backdrop-blur-md border border-white/20 ring-1 ring-black/5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] orders-toolbar-pill">
                                                 <div className="p-2 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/30">
                                                     <Package className="w-4 h-4" />
                                                 </div>
@@ -934,7 +933,7 @@ export default function OrdersPage() {
 
 
                                         {/* View Group */}
-                                        <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm flex-shrink-0 min-w-min">
+                                        <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0 min-w-min">
                                             <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.view")}</span>
                                             <div className="flex items-center gap-2">
                                                 {/* Saved Views Dropdown */}
@@ -962,7 +961,7 @@ export default function OrdersPage() {
                                                     }}
                                                 />
 
-                                                <div className="w-px h-8 bg-black/5 mx-1" />
+                                                <div className="w-px h-8 bg-black/5 mx-1 orders-toolbar-divider" />
                                                 {/* Workflow Toggle */}
                                                 <div className="flex items-center bg-black/5 rounded-xl p-1 gap-1">
                                                     <button
@@ -970,7 +969,7 @@ export default function OrdersPage() {
                                                         className={cn(
                                                             "px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2",
                                                             !workflowMode
-                                                                ? "bg-white text-foreground shadow-sm"
+                                                                ? "bg-white text-foreground shadow-sm dark:bg-[var(--ink)] dark:text-[var(--ink-contrast)] dark:shadow-black/20"
                                                                 : "text-muted-foreground hover:text-foreground"
                                                         )}
                                                     >
@@ -981,7 +980,7 @@ export default function OrdersPage() {
                                                         className={cn(
                                                             "px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2",
                                                             workflowMode
-                                                                ? "bg-white text-foreground shadow-sm"
+                                                                ? "bg-white text-foreground shadow-sm dark:bg-[var(--ink)] dark:text-[var(--ink-contrast)] dark:shadow-black/20"
                                                                 : "text-muted-foreground hover:text-foreground"
                                                         )}
                                                     >
@@ -989,7 +988,7 @@ export default function OrdersPage() {
                                                     </button>
                                                 </div>
 
-                                                <div className="w-px h-8 bg-black/5 mx-1" />
+                                                <div className="w-px h-8 bg-black/5 mx-1 orders-toolbar-divider" />
 
                                                 {/* Layout Toggles */}
                                                 {!workflowMode && [
@@ -1004,8 +1003,8 @@ export default function OrdersPage() {
                                                         className={cn(
                                                             "p-2.5 rounded-xl transition-all duration-300",
                                                             viewMode === v.mode
-                                                                ? "bg-white text-foreground shadow-sm ring-1 ring-black/5"
-                                                                : "text-muted-foreground hover:bg-white/40 hover:text-foreground"
+                                                                ? "bg-white text-foreground shadow-sm dark:bg-[var(--ink)] dark:text-[var(--ink-contrast)] dark:shadow-black/20 ring-1 ring-black/5"
+                                                                : "text-muted-foreground hover:bg-white/40 hover:text-foreground dark:hover:bg-[#243551]/80"
                                                         )}
                                                     >
                                                         <v.icon className="w-4 h-4" />
@@ -1024,7 +1023,7 @@ export default function OrdersPage() {
                                                             "p-2.5 rounded-xl transition-all duration-300",
                                                             compactView
                                                                 ? "bg-purple-100 text-purple-600 shadow-sm"
-                                                                : "text-muted-foreground hover:bg-white/40 hover:text-foreground"
+                                                                : "text-muted-foreground hover:bg-white/40 hover:text-foreground dark:hover:bg-[#243551]/80"
                                                         )}
                                                         title={compactView ? "Compact View Active" : "Switch to Compact"}
                                                     >
@@ -1032,12 +1031,12 @@ export default function OrdersPage() {
                                                     </button>
                                                 )}
 
-                                                <div className="w-px h-8 bg-black/5 mx-1" />
+                                                <div className="w-px h-8 bg-black/5 mx-1 orders-toolbar-divider" />
 
                                                 {/* Collapse Toolbar */}
                                                 <button
                                                     onClick={toggleToolbarCollapse}
-                                                    className="p-2.5 rounded-xl text-muted-foreground hover:bg-white/40 hover:text-foreground transition-all duration-300 hover:rotate-90 active:scale-95"
+                                                    className="p-2.5 rounded-xl text-muted-foreground hover:bg-white/40 hover:text-foreground dark:hover:bg-[#243551]/80 transition-all duration-300 hover:rotate-90 active:scale-95"
                                                     title="Collapse toolbar"
                                                 >
                                                     <Minimize2 className="w-4 h-4" />
@@ -1046,7 +1045,7 @@ export default function OrdersPage() {
                                         </div>
 
                                         {/* Filter Group */}
-                                        <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm flex-shrink-0">
+                                        <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
                                             <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.filter")}</span>
                                             <div className="flex items-center gap-2">
                                                 {/* Date Picker */}
@@ -1058,7 +1057,7 @@ export default function OrdersPage() {
                                                             "px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300 flex items-center gap-2 border",
                                                             (filters.dateFrom || filters.dateTo)
                                                                 ? "bg-amber-100/50 border-amber-200/50 text-amber-700 shadow-sm"
-                                                                : "bg-white/50 border-transparent hover:bg-white/80 text-muted-foreground hover:text-foreground"
+                                                                : "bg-white/50 border-transparent hover:bg-white/80 text-muted-foreground hover:text-foreground dark:bg-[#1b263a]/70 dark:border-[#354764]/60 dark:hover:bg-[#243551] dark:text-[var(--foreground-muted)] dark:hover:text-[var(--foreground)]"
                                                         )}
                                                     >
                                                         <CalendarDays className="w-4 h-4" />
@@ -1071,7 +1070,7 @@ export default function OrdersPage() {
                                                     {showDatePicker && createPortal(
                                                         <div
                                                             ref={datePickerRef}
-                                                            className="fixed z-[9999] p-2 bg-white/80 backdrop-blur-xl shadow-2xl rounded-3xl border border-white/20 ring-1 ring-black/5"
+                                                            className="fixed z-[9999] p-2 bg-white/80 backdrop-blur-xl shadow-2xl rounded-3xl border border-white/20 ring-1 ring-black/5 orders-date-popover"
                                                             style={{ top: datePickerPos.top, left: datePickerPos.left }}
                                                         >
                                                             <DateRangePicker
@@ -1099,14 +1098,14 @@ export default function OrdersPage() {
                                                         "p-2.5 rounded-xl transition-all duration-300",
                                                         showSearchBar
                                                             ? "bg-blue-100 text-blue-600 shadow-sm"
-                                                            : "text-muted-foreground hover:bg-white/40 hover:text-foreground"
+                                                            : "text-muted-foreground hover:bg-white/40 hover:text-foreground dark:hover:bg-[#243551]/80"
                                                     )}
                                                     title="Advanced Filters"
                                                 >
                                                     <SlidersHorizontal className="w-4 h-4" />
                                                 </button>
 
-                                                <div className="w-px h-8 bg-black/5 mx-1" />
+                                                <div className="w-px h-8 bg-black/5 mx-1 orders-toolbar-divider" />
 
                                                 {/* Archive Toggle */}
                                                 <button
@@ -1120,7 +1119,7 @@ export default function OrdersPage() {
                                                         "px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300 flex items-center gap-2",
                                                         showArchived
                                                             ? "bg-orange-100/50 text-orange-700 shadow-sm"
-                                                            : "text-muted-foreground hover:bg-white/40 hover:text-foreground"
+                                                            : "text-muted-foreground hover:bg-white/40 hover:text-foreground dark:hover:bg-[#243551]/80"
                                                     )}
                                                 >
                                                     <Archive className="w-4 h-4" />
@@ -1130,7 +1129,7 @@ export default function OrdersPage() {
                                         </div>
 
                                         {/* Tools Group - NEW */}
-                                        <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm flex-shrink-0">
+                                        <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
                                             <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.tools")}</span>
                                             <div className="flex items-center gap-2">
                                                 {/* Notifications */}
@@ -1158,7 +1157,7 @@ export default function OrdersPage() {
                                                         "p-2.5 rounded-xl transition-all duration-300",
                                                         notificationsEnabled
                                                             ? "bg-green-100 text-green-600 shadow-sm"
-                                                            : "text-muted-foreground hover:bg-white/40 hover:text-foreground"
+                                                            : "text-muted-foreground hover:bg-white/40 hover:text-foreground dark:hover:bg-[#243551]/80"
                                                     )}
                                                     title="Notifications"
                                                 >
@@ -1176,7 +1175,7 @@ export default function OrdersPage() {
                                                         "p-2.5 rounded-xl transition-all duration-300",
                                                         analyticsLevel > 0
                                                             ? "bg-indigo-100 text-indigo-600 shadow-sm"
-                                                            : "text-muted-foreground hover:bg-white/40 hover:text-foreground"
+                                                            : "text-muted-foreground hover:bg-white/40 hover:text-foreground dark:hover:bg-[#243551]/80"
                                                     )}
                                                     title="Analytics"
                                                 >
@@ -1202,19 +1201,19 @@ export default function OrdersPage() {
                                         </div>
 
                                         {/* Export Group */}
-                                        <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm flex-shrink-0">
+                                        <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
                                             <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.export")}</span>
                                             <div className="flex items-center gap-2">
                                                 <button
                                                     onClick={() => setIsImportModalOpen(true)}
-                                                    className="p-2.5 rounded-xl text-muted-foreground hover:bg-white/40 hover:text-foreground transition-all duration-300"
+                                                    className="p-2.5 rounded-xl text-muted-foreground hover:bg-white/40 hover:text-foreground dark:hover:bg-[#243551]/80 transition-all duration-300"
                                                     title="Import"
                                                 >
                                                     <Upload className="w-4 h-4" />
                                                 </button>
                                                 <button
                                                     onClick={handleExport}
-                                                    className="p-2.5 rounded-xl text-muted-foreground hover:bg-white/40 hover:text-foreground transition-all duration-300"
+                                                    className="p-2.5 rounded-xl text-muted-foreground hover:bg-white/40 hover:text-foreground dark:hover:bg-[#243551]/80 transition-all duration-300"
                                                     title="Export"
                                                 >
                                                     <Download className="w-4 h-4" />
@@ -1230,7 +1229,7 @@ export default function OrdersPage() {
                                         </div>
 
                                         {/* Action Group - Moved to End */}
-                                        <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm flex-shrink-0 min-w-min">
+                                        <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0 min-w-min">
                                             <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.actions")}</span>
                                             <div className="flex items-center gap-2">
                                                 <button
@@ -1269,7 +1268,7 @@ export default function OrdersPage() {
                                                     {/* Main Stats Grid */}
                                                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                                                         {/* New Orders - Premium Card */}
-                                                        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-rose-50 to-rose-100/50 border border-rose-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
+                                                        <div className="relative overflow-hidden rounded-2xl orders-analytics-card bg-gradient-to-br from-rose-50 to-rose-100/50 border border-rose-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
                                                             <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
                                                                 <Sparkles className="w-16 h-16 text-rose-500 rotate-12 group-hover:scale-110 transition-transform duration-500" />
                                                             </div>
@@ -1288,7 +1287,7 @@ export default function OrdersPage() {
                                                         </div>
 
                                                         {/* Contacted - Premium Card */}
-                                                        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100/50 border border-amber-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
+                                                        <div className="relative overflow-hidden rounded-2xl orders-analytics-card bg-gradient-to-br from-amber-50 to-amber-100/50 border border-amber-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
                                                             <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
                                                                 <PhoneCall className="w-16 h-16 text-amber-500 rotate-12 group-hover:scale-110 transition-transform duration-500" />
                                                             </div>
@@ -1307,7 +1306,7 @@ export default function OrdersPage() {
                                                         </div>
 
                                                         {/* Confirmed - Premium Card */}
-                                                        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-50 to-purple-100/50 border border-violet-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
+                                                        <div className="relative overflow-hidden rounded-2xl orders-analytics-card bg-gradient-to-br from-violet-50 to-purple-100/50 border border-violet-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
                                                             <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
                                                                 <CheckCircle2 className="w-16 h-16 text-violet-500 rotate-12 group-hover:scale-110 transition-transform duration-500" />
                                                             </div>
@@ -1326,7 +1325,7 @@ export default function OrdersPage() {
                                                         </div>
 
                                                         {/* In Transit - Premium Card */}
-                                                        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-50 to-orange-100/50 border border-orange-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
+                                                        <div className="relative overflow-hidden rounded-2xl orders-analytics-card bg-gradient-to-br from-orange-50 to-orange-100/50 border border-orange-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
                                                             <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
                                                                 <Truck className="w-16 h-16 text-orange-500 -rotate-12 group-hover:scale-110 group-hover:translate-x-2 transition-transform duration-500" />
                                                             </div>
@@ -1345,7 +1344,7 @@ export default function OrdersPage() {
                                                         </div>
 
                                                         {/* Conversion Rate - Premium Card */}
-                                                        <div className="relative overflow-hidden rounded-2xl bg-white/60 backdrop-blur-md border border-white/40 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group ring-1 ring-black/5">
+                                                        <div className="relative overflow-hidden rounded-2xl orders-analytics-card bg-white/60 backdrop-blur-md border border-white/40 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group ring-1 ring-black/5">
                                                             <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity duration-300">
                                                                 <TrendingUp className="w-16 h-16 text-emerald-500 -rotate-12 group-hover:scale-110 transition-transform duration-500" />
                                                             </div>
@@ -1475,7 +1474,7 @@ export default function OrdersPage() {
                                                 isFilterPanelAnimating ? "overflow-hidden" : "overflow-visible"
                                             )}
                                         >
-                                            <div className="pastel-card p-6 space-y-4">
+                                            <div className="pastel-card p-6 space-y-4 orders-search-panel">
                                                 <div className="flex flex-col lg:flex-row gap-4">
                                                     <div className="relative flex-1">
                                                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--foreground-subtle)]" />
@@ -1871,6 +1870,7 @@ export default function OrdersPage() {
                                                 getOriginalOrderInfo={getOriginalOrderInfo}
                                                 compactView={compactView}
                                                 getRiskLevel={getRiskLevel}
+                                                onSplitOrder={(order) => setSplitOrderDialog({ open: true, order })}
                                             />
                                         ) : (
                                             /* Use animated list for <50 orders */
@@ -1890,6 +1890,7 @@ export default function OrdersPage() {
                                                                     setSelectedOrder(o);
                                                                     setIsModalOpen(true);
                                                                 }}
+                                                                onSplit={() => setSplitOrderDialog({ open: true, order })}
                                                                 isBlacklisted={isBlacklisted(order.phone)}
                                                                 riskLevel={getRiskLevel(order.phone)}
                                                                 riskAssessment={getAssessment(order.phone)}

@@ -64,7 +64,7 @@ export function AdvancedFilters({ onApply, onReset }: AdvancedFiltersProps) {
                     "flex items-center gap-2 px-4 py-3 rounded-xl border transition-all",
                     hasActiveFilters
                         ? "bg-[var(--pastel-yellow)] border-amber-200 text-amber-900"
-                        : "bg-[var(--background)] border-[var(--card-border)] text-foreground hover:border-[var(--foreground)]"
+                        : "bg-[var(--background)] border-[var(--card-border)] text-foreground hover:border-[var(--ink)]"
                 )}
             >
                 <Filter className="w-4 h-4" />
@@ -207,7 +207,7 @@ export function AdvancedFilters({ onApply, onReset }: AdvancedFiltersProps) {
                             </button>
                             <button
                                 onClick={handleApply}
-                                className="flex-1 px-4 py-2 bg-[var(--foreground)] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-colors"
+                                className="flex-1 px-4 py-2 bg-[var(--ink)] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-colors"
                             >
                                 Apply Filters
                             </button>

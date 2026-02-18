@@ -637,7 +637,7 @@ export function OrderDetailsModal({
                                     className={cn(
                                         "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border",
                                         activeTab === "timeline"
-                                            ? "bg-[var(--foreground)] text-white border-transparent"
+                                            ? "bg-[var(--ink)] text-white border-transparent"
                                             : "bg-white border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
                                     )}
                                 >
@@ -686,7 +686,7 @@ export function OrderDetailsModal({
                                                     className={cn(
                                                         "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
                                                         isCurrentStatus
-                                                            ? "bg-[var(--foreground)] text-white ring-2 ring-offset-1 ring-[var(--foreground)] shadow-sm"
+                                                            ? "bg-[var(--ink)] text-white ring-2 ring-offset-1 ring-[var(--foreground)] shadow-sm"
                                                             : cn(action.bgColor, action.textColor, action.hoverColor, "active:scale-95 border border-transparent hover:border-black/5"),
                                                         isUpdatingStatus && "opacity-50 cursor-wait"
                                                     )}
@@ -726,7 +726,7 @@ export function OrderDetailsModal({
                                                 className={cn(
                                                     "w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95",
                                                     isActive
-                                                        ? "bg-[var(--foreground)] text-white shadow-sm"
+                                                        ? "bg-[var(--ink)] text-white shadow-sm"
                                                         : p.color
                                                 )}
                                                 title={p.label}
@@ -918,7 +918,7 @@ export function OrderDetailsModal({
 
                             {loadingTimeline ? (
                                 <div className="text-center py-8">
-                                    <div className="w-6 h-6 border-2 border-[var(--foreground)] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                                    <div className="w-6 h-6 border-2 border-[var(--ink)] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
                                     <p className="text-sm text-muted">{t("orderDetail.loadingTimeline")}</p>
                                 </div>
                             ) : (

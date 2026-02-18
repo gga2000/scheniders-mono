@@ -81,9 +81,10 @@ export default function RootLayout({
             <OrdersProvider>
               <PWAProvider>
                 <ThemeProvider
-                  attribute="data-theme"
+                  attribute="class"
                   defaultTheme="system"
                   enableSystem
+                  enableColorScheme
                   disableTransitionOnChange
                 >
                   <LanguageProvider>

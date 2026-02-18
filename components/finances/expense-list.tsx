@@ -38,7 +38,7 @@ export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
                 <button
                     onClick={() => setFilterCategory("all")}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${filterCategory === "all"
-                            ? "bg-[var(--foreground)] text-white"
+                            ? "bg-[var(--ink)] text-white"
                             : "bg-[var(--background)] text-muted hover:text-foreground"
                         }`}
                 >
@@ -49,7 +49,7 @@ export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
                         key={cat}
                         onClick={() => setFilterCategory(cat)}
                         className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${filterCategory === cat
-                                ? "bg-[var(--foreground)] text-white"
+                                ? "bg-[var(--ink)] text-white"
                                 : "bg-[var(--background)] text-muted hover:text-foreground"
                             }`}
                     >
@@ -90,7 +90,7 @@ export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
                                         key={expense.id}
                                         initial={{ opacity: 0, x: -10 }}
                                         animate={{ opacity: 1, x: 0 }}
-                                        className="flex items-center justify-between p-4 bg-[var(--card-bg)] rounded-xl border border-[var(--card-border)] hover:border-[var(--foreground)]/20 transition-all"
+                                        className="flex items-center justify-between p-4 bg-[var(--card-bg)] rounded-xl border border-[var(--card-border)] hover:border-[var(--ink)]/20 transition-all"
                                     >
                                         <div className="flex items-center gap-3">
                                             <div

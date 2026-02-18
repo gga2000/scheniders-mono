@@ -53,7 +53,7 @@ export function AdvancedFilters({ filters, onChange, cities, products }: Advance
                 className={cn(
                     "flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all",
                     hasActiveFilters
-                        ? "bg-[var(--foreground)] text-white border-transparent"
+                        ? "bg-[var(--ink)] text-white border-transparent"
                         : "bg-[var(--card-bg)] text-foreground border-[var(--card-border)] hover:border-foreground"
                 )}
             >
@@ -206,7 +206,7 @@ export function AdvancedFilters({ filters, onChange, cities, products }: Advance
                         <div className="p-4 border-t border-[var(--card-border)]">
                             <button
                                 onClick={() => setIsOpen(false)}
-                                className="w-full py-2 bg-[var(--foreground)] text-white rounded-xl font-medium hover:opacity-90"
+                                className="w-full py-2 bg-[var(--ink)] text-white rounded-xl font-medium hover:opacity-90"
                             >
                                 Apply Filters
                             </button>

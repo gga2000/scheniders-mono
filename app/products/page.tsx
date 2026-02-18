@@ -325,7 +325,7 @@ export default function ProductsPage() {
                             />
                             <button
                                 onClick={handleAddProduct}
-                                className="flex items-center gap-2 px-5 py-3 bg-[var(--foreground)] text-white rounded-xl font-medium hover:opacity-90 transition-all shadow-lg"
+                                className="flex items-center gap-2 px-5 py-3 bg-[var(--ink)] text-white rounded-xl font-medium hover:opacity-90 transition-all shadow-lg"
                             >
                                 <Plus className="w-5 h-5" />
                                 Add Product
@@ -443,7 +443,7 @@ export default function ProductsPage() {
                                         className={cn(
                                             "p-2 rounded-lg transition-all",
                                             viewMode === "grid"
-                                                ? "bg-[var(--foreground)] text-white"
+                                                ? "bg-[var(--ink)] text-white"
                                                 : "text-muted hover:text-foreground"
                                         )}
                                     >
@@ -454,7 +454,7 @@ export default function ProductsPage() {
                                         className={cn(
                                             "p-2 rounded-lg transition-all",
                                             viewMode === "list"
-                                                ? "bg-[var(--foreground)] text-white"
+                                                ? "bg-[var(--ink)] text-white"
                                                 : "text-muted hover:text-foreground"
                                         )}
                                     >
@@ -517,7 +517,7 @@ export default function ProductsPage() {
                             {products.length === 0 && (
                                 <button
                                     onClick={handleAddProduct}
-                                    className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--foreground)] text-white rounded-lg font-medium hover:opacity-90 transition-all"
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--ink)] text-white rounded-lg font-medium hover:opacity-90 transition-all"
                                 >
                                     <Plus className="w-4 h-4" />
                                     Add Product

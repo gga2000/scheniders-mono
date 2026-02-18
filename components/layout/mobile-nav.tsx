@@ -93,7 +93,7 @@ export function MobileNav() {
                                             className={cn(
                                                 "flex items-center gap-4 px-4 py-4 rounded-2xl transition-all",
                                                 isActive
-                                                    ? "bg-[var(--foreground)] text-white"
+                                                    ? "bg-[var(--ink)] text-white"
                                                     : "text-foreground hover:bg-[var(--background)]"
                                             )}
                                         >

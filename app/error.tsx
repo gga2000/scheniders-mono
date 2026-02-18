@@ -52,7 +52,7 @@ export default function GlobalError({
                 <div className="flex gap-3 justify-center">
                     <button
                         onClick={reset}
-                        className="flex items-center gap-2 px-4 py-3 bg-[var(--foreground)] text-white rounded-xl font-medium hover:opacity-90 transition-all"
+                        className="flex items-center gap-2 px-4 py-3 bg-[var(--ink)] text-white rounded-xl font-medium hover:opacity-90 transition-all"
                     >
                         <RefreshCw className="w-4 h-4" />
                         Try Again

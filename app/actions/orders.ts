@@ -125,3 +125,133 @@ export async function createOrderAction(
         };
     }
 }
+
+export async function splitOrderAction(
+    originalOrderId: string,
+    keptItems: any[],
+    returnedItems: any[]
+): Promise<{ success: boolean; data?: any; error?: string }> {
+    const supabase = await createSupabaseServerClient();
+
+    try {
+        // 1. Authenticate
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+            return { success: false, error: "Unauthorized" };
+        }
+
+        // 2. Fetch original order
+        const { data: originalOrder, error: fetchError } = await supabase
+            .from("orders")
+            .select("*")
+            .eq("id", originalOrderId)
+            .single();
+
+        if (fetchError || !originalOrder) {
+            console.error("Original order not found or error fetching:", fetchError);
+            return { success: false, error: "Original order not found" };
+        }
+
+        // 3. Calculate financials
+        const calculateTotal = (items: any[]) => items.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
+        const keptTotal = calculateTotal(keptItems);
+        const returnedTotal = calculateTotal(returnedItems);
+
+        // Proportional discount logic
+        const totalOriginal = keptTotal + returnedTotal;
+        const keptRatio = totalOriginal > 0 ? keptTotal / totalOriginal : 1;
+
+        const originalDiscount = originalOrder.discount_amount || 0;
+        const newDiscount = Math.round(originalDiscount * keptRatio);
+        const returnDiscount = originalDiscount - newDiscount;
+
+        const newPrice = keptTotal - newDiscount;
+        const returnPrice = returnedTotal - returnDiscount; // Price for return order usually represents the value of returned items
+
+        // 4. Update Original Order (The Kept Part)
+        // CRITICAL: Explicitly update 'items' column
+        const { error: updateError } = await supabase
+            .from("orders")
+            .update({
+                items: keptItems,
+                price: newPrice,
+                discount_amount: newDiscount,
+                status: 'delivered', // Mark as successfully delivered
+                internal_notes: (originalOrder.internal_notes || "") + `\n[Partial Delivery] Split from initial order.`,
+                delivered_at: new Date().toISOString(),
+            })
+            .eq("id", originalOrderId);
+
+        if (updateError) {
+            console.error("Failed to update original order:", updateError);
+            throw new Error("Failed to update original order: " + updateError.message);
+        } else {
+            console.log("Original order updated successfully for ID:", originalOrderId);
+        }
+
+        // 5. Create Return Order
+        // Prepare data for the new order
+        const returnOrderData = {
+            ...originalOrder,
+            id: undefined, // Let DB generate
+            created_at: undefined, // Let DB generate
+            updated_at: undefined,
+            order_id: undefined, // Let createOrderAction generate
+            items: returnedItems,
+            price: returnPrice,
+            discount_amount: returnDiscount,
+            status: 'rejected',
+            is_return: true,
+            original_order_id: originalOrder.id,
+            rejection_reason: 'Partial Return',
+            notes: (originalOrder.notes || "") + `\n[Partial Return] Items returned from original order.`,
+            internal_notes: `Split from order ${originalOrder.order_id}`,
+
+            // Reset/Sanitize fields
+            whatsapp_link: originalOrder.whatsapp_link || undefined,
+            scheduled_date: originalOrder.scheduled_date || undefined,
+            delivery_slot: originalOrder.delivery_slot || undefined,
+            governorate_code: originalOrder.governorate_code || undefined,
+            validated_governorate_code: originalOrder.validated_governorate_code || undefined,
+            city: originalOrder.city || undefined,
+            address_details: originalOrder.address_details || undefined,
+
+            // Clear unique tracking fields
+            last_batch_id: undefined,
+            delivery_order_id: undefined,
+            sequence_number: undefined,
+            delivered_at: undefined,
+            cancelled_at: undefined,
+            printed_at: undefined,
+            print_count: 0,
+        };
+
+        // Pass to createOrderAction to handle ID generation and insertion
+        // ignore ID types since we spread originalOrder which has them
+        const returnOrderDataAny = returnOrderData as any;
+        delete returnOrderDataAny.id;
+        delete returnOrderDataAny.created_at;
+        delete returnOrderDataAny.updated_at;
+
+        console.log("Creating return order with data:", JSON.stringify(returnOrderDataAny, null, 2));
+
+        const { success: createSuccess, data: createdReturnOrder, error: createError } = await createOrderAction(returnOrderDataAny);
+
+        if (!createSuccess) {
+            console.error("Failed to create return order:", createError);
+            // Ideally we should rollback the update to original order here, but Supabase doesn't support 
+            // multi-table transactions via client/setup easily without RPC.
+            // For now, we throw error. 
+            // TODO: Consider using RPC for true atomicity if this becomes an issue.
+            throw new Error("Failed to create return order: " + createError);
+        }
+
+        console.log("Split order action completed successfully. Return Order ID:", createdReturnOrder?.id);
+
+        return { success: true, data: createdReturnOrder };
+
+    } catch (err: any) {
+        console.error("Split order action failed with exception:", err);
+        return { success: false, error: err.message || "Failed to split order" };
+    }
+}

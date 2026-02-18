@@ -89,7 +89,7 @@ export function ProductDetailModal({
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={onEdit}
-                                className="flex items-center gap-2 px-4 py-2 bg-[var(--foreground)] text-white rounded-xl font-medium hover:opacity-90 transition-all"
+                                className="flex items-center gap-2 px-4 py-2 bg-[var(--ink)] text-white rounded-xl font-medium hover:opacity-90 transition-all"
                             >
                                 <Edit className="w-4 h-4" />
                                 Edit

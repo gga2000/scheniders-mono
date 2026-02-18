@@ -27,7 +27,7 @@ const typeStyles = {
         bg: "bg-[var(--pastel-blue)]",
         icon: AlertCircle,
         iconColor: "text-blue-700",
-        buttonBg: "bg-[var(--foreground)]",
+        buttonBg: "bg-[var(--ink)]",
     },
     warning: {
         bg: "bg-amber-100",

@@ -393,7 +393,7 @@ export const OrderCard = memo(function OrderCard({
                 <div className="absolute -inset-0.5 bg-red-400 rounded-[22px] blur-md opacity-40 group-hover:opacity-60 transition-opacity -z-10" />
             )}
             {/* Glow for returning customers - orange if unverified, green if verified */}
-            {hasDuplicates && !isReturn && !isUrgent && !isPinned && (
+            {hasDuplicates && !isReturn && !isUrgent && !isPinned && !hasRefund && (
                 <div className={cn(
                     "absolute -inset-0.5 rounded-[22px] blur-md transition-opacity -z-10",
                     isVerifiedCustomer
@@ -413,7 +413,7 @@ export const OrderCard = memo(function OrderCard({
             <motion.div
                 layoutId={`order-card-inner-${order.id}-${order.status}`}
                 className={cn(
-                    "relative bg-[var(--card-bg)] rounded-[20px] shadow-[var(--card-shadow)] hover:shadow-[var(--card-shadow-hover)] transition-all",
+                    "relative orders-card-surface bg-[var(--card-bg)] rounded-[20px] shadow-[var(--card-shadow)] hover:shadow-[var(--card-shadow-hover)] transition-all",
                     // Mobile: vertical layout, Desktop: horizontal
                     "flex flex-col md:flex-row",
                     actionsOpen ? "overflow-visible z-50" : "overflow-hidden",
@@ -422,11 +422,11 @@ export const OrderCard = memo(function OrderCard({
                     !isBlacklisted && isReturn && "ring-2 ring-red-400",
                     !isBlacklisted && !isReturn && isUrgent && "ring-2 ring-red-400",
                     !isBlacklisted && !isReturn && !isUrgent && isShopOrder && "ring-2 ring-amber-300 bg-amber-50/30",
-                    !isBlacklisted && !isReturn && !isUrgent && !isShopOrder && hasDuplicates && isVerifiedCustomer && "ring-2 ring-emerald-300",
-                    !isBlacklisted && !isReturn && !isUrgent && !isShopOrder && hasDuplicates && !isVerifiedCustomer && "ring-2 ring-orange-400",
+                    !isBlacklisted && !isReturn && !isUrgent && !isShopOrder && hasDuplicates && isVerifiedCustomer && !hasRefund && "ring-2 ring-emerald-300",
+                    !isBlacklisted && !isReturn && !isUrgent && !isShopOrder && hasDuplicates && !isVerifiedCustomer && !hasRefund && "ring-2 ring-orange-400",
                     !isBlacklisted && !isReturn && !isUrgent && !isShopOrder && !hasDuplicates && isNew && "ring-2 ring-orange-300",
                     // Refunded orders - rose ring and slight opacity
-                    !isBlacklisted && !isReturn && !isUrgent && !isShopOrder && !hasDuplicates && !isNew && hasRefund && "ring-2 ring-rose-300 opacity-80"
+                    !isBlacklisted && !isReturn && !isUrgent && !isShopOrder && hasRefund && "ring-2 ring-rose-300 opacity-80"
                 )}
             >
                 {/* Shop Order Glow */}
@@ -472,7 +472,7 @@ export const OrderCard = memo(function OrderCard({
                                 "w-6 h-6 rounded-full flex items-center justify-center transition-all shadow-md cursor-pointer",
                                 isSelected
                                     ? "bg-blue-500 text-white ring-2 ring-blue-300 ring-offset-1"
-                                    : "bg-white border-2 border-gray-300 hover:border-blue-400"
+                                    : "bg-white border-2 border-gray-300 hover:border-blue-400 dark:bg-[var(--ink)] dark:border-[#3a4c6e] dark:hover:border-blue-400/60"
                             )}>
                                 {isSelected && (
                                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -506,7 +506,7 @@ export const OrderCard = memo(function OrderCard({
                         {/* Customer Name with sparkle for new */}
                         <motion.div
                             layoutId={`order-name-${order.id}-${order.status}`}
-                            className="flex items-center gap-2 cursor-pointer hover:bg-black/5 rounded px-1 -ml-1 transition-colors"
+                            className="flex items-center gap-2 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded px-1 -ml-1 transition-colors"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 onViewDetails(order);
@@ -570,7 +570,7 @@ export const OrderCard = memo(function OrderCard({
                                 return (
                                     <>
                                         <span
-                                            className="px-2 py-0.5 rounded-md bg-[var(--background)] border border-[var(--card-border)] text-sm font-bold text-foreground cursor-pointer hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors"
+                                            className="px-2 py-0.5 rounded-md bg-[var(--background)] border border-[var(--card-border)] text-sm font-bold text-foreground cursor-pointer hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:hover:bg-blue-500/10 dark:hover:text-blue-200 dark:hover:border-blue-400/40 transition-colors"
                                             onClick={async (e) => {
                                                 e.stopPropagation();
                                                 // Copy order ID to clipboard
@@ -763,9 +763,9 @@ export const OrderCard = memo(function OrderCard({
 
                             {/* Refund Indicator - Show when this order has a return order (Parent Order) */}
                             {!isReturn && hasRefund && returnOrderInfo && (
-                                <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full bg-orange-100 text-orange-700 border border-orange-200">
+                                <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full bg-orange-100 text-orange-700 border border-orange-200" title={`تم الارجاع جزئياً في الطلب #${returnOrderInfo.returnOrderId}`}>
                                     <Scissors className="w-3 h-3" />
-                                    تم الارجاع جزئياً #{returnOrderInfo.returnOrderId}
+                                    تم الارجاع جزئياً
                                 </span>
                             )}
 
@@ -976,9 +976,6 @@ export const OrderCard = memo(function OrderCard({
 
                     {/* PRICE SECTION - Hidden on mobile (shown at bottom instead) */}
                     <motion.div layoutId={`order-price-${order.id}-${order.status}`} className="hidden md:block text-right min-w-[100px] flex-shrink-0">
-                        <p className="text-[10px] text-muted uppercase tracking-wider mb-0.5">
-                            TOTAL
-                        </p>
                         {(order.payment_status === "paid" || order.payment_status === "prepaid") ? (
                             <>
                                 <p className="text-lg font-bold text-emerald-600">
@@ -992,15 +989,12 @@ export const OrderCard = memo(function OrderCard({
                             <div className="flex flex-col items-end">
                                 {order.discount_amount ? (
                                     <>
-                                        <div className="flex items-center justify-end gap-1.5 mb-0.5">
-                                            <span className="text-xs text-muted line-through decoration-red-400 decoration-2 font-mono">
-                                                {formatIQD(Math.abs(Number(order.price)) + order.discount_amount)}
-                                            </span>
-                                        </div>
+                                        <span className="text-xs text-muted line-through decoration-red-400 decoration-2 font-mono mb-0.5">
+                                            {formatIQD(Math.abs(Number(order.price)) + order.discount_amount)}
+                                        </span>
                                         <p className={cn(
-                                            "text-lg font-bold tracking-tight",
-                                            isReturn ? "text-red-600" : "text-foreground",
-                                            hasRefund && "line-through opacity-50"
+                                            "text-xl font-bold tracking-tight tabular-nums",
+                                            isReturn ? "text-red-600" : "text-foreground"
                                         )}>
                                             {isReturn && "-"}
                                             {formatIQD(Math.abs(Number(order.price)))}
@@ -1015,9 +1009,8 @@ export const OrderCard = memo(function OrderCard({
                                     </>
                                 ) : (
                                     <p className={cn(
-                                        "text-lg font-bold tracking-tight",
-                                        isReturn ? "text-red-600" : "text-foreground",
-                                        hasRefund && "line-through opacity-50"
+                                        "text-xl font-bold tracking-tight tabular-nums",
+                                        isReturn ? "text-red-600" : "text-foreground"
                                     )}>
                                         {isReturn && "-"}
                                         {formatIQD(Math.abs(Number(order.price)))}
@@ -1096,8 +1089,7 @@ export const OrderCard = memo(function OrderCard({
                                                 </span>
                                                 <span className={cn(
                                                     "text-xl font-bold tabular-nums",
-                                                    isReturn ? "text-red-600" : "text-foreground",
-                                                    hasRefund && "line-through opacity-50"
+                                                    isReturn ? "text-red-600" : "text-foreground"
                                                 )}>
                                                     {isReturn && "-"}
                                                     {formatIQD(Math.abs(Number(order.price)))}
@@ -1113,8 +1105,7 @@ export const OrderCard = memo(function OrderCard({
                                         ) : (
                                             <span className={cn(
                                                 "text-xl font-bold tabular-nums",
-                                                isReturn ? "text-red-600" : "text-foreground",
-                                                hasRefund && "line-through opacity-50"
+                                                isReturn ? "text-red-600" : "text-foreground"
                                             )}>
                                                 {isReturn && "-"}
                                                 {formatIQD(Math.abs(Number(order.price)))}
@@ -1127,9 +1118,9 @@ export const OrderCard = memo(function OrderCard({
 
                         {/* Address row */}
                         {fullAddress && (
-                            <div className="flex items-center gap-2 p-2.5 rounded-xl bg-gray-50/80 border border-gray-100">
-                                <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                                <span className="text-sm text-gray-600 truncate flex-1" dir="rtl">{fullAddress}</span>
+                            <div className="flex items-center gap-2 p-2.5 rounded-xl bg-gray-50/80 border border-gray-100 dark:bg-[var(--background)]/80 dark:border-[#314260]">
+                                <MapPin className="w-4 h-4 text-gray-400 dark:text-[var(--foreground-subtle)] flex-shrink-0" />
+                                <span className="text-sm text-gray-600 dark:text-[var(--foreground-muted)] truncate flex-1" dir="rtl">{fullAddress}</span>
                                 {governorateCode && (
                                     <span className="px-2 py-1 rounded-lg bg-emerald-500 text-white text-[11px] font-bold flex-shrink-0 shadow-sm">
                                         {governorateCode}
@@ -1268,6 +1259,8 @@ export const OrderCard = memo(function OrderCard({
                             <Edit className="w-4 h-4" />
                         </button>
 
+
+
                         {/* More Actions Dropdown */}
                         <div ref={actionsRef} className={cn("relative", actionsOpen && "z-50")}>
                             <button
@@ -1387,6 +1380,20 @@ export const OrderCard = memo(function OrderCard({
                             )}
                         </div>
 
+                        {/* Split Order Button - Only for confirmed/in_transit with multiple items */}
+                        {onSplit && (order.status === 'confirmed' || order.status === 'in_transit') && (order.items && order.items.length > 1) && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onSplit();
+                                }}
+                                className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-200 text-orange-600 hover:bg-orange-100 transition-all flex items-center justify-center"
+                                title="Split Order"
+                            >
+                                <Scissors className="w-4 h-4" />
+                            </button>
+                        )}
+
                         {/* Quick Status Actions */}
                         {order.status !== "completed" && order.status !== "rejected" && order.status !== "cancelled" && order.status !== "no_response" && (
                             <>
@@ -1420,23 +1427,7 @@ export const OrderCard = memo(function OrderCard({
                                     </button>
                                 )}
 
-                                {/* Split Order - For confirmed/in_transit/delivered orders with multiple items */}
-                                {onSplit &&
-                                    (order.status === "confirmed" || order.status === "in_transit" || order.status === "delivered") &&
-                                    (!order.is_return) &&
-                                    (order.items && order.items.length > 1) && (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                onSplit();
-                                            }}
-                                            disabled={isLoading}
-                                            className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-all flex items-center justify-center disabled:opacity-50"
-                                            title="Split Order"
-                                        >
-                                            <Scissors className="w-4 h-4" />
-                                        </button>
-                                    )}
+
 
                                 {/* In Transit - Blue (order shipped) - only for confirmed orders */}
                                 {order.status === "confirmed" && (
@@ -1568,7 +1559,7 @@ export const OrderCard = memo(function OrderCard({
                 </div>
 
 
-            </motion.div>
+            </motion.div >
         </motion.div >
     );
 });

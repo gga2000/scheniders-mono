@@ -182,7 +182,7 @@ export default function CustomersPage() {
                                 className={cn(
                                     "px-4 py-3 rounded-2xl border transition-all shadow-sm flex items-center gap-2",
                                     showAnalytics
-                                        ? "bg-[var(--foreground)] text-white border-transparent"
+                                        ? "bg-[var(--ink)] text-white border-transparent"
                                         : "bg-[var(--card-bg)] border-[var(--card-border)] text-foreground hover:bg-[var(--background)]"
                                 )}
                             >
@@ -367,7 +367,7 @@ export default function CustomersPage() {
                                         className={cn(
                                             "px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2",
                                             filters.status === option.id
-                                                ? "bg-[var(--foreground)] text-white shadow-md"
+                                                ? "bg-[var(--ink)] text-white shadow-md"
                                                 : "bg-[var(--background)] text-[var(--foreground-muted)] hover:bg-[var(--card-border)] border border-[var(--card-border)]"
                                         )}
                                     >
