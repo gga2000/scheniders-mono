@@ -194,7 +194,7 @@ export function GlobalSearch() {
                 isOpen && "ring-2 ring-[var(--pastel-yellow)] border-transparent shadow-lg"
             )}>
                 {/* Search Icon */}
-                <div className="w-8 h-8 rounded-full bg-[var(--foreground)] flex items-center justify-center flex-shrink-0">
+                <div className="w-8 h-8 rounded-full bg-[var(--ink)] flex items-center justify-center flex-shrink-0">
                     <Search className="w-4 h-4 text-white" />
                 </div>
 
@@ -237,7 +237,7 @@ export function GlobalSearch() {
                             className={cn(
                                 "px-3 py-1.5 rounded-full text-xs font-medium transition-all",
                                 category === cat.id
-                                    ? "bg-[var(--foreground)] text-white"
+                                    ? "bg-[var(--ink)] text-white"
                                     : "bg-[var(--background)] text-muted hover:text-foreground border border-[var(--card-border)]"
                             )}
                         >

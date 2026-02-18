@@ -117,7 +117,7 @@ export function ProductImageUpload({ value, onChange, productId }: ProductImageU
                         className={cn(
                             "px-3 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1.5",
                             mode === "upload"
-                                ? "bg-[var(--foreground)] text-white"
+                                ? "bg-[var(--ink)] text-white"
                                 : "text-muted hover:text-foreground"
                         )}
                     >
@@ -130,7 +130,7 @@ export function ProductImageUpload({ value, onChange, productId }: ProductImageU
                         className={cn(
                             "px-3 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1.5",
                             mode === "url"
-                                ? "bg-[var(--foreground)] text-white"
+                                ? "bg-[var(--ink)] text-white"
                                 : "text-muted hover:text-foreground"
                         )}
                     >
@@ -181,8 +181,8 @@ export function ProductImageUpload({ value, onChange, productId }: ProductImageU
                                     "relative w-full h-40 rounded-xl border-2 border-dashed transition-all cursor-pointer",
                                     "flex flex-col items-center justify-center gap-3",
                                     dragActive
-                                        ? "border-[var(--foreground)] bg-[var(--foreground)]/5"
-                                        : "border-[var(--card-border)] hover:border-[var(--foreground)]/50 bg-[var(--background)]",
+                                        ? "border-[var(--ink)] bg-[var(--ink)]/5"
+                                        : "border-[var(--card-border)] hover:border-[var(--ink)]/50 bg-[var(--background)]",
                                     uploading && "pointer-events-none opacity-50"
                                 )}
                             >
@@ -236,7 +236,7 @@ export function ProductImageUpload({ value, onChange, productId }: ProductImageU
                                     type="button"
                                     onClick={handleUrlSubmit}
                                     disabled={!urlInput.trim()}
-                                    className="px-4 py-3 bg-[var(--foreground)] text-white rounded-xl font-medium hover:opacity-90 transition-all disabled:opacity-50"
+                                    className="px-4 py-3 bg-[var(--ink)] text-white rounded-xl font-medium hover:opacity-90 transition-all disabled:opacity-50"
                                 >
                                     Add
                                 </button>

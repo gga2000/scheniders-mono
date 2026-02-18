@@ -359,7 +359,7 @@ export function BatchManager({
                                     className={cn(
                                         "flex-1 px-4 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2",
                                         batchName.trim()
-                                            ? "bg-[var(--foreground)] text-white hover:scale-[1.02]"
+                                            ? "bg-[var(--ink)] text-white hover:scale-[1.02]"
                                             : "bg-gray-200 text-gray-400 cursor-not-allowed"
                                     )}
                                 >

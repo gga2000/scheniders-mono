@@ -679,7 +679,7 @@ export function PrintPreviewModal({
                                         className={cn(
                                             "w-2 h-2 rounded-full transition-all",
                                             idx === currentIndex
-                                                ? "bg-[var(--foreground)] w-6"
+                                                ? "bg-[var(--ink)] w-6"
                                                 : "bg-[var(--card-border)] hover:bg-[var(--foreground-muted)]"
                                         )}
                                     />
@@ -709,7 +709,7 @@ export function PrintPreviewModal({
                                 onPrint();
                                 onClose();
                             }}
-                            className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-[var(--foreground)] text-white font-semibold hover:scale-[1.02] transition-all shadow-lg"
+                            className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-[var(--ink)] text-white font-semibold hover:scale-[1.02] transition-all shadow-lg"
                         >
                             <Printer className="w-5 h-5" />
                             Print {orders.length} {printType === "labels" ? "Labels" : "Invoices"}

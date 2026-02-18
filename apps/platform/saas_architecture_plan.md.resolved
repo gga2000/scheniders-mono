@@ -1,0 +1,172 @@
+# B2B SaaS Transformation Plan
+
+## 0. Development & Isolation Strategy (Physical Separation)
+
+We will build the SaaS transformation in strict isolation by creating a physically separate project.
+*   **Original App (`/Scheniders`):** Remains untouched. Production environment.
+*   **New SaaS App (`/Scheniders-SaaS`):** A complete copy where we build the new platform.
+*   **The Database:** We MUST use a **NEW, EMPTY Supabase Project** for the SaaS app.
+    *   **Production App:** Uses Project A (Data is safe).
+    *   **SaaS Development:** Uses Project B (We can break things here safely).
+
+---
+
+## 1. Business & Pricing Model
+The proposed model is a **Hybrid Tiered Subscription with Usage Enforcement**.
+
+### The "Pay-Later" Percentage Fee
+**Mechanism:** 
+Every order created increments a "pending balance" on the business account.
+At the end of the month, an invoice is generated based on the collected fees.
+**Enforcement:**
+If the invoice is not paid within X days (grace period), the system automatically triggers a **Lockout**.
+*   **Pros:** Low barrier to entry for users (start free, pay later from profits).
+*   **Cons:** Risk of non-payment. 
+*   **Recommended Mitigation:** Enforce a strict lockout policy. If an invoice is overdue by 5 days, the app becomes **Read-Only** until payment is cleared.
+
+### Trial Period & Anti-Cheat
+*   **7-Day Free Trial:** New signups get full access to the **Growth Tier** for 7 days. No credit card required.
+*   **Anti-Cheat (Session Control):** To prevent sharing, we enforce strict active session limits.
+    *   **Tier 1:** 1 Active Session. If a new device logs in, the old one is kicked out immediately.
+    *   **Tier 2:** 3 Active Sessions.
+    *   **Implementation:** Store `session_id` in the database. On every request, validate if the session is still active.
+
+### Detailed Tier Structure
+
+| Feature | **Tier 1 (Starter)** | **Tier 2 (Growth)** | **Tier 3 (Pro)** | **Tier 4 (Enterprise)** |
+| :--- | :--- | :--- | :--- | :--- |
+| **Target User** | Home Business / IG Seller | Small Shop / Boutique | Large Wholesaler | Logistics / Multi-Branch |
+| **Monthly Sub** | **15,000 IQD** | **25,000 IQD** | **50,000 IQD** | **Custom** |
+| **Per-Order Fee** | **100 IQD** | **100 IQD** | **100 IQD** | **Negotiated** |
+| **Daily Order Limit** | **15** orders/day | **50** orders/day | **100** orders/day | **Unlimited** |
+| **Staff Accounts** | 1 (Owner Only) | 3 (Owner + 2 Staff) | 10 (Owner + Managers) | Unlimited |
+| **Active Sessions** | **1 Device Max** | **3 Devices Max** | **10 Devices Max** | **Unlimited** |
+| **Analytics** | Basic (Today Only) | Advanced (Monthly Trends) | Full Suite + Export | Custom Reports |
+
+---
+
+## 2. Technical Architecture for Scale
+
+**Do we build a separate platform?**
+**NO.** Building a completely separate codebase for "managing" subscriptions is inefficient.
+**YES**, you build a separate **INTERFACE**.
+
+### The Super Admin Interface (God Mode)
+This is a dedicated, ultra-premium interface solely for managing your empire. It is protected by `super_admin` and `support_staff` roles.
+
+#### A. Access Levels
+*   **Super Owner (You):** Can delete merchants, see financial totals, change pricing.
+*   **Support Staff (Employees):** Can view merchant accounts, extend trials, reset passwords, but CANNOT see total platform revenue or delete data.
+
+#### B. The "All Merchants" Master List
+A powerful, filterable table of every client.
+*   **Columns:**
+    *   **Business Name** (with Logo/Avatar)
+    *   **Tier Badge** (Color-coded)
+    *   **Status** (Trial 🔵, Active 🟢, Grace Period 🟡, Suspended 🔴)
+    *   **Active Sessions** (Live count of logged-in devices)
+*   **Quick Actions:**
+    *   **"Extend Trial"**: Give them 3 extra days.
+    *   **"Kill Session"**: Force logout a suspicious user.
+    *   **"Ghost Login"**: One-click login as them to fix issues.
+
+---
+
+## 3. Global Customer Intelligence (The "Blacklist" feature)
+
+We will build a centralized **Global Customer Database** that aggregates reputation data across **ALL** 1,000 merchants.
+
+### How it works:
+1.  **Phone Number is the Key:** Every time a merchant enters a customer phone number, we check the global database.
+2.  **Reputation Score:** We calculate a score based on their history across ALL shops.
+    *   **Green:** High delivery rate (Good Buyer).
+    *   **Red:** High return/reject rate (Bad Buyer).
+3.  **The "Global Blacklist":** If a customer has rejected 3+ orders from *different* shops, they are flagged as "High Risk" for everyone.
+
+### The "Global Intelligence" Dashboard
+A page dedicated to analyzing customer behavior across the entire platform.
+*   **Top Buyers:** "Who are the biggest spenders in Iraq?"
+*   **Top Rejectors:** "Who are the people scanning the system?"
+*   **Cross-Shop Analysis:** "Customers who buy from Shop A often buy from Shop B."
+
+---
+
+## 4. Operational Enhancements (Premium Features)
+
+To truly make this "State of the Art", we can offer these features as upgrades or Pro-Tier exclusives:
+
+### A. The "Magic Link" Storefront
+*   **Problem:** Most IG sellers don't have a website. They take orders via DM.
+*   **Solution:** We generate a public page for every merchant (e.g., `scheniders.com/shop/baghdad-boutique`). They can send this link to customers to place orders directly.
+*   **Benefit:** Orders go straight into the system. No manual entry.
+
+### B. WhatsApp Automation (One-Click)
+*   **Feature:** Add a "WhatsApp" button next to every order.
+*   **Function:** Pre-fills a message: "Hello [Name], your order #123 (Red Dress) is confirmed and will be delivered tomorrow. Total: 25,000 IQD."
+*   **Why:** Saves the merchant hours of typing.
+
+### C. The "Driver App" (Lite Mode)
+*   **Problem:** Drivers calling merchants to ask "Where is this address?"
+*   **Solution:** A simplified login for drivers. They only see a list of deliveries assigned to them with a "Map" button and "Mark Delivered" button.
+*   **Real-time:** When a driver marks "Delivered", the merchant sees it instantly.
+
+### D. Inventory Intelligence
+*   **Low Stock Alerts:** "You only have 2 Blue Shirts left."
+*   **Dead Stock Report:** "These items haven't sold in 30 days. Put them on sale."
+
+---
+
+## 5. Security & Data Protection Strategy
+
+### Separation of Data (Isolation)
+We use strict **Row Level Security (RLS)** to isolate business data.
+
+### Anti-Cheat Enforcement
+We implement a `user_sessions` table.
+*   When User A logs in, we generate a session token.
+*   If User A shares their password with User B, and User B logs in:
+    *   **Scenario 1 (Strict):** User A is immediately logged out. "You have logged in from another device."
+    *   **Scenario 2 (Block):** User B is blocked. "Max sessions reached."
+
+---
+
+## 6. Financial Projections (The "Profit Engine")
+
+**Chosen Model: Custom Hybrid**
+*   **Tier 1 Base:** 15,000 IQD (~$11.50)
+*   **Per-Order Fee:** 100 IQD (~$0.076)
+
+**Total Projected Revenue:**
+**~120 Million IQD / Month**
+**(~$90,000 USD / Month)**
+
+---
+
+## 7. Multi-Tenant Database Schema Roadmap
+
+To enable this, we must transition from a single-tenant schema to a multi-tenant one.
+
+### New Core Tables
+
+**1. `organizations`**
+Represents a Business (Tenant).
+```sql
+id (UUID)
+name (Text)
+tier (Enum: starter, growth, pro, enterprise)
+status (Enum: active, suspended, past_due)
+subscription_renewal_date (Date)
+current_month_balance (Decimal) -- Accumulates usage fees
+trial_ends_at (Timestamp)
+```
+
+**2. `global_customer_stats`**
+Aggregated stats for reputation.
+```sql
+phone_number (Text) PRIMARY KEY
+total_orders (Int)
+total_delivered (Int)
+total_returned (Int)
+last_order_at (Timestamp)
+reputation_score (Int) -- 0-100
+```

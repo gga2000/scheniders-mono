@@ -469,7 +469,7 @@ export function ProductFormModal({
                             <button
                                 type="submit"
                                 disabled={loading || !formData.name || formData.price <= 0}
-                                className="flex-1 px-6 py-3 bg-[var(--foreground)] text-white rounded-xl font-medium hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                className="flex-1 px-6 py-3 bg-[var(--ink)] text-white rounded-xl font-medium hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {loading ? (
                                     <>

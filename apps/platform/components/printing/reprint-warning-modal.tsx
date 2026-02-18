@@ -93,7 +93,7 @@ export function ReprintWarningModal({
                     <div className="p-4 border-t border-[var(--card-border)] space-y-2">
                         <button
                             onClick={onConfirm}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[var(--foreground)] text-white font-semibold hover:scale-[1.01] transition-all"
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[var(--ink)] text-white font-semibold hover:scale-[1.01] transition-all"
                         >
                             <Printer className="w-4 h-4" />
                             Print All Anyway

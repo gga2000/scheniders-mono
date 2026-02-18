@@ -95,13 +95,16 @@ export function applyOrderFilters(
         // Search query
         if (filters.searchQuery) {
             const query = filters.searchQuery.toLowerCase();
-            const matchesName = order.customer_name.toLowerCase().includes(query);
+            const matchesName = (order.customer_name || "").toLowerCase().includes(query);
             const matchesPhone = normalizePhoneForSearch(order.phone).includes(
                 normalizePhoneForSearch(filters.searchQuery)
             );
             const matchesOrderId = order.order_id?.toLowerCase().includes(query);
             const matchesDeliveryId = order.delivery_order_id?.toLowerCase().includes(query);
-            if (!matchesName && !matchesPhone && !matchesOrderId && !matchesDeliveryId) {
+            // Also search in original_order_id so return orders show up when searching for the parent
+            const matchesOriginalOrderId = order.original_order_id?.toLowerCase().includes(query);
+
+            if (!matchesName && !matchesPhone && !matchesOrderId && !matchesDeliveryId && !matchesOriginalOrderId) {
                 return false;
             }
         }

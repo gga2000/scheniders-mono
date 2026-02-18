@@ -385,7 +385,7 @@ export default function PrintingPage() {
                                             {/* Print Button */}
                                             <button
                                                 onClick={handlePrint}
-                                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--foreground)] text-white shadow-lg hover:scale-[1.02] transition-all font-semibold text-sm"
+                                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--ink)] text-white shadow-lg hover:scale-[1.02] transition-all font-semibold text-sm"
                                             >
                                                 <Printer className="h-4 w-4" />
                                                 Print {selectedOrders.size}
@@ -434,7 +434,7 @@ export default function PrintingPage() {
                                     className={cn(
                                         "px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm font-medium",
                                         printType === "labels"
-                                            ? "bg-[var(--foreground)] text-white"
+                                            ? "bg-[var(--ink)] text-white"
                                             : "text-muted hover:text-foreground"
                                     )}
                                 >
@@ -446,7 +446,7 @@ export default function PrintingPage() {
                                     className={cn(
                                         "px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm font-medium",
                                         printType === "invoices"
-                                            ? "bg-[var(--foreground)] text-white"
+                                            ? "bg-[var(--ink)] text-white"
                                             : "text-muted hover:text-foreground"
                                     )}
                                 >
@@ -681,7 +681,7 @@ export default function PrintingPage() {
                                                             ? "bg-red-500 text-white"
                                                             : priority === "high"
                                                                 ? "bg-orange-500 text-white"
-                                                                : "bg-[var(--foreground)] text-white"
+                                                                : "bg-[var(--ink)] text-white"
                                                         : "bg-[var(--background)] border border-[var(--card-border)] text-muted hover:bg-[var(--card-border)]"
                                                 )}
                                             >
@@ -752,7 +752,7 @@ export default function PrintingPage() {
                                     className={cn(
                                         "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all",
                                         selectedOrders.size === sortedOrders.length
-                                            ? "bg-[var(--foreground)] border-[var(--foreground)] text-white"
+                                            ? "bg-[var(--ink)] border-[var(--ink)] text-white"
                                             : "border-[var(--card-border)] hover:border-[var(--foreground-muted)]"
                                     )}
                                 >
@@ -793,7 +793,7 @@ export default function PrintingPage() {
                                                     className={cn(
                                                         "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all flex-shrink-0",
                                                         selectedOrders.has(order.id)
-                                                            ? "bg-[var(--foreground)] border-[var(--foreground)] text-white"
+                                                            ? "bg-[var(--ink)] border-[var(--ink)] text-white"
                                                             : "border-[var(--card-border)]"
                                                     )}
                                                 >

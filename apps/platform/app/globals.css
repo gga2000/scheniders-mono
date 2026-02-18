@@ -5,7 +5,9 @@
    A warm, professional, medical dashboard aesthetic
    ============================================ */
 
-:root {
+:root,
+.light,
+[data-theme='light'] {
   /* ============================================
      Light Mode (Default) 
      Matches previous tailwind.config.ts hardcoded values completely
@@ -22,6 +24,9 @@
   /* Medium gray - secondary text (Restored) */
   --foreground-subtle: #9A9A9A;
   /* Light gray - tertiary text (Restored) */
+  --ink: #1E1E1E;
+  --ink-hover: #2D2D2D;
+  --ink-contrast: #FFFFFF;
 
   /* Sidebar */
   --sidebar-bg: #1E1E1E;
@@ -84,8 +89,11 @@
   /* Fonts */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --skeleton-highlight: rgba(255, 255, 255, 0.5);
+  color-scheme: light;
 }
 
+.dark,
 [data-theme='dark'] {
   /* ============================================
      State of the Art Dark Mode
@@ -93,68 +101,55 @@
      ============================================ */
 
   /* Core Palette */
-  --background: #09090b;
-  /* Zinc-950 - Rich, deep night */
-  --background-soft: #18181b;
-  /* Zinc-900 */
-  --foreground: #e4e4e7;
-  /* Zinc-200 - Soft white, easier on eyes */
-  --foreground-muted: #a1a1aa;
-  /* Zinc-400 */
-  --foreground-subtle: #71717a;
-  /* Zinc-500 */
+  --background: #0b0f17;
+  --background-soft: #121826;
+  --foreground: #e8edf5;
+  --foreground-muted: #a9b4c4;
+  --foreground-subtle: #7a8598;
+  --ink: #0f141d;
+  --ink-hover: #161d2a;
+  --ink-contrast: #ffffff;
 
   /* Sidebar - Slightly lighter than bg to separate */
-  --sidebar-bg: #121212;
+  --sidebar-bg: #10141c;
   --sidebar-fg: #FFFFFF;
 
-  /* Pastel Accents (Desaturated & Adjusted for Contrast) */
-  /* We shift them slightly to be visible against dark bg */
-  --pastel-yellow: #D9BD6B;
-  /* Darker gold/yellow */
-  --pastel-yellow-light: #2A2410;
-  /* Very dark yellow bg */
-  --pastel-pink: #D69CA8;
-  /* Muted Rose */
-  --pastel-pink-light: #2D1A1E;
-  --pastel-green: #9CC784;
-  /* Muted Sage */
-  --pastel-green-light: #152310;
-  --pastel-mint: #8BCBC0;
-  --pastel-mint-light: #0F211F;
-  --pastel-purple: #C49FED;
-  /* Muted Lavender */
-  --pastel-purple-light: #22182B;
-  --pastel-blue: #84A9E0;
-  /* Muted Blue */
-  --pastel-blue-light: #101929;
+  /* Keep brand pastels vivid enough for chips/tags with existing dark text classes */
+  --pastel-yellow: #f4d887;
+  --pastel-yellow-light: #fff3c7;
+  --pastel-pink: #f3c0ce;
+  --pastel-pink-light: #ffe5ec;
+  --pastel-green: #bee7ab;
+  --pastel-green-light: #e9f9d9;
+  --pastel-mint: #aee8df;
+  --pastel-mint-light: #e1fbf5;
+  --pastel-purple: #dcc2f8;
+  --pastel-purple-light: #f0e7ff;
+  --pastel-blue: #b7cdff;
+  --pastel-blue-light: #e6eeff;
 
   /* Card & Surface Colors */
-  --card-bg: #121212;
-  /* Slightly uplifted from absolute bg */
-  --card-bg-hover: #18181b;
-  --card-border: #27272a;
-  /* Zinc-800 - Subtle border key for dark mode */
-  --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
-  /* Heavier shadows */
-  --card-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
+  --card-bg: #121926;
+  --card-bg-hover: #182133;
+  --card-border: #253149;
+  --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.2);
+  --card-shadow-hover: 0 18px 32px rgba(0, 0, 0, 0.42), 0 4px 12px rgba(0, 0, 0, 0.28);
 
   /* Interactive Elements */
-  --button-primary: #FFFFFF;
-  --button-primary-hover: #E4E4E7;
-  --button-success: #9CC784;
-  --button-success-hover: #86B66E;
+  --button-primary: var(--ink);
+  --button-primary-hover: var(--ink-hover);
+  --button-success: #33c786;
+  --button-success-hover: #2bb177;
 
   /* Semantic Colors */
-  --primary: #FFFFFF;
-  --primary-fg: #000000;
-  --destructive: #7F1D1D;
-  /* Dark red for destructive actions */
-  --destructive-fg: #FECACA;
-  --financial: #D9BD6B;
-  --financial-fg: #000000;
-  --border: #27272a;
-  --border-hover: #3f3f46;
+  --primary: var(--ink);
+  --primary-fg: var(--ink-contrast);
+  --destructive: #c85c73;
+  --destructive-fg: #fff1f5;
+  --financial: #f4d887;
+  --financial-fg: #2d2308;
+  --border: #253149;
+  --border-hover: #33425f;
 
   /* Status Colors */
   --status-new: var(--pastel-yellow);
@@ -162,10 +157,12 @@
   --status-confirmed: var(--pastel-green);
   --status-delivered: var(--pastel-purple);
   --status-rejected: var(--pastel-pink);
-  --status-success: #9CC784;
-  --status-warning: #D9BD6B;
-  --status-error: #D69CA8;
-  --status-info: #84A9E0;
+  --status-success: #bee7ab;
+  --status-warning: #f4d887;
+  --status-error: #f3c0ce;
+  --status-info: #b7cdff;
+  --skeleton-highlight: rgba(255, 255, 255, 0.08);
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -234,12 +231,199 @@ body {
   background: linear-gradient(135deg, var(--pastel-purple) 0%, var(--pastel-purple-light) 100%);
 }
 
+.pastel-card-blue {
+  background: linear-gradient(135deg, var(--pastel-blue) 0%, var(--pastel-blue-light) 100%);
+}
+
 /* Glass card for dark elements (sidebar compatibility) */
 .glass-card {
   background: rgba(30, 30, 30, 0.9);
   backdrop-filter: blur(20px);
   border-radius: var(--card-radius);
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================
+   Orders Dark Polish
+   ============================================ */
+
+.dark .orders-page {
+  background-image:
+    radial-gradient(1200px 460px at 26% -10%, rgba(87, 129, 212, 0.13), transparent 58%),
+    radial-gradient(900px 360px at 92% 6%, rgba(44, 189, 168, 0.08), transparent 62%);
+  background-attachment: fixed;
+}
+
+.dark .orders-page .orders-collapsed-toolbar {
+  background: linear-gradient(145deg, rgba(20, 28, 44, 0.95), rgba(14, 20, 32, 0.92));
+  border-color: rgba(56, 76, 109, 0.72);
+  box-shadow: 0 18px 42px rgba(2, 6, 23, 0.5), 0 0 0 1px rgba(69, 96, 143, 0.2);
+}
+
+.dark .orders-page .orders-toolbar-pill {
+  background: linear-gradient(145deg, rgba(30, 43, 66, 0.72), rgba(18, 27, 43, 0.9));
+  border-color: rgba(66, 89, 127, 0.6);
+  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.34), 0 0 0 1px rgba(104, 132, 183, 0.14);
+}
+
+.dark .orders-page .orders-toolbar-group {
+  background: linear-gradient(145deg, rgba(21, 30, 47, 0.9), rgba(14, 22, 35, 0.84));
+  border-color: rgba(62, 82, 116, 0.62);
+  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.36), 0 0 0 1px rgba(68, 89, 124, 0.16);
+}
+
+.dark .orders-page .orders-toolbar-divider {
+  background: linear-gradient(to bottom, transparent, rgba(92, 118, 167, 0.55), transparent);
+}
+
+.dark .orders-page .orders-date-popover {
+  background: linear-gradient(145deg, rgba(19, 28, 44, 0.97), rgba(14, 22, 36, 0.96));
+  border-color: rgba(66, 88, 126, 0.64);
+  box-shadow: 0 28px 56px rgba(2, 6, 23, 0.6), 0 0 0 1px rgba(87, 117, 170, 0.22);
+}
+
+.dark .orders-page .orders-search-panel {
+  background: linear-gradient(145deg, rgba(21, 30, 47, 0.9), rgba(14, 22, 35, 0.9));
+  border: 1px solid rgba(62, 82, 116, 0.58);
+  box-shadow: 0 16px 34px rgba(2, 6, 23, 0.44), 0 0 0 1px rgba(64, 88, 128, 0.15);
+}
+
+.dark .orders-page .orders-analytics-card {
+  border-color: rgba(61, 81, 115, 0.55) !important;
+  box-shadow: 0 12px 28px rgba(2, 6, 23, 0.36) !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(1) {
+  background: linear-gradient(145deg, rgba(88, 45, 67, 0.34), rgba(20, 27, 41, 0.92)) !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(2) {
+  background: linear-gradient(145deg, rgba(118, 88, 35, 0.34), rgba(20, 27, 41, 0.92)) !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(3) {
+  background: linear-gradient(145deg, rgba(83, 55, 124, 0.34), rgba(20, 27, 41, 0.92)) !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(4) {
+  background: linear-gradient(145deg, rgba(126, 74, 31, 0.34), rgba(20, 27, 41, 0.92)) !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(5) {
+  background: linear-gradient(145deg, rgba(41, 80, 62, 0.28), rgba(20, 27, 41, 0.92)) !important;
+}
+
+.dark .orders-page .orders-sticky-filter > div {
+  border-radius: 16px;
+  border: 1px solid rgba(60, 81, 116, 0.55);
+  background: linear-gradient(145deg, rgba(15, 23, 36, 0.88), rgba(11, 18, 29, 0.82));
+}
+
+.dark .orders-page .orders-card-surface {
+  background: linear-gradient(145deg, rgba(19, 28, 44, 0.94), rgba(13, 20, 31, 0.96));
+  border: 1px solid rgba(52, 72, 106, 0.55);
+  box-shadow: 0 14px 34px rgba(2, 6, 23, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.dark .orders-page .orders-card-surface:hover {
+  border-color: rgba(98, 128, 184, 0.55);
+  box-shadow: 0 20px 40px rgba(2, 6, 23, 0.5), 0 0 0 1px rgba(98, 128, 184, 0.26);
+}
+
+/* Harmonize order tags/chips in dark mode without touching light mode */
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"] {
+  background: rgba(27, 39, 59, 0.84) !important;
+  color: #d7e3f5 !important;
+  border-color: rgba(78, 103, 146, 0.58) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-green"],
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-emerald"],
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-teal"] {
+  background: rgba(29, 92, 70, 0.42) !important;
+  color: #b8f0d8 !important;
+  border-color: rgba(77, 178, 139, 0.52) !important;
+}
+
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-rose"],
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-red"] {
+  background: rgba(114, 49, 70, 0.43) !important;
+  color: #ffc8d8 !important;
+  border-color: rgba(204, 106, 141, 0.54) !important;
+}
+
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-orange"],
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-amber"],
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-yellow"] {
+  background: rgba(112, 84, 42, 0.42) !important;
+  color: #ffe0a4 !important;
+  border-color: rgba(212, 162, 85, 0.54) !important;
+}
+
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-blue"],
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-indigo"],
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-violet"],
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-purple"],
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-cyan"] {
+  background: rgba(46, 68, 121, 0.43) !important;
+  color: #c9d9ff !important;
+  border-color: rgba(112, 145, 223, 0.54) !important;
+}
+
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-gray"],
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-slate"],
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-muted"] {
+  background: rgba(38, 52, 77, 0.82) !important;
+  color: #c2cfe2 !important;
+  border-color: rgba(82, 103, 138, 0.52) !important;
+}
+
+/* Micro tags (sequence IDs, duplicate markers, etc.) */
+.dark .orders-page .orders-card-surface [class*="rounded"][class*="text-[9px]"][class*="bg-"] {
+  background: rgba(27, 39, 59, 0.82) !important;
+  color: #d6e2f4 !important;
+  border-color: rgba(78, 103, 146, 0.55) !important;
+}
+
+/* Action buttons on order cards: harmonize non-primary colored actions */
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"]:not([class*="text-white"]) {
+  background: rgba(23, 33, 52, 0.9) !important;
+  color: #d7e3f5 !important;
+  border: 1px solid rgba(72, 95, 136, 0.56) !important;
+  box-shadow: 0 6px 16px rgba(2, 6, 23, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-green"],
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-emerald"],
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-teal"] {
+  background: rgba(29, 92, 70, 0.45) !important;
+  color: #b8f0d8 !important;
+  border-color: rgba(77, 178, 139, 0.55) !important;
+}
+
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-red"],
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-rose"] {
+  background: rgba(114, 49, 70, 0.46) !important;
+  color: #ffc8d8 !important;
+  border-color: rgba(204, 106, 141, 0.55) !important;
+}
+
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-orange"],
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-amber"],
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-yellow"] {
+  background: rgba(112, 84, 42, 0.45) !important;
+  color: #ffe0a4 !important;
+  border-color: rgba(212, 162, 85, 0.55) !important;
+}
+
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-blue"],
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-indigo"],
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-violet"],
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-purple"] {
+  background: rgba(46, 68, 121, 0.46) !important;
+  color: #c9d9ff !important;
+  border-color: rgba(112, 145, 223, 0.55) !important;
 }
 
 /* ============================================
@@ -270,7 +454,7 @@ body {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #D6D3D1;
+  background: var(--border-hover);
 }
 
 /* ============================================
@@ -475,7 +659,7 @@ body {
 .skeleton {
   background: linear-gradient(90deg,
       var(--card-bg) 25%,
-      rgba(255, 255, 255, 0.5) 50%,
+      var(--skeleton-highlight) 50%,
       var(--card-bg) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;

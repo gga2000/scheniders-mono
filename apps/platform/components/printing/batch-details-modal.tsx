@@ -179,7 +179,7 @@ export function BatchDetailsModal({
                             <div className="flex items-center gap-2 mt-4 flex-wrap">
                                 <button
                                     onClick={() => onReprint(batch.order_ids || [], batch.invoice_template || "prime")}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--foreground)] text-white font-medium text-sm hover:scale-[1.02] transition-all"
+                                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--ink)] text-white font-medium text-sm hover:scale-[1.02] transition-all"
                                 >
                                     <Printer className="w-4 h-4" />
                                     Re-print Batch

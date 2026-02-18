@@ -3,23 +3,16 @@
 import { useTheme } from "next-themes";
 import { Moon, Sun } from "lucide-react";
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
 
 export function ThemeToggle() {
-    const { setTheme, theme } = useTheme();
-    const [mounted, setMounted] = useState(false);
-
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-
-    if (!mounted) {
+    const { setTheme, resolvedTheme } = useTheme();
+    if (!resolvedTheme) {
         return (
             <div className="w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-muted" />
         );
     }
 
-    const isDark = theme === "dark";
+    const isDark = resolvedTheme === "dark";
 
     return (
         <button

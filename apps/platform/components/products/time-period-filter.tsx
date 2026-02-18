@@ -29,7 +29,7 @@ export function TimePeriodFilter({ value, onChange }: TimePeriodFilterProps) {
                         className={cn(
                             "px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
                             value === period.value
-                                ? "bg-[var(--foreground)] text-white"
+                                ? "bg-[var(--ink)] text-white"
                                 : "text-muted hover:text-foreground"
                         )}
                     >
