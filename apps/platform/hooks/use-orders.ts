@@ -237,18 +237,37 @@ export function useOrders() {
                         });
                     }
 
-                    // Handle UPDATE - refetch orders to avoid stale closure issues in React concurrent mode
-                    // Previous approach tried to granularly update state but React's double-invoke 
-                    // in Strict Mode caused callbacks to run with stale closures
+                    // Handle UPDATE - efficiently patch the single order instead of refetching all orders
                     if (payload.eventType === "UPDATE" && payload.new) {
-                        // Debounce refetch to coalesce multiple rapid updates
-                        if (realtimeRefetchTimeout) {
-                            clearTimeout(realtimeRefetchTimeout);
-                        }
-                        realtimeRefetchTimeout = setTimeout(() => {
-                            fetchOrders(false); // Background refresh
-                            realtimeRefetchTimeout = null;
-                        }, 100);
+                        const updatedOrder = normalizeOrder(payload.new as Order);
+
+                        setOrders(prev => {
+                            // If it's archived, remove from active list
+                            if (updatedOrder.is_archived) {
+                                return prev.filter(o => o.id !== updatedOrder.id);
+                            }
+
+                            // Update or add to list
+                            const exists = prev.some(o => o.id === updatedOrder.id);
+                            if (exists) {
+                                return prev.map(o => o.id === updatedOrder.id ? updatedOrder : o);
+                            } else {
+                                // It was unarchived or we missed the insert
+                                return [updatedOrder, ...prev];
+                            }
+                        });
+
+                        // Notify React Query cache to stay in sync
+                        queryClient.setQueryData<Order[]>(["orders", "list"], (old) => {
+                            if (!old) return old;
+                            if (updatedOrder.is_archived) return old.filter(o => o.id !== updatedOrder.id);
+                            const exists = old.some(o => o.id === updatedOrder.id);
+                            if (exists) return old.map(o => o.id === updatedOrder.id ? updatedOrder : o);
+                            return [updatedOrder, ...old];
+                        });
+
+                        // Trigger a smooth UI refresh for components tracking realtime updates
+                        setRealtimeVersion(v => v + 1);
                     }
 
                     // Handle DELETE - remove order from state
@@ -333,7 +352,9 @@ export function useOrders() {
 
             if (fetchError) throw fetchError;
 
+            console.time(`[PERF - fetchOrders] normalize ${data?.length || 0} orders`);
             const ordersWithDefaults = (data || []).map(normalizeOrder);
+            console.timeEnd(`[PERF - fetchOrders] normalize ${data?.length || 0} orders`);
 
             setOrders(ordersWithDefaults);
             setError(null);
@@ -513,13 +534,18 @@ export function useOrders() {
         [filters]
     );
 
-    const filteredOrders = applyFilters(orders).sort((a, b) => {
-        // Pinned orders always come first
-        if (a.is_pinned && !b.is_pinned) return -1;
-        if (!a.is_pinned && b.is_pinned) return 1;
-        // Then sort by date descending (newest first)
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
+    const filteredOrders = useMemo(() => {
+        console.time(`[PERF - useOrders] compute for ${orders.length} orders`);
+        const result = applyFilters(orders).sort((a, b) => {
+            // Pinned orders always come first
+            if (a.is_pinned && !b.is_pinned) return -1;
+            if (!a.is_pinned && b.is_pinned) return 1;
+            // Then sort by date descending (newest first)
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+        console.timeEnd(`[PERF - useOrders] compute for ${orders.length} orders`);
+        return result;
+    }, [orders, applyFilters]);
 
     // Calculate specific counts for status buttons based on current filters (ignoring status filter)
     const statusCounts = useMemo(() => {
@@ -552,12 +578,14 @@ export function useOrders() {
 
 
     // Get unique cities from orders
-    const availableCities = [...new Set(orders.map((o) => o.city).filter(Boolean))] as string[];
+    const availableCities = useMemo(() => {
+        return [...new Set(orders.map((o) => o.city).filter(Boolean))] as string[];
+    }, [orders]);
 
     // Get unique products from orders
-    const availableProducts = [
-        ...new Set(orders.flatMap((o) => o.items?.map((i) => i.name) || []).filter(Boolean)),
-    ] as string[];
+    const availableProducts = useMemo(() => {
+        return [...new Set(orders.flatMap((o) => o.items?.map((i) => i.name) || []).filter(Boolean))] as string[];
+    }, [orders]);
 
     // =============================================
     // FILTER PRESET FUNCTIONS
@@ -1101,25 +1129,43 @@ export function useOrders() {
 
     async function bulkDelete(orderIds: string[]) {
         try {
+            const uniqueOrderIds = Array.from(new Set(orderIds));
+            if (uniqueOrderIds.length === 0) {
+                return { success: true, count: 0 };
+            }
+
             // Unlink any child orders first (set original_order_id to null)
             const { error: unlinkError } = await supabase
                 .from("orders")
                 .update({ original_order_id: null })
-                .in("original_order_id", orderIds);
+                .in("original_order_id", uniqueOrderIds);
 
             if (unlinkError) console.warn("Error unlinking child orders:", unlinkError);
 
-            const { error: deleteError } = await supabase
+            const { data: deletedRows, error: deleteError } = await supabase
                 .from("orders")
                 .delete()
-                .in("id", orderIds);
+                .in("id", uniqueOrderIds)
+                .select("id");
 
             if (deleteError) throw deleteError;
 
-            // Remove from local state
-            setOrders((prev) => prev.filter((order) => !orderIds.includes(order.id)));
+            const deletedIds = new Set((deletedRows || []).map((row) => row.id));
 
-            return { success: true, count: orderIds.length };
+            // If nothing was deleted, surface an explicit error.
+            if (deletedIds.size === 0) {
+                throw new Error("No orders were deleted. You may not have permission to delete these orders.");
+            }
+
+            // Remove from local state
+            setOrders((prev) => prev.filter((order) => !deletedIds.has(order.id)));
+
+            return {
+                success: deletedIds.size === uniqueOrderIds.length,
+                count: deletedIds.size,
+                requestedCount: uniqueOrderIds.length,
+                deletedIds: Array.from(deletedIds),
+            };
         } catch (err) {
             console.error("Error deleting orders:", err);
             return {
@@ -1366,9 +1412,11 @@ export function useOrders() {
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
 
-    // Get customer order count (for duplicate detection display)
-    // Excludes orders with the same base ID (e.g., 10004 vs LF-10004-044 are same order)
-    function getCustomerOrderCount(phone: string, currentOrderId?: string): number {
+    // Precompute a hash map of order counts by base normalized phone for O(1) lookups during scrolling
+    const customerOrderCountsMap = useMemo(() => {
+        const counts = new Map<string, number>();
+        const processedBaseIds = new Set<string>();
+
         // Helper to extract base order ID
         const getBaseId = (orderId: string | undefined | null): string => {
             if (!orderId) return '';
@@ -1379,17 +1427,41 @@ export function useOrders() {
             return digits ? digits[0] : orderId;
         };
 
-        const currentBaseId = currentOrderId ? getBaseId(currentOrderId) : null;
-        const normalizedPhone = normalizePhoneForSearch(phone);
+        orders.forEach((order) => {
+            if (order.is_archived) return;
 
-        return orders.filter((order) => {
-            // Use normalized phone comparison to handle different formats
-            if (normalizePhoneForSearch(order.phone) !== normalizedPhone || order.is_archived) return false;
-            // Exclude orders with the same base ID (they're the same order in different format)
-            if (currentBaseId && getBaseId(order.order_id) === currentBaseId) return false;
-            return true;
-        }).length;
-    }
+            const normalizedPhone = normalizePhoneForSearch(order.phone);
+            const baseId = getBaseId(order.order_id);
+
+            // Create a unique compound key so we don't count the same order twice
+            // if it's duplicated with differently formatted IDs like LF-1234-1 and LF-1234-2
+            const orderDedupKey = `${normalizedPhone}-${baseId}`;
+
+            if (!processedBaseIds.has(orderDedupKey)) {
+                processedBaseIds.add(orderDedupKey);
+                counts.set(normalizedPhone, (counts.get(normalizedPhone) || 0) + 1);
+            }
+        });
+
+        return counts;
+    }, [orders]);
+
+    // Get customer order count (O(1) lookup against pre-computed map)
+    const getCustomerOrderCount = useCallback((phone: string, currentOrderId?: string): number => {
+        const normalizedPhone = normalizePhoneForSearch(phone);
+        let count = customerOrderCountsMap.get(normalizedPhone) || 0;
+
+        // If a currentOrderId is provided, and we found > 0 orders, we should subtract 1
+        // (assuming the current order is included in the map). This mimics the old behavior
+        // of excluding the current order's base ID, but doing it in O(1).
+        if (currentOrderId && count > 0) {
+            // Strictly speaking, we subtract 1 because the current order is active and not archived,
+            // so it MUST be in the map.
+            count -= 1;
+        }
+
+        return count;
+    }, [customerOrderCountsMap]);
 
     // =============================================
     // MERGE ORDERS
@@ -1725,7 +1797,7 @@ export function useOrders() {
     // =============================================
 
     // Calculate 7-day revenue trends
-    const revenueTrends = (() => {
+    const revenueTrends = useMemo(() => {
         const trends: { date: string; revenue: number; orders: number }[] = [];
         for (let i = 6; i >= 0; i--) {
             const date = new Date();
@@ -1742,10 +1814,10 @@ export function useOrders() {
             });
         }
         return trends;
-    })();
+    }, [orders]);
 
     // Calculate velocity metrics (avg time between status changes)
-    const velocityMetrics = (() => {
+    const velocityMetrics = useMemo(() => {
         const confirmedOrders = orders.filter(o => o.status === "confirmed" || o.status === "delivered");
         const deliveredOrders = orders.filter(o => o.status === "delivered");
 
@@ -1757,10 +1829,10 @@ export function useOrders() {
             totalProcessed: deliveredOrders.length,
             pendingCount: orders.filter(o => o.status === "new" || o.status === "contacted").length,
         };
-    })();
+    }, [orders]);
 
     // Calculate Peak Hours
-    const peakTime = (() => {
+    const peakTime = useMemo(() => {
         if (orders.length === 0) return "N/A";
         const hourCounts: Record<number, number> = {};
         orders.forEach(o => {
@@ -1779,10 +1851,10 @@ export function useOrders() {
 
         const ampm = maxHour >= 12 ? 'PM' : 'AM';
         const displayHour = maxHour % 12 || 12;
-        return `${displayHour} ${ampm} `;
-    })();
+        return `${displayHour} ${ampm}`;
+    }, [orders]);
 
-    const stats = {
+    const stats = useMemo(() => ({
         totalOrders: orders.length,
         todayOrders: orders.filter((o) => {
             const today = new Date().toDateString();
@@ -1824,13 +1896,13 @@ export function useOrders() {
         revenueTrends,
         velocityMetrics,
         peakTime,
-    };
+    }), [orders, revenueTrends, velocityMetrics, peakTime]);
 
     // =============================================
     // RETURN OBJECT
     // =============================================
 
-    return {
+    const contextValue = useMemo(() => ({
         // Core data
         orders,
         statusCounts,
@@ -1919,5 +1991,14 @@ export function useOrders() {
         clearUndoStack,
         canUndo: undoStack.length > 0,
         checkOrderIdExists,
-    };
+    }), [
+        // Ensure that any internal state accessed by the returned hooks and values is in this dependency array.
+        // This allows the returned functions to capture the fresh state closure, while maintaining object 
+        // reference stability when unrelated components (e.g. react-query's isFetching) trigger a hook render.
+        orders, statusCounts, archivedOrders, filteredOrders, loading, error, stats, realtimeVersion,
+        rejectionReasons, messageTemplates, filterPresets, availableCities, availableProducts, filters,
+        undoStack
+    ]);
+
+    return contextValue;
 }

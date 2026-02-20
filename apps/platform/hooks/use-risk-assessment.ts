@@ -87,60 +87,47 @@ export function useBatchRiskAssessment(orders: OrderWithPhone[]) {
     const [loading, setLoading] = useState(false);
     const [lastFetchedPhones, setLastFetchedPhones] = useState<string[]>([]);
 
-    // Extract unique phones
-    const phones = useMemo(() => {
-        return [...new Set(orders.map(o => o.phone).filter(Boolean))];
+    // Generate a primitive string key of unique phones to use as the dependency.
+    // This prevents the effect from running again if the array reference changes but the phones don't.
+    const phonesStrKey = useMemo(() => {
+        const uniquePhones = [...new Set(orders.map(o => o.phone).filter(Boolean))];
+        return uniquePhones.sort().join(',');
     }, [orders]);
 
-    // Only fetch if phones have changed
+    // Only fetch if the unique string of phones has changed
     useEffect(() => {
-        // Optimization removed: We need to re-fetch even if the list of phones hasn't changed,
-        // because the *status* of orders for those phones might have changed (e.g. a new rejection),
-        // which affects the risk score.
-        // The `phones` array reference changes whenever `orders` updates, so this effect will run
-        // on every order update.
-
-        /*
-        const phonesChanged =
-            phones.length !== lastFetchedPhones.length ||
-            phones.some((p, i) => p !== lastFetchedPhones[i]);
-
-        console.log("[useBatchRiskAssessment] Effect triggered. Phones:", phones.length, "Changed:", phonesChanged);
-
-        if (!phonesChanged || phones.length === 0) {
-            console.log("[useBatchRiskAssessment] Skipping fetch. Phones:", phones.length, "Changed:", phonesChanged);
-            return;
-        }
-        */
-
-        if (phones.length === 0) return;
+        if (!phonesStrKey) return;
+        const phonesToFetch = phonesStrKey.split(',');
 
         let cancelled = false;
-        setLoading(true);
 
-        console.log("[useBatchRiskAssessment] Starting batch assess for", phones.length, "phones");
+        const fetchTimer = setTimeout(() => {
+            setLoading(true);
+            console.log("[useBatchRiskAssessment] Starting batch assess for", phonesToFetch.length, "phones");
 
-        fraudDetector
-            .batchAssess(phones)
-            .then((results) => {
-                if (!cancelled) {
-                    console.log("[useBatchRiskAssessment] Assessments loaded:", results.size);
-                    setAssessments(results);
-                    setLastFetchedPhones(phones);
-                    setLoading(false);
-                }
-            })
-            .catch((err) => {
-                console.error("[useBatchRiskAssessment] Error:", err);
-                if (!cancelled) {
-                    setLoading(false);
-                }
-            });
+            fraudDetector
+                .batchAssess(phonesToFetch)
+                .then((results) => {
+                    if (!cancelled) {
+                        console.log("[useBatchRiskAssessment] Assessments loaded:", results.size);
+                        setAssessments(results);
+                        setLastFetchedPhones(phonesToFetch);
+                        setLoading(false);
+                    }
+                })
+                .catch((err) => {
+                    console.error("[useBatchRiskAssessment] Error:", err);
+                    if (!cancelled) {
+                        setLoading(false);
+                    }
+                });
+        }, 500); // 500ms debounce prevents rapid RPC fire when orders change from realtime/mutations
 
         return () => {
             cancelled = true;
+            clearTimeout(fetchTimer);
         };
-    }, [phones]); // Depend on phones array reference (updates with orders)
+    }, [phonesStrKey]); // Depend on primitive stable string instead of array reference
 
     // =============================================
     // CLIENT-SIDE PRE-FLIGHT (Instant Feedback)
