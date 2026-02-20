@@ -3,10 +3,17 @@
 import { useTheme } from "next-themes";
 import { Moon, Sun } from "lucide-react";
 import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
 
 export function ThemeToggle() {
+    const [mounted, setMounted] = useState(false);
     const { setTheme, resolvedTheme } = useTheme();
-    if (!resolvedTheme) {
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted || !resolvedTheme) {
         return (
             <div className="w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-muted" />
         );

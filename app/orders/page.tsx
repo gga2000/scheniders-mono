@@ -191,6 +191,25 @@ export default function OrdersPage() {
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
     const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
     const debouncedColumnFilters = useDebounce(columnFilters, 300);
+
+    // Debounce global search to prevent typing latency
+    const [localSearchQuery, setLocalSearchQuery] = useState(filters.searchQuery || "");
+    const debouncedSearchQuery = useDebounce(localSearchQuery, 300);
+
+    useEffect(() => {
+        if (debouncedSearchQuery !== (filters.searchQuery || "")) {
+            setFilters(prev => ({ ...prev, searchQuery: debouncedSearchQuery || undefined }));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [debouncedSearchQuery, setFilters]);
+
+    useEffect(() => {
+        if (!filters.searchQuery && localSearchQuery) {
+            setLocalSearchQuery("");
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [filters.searchQuery]);
+
     const [groupBy, setGroupBy] = useState<'none' | 'status' | 'city' | 'verified'>('none');
     const [openFilterColumn, setOpenFilterColumn] = useState<string | null>(null);
     const [compactView, setCompactView] = useState(() => {
@@ -538,7 +557,22 @@ export default function OrdersPage() {
             return;
         }
         const ids = Array.from(selectedOrders);
-        await bulkDelete(ids);
+        const result = await bulkDelete(ids);
+
+        if (!result.success && (!result.count || result.count === 0)) {
+            alert(result.error || "Could not delete selected orders.");
+            return;
+        }
+
+        const deletedCount = result.count || 0;
+        if (deletedCount < ids.length) {
+            const deletedIdSet = new Set(result.deletedIds || []);
+            setSelectedOrders(new Set(ids.filter(id => !deletedIdSet.has(id))));
+
+            alert(`${deletedCount} of ${ids.length} orders were deleted. The remaining orders stayed selected.`);
+            return;
+        }
+
         setSelectedOrders(new Set());
     };
 
@@ -685,15 +719,17 @@ export default function OrdersPage() {
 
     // Count orders needing attention (⚠️ in notes, missing products, etc.)
     // Exclude: orders with "Manual Order" name (intentional), orders with just "[Delivery Import]" without ⚠️
-    const needsReviewCount = orders.filter(o => {
-        // Only count if has warning flags in notes (actual issues)
-        if (o.notes && o.notes.includes('⚠️')) return true;
-        // Or if items are truly empty (not just manual orders)
-        if ((!o.items || o.items.length === 0) && o.customer_name !== 'Manual Order') return true;
-        // Or if customer name is placeholder like "Customer XXXXX"
-        if (o.customer_name?.startsWith('Customer ') && o.customer_name !== 'Customer') return true;
-        return false;
-    }).length;
+    const needsReviewCount = useMemo(() => {
+        return orders.filter(o => {
+            // Only count if has warning flags in notes (actual issues)
+            if (o.notes && o.notes.includes('⚠️')) return true;
+            // Or if items are truly empty (not just manual orders)
+            if ((!o.items || o.items.length === 0) && o.customer_name !== 'Manual Order') return true;
+            // Or if customer name is placeholder like "Customer XXXXX"
+            if (o.customer_name?.startsWith('Customer ') && o.customer_name !== 'Customer') return true;
+            return false;
+        }).length;
+    }, [orders]);
 
 
 
@@ -817,8 +853,8 @@ export default function OrdersPage() {
                                             <input
                                                 type="text"
                                                 placeholder="Search orders..."
-                                                value={filters.searchQuery || ""}
-                                                onChange={(e) => setFilters({ ...filters, searchQuery: e.target.value || undefined })}
+                                                value={localSearchQuery}
+                                                onChange={(e) => setLocalSearchQuery(e.target.value)}
                                                 className="w-full pl-10 pr-4 py-2.5 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                                             />
                                         </div>
@@ -1481,8 +1517,8 @@ export default function OrdersPage() {
                                                         <input
                                                             type="text"
                                                             placeholder={t("orders.searchPlaceholder")}
-                                                            value={filters.searchQuery || ""}
-                                                            onChange={(e) => setFilters({ ...filters, searchQuery: e.target.value || undefined })}
+                                                            value={localSearchQuery}
+                                                            onChange={(e) => setLocalSearchQuery(e.target.value)}
                                                             className="w-full pl-12 pr-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all"
                                                         />
                                                     </div>

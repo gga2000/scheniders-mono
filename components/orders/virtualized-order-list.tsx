@@ -79,10 +79,15 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
         }
     }, []);
 
+    // Memoize the keys to prevent infinite loops from virtualizer config updates
+    const getItemKey = useCallback((index: number) => orders[index]?.id || index, [orders]);
+    const estimateSize = useCallback(() => compactView ? COMPACT_CARD_HEIGHT : ESTIMATED_CARD_HEIGHT, [compactView]);
+
     // Use window-based virtualizer - cards scroll with the page
     const virtualizer = useWindowVirtualizer({
         count: orders.length,
-        estimateSize: () => compactView ? COMPACT_CARD_HEIGHT : ESTIMATED_CARD_HEIGHT,
+        getItemKey,
+        estimateSize,
         overscan: 5, // Render 5 extra items above/below viewport
         gap: 12, // Gap between items
         scrollMargin,
@@ -149,6 +154,7 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
                                 returnOrderInfo={getReturnOrderInfo(order.id)}
                                 originalOrderInfo={getOriginalOrderInfo(order.original_order_id)}
                                 compact={compactView}
+                                isVirtualized={true}
                                 onOpenTemplatePanel={onOpenTemplatePanel}
                                 messageTemplates={messageTemplates}
                                 isSelected={selectedOrders.has(order.id)}

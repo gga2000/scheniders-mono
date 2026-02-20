@@ -84,6 +84,8 @@ interface OrderCardProps {
     onToggleSelection?: (orderId: string) => void;
     // Split functionality
     onSplit?: () => void;
+    // Disable layout animations (e.g. for virtualized lists)
+    isVirtualized?: boolean;
 }
 
 export const OrderCard = memo(function OrderCard({
@@ -112,6 +114,7 @@ export const OrderCard = memo(function OrderCard({
     isSelected = false,
     onToggleSelection,
     onSplit,
+    isVirtualized = false,
 }: OrderCardProps) {
     const isLoading = loadingId === order.id;
     const isNew = order.status === "new";
@@ -132,8 +135,8 @@ export const OrderCard = memo(function OrderCard({
     const actionsRef = useRef<HTMLDivElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
 
-
-
+    // Helper to conditionally disable layout animations
+    const getLayoutId = (id: string) => isVirtualized ? undefined : id;
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -371,7 +374,7 @@ export const OrderCard = memo(function OrderCard({
 
     return (
         <motion.div
-            layoutId={`order-card-${order.id}-${order.status}`}
+            layoutId={getLayoutId(`order-card-${order.id}-${order.status}`)}
             className={cn(
                 "group relative w-full isolate",
                 order.status === "rejected" && "opacity-60"
@@ -411,7 +414,7 @@ export const OrderCard = memo(function OrderCard({
             )}
 
             <motion.div
-                layoutId={`order-card-inner-${order.id}-${order.status}`}
+                layoutId={getLayoutId(`order-card-inner-${order.id}-${order.status}`)}
                 className={cn(
                     "relative orders-card-surface bg-[var(--card-bg)] rounded-[20px] shadow-[var(--card-shadow)] hover:shadow-[var(--card-shadow-hover)] transition-all",
                     // Mobile: vertical layout, Desktop: horizontal
@@ -435,7 +438,7 @@ export const OrderCard = memo(function OrderCard({
                 )}
                 {/* Status Accent Bar */}
                 <motion.div
-                    layoutId={`order-accent-${order.id}-${order.status}`}
+                    layoutId={getLayoutId(`order-accent-${order.id}-${order.status}`)}
                     className={cn(
                         "w-2 flex-shrink-0 rounded-l-[20px]",
                         getStatusColor(),
@@ -502,10 +505,10 @@ export const OrderCard = memo(function OrderCard({
                 >
 
                     {/* LEFT SECTION: Customer Info */}
-                    <motion.div layoutId={`order-customer-${order.id}-${order.status}`} className={cn("space-y-1 flex-shrink-0", compact ? "min-w-[120px]" : "min-w-[160px]")}>
+                    <motion.div layoutId={getLayoutId(`order-customer-${order.id}-${order.status}`)} className={cn("space-y-1 flex-shrink-0", compact ? "min-w-[120px]" : "min-w-[160px]")}>
                         {/* Customer Name with sparkle for new */}
                         <motion.div
-                            layoutId={`order-name-${order.id}-${order.status}`}
+                            layoutId={getLayoutId(`order-name-${order.id}-${order.status}`)}
                             className="flex items-center gap-2 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded px-1 -ml-1 transition-colors"
                             onClick={(e) => {
                                 e.stopPropagation();
@@ -657,7 +660,7 @@ export const OrderCard = memo(function OrderCard({
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
                             {/* Status Badge */}
                             <motion.span
-                                layoutId={`order-status-${order.id}-${order.status}`}
+                                layoutId={getLayoutId(`order-status-${order.id}-${order.status}`)}
                                 className={cn(
                                     "inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full uppercase tracking-wider",
                                     getStatusBadgeStyle(),
@@ -975,7 +978,7 @@ export const OrderCard = memo(function OrderCard({
                     </div>
 
                     {/* PRICE SECTION - Hidden on mobile (shown at bottom instead) */}
-                    <motion.div layoutId={`order-price-${order.id}-${order.status}`} className="hidden md:block text-right min-w-[100px] flex-shrink-0">
+                    <motion.div layoutId={getLayoutId(`order-price-${order.id}-${order.status}`)} className="hidden md:block text-right min-w-[100px] flex-shrink-0">
                         {(order.payment_status === "paid" || order.payment_status === "prepaid") ? (
                             <>
                                 <p className="text-lg font-bold text-emerald-600">
