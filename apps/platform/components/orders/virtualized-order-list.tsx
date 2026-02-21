@@ -28,6 +28,7 @@ interface VirtualizedOrderListProps {
     isBlacklisted: (phone: string) => boolean;
     getRiskLevel: (phone: string) => RiskLevel;
     getRiskAssessment?: (phone: string) => any; // New helper for full assessment
+    hasDuplicates?: (orderId: string) => boolean;
     getCustomerOrderCount: (phone: string, orderId: string) => number;
     getCustomerHistory: (phone: string) => Order[];
     getReturnOrderInfo: (orderId: string) => { returnOrderId: string; returnSequenceNumber?: number } | null;
@@ -66,6 +67,7 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
     compactView = false,
     getRiskLevel,
     getRiskAssessment,
+    hasDuplicates,
     onSplitOrder,
 }: VirtualizedOrderListProps) {
     const listRef = useRef<HTMLDivElement>(null);
@@ -117,7 +119,7 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
                     const order = orders[virtualRow.index];
                     const customerOrders = getCustomerHistory(order.phone);
                     const orderCount = getCustomerOrderCount(order.phone, order.order_id);
-                    const previousOrder = customerOrders.find(o => o.id !== order.id) || null;
+                    const previousOrder = !order.is_return ? (customerOrders.find(o => o.id !== order.id) || null) : null;
 
                     return (
                         <div
@@ -141,6 +143,7 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
                                 riskLevel={getRiskLevel(order.phone)}
                                 riskAssessment={getRiskAssessment?.(order.phone)} // Pass full assessment
                                 customerOrderCount={orderCount}
+                                hasDuplicates={hasDuplicates?.(order.id) || false}
                                 previousOrder={previousOrder}
                                 onMergeWithPrevious={onMergeWithPrevious}
                                 onShowDuplicates={onShowDuplicates}

@@ -55,6 +55,7 @@ interface OrderCardProps {
     riskAssessment?: RiskAssessment;
     // Duplicate detection props
     customerOrderCount?: number;
+    hasDuplicates?: boolean;
     previousOrder?: Order | null;
     onMergeWithPrevious?: (currentOrderId: string, previousOrderId: string) => void;
     onShowDuplicates?: (order: Order) => void;
@@ -115,6 +116,7 @@ export const OrderCard = memo(function OrderCard({
     onToggleSelection,
     onSplit,
     isVirtualized = false,
+    hasDuplicates = false,
 }: OrderCardProps) {
     const isLoading = loadingId === order.id;
     const isNew = order.status === "new";
@@ -122,7 +124,6 @@ export const OrderCard = memo(function OrderCard({
     const isShopOrder = order.source === "shop" || order.is_shop_order;
     const isUrgent = order.priority === "urgent";
     const isHighPriority = order.priority === "high";
-    const hasDuplicates = customerOrderCount > 1;
     const isVerifiedCustomer = order.is_verified_customer === true;
     const isPinned = order.is_pinned;
     const isReviewed = order.is_reviewed;
@@ -610,7 +611,7 @@ export const OrderCard = memo(function OrderCard({
                                                 <span>من: {order.original_order_id}</span>
                                             </span>
                                         )}
-                                        {previousOrder && (
+                                        {(!order.is_return && previousOrder) && (
                                             <span
                                                 className={cn(
                                                     "px-1.5 py-0.5 rounded text-[9px] font-bold border cursor-pointer transition-all flex items-center gap-1",
@@ -622,10 +623,10 @@ export const OrderCard = memo(function OrderCard({
                                                     e.stopPropagation();
                                                     onViewDetails(previousOrder);
                                                 }}
-                                                title="عرض الطلب الاصلي"
+                                                title="عرض طلب سابق"
                                             >
                                                 <CopyPlus className="w-3 h-3" />
-                                                الطلب الاصلي #{previousOrder.order_id}
+                                                طلب سابق #{previousOrder.order_id}
                                             </span>
                                         )}
                                     </>

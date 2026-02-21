@@ -1360,6 +1360,8 @@ export function useOrders() {
             // Same phone number
             if (order.phone !== phone) return false;
 
+            if (order.is_return) return false;
+
             // Within last 7 days
             if (new Date(order.created_at) < sevenDaysAgo) return false;
 
@@ -1387,7 +1389,7 @@ export function useOrders() {
         const normalizedOrderPhone = normalizePhoneForSearch(order.phone);
 
         return orders.filter((o) => {
-            if (o.id === orderId) return false;
+            if (o.id === orderId || o.is_return) return false;
             // Use normalized phone comparison
             if (normalizePhoneForSearch(o.phone) !== normalizedOrderPhone) return false;
 
@@ -1408,7 +1410,7 @@ export function useOrders() {
     function getCustomerHistory(phone: string): Order[] {
         const normalizedPhone = normalizePhoneForSearch(phone);
         return orders
-            .filter((order) => normalizePhoneForSearch(order.phone) === normalizedPhone)
+            .filter((order) => normalizePhoneForSearch(order.phone) === normalizedPhone && !order.is_return)
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
 
@@ -1428,7 +1430,7 @@ export function useOrders() {
         };
 
         orders.forEach((order) => {
-            if (order.is_archived) return;
+            if (order.is_archived || order.is_return) return;
 
             const normalizedPhone = normalizePhoneForSearch(order.phone);
             const baseId = getBaseId(order.order_id);
@@ -1449,18 +1451,7 @@ export function useOrders() {
     // Get customer order count (O(1) lookup against pre-computed map)
     const getCustomerOrderCount = useCallback((phone: string, currentOrderId?: string): number => {
         const normalizedPhone = normalizePhoneForSearch(phone);
-        let count = customerOrderCountsMap.get(normalizedPhone) || 0;
-
-        // If a currentOrderId is provided, and we found > 0 orders, we should subtract 1
-        // (assuming the current order is included in the map). This mimics the old behavior
-        // of excluding the current order's base ID, but doing it in O(1).
-        if (currentOrderId && count > 0) {
-            // Strictly speaking, we subtract 1 because the current order is active and not archived,
-            // so it MUST be in the map.
-            count -= 1;
-        }
-
-        return count;
+        return customerOrderCountsMap.get(normalizedPhone) || 0;
     }, [customerOrderCountsMap]);
 
     // =============================================
