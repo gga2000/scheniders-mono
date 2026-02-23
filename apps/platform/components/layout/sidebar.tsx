@@ -23,6 +23,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { usePrefetchOrders } from "@/hooks/use-orders-query";
 import { useLanguage } from "@/hooks/use-language";
 import { useState } from "react";
+import { NotificationCenter } from "@/components/ui/notification-center";
 
 const NAV_ITEMS = [
     { key: "nav.dashboard", icon: LayoutDashboard, href: "/" },
@@ -102,7 +103,7 @@ export function Sidebar({
                     "flex items-center mb-8 transition-all duration-500",
                     collapsed ? "justify-center flex-col gap-2" : "gap-3 px-2"
                 )}>
-                    <div className="w-9 h-9 rounded-xl bg-white text-black flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <div className="w-9 h-9 rounded-xl bg-[var(--primary)] text-[var(--primary-fg)] flex items-center justify-center flex-shrink-0 shadow-[0_0_15px_rgba(239,255,0,0.3)]">
                         <Package className="w-5 h-5" />
                     </div>
                     <span className={cn(
@@ -158,11 +159,11 @@ export function Sidebar({
                                 </span>
 
                                 {isActive && !collapsed && (
-                                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-pastel-rose shadow-[0_0_10px_rgba(244,199,207,0.6)]" />
+                                    <div className="ml-auto w-1.5 h-1.5 rounded-[2px] bg-[var(--primary)] shadow-[0_0_10px_rgba(239,255,0,0.6)]" />
                                 )}
 
                                 {isActive && collapsed && (
-                                    <div className="absolute right-1.5 top-1.5 w-1.5 h-1.5 rounded-full bg-pastel-rose shadow-[0_0_10px_rgba(244,199,207,0.6)]" />
+                                    <div className="absolute right-1.5 top-1.5 w-1.5 h-1.5 rounded-[2px] bg-[var(--primary)] shadow-[0_0_10px_rgba(239,255,0,0.6)]" />
                                 )}
                             </Link>
                         );
@@ -205,13 +206,17 @@ export function Sidebar({
                                             {user.email}
                                         </p>
                                     </div>
-                                    <Link
-                                        href="/settings"
-                                        className="p-2 hover:bg-white/10 rounded-lg transition-colors text-zinc-500 hover:text-white"
-                                        title="Settings"
-                                    >
-                                        <Settings className="w-4 h-4" />
-                                    </Link>
+                                    <div className="flex items-center gap-1 bg-white/5 rounded-xl border border-white/5 p-1">
+                                        <NotificationCenter />
+                                        <div className="w-[1px] h-4 bg-white/10 mx-1" />
+                                        <Link
+                                            href="/settings"
+                                            className="w-[34px] h-[34px] flex items-center justify-center rounded-xl bg-transparent hover:bg-white/10 transition-colors text-zinc-500 hover:text-white"
+                                            title="Settings"
+                                        >
+                                            <Settings className="w-4 h-4" />
+                                        </Link>
+                                    </div>
                                 </>
                             )}
                         </div>
@@ -300,7 +305,7 @@ export function Sidebar({
                         {/* Header with Close Button */}
                         <div className="flex items-center justify-between mb-8 px-2">
                             <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-xl bg-white text-black flex items-center justify-center flex-shrink-0 shadow-sm">
+                                <div className="w-9 h-9 rounded-xl bg-[var(--primary)] text-[var(--primary-fg)] flex items-center justify-center flex-shrink-0 shadow-[0_0_15px_rgba(239,255,0,0.3)]">
                                     <Package className="w-5 h-5" />
                                 </div>
                                 <span className="font-bold text-xl tracking-tight">
@@ -341,7 +346,7 @@ export function Sidebar({
                                             {t(item.key)}
                                         </span>
                                         {isActive && (
-                                            <div className="ml-auto w-2 h-2 rounded-full bg-pastel-rose shadow-[0_0_10px_rgba(244,199,207,0.6)]" />
+                                            <div className="ml-auto w-2 h-2 rounded-[2px] bg-[var(--primary)] shadow-[0_0_10px_rgba(239,255,0,0.6)]" />
                                         )}
                                     </Link>
                                 );

@@ -30,6 +30,7 @@ interface VirtualizedOrderListProps {
     getRiskAssessment?: (phone: string) => any; // New helper for full assessment
     hasDuplicates?: (orderId: string) => boolean;
     getCustomerOrderCount: (phone: string, orderId: string) => number;
+    getCustomerArchivedCount: (phone: string) => number;
     getCustomerHistory: (phone: string) => Order[];
     getReturnOrderInfo: (orderId: string) => { returnOrderId: string; returnSequenceNumber?: number } | null;
     getOriginalOrderInfo: (originalOrderId?: string) => { originalOrderId: string; originalSequenceNumber?: number } | null;
@@ -62,6 +63,7 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
     onMergeWithPrevious,
     isBlacklisted,
     getCustomerOrderCount,
+    getCustomerArchivedCount,
     getCustomerHistory,
     getReturnOrderInfo,
     getOriginalOrderInfo,
@@ -144,6 +146,7 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
                                 riskLevel={getRiskLevel(order.phone)}
                                 riskAssessment={getRiskAssessment?.(order.phone)} // Pass full assessment
                                 customerOrderCount={orderCount}
+                                archivedOrderCount={getCustomerArchivedCount(order.phone)}
                                 hasDuplicates={hasDuplicates?.(order.id) || false}
                                 previousOrder={previousOrder}
                                 onMergeWithPrevious={onMergeWithPrevious}

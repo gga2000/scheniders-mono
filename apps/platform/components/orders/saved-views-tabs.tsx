@@ -68,12 +68,12 @@ export function SavedViewsTabs({
                 className={cn(
                     "flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 shadow-sm border",
                     isOpen
-                        ? "bg-white/80 ring-2 ring-primary/20 border-primary/30 text-primary"
-                        : "bg-white/60 backdrop-blur-md border-white/20 text-muted-foreground hover:bg-white/80 hover:text-foreground"
+                        ? "bg-white/80 ring-2 ring-primary/20 border-primary/30 text-primary dark:bg-[#2A2A2A] dark:border-[rgba(239,255,0,0.3)] dark:ring-[rgba(239,255,0,0.15)] dark:text-[#EFFF00]"
+                        : "bg-white/60 backdrop-blur-md border-white/20 text-muted-foreground hover:bg-white/80 hover:text-foreground dark:bg-[#1E1E1E] dark:border-[#333333] dark:text-[#A1A1A1] dark:hover:bg-[#2A2A2A] dark:hover:text-white dark:hover:border-[#555]"
                 )}
             >
                 {activePresetId === null ? (
-                    <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                    <Star className="w-4 h-4 text-[#EFFF00] fill-[#EFFF00] drop-shadow-[0_0_4px_rgba(239,255,0,0.25)]" />
                 ) : (
                     <Bookmark className="w-4 h-4 text-amber-500 fill-amber-500" />
                 )}
@@ -96,7 +96,7 @@ export function SavedViewsTabs({
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 10, scale: 0.95 }}
                             transition={{ duration: 0.2 }}
-                            className="absolute left-0 mt-2 w-72 p-2 rounded-2xl bg-white/90 backdrop-blur-xl border border-white/20 shadow-2xl z-20 flex flex-col gap-1"
+                            className="absolute left-0 mt-2 w-72 p-2 rounded-2xl bg-white/90 backdrop-blur-xl border border-white/20 shadow-2xl z-20 flex flex-col gap-1 dark:bg-[#1E1E1E] dark:border-[#333333] dark:shadow-[0_12px_40px_rgba(0,0,0,0.5)]"
                         >
                             <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                                 {t("orders.views.switchView")}
@@ -111,8 +111,8 @@ export function SavedViewsTabs({
                                 className={cn(
                                     "flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-all",
                                     activePresetId === null
-                                        ? "bg-primary/10 text-primary"
-                                        : "hover:bg-black/5 text-foreground"
+                                        ? "bg-primary/10 text-primary dark:bg-[rgba(239,255,0,0.1)] dark:text-[#EFFF00]"
+                                        : "hover:bg-black/5 text-foreground dark:hover:bg-white/5 dark:text-[#D4D4D4]"
                                 )}
                             >
                                 <div className="flex items-center gap-2">
@@ -123,7 +123,7 @@ export function SavedViewsTabs({
                             </button>
 
                             {/* Separator */}
-                            <div className="h-px bg-black/5 my-1" />
+                            <div className="h-px bg-black/5 my-1 dark:bg-white/5" />
 
                             {/* Presets List */}
                             <div className="max-h-60 overflow-y-auto scrollbar-hide flex flex-col gap-1">
@@ -133,8 +133,8 @@ export function SavedViewsTabs({
                                         className={cn(
                                             "group flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-all relative overflow-hidden",
                                             activePresetId === preset.id
-                                                ? "bg-amber-500/10 text-amber-700"
-                                                : "hover:bg-black/5 text-foreground"
+                                                ? "bg-amber-500/10 text-amber-700 dark:bg-[rgba(239,255,0,0.1)] dark:text-[#EFFF00]"
+                                                : "hover:bg-black/5 text-foreground dark:hover:bg-white/5 dark:text-[#D4D4D4]"
                                         )}
                                     >
                                         <button
@@ -166,11 +166,11 @@ export function SavedViewsTabs({
                             </div>
 
                             {/* Separator */}
-                            <div className="h-px bg-black/5 my-1" />
+                            <div className="h-px bg-black/5 my-1 dark:bg-white/5" />
 
                             {/* Save New View */}
                             {isCreating ? (
-                                <div className="p-2 bg-black/5 rounded-xl">
+                                <div className="p-2 bg-black/5 rounded-xl dark:bg-white/5">
                                     <input
                                         type="text"
                                         value={newName}
@@ -178,7 +178,7 @@ export function SavedViewsTabs({
                                         onKeyDown={handleKeyDown}
                                         placeholder={t("orders.views.viewNamePlaceholder")}
                                         autoFocus
-                                        className="w-full px-3 py-2 text-sm bg-white border border-black/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 mb-2"
+                                        className="w-full px-3 py-2 text-sm bg-white border border-black/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 mb-2 dark:bg-[#2A2A2A] dark:border-[#333] dark:text-white dark:placeholder:text-[#666]"
                                     />
                                     <div className="flex gap-2">
                                         <button
@@ -193,7 +193,7 @@ export function SavedViewsTabs({
                                                 setIsCreating(false);
                                                 setNewName("");
                                             }}
-                                            className="px-3 py-1.5 bg-transparent border border-black/10 text-xs font-semibold rounded-lg"
+                                            className="px-3 py-1.5 bg-transparent border border-black/10 text-xs font-semibold rounded-lg dark:border-[#333] dark:text-[#A1A1A1]"
                                         >
                                             {t("orders.views.cancel")}
                                         </button>
@@ -202,7 +202,7 @@ export function SavedViewsTabs({
                             ) : (
                                 <button
                                     onClick={() => setIsCreating(true)}
-                                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:bg-black/5 hover:text-foreground transition-all"
+                                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:bg-black/5 hover:text-foreground transition-all dark:hover:bg-white/5"
                                 >
                                     <Plus className="w-4 h-4" />
                                     <span>{t("orders.views.saveCurrentView")}</span>

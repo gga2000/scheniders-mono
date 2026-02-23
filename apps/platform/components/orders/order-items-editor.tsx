@@ -36,7 +36,7 @@ export function OrderItemsEditor({
     };
 
     return (
-        <div className="bg-[var(--background)] rounded-xl border border-[var(--card-border)] overflow-hidden">
+        <div className="bg-[var(--background)] rounded-xl border border-[var(--card-border)] overflow-hidden order-detail-items">
             <div className="flex items-center gap-3 px-4 py-3 bg-[var(--background)] border-b border-[var(--card-border)]">
                 <Package className="h-4 w-4 text-muted" />
                 <span className="font-semibold text-foreground">{t("orderDetail.products")}</span>

@@ -47,7 +47,7 @@ export function OrderCustomerCard({
     };
 
     return (
-        <div className="bg-white rounded-xl border border-[var(--card-border)] overflow-hidden">
+        <div className="bg-white rounded-xl border border-[var(--card-border)] overflow-hidden order-detail-customer">
             <div className="px-4 py-3 bg-[var(--background)] border-b border-[var(--card-border)] flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-muted" />
@@ -348,6 +348,11 @@ export function OrderCustomerCard({
                         <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1">
                             <Calendar className="w-3 h-3" />
                             {t("orderDetail.orderDate")}
+                            {order.original_created_at && new Date(order.original_created_at).getTime() !== new Date(order.created_at).getTime() && (
+                                <span className="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-bold rounded-full uppercase tracking-wider">
+                                    Modified
+                                </span>
+                            )}
                         </span>
                         {isEditing ? (
                             <DateTimePicker
@@ -357,9 +362,19 @@ export function OrderCustomerCard({
                                 className="h-[38px]"
                             />
                         ) : (
-                            <div className="min-h-[38px] py-1 flex flex-col justify-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg">
+                            <div className={cn(
+                                "min-h-[38px] py-1 flex flex-col justify-center px-3 rounded-lg transition-all",
+                                order.original_created_at && new Date(order.original_created_at).getTime() !== new Date(order.created_at).getTime()
+                                    ? "bg-amber-50/60 border border-amber-200/80 border-l-[3px] border-l-amber-400"
+                                    : "bg-[var(--background)] border border-[var(--card-border)]"
+                            )}>
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-mono text-sm text-foreground">
+                                    <span className={cn(
+                                        "font-mono text-sm",
+                                        order.original_created_at && new Date(order.original_created_at).getTime() !== new Date(order.created_at).getTime()
+                                            ? "text-amber-900 font-semibold"
+                                            : "text-foreground"
+                                    )}>
                                         {new Date(order.created_at).toLocaleString('en-US', {
                                             year: 'numeric',
                                             month: '2-digit',
@@ -369,9 +384,14 @@ export function OrderCustomerCard({
                                             hour12: true
                                         })}
                                     </span>
-                                    {order.original_created_at && order.original_created_at !== order.created_at && (
-                                        <span className="px-1.5 py-0.5 bg-blue-50 border border-blue-100 text-blue-700 text-[10px] font-medium rounded" title={t("orderDetail.originalDate") || "Original Date"}>
-                                            Orig: {new Date(order.original_created_at).toLocaleString('en-US', {
+                                    {order.original_created_at && new Date(order.original_created_at).getTime() !== new Date(order.created_at).getTime() && (
+                                        <span
+                                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 border border-amber-200 text-amber-800 text-[11px] font-semibold rounded-md shadow-sm"
+                                            title={t("orderDetail.originalDate") || "Original Date"}
+                                        >
+                                            <Calendar className="w-3 h-3 text-amber-600" />
+                                            <span className="text-amber-500 mr-0.5">was</span>
+                                            {new Date(order.original_created_at).toLocaleString('en-US', {
                                                 month: '2-digit',
                                                 day: '2-digit',
                                                 hour: '2-digit',

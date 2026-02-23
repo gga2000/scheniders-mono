@@ -8,7 +8,7 @@ import type { Config } from "tailwindcss";
  * This config file is for extending functionality and plugins
  */
 const config: Config = {
-  darkMode: ['selector', '[data-theme="dark"]'],
+  darkMode: 'class',
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",

@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 import { formatIQD, getBaseOrderId } from "@/lib/utils";
 import { DualPhoneDisplay } from "@/components/ui/phone-display";
 import type { Order } from "@/lib/supabase";
+import { toast } from "@/hooks/use-toast";
+import { useLanguage } from "@/hooks/use-language";
 
 interface DeliveryTabProps {
     orders: Order[];
@@ -44,6 +46,7 @@ export function DeliveryTab({
     onStatusUpdate,
     onViewDetails,
 }: DeliveryTabProps) {
+    const { t } = useLanguage();
     const [partialModal, setPartialModal] = useState<PartialDeliveryState | null>(null);
     const [loadingId, setLoadingId] = useState<string | null>(null);
     // Rejection modal state
@@ -120,7 +123,11 @@ export function DeliveryTab({
     };
 
     const handleReorder = async (order: Order) => {
-        alert(`Reorder for ${order.customer_name} - Feature coming soon!`);
+        toast({
+            title: t("toast.comingSoon"),
+            description: t("toast.reorderFeature").replace("{customer}", order.customer_name),
+            variant: "default",
+        });
     };
 
     if (orders.length === 0) {

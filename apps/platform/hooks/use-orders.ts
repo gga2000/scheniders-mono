@@ -45,6 +45,7 @@ import {
 // React Query hooks for caching
 import {
     useOrdersQuery,
+    useArchivedOrdersQuery,
     useUpdateStatusMutation,
     useUpdateOrderMutation,
     useDeleteOrderMutation,
@@ -104,6 +105,7 @@ export function useOrders() {
             setError(null);
         }
     }, [cachedOrders]);
+
 
     // Handle query errors
     useEffect(() => {
@@ -191,6 +193,17 @@ export function useOrders() {
             return updated;
         });
     }, [setPreference]);
+
+    // Sync React Query data for archived orders
+    const { data: cachedArchivedOrders } = useArchivedOrdersQuery(
+        !!filters.searchQuery && !!filters.searchIncludesArchive
+    );
+
+    useEffect(() => {
+        if (cachedArchivedOrders) {
+            setArchivedOrders(cachedArchivedOrders);
+        }
+    }, [cachedArchivedOrders]);
 
     // =============================================
     // INITIAL DATA FETCH (Real-time subscription only now)
@@ -555,17 +568,22 @@ export function useOrders() {
     );
 
     const filteredOrders = useMemo(() => {
-        console.time(`[PERF - useOrders] compute for ${orders.length} orders`);
-        const result = applyFilters(orders).sort((a, b) => {
+        // Deep Search: Combine active and archived orders if searchIncludesArchive is true and we have a search query
+        const ordersToFilter = (filters.searchQuery && filters.searchIncludesArchive)
+            ? [...orders, ...archivedOrders]
+            : orders;
+
+        console.time(`[PERF - useOrders] compute for ${ordersToFilter.length} orders`);
+        const result = applyFilters(ordersToFilter).sort((a, b) => {
             // Pinned orders always come first
             if (a.is_pinned && !b.is_pinned) return -1;
             if (!a.is_pinned && b.is_pinned) return 1;
             // Then sort by date descending (newest first)
             return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         });
-        console.timeEnd(`[PERF - useOrders] compute for ${orders.length} orders`);
+        console.timeEnd(`[PERF - useOrders] compute for ${ordersToFilter.length} orders`);
         return result;
-    }, [orders, applyFilters]);
+    }, [orders, archivedOrders, filters.searchQuery, filters.searchIncludesArchive, applyFilters]);
 
     // Calculate specific counts for status buttons based on current filters (ignoring status filter)
     const statusCounts = useMemo(() => {
@@ -1147,6 +1165,28 @@ export function useOrders() {
         }
     }
 
+    async function bulkUnarchive(orderIds: string[]) {
+        try {
+            const { error: updateError } = await supabase
+                .from("orders")
+                .update({ is_archived: false })
+                .in("id", orderIds);
+
+            if (updateError) throw updateError;
+
+            // Invalidate the cache to fetch the restored orders from DB
+            await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+
+            return { success: true, count: orderIds.length };
+        } catch (err) {
+            console.error("Error unarchiving orders:", err);
+            return {
+                success: false,
+                error: err instanceof Error ? err.message : "Failed to unarchive orders",
+            };
+        }
+    }
+
     async function bulkDelete(orderIds: string[]) {
         try {
             const uniqueOrderIds = Array.from(new Set(orderIds));
@@ -1318,6 +1358,7 @@ export function useOrders() {
         reason: string;
         items?: Order["items"];
         deductDeliveryFee?: boolean; // If true, deduct 5000 IQD from return amount
+        notes?: string;
     }) {
         const originalOrder = orders.find((o) => o.id === originalOrderId);
         if (!originalOrder) {
@@ -1353,15 +1394,14 @@ export function useOrders() {
             items: returnData.items || originalOrder.items,
             price: -finalReturnAmount, // Negative amount for returns
             status: "return_pending",
-            notes: returnData.deductDeliveryFee
-                ? `استرجاع: ${returnData.reason} | خصم التوصيل: 5,000 | الطلب الأصلي: #${originalOrder.order_id}`
-                : `استرجاع: ${returnData.reason} | الطلب الأصلي: #${originalOrder.order_id}`,
+            notes: returnData.notes || undefined, // Let the user provide notes if needed, but don't force a system string
             is_return: true,
             original_order_id: originalOrderId,
             priority: "high", // Returns are usually high priority
             payment_status: "pending",
             is_archived: false,
             delivery_fee: deliveryFeeDeduction, // Store fee deducted
+            rejection_reason: returnData.reason, // Store reason structurally
             source: originalOrder.source || "other", // Inherit source from original order
         };
 
@@ -1369,8 +1409,19 @@ export function useOrders() {
     }
 
     // =============================================
-    // DUPLICATE DETECTION
+    // CUSTOMER HISTORY HELPERS
     // =============================================
+
+    /**
+     * getCustomerArchivedCount - Returns the number of archived orders for a phone number
+     */
+    const getCustomerArchivedCount = useCallback((phone: string) => {
+        if (!phone) return 0;
+        const normalized = phone.replace(/\s/g, '');
+        return archivedOrders.filter(o =>
+            o.is_archived && o.phone.replace(/\s/g, '') === normalized
+        ).length;
+    }, [archivedOrders]);
 
     function checkDuplicateOrder(phone: string, items: string[]): Order[] {
         const sevenDaysAgo = new Date();
@@ -1961,6 +2012,7 @@ export function useOrders() {
         // Bulk operations
         bulkUpdateStatus,
         bulkArchive,
+        bulkUnarchive,
         bulkDelete,
         exportOrders,
         createBatch,
@@ -1974,6 +2026,7 @@ export function useOrders() {
         hasDuplicates,
         getCustomerHistory,
         getCustomerOrderCount,
+        getCustomerArchivedCount,
         mergeOrders,
         fetchOrders, // Exposed for manual refresh
 

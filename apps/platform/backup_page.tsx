@@ -1904,7 +1904,7 @@ export default function OrdersPage() {
                                                 getCustomerHistory={getCustomerHistory}
                                                 getReturnOrderInfo={getReturnOrderInfo}
                                                 getOriginalOrderInfo={getOriginalOrderInfo}
-                                                compactView={compactView}
+                                                compactView={(compactView ? 1 : 0) as 0 | 1 | 2}
                                                 getRiskLevel={getRiskLevel}
                                                 onSplitOrder={(order) => setSplitOrderDialog({ open: true, order })}
                                             />

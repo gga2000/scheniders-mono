@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import * as ToastPrimitive from "@radix-ui/react-toast";
-import { X, Check, AlertTriangle, XCircle, Info, RotateCcw } from "lucide-react";
+import { motion } from "framer-motion";
+import { X, Check, AlertTriangle, XCircle, Info, RotateCcw, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ToastVariant } from "@/hooks/use-toast";
 
@@ -17,8 +18,8 @@ export const ToastViewport = React.forwardRef<
         ref={ref}
         className={cn(
             "toast-viewport",
-            "fixed z-[100] flex max-h-screen flex-col gap-2.5 p-4",
-            "top-0 right-0 w-full sm:max-w-[380px] sm:right-5 sm:top-5",
+            "fixed z-[100] max-h-screen w-full p-4 sm:p-0 pointer-events-none",
+            "top-0 left-0 sm:left-auto sm:top-5 sm:right-5 sm:max-w-[380px]",
             className
         )}
         {...props}
@@ -60,6 +61,12 @@ const variantConfig: Record<ToastVariant, {
         iconBg: "bg-[#FFFBEB]",
         progressColor: "bg-[#FBE38E]",
     },
+    loading: {
+        icon: <Loader2 className="h-[14px] w-[14px] animate-spin" />,
+        accentColor: "text-[#6366F1] dark:text-[#818CF8]",
+        iconBg: "bg-[#EEF2FF] dark:bg-[#3730A3]/20",
+        progressColor: "bg-[#A5B4FC]",
+    },
 };
 
 /* ============================================
@@ -68,75 +75,81 @@ const variantConfig: Record<ToastVariant, {
 interface ToastProps
     extends React.ComponentPropsWithoutRef<typeof ToastPrimitive.Root> {
     variant?: ToastVariant;
+    index?: number;
 }
 
 export const Toast = React.forwardRef<
     React.ComponentRef<typeof ToastPrimitive.Root>,
     ToastProps
->(({ className, variant = "default", children, ...props }, ref) => {
+>(({ className, variant = "default", index = 0, children, ...props }, ref) => {
     const config = variantConfig[variant];
 
     return (
-        <ToastPrimitive.Root
-            ref={ref}
-            className={cn(
-                "toast-card group pointer-events-auto relative",
-                "flex w-full overflow-hidden rounded-2xl",
-                "p-3.5 pl-4 items-center gap-3",
-                // White card with warm undertone
-                "bg-white border border-[#E7E5E4]",
-                "shadow-[0_4px_24px_rgba(0,0,0,0.06),0_1px_4px_rgba(0,0,0,0.04)]",
-                // Animations
-                "data-[state=open]:animate-toast-in",
-                "data-[state=closed]:animate-toast-out",
-                "data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)]",
-                "data-[swipe=cancel]:translate-x-0 data-[swipe=cancel]:transition-transform",
-                "data-[swipe=end]:animate-toast-swipe-out",
-                className
-            )}
-            {...props}
-        >
-            {/* Left Accent Bar */}
-            <div className={cn(
-                "absolute left-0 top-0 bottom-0 w-[3px] rounded-l-2xl",
-                config.progressColor
-            )} />
-
-            {/* Icon */}
-            <div className={cn(
-                "shrink-0 flex items-center justify-center w-8 h-8 rounded-xl",
-                config.iconBg,
-                config.accentColor
-            )}>
-                {config.icon}
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 min-w-0 pr-5">
-                {children}
-            </div>
-
-            {/* Slim Progress Bar at bottom */}
-            <div
+        <ToastPrimitive.Root ref={ref} asChild forceMount {...props}>
+            <motion.li
+                layout
+                initial={{ opacity: 0, y: 50, scale: 0.3 }}
+                animate={{
+                    opacity: index > 2 ? 0 : 1,
+                    y: index * 18,
+                    scale: 1 - (index * 0.05),
+                    zIndex: 100 - index
+                }}
+                exit={{ opacity: 0, x: 100, scale: 0.8, transition: { duration: 0.2 } }}
+                transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 className={cn(
-                    "absolute bottom-0 left-0 h-[2px] animate-toast-progress opacity-40",
-                    config.progressColor
-                )}
-                style={{ animationDuration: `${props.duration || 5000}ms` }}
-            />
-
-            {/* Close */}
-            <ToastPrimitive.Close
-                className={cn(
-                    "absolute right-2.5 top-1/2 -translate-y-1/2",
-                    "rounded-lg p-1.5 opacity-0 transition-all duration-200",
-                    "hover:bg-[#F5F0E8] group-hover:opacity-100",
-                    "text-[#9A9A9A] hover:text-[#1E1E1E]",
-                    "focus-visible:opacity-100 focus-visible:outline-none"
+                    "toast-card group pointer-events-auto absolute top-0 left-0 w-full",
+                    "flex w-full overflow-hidden rounded-2xl",
+                    "p-3.5 pl-4 items-center gap-3",
+                    // Frosted glass effect
+                    "bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl",
+                    "border border-white/40 dark:border-white/10",
+                    "shadow-[0_8px_32px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.04)]",
+                    className
                 )}
             >
-                <X className="h-3.5 w-3.5" />
-            </ToastPrimitive.Close>
+                {/* Left Accent Bar */}
+                <div className={cn(
+                    "absolute left-0 top-0 bottom-0 w-[3px] rounded-l-2xl",
+                    config.progressColor
+                )} />
+
+                {/* Icon */}
+                <div className={cn(
+                    "shrink-0 flex items-center justify-center w-8 h-8 rounded-xl",
+                    config.iconBg,
+                    config.accentColor
+                )}>
+                    {config.icon}
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0 pr-5">
+                    {children}
+                </div>
+
+                {/* Slim Progress Bar at bottom */}
+                <div
+                    className={cn(
+                        "absolute bottom-0 left-0 h-[2px] animate-toast-progress opacity-40 group-hover:[animation-play-state:paused]",
+                        config.progressColor
+                    )}
+                    style={{ animationDuration: `${props.duration || 5000}ms` }}
+                />
+
+                {/* Close */}
+                <ToastPrimitive.Close
+                    className={cn(
+                        "absolute right-2.5 top-1/2 -translate-y-1/2",
+                        "rounded-lg p-1.5 opacity-0 transition-all duration-200",
+                        "hover:bg-[#F5F0E8] group-hover:opacity-100",
+                        "text-[#9A9A9A] hover:text-[#1E1E1E]",
+                        "focus-visible:opacity-100 focus-visible:outline-none"
+                    )}
+                >
+                    <X className="h-3.5 w-3.5" />
+                </ToastPrimitive.Close>
+            </motion.li>
         </ToastPrimitive.Root>
     );
 });

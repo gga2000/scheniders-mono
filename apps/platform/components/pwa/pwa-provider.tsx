@@ -12,7 +12,8 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
     return (
         <>
             {children}
-            <PWAInstallBanner />
+            {/* PWA Install Banner hidden — uncomment when ready to ship */}
+            {/* <PWAInstallBanner /> */}
             <OfflineIndicator />
         </>
     );

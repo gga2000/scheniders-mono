@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@plugin "tailwindcss-animate";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Override Tailwind v4 dark mode to use class-based selector
+   instead of prefers-color-scheme, matching our ThemeProvider config */
+@variant dark (&:where(.dark, .dark *));
+
 /* ============================================
    Intelly Pastel Design System
    A warm, professional, medical dashboard aesthetic
@@ -96,22 +104,28 @@
 .dark,
 [data-theme='dark'] {
   /* ============================================
-     State of the Art Dark Mode
-     Rich Zinc/Slate foundation, not pure black
+     Stitch Neon Dark Mode
+     Deep charcoal + neon yellow/cyan accents
+     Based on Stitch reference: Order Management Dark Mode V2
      ============================================ */
 
-  /* Core Palette */
-  --background: #0b0f17;
-  --background-soft: #121826;
-  --foreground: #e8edf5;
-  --foreground-muted: #a9b4c4;
-  --foreground-subtle: #7a8598;
-  --ink: #0f141d;
-  --ink-hover: #161d2a;
-  --ink-contrast: #ffffff;
+  /* Core Palette — Stitch Reference */
+  --background: #121212;
+  /* ui-bg — deep charcoal */
+  --background-soft: #1A1A1A;
+  /* slightly lighter than bg */
+  --foreground: #FFFFFF;
+  /* pure white text */
+  --foreground-muted: #A1A1A1;
+  /* ui-muted */
+  --foreground-subtle: #6B6B6B;
+  /* dimmer tertiary text */
+  --ink: #121212;
+  --ink-hover: #1A1A1A;
+  --ink-contrast: #FFFFFF;
 
-  /* Sidebar - Slightly lighter than bg to separate */
-  --sidebar-bg: #10141c;
+  /* Sidebar — same as page bg per reference */
+  --sidebar-bg: #121212;
   --sidebar-fg: #FFFFFF;
 
   /* Keep brand pastels vivid enough for chips/tags with existing dark text classes */
@@ -128,28 +142,33 @@
   --pastel-blue: #b7cdff;
   --pastel-blue-light: #e6eeff;
 
-  /* Card & Surface Colors */
-  --card-bg: #121926;
-  --card-bg-hover: #182133;
-  --card-border: #253149;
-  --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.2);
-  --card-shadow-hover: 0 18px 32px rgba(0, 0, 0, 0.42), 0 4px 12px rgba(0, 0, 0, 0.28);
+  /* Card & Surface Colors — Stitch Reference */
+  --card-bg: #2A2A2A;
+  /* ui-card */
+  --card-bg-hover: #333333;
+  /* slightly lighter on hover */
+  --card-border: #3F3F3F;
+  /* ui-border */
+  --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  --card-shadow-hover: 0 18px 32px rgba(0, 0, 0, 0.5);
 
-  /* Interactive Elements */
-  --button-primary: var(--ink);
-  --button-primary-hover: var(--ink-hover);
+  /* Interactive Elements — Neon Yellow Primary */
+  --button-primary: #EFFF00;
+  --button-primary-hover: #D4E300;
   --button-success: #33c786;
   --button-success-hover: #2bb177;
 
   /* Semantic Colors */
-  --primary: var(--ink);
-  --primary-fg: var(--ink-contrast);
+  --primary: #EFFF00;
+  --primary-fg: #000000;
+  /* black text on yellow */
   --destructive: #c85c73;
   --destructive-fg: #fff1f5;
-  --financial: #f4d887;
-  --financial-fg: #2d2308;
-  --border: #253149;
-  --border-hover: #33425f;
+  --financial: #EFFF00;
+  --financial-fg: #000000;
+  --border: #3F3F3F;
+  /* ui-border */
+  --border-hover: #555555;
 
   /* Status Colors */
   --status-new: var(--pastel-yellow);
@@ -170,6 +189,42 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
 }
 
 /* ============================================
@@ -178,7 +233,6 @@
 
 body {
   background-color: var(--background);
-  color: var(--foreground);
   min-height: 100vh;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -244,186 +298,1672 @@ body {
 }
 
 /* ============================================
-   Orders Dark Polish
+   Analytics / Stats Pages — Dark Mode
    ============================================ */
 
+/* Pastel stat cards → deep glass with neon accent borders */
+.dark .pastel-card-yellow {
+  background: linear-gradient(135deg, rgba(239, 255, 0, 0.08) 0%, rgba(239, 255, 0, 0.03) 100%) !important;
+  border: 1px solid rgba(239, 255, 0, 0.15) !important;
+}
+
+.dark .pastel-card-yellow h3,
+.dark .pastel-card-yellow .text-amber-900\/70 {
+  color: #EFFF00 !important;
+}
+
+.dark .pastel-card-yellow p[class*="text-amber-950"],
+.dark .pastel-card-yellow p[class*="font-bold"] {
+  color: #FFFFFF !important;
+}
+
+.dark .pastel-card-yellow p[class*="text-amber-800"] {
+  color: #A1A1A1 !important;
+}
+
+.dark .pastel-card-yellow span[class*="bg-amber-600"] {
+  background: rgba(239, 255, 0, 0.5) !important;
+}
+
+.dark .pastel-card-yellow span[class*="text-amber-800"] {
+  color: #EFFF00 !important;
+  background: rgba(239, 255, 0, 0.1) !important;
+}
+
+.dark .pastel-card-yellow div[class*="bg-white"] {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark .pastel-card-yellow svg {
+  color: #EFFF00 !important;
+}
+
+.dark .pastel-card-green {
+  background: linear-gradient(135deg, rgba(0, 255, 100, 0.08) 0%, rgba(0, 255, 100, 0.03) 100%) !important;
+  border: 1px solid rgba(0, 255, 100, 0.15) !important;
+}
+
+.dark .pastel-card-green h3,
+.dark .pastel-card-green .text-green-900\/70 {
+  color: #66FFAA !important;
+}
+
+.dark .pastel-card-green p[class*="text-green-950"],
+.dark .pastel-card-green p[class*="font-bold"] {
+  color: #FFFFFF !important;
+}
+
+.dark .pastel-card-green p[class*="text-green-800"] {
+  color: #A1A1A1 !important;
+}
+
+.dark .pastel-card-green span[class*="bg-green-600"] {
+  background: rgba(0, 255, 100, 0.5) !important;
+}
+
+.dark .pastel-card-green span[class*="text-green-800"] {
+  color: #66FFAA !important;
+  background: rgba(0, 255, 100, 0.1) !important;
+}
+
+.dark .pastel-card-green div[class*="bg-white"] {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark .pastel-card-green svg {
+  color: #66FFAA !important;
+}
+
+.dark .pastel-card-pink {
+  background: linear-gradient(135deg, rgba(255, 80, 100, 0.08) 0%, rgba(255, 80, 100, 0.03) 100%) !important;
+  border: 1px solid rgba(255, 80, 100, 0.15) !important;
+}
+
+.dark .pastel-card-pink h3,
+.dark .pastel-card-pink .text-rose-900\/70 {
+  color: #FF8899 !important;
+}
+
+.dark .pastel-card-pink p[class*="text-rose-950"],
+.dark .pastel-card-pink p[class*="font-bold"] {
+  color: #FFFFFF !important;
+}
+
+.dark .pastel-card-pink p[class*="text-rose-800"] {
+  color: #A1A1A1 !important;
+}
+
+.dark .pastel-card-pink span[class*="bg-rose-600"] {
+  background: rgba(255, 80, 100, 0.5) !important;
+}
+
+.dark .pastel-card-pink span[class*="text-rose-800"] {
+  color: #FF8899 !important;
+  background: rgba(255, 80, 100, 0.1) !important;
+}
+
+.dark .pastel-card-pink div[class*="bg-white"] {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark .pastel-card-pink svg {
+  color: #FF8899 !important;
+}
+
+/* StatsCard — bg-white overrides */
+.dark div[class*="bg-white"][class*="rounded-[24px]"] {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+.dark div[class*="bg-white"][class*="rounded-[24px]"] h3[class*="text-zinc-600"] {
+  color: #A1A1A1 !important;
+}
+
+.dark div[class*="bg-white"][class*="rounded-[24px]"] div[class*="text-zinc-900"] {
+  color: #FFFFFF !important;
+}
+
+.dark div[class*="bg-white"][class*="rounded-[24px]"] p[class*="text-zinc-500"] {
+  color: #6B6B6B !important;
+}
+
+.dark div[class*="bg-white"][class*="rounded-[24px]"] p[class*="text-zinc-400"] {
+  color: #555555 !important;
+}
+
+.dark div[class*="bg-white"][class*="rounded-[24px]"] div[class*="bg-white/50"] {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+.dark div[class*="bg-white"][class*="rounded-[24px]"] svg[class*="text-zinc-700"] {
+  color: #A1A1A1 !important;
+}
+
+/* Product ranking badges */
+.dark span[class*="bg-amber-100"][class*="text-amber-700"] {
+  background: rgba(239, 255, 0, 0.12) !important;
+  color: #EFFF00 !important;
+}
+
+.dark span[class*="bg-gray-200"][class*="text-gray-700"] {
+  background: #333333 !important;
+  color: #CCCCCC !important;
+}
+
+.dark span[class*="bg-orange-100"][class*="text-orange-700"] {
+  background: rgba(255, 140, 66, 0.12) !important;
+  color: #FFB380 !important;
+}
+
+/* Recharts tooltip — already dark, but ensure text is visible */
+.dark .recharts-default-tooltip {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+.dark .recharts-tooltip-label {
+  color: #FFFFFF !important;
+}
+
+.dark .recharts-legend-item-text {
+  color: #A1A1A1 !important;
+}
+
+.dark .recharts-cartesian-axis-tick-value {
+  fill: #6B6B6B !important;
+}
+
+.dark .recharts-cartesian-grid line {
+  stroke: #2A2A2A !important;
+}
+
+/* Tab bar background override */
+.dark div[class*="bg-"][class*="card-bg"][class*="rounded-xl"][class*="p-1"] {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+/* Active tab → neon yellow */
+.dark button[class*="bg-"][class*="ink"][class*="rounded-lg"] {
+  background: #EFFF00 !important;
+  color: #000000 !important;
+}
+
+/* Add Expense button */
+.dark button[class*="bg-"][class*="ink"][class*="rounded-xl"] {
+  background: #EFFF00 !important;
+  color: #000000 !important;
+}
+
+/* ============================================
+   Orders Dark Mode — Stitch Neon Reference  
+   Deep charcoal + neon yellow/cyan accents
+   ============================================ */
+
+/* Page background: subtle cyan grid pattern */
 .dark .orders-page {
+  background-color: #121212;
   background-image:
-    radial-gradient(1200px 460px at 26% -10%, rgba(87, 129, 212, 0.13), transparent 58%),
-    radial-gradient(900px 360px at 92% 6%, rgba(44, 189, 168, 0.08), transparent 62%);
-  background-attachment: fixed;
+    linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
 }
 
+/* Collapsed toolbar — flat dark surface */
 .dark .orders-page .orders-collapsed-toolbar {
-  background: linear-gradient(145deg, rgba(20, 28, 44, 0.95), rgba(14, 20, 32, 0.92));
-  border-color: rgba(56, 76, 109, 0.72);
-  box-shadow: 0 18px 42px rgba(2, 6, 23, 0.5), 0 0 0 1px rgba(69, 96, 143, 0.2);
+  background: #2A2A2A;
+  border-color: #3F3F3F;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
 }
 
+/* Toolbar pill — charcoal glass with neon border */
 .dark .orders-page .orders-toolbar-pill {
-  background: linear-gradient(145deg, rgba(30, 43, 66, 0.72), rgba(18, 27, 43, 0.9));
-  border-color: rgba(66, 89, 127, 0.6);
-  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.34), 0 0 0 1px rgba(104, 132, 183, 0.14);
+  background: #1E1E1E !important;
+  border-color: #333333 !important;
+  box-shadow: none !important;
+  --tw-ring-shadow: 0 0 transparent !important;
 }
 
+/* Toolbar group — flat ui-card with neon-tinted label */
 .dark .orders-page .orders-toolbar-group {
-  background: linear-gradient(145deg, rgba(21, 30, 47, 0.9), rgba(14, 22, 35, 0.84));
-  border-color: rgba(62, 82, 116, 0.62);
-  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.36), 0 0 0 1px rgba(68, 89, 124, 0.16);
+  background: #1E1E1E;
+  border-color: #3F3F3F;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
 }
 
+.dark .orders-page .orders-toolbar-group>span {
+  color: rgba(239, 255, 0, 0.5) !important;
+}
+
+/* Toolbar divider — neon-tinted */
 .dark .orders-page .orders-toolbar-divider {
-  background: linear-gradient(to bottom, transparent, rgba(92, 118, 167, 0.55), transparent);
+  background: linear-gradient(to bottom, transparent, rgba(239, 255, 0, 0.12), transparent);
 }
 
+/* Date popover — flat dark surface with glow border */
 .dark .orders-page .orders-date-popover {
-  background: linear-gradient(145deg, rgba(19, 28, 44, 0.97), rgba(14, 22, 36, 0.96));
-  border-color: rgba(66, 88, 126, 0.64);
-  box-shadow: 0 28px 56px rgba(2, 6, 23, 0.6), 0 0 0 1px rgba(87, 117, 170, 0.22);
+  background: #2A2A2A;
+  border-color: #3F3F3F;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(239, 255, 0, 0.1);
 }
 
+/* Search panel — flat ui-card */
 .dark .orders-page .orders-search-panel {
-  background: linear-gradient(145deg, rgba(21, 30, 47, 0.9), rgba(14, 22, 35, 0.9));
-  border: 1px solid rgba(62, 82, 116, 0.58);
-  box-shadow: 0 16px 34px rgba(2, 6, 23, 0.44), 0 0 0 1px rgba(64, 88, 128, 0.15);
+  background: #2A2A2A;
+  border: 1px solid #3F3F3F;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
 }
 
+/* Analytics cards — uniform charcoal glass */
 .dark .orders-page .orders-analytics-card {
-  border-color: rgba(61, 81, 115, 0.55) !important;
-  box-shadow: 0 12px 28px rgba(2, 6, 23, 0.36) !important;
+  background: #1E1E1E !important;
+  border: 1px solid #333333 !important;
+  box-shadow: none !important;
+  transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
 }
 
-.dark .orders-page .orders-analytics-card:nth-child(1) {
-  background: linear-gradient(145deg, rgba(88, 45, 67, 0.34), rgba(20, 27, 41, 0.92)) !important;
+.dark .orders-page .orders-analytics-card:hover {
+  transform: translateY(-2px);
+  border-color: #555555 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
 }
 
-.dark .orders-page .orders-analytics-card:nth-child(2) {
-  background: linear-gradient(145deg, rgba(118, 88, 35, 0.34), rgba(20, 27, 41, 0.92)) !important;
+/* Hide the large decorative background icons */
+.dark .orders-page .orders-analytics-card>div[class*="absolute"][class*="opacity-"] {
+  display: none !important;
 }
 
+/* All card values → white */
+.dark .orders-page .orders-analytics-card h3 {
+  color: #FFFFFF !important;
+}
+
+/* All card subtitles → muted */
+.dark .orders-page .orders-analytics-card span[class*="/80"],
+.dark .orders-page .orders-analytics-card span[class*="font-medium"]:not([class*="uppercase"]) {
+  color: #6B6B6B !important;
+}
+
+/* ---- Per-card neon accent (label + icon badge only) ---- */
+
+/* Card 1: NEW → neon pink */
+.dark .orders-page .orders-analytics-card:nth-child(1) span[class*="uppercase"] {
+  color: #FF6B8A !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(1) div[class*="rounded-lg"][class*="bg-"] {
+  background: rgba(255, 107, 138, 0.12) !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(1) div[class*="rounded-lg"][class*="bg-"] svg {
+  color: #FF6B8A !important;
+}
+
+/* Card 2: CONTACTED → neon amber */
+.dark .orders-page .orders-analytics-card:nth-child(2) span[class*="uppercase"] {
+  color: #FFB347 !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(2) div[class*="rounded-lg"][class*="bg-"] {
+  background: rgba(255, 179, 71, 0.12) !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(2) div[class*="rounded-lg"][class*="bg-"] svg {
+  color: #FFB347 !important;
+}
+
+/* Card 3: CONFIRMED → neon yellow (hero card with subtle glow) */
 .dark .orders-page .orders-analytics-card:nth-child(3) {
-  background: linear-gradient(145deg, rgba(83, 55, 124, 0.34), rgba(20, 27, 41, 0.92)) !important;
+  border-color: rgba(239, 255, 0, 0.2) !important;
 }
 
-.dark .orders-page .orders-analytics-card:nth-child(4) {
-  background: linear-gradient(145deg, rgba(126, 74, 31, 0.34), rgba(20, 27, 41, 0.92)) !important;
+.dark .orders-page .orders-analytics-card:nth-child(3):hover {
+  box-shadow: 0 0 20px rgba(239, 255, 0, 0.08) !important;
 }
 
+.dark .orders-page .orders-analytics-card:nth-child(3) span[class*="uppercase"] {
+  color: #EFFF00 !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(3) div[class*="rounded-lg"][class*="bg-"] {
+  background: rgba(239, 255, 0, 0.12) !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(3) div[class*="rounded-lg"][class*="bg-"] svg {
+  color: #EFFF00 !important;
+}
+
+/* Card 4: TRANSIT → neon orange */
+.dark .orders-page .orders-analytics-card:nth-child(4) span[class*="uppercase"] {
+  color: #FF8C42 !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(4) div[class*="rounded-lg"][class*="bg-"] {
+  background: rgba(255, 140, 66, 0.12) !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(4) div[class*="rounded-lg"][class*="bg-"] svg {
+  color: #FF8C42 !important;
+}
+
+/* Card 5: CONVERSION → neon yellow with glow */
 .dark .orders-page .orders-analytics-card:nth-child(5) {
-  background: linear-gradient(145deg, rgba(41, 80, 62, 0.28), rgba(20, 27, 41, 0.92)) !important;
+  border-color: rgba(239, 255, 0, 0.2) !important;
+  box-shadow: 0 0 20px rgba(239, 255, 0, 0.06) !important;
 }
 
+.dark .orders-page .orders-analytics-card:nth-child(5):hover {
+  border-color: rgba(239, 255, 0, 0.35) !important;
+  box-shadow: 0 0 30px rgba(239, 255, 0, 0.12) !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(5) span[class*="uppercase"] {
+  color: #EFFF00 !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(5) div[class*="rounded-lg"][class*="bg-"] {
+  background: rgba(239, 255, 0, 0.12) !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(5) div[class*="rounded-lg"][class*="bg-"] svg {
+  color: #EFFF00 !important;
+}
+
+/* Progress bar track */
+.dark .orders-page .orders-analytics-card:nth-child(5) div[class*="bg-gray-100"] {
+  background: #333333 !important;
+}
+
+/* Progress bar fill → neon yellow gradient with glow */
+.dark .orders-page .orders-analytics-card:nth-child(5) div[class*="bg-gradient-to-r"][class*="from-emerald"] {
+  background: linear-gradient(90deg, #EFFF00, #C8E600) !important;
+  box-shadow: 0 0 12px rgba(239, 255, 0, 0.5) !important;
+}
+
+/* Shimmer animation → neon tinted */
+.dark .orders-page .orders-analytics-card:nth-child(5) div[class*="animate-"] {
+  background: linear-gradient(90deg, transparent, rgba(239, 255, 0, 0.2), transparent) !important;
+}
+
+/* Kill the ring-1 from conversion card */
+.dark .orders-page .orders-analytics-card:nth-child(5)[class*="ring-1"] {
+  --tw-ring-shadow: 0 0 transparent !important;
+}
+
+
+/* ---- Level 2 expanded panels (Velocity, Attention, Business) ---- */
+.dark .orders-page .pastel-card {
+  background: #1E1E1E !important;
+  border: 1px solid #333333 !important;
+  box-shadow: none !important;
+}
+
+.dark .orders-page .pastel-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Dashed borders inside expanded panels */
+.dark .orders-page .pastel-card div[class*="border-dashed"][class*="border-gray-100"] {
+  border-color: #333333 !important;
+}
+
+/* Peak hour badge */
+.dark .orders-page span[class*="bg-blue-50"][class*="text-blue-600"] {
+  background: rgba(0, 150, 255, 0.1) !important;
+  color: #66BBFF !important;
+}
+
+/* Needs Attention hover rows */
+.dark .orders-page div[class*="hover:bg-rose-50/50"]:hover,
+.dark .orders-page div[class*="hover:bg-red-50/50"]:hover,
+.dark .orders-page div[class*="hover:bg-orange-50/50"]:hover,
+.dark .orders-page div[class*="hover:bg-yellow-50/50"]:hover {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+
+
+
+
+
+/* Search bar focus — cyan glow ring */
+.dark .orders-page input[type="text"]:focus {
+  border-color: rgba(0, 255, 255, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(0, 255, 255, 0.15), 0 0 15px rgba(0, 255, 255, 0.1) !important;
+}
+
+/* Search icon → cyan on focus */
+.dark .orders-page .orders-search-panel:focus-within svg {
+  color: #00FFFF;
+}
+
+/* Sticky filter bar — flat dark surface */
 .dark .orders-page .orders-sticky-filter>div {
   border-radius: 16px;
-  border: 1px solid rgba(60, 81, 116, 0.55);
-  background: linear-gradient(145deg, rgba(15, 23, 36, 0.88), rgba(11, 18, 29, 0.82));
+  border: 1px solid #3F3F3F;
+  background: #1A1A1A;
 }
 
+/* Order card surface — flat ui-card */
 .dark .orders-page .orders-card-surface {
-  background: linear-gradient(145deg, rgba(19, 28, 44, 0.94), rgba(13, 20, 31, 0.96));
-  border: 1px solid rgba(52, 72, 106, 0.55);
-  box-shadow: 0 14px 34px rgba(2, 6, 23, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  background: #2A2A2A;
+  border: 1px solid #3F3F3F;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
 }
 
 .dark .orders-page .orders-card-surface:hover {
-  border-color: rgba(98, 128, 184, 0.55);
-  box-shadow: 0 20px 40px rgba(2, 6, 23, 0.5), 0 0 0 1px rgba(98, 128, 184, 0.26);
+  border-color: #555555;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 255, 255, 0.1);
 }
 
-/* Harmonize order tags/chips in dark mode without touching light mode */
+/* Tags/chips on order cards — bg-ui-bg text-secondary border-secondary/30 */
 .dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"] {
-  background: rgba(27, 39, 59, 0.84) !important;
-  color: #d7e3f5 !important;
-  border-color: rgba(78, 103, 146, 0.58) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  background: #121212 !important;
+  color: #00FFFF !important;
+  border-color: rgba(0, 255, 255, 0.3) !important;
 }
 
+/* Green status tags */
 .dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-green"],
 .dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-emerald"],
 .dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-teal"] {
-  background: rgba(29, 92, 70, 0.42) !important;
-  color: #b8f0d8 !important;
-  border-color: rgba(77, 178, 139, 0.52) !important;
+  background: rgba(0, 255, 100, 0.1) !important;
+  color: #66FFAA !important;
+  border-color: rgba(0, 255, 100, 0.3) !important;
 }
 
+/* Red/pink status tags */
 .dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-rose"],
 .dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-red"] {
-  background: rgba(114, 49, 70, 0.43) !important;
-  color: #ffc8d8 !important;
-  border-color: rgba(204, 106, 141, 0.54) !important;
+  background: rgba(255, 80, 100, 0.12) !important;
+  color: #FF8899 !important;
+  border-color: rgba(255, 80, 100, 0.3) !important;
 }
 
+/* Orange/amber/yellow status tags */
 .dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-orange"],
 .dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-amber"],
 .dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-yellow"] {
-  background: rgba(112, 84, 42, 0.42) !important;
-  color: #ffe0a4 !important;
-  border-color: rgba(212, 162, 85, 0.54) !important;
+  background: rgba(239, 255, 0, 0.1) !important;
+  color: #EFFF00 !important;
+  border-color: rgba(239, 255, 0, 0.3) !important;
 }
 
+/* Blue/purple status tags */
 .dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-blue"],
 .dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-indigo"],
 .dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-violet"],
 .dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-purple"],
 .dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-cyan"] {
-  background: rgba(46, 68, 121, 0.43) !important;
-  color: #c9d9ff !important;
-  border-color: rgba(112, 145, 223, 0.54) !important;
+  background: rgba(0, 255, 255, 0.1) !important;
+  color: #00FFFF !important;
+  border-color: rgba(0, 255, 255, 0.3) !important;
 }
 
+/* Muted/gray status tags */
 .dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-gray"],
 .dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-slate"],
 .dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-muted"] {
-  background: rgba(38, 52, 77, 0.82) !important;
-  color: #c2cfe2 !important;
-  border-color: rgba(82, 103, 138, 0.52) !important;
+  background: #1A1A1A !important;
+  color: #A1A1A1 !important;
+  border-color: #3F3F3F !important;
 }
 
 /* Micro tags (sequence IDs, duplicate markers, etc.) */
 .dark .orders-page .orders-card-surface [class*="rounded"][class*="text-[9px]"][class*="bg-"] {
-  background: rgba(27, 39, 59, 0.82) !important;
-  color: #d6e2f4 !important;
-  border-color: rgba(78, 103, 146, 0.55) !important;
+  background: #121212 !important;
+  color: #A1A1A1 !important;
+  border-color: #3F3F3F !important;
 }
 
-/* Action buttons on order cards: harmonize non-primary colored actions */
+/* Action buttons on order cards — bg-ui-surface text-ui-muted, hover → text-secondary border-secondary */
 .dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"]:not([class*="text-white"]) {
-  background: rgba(23, 33, 52, 0.9) !important;
-  color: #d7e3f5 !important;
-  border: 1px solid rgba(72, 95, 136, 0.56) !important;
-  box-shadow: 0 6px 16px rgba(2, 6, 23, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  background: #242424 !important;
+  color: #A1A1A1 !important;
+  border: 1px solid #3F3F3F !important;
+  box-shadow: none;
 }
 
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"]:not([class*="text-white"]):hover {
+  color: #00FFFF !important;
+  border-color: #00FFFF !important;
+}
+
+/* Green action buttons (chat/WhatsApp) — primary neon yellow */
 .dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-green"],
 .dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-emerald"],
 .dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-teal"] {
-  background: rgba(29, 92, 70, 0.45) !important;
-  color: #b8f0d8 !important;
-  border-color: rgba(77, 178, 139, 0.55) !important;
+  background: #EFFF00 !important;
+  color: #000000 !important;
+  border-color: transparent !important;
+  box-shadow: 0 0 20px rgba(239, 255, 0, 0.4);
 }
 
+/* Red action buttons */
 .dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-red"],
 .dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-rose"] {
-  background: rgba(114, 49, 70, 0.46) !important;
-  color: #ffc8d8 !important;
-  border-color: rgba(204, 106, 141, 0.55) !important;
+  background: rgba(255, 80, 100, 0.15) !important;
+  color: #FF8899 !important;
+  border-color: rgba(255, 80, 100, 0.3) !important;
 }
 
+/* Orange/amber action buttons */
 .dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-orange"],
 .dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-amber"],
 .dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-yellow"] {
-  background: rgba(112, 84, 42, 0.45) !important;
-  color: #ffe0a4 !important;
-  border-color: rgba(212, 162, 85, 0.55) !important;
+  background: rgba(239, 255, 0, 0.12) !important;
+  color: #EFFF00 !important;
+  border-color: rgba(239, 255, 0, 0.3) !important;
 }
 
+/* Blue/purple action buttons */
 .dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-blue"],
 .dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-indigo"],
 .dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-violet"],
 .dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-purple"] {
-  background: rgba(46, 68, 121, 0.46) !important;
-  color: #c9d9ff !important;
-  border-color: rgba(112, 145, 223, 0.55) !important;
+  background: rgba(0, 255, 255, 0.12) !important;
+  color: #00FFFF !important;
+  border-color: rgba(0, 255, 255, 0.3) !important;
+}
+
+/* Dark mode scrollbar — neon yellow accent on hover */
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #EFFF00;
+}
+
+/* ============================================
+   Global Header / TopBar — Dark Mode
+   ============================================ */
+
+/* TopBar header background */
+.dark header[class*="bg-[var(--background)]"] {
+  background: #121212 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Search bar styling */
+.dark header div[class*="bg-[var(--card-bg)]"][class*="rounded-full"] {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+.dark header div[class*="bg-[var(--card-bg)]"][class*="rounded-full"][class*="ring-2"] {
+  box-shadow: 0 0 15px rgba(239, 255, 0, 0.15) !important;
+}
+
+/* Search icon circle */
+.dark header div[class*="bg-[var(--ink)]"][class*="rounded-full"] {
+  background: #EFFF00 !important;
+}
+
+.dark header div[class*="bg-[var(--ink)]"][class*="rounded-full"] svg {
+  color: #000000 !important;
+}
+
+/* Search category pills */
+.dark header button[class*="bg-[var(--ink)]"][class*="rounded-full"] {
+  background: #EFFF00 !important;
+  color: #000000 !important;
+}
+
+.dark header button[class*="bg-"][class*="background"][class*="rounded-full"] {
+  background: #333333 !important;
+  border-color: #3F3F3F !important;
+  color: #A1A1A1 !important;
+}
+
+.dark header button[class*="bg-"][class*="background"][class*="rounded-full"]:hover {
+  background: #3F3F3F !important;
+  color: #FFFFFF !important;
+}
+
+/* Search results dropdown */
+.dark header div[class*="bg-"][class*="card-bg"][class*="rounded-2xl"][class*="shadow-xl"] {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6) !important;
+}
+
+.dark header button[class*="hover:bg-"][class*="background"]:hover {
+  background: #333333 !important;
+}
+
+/* Search result icon backgrounds (pastel → neon muted) */
+.dark header div[class*="bg-"][class*="pastel-yellow"] {
+  background: rgba(239, 255, 0, 0.15) !important;
+  color: #EFFF00 !important;
+}
+
+.dark header div[class*="bg-"][class*="pastel-green"] {
+  background: rgba(0, 255, 100, 0.15) !important;
+  color: #66FFAA !important;
+}
+
+.dark header div[class*="bg-"][class*="pastel-mint"] {
+  background: rgba(0, 255, 255, 0.15) !important;
+  color: #00FFFF !important;
+}
+
+/* Keyboard hints bar */
+.dark header div[class*="bg-"][class*="background"][class*="border-t"] {
+  background: #1A1A1A !important;
+  border-color: #3F3F3F !important;
+}
+
+.dark header kbd {
+  background: #333333 !important;
+  border-color: #3F3F3F !important;
+  color: #A1A1A1 !important;
+}
+
+/* TopBar action buttons (Notifications, Settings) */
+.dark header a[class*="bg-"][class*="card-bg"][class*="rounded-full"],
+.dark header button[class*="bg-"][class*="card-bg"][class*="rounded-full"] {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+.dark header a[class*="bg-"][class*="card-bg"][class*="rounded-full"]:hover,
+.dark header button[class*="bg-"][class*="card-bg"][class*="rounded-full"]:hover {
+  background: #333333 !important;
+  border-color: #555555 !important;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.1) !important;
+}
+
+/* ============================================
+   Mobile Bottom Nav — Dark Mode
+   ============================================ */
+
+.dark .mobile-bottom-nav {
+  background: #1A1A1A !important;
+  border-top-color: #3F3F3F !important;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4) !important;
+}
+
+.dark .mobile-nav-item {
+  color: #6B6B6B !important;
+}
+
+.dark .mobile-nav-item.active {
+  color: #FFFFFF !important;
+}
+
+/* Mobile active indicator — neon yellow */
+.dark .mobile-nav-item div[class*="bg-"][class*="pastel-yellow"] {
+  background: #EFFF00 !important;
+  box-shadow: 0 0 8px rgba(239, 255, 0, 0.5) !important;
+}
+
+/* Mobile "More" bottom sheet */
+.dark div[class*="bg-"][class*="card-bg"][class*="rounded-t-3xl"] {
+  background: #1A1A1A !important;
+  border-color: #3F3F3F !important;
+  box-shadow: 0 -15px 40px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Sheet handle */
+.dark div[class*="bg-"][class*="card-border"][class*="rounded-full"][class*="w-10"] {
+  background: #555555 !important;
+}
+
+/* Active nav item in the bottom sheet */
+.dark a[class*="bg-"][class*="ink"][class*="rounded-2xl"] {
+  background: rgba(239, 255, 0, 0.15) !important;
+  color: #EFFF00 !important;
+}
+
+/* Inactive nav items in the bottom sheet */
+.dark a[class*="hover:bg-"][class*="background"][class*="rounded-2xl"]:hover {
+  background: #2A2A2A !important;
+}
+
+/* ============================================
+   Order Cards — Dark Mode Elevate
+   ============================================ */
+
+/* Text colors */
+.dark .orders-card-surface .text-foreground {
+  color: #FFFFFF !important;
+}
+
+.dark .orders-card-surface .text-muted,
+.dark .orders-card-surface .text-foreground\/60 {
+  color: #A1A1A1 !important;
+}
+
+/* Base Card Actions */
+.dark .orders-card-surface button[class*="bg-"][class*="background"] {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+  color: #D4D4D4 !important;
+}
+
+.dark .orders-card-surface button[class*="bg-"][class*="background"]:hover {
+  background: #333333 !important;
+  border-color: #555555 !important;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.1) !important;
+  color: #FFFFFF !important;
+}
+
+/* Secondary phone button (emerald) */
+.dark .orders-card-surface button[class*="bg-emerald-500"] {
+  background: rgba(0, 255, 100, 0.15) !important;
+  color: #66FFAA !important;
+  border-color: rgba(0, 255, 100, 0.3) !important;
+  box-shadow: none !important;
+}
+
+.dark .orders-card-surface button[class*="bg-emerald-500"]:hover {
+  background: rgba(0, 255, 100, 0.25) !important;
+  box-shadow: 0 0 10px rgba(0, 255, 100, 0.2) !important;
+}
+
+.dark .orders-card-surface span[class*="bg-white"][class*="text-emerald-600"] {
+  background: #1A1A1A !important;
+  border-color: rgba(0, 255, 100, 0.3) !important;
+  color: #66FFAA !important;
+}
+
+/* Primary WhatsApp Buttons (Variable Based) */
+.dark .orders-card-surface button[class*="bg-yellow-500"] {
+  background: rgba(239, 255, 0, 0.15) !important;
+  color: #EFFF00 !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(239, 255, 0, 0.3) !important;
+}
+
+.dark .orders-card-surface button[class*="bg-yellow-500"]:hover {
+  background: rgba(239, 255, 0, 0.25) !important;
+  box-shadow: 0 0 10px rgba(239, 255, 0, 0.2) !important;
+}
+
+.dark .orders-card-surface button[class*="bg-orange-500"] {
+  background: rgba(255, 140, 66, 0.15) !important;
+  color: #FFB380 !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(255, 140, 66, 0.3) !important;
+}
+
+.dark .orders-card-surface button[class*="bg-orange-500"]:hover {
+  background: rgba(255, 140, 66, 0.25) !important;
+  box-shadow: 0 0 10px rgba(255, 140, 66, 0.2) !important;
+}
+
+.dark .orders-card-surface button[class*="bg-red-500"] {
+  background: rgba(255, 80, 100, 0.15) !important;
+  color: #FF8899 !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(255, 80, 100, 0.3) !important;
+}
+
+.dark .orders-card-surface button[class*="bg-red-500"]:hover {
+  background: rgba(255, 80, 100, 0.25) !important;
+  box-shadow: 0 0 10px rgba(255, 80, 100, 0.2) !important;
+}
+
+/* Primary Neon (No Contact Yet) */
+.dark .orders-card-surface button[class*="bg-"][class*="primary"] {
+  background: var(--primary) !important;
+  color: #000000 !important;
+  box-shadow: 0 0 15px rgba(239, 255, 0, 0.15) !important;
+}
+
+.dark .orders-card-surface button[class*="bg-"][class*="primary"]:hover {
+  box-shadow: 0 0 20px rgba(239, 255, 0, 0.4) !important;
+  transform: scale(1.05);
+}
+
+/* Contact Badges (on buttons) */
+.dark .orders-card-surface span[class*="bg-white"][class*="text-yellow-600"] {
+  background: #1A1A1A !important;
+  border-color: rgba(239, 255, 0, 0.3) !important;
+  color: #EFFF00 !important;
+}
+
+.dark .orders-card-surface span[class*="bg-white"][class*="text-orange-600"] {
+  background: #1A1A1A !important;
+  border-color: rgba(255, 140, 66, 0.3) !important;
+  color: #FFB380 !important;
+}
+
+.dark .orders-card-surface span[class*="bg-white"][class*="text-red-600"] {
+  background: #1A1A1A !important;
+  border-color: rgba(255, 80, 100, 0.3) !important;
+  color: #FF8899 !important;
+}
+
+/* Order Source Tags (Instagram, Tiktok, etc) */
+.dark .orders-card-surface span[class*="bg-rose-50"],
+.dark .orders-card-surface span[class*="bg-rose-100"] {
+  background: rgba(255, 80, 100, 0.12) !important;
+  color: #FF8899 !important;
+  border-color: rgba(255, 80, 100, 0.3) !important;
+}
+
+.dark .orders-card-surface span[class*="bg-blue-50"] {
+  background: rgba(0, 150, 255, 0.12) !important;
+  color: #88CCFF !important;
+  border-color: rgba(0, 150, 255, 0.3) !important;
+}
+
+.dark .orders-card-surface span[class*="bg-gray-100"] {
+  background: #333333 !important;
+  color: #CCCCCC !important;
+  border-color: #555555 !important;
+}
+
+.dark .orders-card-surface span[class*="bg-amber-100"] {
+  background: rgba(255, 180, 0, 0.12) !important;
+  color: #FFCC33 !important;
+  border-color: rgba(255, 180, 0, 0.3) !important;
+}
+
+/* Time/Age indicators */
+.dark .orders-card-surface span[class*="bg-emerald-50"][class*="text-emerald-700"] {
+  background: rgba(0, 255, 100, 0.1) !important;
+  color: #66FFAA !important;
+  border-color: rgba(0, 255, 100, 0.2) !important;
+}
+
+.dark .orders-card-surface span[class*="bg-emerald-100"][class*="text-emerald-700"],
+.dark .orders-card-surface span[class*="bg-green-100"][class*="text-green-700"] {
+  background: rgba(0, 255, 100, 0.15) !important;
+  color: #00FFAA !important;
+  border: 1px solid rgba(0, 255, 100, 0.3) !important;
+}
+
+.dark .orders-card-surface span[class*="bg-amber-50"][class*="text-amber-700"] {
+  background: rgba(255, 180, 0, 0.1) !important;
+  color: #FFCC33 !important;
+  border-color: rgba(255, 180, 0, 0.2) !important;
+}
+
+.dark .orders-card-surface span[class*="bg-orange-100"][class*="text-orange-700"] {
+  background: rgba(255, 140, 66, 0.15) !important;
+  color: #FFB380 !important;
+  border: 1px solid rgba(255, 140, 66, 0.3) !important;
+}
+
+.dark .orders-card-surface span[class*="bg-red-50"][class*="text-red-700"] {
+  background: rgba(255, 80, 100, 0.1) !important;
+  color: #FF8899 !important;
+  border-color: rgba(255, 80, 100, 0.2) !important;
+}
+
+.dark .orders-card-surface span[class*="bg-red-100"][class*="text-red-700"] {
+  background: rgba(255, 80, 100, 0.15) !important;
+  color: #FF5064 !important;
+  border: 1px solid rgba(255, 80, 100, 0.3) !important;
+}
+
+/* Notes bubble */
+.dark .orders-card-surface div[class*="bg-amber-50/50"] {
+  background: #1A1A1A !important;
+  border-color: #3F3F3F !important;
+  color: #D4D4D4 !important;
+}
+
+/* Edit dates tag */
+.dark .orders-card-surface span[class*="bg-orange-50/50"] {
+  background: rgba(255, 140, 66, 0.1) !important;
+  color: #FFB380 !important;
+  border-color: rgba(255, 140, 66, 0.2) !important;
+}
+
+/* Governorate Badge */
+.dark .orders-card-surface span[class*="bg-emerald-500"][class*="text-white"] {
+  background: rgba(0, 255, 100, 0.2) !important;
+  color: #00FFAA !important;
+  box-shadow: 0 0 10px rgba(0, 255, 100, 0.1) !important;
+}
+
+/* Address background override */
+.dark .orders-card-surface div[class*="bg-"][class*="background"][class*="/80"] {
+  background: #1A1A1A !important;
+  border-color: #3F3F3F !important;
+}
+
+/* Return tags */
+.dark .orders-card-surface span[class*="bg-rose-100"][class*="text-rose-700"] {
+  background: rgba(255, 80, 100, 0.15) !important;
+  color: #FF8899 !important;
+  border-color: rgba(255, 80, 100, 0.3) !important;
+}
+
+/* Review Indicator Button */
+.dark .orders-card-surface button[class*="border-gray-300"] {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+.dark .orders-card-surface button[class*="hover:border-cyan-400"]:hover {
+  border-color: #00FFFF !important;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.2) !important;
+}
+
+.dark .orders-card-surface button[class*="bg-cyan-500"] {
+  background: rgba(0, 255, 255, 0.2) !important;
+  border-color: cyan !important;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.3) !important;
+}
+
+.dark .orders-card-surface button[class*="bg-cyan-500"] svg {
+  color: #00FFFF !important;
+}
+
+/* Ring utilities fix - Replace hardcoded ring effects with box shadows */
+.dark .orders-card-surface.ring-blue-300 {
+  --tw-ring-shadow: 0 0 transparent !important;
+  outline: none !important;
+  border: 1px solid #00FFFF !important;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.2) !important;
+}
+
+.dark .orders-card-surface.ring-red-500,
+.dark .orders-card-surface.ring-red-400,
+.dark .orders-card-surface.ring-rose-300 {
+  --tw-ring-shadow: 0 0 transparent !important;
+  outline: none !important;
+  border: 1px solid #FF5064 !important;
+  box-shadow: 0 0 15px rgba(255, 80, 100, 0.2) !important;
+}
+
+.dark .orders-card-surface.ring-amber-300,
+.dark .orders-card-surface.ring-orange-400,
+.dark .orders-card-surface.ring-orange-300 {
+  --tw-ring-shadow: 0 0 transparent !important;
+  outline: none !important;
+  border: 1px solid #FFB400 !important;
+  box-shadow: 0 0 15px rgba(255, 180, 0, 0.2) !important;
+}
+
+.dark .orders-card-surface.ring-emerald-300 {
+  --tw-ring-shadow: 0 0 transparent !important;
+  outline: none !important;
+  border: 1px solid #00FFAA !important;
+  box-shadow: 0 0 15px rgba(0, 255, 100, 0.2) !important;
+}
+
+/* Card Selection outline */
+.dark .orders-card-surface:has(input[type="checkbox"]:checked) {
+  --tw-ring-shadow: 0 0 transparent !important;
+  outline: none !important;
+  border: 1px solid #EFFF00 !important;
+  box-shadow: 0 0 15px rgba(239, 255, 0, 0.2) !important;
+}
+
+/* Dropdown styling */
+.dark [role="dialog"] div[class*="bg-white"][class*="shadow-lg"][class*="border-gray-100"],
+.dark div[class*="bg-"][class*="card-bg"][class*="shadow-lg"][class*="border-"][class*="card-border"] {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5) !important;
+}
+
+.dark div[class*="bg-"][class*="card-bg"][class*="shadow-lg"] button {
+  color: #D4D4D4 !important;
+}
+
+.dark div[class*="bg-"][class*="card-bg"][class*="shadow-lg"] button:hover {
+  background: #333333 !important;
+  color: #FFFFFF !important;
+}
+
+.dark div[class*="bg-"][class*="card-bg"][class*="shadow-lg"] button[class*="text-rose-600"] {
+  color: #FF8899 !important;
+}
+
+.dark div[class*="bg-"][class*="card-bg"][class*="shadow-lg"] button[class*="text-rose-600"]:hover {
+  background: rgba(255, 80, 100, 0.1) !important;
+  color: #FF99AA !important;
+}
+
+/* ============================================
+   Order Details Modal — Dark Mode Overrides
+   Stitch neon + deep charcoal surfaces
+   ============================================ */
+
+/* Dialog surface override — deep charcoal with subtle glow border */
+.dark [role="dialog"][class*="bg-"] {
+  background: #1A1A1A !important;
+  border-color: #3F3F3F !important;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(239, 255, 0, 0.08) !important;
+}
+
+/* Dialog close button hover — cyan accent */
+.dark [role="dialog"] button[class*="absolute"][class*="right-"] {
+  color: #A1A1A1;
+}
+
+.dark [role="dialog"] button[class*="absolute"][class*="right-"]:hover {
+  color: #00FFFF;
+  background: rgba(0, 255, 255, 0.08);
+}
+
+/* Bottom sheet drag handle */
+.dark [role="dialog"] .bg-gray-300 {
+  background: #555 !important;
+}
+
+/* --- Header Area --- */
+
+/* Status badge — muted glass with glow text */
+.dark [role="dialog"] span[class*="rounded-full"][class*="uppercase"] {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Timeline/History button — dark surface */
+.dark [role="dialog"] button[class*="bg-"][class*="border-"][class*="rounded-lg"][class*="text-xs"] {
+  border-color: #3F3F3F !important;
+}
+
+/* Active state (ink bg) → neon yellow */
+.dark [role="dialog"] button[class*="bg-"][class*="ink"] {
+  background: var(--primary) !important;
+  color: var(--primary-fg) !important;
+}
+
+/* --- Quick Action Buttons --- */
+
+/* Pastel action buttons → muted dark versions */
+.dark [role="dialog"] button[class*="bg-"][class*="pastel-yellow"] {
+  background: rgba(239, 255, 0, 0.12) !important;
+  color: #EFFF00 !important;
+}
+
+.dark [role="dialog"] button[class*="bg-"][class*="pastel-green"] {
+  background: rgba(0, 255, 100, 0.1) !important;
+  color: #66FFAA !important;
+}
+
+.dark [role="dialog"] button[class*="bg-"][class*="pastel-mint"] {
+  background: rgba(0, 255, 200, 0.1) !important;
+  color: #66FFD0 !important;
+}
+
+.dark [role="dialog"] button[class*="bg-"][class*="pastel-pink"] {
+  background: rgba(255, 80, 100, 0.12) !important;
+  color: #FF8899 !important;
+}
+
+.dark [role="dialog"] button[class*="bg-orange-100"] {
+  background: rgba(255, 140, 66, 0.12) !important;
+  color: #FFB380 !important;
+}
+
+/* Current status ring — neon yellow glow */
+.dark [role="dialog"] button[class*="ring-"][class*="foreground"] {
+  box-shadow: 0 0 0 2px var(--primary), 0 0 8px rgba(239, 255, 0, 0.3) !important;
+}
+
+/* Priority icons hover */
+.dark [role="dialog"] button[class*="hover:bg-gray-100"]:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark [role="dialog"] button[class*="hover:bg-amber-50"]:hover {
+  background: rgba(239, 255, 0, 0.1) !important;
+}
+
+.dark [role="dialog"] button[class*="hover:bg-red-50"]:hover {
+  background: rgba(255, 80, 100, 0.1) !important;
+}
+
+.dark [role="dialog"] button[class*="hover:bg-blue-50"]:hover {
+  background: rgba(0, 150, 255, 0.1) !important;
+}
+
+/* Active priority icon — neon yellow */
+.dark [role="dialog"] button[class*="bg-blue-100"][class*="ring-1"] {
+  background: rgba(0, 150, 255, 0.15) !important;
+  border-color: rgba(0, 150, 255, 0.3) !important;
+}
+
+/* Quick actions border separator */
+.dark [role="dialog"] .border-y,
+.dark [role="dialog"] .border-t,
+.dark [role="dialog"] .border-b {
+  border-color: #3F3F3F !important;
+}
+
+.dark [role="dialog"] .border-l {
+  border-color: #3F3F3F !important;
+}
+
+/* --- Customer Card --- */
+
+.dark .order-detail-customer {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+/* Date modified styling — neon amber in dark mode */
+.dark .order-detail-customer div[class*="bg-amber-50"] {
+  background: rgba(239, 255, 0, 0.06) !important;
+  border-color: rgba(239, 255, 0, 0.2) !important;
+  border-left-color: #EFFF00 !important;
+}
+
+.dark .order-detail-customer span[class*="text-amber-900"] {
+  color: #EFFF00 !important;
+}
+
+.dark .order-detail-customer span[class*="bg-amber-100"][class*="text-amber"] {
+  background: rgba(239, 255, 0, 0.12) !important;
+  color: #EFFF00 !important;
+  border-color: rgba(239, 255, 0, 0.3) !important;
+}
+
+.dark .order-detail-customer span[class*="bg-amber-100"][class*="rounded-full"] {
+  background: rgba(239, 255, 0, 0.15) !important;
+  color: #EFFF00 !important;
+}
+
+.dark .order-detail-customer span[class*="text-amber-500"] {
+  color: rgba(239, 255, 0, 0.5) !important;
+}
+
+.dark .order-detail-customer span[class*="text-amber-600"] {
+  color: rgba(239, 255, 0, 0.6) !important;
+}
+
+/* --- Items Editor --- */
+
+.dark .order-detail-items {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+/* Quantity +/- buttons */
+.dark .order-detail-items button[class*="bg-gray-100"] {
+  background: #3F3F3F !important;
+  color: #A1A1A1 !important;
+}
+
+.dark .order-detail-items button[class*="bg-gray-100"]:hover {
+  background: #555 !important;
+  color: white !important;
+}
+
+/* Remove item button */
+.dark .order-detail-items button[class*="bg-red-100"] {
+  background: rgba(255, 80, 100, 0.15) !important;
+  color: #FF8899 !important;
+}
+
+/* Add product button */
+.dark .order-detail-items button[class*="bg-green-50"] {
+  background: rgba(0, 255, 100, 0.1) !important;
+  color: #66FFAA !important;
+  border-color: rgba(0, 255, 100, 0.2) !important;
+}
+
+/* Price edit input bg-white override */
+.dark .order-detail-items input[class*="bg-white"] {
+  background: #1E1E1E !important;
+  border-color: #3F3F3F !important;
+  color: white !important;
+}
+
+/* Price diff badges */
+.dark .order-detail-items span[class*="bg-green-100"] {
+  background: rgba(0, 255, 100, 0.1) !important;
+  color: #66FFAA !important;
+}
+
+.dark .order-detail-items span[class*="bg-red-100"] {
+  background: rgba(255, 80, 100, 0.12) !important;
+  color: #FF8899 !important;
+}
+
+/* --- Notes Cards --- */
+
+/* Order notes (amber theme) → warm neon */
+.dark .order-detail-notes>div:first-child {
+  background: #2A2A2A !important;
+  border-color: rgba(239, 255, 0, 0.2) !important;
+}
+
+.dark .order-detail-notes>div:first-child>div:first-child {
+  background: rgba(239, 255, 0, 0.06) !important;
+  border-color: rgba(239, 255, 0, 0.15) !important;
+}
+
+.dark .order-detail-notes>div:first-child span[class*="text-amber-900"] {
+  color: #EFFF00 !important;
+}
+
+.dark .order-detail-notes>div:first-child span[class*="text-amber-600"] {
+  color: rgba(239, 255, 0, 0.5) !important;
+}
+
+.dark .order-detail-notes>div:first-child p[class*="text-amber-800"] {
+  color: #D4D4D4 !important;
+}
+
+.dark .order-detail-notes>div:first-child textarea {
+  background: #1E1E1E !important;
+  border-color: rgba(239, 255, 0, 0.2) !important;
+  color: white !important;
+}
+
+/* Internal notes (blue theme) → cyan neon */
+.dark .order-detail-notes>div:last-child {
+  background: #2A2A2A !important;
+  border-color: rgba(0, 255, 255, 0.2) !important;
+}
+
+.dark .order-detail-notes>div:last-child>div:first-child {
+  background: rgba(0, 255, 255, 0.06) !important;
+  border-color: rgba(0, 255, 255, 0.15) !important;
+}
+
+.dark .order-detail-notes>div:last-child span[class*="text-blue-900"] {
+  color: #00FFFF !important;
+}
+
+.dark .order-detail-notes>div:last-child span[class*="text-blue-600"] {
+  color: rgba(0, 255, 255, 0.5) !important;
+}
+
+.dark .order-detail-notes>div:last-child p[class*="text-blue-800"] {
+  color: #D4D4D4 !important;
+}
+
+.dark .order-detail-notes>div:last-child textarea {
+  background: #1E1E1E !important;
+  border-color: rgba(0, 255, 255, 0.2) !important;
+  color: white !important;
+}
+
+/* --- Timeline Tab --- */
+
+.dark [role="dialog"] div[class*="bg-gray-50"][class*="rounded-xl"] {
+  background: #242424 !important;
+  border-color: #3F3F3F !important;
+}
+
+.dark [role="dialog"] textarea[class*="bg-white"] {
+  background: #1E1E1E !important;
+  border-color: #3F3F3F !important;
+  color: white !important;
+}
+
+.dark [role="dialog"] textarea[class*="bg-white"]:focus {
+  border-color: rgba(0, 255, 255, 0.4) !important;
+  box-shadow: 0 0 0 3px rgba(0, 255, 255, 0.1) !important;
+}
+
+/* Save note button */
+.dark [role="dialog"] button[class*="bg-white"][class*="border-gray-200"] {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+  color: #D4D4D4 !important;
+}
+
+.dark [role="dialog"] button[class*="bg-white"][class*="border-gray-200"]:hover {
+  background: #3F3F3F !important;
+}
+
+/* --- Footer --- */
+
+/* Delete & split buttons — muted dark tints */
+.dark [role="dialog"] button[class*="bg-rose-50"] {
+  background: rgba(255, 80, 100, 0.1) !important;
+  border-color: rgba(255, 80, 100, 0.25) !important;
+  color: #FF8899 !important;
+}
+
+.dark [role="dialog"] button[class*="bg-rose-50"]:hover {
+  background: rgba(255, 80, 100, 0.18) !important;
+}
+
+.dark [role="dialog"] button[class*="bg-orange-50"] {
+  background: rgba(255, 140, 66, 0.1) !important;
+  border-color: rgba(255, 140, 66, 0.25) !important;
+  color: #FFB380 !important;
+}
+
+.dark [role="dialog"] button[class*="bg-orange-50"]:hover {
+  background: rgba(255, 140, 66, 0.18) !important;
+}
+
+/* Delete confirmation panel */
+.dark [role="dialog"] div[class*="bg-rose-50"][class*="border-rose-200"] {
+  background: rgba(255, 80, 100, 0.08) !important;
+  border-color: rgba(255, 80, 100, 0.3) !important;
+}
+
+.dark [role="dialog"] div[class*="bg-rose-100"] {
+  background: rgba(255, 80, 100, 0.15) !important;
+}
+
+.dark [role="dialog"] h4[class*="text-rose-900"] {
+  color: #FF8899 !important;
+}
+
+.dark [role="dialog"] p[class*="text-rose-700"] {
+  color: #FF99AA !important;
+}
+
+/* Cancel delete button */
+.dark [role="dialog"] button[class*="bg-white"][class*="border-rose-200"] {
+  background: #2A2A2A !important;
+  border-color: rgba(255, 80, 100, 0.3) !important;
+  color: #FF8899 !important;
+}
+
+/* Disabled delete button */
+.dark [role="dialog"] button[class*="bg-rose-200"] {
+  background: rgba(255, 80, 100, 0.15) !important;
+  color: rgba(255, 80, 100, 0.4) !important;
+}
+
+/* --- Inline Modals (Return Order, ID Warning) --- */
+
+/* Return order modal */
+.dark [role="dialog"] div.fixed[class*="bg-black"] div[class*="bg-white"][class*="rounded-2xl"] {
+  background: #1E1E1E !important;
+  border-color: #3F3F3F !important;
+}
+
+.dark [role="dialog"] h3[class*="text-gray-900"] {
+  color: #E5E5E5 !important;
+}
+
+.dark [role="dialog"] p[class*="text-gray-500"] {
+  color: #A1A1A1 !important;
+}
+
+/* Order info card inside return modal */
+.dark [role="dialog"] div[class*="bg-gray-50"][class*="rounded-xl"] {
+  background: #242424 !important;
+  border-color: #3F3F3F !important;
+}
+
+/* Select dropdown */
+.dark [role="dialog"] select[class*="border-gray-200"] {
+  background: #242424 !important;
+  border-color: #3F3F3F !important;
+  color: #D4D4D4 !important;
+}
+
+/* Deduct delivery fee checkbox area */
+.dark [role="dialog"] label[class*="bg-amber-50"] {
+  background: rgba(239, 255, 0, 0.06) !important;
+  border-color: rgba(239, 255, 0, 0.2) !important;
+}
+
+.dark [role="dialog"] p[class*="text-amber-800"] {
+  color: #EFFF00 !important;
+}
+
+.dark [role="dialog"] p[class*="text-amber-600"] {
+  color: rgba(239, 255, 0, 0.6) !important;
+}
+
+/* Refund preview */
+.dark [role="dialog"] div[class*="bg-red-50"][class*="rounded-xl"] {
+  background: rgba(255, 80, 100, 0.08) !important;
+  border-color: rgba(255, 80, 100, 0.2) !important;
+}
+
+.dark [role="dialog"] p[class*="text-red-700"] {
+  color: #FF8899 !important;
+}
+
+/* Cancel button in return modal */
+.dark [role="dialog"] button[class*="border-gray-200"][class*="rounded-lg"] {
+  background: transparent !important;
+  border-color: #3F3F3F !important;
+  color: #A1A1A1 !important;
+}
+
+.dark [role="dialog"] button[class*="border-gray-200"][class*="rounded-lg"]:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* ID edit overlay */
+.dark [role="dialog"] div[class*="bg-white"][class*="shadow-lg"][class*="border-gray-100"] {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+/* ID edit input */
+.dark [role="dialog"] input[class*="border-gray-200"][class*="font-mono"] {
+  background: #1E1E1E !important;
+  border-color: #3F3F3F !important;
+  color: white !important;
+}
+
+/* ID edit save button */
+.dark [role="dialog"] button[class*="bg-green-100"] {
+  background: rgba(0, 255, 100, 0.12) !important;
+  color: #66FFAA !important;
+}
+
+/* ID edit cancel button */
+.dark [role="dialog"] button[class*="bg-gray-100"][class*="text-gray-700"] {
+  background: #3F3F3F !important;
+  color: #A1A1A1 !important;
+}
+
+/* --- Refund Status Buttons (Customer Card) --- */
+
+.dark .order-detail-customer button[class*="bg-emerald-50"] {
+  background: rgba(0, 255, 100, 0.1) !important;
+  color: #66FFAA !important;
+  border-color: rgba(0, 255, 100, 0.2) !important;
+}
+
+.dark .order-detail-customer button[class*="bg-red-50"] {
+  background: rgba(255, 80, 100, 0.1) !important;
+  color: #FF8899 !important;
+  border-color: rgba(255, 80, 100, 0.2) !important;
+}
+
+/* Edit button hover — appears on order ID */
+.dark [role="dialog"] button[class*="bg-white"][class*="shadow-sm"][class*="border-gray-100"] {
+  background: #3F3F3F !important;
+  border-color: #555 !important;
+}
+
+/* Input focus rings in edit mode */
+.dark [role="dialog"] input:focus,
+.dark [role="dialog"] select:focus {
+  box-shadow: 0 0 0 2px rgba(0, 255, 255, 0.2) !important;
+}
+
+/* ============================================
+   Create Order Modal — Dark Mode Overrides
+   ============================================ */
+
+/* Order type toggle buttons */
+.dark .create-order-modal button[class*="border-green-500"] {
+  border-color: rgba(0, 255, 100, 0.5) !important;
+  background: rgba(0, 255, 100, 0.1) !important;
+  color: #66FFAA !important;
+}
+
+.dark .create-order-modal button[class*="border-amber-500"] {
+  border-color: rgba(239, 255, 0, 0.5) !important;
+  background: rgba(239, 255, 0, 0.1) !important;
+  color: #EFFF00 !important;
+}
+
+.dark .create-order-modal button[class*="border-gray-200"] {
+  border-color: #3F3F3F !important;
+  background: #2A2A2A !important;
+  color: #A1A1A1 !important;
+}
+
+.dark .create-order-modal button[class*="border-gray-200"]:hover {
+  border-color: #555 !important;
+  color: #D4D4D4 !important;
+}
+
+/* Shop order notice */
+.dark .create-order-modal p[class*="bg-amber-50"] {
+  background: rgba(239, 255, 0, 0.06) !important;
+  color: #EFFF00 !important;
+}
+
+/* Header icon */
+.dark .create-order-modal div[class*="bg-"][class*="pastel-green"] {
+  background: rgba(0, 255, 100, 0.15) !important;
+}
+
+.dark .create-order-modal div[class*="bg-"][class*="pastel-green"] svg {
+  color: #66FFAA !important;
+}
+
+/* Source selector buttons */
+.dark .create-order-modal button[class*="bg-"][class*="pastel-green-light"] {
+  background: rgba(0, 255, 100, 0.12) !important;
+  border-color: rgba(0, 255, 100, 0.3) !important;
+}
+
+.dark .create-order-modal button[class*="bg-white"][class*="border-"][class*="card-border"] {
+  background: #2A2A2A !important;
+}
+
+.dark .create-order-modal button[class*="bg-white"][class*="border-"][class*="card-border"]:hover {
+  background: #3F3F3F !important;
+}
+
+/* Order ID — error & success states */
+.dark .create-order-modal input[class*="border-red-300"] {
+  border-color: rgba(255, 80, 100, 0.5) !important;
+  background: rgba(255, 80, 100, 0.08) !important;
+}
+
+.dark .create-order-modal input[class*="border-green-300"] {
+  border-color: rgba(0, 255, 100, 0.5) !important;
+  background: rgba(0, 255, 100, 0.08) !important;
+}
+
+/* Error text */
+.dark .create-order-modal p[class*="text-red-500"][class*="bg-red-50"] {
+  background: rgba(255, 80, 100, 0.08) !important;
+  color: #FF8899 !important;
+}
+
+/* Product item icon */
+.dark .create-order-modal div[class*="bg-purple-100"] {
+  background: rgba(147, 51, 234, 0.15) !important;
+}
+
+.dark .create-order-modal div[class*="bg-purple-100"] svg {
+  color: #C084FC !important;
+}
+
+/* Product item quantity controls — white bg */
+.dark .create-order-modal div[class*="bg-white"][class*="border"][class*="rounded-lg"] {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+.dark .create-order-modal button[class*="text-gray-500"][class*="hover:text-gray-700"]:hover {
+  color: white !important;
+}
+
+/* Remove item button */
+.dark .create-order-modal button[class*="bg-red-100"] {
+  background: rgba(255, 80, 100, 0.15) !important;
+  color: #FF8899 !important;
+}
+
+/* Add product button */
+.dark .create-order-modal button[class*="bg-green-50"] {
+  background: rgba(0, 255, 100, 0.1) !important;
+  color: #66FFAA !important;
+  border-color: rgba(0, 255, 100, 0.2) !important;
+}
+
+/* Discount input */
+.dark .create-order-modal input[class*="bg-white"] {
+  background: #1E1E1E !important;
+  border-color: #3F3F3F !important;
+  color: white !important;
+}
+
+/* Delivery fee area */
+.dark .create-order-modal div[class*="bg-blue-50"] {
+  background: rgba(0, 150, 255, 0.06) !important;
+  border-color: rgba(0, 150, 255, 0.15) !important;
+}
+
+.dark .create-order-modal span[class*="text-blue-800"] {
+  color: #66BBFF !important;
+}
+
+.dark .create-order-modal p[class*="text-blue-600"] {
+  color: rgba(0, 150, 255, 0.6) !important;
+}
+
+.dark .create-order-modal input[class*="border-blue-200"] {
+  background: #1E1E1E !important;
+  border-color: rgba(0, 150, 255, 0.3) !important;
+  color: white !important;
+}
+
+/* Total — green text */
+.dark .create-order-modal span[class*="text-green-700"] {
+  color: #66FFAA !important;
+}
+
+/* Empty products placeholder */
+.dark .create-order-modal div[class*="border-dashed"] {
+  border-color: #3F3F3F !important;
+}
+
+/* ============================================
+   Product Picker — Dark Mode Overrides
+   ============================================ */
+
+/* Product picker overlay panel */
+.dark div[data-portal-ignore] div[class*="bg-white"][class*="rounded-2xl"],
+.dark .product-picker-panel {
+  background: #1E1E1E !important;
+  border-color: #3F3F3F !important;
+}
+
+/* Search bar inside picker */
+.dark div[data-portal-ignore] div[class*="bg-white"][class*="border-b"] {
+  background: #1E1E1E !important;
+}
+
+/* Quantity controls in picker */
+.dark div[data-portal-ignore] div[class*="bg-white"][class*="border"][class*="rounded-lg"] {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+.dark div[data-portal-ignore] button[class*="hover:bg-gray-100"]:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Add button in picker */
+.dark div[data-portal-ignore] button[class*="bg-green-100"] {
+  background: rgba(0, 255, 100, 0.12) !important;
+  color: #66FFAA !important;
+}
+
+/* Remove button in picker */
+.dark div[data-portal-ignore] button[class*="bg-red-100"] {
+  background: rgba(255, 80, 100, 0.15) !important;
+  color: #FF8899 !important;
+}
+
+/* Price text in picker */
+.dark div[data-portal-ignore] p[class*="text-green-700"] {
+  color: #66FFAA !important;
+}
+
+/* Picker footer total */
+.dark div[data-portal-ignore] span[class*="text-green-700"] {
+  color: #66FFAA !important;
 }
 
 /* ============================================
@@ -547,6 +2087,19 @@ body {
   /* Mobile navigation height */
   --mobile-nav-height: 72px;
   --mobile-header-height: 56px;
+  --radius: 0.625rem;
+  --card: var(--card-bg);
+  --card-foreground: var(--foreground);
+  --popover: var(--card-bg);
+  --popover-foreground: var(--foreground);
+  --secondary: var(--background-soft);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--background-soft);
+  --muted-foreground: var(--foreground-muted);
+  --accent: var(--background-soft);
+  --accent-foreground: var(--foreground);
+  --input: var(--border);
+  --ring: var(--primary);
 }
 
 /* Touch-friendly tap targets */
@@ -1054,4 +2607,19 @@ body {
     align-items: center;
     padding-bottom: 0 !important;
   }
+}
+
+.dark {
+  --card: var(--card-bg);
+  --card-foreground: var(--foreground);
+  --popover: var(--card-bg);
+  --popover-foreground: var(--foreground);
+  --secondary: var(--background-soft);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--background-soft);
+  --muted-foreground: var(--foreground-muted);
+  --accent: var(--card-bg-hover);
+  --accent-foreground: var(--foreground);
+  --input: var(--border);
+  --ring: var(--primary);
 }

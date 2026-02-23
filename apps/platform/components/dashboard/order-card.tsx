@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, memo } from "react";
+import { useState, useRef, useEffect, memo, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Order, OrderPriority, MessageTemplate } from "@/lib/supabase";
 import { RiskLevel, RiskAssessment } from "@/lib/fraud-detector";
@@ -40,7 +40,9 @@ import {
     ClipboardCopy,
     Link2,
     PhoneOff,
-    Scissors
+    Scissors,
+    History as HistoryIcon,
+    Archive as ArchiveIcon,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -87,6 +89,8 @@ interface OrderCardProps {
     onToggleSelection?: (orderId: string) => void;
     // Split functionality
     onSplit?: () => void;
+    // Archive info
+    archivedOrderCount?: number;
     // Disable layout animations (e.g. for virtualized lists)
     isVirtualized?: boolean;
 }
@@ -120,6 +124,7 @@ export const OrderCard = memo(function OrderCard({
     onSplit,
     isVirtualized = false,
     hasDuplicates = false,
+    archivedOrderCount = 0,
 }: OrderCardProps) {
     const isLoading = loadingId === order.id;
     const isNew = order.status === "new";
@@ -230,18 +235,23 @@ export const OrderCard = memo(function OrderCard({
         return parts.join(' • ');
     };
 
-    // Clean up system-generated notes from split orders
+    // Clean up system-generated notes from split orders and legacy return info
     const cleanSystemNotes = (text?: string | null) => {
         if (!text) return '';
         return text
             .replace(/\[Partial Return\] Items split to return order\.?/g, '')
             .replace(/\[Partial Return\] Items returned from original order\.?/g, '')
             .replace(/Split from order (LF-\d+-\d+|\d+|(?:RTN|CLN-LF)-\d+(?:-\d+)?)/gi, '')
-            .replace(/^\s+|\s+$/g, '') // Trim whitespace and newlines
+            .replace(/استرجاع:.*?(\||$)/g, '')
+            .replace(/خصم التوصيل:.*?(\||$)/g, '')
+            .replace(/الطلب الأصلي:.*?(\||$)/g, '')
+            .replace(/\|/g, '') // Remove any remaining pipes
+            .replace(/\s{2,}/g, ' ') // Collapse multiple spaces
+            .replace(/^\s+|\s+$/g, '') // Trim
             .trim();
     };
 
-    // Get notes directly (no longer contains address)
+    // Get notes directly
     const getActualNotes = () => {
         return cleanSystemNotes(order.notes);
     };
@@ -249,6 +259,56 @@ export const OrderCard = memo(function OrderCard({
     const fullAddress = getFullAddress();
     const actualNotes = getActualNotes();
     const actualInternalNotes = cleanSystemNotes(order.internal_notes);
+
+    // Parse reason information for return, rejected, cancelled, and no_response orders
+    const orderReasonInfo = useMemo(() => {
+        const hasReason = order.rejection_reason;
+        const isReturnOrder = isReturn;
+        const isRejected = order.status === 'rejected';
+        const isCancelled = order.status === 'cancelled';
+        const isNoResponse = order.status === 'no_response';
+
+        // Determine delivery deduction for return orders
+        let deliveryDeduction = 0;
+        if (isReturnOrder) {
+            deliveryDeduction = order.delivery_fee || 0;
+        }
+
+        // 1. Use structured rejection_reason field if available
+        if (hasReason) {
+            return {
+                reason: order.rejection_reason!,
+                deliveryDeduction,
+                type: isReturnOrder ? 'return' as const
+                    : isRejected ? 'rejected' as const
+                        : isCancelled ? 'cancelled' as const
+                            : isNoResponse ? 'no_response' as const
+                                : 'other' as const,
+            };
+        }
+
+        // 2. Fallback for return orders: Parse from legacy notes string
+        if (isReturnOrder) {
+            const notesStr = order.notes || "";
+            const reasonMatch = notesStr.match(/استرجاع:\s*([^|]+)/);
+            const deliveryMatch = notesStr.match(/خصم التوصيل:\s*([\d,]+)/);
+
+            if (reasonMatch || deliveryMatch) {
+                return {
+                    reason: reasonMatch ? reasonMatch[1].trim() : null,
+                    deliveryDeduction: deliveryMatch ? parseInt(deliveryMatch[1].replace(/,/g, "")) : deliveryDeduction,
+                    type: 'return' as const,
+                };
+            }
+        }
+
+        // 3. No reason found
+        if (isReturnOrder && deliveryDeduction > 0) {
+            return { reason: null, deliveryDeduction, type: 'return' as const };
+        }
+
+        return null;
+    }, [isReturn, order.status, order.rejection_reason, order.delivery_fee, order.notes]);
 
     // Compute governorate code - use stored value or extract from city
     const governorateCode = order.validated_governorate_code || order.governorate_code || (() => {
@@ -400,8 +460,9 @@ export const OrderCard = memo(function OrderCard({
                         "relative bg-[var(--card-bg)] rounded-xl shadow-sm hover:shadow-md transition-all duration-200 h-full",
                         "flex flex-col",
                         "border border-[var(--card-border)]/50 overflow-hidden cursor-pointer",
+                        "hover:border-[var(--secondary)] transition-colors duration-300",
                         isBlacklisted && "ring-1 ring-red-400",
-                        !isBlacklisted && (isReturn || order.status === 'rejected') && "ring-1 ring-red-300",
+                        order.is_archived && "opacity-60 grayscale-[0.5] contrast-[0.9]",
                     )}
                     onClick={(e) => {
                         e.stopPropagation();
@@ -486,9 +547,10 @@ export const OrderCard = memo(function OrderCard({
                         "relative bg-[var(--card-bg)] rounded-xl shadow-sm hover:shadow-md transition-all duration-200 h-full",
                         "flex flex-col",
                         "border border-[var(--card-border)]/50 overflow-hidden",
+                        "hover:border-[var(--secondary)] transition-colors duration-300",
                         isBlacklisted && "ring-1 ring-red-400",
-                        !isBlacklisted && (isReturn || order.status === 'rejected') && "ring-1 ring-red-300",
                         !isBlacklisted && !(isReturn || order.status === 'rejected') && isUrgent && "ring-1 ring-red-300",
+                        order.is_archived && "opacity-65 grayscale-[0.4] bg-gray-50/10",
                     )}
                 >
                     {/* Status bar top */}
@@ -527,6 +589,17 @@ export const OrderCard = memo(function OrderCard({
                             <span className="text-[var(--card-border)]">·</span>
                             <span className="text-subtle">{formatShortDate(order.created_at)}</span>
                             <span className="text-subtle">{formatTime(order.created_at)}</span>
+                            {order.original_created_at && new Date(order.original_created_at).getTime() !== new Date(order.created_at).getTime() && (
+                                <span className="relative group/date-tag">
+                                    <span className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-bold rounded">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                        edited
+                                    </span>
+                                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-gray-900 text-white text-[10px] rounded-md whitespace-nowrap opacity-0 group-hover/date-tag:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
+                                        Was: {formatShortDate(order.original_created_at)} {formatTime(order.original_created_at)}
+                                    </span>
+                                </span>
+                            )}
                             {isUrgent && <Flame className="w-3 h-3 text-red-500 animate-pulse ml-auto" />}
                             {isHighPriority && !isUrgent && <Flag className="w-3 h-3 text-amber-600 ml-auto" />}
                         </div>
@@ -584,7 +657,7 @@ export const OrderCard = memo(function OrderCard({
                                 className={cn(
                                     "flex-1 h-7 rounded-lg transition-all flex items-center justify-center gap-1 text-xs font-medium",
                                     isValidPhone
-                                        ? "bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)]"
+                                        ? "bg-[var(--primary)] text-[var(--primary-fg)] hover:shadow-[0_0_10px_rgba(239,255,0,0.4)]"
                                         : "bg-gray-200 text-gray-400 cursor-not-allowed"
                                 )}
                             >
@@ -627,10 +700,11 @@ export const OrderCard = memo(function OrderCard({
                         "relative bg-[var(--card-bg)] rounded-xl shadow-sm hover:shadow-md transition-all duration-200",
                         "flex items-center",
                         "border border-[var(--card-border)]/50",
+                        "hover:border-[var(--secondary)] transition-colors duration-300",
                         // Subtle left-border rings based on priority
                         isBlacklisted && "ring-1 ring-red-400",
-                        !isBlacklisted && (isReturn || order.status === 'rejected') && "ring-1 ring-red-300",
                         !isBlacklisted && !(isReturn || order.status === 'rejected') && isUrgent && "ring-1 ring-red-300",
+                        order.is_archived && "opacity-70 grayscale-[0.3]",
                     )}
                 >
                     {/* Thin Status Accent Bar */}
@@ -770,7 +844,7 @@ export const OrderCard = memo(function OrderCard({
                             className={cn(
                                 "w-8 h-8 rounded-lg transition-all flex items-center justify-center",
                                 isValidPhone
-                                    ? "bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)] shadow-sm"
+                                    ? "bg-[var(--primary)] text-[var(--primary-fg)] hover:shadow-[0_0_10px_rgba(239,255,0,0.4)] shadow-sm"
                                     : "bg-gray-200 text-gray-400 cursor-not-allowed"
                             )}
                             title="WhatsApp"
@@ -949,9 +1023,9 @@ export const OrderCard = memo(function OrderCard({
                             )}
 
                             <span className={cn(
-                                "font-bold",
+                                "font-bold tracking-tight",
                                 compact === 1 ? "text-sm" : "text-base",
-                                order.is_return ? "text-rose-700" : "text-foreground"
+                                order.is_return ? "text-rose-700 dark:text-rose-400" : "text-foreground dark:text-white"
                             )}>
                                 {order.customer_name}
                             </span>
@@ -996,7 +1070,7 @@ export const OrderCard = memo(function OrderCard({
                                 return (
                                     <>
                                         <span
-                                            className="px-2 py-0.5 rounded-md bg-[var(--background)] border border-[var(--card-border)] text-sm font-bold text-foreground cursor-pointer hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:hover:bg-blue-500/10 dark:hover:text-blue-200 dark:hover:border-blue-400/40 transition-colors"
+                                            className="px-2 py-0.5 rounded-md bg-[var(--background)] border border-[var(--card-border)] text-sm font-bold text-foreground cursor-pointer hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:bg-black/20 dark:border-[#333] dark:text-[#00E5FF] dark:hover:bg-[#00E5FF]/10 dark:hover:text-[#00FFFF] dark:hover:border-[#00FFFF]/30 transition-colors"
                                             onClick={async (e) => {
                                                 e.stopPropagation();
                                                 // Copy order ID to clipboard
@@ -1054,6 +1128,19 @@ export const OrderCard = memo(function OrderCard({
                                 <span className="font-semibold text-subtle">{formatShortDate(order.created_at)}</span>
                                 <span className="text-[var(--card-border)]">|</span>
                                 <span className="font-mono text-subtle">{formatTime(order.created_at)}</span>
+
+                                {/* Date Modified Indicator */}
+                                {order.original_created_at && new Date(order.original_created_at).getTime() !== new Date(order.created_at).getTime() && (
+                                    <span className="relative group/date-tag">
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-bold rounded-md">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                            date edited
+                                        </span>
+                                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-gray-900 text-white text-[10px] rounded-md whitespace-nowrap opacity-0 group-hover/date-tag:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
+                                            Original: {formatShortDate(order.original_created_at)} {formatTime(order.original_created_at)}
+                                        </span>
+                                    </span>
+                                )}
 
                                 {/* Order Age Badge with Color Coding */}
                                 <span className={cn(
@@ -1120,6 +1207,14 @@ export const OrderCard = memo(function OrderCard({
                                     </>
                                 )}
 
+
+                            {/* Archive Tag */}
+                            {order.is_archived && (
+                                <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full bg-gray-200 text-gray-700 border border-gray-300">
+                                    <ArchiveIcon className="w-3 h-3" />
+                                    مؤرشف
+                                </span>
+                            )}
 
                             {/* Original Order Link for Returns - REMOVED: consolidated into single rose tag below */}
 
@@ -1207,15 +1302,15 @@ export const OrderCard = memo(function OrderCard({
                             )}
 
                             {/* Returning Customer Indicator - hidden in semi-compact */}
-                            {compact === 0 && customerOrderCount > 1 && (
+                            {compact === 0 && (customerOrderCount > 1 || archivedOrderCount > 0) && (
                                 <span
                                     className={cn(
                                         "inline-flex h-6 items-center gap-1 px-2 text-[10px] font-medium rounded-full cursor-pointer transition-colors",
                                         isVerifiedCustomer
                                             ? "bg-emerald-100 text-emerald-700 border border-emerald-200 hover:bg-emerald-200"
-                                            : "bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-200"
+                                            : (customerOrderCount > 1 ? "bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-200" : "bg-purple-100 text-purple-700 border border-purple-200 hover:bg-purple-200")
                                     )}
-                                    title={previousOrder ? `طلب سابق: #${previousOrder.order_id}` : `${customerOrderCount} طلبات من هذا الزبون`}
+                                    title={previousOrder ? `طلب سابق: #${previousOrder.order_id}` : `${customerOrderCount + archivedOrderCount} طلبات إجمالاً (${archivedOrderCount} مؤرشف)`}
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         if (onShowDuplicates) {
@@ -1225,8 +1320,18 @@ export const OrderCard = memo(function OrderCard({
                                         }
                                     }}
                                 >
-                                    <Copy className="w-3 h-3" />
-                                    {customerOrderCount} طلبات
+                                    {archivedOrderCount > 0 && customerOrderCount === 1 ? (
+                                        <>
+                                            <HistoryIcon className="w-3 h-3" />
+                                            زبون تاريخي ({archivedOrderCount})
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Copy className="w-3 h-3" />
+                                            {customerOrderCount + archivedOrderCount} طلبات
+                                            {archivedOrderCount > 0 && <span className="opacity-70 text-[8px] mr-1">({archivedOrderCount} أرشفة)</span>}
+                                        </>
+                                    )}
                                 </span>
                             )}
 
@@ -1284,6 +1389,19 @@ export const OrderCard = memo(function OrderCard({
                                                     <span className={`px-1.5 py-0.5 rounded-md text-xs font-bold border ${quantityColor}`}>
                                                         ×{item.quantity}
                                                     </span>
+                                                    {/* Reason Tag - shows for return, rejected, cancelled orders */}
+                                                    {orderReasonInfo?.reason && idx === 0 && (
+                                                        <span className={cn(
+                                                            "px-1.5 py-0.5 rounded-md text-[10px] font-bold border",
+                                                            orderReasonInfo.type === 'return' && "bg-rose-50 text-rose-600 border-rose-200",
+                                                            orderReasonInfo.type === 'rejected' && "bg-red-50 text-red-600 border-red-200",
+                                                            orderReasonInfo.type === 'cancelled' && "bg-gray-50 text-gray-600 border-gray-200",
+                                                            orderReasonInfo.type === 'no_response' && "bg-orange-50 text-orange-600 border-orange-200",
+                                                            !['return', 'rejected', 'cancelled', 'no_response'].includes(orderReasonInfo.type || '') && "bg-gray-50 text-gray-600 border-gray-200"
+                                                        )}>
+                                                            {orderReasonInfo.reason}
+                                                        </span>
+                                                    )}
                                                 </span>
                                             );
                                         })}
@@ -1315,9 +1433,10 @@ export const OrderCard = memo(function OrderCard({
                                 <Phone className="w-3.5 h-3.5 text-muted" />
                                 <span className={cn(
                                     "font-mono text-sm",
-                                    !validatePhoneDetailed(order.phone).isValid && "text-red-600",
-                                    hasDuplicates && !isVerifiedCustomer && "text-orange-600 font-semibold",
-                                    hasDuplicates && isVerifiedCustomer && "text-emerald-600 font-semibold"
+                                    !validatePhoneDetailed(order.phone).isValid && "text-red-600 dark:text-rose-400",
+                                    hasDuplicates && !isVerifiedCustomer && "text-orange-600 font-semibold dark:text-orange-400",
+                                    hasDuplicates && isVerifiedCustomer && "text-emerald-600 font-semibold dark:text-emerald-400",
+                                    !(!validatePhoneDetailed(order.phone).isValid) && !(hasDuplicates) && "dark:text-[#D4D4D4]"
                                 )}>
                                     {formatPhoneForDisplay(order.phone)}
                                 </span>
@@ -1421,7 +1540,7 @@ export const OrderCard = memo(function OrderCard({
                                         </span>
                                         <p className={cn(
                                             "text-xl font-bold tracking-tight tabular-nums",
-                                            isReturn ? "text-red-600" : "text-foreground"
+                                            isReturn ? "text-red-600 dark:text-rose-400" : "text-foreground dark:text-[#00FFAA] dark:drop-shadow-[0_0_8px_rgba(0,255,170,0.3)]"
                                         )}>
                                             {isReturn && "-"}
                                             {formatIQD(Math.abs(Number(order.price)))}
@@ -1437,11 +1556,17 @@ export const OrderCard = memo(function OrderCard({
                                 ) : (
                                     <p className={cn(
                                         "text-xl font-bold tracking-tight tabular-nums",
-                                        isReturn ? "text-red-600" : "text-foreground"
+                                        isReturn ? "text-red-600 dark:text-rose-400" : "text-foreground dark:text-[#00FFAA] dark:drop-shadow-[0_0_8px_rgba(0,255,170,0.3)]"
                                     )}>
                                         {isReturn && "-"}
                                         {formatIQD(Math.abs(Number(order.price)))}
                                     </p>
+                                )}
+                                {isReturn && orderReasonInfo && orderReasonInfo.deliveryDeduction > 0 && (
+                                    <div className="flex items-center gap-1 mt-1 text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">
+                                        <Truck className="w-2.5 h-2.5" />
+                                        خصم توصيل: {formatIQD(orderReasonInfo.deliveryDeduction)}
+                                    </div>
                                 )}
                             </div>
                         )}
@@ -1464,8 +1589,8 @@ export const OrderCard = memo(function OrderCard({
                                     className={cn(
                                         "flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all active:scale-95 shadow-sm",
                                         validatePhoneDetailed(order.phone).isValid
-                                            ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-green-200"
-                                            : "bg-red-100 text-red-600 border border-red-200"
+                                            ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-green-200 dark:shadow-none dark:bg-none dark:bg-[rgba(0,255,100,0.15)] dark:text-[#00FFAA]"
+                                            : "bg-red-100 text-red-600 border border-red-200 dark:bg-red-500/10 dark:text-rose-400 dark:border-red-500/20"
                                     )}
                                 >
                                     <MessageCircle className="w-4 h-4" />
@@ -1516,7 +1641,7 @@ export const OrderCard = memo(function OrderCard({
                                                 </span>
                                                 <span className={cn(
                                                     "text-xl font-bold tabular-nums",
-                                                    isReturn ? "text-red-600" : "text-foreground"
+                                                    isReturn ? "text-red-600 dark:text-rose-400" : "text-foreground dark:text-[#00FFAA] dark:drop-shadow-[0_0_8px_rgba(0,255,170,0.3)]"
                                                 )}>
                                                     {isReturn && "-"}
                                                     {formatIQD(Math.abs(Number(order.price)))}
@@ -1537,6 +1662,11 @@ export const OrderCard = memo(function OrderCard({
                                                 {isReturn && "-"}
                                                 {formatIQD(Math.abs(Number(order.price)))}
                                             </span>
+                                        )}
+                                        {isReturn && orderReasonInfo && orderReasonInfo.deliveryDeduction > 0 && (
+                                            <div className="flex items-center gap-1 mt-1 text-[9px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">
+                                                خصم توصيل: {formatIQD(orderReasonInfo.deliveryDeduction)}
+                                            </div>
                                         )}
                                     </div>
                                 )}
@@ -1596,7 +1726,7 @@ export const OrderCard = memo(function OrderCard({
                             const getButtonStyle = () => {
                                 if (!isValidPhone) return "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none";
                                 switch (contactCount) {
-                                    case 0: return "bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)] shadow-green-500/20"; // Green - New
+                                    case 0: return "bg-[var(--primary)] text-[var(--primary-fg)] hover:shadow-[0_0_10px_rgba(239,255,0,0.4)] shadow-[0_0_10px_rgba(239,255,0,0.2)] font-bold"; // Neon - New
                                     case 1: return "bg-yellow-500 text-white hover:bg-yellow-600 shadow-yellow-500/20"; // Yellow - Contacted once
                                     case 2: return "bg-orange-500 text-white hover:bg-orange-600 shadow-orange-500/20"; // Orange - Contacted twice
                                     default: return "bg-red-500 text-white hover:bg-red-600 shadow-red-500/20"; // Red - Multiple contacts

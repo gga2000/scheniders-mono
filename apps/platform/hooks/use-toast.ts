@@ -5,7 +5,7 @@ import * as React from "react";
 const TOAST_LIMIT = 3;
 const TOAST_REMOVE_DELAY = 400; // ms for exit animation
 
-export type ToastVariant = "default" | "success" | "error" | "warning";
+export type ToastVariant = "default" | "success" | "error" | "warning" | "loading";
 
 export type ToastActionElement = React.ReactElement<{
     altText: string;
@@ -24,6 +24,7 @@ export interface Toast {
     };
     icon?: React.ReactNode;
     open?: boolean;
+    count?: number;
 }
 
 type ToastAction =
@@ -34,6 +35,7 @@ type ToastAction =
 
 interface ToastState {
     toasts: Toast[];
+    inbox: Toast[];
 }
 
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
@@ -55,6 +57,7 @@ function reducer(state: ToastState, action: ToastAction): ToastState {
             return {
                 ...state,
                 toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
+                inbox: [action.toast, ...state.inbox].slice(0, 50),
             };
 
         case "UPDATE_TOAST":
@@ -89,7 +92,7 @@ function reducer(state: ToastState, action: ToastAction): ToastState {
 
 // Global listeners for cross-component usage
 const listeners: Array<(state: ToastState) => void> = [];
-let memoryState: ToastState = { toasts: [] };
+let memoryState: ToastState = { toasts: [], inbox: [] };
 let globalDispatch: React.Dispatch<ToastAction> | null = null;
 
 function dispatch(action: ToastAction) {
@@ -109,6 +112,7 @@ const DURATIONS: Record<ToastVariant, number> = {
     success: 5000,
     warning: 6000,
     error: 8000,
+    loading: 100000, // loading toasts stay open until updated or dismissed
 };
 
 interface ToastOptions {
@@ -121,9 +125,33 @@ interface ToastOptions {
 }
 
 function createToast(options: ToastOptions) {
-    const id = genId();
     const variant = options.variant || "default";
     const duration = options.duration ?? DURATIONS[variant];
+
+    // Smart Aggregation (Throttle identical toasts)
+    if (variant !== "loading") {
+        const identicalToast = memoryState.toasts.find(
+            (t) =>
+                t.title === options.title &&
+                t.description === options.description &&
+                t.variant === variant &&
+                t.open
+        );
+
+        if (identicalToast) {
+            const newCount = (identicalToast.count || 1) + 1;
+            dispatch({
+                type: "UPDATE_TOAST",
+                toast: {
+                    id: identicalToast.id,
+                    count: newCount,
+                },
+            });
+            return identicalToast.id;
+        }
+    }
+
+    const id = genId();
 
     const toast: Toast = {
         ...options,
@@ -135,16 +163,9 @@ function createToast(options: ToastOptions) {
 
     dispatch({ type: "ADD_TOAST", toast });
 
-    // Auto-dismiss
-    if (duration > 0) {
-        setTimeout(() => {
-            dispatch({ type: "DISMISS_TOAST", id });
-            // Schedule removal after exit animation
-            setTimeout(() => {
-                dispatch({ type: "REMOVE_TOAST", id });
-            }, TOAST_REMOVE_DELAY);
-        }, duration);
-    }
+    // Auto-dismiss is now handled by Radix UI's native Toast component duration
+    // This allows Radix to correctly pause the timer on hover.
+    // When the duration ends, Radix calls onOpenChange(false) which triggers dismissToast.
 
     return id;
 }
@@ -163,8 +184,44 @@ toast.error = (title: string, description?: string) =>
 toast.warning = (title: string, description?: string) =>
     createToast({ title, description, variant: "warning" });
 
+toast.loading = (title: string, description?: string) =>
+    createToast({ title, description, variant: "loading", duration: 100000 });
+
+export function updateToast(id: string, options: Partial<ToastOptions>) {
+    dispatch({ type: "UPDATE_TOAST", toast: { ...options, id } });
+}
+
+// Promise API
+toast.promise = async <T>(
+    promise: Promise<T>,
+    msgs: {
+        loading: string;
+        success: string | ((data: T) => string);
+        error: string | ((err: any) => string);
+    }
+) => {
+    const id = toast.loading(msgs.loading);
+    try {
+        const data = await promise;
+        updateToast(id, {
+            variant: "success",
+            title: typeof msgs.success === "function" ? msgs.success(data) : msgs.success,
+            duration: DURATIONS.success,
+        });
+        return data;
+    } catch (err) {
+        updateToast(id, {
+            variant: "error",
+            title: typeof msgs.error === "function" ? msgs.error(err) : msgs.error,
+            duration: DURATIONS.error,
+        });
+        throw err;
+    }
+};
+
 export function dismissToast(id?: string) {
-    dispatch({ type: "DISMISS_TOAST", id });
+    // We instantly remove so AnimatePresence triggers fluid physical animations
+    dispatch({ type: "REMOVE_TOAST", id });
 }
 
 // Hook for components that need to read toasts (i.e., the Toaster)
