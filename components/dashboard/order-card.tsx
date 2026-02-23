@@ -81,6 +81,8 @@ interface OrderCardProps {
     compact?: 0 | 1 | 2;
     // Grid mode for compact views
     gridMode?: boolean;
+    // Action Dock design option
+    actionDock?: boolean;
     // WhatsApp template panel
     onOpenTemplatePanel?: (order: Order) => void;
     messageTemplates?: MessageTemplate[];
@@ -125,6 +127,7 @@ export const OrderCard = memo(function OrderCard({
     isVirtualized = false,
     hasDuplicates = false,
     archivedOrderCount = 0,
+    actionDock = false,
 }: OrderCardProps) {
     const isLoading = loadingId === order.id;
     const isNew = order.status === "new";
@@ -1341,7 +1344,7 @@ export const OrderCard = memo(function OrderCard({
                     </motion.div>
 
                     {/* DIVIDER */}
-                    <div className="w-px h-16 bg-[var(--card-border)] hidden md:block flex-shrink-0" />
+                    <div className="w-px h-16 bg-[var(--card-border)] hidden md:block flex-shrink-0 dark:bg-white/5" />
 
                     {/* CENTER SECTION: Product, Phone, Address */}
                     <div className="flex-1 min-w-0 space-y-2 hidden md:block overflow-hidden">
@@ -1352,16 +1355,16 @@ export const OrderCard = memo(function OrderCard({
                                 <img
                                     src={items[0].image_url}
                                     alt={items[0].name}
-                                    className="w-12 h-12 rounded-xl object-cover border border-[var(--card-border)] flex-shrink-0"
+                                    className="w-12 h-12 rounded-xl object-cover border border-[var(--card-border)] flex-shrink-0 dark:border-white/10 dark:shadow-[0_0_10px_rgba(255,255,255,0.05)]"
                                 />
                             ) : (
                                 <div className={cn(
-                                    "w-12 h-12 rounded-xl border flex items-center justify-center flex-shrink-0",
+                                    "w-12 h-12 rounded-xl border flex items-center justify-center flex-shrink-0 dark:shadow-[0_0_10px_rgba(255,255,255,0.05)]",
                                     isNew
-                                        ? "bg-orange-50 border-orange-200"
-                                        : "bg-[var(--background)] border-[var(--card-border)]"
+                                        ? "bg-orange-50 border-orange-200 dark:bg-orange-500/10 dark:border-orange-500/20"
+                                        : "bg-[var(--background)] border-[var(--card-border)] dark:bg-[#1E1E1E] dark:border-white/10"
                                 )}>
-                                    <Package className={cn("w-5 h-5", isNew ? "text-orange-600" : "text-muted")} />
+                                    <Package className={cn("w-5 h-5", isNew ? "text-orange-600 dark:text-orange-400" : "text-muted dark:text-white/40")} />
                                 </div>
                             ))}
 
@@ -1380,7 +1383,7 @@ export const OrderCard = memo(function OrderCard({
                                             return (
                                                 <span
                                                     key={idx}
-                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-medium text-foreground bg-[var(--background)] border-l-[3px]"
+                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-medium text-foreground bg-[var(--background)] border-l-[3px] dark:bg-gradient-to-r dark:from-white/5 dark:to-transparent"
                                                     style={{
                                                         borderLeftColor: item.tag_color || '#22c55e'
                                                     }}
@@ -1524,15 +1527,17 @@ export const OrderCard = memo(function OrderCard({
                     <motion.div layoutId={getLayoutId(`order-price-${order.id}-${order.status}`)} className="hidden md:block text-right min-w-[100px] flex-shrink-0">
                         {(order.payment_status === "paid" || order.payment_status === "prepaid") ? (
                             <>
-                                <p className="text-lg font-bold text-emerald-600">
+                                <p className="text-[10px] text-muted uppercase tracking-wider mb-0.5 dark:text-[#A1A1A1]">المبلغ الإجمالي</p>
+                                <p className="text-lg font-bold text-emerald-600 dark:text-[#00FFAA] dark:drop-shadow-[0_0_8px_rgba(0,255,170,0.3)]">
                                     واصل
                                 </p>
-                                <p className="text-xs text-muted font-mono">
+                                <p className="text-xs text-muted font-mono dark:text-[#A1A1A1]">
                                     {formatIQD(Math.abs(Number(order.price)))}
                                 </p>
                             </>
                         ) : (
                             <div className="flex flex-col items-end">
+                                <p className="text-[10px] text-muted uppercase tracking-wider mb-0.5 dark:text-[#A1A1A1]">المبلغ الإجمالي</p>
                                 {order.discount_amount ? (
                                     <>
                                         <span className="text-xs text-muted line-through decoration-red-400 decoration-2 font-mono mb-0.5">
@@ -1627,12 +1632,12 @@ export const OrderCard = memo(function OrderCard({
                             <div className="flex-shrink-0 text-right">
                                 {(order.payment_status === "paid" || order.payment_status === "prepaid") ? (
                                     <div className="flex flex-col items-end">
-                                        <span className="text-xs text-emerald-600 font-medium">مدفوع</span>
-                                        <span className="text-lg font-bold text-emerald-600">واصل</span>
+                                        <span className="text-[10px] text-emerald-600 font-medium uppercase tracking-wider dark:text-[#00FFAA] dark:drop-shadow-[0_0_8px_rgba(0,255,170,0.3)]">المبلغ الإجمالي</span>
+                                        <span className="text-lg font-bold text-emerald-600 dark:text-[#00FFAA] dark:drop-shadow-[0_0_8px_rgba(0,255,170,0.3)]">واصل</span>
                                     </div>
                                 ) : (
                                     <div className="flex flex-col items-end">
-                                        <span className="text-[10px] text-muted uppercase tracking-wider">المبلغ</span>
+                                        <span className="text-[10px] text-muted uppercase tracking-wider dark:text-[#A1A1A1]">المبلغ الإجمالي</span>
 
                                         {order.discount_amount ? (
                                             <>
@@ -1675,7 +1680,7 @@ export const OrderCard = memo(function OrderCard({
 
                         {/* Address row */}
                         {fullAddress && (
-                            <div className="flex items-center gap-2 p-2.5 rounded-xl bg-gray-50/80 border border-gray-100 dark:bg-[var(--background)]/80 dark:border-[#314260]">
+                            <div className="flex items-center gap-2 p-2.5 rounded-xl bg-gray-50/80 border border-gray-100 dark:bg-[#1A1A1A] dark:border-white/5">
                                 <MapPin className="w-4 h-4 text-gray-400 dark:text-[var(--foreground-subtle)] flex-shrink-0" />
                                 <span className="text-sm text-gray-600 dark:text-[var(--foreground-muted)] truncate flex-1" dir="rtl">{fullAddress}</span>
                                 {governorateCode && (
@@ -1713,10 +1718,15 @@ export const OrderCard = memo(function OrderCard({
                     )}
 
                     {/* DIVIDER - Desktop only */}
-                    <div className="w-px h-16 bg-[var(--card-border)] flex-shrink-0 hidden md:block" />
+                    <div className="w-px h-16 bg-[var(--card-border)] flex-shrink-0 hidden md:block dark:bg-white/5" />
 
                     {/* ACTION BUTTONS - Desktop only */}
-                    <div className="hidden md:flex items-center gap-2 flex-shrink-0">
+                    <div className={cn(
+                        "hidden md:flex flex-shrink-0 items-center",
+                        actionDock
+                            ? "bg-black/5 dark:bg-[#1A1A1A] p-1 gap-1 flex-row rounded-2xl border border-black/5 dark:border-white/5 shadow-inner"
+                            : "gap-2"
+                    )}>
                         {/* Chat Button - Primary with Contact Stage Indicator */}
                         {(() => {
                             const contactCount = order.contact_count || 0;
@@ -1726,19 +1736,19 @@ export const OrderCard = memo(function OrderCard({
                             const getButtonStyle = () => {
                                 if (!isValidPhone) return "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none";
                                 switch (contactCount) {
-                                    case 0: return "bg-[var(--primary)] text-[var(--primary-fg)] hover:shadow-[0_0_10px_rgba(239,255,0,0.4)] shadow-[0_0_10px_rgba(239,255,0,0.2)] font-bold"; // Neon - New
-                                    case 1: return "bg-yellow-500 text-white hover:bg-yellow-600 shadow-yellow-500/20"; // Yellow - Contacted once
-                                    case 2: return "bg-orange-500 text-white hover:bg-orange-600 shadow-orange-500/20"; // Orange - Contacted twice
-                                    default: return "bg-red-500 text-white hover:bg-red-600 shadow-red-500/20"; // Red - Multiple contacts
+                                    case 0: return "bg-[var(--primary)] text-[var(--primary-fg)] hover:shadow-[0_0_10px_rgba(239,255,0,0.4)] shadow-[0_0_10px_rgba(239,255,0,0.2)] font-bold dark:bg-[rgba(239,255,0,0.1)] dark:text-[#EFFF00] dark:shadow-[0_0_10px_rgba(239,255,0,0.1)] dark:hover:shadow-[0_0_15px_rgba(239,255,0,0.3)] dark:hover:bg-[rgba(239,255,0,0.15)]"; // Neon - New
+                                    case 1: return "bg-yellow-500 text-white hover:bg-yellow-600 shadow-yellow-500/20 dark:bg-yellow-500/10 dark:text-yellow-400 dark:shadow-none"; // Yellow - Contacted once
+                                    case 2: return "bg-orange-500 text-white hover:bg-orange-600 shadow-orange-500/20 dark:bg-orange-500/10 dark:text-orange-400 dark:shadow-none"; // Orange - Contacted twice
+                                    default: return "bg-red-500 text-white hover:bg-red-600 shadow-red-500/20 dark:bg-red-500/10 dark:text-red-400 dark:shadow-none"; // Red - Multiple contacts
                                 }
                             };
 
                             const getBadgeStyle = () => {
                                 switch (contactCount) {
-                                    case 0: return "bg-white text-green-600 border-green-200";
-                                    case 1: return "bg-white text-yellow-600 border-yellow-200";
-                                    case 2: return "bg-white text-orange-600 border-orange-200";
-                                    default: return "bg-white text-red-600 border-red-200";
+                                    case 0: return "bg-white text-green-600 border-green-200 dark:bg-[#1E1E1E] dark:text-[#EFFF00] dark:border-[rgba(239,255,0,0.3)]";
+                                    case 1: return "bg-white text-yellow-600 border-yellow-200 dark:bg-[#1E1E1E] dark:text-yellow-400 dark:border-yellow-500/30";
+                                    case 2: return "bg-white text-orange-600 border-orange-200 dark:bg-[#1E1E1E] dark:text-orange-400 dark:border-orange-500/30";
+                                    default: return "bg-white text-red-600 border-red-200 dark:bg-[#1E1E1E] dark:text-red-400 dark:border-red-500/30";
                                 }
                             };
 
@@ -1769,7 +1779,8 @@ export const OrderCard = memo(function OrderCard({
                                     }}
                                     disabled={!isValidPhone}
                                     className={cn(
-                                        "w-10 h-10 rounded-xl transition-all shadow-md flex items-center justify-center relative",
+                                        "w-10 h-10 transition-all flex items-center justify-center relative",
+                                        actionDock ? "rounded-xl shadow-none" : "rounded-xl shadow-md",
                                         getButtonStyle()
                                     )}
                                     title={getTitle()}
@@ -1796,11 +1807,14 @@ export const OrderCard = memo(function OrderCard({
                                     );
                                     window.open(link, "_blank");
                                 }}
-                                className="w-10 h-10 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center relative"
+                                className={cn(
+                                    "w-10 h-10 bg-emerald-500 text-white hover:bg-emerald-600 transition-all flex items-center justify-center relative dark:bg-[rgba(0,255,100,0.15)] dark:text-[#00FFAA] dark:hover:bg-[rgba(0,255,100,0.25)]",
+                                    actionDock ? "rounded-xl shadow-none" : "rounded-xl shadow-md shadow-emerald-500/20 dark:shadow-none"
+                                )}
                                 title="Chat on WhatsApp (Secondary)"
                             >
                                 <MessageCircle className="w-4 h-4" />
-                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full text-[10px] font-bold text-emerald-600 flex items-center justify-center shadow-sm border border-emerald-200">2</span>
+                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full text-[10px] font-bold text-emerald-600 flex items-center justify-center shadow-sm border border-emerald-200 dark:bg-[#1E1E1E] dark:border-[rgba(0,255,100,0.3)] dark:text-[#00FFAA]">2</span>
                             </button>
                         )}
 
@@ -1810,7 +1824,12 @@ export const OrderCard = memo(function OrderCard({
                                 e.stopPropagation();
                                 onViewDetails(order);
                             }}
-                            className="w-10 h-10 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-foreground hover:bg-[var(--card-border)] transition-all flex items-center justify-center"
+                            className={cn(
+                                "w-10 h-10 flex items-center justify-center transition-all bg-[var(--background)] text-foreground hover:bg-[var(--card-border)] dark:text-[#A1A1A1] dark:hover:text-white dark:hover:bg-white/5",
+                                actionDock
+                                    ? "rounded-xl border-transparent bg-transparent dark:bg-transparent dark:border-transparent"
+                                    : "rounded-xl border border-[var(--card-border)] dark:bg-black/20 dark:border-white/5 dark:hover:border-white/20"
+                            )}
                             title="Edit Order"
                         >
                             <Edit className="w-4 h-4" />
@@ -1835,10 +1854,11 @@ export const OrderCard = memo(function OrderCard({
                                     setActionsOpen(true);
                                 }}
                                 className={cn(
-                                    "w-10 h-10 rounded-xl border transition-all flex items-center justify-center",
+                                    "w-10 h-10 transition-all flex items-center justify-center",
+                                    actionDock ? "rounded-xl border-transparent" : "rounded-xl border",
                                     actionsOpen
-                                        ? "bg-gray-100 border-gray-300 text-gray-700"
-                                        : "bg-[var(--background)] border-[var(--card-border)] text-muted hover:bg-[var(--card-border)]"
+                                        ? (actionDock ? "bg-black/5 text-gray-700 dark:bg-white/10 dark:text-white" : "bg-gray-100 border-gray-300 text-gray-700 dark:bg-white/10 dark:border-white/20 dark:text-white")
+                                        : (actionDock ? "bg-transparent text-muted hover:bg-black/5 dark:text-[#A1A1A1] dark:hover:text-white dark:hover:bg-white/5" : "bg-[var(--background)] border-[var(--card-border)] text-muted hover:bg-[var(--card-border)] dark:bg-black/20 dark:border-white/5 dark:text-[#A1A1A1] dark:hover:text-white dark:hover:border-white/20 dark:hover:bg-white/5")
                                 )}
                                 title="More Actions"
                             >
@@ -1855,7 +1875,7 @@ export const OrderCard = memo(function OrderCard({
                                         right: menuPosition.right,
                                         zIndex: 9999
                                     }}
-                                    className="bg-[var(--card-bg)] rounded-2xl shadow-lg border border-[var(--card-border)] py-2 min-w-[140px]"
+                                    className="bg-[var(--card-bg)] rounded-2xl shadow-lg border border-[var(--card-border)] py-2 min-w-[140px] dark:shadow-[0_10px_40px_rgba(0,0,0,0.8)] dark:border-[#333]"
                                 >
                                     {/* Copy */}
                                     <button
