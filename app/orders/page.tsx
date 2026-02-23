@@ -39,6 +39,10 @@ const ImportOrdersModal = dynamic(
     () => import("@/components/orders/import-orders-modal").then(mod => ({ default: mod.ImportOrdersModal })),
     { ssr: false }
 );
+const ExportReportModal = dynamic(
+    () => import("@/components/orders/export-report-modal").then(mod => ({ default: mod.ExportReportModal })),
+    { ssr: false }
+);
 const WhatsAppTemplatePanel = dynamic(
     () => import("@/components/orders/whatsapp-template-panel").then(mod => ({ default: mod.WhatsAppTemplatePanel })),
     { ssr: false }
@@ -143,6 +147,7 @@ export default function OrdersPage() {
         clearFilters,
         bulkUpdateStatus,
         bulkArchive,
+        bulkUnarchive,
         bulkDelete,
         exportOrders,
         createBatch,
@@ -172,6 +177,7 @@ export default function OrdersPage() {
         // Archive
         archivedOrders,
         fetchArchivedOrders,
+        getCustomerArchivedCount,
         // Undo
         undoLastAction,
         getLastUndoAction,
@@ -268,6 +274,7 @@ export default function OrdersPage() {
     const [orderForTemplate, setOrderForTemplate] = useState<Order | null>(null);
     // State for import modal
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [isExportModalOpen, setIsExportModalOpen] = useState(false);
     // State for split order dialog
     const [splitOrderDialog, setSplitOrderDialog] = useState<{ open: boolean; order: Order | null }>({
         open: false,
@@ -521,8 +528,15 @@ export default function OrdersPage() {
 
     const handleStatusUpdate = async (orderId: string, status: Order["status"], reason?: string) => {
         setLoadingId(orderId);
-        await updateOrderStatus(orderId, status, reason);
+        const result = await updateOrderStatus(orderId, status, reason);
         setLoadingId(null);
+        if (result?.success || result === undefined) {
+            // In case updateOrderStatus doesn't return the standard result object but succeeds
+            // (assuming it throws on critical error, or returns {success:true})
+            toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDesc").replace("{status}", String(status)));
+        } else if (result?.error) {
+            toast.error(t("toast.updateFailed"), result.error);
+        }
     };
 
     const toggleOrderSelection = (orderId: string) => {
@@ -546,26 +560,51 @@ export default function OrdersPage() {
     // Handle bulk actions
     const handleBulkConfirm = async () => {
         const ids = Array.from(selectedOrders);
-        await bulkUpdateStatus(ids, "confirmed");
+        const result = await bulkUpdateStatus(ids, "confirmed");
         setSelectedOrders(new Set());
+        if (result?.success || result === undefined) toast.success(t("toast.ordersConfirmed"), t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)));
+        else if (result?.error) toast.error(t("toast.updateFailed"), result.error);
     };
 
     const handleBulkDeliver = async () => {
         const ids = Array.from(selectedOrders);
-        await bulkUpdateStatus(ids, "delivered");
+        const result = await bulkUpdateStatus(ids, "delivered");
         setSelectedOrders(new Set());
+        if (result?.success || result === undefined) toast.success(t("toast.ordersDelivered"), t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)));
+        else if (result?.error) toast.error(t("toast.updateFailed"), result.error);
     };
 
     const handleBulkReject = async () => {
         const ids = Array.from(selectedOrders);
-        await bulkUpdateStatus(ids, "rejected");
+        const result = await bulkUpdateStatus(ids, "rejected");
         setSelectedOrders(new Set());
+        if (result?.success || result === undefined) toast.success(t("toast.ordersRejected"), t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)));
+        else if (result?.error) toast.error(t("toast.updateFailed"), result.error);
     };
 
     const handleBulkArchive = async () => {
         const ids = Array.from(selectedOrders);
-        await bulkArchive(ids);
+        const result = await bulkArchive(ids);
         setSelectedOrders(new Set());
+        if (result?.success || result === undefined) {
+            toast({
+                title: t("toast.ordersArchived"),
+                description: t("toast.ordersArchivedDesc").replace("{count}", String(ids.length)),
+                variant: "success",
+                action: {
+                    label: t("toast.undo") || "Undo",
+                    onClick: async () => {
+                        const undoRes = await bulkUnarchive(ids);
+                        if (undoRes.success) {
+                            toast.success(t("toast.ordersRestored") || "Restored", t("toast.ordersRestoredDesc") || "Orders returned to the active list");
+                        } else {
+                            toast.error(t("toast.updateFailed"), undoRes.error);
+                        }
+                    }
+                }
+            });
+        }
+        else if (result?.error) toast.error(t("toast.archiveFailed"), result.error);
     };
 
     const handleBulkDelete = async () => {
@@ -576,7 +615,7 @@ export default function OrdersPage() {
         const result = await bulkDelete(ids);
 
         if (!result.success && (!result.count || result.count === 0)) {
-            toast.error("Delete failed", result.error || "Could not delete selected orders.");
+            toast.error(t("toast.deleteFailed"), result.error || t("toast.deleteFailedDesc"));
             return;
         }
 
@@ -592,46 +631,67 @@ export default function OrdersPage() {
             return;
         }
 
-        toast.success("Orders deleted", `${deletedCount} orders permanently deleted`);
+        toast.success(t("toast.ordersDeleted"), t("toast.ordersDeletedDesc").replace("{count}", String(deletedCount)));
         setSelectedOrders(new Set());
     };
 
     // Additional bulk status handlers
     const handleBulkNew = async () => {
         const ids = Array.from(selectedOrders);
-        await bulkUpdateStatus(ids, "new");
+        const result = await bulkUpdateStatus(ids, "new");
         setSelectedOrders(new Set());
+        if (result?.success || result === undefined) toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "New"));
+        else if (result?.error) toast.error(t("toast.updateFailed"), result.error);
     };
 
     const handleBulkContacted = async () => {
         const ids = Array.from(selectedOrders);
-        await bulkUpdateStatus(ids, "contacted");
+        const result = await bulkUpdateStatus(ids, "contacted");
         setSelectedOrders(new Set());
+        if (result?.success || result === undefined) toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "Contacted"));
+        else if (result?.error) toast.error(t("toast.updateFailed"), result.error);
     };
 
     const handleBulkInTransit = async () => {
         const ids = Array.from(selectedOrders);
-        await bulkUpdateStatus(ids, "in_transit");
+        const result = await bulkUpdateStatus(ids, "in_transit");
         setSelectedOrders(new Set());
+        if (result?.success || result === undefined) toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "In Transit"));
+        else if (result?.error) toast.error(t("toast.updateFailed"), result.error);
     };
 
     const handleBulkCompleted = async () => {
         const ids = Array.from(selectedOrders);
-        await bulkUpdateStatus(ids, "completed");
+        const result = await bulkUpdateStatus(ids, "completed");
         setSelectedOrders(new Set());
+        if (result?.success || result === undefined) toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "Completed"));
+        else if (result?.error) toast.error(t("toast.updateFailed"), result.error);
     };
 
     const handleBulkNoResponse = async () => {
         const ids = Array.from(selectedOrders);
-        await bulkUpdateStatus(ids, "no_response");
+        const result = await bulkUpdateStatus(ids, "no_response");
         setSelectedOrders(new Set());
+        if (result?.success || result === undefined) toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "No Response"));
+        else if (result?.error) toast.error(t("toast.updateFailed"), result.error);
     };
 
     const handleExport = () => {
         const ids = selectedOrders.size > 0
             ? Array.from(selectedOrders)
             : filteredOrders.map(o => o.id);
-        exportOrders(ids, "xlsx");
+
+        if (ids.length === 0) {
+            toast.warning(t("toast.noOrders"), t("toast.noOrdersDesc"));
+            return;
+        }
+
+        try {
+            exportOrders(ids, "xlsx");
+            toast.success(t("toast.exportSuccessful"), t("toast.exportSuccessfulDesc").replace("{count}", String(ids.length)));
+        } catch (error) {
+            toast.error(t("toast.exportFailed"), t("toast.exportFailedDesc"));
+        }
     };
 
     const handlePrimeExport = async () => {
@@ -881,8 +941,22 @@ export default function OrdersPage() {
                                                 placeholder="Search orders..."
                                                 value={localSearchQuery}
                                                 onChange={(e) => setLocalSearchQuery(e.target.value)}
-                                                className="w-full pl-10 pr-4 py-2.5 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                                                className="w-full pl-10 pr-12 py-2.5 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                                             />
+                                            {localSearchQuery && (
+                                                <button
+                                                    onClick={() => setFilters(prev => ({ ...prev, searchIncludesArchive: !prev.searchIncludesArchive }))}
+                                                    className={cn(
+                                                        "absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all",
+                                                        filters.searchIncludesArchive
+                                                            ? "bg-orange-100 text-orange-600 shadow-sm dark:bg-[var(--primary)] dark:text-black"
+                                                            : "text-muted-foreground hover:bg-amber-100/40"
+                                                    )}
+                                                    title="Include Archive in Search"
+                                                >
+                                                    <Archive className="w-3.5 h-3.5" />
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
 
@@ -955,15 +1029,15 @@ export default function OrdersPage() {
 
                                             {/* Order Count - Glass Pill */}
                                             <div className="flex items-center gap-3 pl-2 pr-5 py-2 rounded-full bg-white/40 backdrop-blur-md border border-white/20 ring-1 ring-black/5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] orders-toolbar-pill">
-                                                <div className="p-2 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/30">
+                                                <div className="p-2 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 dark:!bg-none dark:bg-[var(--primary)] text-white dark:text-black shadow-lg shadow-amber-500/30 dark:shadow-[0_0_12px_rgba(239,255,0,0.4)]">
                                                     <Package className="w-4 h-4" />
                                                 </div>
                                                 <div className="flex flex-col leading-none">
                                                     <div className="flex items-baseline gap-1.5">
-                                                        <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-br from-foreground to-foreground/70">
+                                                        <span className="text-2xl font-black text-foreground dark:text-white">
                                                             {filteredOrders.length}
                                                         </span>
-                                                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("orders.title")}</span>
+                                                        <span className="text-xs font-semibold text-muted-foreground dark:text-[var(--foreground-muted)] uppercase tracking-wide">{t("orders.title")}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1031,7 +1105,7 @@ export default function OrdersPage() {
                                                         className={cn(
                                                             "px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2",
                                                             !workflowMode
-                                                                ? "bg-white text-foreground shadow-sm dark:bg-[var(--ink)] dark:text-[var(--ink-contrast)] dark:shadow-black/20"
+                                                                ? "bg-white text-foreground shadow-sm dark:bg-[var(--primary)] dark:text-black dark:shadow-[0_0_8px_rgba(239,255,0,0.2)]"
                                                                 : "text-muted-foreground hover:text-foreground"
                                                         )}
                                                     >
@@ -1042,7 +1116,7 @@ export default function OrdersPage() {
                                                         className={cn(
                                                             "px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2",
                                                             workflowMode
-                                                                ? "bg-white text-foreground shadow-sm dark:bg-[var(--ink)] dark:text-[var(--ink-contrast)] dark:shadow-black/20"
+                                                                ? "bg-white text-foreground shadow-sm dark:bg-[var(--primary)] dark:text-black dark:shadow-[0_0_8px_rgba(239,255,0,0.2)]"
                                                                 : "text-muted-foreground hover:text-foreground"
                                                         )}
                                                     >
@@ -1065,8 +1139,8 @@ export default function OrdersPage() {
                                                         className={cn(
                                                             "p-2.5 rounded-xl transition-all duration-300",
                                                             viewMode === v.mode
-                                                                ? "bg-white text-foreground shadow-sm dark:bg-[var(--ink)] dark:text-[var(--ink-contrast)] dark:shadow-black/20 ring-1 ring-black/5"
-                                                                : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground"
+                                                                ? "bg-white text-foreground shadow-sm dark:bg-[var(--primary)] dark:text-black dark:shadow-[0_0_8px_rgba(239,255,0,0.2)] ring-1 ring-black/5"
+                                                                : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground dark:hover:bg-white/5"
                                                         )}
                                                     >
                                                         <v.icon className="w-4 h-4" />
@@ -1083,9 +1157,9 @@ export default function OrdersPage() {
                                                         }}
                                                         className={cn(
                                                             "p-2.5 rounded-xl transition-all duration-300",
-                                                            compactView === 1 && "bg-purple-100 text-purple-600 shadow-sm",
-                                                            compactView === 2 && "bg-indigo-100 text-indigo-600 shadow-sm",
-                                                            compactView === 0 && "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground"
+                                                            compactView === 1 && "bg-purple-100 text-purple-600 shadow-sm dark:bg-[var(--primary)] dark:text-black",
+                                                            compactView === 2 && "bg-indigo-100 text-indigo-600 shadow-sm dark:bg-[var(--primary)] dark:text-black",
+                                                            compactView === 0 && "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground dark:hover:bg-white/5"
                                                         )}
                                                         title={compactView === 0 ? "Switch to Compact" : compactView === 1 ? "Compact View" : "Ultra Compact"}
                                                     >
@@ -1109,8 +1183,8 @@ export default function OrdersPage() {
                                                         className={cn(
                                                             "p-2.5 rounded-xl transition-all duration-300",
                                                             compactGrid
-                                                                ? "bg-amber-100 text-amber-700 shadow-sm"
-                                                                : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground"
+                                                                ? "bg-amber-100 text-amber-700 shadow-sm dark:bg-[var(--primary)] dark:text-black"
+                                                                : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground dark:hover:bg-white/5"
                                                         )}
                                                         title={compactGrid ? "Grid View" : "Switch to Grid"}
                                                     >
@@ -1215,8 +1289,8 @@ export default function OrdersPage() {
                                                     className={cn(
                                                         "p-2.5 rounded-xl transition-all duration-300",
                                                         showSearchBar
-                                                            ? "bg-blue-100 text-blue-600 shadow-sm"
-                                                            : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground"
+                                                            ? "bg-blue-100 text-blue-600 shadow-sm dark:bg-[var(--primary)] dark:text-black"
+                                                            : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground dark:hover:bg-white/5"
                                                     )}
                                                     title="Advanced Filters"
                                                 >
@@ -1274,8 +1348,8 @@ export default function OrdersPage() {
                                                     className={cn(
                                                         "p-2.5 rounded-xl transition-all duration-300",
                                                         notificationsEnabled
-                                                            ? "bg-green-100 text-green-600 shadow-sm"
-                                                            : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground"
+                                                            ? "bg-green-100 text-green-600 shadow-sm dark:bg-[var(--primary)] dark:text-black"
+                                                            : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground dark:hover:bg-white/5"
                                                     )}
                                                     title="Notifications"
                                                 >
@@ -1292,8 +1366,8 @@ export default function OrdersPage() {
                                                     className={cn(
                                                         "p-2.5 rounded-xl transition-all duration-300",
                                                         analyticsLevel > 0
-                                                            ? "bg-indigo-100 text-indigo-600 shadow-sm"
-                                                            : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground"
+                                                            ? "bg-indigo-100 text-indigo-600 shadow-sm dark:bg-[var(--primary)] dark:text-black"
+                                                            : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground dark:hover:bg-white/5"
                                                     )}
                                                     title="Analytics"
                                                 >
@@ -1330,7 +1404,7 @@ export default function OrdersPage() {
                                                     <Upload className="w-4 h-4" />
                                                 </button>
                                                 <button
-                                                    onClick={handleExport}
+                                                    onClick={() => setIsExportModalOpen(true)}
                                                     className="p-2.5 rounded-xl text-muted-foreground hover:bg-amber-200/60 hover:text-foreground transition-all duration-300"
                                                     title="Export"
                                                 >
@@ -1352,10 +1426,10 @@ export default function OrdersPage() {
                                             <div className="flex items-center gap-2">
                                                 <button
                                                     onClick={() => setIsCreateModalOpen(true)}
-                                                    className="group relative px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 transition-all duration-300 overflow-hidden"
+                                                    className="group relative px-4 py-2.5 rounded-xl bg-foreground text-background hover:bg-foreground/90 dark:bg-[var(--primary)] dark:text-[var(--primary-fg)] dark:hover:bg-[var(--primary)] dark:shadow-[0_0_15px_rgba(239,255,0,0.3)] dark:hover:shadow-[0_0_20px_rgba(239,255,0,0.5)] hover:-translate-y-0.5 transition-all duration-300 overflow-hidden"
                                                 >
                                                     <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                                                    <div className="relative flex items-center gap-2 font-semibold text-sm">
+                                                    <div className="relative flex items-center gap-2 font-bold text-sm">
                                                         <Plus className="w-4 h-4" />
                                                         <span className="whitespace-nowrap hidden lg:inline">{t("orders.newOrder")}</span>
                                                         <span className="whitespace-nowrap lg:hidden">{t("orders.newOrderShort")}</span>
@@ -1398,7 +1472,7 @@ export default function OrdersPage() {
                                                                     <span className="text-xs font-bold text-rose-600 uppercase tracking-wider">New</span>
                                                                 </div>
                                                                 <div className="flex items-baseline gap-1">
-                                                                    <h3 className="text-3xl font-bold text-rose-900">{statusCounts.new || 0}</h3>
+                                                                    <h3 className="text-3xl font-bold text-rose-900 dark:text-white">{statusCounts.new || 0}</h3>
                                                                     <span className="text-sm font-medium text-rose-600/80">orders</span>
                                                                 </div>
                                                             </div>
@@ -1417,7 +1491,7 @@ export default function OrdersPage() {
                                                                     <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">Contacted</span>
                                                                 </div>
                                                                 <div className="flex items-baseline gap-1">
-                                                                    <h3 className="text-3xl font-bold text-amber-900">{statusCounts.contacted || 0}</h3>
+                                                                    <h3 className="text-3xl font-bold text-amber-900 dark:text-white">{statusCounts.contacted || 0}</h3>
                                                                     <span className="text-sm font-medium text-amber-600/80">active</span>
                                                                 </div>
                                                             </div>
@@ -1436,7 +1510,7 @@ export default function OrdersPage() {
                                                                     <span className="text-xs font-bold text-violet-600 uppercase tracking-wider">Confirmed</span>
                                                                 </div>
                                                                 <div className="flex items-baseline gap-1">
-                                                                    <h3 className="text-3xl font-bold text-violet-900">{statusCounts.confirmed || 0}</h3>
+                                                                    <h3 className="text-3xl font-bold text-violet-900 dark:text-white">{statusCounts.confirmed || 0}</h3>
                                                                     <span className="text-sm font-medium text-violet-600/80">ready</span>
                                                                 </div>
                                                             </div>
@@ -1455,7 +1529,7 @@ export default function OrdersPage() {
                                                                     <span className="text-xs font-bold text-orange-600 uppercase tracking-wider">Transit</span>
                                                                 </div>
                                                                 <div className="flex items-baseline gap-1">
-                                                                    <h3 className="text-3xl font-bold text-orange-900">{statusCounts.in_transit || 0}</h3>
+                                                                    <h3 className="text-3xl font-bold text-orange-900 dark:text-white">{statusCounts.in_transit || 0}</h3>
                                                                     <span className="text-sm font-medium text-orange-600/80">shipped</span>
                                                                 </div>
                                                             </div>
@@ -1474,7 +1548,7 @@ export default function OrdersPage() {
                                                                     <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Conversion</span>
                                                                 </div>
                                                                 <div className="flex items-end gap-2">
-                                                                    <h3 className="text-3xl font-bold text-foreground">{stats.conversionRate.toFixed(1)}%</h3>
+                                                                    <h3 className="text-3xl font-bold text-foreground dark:text-white">{stats.conversionRate.toFixed(1)}%</h3>
                                                                 </div>
                                                                 {/* Animated Progress Bar */}
                                                                 <div className="w-full h-1.5 bg-gray-100 rounded-full mt-3 overflow-hidden">
@@ -1601,8 +1675,23 @@ export default function OrdersPage() {
                                                             placeholder={t("orders.searchPlaceholder")}
                                                             value={localSearchQuery}
                                                             onChange={(e) => setLocalSearchQuery(e.target.value)}
-                                                            className="w-full pl-12 pr-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all"
+                                                            className="w-full pl-12 pr-14 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all dark:focus:ring-[rgba(0,255,255,0.4)] dark:focus:border-[rgba(0,255,255,0.5)] dark:focus:shadow-[0_0_15px_rgba(0,255,255,0.1)]"
                                                         />
+                                                        {localSearchQuery && (
+                                                            <button
+                                                                onClick={() => setFilters(prev => ({ ...prev, searchIncludesArchive: !prev.searchIncludesArchive }))}
+                                                                className={cn(
+                                                                    "absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl transition-all flex items-center gap-2",
+                                                                    filters.searchIncludesArchive
+                                                                        ? "bg-orange-100 text-orange-600 shadow-sm dark:bg-[var(--primary)] dark:text-black"
+                                                                        : "text-muted-foreground hover:bg-amber-100/40"
+                                                                )}
+                                                                title="Include Archive in Search"
+                                                            >
+                                                                <Archive className="w-4 h-4" />
+                                                                {!isMobile && <span className="text-xs font-bold uppercase tracking-wider">Archive</span>}
+                                                            </button>
+                                                        )}
                                                     </div>
                                                     {/* Sort dropdown removed in favor of column sorting */}
                                                 </div>
@@ -1969,6 +2058,7 @@ export default function OrdersPage() {
                                                             riskLevel={getRiskLevel(order.phone)}
                                                             riskAssessment={getAssessment(order.phone)}
                                                             customerOrderCount={orderCount}
+                                                            archivedOrderCount={getCustomerArchivedCount(order.phone)}
                                                             previousOrder={previousOrder}
                                                             onMergeWithPrevious={async (keepId: string, archiveId: string) => {
                                                                 const result = await mergeOrders(keepId, archiveId);
@@ -2049,6 +2139,7 @@ export default function OrdersPage() {
                                                 isBlacklisted={isBlacklisted}
                                                 getRiskAssessment={getAssessment}
                                                 getCustomerOrderCount={getCustomerOrderCount}
+                                                getCustomerArchivedCount={getCustomerArchivedCount}
                                                 getCustomerHistory={getCustomerHistory}
                                                 getReturnOrderInfo={getReturnOrderInfo}
                                                 getOriginalOrderInfo={getOriginalOrderInfo}
@@ -2080,6 +2171,7 @@ export default function OrdersPage() {
                                                                 riskLevel={getRiskLevel(order.phone)}
                                                                 riskAssessment={getAssessment(order.phone)}
                                                                 customerOrderCount={orderCount}
+                                                                archivedOrderCount={getCustomerArchivedCount(order.phone)}
                                                                 previousOrder={previousOrder}
                                                                 onMergeWithPrevious={async (keepId: string, archiveId: string) => {
                                                                     const result = await mergeOrders(keepId, archiveId);
@@ -2275,62 +2367,17 @@ export default function OrdersPage() {
                     )}
                 </AnimatePresence>
 
-                {/* 🧪 TEMPORARY: Toast Tester — remove after testing */}
-                <div
-                    style={{
-                        position: 'fixed',
-                        top: 16,
-                        left: 16,
-                        zIndex: 9999,
-                        display: 'flex',
-                        gap: 6,
-                        padding: '8px 12px',
-                        borderRadius: 16,
-                        background: 'rgba(30,30,30,0.85)',
-                        backdropFilter: 'blur(12px)',
-                        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        alignItems: 'center',
-                        fontFamily: 'var(--font-sans)',
-                    }}
-                >
-                    <span style={{ color: '#999', fontSize: 11, marginRight: 4 }}>🧪</span>
-                    {[
-                        { label: '✅', variant: 'success' as const, title: 'Order confirmed', desc: 'Order #1234 → Confirmed' },
-                        { label: '❌', variant: 'error' as const, title: 'Action failed', desc: 'Could not update order status' },
-                        { label: '⚠️', variant: 'warning' as const, title: 'Partial delete', desc: '3 of 5 orders deleted' },
-                        { label: 'ℹ️', variant: 'default' as const, title: 'Info', desc: 'This is an informational toast' },
-                        { label: '↩️', variant: 'default' as const, title: 'Status updated', desc: 'Order moved to Delivered', hasUndo: true },
-                    ].map((t, i) => (
-                        <button
-                            key={i}
-                            onClick={() => toast({
-                                title: t.title,
-                                description: t.desc,
-                                variant: t.variant,
-                                action: t.hasUndo ? { label: "Undo", onClick: () => console.log("Undo clicked") } : undefined
-                            })}
-                            style={{
-                                width: 32,
-                                height: 32,
-                                borderRadius: 10,
-                                border: 'none',
-                                cursor: 'pointer',
-                                fontSize: 14,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                background: 'rgba(255,255,255,0.08)',
-                                transition: 'background 0.15s',
-                            }}
-                            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.18)')}
-                            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
-                            title={`Test ${t.variant} toast`}
-                        >
-                            {t.label}
-                        </button>
-                    ))}
-                </div>
+
+                {/* Export Report Modal */}
+                <ExportReportModal
+                    open={isExportModalOpen}
+                    onClose={() => setIsExportModalOpen(false)}
+                    filteredOrders={filteredOrders}
+                    selectedOrderIds={selectedOrders}
+                    allOrders={orders}
+                    currentDateFrom={filters.dateFrom}
+                    currentDateTo={filters.dateTo}
+                />
 
             </div >
         </PageTransition >

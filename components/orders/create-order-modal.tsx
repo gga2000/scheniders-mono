@@ -243,7 +243,7 @@ export function CreateOrderModal({
     return (
         <>
             <Dialog open={open} onOpenChange={(isOpen) => { if (!showProductPicker) handleClose(); }} modal={!showProductPicker}>
-                <DialogContent className="max-w-2xl bg-white border border-[var(--card-border)] !rounded-2xl overflow-hidden p-0">
+                <DialogContent className="max-w-2xl bg-white border border-[var(--card-border)] !rounded-2xl overflow-hidden p-0 create-order-modal">
                     {/* Header */}
                     <DialogHeader className="px-6 py-4 border-b border-[var(--card-border)] bg-[var(--background)]">
                         <DialogTitle className="flex items-center gap-3 text-foreground">

@@ -26,7 +26,7 @@ export function OrderNotes({
     };
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 order-detail-notes">
             {/* Order Notes - Shown on invoice */}
             <div className="bg-white rounded-xl border border-amber-200 overflow-hidden">
                 <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border-b border-amber-200">

@@ -93,8 +93,8 @@ export function StickyFilterBar({
                                 : "px-4 py-2 text-sm font-medium",
 
                             filters.status === option.id || (option.id === "all" && !filters.status)
-                                ? "bg-[var(--ink)] text-[var(--ink-contrast)] border-[var(--ink)] shadow-lg scale-105"
-                                : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95 dark:hover:bg-white/5 dark:hover:border-[#4a5f87]"
+                                ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)] font-bold shadow-[0_0_15px_rgba(239,255,0,0.2)] scale-105"
+                                : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95 dark:bg-[#1E1E1E] dark:text-[#A1A1A1] dark:border-[#3F3F3F] dark:hover:border-[rgba(0,255,255,0.4)] dark:hover:text-white dark:hover:bg-[#242424]"
                         )}
                     >
                         <span>{isMobile ? option.label : (option.fullLabel || option.label)}</span>

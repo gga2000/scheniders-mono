@@ -17,6 +17,7 @@ import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils"
 import { getAllGovernorateCodes, extractGovernorate } from "@/lib/address-validator";
 import { cn } from "@/lib/utils";
 import type { Order, OrderStatusHistory, OrderNote } from "@/lib/supabase";
+import { toast } from "@/hooks/use-toast";
 import { OrderTimeline } from "./order-timeline";
 import { PresenceAvatarGroup } from "./presence-avatar-group";
 import { ProductPicker } from "./product-picker";
@@ -127,7 +128,7 @@ export function OrderDetailsModal({
             onClose(); // Close modal as the order is now split and changed significantly
             // Optionally show toast success
         } else {
-            alert("Failed to split: " + result.error);
+            toast.error(t("toast.splitFailed"), result.error || t("toast.splitFailedDesc"));
         }
     };
 
@@ -265,7 +266,7 @@ export function OrderDetailsModal({
             setShowIdWarning(false);
             setIsEditingId(false);
         } else {
-            alert("Failed to update ID: " + result.error);
+            toast.error(t("toast.updateFailed"), result.error || t("toast.updateIdFailedDesc"));
             setShowIdWarning(false);
         }
     };
@@ -303,7 +304,9 @@ export function OrderDetailsModal({
 
         // If date is being modified and original_created_at is not already set
         const dataToSave = { ...formData };
-        if (dataToSave.created_at && dataToSave.created_at !== order.created_at && !order.original_created_at) {
+        const dateActuallyChanged = dataToSave.created_at &&
+            new Date(dataToSave.created_at).getTime() !== new Date(order.created_at).getTime();
+        if (dateActuallyChanged && !order.original_created_at) {
             dataToSave.original_created_at = order.created_at;
         }
 
@@ -314,8 +317,9 @@ export function OrderDetailsModal({
             setOrder((prev) => prev ? { ...prev, ...dataToSave } as Order : prev);
             setIsEditing(false);
             setFormData({});
+            toast.success(t("toast.orderUpdated"), t("toast.orderUpdatedDesc"));
         } else {
-            alert(`${t("orderDetail.saveFailed")} ${result.error}`);
+            toast.error(t("toast.saveFailed"), result.error || t("orderDetail.saveFailed"));
         }
 
         setIsSaving(false);
@@ -335,8 +339,9 @@ export function OrderDetailsModal({
                 const updatedNotes = await onGetNotes(order.id);
                 setNotes(updatedNotes);
             }
+            toast.success(t("toast.noteAdded"), t("toast.noteAddedDesc"));
         } else {
-            alert(`${t("orderDetail.noteFailed")} ${result.error}`);
+            toast.error(t("toast.noteFailed"), result.error || t("orderDetail.noteFailed"));
         }
         setIsAddingNote(false);
     };
@@ -366,9 +371,11 @@ export function OrderDetailsModal({
         const result = await onStatusUpdate(order.id, newStatus, rejectionReason);
 
         if (!result.success) {
-            alert(`${t("orderDetail.statusFailed")} ${result.error}`);
+            toast.error(t("toast.statusFailed"), result.error || t("orderDetail.statusFailed"));
             // Revert on failure
             setOrder(prev => prev ? { ...prev, status: previousStatus } : null);
+        } else {
+            toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDesc").replace("{status}", String(newStatus)));
         }
 
         setIsUpdatingStatus(false);
@@ -851,11 +858,11 @@ export function OrderDetailsModal({
                                         <button
                                             onClick={async () => {
                                                 if (!returnReason) {
-                                                    alert(t("orderDetail.selectReasonError"));
+                                                    toast.warning(t("toast.missingReason"), t("orderDetail.selectReasonError"));
                                                     return;
                                                 }
                                                 if (!onCreateReturn) {
-                                                    alert(t("orderDetail.noReturnContext"));
+                                                    toast.error(t("toast.error"), t("orderDetail.noReturnContext"));
                                                     return;
                                                 }
                                                 setIsCreatingReturn(true);
@@ -871,12 +878,13 @@ export function OrderDetailsModal({
                                                         setReturnReason("");
                                                         setDeductDeliveryFee(false);
                                                         onClose();
+                                                        toast.success(t("toast.returnCreated"), t("toast.returnCreatedDesc"));
                                                     } else {
-                                                        alert(result.error || t("orderDetail.returnError"));
+                                                        toast.error(t("toast.returnFailed"), result.error || t("orderDetail.returnError"));
                                                     }
                                                 } catch (err) {
                                                     setIsCreatingReturn(false);
-                                                    alert(`${t("orderDetail.returnError")}: ${err instanceof Error ? err.message : "Unknown error"}`);
+                                                    toast.error(t("toast.returnError"), `${t("orderDetail.returnError")}: ${err instanceof Error ? err.message : "Unknown error"}`);
                                                 }
                                             }}
                                             disabled={isCreatingReturn || !returnReason}

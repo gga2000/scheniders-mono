@@ -219,6 +219,7 @@ export interface OrderFilters {
     isReturn?: boolean;
     isArchived?: boolean;
     searchQuery?: string;
+    searchIncludesArchive?: boolean;
     riskLevel?: 'low' | 'medium' | 'high' | 'blocked' | 'flagged';
 }
 
