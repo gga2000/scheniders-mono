@@ -187,7 +187,7 @@ export function GlobalSearch() {
     };
 
     return (
-        <div ref={containerRef} className="relative flex-1 max-w-2xl">
+        <div ref={containerRef} className="relative w-full max-w-2xl">
             {/* Search Bar */}
             <div className={cn(
                 "flex items-center gap-3 bg-[var(--card-bg)] rounded-full border border-[var(--card-border)] px-4 py-2.5 transition-all",
@@ -361,36 +361,51 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
     }
 
     return (
-        <header className="sticky top-0 z-40 px-4 md:px-6 py-3 md:py-4 bg-[var(--background)]">
-            <div className="flex items-center gap-3 md:gap-6">
-                {/* Mobile Menu Button */}
-                {isMobile && onMenuClick && (
-                    <button
-                        onClick={onMenuClick}
-                        className="w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-foreground hover:bg-[var(--background)] transition-all flex-shrink-0"
-                        aria-label="Open menu"
-                    >
-                        <svg
-                            className="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+        <header className="sticky top-0 z-50">
+            {/* Glassmorphism Background with Fade Edge */}
+            <div
+                className="absolute top-0 inset-x-0 -bottom-8 bg-transparent backdrop-blur-md pointer-events-none"
+                style={{
+                    maskImage: 'linear-gradient(to right, transparent 0px, black 24px), linear-gradient(to bottom, black 65%, transparent 100%)',
+                    WebkitMaskImage: 'linear-gradient(to right, transparent 0px, black 24px), linear-gradient(to bottom, black 65%, transparent 100%)',
+                    WebkitMaskComposite: 'source-in',
+                    maskComposite: 'intersect'
+                }}
+            />
+            {/* Header Content */}
+            <div className="relative flex items-center justify-between gap-3 md:gap-6 w-full px-4 md:px-6 py-3 md:py-4">
+                {/* Left side spacer / mobile menu */}
+                <div className="flex items-center w-auto md:flex-1 md:min-w-[200px]">
+                    {isMobile && onMenuClick && (
+                        <button
+                            onClick={onMenuClick}
+                            className="w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-foreground hover:bg-[var(--background)] transition-all flex-shrink-0"
+                            aria-label="Open menu"
                         >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M4 6h16M4 12h16M4 18h16"
-                            />
-                        </svg>
-                    </button>
-                )}
+                            <svg
+                                className="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M4 6h16M4 12h16M4 18h16"
+                                />
+                            </svg>
+                        </button>
+                    )}
+                </div>
 
-                {/* Global Search */}
-                <GlobalSearch />
+                {/* Global Search Centered */}
+                <div className="flex-1 flex justify-center w-full max-w-2xl mx-auto">
+                    <GlobalSearch />
+                </div>
 
-                {/* Right Side Actions - Hidden on mobile (available in sidebar) */}
-                <div className="hidden md:flex items-center gap-2">
+                {/* Right Side Actions - Hidden on mobile */}
+                <div className="hidden md:flex items-center justify-end gap-2 md:flex-1 md:min-w-[200px]">
                     {/* Theme Toggle */}
                     <ThemeToggle />
 

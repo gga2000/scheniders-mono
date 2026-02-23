@@ -118,6 +118,7 @@ import {
     CheckCircle2,
     Activity,
     AlertTriangle,
+    PanelRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
@@ -237,6 +238,12 @@ export default function OrdersPage() {
     const [compactGrid, setCompactGrid] = useState(() => {
         if (typeof window !== "undefined") {
             return localStorage.getItem("ordersCompactGrid") === "true";
+        }
+        return false;
+    });
+    const [actionDock, setActionDock] = useState(() => {
+        if (typeof window !== "undefined") {
+            return localStorage.getItem("ordersActionDock") === "true";
         }
         return false;
     });
@@ -1192,6 +1199,26 @@ export default function OrdersPage() {
                                                     </button>
                                                 )}
 
+                                                {/* Action Dock Toggle */}
+                                                {!workflowMode && viewMode === "cards" && (
+                                                    <button
+                                                        onClick={() => {
+                                                            const newVal = !actionDock;
+                                                            setActionDock(newVal);
+                                                            localStorage.setItem("ordersActionDock", String(newVal));
+                                                        }}
+                                                        className={cn(
+                                                            "p-2.5 rounded-xl transition-all duration-300",
+                                                            actionDock
+                                                                ? "bg-purple-100 text-purple-700 shadow-sm dark:bg-[var(--primary)] dark:text-black"
+                                                                : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground dark:hover:bg-white/5"
+                                                        )}
+                                                        title={actionDock ? "Disable Action Dock" : "Enable Action Dock"}
+                                                    >
+                                                        <PanelRight className="w-4 h-4" />
+                                                    </button>
+                                                )}
+
                                                 <div className="w-px h-8 bg-black/5 mx-1 orders-toolbar-divider" />
 
                                                 {/* Collapse Toolbar */}
@@ -2085,6 +2112,7 @@ export default function OrdersPage() {
                                                             returnOrderInfo={getReturnOrderInfo(order.id)}
                                                             originalOrderInfo={getOriginalOrderInfo(order.original_order_id)}
                                                             compact={compactView}
+                                                            actionDock={actionDock}
                                                             gridMode={true}
                                                             onOpenTemplatePanel={(o: any) => {
                                                                 setOrderForTemplate(o);
@@ -2144,6 +2172,7 @@ export default function OrdersPage() {
                                                 getReturnOrderInfo={getReturnOrderInfo}
                                                 getOriginalOrderInfo={getOriginalOrderInfo}
                                                 compactView={compactView}
+                                                actionDock={actionDock}
                                                 getRiskLevel={getRiskLevel}
                                                 hasDuplicates={hasDuplicates}
                                                 onSplitOrder={(order) => setSplitOrderDialog({ open: true, order })}
@@ -2198,6 +2227,8 @@ export default function OrdersPage() {
                                                                 returnOrderInfo={getReturnOrderInfo(order.id)}
                                                                 originalOrderInfo={getOriginalOrderInfo(order.original_order_id)}
                                                                 compact={compactView}
+                                                                actionDock={actionDock}
+                                                                isVirtualized={false}
                                                                 onOpenTemplatePanel={(o: any) => {
                                                                     setOrderForTemplate(o);
                                                                     setTemplatePanelOpen(true);

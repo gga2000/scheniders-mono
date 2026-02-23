@@ -501,13 +501,16 @@ body {
    Deep charcoal + neon yellow/cyan accents
    ============================================ */
 
-/* Page background: subtle cyan grid pattern */
-.dark .orders-page {
-  background-color: #121212;
+/* Page background: subtle cyan grid pattern applied globally to main to put grid at the top */
+.dark main {
   background-image:
     linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 1px);
   background-size: 60px 60px;
+}
+
+.dark .orders-page {
+  background-color: transparent !important;
 }
 
 /* Collapsed toolbar — flat dark surface */

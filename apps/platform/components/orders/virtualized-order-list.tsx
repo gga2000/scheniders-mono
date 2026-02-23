@@ -36,6 +36,7 @@ interface VirtualizedOrderListProps {
     getOriginalOrderInfo: (originalOrderId?: string) => { originalOrderId: string; originalSequenceNumber?: number } | null;
     // Options
     compactView?: 0 | 1 | 2;
+    actionDock?: boolean;
     onSplitOrder?: (order: any) => void;
 }
 
@@ -68,6 +69,7 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
     getReturnOrderInfo,
     getOriginalOrderInfo,
     compactView = 0,
+    actionDock = false,
     getRiskLevel,
     getRiskAssessment,
     hasDuplicates,
@@ -161,6 +163,7 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
                                 returnOrderInfo={getReturnOrderInfo(order.id)}
                                 originalOrderInfo={getOriginalOrderInfo(order.original_order_id)}
                                 compact={compactView}
+                                actionDock={actionDock}
                                 isVirtualized={true}
                                 onOpenTemplatePanel={onOpenTemplatePanel}
                                 messageTemplates={messageTemplates}
