@@ -20,7 +20,7 @@ interface DateRangePickerProps {
     inline?: boolean; // When true, shows calendar directly without trigger button
 }
 
-type PresetType = "today" | "yesterday" | "thisWeek" | "thisMonth" | "last7" | "last30" | "custom";
+type PresetType = "today" | "yesterday" | "thisWeek" | "thisMonth" | "last7" | "last30" | "pastYear" | "custom";
 
 /**
  * Format a Date to YYYY-MM-DD string using LOCAL timezone (not UTC)
@@ -99,6 +99,19 @@ const presets: { id: PresetType; label: string; getRange: () => { from: string; 
             monthAgo.setDate(now.getDate() - 30);
             return {
                 from: formatLocalDate(monthAgo),
+                to: formatLocalDate(now),
+            };
+        },
+    },
+    {
+        id: "pastYear" as PresetType,
+        label: "Past Year",
+        getRange: () => {
+            const now = new Date();
+            const yearAgo = new Date();
+            yearAgo.setFullYear(now.getFullYear() - 1);
+            return {
+                from: formatLocalDate(yearAgo),
                 to: formatLocalDate(now),
             };
         },
@@ -300,13 +313,17 @@ export function DateRangePicker({
     };
 
     const getDisplayValue = () => {
-        if (!dateFrom && !dateTo) return "Select dates";
+        if (!dateFrom && !dateTo) return "Date Range";
+        // If a preset is active, show its label
         if (activePreset && activePreset !== "custom") {
             const preset = presets.find((p) => p.id === activePreset);
-            return preset?.label || "Custom Range";
+            if (preset) return preset.label;
         }
-        if (dateFrom === dateTo) return formatDisplayDate(dateFrom);
-        return `${formatDisplayDate(dateFrom)} — ${formatDisplayDate(dateTo)}`;
+        // Single date
+        if (dateFrom && (!dateTo || dateFrom === dateTo)) return formatDisplayDate(dateFrom);
+        // Date range
+        if (dateFrom && dateTo) return `${formatDisplayDate(dateFrom)} — ${formatDisplayDate(dateTo)}`;
+        return "Date Range";
     };
 
     // For inline mode, render just the panel content directly

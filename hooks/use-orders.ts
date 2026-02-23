@@ -149,7 +149,11 @@ export function useOrders() {
                 // Direct localStorage read to avoid hook dependency issues
                 const stored = localStorage.getItem(`schneiders_prefs_anonymous_orderFilters`);
                 if (stored) {
-                    return JSON.parse(stored);
+                    const parsed = JSON.parse(stored);
+                    // Strip riskLevel — it should not persist across sessions
+                    // as it can silently hide most orders (e.g. riskLevel: "flagged")
+                    delete parsed.riskLevel;
+                    return parsed;
                 }
             } catch (e) {
                 // Fall through to default
@@ -164,6 +168,8 @@ export function useOrders() {
             // User just logged in or auth just resolved - load their preferences
             const saved = getPreference<OrderFilters>(PREFERENCE_KEYS.ORDER_FILTERS);
             if (saved) {
+                // Strip riskLevel — it should not persist across sessions
+                delete saved.riskLevel;
                 setFiltersState(saved);
             }
             hasLoadedUserPrefs.current = true;
@@ -178,7 +184,10 @@ export function useOrders() {
         setFiltersState(prev => {
             const updated = typeof newFilters === 'function' ? newFilters(prev) : newFilters;
             // Persist to user-scoped localStorage (debounced internally)
-            setPreference(PREFERENCE_KEYS.ORDER_FILTERS, updated);
+            // Strip riskLevel from persistence — it should reset on each page load
+            // to prevent silently hiding orders across sessions
+            const { riskLevel, ...persistableFilters } = updated;
+            setPreference(PREFERENCE_KEYS.ORDER_FILTERS, persistableFilters);
             return updated;
         });
     }, [setPreference]);
@@ -522,8 +531,19 @@ export function useOrders() {
                     const matchesPhone = normalizePhoneForSearch(order.phone).includes(normalizePhoneForSearch(activeFilters.searchQuery));
                     const matchesOrderId = order.order_id?.toLowerCase().includes(query);
                     const matchesDeliveryId = order.delivery_order_id?.toLowerCase().includes(query);
-                    // Also search in original_order_id so return orders show up when searching for the parent
-                    const matchesOriginalOrderId = order.original_order_id?.toLowerCase().includes(query);
+
+                    // Fix for matching return orders:
+                    let matchesOriginalOrderId = false;
+                    if (order.original_order_id) {
+                        if (order.original_order_id.toLowerCase().includes(query)) {
+                            matchesOriginalOrderId = true;
+                        } else {
+                            const parentOrder = ordersToFilter.find(o => o.id === order.original_order_id);
+                            if (parentOrder && parentOrder.order_id?.toLowerCase().includes(query)) {
+                                matchesOriginalOrderId = true;
+                            }
+                        }
+                    }
 
                     if (!matchesName && !matchesPhone && !matchesOrderId && !matchesDeliveryId && !matchesOriginalOrderId) return false;
                 }

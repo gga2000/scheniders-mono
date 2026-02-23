@@ -9,6 +9,7 @@ import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { LanguageProvider } from "@/components/providers/language-provider";
 import { DevServiceWorkerCleanup } from "@/components/pwa/dev-service-worker-cleanup";
+import { Toaster } from "@/components/ui/toaster";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const geistSans = Geist({
@@ -97,6 +98,7 @@ export default function RootLayout({
             </OrdersProvider>
           </QueryProvider>
         </AuthProvider>
+        <Toaster />
         <SpeedInsights />
         <DevServiceWorkerCleanup />
       </body>

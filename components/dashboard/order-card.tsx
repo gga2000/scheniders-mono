@@ -72,11 +72,13 @@ interface OrderCardProps {
     // Toggle reviewed status for delivered orders
     onToggleReviewed?: (orderId: string) => void;
     // Return order info - if this order has a return, this contains the return order's info
-    returnOrderInfo?: { returnOrderId: string; returnSequenceNumber?: number } | null;
+    returnOrderInfo?: { order?: Order; returnOrderId: string; returnSequenceNumber?: number } | null;
     // Original order info - for return orders, this contains the original order's display info
-    originalOrderInfo?: { originalOrderId: string; originalSequenceNumber?: number } | null;
-    // Compact view
-    compact?: boolean;
+    originalOrderInfo?: { order?: Order; originalOrderId: string; originalSequenceNumber?: number } | null;
+    // Compact view: 0 = full, 1 = semi-compact, 2 = ultra-compact
+    compact?: 0 | 1 | 2;
+    // Grid mode for compact views
+    gridMode?: boolean;
     // WhatsApp template panel
     onOpenTemplatePanel?: (order: Order) => void;
     messageTemplates?: MessageTemplate[];
@@ -109,7 +111,8 @@ export const OrderCard = memo(function OrderCard({
     onToggleReviewed,
     returnOrderInfo,
     originalOrderInfo,
-    compact = false,
+    compact = 0,
+    gridMode = false,
     onOpenTemplatePanel,
     messageTemplates = [],
     isSelected = false,
@@ -227,13 +230,25 @@ export const OrderCard = memo(function OrderCard({
         return parts.join(' • ');
     };
 
+    // Clean up system-generated notes from split orders
+    const cleanSystemNotes = (text?: string | null) => {
+        if (!text) return '';
+        return text
+            .replace(/\[Partial Return\] Items split to return order\.?/g, '')
+            .replace(/\[Partial Return\] Items returned from original order\.?/g, '')
+            .replace(/Split from order (LF-\d+-\d+|\d+|(?:RTN|CLN-LF)-\d+(?:-\d+)?)/gi, '')
+            .replace(/^\s+|\s+$/g, '') // Trim whitespace and newlines
+            .trim();
+    };
+
     // Get notes directly (no longer contains address)
     const getActualNotes = () => {
-        return order.notes?.trim() || '';
+        return cleanSystemNotes(order.notes);
     };
 
     const fullAddress = getFullAddress();
     const actualNotes = getActualNotes();
+    const actualInternalNotes = cleanSystemNotes(order.internal_notes);
 
     // Compute governorate code - use stored value or extract from city
     const governorateCode = order.validated_governorate_code || order.governorate_code || (() => {
@@ -246,13 +261,12 @@ export const OrderCard = memo(function OrderCard({
 
     // Soft pastel status colors - reassigned (with return order override)
     const getStatusColor = () => {
-        if (isReturn) return "bg-red-400"; // Red for return orders
+        if (isReturn || order.status === 'rejected') return "bg-red-400"; // Red for rejected/return orders
         switch (order.status) {
             case "new": return "bg-orange-300"; // Warm coral for new
             case "contacted": return "bg-[var(--pastel-yellow)]"; // Yellow for contacted
             case "confirmed": return "bg-[var(--pastel-green)]"; // Green for confirmed
             case "delivered": return "bg-[var(--pastel-mint)]"; // Mint/Blue for delivered
-            case "rejected": return "bg-[var(--pastel-pink)]"; // Pink/Red for rejected
             case "return_pending": return "bg-rose-400"; // Rose for return pending
             case "cancelled": return "bg-red-300"; // Red for cancelled
             default: return "bg-[var(--card-border)]";
@@ -288,7 +302,7 @@ export const OrderCard = memo(function OrderCard({
             case "cancelled": return "bg-red-200 text-red-900";
             case "in_transit": return "bg-blue-200 text-blue-900";
             case "delivered": return "bg-[var(--pastel-mint)] text-teal-900";
-            case "rejected": return "bg-[var(--pastel-pink)] text-rose-900";
+            case "rejected": return "bg-rose-100 text-rose-700 border border-rose-200";
             case "completed": return "bg-emerald-200 text-emerald-900 ring-2 ring-emerald-400/50 shadow-[0_0_10px_rgba(16,185,129,0.3)]";
             case "no_response": return "bg-slate-200 text-slate-600";
             case "return_pending": return "bg-rose-200 text-rose-900 ring-2 ring-rose-400/50";
@@ -373,31 +387,438 @@ export const OrderCard = memo(function OrderCard({
 
     const items = getItemsDisplay(order.items || []);
 
+    // ── ULTRA-COMPACT GRID (Level 2 + Grid) ── Stacked mini-card ──
+    if (compact === 2 && gridMode) {
+        const itemsText = items.length > 0
+            ? items.map(i => `${i.name}${i.quantity > 1 ? ` ×${i.quantity}` : ''}`).join(', ')
+            : 'No products';
+
+        return (
+            <div className="group relative w-full h-full">
+                <div
+                    className={cn(
+                        "relative bg-[var(--card-bg)] rounded-xl shadow-sm hover:shadow-md transition-all duration-200 h-full",
+                        "flex flex-col",
+                        "border border-[var(--card-border)]/50 overflow-hidden cursor-pointer",
+                        isBlacklisted && "ring-1 ring-red-400",
+                        !isBlacklisted && (isReturn || order.status === 'rejected') && "ring-1 ring-red-300",
+                    )}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onViewDetails(order);
+                    }}
+                >
+                    {/* Status bar top */}
+                    <div className={cn("h-1 w-full flex-shrink-0", getStatusColor())} />
+
+                    <div className="p-2.5 flex flex-col gap-1.5 flex-1 min-w-0">
+                        {/* Row 1: Name + Status */}
+                        <div className="flex items-center justify-between gap-2">
+                            <span className={cn(
+                                "font-semibold text-sm truncate",
+                                isReturn ? "text-rose-700" : "text-foreground"
+                            )}>
+                                {order.customer_name}
+                            </span>
+                            <span className={cn(
+                                "inline-flex items-center px-1.5 py-0.5 text-[8px] font-bold rounded-full uppercase tracking-wider flex-shrink-0",
+                                getStatusBadgeStyle(),
+                                isReturn && "bg-rose-100 text-rose-700"
+                            )}>
+                                {getStatusLabel(order.status)}
+                            </span>
+                        </div>
+
+                        {/* Row 2: Order ID + Priority */}
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-mono text-muted">
+                                #{(() => {
+                                    const lfMatch = order.order_id.match(/LF-(\d+)-\d+$/);
+                                    return lfMatch ? lfMatch[1] : order.order_id;
+                                })()}
+                            </span>
+                            {isUrgent && <Flame className="w-3 h-3 text-red-500 animate-pulse" />}
+                            {isHighPriority && !isUrgent && <Flag className="w-2.5 h-2.5 text-amber-600" />}
+                            {governorateCode && (
+                                <span className="px-1 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[8px] font-bold ml-auto">
+                                    {governorateCode}
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Row 3: Items */}
+                        <p className="text-xs text-foreground/60 truncate" title={itemsText}>
+                            {itemsText}
+                        </p>
+
+                        {/* Row 4: Price */}
+                        <div className="mt-auto pt-1">
+                            {(order.payment_status === "paid" || order.payment_status === "prepaid") ? (
+                                <span className="text-sm font-bold text-emerald-600">واصل</span>
+                            ) : (
+                                <span className={cn(
+                                    "text-sm font-bold tabular-nums",
+                                    isReturn ? "text-red-600" : "text-foreground"
+                                )}>
+                                    {isReturn && "-"}
+                                    {formatIQD(Math.abs(Number(order.price)))}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ── SEMI-COMPACT GRID (Level 1 + Grid) ── Stacked card with more detail ──
+    if (compact === 1 && gridMode) {
+        const isValidPhone = validatePhoneDetailed(order.phone).isValid;
+        const itemsText = items.length > 0
+            ? items.map(i => `${i.name}${i.quantity > 1 ? ` ×${i.quantity}` : ''}`).join(', ')
+            : 'No products';
+        const cityDisplay = order.city || '';
+
+        return (
+            <div className="group relative w-full h-full">
+                <div
+                    className={cn(
+                        "relative bg-[var(--card-bg)] rounded-xl shadow-sm hover:shadow-md transition-all duration-200 h-full",
+                        "flex flex-col",
+                        "border border-[var(--card-border)]/50 overflow-hidden",
+                        isBlacklisted && "ring-1 ring-red-400",
+                        !isBlacklisted && (isReturn || order.status === 'rejected') && "ring-1 ring-red-300",
+                        !isBlacklisted && !(isReturn || order.status === 'rejected') && isUrgent && "ring-1 ring-red-300",
+                    )}
+                >
+                    {/* Status bar top */}
+                    <div className={cn("h-1.5 w-full flex-shrink-0", getStatusColor())} />
+
+                    <div className="p-3 flex flex-col gap-2 flex-1 min-w-0">
+                        {/* Row 1: Name + Status */}
+                        <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                                {isPinned && <Pin className="w-3 h-3 text-blue-500 -rotate-45 flex-shrink-0" />}
+                                {isNew && !isPinned && <Sparkles className="w-3 h-3 text-orange-500 flex-shrink-0" />}
+                                <span className={cn(
+                                    "font-semibold text-sm truncate",
+                                    isReturn ? "text-rose-700" : "text-foreground"
+                                )}>
+                                    {order.customer_name}
+                                </span>
+                            </div>
+                            <span className={cn(
+                                "inline-flex items-center gap-0.5 px-2 py-0.5 text-[9px] font-bold rounded-full uppercase tracking-wider flex-shrink-0",
+                                getStatusBadgeStyle(),
+                                isReturn && "bg-rose-100 text-rose-700"
+                            )}>
+                                {getStatusLabel(order.status)}
+                            </span>
+                        </div>
+
+                        {/* Row 2: Order ID + Date */}
+                        <div className="flex items-center gap-2 text-[11px]">
+                            <span className="font-mono text-muted">
+                                #{(() => {
+                                    const lfMatch = order.order_id.match(/LF-(\d+)-\d+$/);
+                                    return lfMatch ? lfMatch[1] : order.order_id;
+                                })()}
+                            </span>
+                            <span className="text-[var(--card-border)]">·</span>
+                            <span className="text-subtle">{formatShortDate(order.created_at)}</span>
+                            <span className="text-subtle">{formatTime(order.created_at)}</span>
+                            {isUrgent && <Flame className="w-3 h-3 text-red-500 animate-pulse ml-auto" />}
+                            {isHighPriority && !isUrgent && <Flag className="w-3 h-3 text-amber-600 ml-auto" />}
+                        </div>
+
+                        {/* Row 3: Items */}
+                        <p className="text-xs text-foreground/70 truncate" title={itemsText}>
+                            {itemsText}
+                        </p>
+
+                        {/* Row 4: City + Price */}
+                        <div className="flex items-center justify-between gap-2 mt-auto pt-1">
+                            {cityDisplay ? (
+                                <div className="flex items-center gap-1 text-xs text-muted min-w-0">
+                                    <MapPin className="w-3 h-3 flex-shrink-0" />
+                                    <span className="truncate">{cityDisplay}</span>
+                                    {governorateCode && (
+                                        <span className="px-1 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[8px] font-bold flex-shrink-0">
+                                            {governorateCode}
+                                        </span>
+                                    )}
+                                </div>
+                            ) : <div />}
+
+                            {(order.payment_status === "paid" || order.payment_status === "prepaid") ? (
+                                <span className="text-sm font-bold text-emerald-600 flex-shrink-0">واصل</span>
+                            ) : (
+                                <span className={cn(
+                                    "text-sm font-bold tabular-nums flex-shrink-0",
+                                    isReturn ? "text-red-600" : "text-foreground"
+                                )}>
+                                    {isReturn && "-"}
+                                    {formatIQD(Math.abs(Number(order.price)))}
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Row 5: Action Buttons */}
+                        <div className="flex items-center gap-1.5 pt-1 border-t border-[var(--card-border)]/30">
+                            {/* WhatsApp */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (!isValidPhone) return;
+                                    if (onOpenTemplatePanel && messageTemplates.length > 0) {
+                                        onOpenTemplatePanel(order);
+                                    } else {
+                                        const link = generateWhatsAppLink(
+                                            order.phone,
+                                            `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
+                                        );
+                                        window.open(link, "_blank");
+                                    }
+                                }}
+                                disabled={!isValidPhone}
+                                className={cn(
+                                    "flex-1 h-7 rounded-lg transition-all flex items-center justify-center gap-1 text-xs font-medium",
+                                    isValidPhone
+                                        ? "bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)]"
+                                        : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                )}
+                            >
+                                <MessageCircle className="w-3 h-3" />
+                            </button>
+
+                            {/* View Details */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onViewDetails(order);
+                                }}
+                                className="flex-1 h-7 rounded-lg bg-[var(--background)] border border-[var(--card-border)] text-foreground hover:bg-[var(--card-border)] transition-all flex items-center justify-center gap-1 text-xs font-medium"
+                            >
+                                <Edit className="w-3 h-3" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ── ULTRA-COMPACT VIEW (Level 2) ── Dense single-row card showing only essentials ──
+    if (compact === 2) {
+        const isValidPhone = validatePhoneDetailed(order.phone).isValid;
+        const itemsText = items.length > 0
+            ? items.map(i => `${i.name}${i.quantity > 1 ? ` ×${i.quantity}` : ''}`).join(', ')
+            : 'No products';
+        const cityDisplay = order.city || '';
+
+        return (
+            <div
+                className={cn(
+                    "group relative w-full",
+                )}
+            >
+                <div
+                    className={cn(
+                        "relative bg-[var(--card-bg)] rounded-xl shadow-sm hover:shadow-md transition-all duration-200",
+                        "flex items-center",
+                        "border border-[var(--card-border)]/50",
+                        // Subtle left-border rings based on priority
+                        isBlacklisted && "ring-1 ring-red-400",
+                        !isBlacklisted && (isReturn || order.status === 'rejected') && "ring-1 ring-red-300",
+                        !isBlacklisted && !(isReturn || order.status === 'rejected') && isUrgent && "ring-1 ring-red-300",
+                    )}
+                >
+                    {/* Thin Status Accent Bar */}
+                    <div
+                        className={cn(
+                            "w-1 self-stretch rounded-l-xl flex-shrink-0",
+                            getStatusColor()
+                        )}
+                    />
+
+                    {/* Selection Checkbox */}
+                    {onToggleSelection && (
+                        <div className="pl-2 flex items-center justify-center flex-shrink-0">
+                            <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) => {
+                                    e.stopPropagation();
+                                    onToggleSelection(order.id);
+                                }}
+                                className="w-3.5 h-3.5 rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--pastel-yellow)] cursor-pointer"
+                            />
+                        </div>
+                    )}
+
+                    {/* Main Content - Single Row */}
+                    <div
+                        className="flex-1 flex items-center gap-3 py-2 px-3 min-w-0 cursor-pointer"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onViewDetails(order);
+                        }}
+                    >
+                        {/* Customer Name + Order ID */}
+                        <div className="flex items-center gap-2 min-w-[130px] max-w-[180px] flex-shrink-0">
+                            {isPinned && <Pin className="w-3 h-3 text-blue-500 -rotate-45 flex-shrink-0" />}
+                            {isNew && !isPinned && <Sparkles className="w-3 h-3 text-orange-500 flex-shrink-0" />}
+                            <span className={cn(
+                                "font-semibold text-sm truncate",
+                                isReturn ? "text-rose-700" : "text-foreground"
+                            )}>
+                                {order.customer_name}
+                            </span>
+                            <span className="text-xs font-mono text-muted flex-shrink-0">
+                                #{(() => {
+                                    const lfMatch = order.order_id.match(/LF-(\d+)-\d+$/);
+                                    if (lfMatch) return lfMatch[1];
+                                    return order.order_id;
+                                })()}
+                            </span>
+                        </div>
+
+                        {/* Thin Divider */}
+                        <div className="w-px h-5 bg-[var(--card-border)] flex-shrink-0 hidden md:block" />
+
+                        {/* Status + Priority */}
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <span className={cn(
+                                "inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold rounded-full uppercase tracking-wider",
+                                getStatusBadgeStyle(),
+                                isReturn && "bg-rose-100 text-rose-700"
+                            )}>
+                                {getStatusLabel(order.status)}
+                            </span>
+                            {isUrgent && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-red-100 text-red-700 animate-pulse">
+                                    <Flame className="w-2.5 h-2.5" />
+                                </span>
+                            )}
+                            {isHighPriority && !isUrgent && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-amber-100 text-amber-700">
+                                    <Flag className="w-2.5 h-2.5" />
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Thin Divider */}
+                        <div className="w-px h-5 bg-[var(--card-border)] flex-shrink-0 hidden md:block" />
+
+                        {/* Items as Text */}
+                        <div className="flex-1 min-w-0 hidden md:block">
+                            <span className="text-sm text-foreground/70 truncate block" title={itemsText}>
+                                {itemsText}
+                            </span>
+                        </div>
+
+                        {/* Thin Divider */}
+                        <div className="w-px h-5 bg-[var(--card-border)] flex-shrink-0 hidden lg:block" />
+
+                        {/* City */}
+                        {cityDisplay && (
+                            <div className="hidden lg:flex items-center gap-1 text-xs text-muted flex-shrink-0 max-w-[120px]">
+                                <MapPin className="w-3 h-3 flex-shrink-0" />
+                                <span className="truncate">{cityDisplay}</span>
+                                {governorateCode && (
+                                    <span className="px-1 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[8px] font-bold flex-shrink-0">
+                                        {governorateCode}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Price */}
+                        <div className="flex-shrink-0 text-right min-w-[70px]">
+                            {(order.payment_status === "paid" || order.payment_status === "prepaid") ? (
+                                <span className="text-sm font-bold text-emerald-600">واصل</span>
+                            ) : (
+                                <span className={cn(
+                                    "text-sm font-bold tabular-nums",
+                                    isReturn ? "text-red-600" : "text-foreground"
+                                )}>
+                                    {isReturn && "-"}
+                                    {formatIQD(Math.abs(Number(order.price)))}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Compact Action Buttons */}
+                    <div className="hidden md:flex items-center gap-1.5 pr-3 flex-shrink-0">
+                        {/* WhatsApp */}
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (!isValidPhone) return;
+                                if (onOpenTemplatePanel && messageTemplates.length > 0) {
+                                    onOpenTemplatePanel(order);
+                                } else {
+                                    const link = generateWhatsAppLink(
+                                        order.phone,
+                                        `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
+                                    );
+                                    window.open(link, "_blank");
+                                }
+                            }}
+                            disabled={!isValidPhone}
+                            className={cn(
+                                "w-8 h-8 rounded-lg transition-all flex items-center justify-center",
+                                isValidPhone
+                                    ? "bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)] shadow-sm"
+                                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            )}
+                            title="WhatsApp"
+                        >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* Edit */}
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onViewDetails(order);
+                            }}
+                            className="w-8 h-8 rounded-lg bg-[var(--background)] border border-[var(--card-border)] text-foreground hover:bg-[var(--card-border)] transition-all flex items-center justify-center"
+                            title="View Details"
+                        >
+                            <Edit className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <motion.div
             layoutId={getLayoutId(`order-card-${order.id}-${order.status}`)}
             className={cn(
-                "group relative w-full isolate",
-                order.status === "rejected" && "opacity-60"
+                "group relative w-full isolate"
             )}
             transition={{
                 layout: { duration: 0.4, ease: [0.4, 0, 0.2, 1] }
             }}
         >
-            {/* Soft glow effect for new orders */}
-            {isNew && (
+            {/* Soft glow effect for new orders - hidden in semi-compact */}
+            {compact === 0 && isNew && (
                 <div className="absolute -inset-0.5 bg-orange-300 rounded-[22px] blur-md opacity-50 group-hover:opacity-70 transition-opacity animate-pulse -z-10" />
             )}
             {/* Glow effect for urgent orders */}
-            {isUrgent && !isReturn && (
+            {compact === 0 && isUrgent && !isReturn && (
                 <div className="absolute -inset-0.5 bg-red-400 rounded-[22px] blur-md opacity-40 group-hover:opacity-60 transition-opacity animate-pulse -z-10" />
             )}
-            {/* Glow effect for return orders */}
-            {isReturn && (
+            {/* Glow effect for rejected and return orders */}
+            {compact === 0 && (isReturn || order.status === 'rejected') && (
                 <div className="absolute -inset-0.5 bg-red-400 rounded-[22px] blur-md opacity-40 group-hover:opacity-60 transition-opacity -z-10" />
             )}
             {/* Glow for returning customers - orange if unverified, green if verified */}
-            {hasDuplicates && !isReturn && !isUrgent && !isPinned && !hasRefund && (
+            {compact === 0 && hasDuplicates && !isReturn && !isUrgent && !isPinned && !hasRefund && (
                 <div className={cn(
                     "absolute -inset-0.5 rounded-[22px] blur-md transition-opacity -z-10",
                     isVerifiedCustomer
@@ -406,11 +827,11 @@ export const OrderCard = memo(function OrderCard({
                 )} />
             )}
             {/* Glow effect for pinned orders */}
-            {isPinned && (
+            {compact === 0 && isPinned && (
                 <div className="absolute -inset-0.5 bg-blue-400 rounded-[22px] blur-md opacity-40 group-hover:opacity-60 transition-opacity -z-10" />
             )}
             {/* Subtle glow effect for reviewed delivered orders */}
-            {isReviewed && isDelivered && !isPinned && (
+            {compact === 0 && isReviewed && isDelivered && !isPinned && (
                 <div className="absolute -inset-0.5 bg-cyan-400 rounded-[22px] blur-md opacity-25 group-hover:opacity-40 transition-opacity -z-10" />
             )}
 
@@ -421,16 +842,16 @@ export const OrderCard = memo(function OrderCard({
                     // Mobile: vertical layout, Desktop: horizontal
                     "flex flex-col md:flex-row",
                     actionsOpen ? "overflow-visible z-50" : "overflow-hidden",
-                    // Priority order: blacklisted > return > urgent > shop > duplicates > new > refunded
+                    // Priority order: blacklisted > return/rejected > urgent > shop > refunded > duplicates > new
                     isBlacklisted && "ring-2 ring-red-500",
-                    !isBlacklisted && isReturn && "ring-2 ring-red-400",
-                    !isBlacklisted && !isReturn && isUrgent && "ring-2 ring-red-400",
-                    !isBlacklisted && !isReturn && !isUrgent && isShopOrder && "ring-2 ring-amber-300 bg-amber-50/30",
-                    !isBlacklisted && !isReturn && !isUrgent && !isShopOrder && hasDuplicates && isVerifiedCustomer && !hasRefund && "ring-2 ring-emerald-300",
-                    !isBlacklisted && !isReturn && !isUrgent && !isShopOrder && hasDuplicates && !isVerifiedCustomer && !hasRefund && "ring-2 ring-orange-400",
-                    !isBlacklisted && !isReturn && !isUrgent && !isShopOrder && !hasDuplicates && isNew && "ring-2 ring-orange-300",
-                    // Refunded orders - rose ring and slight opacity
-                    !isBlacklisted && !isReturn && !isUrgent && !isShopOrder && hasRefund && "ring-2 ring-rose-300 opacity-80"
+                    !isBlacklisted && (isReturn || order.status === 'rejected') && "ring-2 ring-red-400",
+                    !isBlacklisted && !(isReturn || order.status === 'rejected') && isUrgent && "ring-2 ring-red-400",
+                    !isBlacklisted && !(isReturn || order.status === 'rejected') && !isUrgent && isShopOrder && "ring-2 ring-amber-300 bg-amber-50/30",
+                    // Refunded orders - rose ring (MUST be before duplicates/new so it overrides them)
+                    !isBlacklisted && !(isReturn || order.status === 'rejected') && !isUrgent && !isShopOrder && hasRefund && "ring-2 ring-rose-300",
+                    !isBlacklisted && !(isReturn || order.status === 'rejected') && !isUrgent && !isShopOrder && !hasRefund && hasDuplicates && isVerifiedCustomer && "ring-2 ring-emerald-300",
+                    !isBlacklisted && !(isReturn || order.status === 'rejected') && !isUrgent && !isShopOrder && !hasRefund && hasDuplicates && !isVerifiedCustomer && "ring-2 ring-orange-400",
+                    !isBlacklisted && !(isReturn || order.status === 'rejected') && !isUrgent && !isShopOrder && !hasRefund && !hasDuplicates && isNew && "ring-2 ring-orange-300"
                 )}
             >
                 {/* Shop Order Glow */}
@@ -443,9 +864,9 @@ export const OrderCard = memo(function OrderCard({
                     className={cn(
                         "w-2 flex-shrink-0 rounded-l-[20px]",
                         getStatusColor(),
-                        isNew && "w-3",
-                        hasDuplicates && isVerifiedCustomer && "w-3 bg-emerald-400",
-                        hasDuplicates && !isVerifiedCustomer && "w-4 bg-gradient-to-b from-orange-400 via-orange-500 to-orange-400 animate-pulse"
+                        !(isReturn || order.status === 'rejected') && isNew && "w-3",
+                        !(isReturn || order.status === 'rejected') && hasDuplicates && isVerifiedCustomer && "w-3 bg-emerald-400",
+                        !(isReturn || order.status === 'rejected') && hasDuplicates && !isVerifiedCustomer && "w-4 bg-gradient-to-b from-orange-400 via-orange-500 to-orange-400 animate-pulse"
                     )}
                 />
 
@@ -494,7 +915,7 @@ export const OrderCard = memo(function OrderCard({
                 <div
                     className={cn(
                         "flex-1 flex items-center gap-4 overflow-hidden cursor-pointer md:cursor-default",
-                        compact ? "p-2" : "p-4",
+                        compact === 1 ? "p-2.5" : "p-4",
                         onToggleSelection && "pl-10 md:pl-4" // Extra left padding on mobile for checkbox
                     )}
                     onClick={(e) => {
@@ -506,7 +927,7 @@ export const OrderCard = memo(function OrderCard({
                 >
 
                     {/* LEFT SECTION: Customer Info */}
-                    <motion.div layoutId={getLayoutId(`order-customer-${order.id}-${order.status}`)} className={cn("space-y-1 flex-shrink-0", compact ? "min-w-[120px]" : "min-w-[160px]")}>
+                    <motion.div layoutId={getLayoutId(`order-customer-${order.id}-${order.status}`)} className={cn("space-y-1 flex-shrink-0", compact === 1 ? "min-w-[140px]" : "min-w-[160px]")}>
                         {/* Customer Name with sparkle for new */}
                         <motion.div
                             layoutId={getLayoutId(`order-name-${order.id}-${order.status}`)}
@@ -523,12 +944,13 @@ export const OrderCard = memo(function OrderCard({
                             {order.is_return && (
                                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 text-[10px] font-bold border border-rose-200">
                                     <RotateCcw className="w-3 h-3" />
-                                    <span>راجع</span>
+                                    <span>مرفوض</span>
                                 </span>
                             )}
 
                             <span className={cn(
-                                "font-bold text-base",
+                                "font-bold",
+                                compact === 1 ? "text-sm" : "text-base",
                                 order.is_return ? "text-rose-700" : "text-foreground"
                             )}>
                                 {order.customer_name}
@@ -602,15 +1024,7 @@ export const OrderCard = memo(function OrderCard({
                                                 🚚 {order.delivery_order_id}
                                             </span>
                                         )}
-                                        {/* Original Order Reference in Header */}
-                                        {order.is_return && order.original_order_id && (
-                                            <span
-                                                className="px-1.5 py-0.5 rounded text-[9px] font-bold border cursor-pointer transition-all flex items-center gap-1 bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100"
-                                                title="طلب راجع من"
-                                            >
-                                                <span>من: {order.original_order_id}</span>
-                                            </span>
-                                        )}
+                                        {/* Original Order Reference in Header - REMOVED: consolidated into tags row */}
                                         {(!order.is_return && previousOrder) && (
                                             <span
                                                 className={cn(
@@ -634,8 +1048,8 @@ export const OrderCard = memo(function OrderCard({
                             })()}
                         </div>
 
-                        {/* Date & Time with Age Badge - hidden in compact mode */}
-                        {!compact && (
+                        {/* Date & Time with Age Badge - visible in normal and semi-compact */}
+                        {(
                             <div className="flex items-center gap-2 text-xs">
                                 <span className="font-semibold text-subtle">{formatShortDate(order.created_at)}</span>
                                 <span className="text-[var(--card-border)]">|</span>
@@ -657,24 +1071,24 @@ export const OrderCard = memo(function OrderCard({
                             </div>
                         )}
 
-                        {/* Tags Row */}
-                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        {/* Tags Row - hidden in semi-compact */}
+                        {compact === 0 && <div className="flex items-center gap-2 mt-2 flex-wrap">
                             {/* Status Badge */}
                             <motion.span
                                 layoutId={getLayoutId(`order-status-${order.id}-${order.status}`)}
                                 className={cn(
                                     "inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full uppercase tracking-wider",
                                     getStatusBadgeStyle(),
-                                    isReturn && "bg-red-100 text-red-700"
+                                    isReturn && "bg-rose-100 text-rose-700 border border-rose-200"
                                 )}
                             >
                                 {isNew && <Sparkles className="w-3 h-3" />}
                                 {isReturn && <RotateCcw className="w-3 h-3" />}
-                                {isReturn ? "استرجاع" : getStatusLabel(order.status)}
+                                {getStatusLabel(order.status)}
                             </motion.span>
 
-                            {/* Detailed Risk Warning - STATE OF THE ART: Only show on ACTIVE/ACTIONABLE orders */}
-                            {(riskLevel === 'high' || riskLevel === 'blocked' || riskLevel === 'medium') &&
+                            {/* Detailed Risk Warning - Only show in full view */}
+                            {compact === 0 && (riskLevel === 'high' || riskLevel === 'blocked' || riskLevel === 'medium') &&
                                 ['new', 'contacted', 'confirmed', 'in_transit', 'return_pending'].includes(order.status) && (
                                     <>
                                         <RiskBadge level={riskLevel} showLabel={true} className="h-6" />
@@ -707,26 +1121,16 @@ export const OrderCard = memo(function OrderCard({
                                 )}
 
 
-                            {/* Original Order Link for Returns */}
-                            {isReturn && originalOrderInfo && (
-                                <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-medium rounded-full bg-gray-100 text-gray-600">
-                                    ← من طلب #{(() => {
-                                        // Extract base number from LF format or use sequence
-                                        const orderId = originalOrderInfo.originalOrderId;
-                                        const lfMatch = orderId.match(/LF-(\d+)-\d+$/);
-                                        return lfMatch ? lfMatch[1] : (originalOrderInfo.originalSequenceNumber || orderId);
-                                    })()}
-                                </span>
-                            )}
+                            {/* Original Order Link for Returns - REMOVED: consolidated into single rose tag below */}
 
                             {/* Priority Badge */}
                             {getPriorityBadge()}
 
-                            {/* Source Badge */}
-                            {getSourceBadge()}
+                            {/* Source Badge - hidden in semi-compact */}
+                            {compact === 0 && getSourceBadge()}
 
-                            {/* 7-Day Guarantee Countdown for Delivered Orders */}
-                            {order.status === 'delivered' && order.delivered_at && (() => {
+                            {/* 7-Day Guarantee Countdown - hidden in semi-compact */}
+                            {compact === 0 && order.status === 'delivered' && order.delivered_at && (() => {
                                 const daysLeft = getGuaranteeDaysRemaining(order.delivered_at);
                                 if (daysLeft === null) return null;
 
@@ -757,36 +1161,53 @@ export const OrderCard = memo(function OrderCard({
                                 }
                             })()}
 
-                            {/* Scheduled Date Indicator */}
-                            {order.scheduled_date && (
+                            {/* Scheduled Date - hidden in semi-compact */}
+                            {compact === 0 && order.scheduled_date && (
                                 <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-medium rounded-full bg-blue-50 text-blue-700">
                                     <Calendar className="w-3 h-3" />
                                     {new Date(order.scheduled_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                 </span>
                             )}
 
-                            {/* Refund Indicator - Show when this order has a return order (Parent Order) */}
-                            {!isReturn && hasRefund && returnOrderInfo && (
-                                <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full bg-orange-100 text-orange-700 border border-orange-200" title={`تم الارجاع جزئياً في الطلب #${returnOrderInfo.returnOrderId}`}>
+                            {/* Return Indicator - hidden in semi-compact */}
+                            {compact === 0 && !isReturn && hasRefund && returnOrderInfo && (
+                                <span
+                                    className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full bg-orange-100 text-orange-700 border border-orange-200 cursor-pointer hover:bg-orange-200 transition-colors"
+                                    title={`تم الارجاع جزئياً في الطلب #${returnOrderInfo.returnOrderId}`}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (returnOrderInfo.order) onViewDetails(returnOrderInfo.order);
+                                    }}
+                                >
                                     <Scissors className="w-3 h-3" />
-                                    تم الارجاع جزئياً
-                                </span>
-                            )}
-
-                            {/* Return Source Indicator - Show when this is a return order (Child Order) */}
-                            {isReturn && originalOrderInfo && (
-                                <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full bg-rose-100 text-rose-700 border border-rose-200">
-                                    <RotateCcw className="w-3 h-3" />
-                                    راجع من #{(() => {
-                                        const orderId = originalOrderInfo.originalOrderId;
+                                    مرتجع جزئياً → طلب #{(() => {
+                                        const orderId = returnOrderInfo.returnOrderId;
                                         const lfMatch = orderId.match(/LF-(\d+)-\d+$/);
-                                        return lfMatch ? lfMatch[1] : (originalOrderInfo.originalSequenceNumber || orderId);
+                                        return lfMatch ? lfMatch[1] : orderId;
                                     })()}
                                 </span>
                             )}
 
-                            {/* Returning Customer Indicator - Opens Comparison Modal */}
-                            {customerOrderCount > 1 && (
+                            {/* Return Source Indicator - hidden in semi-compact */}
+                            {compact === 0 && isReturn && originalOrderInfo && (
+                                <span
+                                    className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full bg-rose-100 text-rose-700 border border-rose-200 cursor-pointer hover:bg-rose-200 transition-colors"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (originalOrderInfo.order) onViewDetails(originalOrderInfo.order);
+                                    }}
+                                >
+                                    <RotateCcw className="w-3 h-3" />
+                                    راجع من طلب #{(() => {
+                                        const orderId = originalOrderInfo.originalOrderId;
+                                        const lfMatch = orderId.match(/LF-(\d+)-\d+$/);
+                                        return lfMatch ? lfMatch[1] : orderId;
+                                    })()}
+                                </span>
+                            )}
+
+                            {/* Returning Customer Indicator - hidden in semi-compact */}
+                            {compact === 0 && customerOrderCount > 1 && (
                                 <span
                                     className={cn(
                                         "inline-flex h-6 items-center gap-1 px-2 text-[10px] font-medium rounded-full cursor-pointer transition-colors",
@@ -811,7 +1232,7 @@ export const OrderCard = memo(function OrderCard({
 
                             {/* Duplicate Reference Tag - Shows original order ID */}
 
-                        </div>
+                        </div>}
                     </motion.div>
 
                     {/* DIVIDER */}
@@ -821,8 +1242,8 @@ export const OrderCard = memo(function OrderCard({
                     <div className="flex-1 min-w-0 space-y-2 hidden md:block overflow-hidden">
                         {/* Product Row */}
                         <div className="flex items-center gap-3">
-                            {/* Product Thumbnail */}
-                            {items[0]?.image_url ? (
+                            {/* Product Thumbnail - hidden in semi-compact */}
+                            {compact === 0 && (items[0]?.image_url ? (
                                 <img
                                     src={items[0].image_url}
                                     alt={items[0].name}
@@ -837,7 +1258,7 @@ export const OrderCard = memo(function OrderCard({
                                 )}>
                                     <Package className={cn("w-5 h-5", isNew ? "text-orange-600" : "text-muted")} />
                                 </div>
-                            )}
+                            ))}
 
                             {/* Product Names */}
                             <div className="flex-1 min-w-0">
@@ -961,21 +1382,23 @@ export const OrderCard = memo(function OrderCard({
                             )}
                         </div>
 
-                        {/* Notes Row - Order Notes (amber) and Internal Notes (blue) */}
-                        <div className="flex flex-wrap gap-2">
-                            {actualNotes && (
-                                <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 rounded-lg px-2 py-1 max-w-full overflow-hidden border border-amber-200">
-                                    <FileText className="w-3 h-3 flex-shrink-0" />
-                                    <span className="truncate" title={actualNotes}>{actualNotes}</span>
-                                </div>
-                            )}
-                            {order.internal_notes && (
-                                <div className="flex items-center gap-1.5 text-xs text-blue-700 bg-blue-50 rounded-lg px-2 py-1 max-w-full overflow-hidden border border-blue-200">
-                                    <FileText className="w-3 h-3 flex-shrink-0" />
-                                    <span className="truncate" title={order.internal_notes}>{order.internal_notes}</span>
-                                </div>
-                            )}
-                        </div>
+                        {/* Notes Row - Order Notes (amber) and Internal Notes (blue) - hidden in semi-compact */}
+                        {compact === 0 && (
+                            <div className="flex flex-wrap gap-2">
+                                {actualNotes && (
+                                    <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 rounded-lg px-2 py-1 max-w-full overflow-hidden border border-amber-200">
+                                        <FileText className="w-3 h-3 flex-shrink-0" />
+                                        <span className="truncate" title={actualNotes}>{actualNotes}</span>
+                                    </div>
+                                )}
+                                {actualInternalNotes && (
+                                    <div className="flex items-center gap-1.5 text-xs text-blue-700 bg-blue-50 rounded-lg px-2 py-1 max-w-full overflow-hidden border border-blue-200">
+                                        <FileText className="w-3 h-3 flex-shrink-0" />
+                                        <span className="truncate" title={actualInternalNotes}>{actualInternalNotes}</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* PRICE SECTION - Hidden on mobile (shown at bottom instead) */}
@@ -1265,8 +1688,8 @@ export const OrderCard = memo(function OrderCard({
 
 
 
-                        {/* More Actions Dropdown */}
-                        <div ref={actionsRef} className={cn("relative", actionsOpen && "z-50")}>
+                        {/* More Actions Dropdown - hidden in semi-compact */}
+                        {compact === 0 && <div ref={actionsRef} className={cn("relative", actionsOpen && "z-50")}>
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
@@ -1382,7 +1805,7 @@ export const OrderCard = memo(function OrderCard({
 
                                 document.body
                             )}
-                        </div>
+                        </div>}
 
                         {/* Split Order Button - Only for confirmed/in_transit with multiple items */}
                         {onSplit && (order.status === 'confirmed' || order.status === 'in_transit') && (order.items && order.items.length > 1) && (
