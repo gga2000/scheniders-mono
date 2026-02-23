@@ -165,7 +165,7 @@ export async function splitOrderAction(
         const newDiscount = Math.round(originalDiscount * keptRatio);
         const returnDiscount = originalDiscount - newDiscount;
 
-        const newPrice = keptTotal - newDiscount;
+        const newPrice = keptTotal + (originalOrder.delivery_fee || 0) - newDiscount;
         const returnPrice = returnedTotal - returnDiscount; // Price for return order usually represents the value of returned items
 
         // 4. Update Original Order (The Kept Part)
@@ -177,7 +177,6 @@ export async function splitOrderAction(
                 price: newPrice,
                 discount_amount: newDiscount,
                 status: 'delivered', // Mark as successfully delivered
-                internal_notes: (originalOrder.internal_notes || "") + `\n[Partial Delivery] Split from initial order.`,
                 delivered_at: new Date().toISOString(),
             })
             .eq("id", originalOrderId);
@@ -204,8 +203,6 @@ export async function splitOrderAction(
             is_return: true,
             original_order_id: originalOrder.id,
             rejection_reason: 'Partial Return',
-            notes: (originalOrder.notes || "") + `\n[Partial Return] Items returned from original order.`,
-            internal_notes: `Split from order ${originalOrder.order_id}`,
 
             // Reset/Sanitize fields
             whatsapp_link: originalOrder.whatsapp_link || undefined,

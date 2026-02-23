@@ -119,6 +119,7 @@ import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
 import { notificationService } from "@/lib/notification-service";
 import { exportOrdersToPrimeCSV } from "@/lib/export-utils";
+import { toast } from "@/hooks/use-toast";
 
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useLanguage } from "@/hooks/use-language";
@@ -219,9 +220,17 @@ export default function OrdersPage() {
 
     const [groupBy, setGroupBy] = useState<'none' | 'status' | 'city' | 'verified'>('none');
     const [openFilterColumn, setOpenFilterColumn] = useState<string | null>(null);
-    const [compactView, setCompactView] = useState(() => {
+    const [compactView, setCompactView] = useState<0 | 1 | 2>(() => {
         if (typeof window !== "undefined") {
-            return localStorage.getItem("ordersCompactView") === "true";
+            const stored = localStorage.getItem("ordersCompactView");
+            if (stored === "2") return 2;
+            if (stored === "1" || stored === "true") return 1;
+        }
+        return 0;
+    });
+    const [compactGrid, setCompactGrid] = useState(() => {
+        if (typeof window !== "undefined") {
+            return localStorage.getItem("ordersCompactGrid") === "true";
         }
         return false;
     });
@@ -278,15 +287,15 @@ export default function OrdersPage() {
             // Force data refresh to show new orders
             await refreshOrders();
 
-            notificationService.showNotification({
-                title: t("common.success"),
-                body: "Order has been split successfully. Return order created."
-            });
+            toast.success(
+                "Order split successfully",
+                "Return order has been created"
+            );
         } else {
-            notificationService.showNotification({
-                title: t("common.error"),
-                body: result.error || t("orderDetail.splitError")
-            });
+            toast.error(
+                "Split failed",
+                result.error || t("orderDetail.splitError")
+            );
         }
     };
 
@@ -567,7 +576,7 @@ export default function OrdersPage() {
         const result = await bulkDelete(ids);
 
         if (!result.success && (!result.count || result.count === 0)) {
-            alert(result.error || "Could not delete selected orders.");
+            toast.error("Delete failed", result.error || "Could not delete selected orders.");
             return;
         }
 
@@ -576,10 +585,14 @@ export default function OrdersPage() {
             const deletedIdSet = new Set(result.deletedIds || []);
             setSelectedOrders(new Set(ids.filter(id => !deletedIdSet.has(id))));
 
-            alert(`${deletedCount} of ${ids.length} orders were deleted. The remaining orders stayed selected.`);
+            toast.warning(
+                `Partially deleted`,
+                `${deletedCount} of ${ids.length} orders were deleted. Remaining orders stayed selected.`
+            );
             return;
         }
 
+        toast.success("Orders deleted", `${deletedCount} orders permanently deleted`);
         setSelectedOrders(new Set());
     };
 
@@ -627,10 +640,7 @@ export default function OrdersPage() {
             : filteredOrders.map(o => o.id);
 
         if (ids.length === 0) {
-            notificationService.showNotification({
-                title: "Error",
-                body: "No orders selected for export",
-            });
+            toast.warning("No orders selected", "Select orders before exporting");
             return;
         }
 
@@ -664,19 +674,19 @@ export default function OrdersPage() {
                 // Clear selection
                 setSelectedOrders(new Set());
 
-                notificationService.showNotification({
-                    title: "Export Successful",
-                    body: `${ids.length} orders exported and moved to In Transit`,
-                });
+                toast.success(
+                    "Export successful",
+                    `${ids.length} orders exported → In Transit`
+                );
             } else {
                 throw new Error(batchError || "Failed to create export batch");
             }
         } catch (err) {
             console.error("Prime export error:", err);
-            notificationService.showNotification({
-                title: "Export Failed",
-                body: err instanceof Error ? err.message : "Could not complete the export process",
-            });
+            toast.error(
+                "Export failed",
+                err instanceof Error ? err.message : "Could not complete the export process"
+            );
         }
     };
 
@@ -755,6 +765,7 @@ export default function OrdersPage() {
         const returnOrder = orders.find(o => o.is_return && o.original_order_id === orderId);
         if (!returnOrder) return null;
         return {
+            order: returnOrder,
             returnOrderId: returnOrder.order_id,
             returnSequenceNumber: returnOrder.sequence_number
         };
@@ -766,6 +777,7 @@ export default function OrdersPage() {
         const originalOrder = orders.find(o => o.id === originalOrderId);
         if (!originalOrder) return null;
         return {
+            order: originalOrder,
             originalOrderId: originalOrder.order_id,
             originalSequenceNumber: originalOrder.sequence_number
         };
@@ -1054,7 +1066,7 @@ export default function OrdersPage() {
                                                             "p-2.5 rounded-xl transition-all duration-300",
                                                             viewMode === v.mode
                                                                 ? "bg-white text-foreground shadow-sm dark:bg-[var(--ink)] dark:text-[var(--ink-contrast)] dark:shadow-black/20 ring-1 ring-black/5"
-                                                                : "text-muted-foreground hover:bg-white/40 hover:text-foreground dark:hover:bg-[#243551]/80"
+                                                                : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground"
                                                         )}
                                                     >
                                                         <v.icon className="w-4 h-4" />
@@ -1065,19 +1077,44 @@ export default function OrdersPage() {
                                                 {!workflowMode && viewMode === "cards" && (
                                                     <button
                                                         onClick={() => {
-                                                            const newValue = !compactView;
-                                                            setCompactView(newValue);
-                                                            localStorage.setItem("ordersCompactView", String(newValue));
+                                                            const newLevel = ((compactView + 1) % 3) as 0 | 1 | 2;
+                                                            setCompactView(newLevel);
+                                                            localStorage.setItem("ordersCompactView", String(newLevel));
                                                         }}
                                                         className={cn(
                                                             "p-2.5 rounded-xl transition-all duration-300",
-                                                            compactView
-                                                                ? "bg-purple-100 text-purple-600 shadow-sm"
-                                                                : "text-muted-foreground hover:bg-white/40 hover:text-foreground dark:hover:bg-[#243551]/80"
+                                                            compactView === 1 && "bg-purple-100 text-purple-600 shadow-sm",
+                                                            compactView === 2 && "bg-indigo-100 text-indigo-600 shadow-sm",
+                                                            compactView === 0 && "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground"
                                                         )}
-                                                        title={compactView ? "Compact View Active" : "Switch to Compact"}
+                                                        title={compactView === 0 ? "Switch to Compact" : compactView === 1 ? "Compact View" : "Ultra Compact"}
                                                     >
-                                                        {compactView ? <LayoutList className="w-4 h-4" /> : <Rows3 className="w-4 h-4" />}
+                                                        {compactView === 0
+                                                            ? <Rows3 className="w-4 h-4" />
+                                                            : compactView === 1
+                                                                ? <LayoutList className="w-4 h-4" />
+                                                                : <List className="w-4 h-4" />
+                                                        }
+                                                    </button>
+                                                )}
+
+                                                {/* Grid Toggle - only visible in compact modes */}
+                                                {!workflowMode && viewMode === "cards" && compactView >= 1 && (
+                                                    <button
+                                                        onClick={() => {
+                                                            const newVal = !compactGrid;
+                                                            setCompactGrid(newVal);
+                                                            localStorage.setItem("ordersCompactGrid", String(newVal));
+                                                        }}
+                                                        className={cn(
+                                                            "p-2.5 rounded-xl transition-all duration-300",
+                                                            compactGrid
+                                                                ? "bg-amber-100 text-amber-700 shadow-sm"
+                                                                : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground"
+                                                        )}
+                                                        title={compactGrid ? "Grid View" : "Switch to Grid"}
+                                                    >
+                                                        <LayoutGrid className="w-4 h-4" />
                                                     </button>
                                                 )}
 
@@ -1086,7 +1123,7 @@ export default function OrdersPage() {
                                                 {/* Collapse Toolbar */}
                                                 <button
                                                     onClick={toggleToolbarCollapse}
-                                                    className="p-2.5 rounded-xl text-muted-foreground hover:bg-white/40 hover:text-foreground dark:hover:bg-[#243551]/80 transition-all duration-300 hover:rotate-90 active:scale-95"
+                                                    className="p-2.5 rounded-xl text-muted-foreground hover:bg-amber-200/60 hover:text-foreground transition-all duration-300 hover:rotate-90 active:scale-95"
                                                     title="Collapse toolbar"
                                                 >
                                                     <Minimize2 className="w-4 h-4" />
@@ -1107,14 +1144,45 @@ export default function OrdersPage() {
                                                             "px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300 flex items-center gap-2 border",
                                                             (filters.dateFrom || filters.dateTo)
                                                                 ? "bg-amber-100/50 border-amber-200/50 text-amber-700 shadow-sm"
-                                                                : "bg-white/50 border-transparent hover:bg-white/80 text-muted-foreground hover:text-foreground dark:bg-[#1b263a]/70 dark:border-[#354764]/60 dark:hover:bg-[#243551] dark:text-[var(--foreground-muted)] dark:hover:text-[var(--foreground)]"
+                                                                : "border-transparent text-muted-foreground hover:bg-amber-100/40 hover:text-foreground"
                                                         )}
                                                     >
                                                         <CalendarDays className="w-4 h-4" />
                                                         <span className="hidden lg:inline">
-                                                            {filters.dateFrom
-                                                                ? `${new Date(filters.dateFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
-                                                                : t("orders.dateRange")}
+                                                            {(() => {
+                                                                if (!filters.dateFrom) return "All Orders";
+                                                                const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                                                                const now = new Date();
+                                                                const todayStr = fmt(now);
+                                                                const df = filters.dateFrom;
+                                                                const dt = filters.dateTo || df;
+                                                                // Check presets: wider ranges first to avoid shadowing
+                                                                // Past Year
+                                                                const yearAgo = new Date(); yearAgo.setFullYear(now.getFullYear() - 1);
+                                                                if (df === fmt(yearAgo) && dt === todayStr) return "Past Year";
+                                                                // Last 30 Days
+                                                                const d30 = new Date(); d30.setDate(now.getDate() - 30);
+                                                                if (df === fmt(d30) && dt === todayStr) return "Last 30 Days";
+                                                                // Last 7 Days
+                                                                const d7 = new Date(); d7.setDate(now.getDate() - 7);
+                                                                if (df === fmt(d7) && dt === todayStr) return "Last 7 Days";
+                                                                // This Month
+                                                                const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                                                                if (df === fmt(monthStart) && dt === todayStr) return "This Month";
+                                                                // This Week
+                                                                const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
+                                                                if (df === fmt(weekStart) && dt === todayStr) return "This Week";
+                                                                // Yesterday
+                                                                const yest = new Date(); yest.setDate(yest.getDate() - 1);
+                                                                const yesterdayStr = fmt(yest);
+                                                                if (df === yesterdayStr && dt === yesterdayStr) return "Yesterday";
+                                                                // Today
+                                                                if (df === todayStr && dt === todayStr) return "Today";
+                                                                // Custom range or single date
+                                                                const fmtDisplay = (s: string) => new Date(s + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                                                                if (df === dt) return fmtDisplay(df);
+                                                                return `${fmtDisplay(df)} — ${fmtDisplay(dt)}`;
+                                                            })()}
                                                         </span>
                                                     </button>
                                                     {showDatePicker && createPortal(
@@ -1148,7 +1216,7 @@ export default function OrdersPage() {
                                                         "p-2.5 rounded-xl transition-all duration-300",
                                                         showSearchBar
                                                             ? "bg-blue-100 text-blue-600 shadow-sm"
-                                                            : "text-muted-foreground hover:bg-white/40 hover:text-foreground dark:hover:bg-[#243551]/80"
+                                                            : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground"
                                                     )}
                                                     title="Advanced Filters"
                                                 >
@@ -1166,10 +1234,10 @@ export default function OrdersPage() {
                                                         setShowArchived(!showArchived);
                                                     }}
                                                     className={cn(
-                                                        "px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300 flex items-center gap-2",
+                                                        "px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300 flex items-center gap-2 border",
                                                         showArchived
-                                                            ? "bg-orange-100/50 text-orange-700 shadow-sm"
-                                                            : "text-muted-foreground hover:bg-white/40 hover:text-foreground dark:hover:bg-[#243551]/80"
+                                                            ? "bg-orange-100/50 text-orange-700 border-orange-200/50 shadow-sm"
+                                                            : "border-transparent text-muted-foreground hover:bg-amber-100/40 hover:text-foreground"
                                                     )}
                                                 >
                                                     <Archive className="w-4 h-4" />
@@ -1207,7 +1275,7 @@ export default function OrdersPage() {
                                                         "p-2.5 rounded-xl transition-all duration-300",
                                                         notificationsEnabled
                                                             ? "bg-green-100 text-green-600 shadow-sm"
-                                                            : "text-muted-foreground hover:bg-white/40 hover:text-foreground dark:hover:bg-[#243551]/80"
+                                                            : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground"
                                                     )}
                                                     title="Notifications"
                                                 >
@@ -1225,7 +1293,7 @@ export default function OrdersPage() {
                                                         "p-2.5 rounded-xl transition-all duration-300",
                                                         analyticsLevel > 0
                                                             ? "bg-indigo-100 text-indigo-600 shadow-sm"
-                                                            : "text-muted-foreground hover:bg-white/40 hover:text-foreground dark:hover:bg-[#243551]/80"
+                                                            : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground"
                                                     )}
                                                     title="Analytics"
                                                 >
@@ -1256,14 +1324,14 @@ export default function OrdersPage() {
                                             <div className="flex items-center gap-2">
                                                 <button
                                                     onClick={() => setIsImportModalOpen(true)}
-                                                    className="p-2.5 rounded-xl text-muted-foreground hover:bg-white/40 hover:text-foreground dark:hover:bg-[#243551]/80 transition-all duration-300"
+                                                    className="p-2.5 rounded-xl text-muted-foreground hover:bg-amber-200/60 hover:text-foreground transition-all duration-300"
                                                     title="Import"
                                                 >
                                                     <Upload className="w-4 h-4" />
                                                 </button>
                                                 <button
                                                     onClick={handleExport}
-                                                    className="p-2.5 rounded-xl text-muted-foreground hover:bg-white/40 hover:text-foreground dark:hover:bg-[#243551]/80 transition-all duration-300"
+                                                    className="p-2.5 rounded-xl text-muted-foreground hover:bg-amber-200/60 hover:text-foreground transition-all duration-300"
                                                     title="Export"
                                                 >
                                                     <Download className="w-4 h-4" />
@@ -1873,6 +1941,72 @@ export default function OrdersPage() {
                                                 searchQuery={filters.searchQuery}
                                                 hasFilters={!!(filters.dateFrom || filters.dateTo || filters.city || filters.product || filters.priority)}
                                             />
+                                        ) : compactView >= 1 && compactGrid ? (
+                                            /* Grid layout for compact views */
+                                            <div className={cn(
+                                                "grid gap-2",
+                                                compactView === 2
+                                                    ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+                                                    : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+                                            )}>
+                                                {displayedOrders.map((order) => {
+                                                    const customerOrders = getCustomerHistory(order.phone);
+                                                    const orderCount = getCustomerOrderCount(order.phone, order.order_id);
+                                                    const previousOrder = !order.is_return ? (customerOrders.find(o => o.id !== order.id) || null) : null;
+
+                                                    return (
+                                                        <SwipeableOrderCard
+                                                            key={order.id}
+                                                            order={order}
+                                                            loadingId={loadingId}
+                                                            onStatusUpdate={handleStatusUpdate}
+                                                            onViewDetails={(o: any) => {
+                                                                setSelectedOrder(o);
+                                                                setIsModalOpen(true);
+                                                            }}
+                                                            onSplit={() => setSplitOrderDialog({ open: true, order })}
+                                                            isBlacklisted={isBlacklisted(order.phone)}
+                                                            riskLevel={getRiskLevel(order.phone)}
+                                                            riskAssessment={getAssessment(order.phone)}
+                                                            customerOrderCount={orderCount}
+                                                            previousOrder={previousOrder}
+                                                            onMergeWithPrevious={async (keepId: string, archiveId: string) => {
+                                                                const result = await mergeOrders(keepId, archiveId);
+                                                                if (!result.success) console.error('Merge failed:', result.error);
+                                                            }}
+                                                            onShowDuplicates={(o: any) => {
+                                                                setDuplicateOrder(o);
+                                                                setShowDuplicateModal(true);
+                                                            }}
+                                                            hasDuplicates={hasDuplicates(order.phone)}
+                                                            getCustomerOrderCount={(phone: string) => getCustomerOrderCount(phone, order.order_id)}
+                                                            onTogglePin={(id: string) => togglePin(id)}
+                                                            onClone={(o: any) => cloneOrder(o)}
+                                                            onScreenshot={() => setScreenshotOrder(order)}
+                                                            onCancelWithReason={(o: any) => {
+                                                                setOrderToCancel(o);
+                                                                setCancelDialogOpen(true);
+                                                            }}
+                                                            onRejectWithReason={(o: any) => {
+                                                                setOrderToReject(o);
+                                                                setRejectDialogOpen(true);
+                                                            }}
+                                                            onToggleReviewed={toggleReviewed}
+                                                            returnOrderInfo={getReturnOrderInfo(order.id)}
+                                                            originalOrderInfo={getOriginalOrderInfo(order.original_order_id)}
+                                                            compact={compactView}
+                                                            gridMode={true}
+                                                            onOpenTemplatePanel={(o: any) => {
+                                                                setOrderForTemplate(o);
+                                                                setTemplatePanelOpen(true);
+                                                            }}
+                                                            messageTemplates={workflowTemplates}
+                                                            isSelected={selectedOrders.has(order.id)}
+                                                            onToggleSelection={toggleOrderSelection}
+                                                        />
+                                                    );
+                                                })}
+                                            </div>
                                         ) : displayedOrders.length >= 50 ? (
                                             /* Use virtualized list for 50+ orders */
                                             <VirtualizedOrderList
@@ -2140,6 +2274,64 @@ export default function OrdersPage() {
                         />
                     )}
                 </AnimatePresence>
+
+                {/* 🧪 TEMPORARY: Toast Tester — remove after testing */}
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: 16,
+                        left: 16,
+                        zIndex: 9999,
+                        display: 'flex',
+                        gap: 6,
+                        padding: '8px 12px',
+                        borderRadius: 16,
+                        background: 'rgba(30,30,30,0.85)',
+                        backdropFilter: 'blur(12px)',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        alignItems: 'center',
+                        fontFamily: 'var(--font-sans)',
+                    }}
+                >
+                    <span style={{ color: '#999', fontSize: 11, marginRight: 4 }}>🧪</span>
+                    {[
+                        { label: '✅', variant: 'success' as const, title: 'Order confirmed', desc: 'Order #1234 → Confirmed' },
+                        { label: '❌', variant: 'error' as const, title: 'Action failed', desc: 'Could not update order status' },
+                        { label: '⚠️', variant: 'warning' as const, title: 'Partial delete', desc: '3 of 5 orders deleted' },
+                        { label: 'ℹ️', variant: 'default' as const, title: 'Info', desc: 'This is an informational toast' },
+                        { label: '↩️', variant: 'default' as const, title: 'Status updated', desc: 'Order moved to Delivered', hasUndo: true },
+                    ].map((t, i) => (
+                        <button
+                            key={i}
+                            onClick={() => toast({
+                                title: t.title,
+                                description: t.desc,
+                                variant: t.variant,
+                                action: t.hasUndo ? { label: "Undo", onClick: () => console.log("Undo clicked") } : undefined
+                            })}
+                            style={{
+                                width: 32,
+                                height: 32,
+                                borderRadius: 10,
+                                border: 'none',
+                                cursor: 'pointer',
+                                fontSize: 14,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: 'rgba(255,255,255,0.08)',
+                                transition: 'background 0.15s',
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.18)')}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+                            title={`Test ${t.variant} toast`}
+                        >
+                            {t.label}
+                        </button>
+                    ))}
+                </div>
+
             </div >
         </PageTransition >
     );

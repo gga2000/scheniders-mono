@@ -101,8 +101,22 @@ export function applyOrderFilters(
             );
             const matchesOrderId = order.order_id?.toLowerCase().includes(query);
             const matchesDeliveryId = order.delivery_order_id?.toLowerCase().includes(query);
-            // Also search in original_order_id so return orders show up when searching for the parent
-            const matchesOriginalOrderId = order.original_order_id?.toLowerCase().includes(query);
+
+            // Fix for matching return orders:
+            // order.original_order_id is a UUID. We need to check if the UUID's corresponding order_id matches the query.
+            let matchesOriginalOrderId = false;
+            if (order.original_order_id) {
+                // Direct UUID match (unlikely but possible)
+                if (order.original_order_id.toLowerCase().includes(query)) {
+                    matchesOriginalOrderId = true;
+                } else {
+                    // Look up the parent order in the array to check its human-readable order_id
+                    const parentOrder = orders.find(o => o.id === order.original_order_id);
+                    if (parentOrder && parentOrder.order_id?.toLowerCase().includes(query)) {
+                        matchesOriginalOrderId = true;
+                    }
+                }
+            }
 
             if (!matchesName && !matchesPhone && !matchesOrderId && !matchesDeliveryId && !matchesOriginalOrderId) {
                 return false;

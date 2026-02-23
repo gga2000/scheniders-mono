@@ -34,13 +34,14 @@ interface VirtualizedOrderListProps {
     getReturnOrderInfo: (orderId: string) => { returnOrderId: string; returnSequenceNumber?: number } | null;
     getOriginalOrderInfo: (originalOrderId?: string) => { originalOrderId: string; originalSequenceNumber?: number } | null;
     // Options
-    compactView?: boolean;
+    compactView?: 0 | 1 | 2;
     onSplitOrder?: (order: any) => void;
 }
 
 // Estimated card heights (will be measured dynamically)
 const ESTIMATED_CARD_HEIGHT = 180;
-const COMPACT_CARD_HEIGHT = 120;
+const COMPACT_CARD_HEIGHT = 100;
+const ULTRA_COMPACT_CARD_HEIGHT = 56;
 
 export const VirtualizedOrderList = memo(function VirtualizedOrderList({
     orders,
@@ -64,7 +65,7 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
     getCustomerHistory,
     getReturnOrderInfo,
     getOriginalOrderInfo,
-    compactView = false,
+    compactView = 0,
     getRiskLevel,
     getRiskAssessment,
     hasDuplicates,
@@ -83,7 +84,7 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
 
     // Memoize the keys to prevent infinite loops from virtualizer config updates
     const getItemKey = useCallback((index: number) => orders[index]?.id || index, [orders]);
-    const estimateSize = useCallback(() => compactView ? COMPACT_CARD_HEIGHT : ESTIMATED_CARD_HEIGHT, [compactView]);
+    const estimateSize = useCallback(() => compactView === 2 ? ULTRA_COMPACT_CARD_HEIGHT : compactView === 1 ? COMPACT_CARD_HEIGHT : ESTIMATED_CARD_HEIGHT, [compactView]);
 
     // Use window-based virtualizer - cards scroll with the page
     const virtualizer = useWindowVirtualizer({

@@ -39,6 +39,7 @@ export interface Order {
     discount_amount?: number;
     is_return: boolean;
     original_order_id?: string;
+    original_created_at?: string; // Tracks the original creation date if the order date is modified
     is_archived: boolean;
     is_pinned?: boolean;
     delivery_slot?: 'morning' | 'afternoon' | 'evening';
