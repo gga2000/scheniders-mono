@@ -12,8 +12,7 @@ import { isOrderFlagged } from "@/lib/data-quality-utils";
 import { OrderCard } from "@/components/dashboard/order-card";
 import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
 import { OrderCardSkeleton } from "@/components/dashboard/order-card-skeleton";
-// This was a thought trace, not the actual replacement content yet. I need to view OrderCard first.
-// But I can add the imports to Page.tsx now.
+import { OrderAssignment, mockAssignments } from "@/lib/team-types";
 import { useBatchRiskAssessment } from "@/hooks/use-risk-assessment";
 import { RiskBadge } from "@/components/orders/risk-badge";
 const OrderDetailsModal = dynamic(
@@ -123,6 +122,8 @@ import {
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
 import { notificationService } from "@/lib/notification-service";
+import { evaluateAutoAssignments } from "@/lib/assignment-engine";
+import { mockAssignmentRules } from "@/lib/team-types";
 import { exportOrdersToPrimeCSV } from "@/lib/export-utils";
 import { toast } from "@/hooks/use-toast";
 
@@ -256,6 +257,7 @@ export default function OrdersPage() {
     });
     const [loadingId, setLoadingId] = useState<string | null>(null);
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+    const [assignments, setAssignments] = useState<OrderAssignment[]>(mockAssignments);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
@@ -312,6 +314,34 @@ export default function OrdersPage() {
             );
         }
     };
+
+    const handleAssignDuty = useCallback((orderId: string, duty: 'confirmation' | 'fulfillment', employeeId: string) => {
+        setAssignments(prev => {
+            const filtered = prev.filter(a => !(a.order_id === orderId && a.duty === duty));
+            return [...filtered, {
+                id: crypto.randomUUID(),
+                order_id: orderId,
+                employee_id: employeeId,
+                duty,
+                assigned_at: new Date().toISOString(),
+                status: 'pending'
+            }];
+        });
+        toast.success(`Assigned to ${duty}`);
+    }, []);
+
+    // Evaluate Auto-Assignments when orders change or load
+    useEffect(() => {
+        if (!orders || orders.length === 0) return;
+
+        const newAssignments = evaluateAutoAssignments(orders, mockAssignmentRules, assignments);
+
+        if (newAssignments.length > 0) {
+            setAssignments(prev => [...prev, ...newAssignments]);
+            // Optional: you could show a toast here, but it might be spammy if lots of orders
+            // toast.success(`Auto-assigned ${newAssignments.length} new duties based on rules.`);
+        }
+    }, [orders]); // Exclude assignments to prevent infinite loops, evaluateAutoAssignments handles this by checking !newAssignments
 
     // Get workflow templates for the template panel
     const workflowTemplates = useMemo(() =>
@@ -2121,6 +2151,8 @@ export default function OrdersPage() {
                                                             messageTemplates={workflowTemplates}
                                                             isSelected={selectedOrders.has(order.id)}
                                                             onToggleSelection={toggleOrderSelection}
+                                                            assignments={assignments.filter(a => a.order_id === order.id)}
+                                                            onAssignDuty={handleAssignDuty}
                                                         />
                                                     );
                                                 })}
@@ -2176,6 +2208,8 @@ export default function OrdersPage() {
                                                 getRiskLevel={getRiskLevel}
                                                 hasDuplicates={hasDuplicates}
                                                 onSplitOrder={(order) => setSplitOrderDialog({ open: true, order })}
+                                                assignments={assignments}
+                                                onAssignDuty={handleAssignDuty}
                                             />
                                         ) : (
                                             /* Use animated list for <50 orders */
@@ -2236,6 +2270,8 @@ export default function OrdersPage() {
                                                                 messageTemplates={workflowTemplates}
                                                                 isSelected={selectedOrders.has(order.id)}
                                                                 onToggleSelection={toggleOrderSelection}
+                                                                assignments={assignments.filter(a => a.order_id === order.id)}
+                                                                onAssignDuty={handleAssignDuty}
                                                             />
                                                         </StaggerItem>
                                                     );
@@ -2296,14 +2332,13 @@ export default function OrdersPage() {
                 </div >
 
                 {/* Modals */}
-                < OrderDetailsModal
+                <OrderDetailsModal
                     order={selectedOrder}
                     open={isModalOpen}
                     onClose={() => {
                         setIsModalOpen(false);
                         setSelectedOrder(null);
-                    }
-                    }
+                    }}
                     onUpdate={updateOrder}
                     onStatusUpdate={updateOrderStatus}
                     onGetTimeline={getOrderTimeline}
@@ -2311,6 +2346,9 @@ export default function OrdersPage() {
                     onAddNote={addOrderNote}
                     onDelete={deleteOrder}
                     onCreateReturn={createReturnOrder}
+                    checkOrderIdExists={checkOrderIdExists}
+                    assignments={selectedOrder ? assignments.filter(a => a.order_id === selectedOrder.id) : []}
+                    onAssignDuty={handleAssignDuty}
                 />
                 <CreateOrderModal
                     open={isCreateModalOpen}

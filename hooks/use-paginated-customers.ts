@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CustomerStatus } from "@/lib/customer-types";
 
@@ -10,6 +10,11 @@ export interface PaginatedCustomerFilters {
     search?: string;
     sortBy?: "name" | "total_orders" | "total_spent" | "last_order_date";
     sortOrder?: "asc" | "desc";
+    // Advanced Filters
+    minLtv?: number;
+    maxLtv?: number;
+    lastOrderWithinDays?: number;
+    tagId?: string;
 }
 
 export interface PaginatedCustomer {
@@ -33,27 +38,31 @@ export interface PaginatedCustomersResponse {
 
 /**
  * Hook to fetch paginated customers directly from the database using an RPC.
- * This is designed to replace the expensive client-side aggregation done in useCustomers.
+ * Uses useInfiniteQuery to support infinite scrolling in the virtualized list.
  */
 export function usePaginatedCustomers(
-    page: number = 1,
     limit: number = 20,
     filters?: PaginatedCustomerFilters
 ) {
-    const offset = (page - 1) * limit;
+    return useInfiniteQuery({
+        queryKey: ["customers", "infinite", limit, filters],
+        initialPageParam: 1,
+        queryFn: async ({ pageParam = 1 }): Promise<{ customers: PaginatedCustomer[], totalCount: number, nextPage: number | null }> => {
+            const offset = (pageParam - 1) * limit;
 
-    return useQuery({
-        queryKey: ["customers", "paginated", page, limit, filters],
-        queryFn: async (): Promise<PaginatedCustomersResponse> => {
             // Call the RPC we defined in the migration
             const { data, error } = await supabase.rpc("get_paginated_customers", {
                 search_query: filters?.search || null,
-                status_filter: filters?.status === "all" ? null : filters?.status,
+                status_filter: filters?.status === "all" ? null : (filters?.status || null),
                 city_filter: filters?.city || null,
                 sort_by: filters?.sortBy || "last_order_date",
                 sort_desc: filters?.sortOrder !== "asc", // Defaults to true/desc
                 page_limit: limit,
                 page_offset: offset,
+                min_ltv: filters?.minLtv ?? null,
+                max_ltv: filters?.maxLtv ?? null,
+                last_order_within_days: filters?.lastOrderWithinDays ?? null,
+                tag_id_filter: filters?.tagId || null,
             });
 
             if (error) {
@@ -65,7 +74,6 @@ export function usePaginatedCustomers(
 
             // The RPC returns total_count as a column on every row. Grab it from the first row.
             const totalCount = rawData.length > 0 ? Number(rawData[0].total_count) : 0;
-            const totalPages = Math.ceil(totalCount / limit);
 
             // Clean up the data before returning it to the components.
             const formattedData: PaginatedCustomer[] = rawData.map(row => ({
@@ -81,14 +89,16 @@ export function usePaginatedCustomers(
                 is_blacklisted: row.blacklisted,
             }));
 
+            // Determine if there's a next page
+            const hasMore = offset + formattedData.length < totalCount;
+
             return {
-                data: formattedData,
+                customers: formattedData,
                 totalCount,
-                totalPages,
+                nextPage: hasMore ? pageParam + 1 : null,
             };
         },
-        // Keep previous data while fetching next pages to avoid UI flashing
-        placeholderData: (previousData) => previousData,
+        getNextPageParam: (lastPage) => lastPage.nextPage,
         staleTime: 1000 * 60 * 5, // 5 minutes fresh
     });
 }

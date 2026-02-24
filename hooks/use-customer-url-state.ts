@@ -27,6 +27,10 @@ export function useCustomerUrlState() {
         sortBy: (searchParams.get("sortBy") as any) || "last_order_date",
         sortOrder: (searchParams.get("sortOrder") as "asc" | "desc") || "desc",
         customerId: searchParams.get("customer") || null,
+        minLtv: searchParams.has("minLtv") ? Number(searchParams.get("minLtv")) : undefined,
+        maxLtv: searchParams.has("maxLtv") ? Number(searchParams.get("maxLtv")) : undefined,
+        lastOrderWithinDays: searchParams.has("withinDays") ? Number(searchParams.get("withinDays")) : undefined,
+        tagId: searchParams.get("tagId") || undefined,
     });
 
     const [state, setState] = useState<CustomerUrlState>(getInitialState);
@@ -77,6 +81,19 @@ export function useCustomerUrlState() {
             params.delete("customer");
         }
 
+        // Handle Advanced Filters
+        if (newState.minLtv !== undefined) params.set("minLtv", newState.minLtv.toString());
+        else params.delete("minLtv");
+
+        if (newState.maxLtv !== undefined) params.set("maxLtv", newState.maxLtv.toString());
+        else params.delete("maxLtv");
+
+        if (newState.lastOrderWithinDays !== undefined) params.set("withinDays", newState.lastOrderWithinDays.toString());
+        else params.delete("withinDays");
+
+        if (newState.tagId) params.set("tagId", newState.tagId);
+        else params.delete("tagId");
+
         // Only push if params actually changed
         const newQueryString = params.toString();
         const currentQueryString = searchParams.toString();
@@ -91,7 +108,11 @@ export function useCustomerUrlState() {
     // Effect to trigger URL update when relevant state pieces change
     useEffect(() => {
         updateUrl(state, debouncedSearch);
-    }, [state.status, state.city, state.sortBy, state.sortOrder, state.customerId, debouncedSearch, updateUrl]);
+    }, [
+        state.status, state.city, state.sortBy, state.sortOrder, state.customerId, debouncedSearch,
+        state.minLtv, state.maxLtv, state.lastOrderWithinDays, state.tagId,
+        updateUrl
+    ]);
 
     // Helpers to update individual pieces
     const setSearch = (search: string) => setState(prev => ({ ...prev, search }));
@@ -100,6 +121,12 @@ export function useCustomerUrlState() {
     const setSort = (sortBy: CustomerUrlState["sortBy"], sortOrder: "asc" | "desc") =>
         setState(prev => ({ ...prev, sortBy, sortOrder }));
     const setSelectedCustomer = (customerId: string | null) => setState(prev => ({ ...prev, customerId }));
+
+    // Advanced Setters
+    const setAdvancedFilters = (filters: Pick<CustomerUrlState, "minLtv" | "maxLtv" | "lastOrderWithinDays" | "tagId">) =>
+        setState(prev => ({ ...prev, ...filters }));
+    const clearAdvancedFilters = () =>
+        setState(prev => ({ ...prev, minLtv: undefined, maxLtv: undefined, lastOrderWithinDays: undefined, tagId: undefined }));
 
     return {
         state: {
@@ -112,5 +139,7 @@ export function useCustomerUrlState() {
         setCity,
         setSort,
         setSelectedCustomer,
+        setAdvancedFilters,
+        clearAdvancedFilters
     };
 }

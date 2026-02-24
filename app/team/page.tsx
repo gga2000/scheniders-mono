@@ -35,6 +35,11 @@ import { TeamAnalyticsTab } from "@/components/team/team-analytics-tab";
 import { EmployeeComparison } from "@/components/team/employee-comparison";
 import { GoalTracking } from "@/components/team/goal-tracking";
 import { PastelCard, StatCard, pastelColors, PastelColor } from "@/components/team/shared-pastel-components";
+import { TeamMemberCard } from "@/components/team/team-member-card";
+import { ProfileDrawer } from "@/components/team/profile-drawer";
+import { MyActiveDesk } from "@/components/team/my-active-desk";
+import { AssignmentRulesTab } from "@/components/team/assignment-rules-tab";
+import { Settings2 } from "lucide-react";
 
 // Types
 interface EmployeeStats {
@@ -54,7 +59,7 @@ interface EmployeeStats {
 }
 
 type TimeRange = "today" | "week" | "month" | "all";
-type ViewMode = "overview" | "analytics" | "comparison" | "goals";
+type ViewMode = "overview" | "analytics" | "comparison" | "goals" | "rules";
 
 // Live Indicator
 function LiveIndicator({ isConnected }: { isConnected: boolean }) {
@@ -394,6 +399,8 @@ export default function TeamPage() {
     const [refreshing, setRefreshing] = useState(false);
     const [isConnected, setIsConnected] = useState(true);
     const [newActivityIds, setNewActivityIds] = useState<Set<string>>(new Set());
+    const [teamViewMode, setTeamViewMode] = useState<'grid' | 'list'>('grid');
+    const [selectedEmployee, setSelectedEmployee] = useState<EmployeeStats | null>(null);
 
     // Date filter helper
     const getDateFilter = useCallback((range: TimeRange): string | null => {
@@ -595,6 +602,7 @@ export default function TeamPage() {
         { id: "analytics", label: "التحليلات", icon: BarChart3 },
         { id: "comparison", label: "المقارنة", icon: GitCompare },
         { id: "goals", label: "الأهداف", icon: Target },
+        { id: "rules", label: "قواعد التعيين", icon: Settings2 },
     ];
 
     return (
@@ -652,6 +660,9 @@ export default function TeamPage() {
                     </div>
                 </div>
             </motion.div>
+
+            {/* My Active Desk (Personalized Task List) */}
+            <MyActiveDesk profile={profile} />
 
             {/* View Tabs */}
             <div className="flex justify-center">
@@ -738,18 +749,47 @@ export default function TeamPage() {
                                         <Users className="w-5 h-5 text-purple-600" />
                                         أداء الموظفين
                                     </h2>
-                                    <span className="text-sm text-[#6B6B6B]">{leaderboard.length} موظف</span>
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-xl p-1 shadow-sm backdrop-blur-sm">
+                                            <button
+                                                onClick={() => setTeamViewMode('grid')}
+                                                className={cn(
+                                                    "p-1.5 rounded-lg transition-all",
+                                                    teamViewMode === 'grid'
+                                                        ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-md"
+                                                        : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                                                )}
+                                            >
+                                                <LayoutGrid className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => setTeamViewMode('list')}
+                                                className={cn(
+                                                    "p-1.5 rounded-lg transition-all",
+                                                    teamViewMode === 'list'
+                                                        ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-md"
+                                                        : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                                                )}
+                                            >
+                                                <Users className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                        <span className="text-sm text-[#6B6B6B]">{leaderboard.length} موظف</span>
+                                    </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className={cn(
+                                    "grid gap-4",
+                                    teamViewMode === 'grid' ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"
+                                )}>
                                     {leaderboard.map((employee, index) => (
-                                        <EmployeeCard
+                                        <TeamMemberCard
                                             key={employee.user_id}
                                             employee={employee}
+                                            viewMode={teamViewMode}
                                             rank={index + 1}
-                                            isActive={false}
-                                            onClick={() => { }}
-                                            delay={0.3 + index * 0.05}
+                                            onClick={() => setSelectedEmployee(employee)}
+                                            delay={0.1 + index * 0.05}
                                         />
                                     ))}
                                 </div>
@@ -828,7 +868,24 @@ export default function TeamPage() {
                         <GoalTracking employees={employeesAdapter} />
                     </motion.div>
                 )}
+
+                {viewMode === "rules" && (
+                    <motion.div
+                        key="rules"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                    >
+                        <AssignmentRulesTab />
+                    </motion.div>
+                )}
             </AnimatePresence>
+
+            <ProfileDrawer
+                employee={selectedEmployee}
+                isOpen={!!selectedEmployee}
+                onClose={() => setSelectedEmployee(null)}
+            />
         </div>
     );
 }

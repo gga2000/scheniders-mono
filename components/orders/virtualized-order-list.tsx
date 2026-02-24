@@ -38,6 +38,9 @@ interface VirtualizedOrderListProps {
     compactView?: 0 | 1 | 2;
     actionDock?: boolean;
     onSplitOrder?: (order: any) => void;
+    // Assignments
+    assignments?: any[];
+    onAssignDuty?: (orderId: string, duty: 'confirmation' | 'fulfillment', employeeId: string) => void;
 }
 
 // Estimated card heights (will be measured dynamically)
@@ -74,6 +77,8 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
     getRiskAssessment,
     hasDuplicates,
     onSplitOrder,
+    assignments = [],
+    onAssignDuty,
 }: VirtualizedOrderListProps) {
     const listRef = useRef<HTMLDivElement>(null);
     const [scrollMargin, setScrollMargin] = useState(0);
@@ -169,6 +174,8 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
                                 messageTemplates={messageTemplates}
                                 isSelected={selectedOrders.has(order.id)}
                                 onToggleSelection={onToggleSelection}
+                                assignments={assignments.filter(a => a.order_id === order.id)}
+                                onAssignDuty={onAssignDuty}
                             />
                         </div>
                     );

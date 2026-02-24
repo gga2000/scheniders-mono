@@ -29,6 +29,9 @@ import { DiscountBadge } from "./discount-badge";
 import { SplitOrderDialog } from "./split-order-dialog";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
+import { OrderAssignment, OrderDuty, mockEmployees } from "@/lib/team-types";
+import { AvatarPill } from "@/components/ui/avatar-pill";
+import { AssignmentPopover } from "@/components/orders/assignment-popover";
 import {
     MapPin,
     Phone,
@@ -73,6 +76,8 @@ interface OrderDetailsModalProps {
     onDelete?: (orderId: string) => Promise<{ success: boolean; error?: string }>;
     onCreateReturn?: (orderId: string, data: { return_amount: number; reason: string; deductDeliveryFee?: boolean }) => Promise<{ success: boolean; error?: string }>;
     checkOrderIdExists?: (orderId: string, excludeId?: string) => Promise<boolean>;
+    assignments?: OrderAssignment[];
+    onAssignDuty?: (orderId: string, duty: OrderDuty, employeeId: string) => void;
 }
 
 export function OrderDetailsModal({
@@ -87,6 +92,8 @@ export function OrderDetailsModal({
     onDelete,
     onCreateReturn,
     checkOrderIdExists,
+    assignments = [],
+    onAssignDuty,
 }: OrderDetailsModalProps) {
     const [order, setOrder] = useState<Order | null>(propOrder);
     const governorates = getAllGovernorateCodes();
@@ -778,6 +785,45 @@ export function OrderDetailsModal({
                                         <Sun className="w-4 h-4" />
                                     </button>
                                 </div>
+                            </div>
+                        )}
+
+                        {/* Assignments Section (Right Below Quick Actions) */}
+                        {!isEditing && (
+                            <div className="py-2 border-b border-[var(--card-border)] flex flex-wrap items-center gap-2">
+                                <span className="text-xs font-semibold text-gray-500 mr-2">التعيين:</span>
+
+                                {assignments.map((assignment) => {
+                                    const employee = mockEmployees.find(e => e.id === assignment.employee_id);
+                                    if (!employee) return null;
+                                    return (
+                                        <AvatarPill
+                                            key={assignment.id}
+                                            employee={employee}
+                                            duty={assignment.duty}
+                                            size="sm"
+                                            interactive={true}
+                                            className="h-7 gap-1.5 px-2.5"
+                                        />
+                                    );
+                                })}
+
+                                {/* Empty Assignment Slots */}
+                                {onAssignDuty && ['new', 'contacted'].includes(order.status) && !assignments.some(a => a.duty === 'confirmation') && (
+                                    <AssignmentPopover
+                                        orderId={order.id}
+                                        duty="confirmation"
+                                        onAssign={onAssignDuty}
+                                    />
+                                )}
+
+                                {onAssignDuty && order.status === 'confirmed' && !assignments.some(a => a.duty === 'fulfillment') && (
+                                    <AssignmentPopover
+                                        orderId={order.id}
+                                        duty="fulfillment"
+                                        onAssign={onAssignDuty}
+                                    />
+                                )}
                             </div>
                         )}
 

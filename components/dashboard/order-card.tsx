@@ -6,6 +6,9 @@ import { Order, OrderPriority, MessageTemplate } from "@/lib/supabase";
 import { RiskLevel, RiskAssessment } from "@/lib/fraud-detector";
 import { RiskBadge } from "@/components/orders/risk-badge";
 import { DiscountBadge } from "@/components/orders/discount-badge";
+import { AvatarPill } from "@/components/ui/avatar-pill";
+import { AssignmentPopover } from "@/components/orders/assignment-popover";
+import { OrderAssignment, mockEmployees } from "@/lib/team-types";
 // ... existing imports ...
 
 import { formatIQD, generateWhatsAppLink, getStatusLabel, copyOrderToClipboard, getGuaranteeDaysRemaining, cn } from "@/lib/utils";
@@ -95,6 +98,9 @@ interface OrderCardProps {
     archivedOrderCount?: number;
     // Disable layout animations (e.g. for virtualized lists)
     isVirtualized?: boolean;
+    // Assignments
+    assignments?: OrderAssignment[];
+    onAssignDuty?: (orderId: string, duty: 'confirmation' | 'fulfillment') => void;
 }
 
 export const OrderCard = memo(function OrderCard({
@@ -128,6 +134,8 @@ export const OrderCard = memo(function OrderCard({
     hasDuplicates = false,
     archivedOrderCount = 0,
     actionDock = false,
+    assignments = [],
+    onAssignDuty,
 }: OrderCardProps) {
     const isLoading = loadingId === order.id;
     const isNew = order.status === "new";
@@ -1178,6 +1186,39 @@ export const OrderCard = memo(function OrderCard({
                                 {isReturn && <RotateCcw className="w-3 h-3" />}
                                 {getStatusLabel(order.status)}
                             </motion.span>
+
+                            {/* Employee Assignments */}
+                            {assignments.map((assignment) => {
+                                const employee = mockEmployees.find(e => e.id === assignment.employee_id);
+                                if (!employee) return null;
+                                return (
+                                    <AvatarPill
+                                        key={assignment.id}
+                                        employee={employee}
+                                        duty={assignment.duty}
+                                        size="sm"
+                                        interactive={true}
+                                        className="h-6 gap-1.5"
+                                    />
+                                );
+                            })}
+
+                            {/* Empty Assignment Slots for the "Next Step" Prompt */}
+                            {onAssignDuty && ['new', 'contacted'].includes(order.status) && !assignments.some(a => a.duty === 'confirmation') && (
+                                <AssignmentPopover
+                                    orderId={order.id}
+                                    duty="confirmation"
+                                    onAssign={onAssignDuty}
+                                />
+                            )}
+
+                            {onAssignDuty && order.status === 'confirmed' && !assignments.some(a => a.duty === 'fulfillment') && (
+                                <AssignmentPopover
+                                    orderId={order.id}
+                                    duty="fulfillment"
+                                    onAssign={onAssignDuty}
+                                />
+                            )}
 
                             {/* Detailed Risk Warning - Only show in full view */}
                             {compact === 0 && (riskLevel === 'high' || riskLevel === 'blocked' || riskLevel === 'medium') &&
