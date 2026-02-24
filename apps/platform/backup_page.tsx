@@ -1871,6 +1871,7 @@ export default function OrdersPage() {
                                                     setSelectedOrder(o);
                                                     setIsModalOpen(true);
                                                 }}
+                                                getCustomerArchivedCount={(phone) => 0}
                                                 onToggleSelection={toggleOrderSelection}
                                                 onTogglePin={togglePin}
                                                 onCloneOrder={cloneOrder}

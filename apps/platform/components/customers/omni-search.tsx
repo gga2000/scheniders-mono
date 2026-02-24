@@ -1,12 +1,15 @@
 "use client";
 
-import { useCustomerUrlState } from "@/hooks/use-customer-url-state";
 import { Search, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
 
-export function CustomerOmniSearch() {
-    const { rawSearch, setSearch } = useCustomerUrlState();
+interface CustomerOmniSearchProps {
+    rawSearch: string;
+    setSearch: (search: string) => void;
+}
+
+export function CustomerOmniSearch({ rawSearch, setSearch }: CustomerOmniSearchProps) {
     const { t } = useLanguage();
 
     return (

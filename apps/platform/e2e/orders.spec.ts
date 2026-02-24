@@ -23,6 +23,10 @@ test.describe('App Smoke Test', () => {
         // Fill invalid credentials
         await page.getByPlaceholder('you@example.com').fill('test@example.com');
         await page.getByPlaceholder('••••••••').fill('wrongpassword');
+
+        // Wait for form validation to enable the button
+        await page.waitForTimeout(500);
+
         await page.getByRole('button', { name: 'Sign In' }).click();
 
         // Expect error message (adjust text based on actual app response)

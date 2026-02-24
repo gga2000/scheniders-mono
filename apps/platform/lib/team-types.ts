@@ -1,4 +1,6 @@
 export type OrderDuty = 'confirmation' | 'fulfillment';
+export type RuleConditionType = 'city' | 'priority' | 'order_status' | 'product_selected';
+export type RuleOperator = 'equals' | 'contains' | 'any';
 
 export type EmployeeRole = 'admin' | 'support' | 'logistics' | 'manager';
 
@@ -30,6 +32,24 @@ export interface OrderAssignment {
     assigned_at: string;
     completed_at?: string; // when the duty was finished
     status: 'pending' | 'in_progress' | 'completed';
+}
+
+export interface RuleCondition {
+    field: RuleConditionType;
+    operator: RuleOperator;
+    value: string;
+}
+
+export interface AssignmentRule {
+    id: string;
+    name: string;
+    description?: string;
+    is_active: boolean;
+    duty: OrderDuty;
+    employee_id: string;
+    conditions: RuleCondition[];
+    created_at: string;
+    priority: number; // Higher number = higher priority when merging rules
 }
 
 // Mock Data to simulate Database
@@ -82,3 +102,32 @@ export const mockEmployees: Employee[] = [
 ];
 
 export const mockAssignments: OrderAssignment[] = [];
+
+export const mockAssignmentRules: AssignmentRule[] = [
+    {
+        id: 'rule_1',
+        name: 'Baghdad Confirmation',
+        description: 'Auto-assign Baghdad orders to Noor for confirmation.',
+        is_active: true,
+        duty: 'confirmation',
+        employee_id: 'emp_2', // Noor
+        conditions: [
+            { field: 'city', operator: 'equals', value: 'بغداد' }
+        ],
+        created_at: new Date().toISOString(),
+        priority: 10
+    },
+    {
+        id: 'rule_2',
+        name: 'High Priority Fulfillment',
+        description: 'Mohammed handles immediate logistics.',
+        is_active: true,
+        duty: 'fulfillment',
+        employee_id: 'emp_4', // Mohammed Logistics
+        conditions: [
+            { field: 'priority', operator: 'equals', value: 'high' }
+        ],
+        created_at: new Date().toISOString(),
+        priority: 20
+    }
+];
