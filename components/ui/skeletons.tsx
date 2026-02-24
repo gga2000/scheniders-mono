@@ -144,6 +144,104 @@ export function ModalSkeleton() {
     );
 }
 
+// Customers Page Split-Pane Skeleton
+export function CustomerSplitPaneSkeleton() {
+    return (
+        <div className="min-h-screen p-6 md:p-8 flex flex-col h-[calc(100vh-4rem)]">
+            {/* Header Area */}
+            <div className="flex items-center justify-between mb-6 flex-shrink-0">
+                <div className="space-y-2">
+                    <Skeleton className="h-8 w-48" />
+                    <Skeleton className="h-4 w-32" />
+                </div>
+                <div className="flex gap-3">
+                    <Skeleton className="h-12 w-32 rounded-2xl" />
+                </div>
+            </div>
+
+            {/* Split Pane Area */}
+            <div className="flex flex-1 gap-6 overflow-hidden">
+                {/* Left Pane (Master) */}
+                <div className="w-full lg:w-[450px] flex-shrink-0 flex flex-col border border-[var(--card-border)] rounded-3xl bg-[var(--card-bg)] overflow-hidden shadow-sm">
+                    {/* Search Bar Skeleton */}
+                    <div className="p-4 border-b border-[var(--card-border)]">
+                        <Skeleton className="h-12 w-full rounded-2xl" />
+                        <div className="flex gap-2 mt-4">
+                            <Skeleton className="h-8 w-16 rounded-full" />
+                            <Skeleton className="h-8 w-16 rounded-full" />
+                            <Skeleton className="h-8 w-16 rounded-full" />
+                        </div>
+                    </div>
+                    {/* List Skeleton */}
+                    <div className="flex-1 p-4 space-y-3">
+                        <CustomerCardSkeleton count={5} />
+                    </div>
+                </div>
+
+                {/* Right Pane (Detail) */}
+                <div className="hidden lg:flex flex-1 border border-[var(--card-border)] rounded-3xl bg-[var(--card-bg)] overflow-hidden shadow-sm p-8">
+                    <CustomerProfileSkeleton />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// Customer Deep Profile Skeleton (for right pane or detailed view)
+export function CustomerProfileSkeleton() {
+    return (
+        <div className="w-full h-full flex flex-col space-y-8 animate-in fade-in duration-500">
+            {/* Header Info */}
+            <div className="flex items-start gap-6">
+                <Skeleton className="w-24 h-24 rounded-3xl" />
+                <div className="flex-1 space-y-3 pt-2">
+                    <Skeleton className="h-8 w-1/3" />
+                    <Skeleton className="h-5 w-1/4" />
+                    <div className="flex gap-2 pt-2">
+                        <Skeleton className="h-6 w-16 rounded-full" />
+                        <Skeleton className="h-6 w-20 rounded-full" />
+                    </div>
+                </div>
+            </div>
+
+            {/* Bento Metrics Skeletons */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="border border-[var(--card-border)] bg-[var(--background)] rounded-2xl p-5 space-y-3">
+                        <Skeleton className="h-10 w-10 rounded-xl" />
+                        <Skeleton className="h-6 w-24" />
+                        <Skeleton className="h-4 w-16" />
+                    </div>
+                ))}
+            </div>
+
+            {/* Timeline/Main Content Skeleton */}
+            <div className="flex-1 border border-[var(--card-border)] bg-[var(--background)] rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-8">
+                    <Skeleton className="h-6 w-32" />
+                    <Skeleton className="h-8 w-24 rounded-lg" />
+                </div>
+
+                {/* Fake Timeline */}
+                <div className="space-y-6">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="flex gap-4">
+                            <div className="flex flex-col items-center">
+                                <Skeleton className="w-4 h-4 rounded-full" />
+                                <div className="w-0.5 h-16 bg-[var(--card-border)] mt-2" />
+                            </div>
+                            <div className="flex-1 space-y-2 pt-1">
+                                <Skeleton className="h-5 w-40" />
+                                <Skeleton className="h-4 w-full max-w-md" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // Navigation skeleton (sidebar items)
 export function NavSkeleton({ count = 6 }: { count?: number }) {
     return (

@@ -322,17 +322,19 @@ export const OrderCard = memo(function OrderCard({
         return '';
     })();
 
-    // Soft pastel status colors - reassigned (with return order override)
+    // Soft pastel status colors for light mode, vivid neon for dark mode
     const getStatusColor = () => {
-        if (isReturn || order.status === 'rejected') return "bg-red-400"; // Red for rejected/return orders
+        if (isReturn || order.status === 'rejected') return "bg-red-400 dark:bg-[#FF3333]"; // Neon Red
         switch (order.status) {
-            case "new": return "bg-orange-300"; // Warm coral for new
-            case "contacted": return "bg-[var(--pastel-yellow)]"; // Yellow for contacted
-            case "confirmed": return "bg-[var(--pastel-green)]"; // Green for confirmed
-            case "delivered": return "bg-[var(--pastel-mint)]"; // Mint/Blue for delivered
-            case "return_pending": return "bg-rose-400"; // Rose for return pending
-            case "cancelled": return "bg-red-300"; // Red for cancelled
-            default: return "bg-[var(--card-border)]";
+            case "new": return "bg-orange-300 dark:bg-[#FF6A00]"; // Neon Orange
+            case "contacted": return "bg-[var(--pastel-yellow)] dark:bg-[#EFFF00]"; // App Primary Neon Green/Yellow
+            case "confirmed": return "bg-[var(--pastel-green)] dark:bg-[#39FF14]"; // Neon Green
+            case "in_transit": return "bg-blue-200 dark:bg-[#00FFAA]"; // Neon Teal/Blue
+            case "delivered": return "bg-[var(--pastel-mint)] dark:bg-[#00E5FF]"; // Neon Cyan
+            case "no_response": return "bg-slate-200 dark:bg-[#B800FF]"; // Neon Purple
+            case "return_pending": return "bg-rose-400 dark:bg-[#FF007F]"; // Neon Pink
+            case "cancelled": return "bg-red-300 dark:bg-[#FF3333]"; // Neon Red
+            default: return "bg-[var(--card-border)] dark:bg-[#555555]";
         }
     };
 
@@ -695,12 +697,14 @@ export const OrderCard = memo(function OrderCard({
         return (
             <div
                 className={cn(
-                    "group relative w-full",
+                    "group relative w-full isolate",
                 )}
             >
+                {/* Dark mode vivid neon glow casted on the left side of the card */}
+                <div className={cn("hidden dark:block absolute top-[10%] bottom-[10%] -left-0.5 w-2 blur-sm opacity-50 -z-10 transition-opacity", getStatusColor())} />
                 <div
                     className={cn(
-                        "relative bg-[var(--card-bg)] rounded-xl shadow-sm hover:shadow-md transition-all duration-200",
+                        "relative z-10 bg-[var(--card-bg)] rounded-xl shadow-sm hover:shadow-md transition-all duration-200",
                         "flex items-center",
                         "border border-[var(--card-border)]/50",
                         "hover:border-[var(--secondary)] transition-colors duration-300",
@@ -894,15 +898,6 @@ export const OrderCard = memo(function OrderCard({
             {compact === 0 && (isReturn || order.status === 'rejected') && (
                 <div className="absolute -inset-0.5 bg-red-400 rounded-[22px] blur-md opacity-40 group-hover:opacity-60 transition-opacity -z-10" />
             )}
-            {/* Glow for returning customers - orange if unverified, green if verified */}
-            {compact === 0 && hasDuplicates && !isReturn && !isUrgent && !isPinned && !hasRefund && (
-                <div className={cn(
-                    "absolute -inset-0.5 rounded-[22px] blur-md transition-opacity -z-10",
-                    isVerifiedCustomer
-                        ? "bg-emerald-400 opacity-30 group-hover:opacity-50"
-                        : "bg-orange-400 opacity-50 group-hover:opacity-70 animate-pulse"
-                )} />
-            )}
             {/* Glow effect for pinned orders */}
             {compact === 0 && isPinned && (
                 <div className="absolute -inset-0.5 bg-blue-400 rounded-[22px] blur-md opacity-40 group-hover:opacity-60 transition-opacity -z-10" />
@@ -910,6 +905,17 @@ export const OrderCard = memo(function OrderCard({
             {/* Subtle glow effect for reviewed delivered orders */}
             {compact === 0 && isReviewed && isDelivered && !isPinned && (
                 <div className="absolute -inset-0.5 bg-cyan-400 rounded-[22px] blur-md opacity-25 group-hover:opacity-40 transition-opacity -z-10" />
+            )}
+
+            {/* Dark mode vivid neon glow casted on the left side of the card */}
+            {compact === 0 && (
+                <div
+                    className={cn(
+                        "hidden dark:block absolute top-[5%] bottom-[5%] -left-1 w-3 blur-md opacity-60 transition-opacity -z-10",
+                        getStatusColor(),
+                        !(isReturn || order.status === 'rejected') && isNew && "w-4"
+                    )}
+                />
             )}
 
             <motion.div
@@ -926,8 +932,6 @@ export const OrderCard = memo(function OrderCard({
                     !isBlacklisted && !(isReturn || order.status === 'rejected') && !isUrgent && isShopOrder && "ring-2 ring-amber-300 bg-amber-50/30",
                     // Refunded orders - rose ring (MUST be before duplicates/new so it overrides them)
                     !isBlacklisted && !(isReturn || order.status === 'rejected') && !isUrgent && !isShopOrder && hasRefund && "ring-2 ring-rose-300",
-                    !isBlacklisted && !(isReturn || order.status === 'rejected') && !isUrgent && !isShopOrder && !hasRefund && hasDuplicates && isVerifiedCustomer && "ring-2 ring-emerald-300",
-                    !isBlacklisted && !(isReturn || order.status === 'rejected') && !isUrgent && !isShopOrder && !hasRefund && hasDuplicates && !isVerifiedCustomer && "ring-2 ring-orange-400",
                     !isBlacklisted && !(isReturn || order.status === 'rejected') && !isUrgent && !isShopOrder && !hasRefund && !hasDuplicates && isNew && "ring-2 ring-orange-300"
                 )}
             >
@@ -941,9 +945,7 @@ export const OrderCard = memo(function OrderCard({
                     className={cn(
                         "w-2 flex-shrink-0 rounded-l-[20px]",
                         getStatusColor(),
-                        !(isReturn || order.status === 'rejected') && isNew && "w-3",
-                        !(isReturn || order.status === 'rejected') && hasDuplicates && isVerifiedCustomer && "w-3 bg-emerald-400",
-                        !(isReturn || order.status === 'rejected') && hasDuplicates && !isVerifiedCustomer && "w-4 bg-gradient-to-b from-orange-400 via-orange-500 to-orange-400 animate-pulse"
+                        !(isReturn || order.status === 'rejected') && isNew && "w-3"
                     )}
                 />
 
@@ -1395,12 +1397,10 @@ export const OrderCard = memo(function OrderCard({
                                                     {/* Reason Tag - shows for return, rejected, cancelled orders */}
                                                     {orderReasonInfo?.reason && idx === 0 && (
                                                         <span className={cn(
-                                                            "px-1.5 py-0.5 rounded-md text-[10px] font-bold border",
-                                                            orderReasonInfo.type === 'return' && "bg-rose-50 text-rose-600 border-rose-200",
-                                                            orderReasonInfo.type === 'rejected' && "bg-red-50 text-red-600 border-red-200",
-                                                            orderReasonInfo.type === 'cancelled' && "bg-gray-50 text-gray-600 border-gray-200",
-                                                            orderReasonInfo.type === 'no_response' && "bg-orange-50 text-orange-600 border-orange-200",
-                                                            !['return', 'rejected', 'cancelled', 'no_response'].includes(orderReasonInfo.type || '') && "bg-gray-50 text-gray-600 border-gray-200"
+                                                            "px-2 py-0.5 rounded-full text-[10px] font-bold border",
+                                                            ['return', 'rejected', 'cancelled'].includes(orderReasonInfo.type || '') && "bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20",
+                                                            orderReasonInfo.type === 'no_response' && "bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/20",
+                                                            !['return', 'rejected', 'cancelled', 'no_response'].includes(orderReasonInfo.type || '') && "bg-gray-50 text-gray-600 border-gray-200 dark:bg-gray-500/10 dark:text-gray-400 dark:border-gray-500/20"
                                                         )}>
                                                             {orderReasonInfo.reason}
                                                         </span>
@@ -1411,7 +1411,14 @@ export const OrderCard = memo(function OrderCard({
                                         {/* Review Required Tag - Next to items */}
                                         {(riskLevel === 'high' || riskLevel === 'blocked') &&
                                             ['new', 'contacted', 'confirmed'].includes(order.status) && (
-                                                <span className="inline-flex h-7 items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-bold bg-red-100 text-red-700 animate-pulse border border-red-200">
+                                                <span className="inline-flex h-7 items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-bold bg-red-100 text-red-700 animate-pulse border border-red-200 dark:bg-red-500/10 dark:text-rose-400 dark:border-red-500/20">
+                                                    Review Required
+                                                </span>
+                                            )}
+                                        {/* Review Duplicate Order Tag - Next to items */}
+                                        {hasDuplicates && !isVerifiedCustomer &&
+                                            ['new', 'contacted', 'confirmed'].includes(order.status) && (
+                                                <span className="inline-flex h-7 items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-bold bg-orange-100 text-orange-700 animate-pulse border border-orange-200 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/20">
                                                     Review Required
                                                 </span>
                                             )}
