@@ -1,11 +1,11 @@
 "use client";
 
-import { useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { PaginatedCustomer } from "@/hooks/use-paginated-customers";
-import { cn, formatIQD, formatDate, generateWhatsAppLink } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
-import { User, Crown, Star, Phone, MapPin, MessageCircle, AlertTriangle } from "lucide-react";
+import { User } from "lucide-react";
+import { CustomerCard } from "./customer-card";
 
 interface VirtualizedCustomerListProps {
     customers: PaginatedCustomer[];
@@ -16,6 +16,12 @@ interface VirtualizedCustomerListProps {
     fetchNextPage: () => void;
     selectedCustomerId: string | null;
     onSelectCustomer: (id: string) => void;
+    // Multi-select props
+    selectedPhones?: Set<string>;
+    onToggleSelection?: (phone: string, isShiftKey?: boolean) => void;
+    onSelectAll?: () => void;
+    onClearSelection?: () => void;
+    compactLevel?: 0 | 1 | 2; // 0=full, 1=semi-compact, 2=ultra-compact
 }
 
 export function VirtualizedCustomerList({
@@ -26,16 +32,31 @@ export function VirtualizedCustomerList({
     hasNextPage,
     fetchNextPage,
     selectedCustomerId,
-    onSelectCustomer
+    onSelectCustomer,
+    selectedPhones = new Set(),
+    onToggleSelection,
+    onSelectAll,
+    onClearSelection,
+    compactLevel = 0,
 }: VirtualizedCustomerListProps) {
     const { t } = useLanguage();
     const parentRef = useRef<HTMLDivElement>(null);
+    const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null);
+
+    // Adjust row size based on compact level
+    const getRowSize = () => {
+        switch (compactLevel) {
+            case 2: return 60;  // Ultra-compact
+            case 1: return 140; // Semi-compact
+            default: return 180; // Full
+        }
+    };
 
     const rowVirtualizer = useVirtualizer({
         count: hasNextPage ? customers.length + 1 : customers.length,
         getScrollElement: () => parentRef.current,
-        estimateSize: () => 100, // Estimated height of a row
-        overscan: 5, // Render 5 extra items to prevent flashing
+        estimateSize: getRowSize,
+        overscan: 5,
     });
 
     const items = rowVirtualizer.getVirtualItems();
@@ -58,35 +79,49 @@ export function VirtualizedCustomerList({
         [isLoading, isFetchingNextPage, hasNextPage, fetchNextPage]
     );
 
-    // Helpers for rendering
-    const getStatusIcon = (status: PaginatedCustomer["calculated_status"]) => {
-        switch (status) {
-            case "vip": return <Crown className="w-4 h-4" />;
-            case "regular": return <Star className="w-4 h-4" />;
-            default: return <User className="w-4 h-4" />;
-        }
-    };
+    // Handle shift+click range selection
+    const handleToggleSelection = useCallback((phone: string, index: number, isShiftKey: boolean) => {
+        if (!onToggleSelection) return;
 
-    const getStatusColor = (status: PaginatedCustomer["calculated_status"]) => {
-        switch (status) {
-            case "vip": return "bg-[var(--pastel-yellow)] text-amber-900";
-            case "regular": return "bg-[var(--pastel-green)] text-green-900";
-            default: return "bg-[var(--pastel-mint)] text-teal-900";
+        if (isShiftKey && lastSelectedIndex !== null) {
+            // Range selection
+            const start = Math.min(lastSelectedIndex, index);
+            const end = Math.max(lastSelectedIndex, index);
+            for (let i = start; i <= end; i++) {
+                if (customers[i]) {
+                    onToggleSelection(customers[i].phone, false);
+                }
+            }
+        } else {
+            // Single selection
+            onToggleSelection(phone, false);
         }
-    };
 
-    /**
-     * Dormancy Indicator Logic
-     * Green: Ordered within last 30 days
-     * Yellow: Ordered between 30 and 90 days ago
-     * Red: Ordered > 90 days ago
-     */
-    const getDormancyColor = (lastOrder: string) => {
-        const daysSince = Math.floor((new Date().getTime() - new Date(lastOrder).getTime()) / (1000 * 3600 * 24));
-        if (daysSince <= 30) return "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]";
-        if (daysSince <= 90) return "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]";
-        return "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]";
-    };
+        setLastSelectedIndex(index);
+    }, [lastSelectedIndex, customers, onToggleSelection]);
+
+    // Keyboard shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Cmd/Ctrl+A to select all
+            if ((e.metaKey || e.ctrlKey) && e.key === 'a' && onSelectAll) {
+                e.preventDefault();
+                onSelectAll();
+            }
+            // Escape to clear selection
+            if (e.key === 'Escape' && onClearSelection) {
+                onClearSelection();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [onSelectAll, onClearSelection]);
+
+    // Show select all header if multi-select is enabled
+    const showSelectAll = onToggleSelection && customers.length > 0;
+    const allSelected = customers.length > 0 && customers.every(c => selectedPhones.has(c.phone));
+    const someSelected = selectedPhones.size > 0 && !allSelected;
 
     if (customers.length === 0 && !isLoading) {
         return (
@@ -137,99 +172,39 @@ export function VirtualizedCustomerList({
                         );
                     }
 
-                    const isSelected = selectedCustomerId === customer.phone;
+                    const isSelected = selectedPhones.has(customer.phone);
+                    const isDetailSelected = selectedCustomerId === customer.phone;
 
                     return (
                         <div
                             key={customer.phone}
                             ref={rowVirtualizer.measureElement}
                             data-index={virtualRow.index}
-                            className="absolute top-0 left-0 w-full p-2 transition-all"
+                            className="absolute top-0 left-0 w-full px-2 transition-all"
                             style={{
                                 transform: `translateY(${virtualRow.start}px)`,
                             }}
+                            onClick={(e) => {
+                                // If shift key, do range selection
+                                if (e.shiftKey && onToggleSelection) {
+                                    handleToggleSelection(customer.phone, virtualRow.index, true);
+                                } else if ((e.metaKey || e.ctrlKey) && onToggleSelection) {
+                                    // If cmd/ctrl key, toggle individual selection
+                                    handleToggleSelection(customer.phone, virtualRow.index, false);
+                                } else {
+                                    // Normal click - show details
+                                    onSelectCustomer(customer.phone);
+                                }
+                            }}
                         >
-                            <div
-                                onClick={() => onSelectCustomer(customer.phone)}
-                                className={cn(
-                                    "flex items-center p-3 gap-3 rounded-2xl cursor-pointer transition-all border",
-                                    isSelected
-                                        ? "bg-[var(--card-bg)] border-[var(--pastel-yellow-solid)] shadow-[0_4px_12px_rgba(0,0,0,0.05),0_0_0_2px_var(--pastel-yellow-solid)]"
-                                        : "bg-[var(--card-bg)] border-[var(--card-border)] hover:border-[var(--card-border-hover)] hover:shadow-sm"
-                                )}
-                            >
-                                {/* Left: Avatar & Status */}
-                                <div className="relative">
-                                    <div className={cn(
-                                        "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 relative overflow-hidden",
-                                        getStatusColor(customer.calculated_status)
-                                    )}>
-                                        {/* Subtle pattern overlay */}
-                                        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-black to-transparent" />
-                                        <div className="relative z-10">{getStatusIcon(customer.calculated_status)}</div>
-                                    </div>
-
-                                    {/* Dormancy Dot */}
-                                    <div className={cn(
-                                        "absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-[var(--card-bg)]",
-                                        getDormancyColor(customer.last_order_date)
-                                    )} title="Activity Indicator" />
-                                </div>
-
-                                {/* Middle: Info */}
-                                <div className="flex-1 min-w-0 pr-2">
-                                    <div className="flex items-center gap-2 mb-0.5">
-                                        <p className="font-bold text-foreground text-sm truncate">
-                                            {customer.name}
-                                        </p>
-                                        {customer.is_blacklisted && (
-                                            <AlertTriangle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
-                                        )}
-                                    </div>
-                                    <div className="flex items-center gap-2 text-xs text-muted">
-                                        <span className="flex items-center gap-1 font-mono hover:text-foreground transition-colors">
-                                            <Phone className="w-3 h-3" />
-                                            {customer.phone}
-                                        </span>
-                                        {customer.city && (
-                                            <>
-                                                <span className="w-1 h-1 rounded-full bg-[var(--card-border-hover)]" />
-                                                <span className="flex items-center gap-1 truncate max-w-[80px]">
-                                                    <MapPin className="w-3 h-3" />
-                                                    {customer.city}
-                                                </span>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Right: Micro Stats & Actions */}
-                                <div className="flex items-end flex-col gap-1 flex-shrink-0">
-                                    <div className="text-right">
-                                        <p className="text-sm font-bold text-foreground">{formatIQD(customer.total_spent)}</p>
-                                        <p className="text-[10px] text-muted font-medium tracking-wide uppercase">{customer.total_orders} Orders</p>
-                                    </div>
-
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            const link = generateWhatsAppLink(
-                                                customer.phone,
-                                                `مرحباً ${customer.name}`
-                                            );
-                                            window.open(link, "_blank");
-                                        }}
-                                        className={cn(
-                                            "w-7 h-7 rounded-lg flex items-center justify-center transition-all opacity-0 group-hover:opacity-100",
-                                            isSelected ? "opacity-100 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366] hover:text-white"
-                                                : "bg-[var(--background)] text-muted hover:text-[#25D366] hover:bg-[#25D366]/10"
-                                        )}
-                                        title="WhatsApp"
-                                    >
-                                        <MessageCircle className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            </div>
+                            <CustomerCard
+                                customer={customer}
+                                isSelected={isDetailSelected || isSelected}
+                                onToggleSelection={onToggleSelection ? (phone: string) => handleToggleSelection(phone, virtualRow.index, false) : undefined}
+                                onViewDetails={onSelectCustomer}
+                                compact={compactLevel}
+                                isVirtualized={true}
+                            />
                         </div>
                     );
                 })}
