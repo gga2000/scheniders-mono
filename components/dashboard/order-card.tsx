@@ -7,7 +7,7 @@ import { RiskLevel, RiskAssessment } from "@/lib/fraud-detector";
 import { RiskBadge } from "@/components/orders/risk-badge";
 import { DiscountBadge } from "@/components/orders/discount-badge";
 import { AvatarPill } from "@/components/ui/avatar-pill";
-import { AssignmentPopover } from "@/components/orders/assignment-popover";
+
 import { OrderAssignment, mockEmployees } from "@/lib/team-types";
 // ... existing imports ...
 
@@ -40,14 +40,20 @@ import {
     CopyPlus,
     MoreVertical,
     Camera,
-    ClipboardCopy,
-    Link2,
     PhoneOff,
-    Scissors,
     History as HistoryIcon,
     Archive as ArchiveIcon,
+    ChevronDown,
+    Scissors,
+    ClipboardCopy,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 
 interface OrderCardProps {
@@ -460,6 +466,98 @@ export const OrderCard = memo(function OrderCard({
 
     const items = getItemsDisplay(order.items || []);
 
+    const ORDER_STATUSES = [
+        "new",
+        "contacted",
+        "confirmed",
+        "in_transit",
+        "delivered",
+        "completed",
+        "cancelled",
+        "rejected",
+        "no_response",
+        "return_pending"
+    ] as const;
+
+    // Map statuses to icons
+    const getStatusIcon = (status: Order["status"]) => {
+        switch (status) {
+            case "new": return <Sparkles className="w-3 h-3" />;
+            case "contacted": return <PhoneCall className="w-3 h-3" />;
+            case "confirmed": return <CheckCircle className="w-3 h-3" />;
+            case "in_transit": return <Truck className="w-3 h-3" />;
+            case "delivered": return <CheckCircle className="w-3 h-3" />;
+            case "completed": return <CheckCircle className="w-3 h-3" />;
+            case "cancelled": return <Ban className="w-3 h-3" />;
+            case "rejected": return <XCircle className="w-3 h-3" />;
+            case "no_response": return <PhoneCall className="w-3 h-3" />;
+            case "return_pending": return <RotateCcw className="w-3 h-3" />;
+            default: return null;
+        }
+    };
+
+    // Use existing badge styles for dropdown items, including dark mode variants
+    const getDropdownItemStyle = (status: Order["status"]) => {
+        switch (status) {
+            case "new": return "bg-orange-100 text-orange-900 border border-transparent dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/20 data-[highlighted]:bg-orange-200 dark:data-[highlighted]:bg-orange-500/20";
+            case "contacted": return "bg-[var(--pastel-yellow-light)] text-amber-900 border border-transparent dark:bg-[#1E1E1E] dark:text-[#EFFF00] dark:border-[rgba(239,255,0,0.3)] data-[highlighted]:bg-[var(--pastel-yellow)] dark:data-[highlighted]:bg-[rgba(239,255,0,0.1)]";
+            case "confirmed": return "bg-[var(--pastel-green-light)] text-green-900 border border-transparent dark:bg-[rgba(0,255,100,0.1)] dark:text-emerald-400 dark:border-[rgba(0,255,100,0.2)] data-[highlighted]:bg-[var(--pastel-green)] dark:data-[highlighted]:bg-[rgba(0,255,100,0.2)]";
+            case "cancelled": return "bg-[var(--pastel-pink-light)] text-rose-800 border border-transparent dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20 data-[highlighted]:bg-[var(--pastel-pink)] dark:data-[highlighted]:bg-rose-500/20";
+            case "in_transit": return "bg-blue-100 text-blue-900 border border-transparent dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20 data-[highlighted]:bg-blue-200 dark:data-[highlighted]:bg-blue-500/20";
+            case "delivered": return "bg-[var(--pastel-mint)] text-teal-900 border border-transparent dark:bg-teal-500/10 dark:text-teal-400 dark:border-teal-500/20 data-[highlighted]:bg-teal-200 dark:data-[highlighted]:bg-teal-500/20";
+            case "rejected": return "bg-rose-100 text-rose-800 border border-transparent dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20 data-[highlighted]:bg-rose-200 dark:data-[highlighted]:bg-red-500/20";
+            case "completed": return "bg-emerald-100 text-emerald-900 border border-transparent dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 data-[highlighted]:bg-emerald-200 dark:data-[highlighted]:bg-emerald-500/20";
+            case "no_response": return "bg-slate-100 text-slate-700 border border-transparent dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20 data-[highlighted]:bg-slate-200 dark:data-[highlighted]:bg-slate-500/20";
+            case "return_pending": return "bg-rose-100 text-rose-900 border border-transparent dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20 data-[highlighted]:bg-rose-200 dark:data-[highlighted]:bg-rose-500/20";
+            default: return "bg-gray-100 text-gray-700 border border-transparent dark:bg-gray-500/10 dark:text-gray-400 dark:border-gray-500/20 data-[highlighted]:bg-gray-200 dark:data-[highlighted]:bg-gray-500/20";
+        }
+    };
+
+    const handleInlineStatusUpdate = (newStatus: Order["status"]) => {
+        if (newStatus === "cancelled" && onCancelWithReason) {
+            onCancelWithReason(order);
+        } else if (newStatus === "rejected" && onRejectWithReason) {
+            onRejectWithReason(order);
+        } else {
+            onStatusUpdate(order.id, newStatus);
+        }
+    };
+
+    const renderStatusBadgeWithDropdown = (triggerElement: React.ReactNode) => {
+        return (
+            <div onClick={(e) => e.stopPropagation()}>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <div className="cursor-pointer hover:opacity-80 hover:scale-105 active:scale-95 transition-all outline-none">
+                            {triggerElement}
+                        </div>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-[180px] p-2 space-y-1 rounded-xl bg-[var(--card-bg)] border-[var(--card-border)] shadow-xl dark:shadow-[0_10px_40px_rgba(0,0,0,0.8)] dark:border-[#333]">
+                        <div className="text-xs font-semibold text-muted px-2 py-1 mb-1">تغيير حالة الطلب</div>
+                        {ORDER_STATUSES.map((status) => (
+                            <DropdownMenuItem
+                                key={status}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleInlineStatusUpdate(status);
+                                }}
+                                className={cn(
+                                    "flex items-center gap-2 cursor-pointer rounded-lg px-2.5 py-2 text-xs font-bold transition-colors outline-none",
+                                    getDropdownItemStyle(status),
+                                    order.status === status && "ring-2 ring-black/10 dark:ring-white/10"
+                                )}
+                            >
+                                {getStatusIcon(status)}
+                                {getStatusLabel(status)}
+                                {order.status === status && <CheckCircle className="w-3.5 h-3.5 ml-auto opacity-70" />}
+                            </DropdownMenuItem>
+                        ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
+        );
+    };
+
     // ── ULTRA-COMPACT GRID (Level 2 + Grid) ── Stacked mini-card ──
     if (compact === 2 && gridMode) {
         const itemsText = items.length > 0
@@ -494,13 +592,15 @@ export const OrderCard = memo(function OrderCard({
                             )}>
                                 {order.customer_name}
                             </span>
-                            <span className={cn(
-                                "inline-flex items-center px-1.5 py-0.5 text-[8px] font-bold rounded-full uppercase tracking-wider flex-shrink-0",
-                                getStatusBadgeStyle(),
-                                isReturn && "bg-rose-100 text-rose-700"
-                            )}>
-                                {getStatusLabel(order.status)}
-                            </span>
+                            {renderStatusBadgeWithDropdown(
+                                <span className={cn(
+                                    "inline-flex items-center px-1.5 py-0.5 text-[8px] font-bold rounded-full uppercase tracking-wider flex-shrink-0",
+                                    getStatusBadgeStyle(),
+                                    isReturn && "bg-rose-100 text-rose-700"
+                                )}>
+                                    {getStatusLabel(order.status)}
+                                </span>
+                            )}
                         </div>
 
                         {/* Row 2: Order ID + Priority */}
@@ -582,13 +682,15 @@ export const OrderCard = memo(function OrderCard({
                                     {order.customer_name}
                                 </span>
                             </div>
-                            <span className={cn(
-                                "inline-flex items-center gap-0.5 px-2 py-0.5 text-[9px] font-bold rounded-full uppercase tracking-wider flex-shrink-0",
-                                getStatusBadgeStyle(),
-                                isReturn && "bg-rose-100 text-rose-700"
-                            )}>
-                                {getStatusLabel(order.status)}
-                            </span>
+                            {renderStatusBadgeWithDropdown(
+                                <span className={cn(
+                                    "inline-flex items-center gap-0.5 px-2 py-0.5 text-[9px] font-bold rounded-full uppercase tracking-wider flex-shrink-0",
+                                    getStatusBadgeStyle(),
+                                    isReturn && "bg-rose-100 text-rose-700"
+                                )}>
+                                    {getStatusLabel(order.status)}
+                                </span>
+                            )}
                         </div>
 
                         {/* Row 2: Order ID + Date */}
@@ -777,13 +879,15 @@ export const OrderCard = memo(function OrderCard({
 
                         {/* Status + Priority */}
                         <div className="flex items-center gap-1.5 flex-shrink-0">
-                            <span className={cn(
-                                "inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold rounded-full uppercase tracking-wider",
-                                getStatusBadgeStyle(),
-                                isReturn && "bg-rose-100 text-rose-700"
-                            )}>
-                                {getStatusLabel(order.status)}
-                            </span>
+                            {renderStatusBadgeWithDropdown(
+                                <span className={cn(
+                                    "inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold rounded-full uppercase tracking-wider",
+                                    getStatusBadgeStyle(),
+                                    isReturn && "bg-rose-100 text-rose-700"
+                                )}>
+                                    {getStatusLabel(order.status)}
+                                </span>
+                            )}
                             {isUrgent && (
                                 <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-red-100 text-red-700 animate-pulse">
                                     <Flame className="w-2.5 h-2.5" />
@@ -1174,18 +1278,20 @@ export const OrderCard = memo(function OrderCard({
                         {/* Tags Row - hidden in semi-compact */}
                         {compact === 0 && <div className="flex items-center gap-2 mt-2 flex-wrap">
                             {/* Status Badge */}
-                            <motion.span
-                                layoutId={getLayoutId(`order-status-${order.id}-${order.status}`)}
-                                className={cn(
-                                    "inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full uppercase tracking-wider",
-                                    getStatusBadgeStyle(),
-                                    isReturn && "bg-rose-100 text-rose-700 border border-rose-200"
-                                )}
-                            >
-                                {isNew && <Sparkles className="w-3 h-3" />}
-                                {isReturn && <RotateCcw className="w-3 h-3" />}
-                                {getStatusLabel(order.status)}
-                            </motion.span>
+                            {renderStatusBadgeWithDropdown(
+                                <motion.span
+                                    layoutId={getLayoutId(`order-status-${order.id}-${order.status}`)}
+                                    className={cn(
+                                        "inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full uppercase tracking-wider",
+                                        getStatusBadgeStyle(),
+                                        isReturn && "bg-rose-100 text-rose-700 border border-rose-200"
+                                    )}
+                                >
+                                    {isNew && <Sparkles className="w-3 h-3" />}
+                                    {isReturn && <RotateCcw className="w-3 h-3" />}
+                                    {getStatusLabel(order.status)}
+                                </motion.span>
+                            )}
 
                             {/* Employee Assignments */}
                             {assignments.map((assignment) => {
@@ -1203,22 +1309,6 @@ export const OrderCard = memo(function OrderCard({
                                 );
                             })}
 
-                            {/* Empty Assignment Slots for the "Next Step" Prompt */}
-                            {onAssignDuty && ['new', 'contacted'].includes(order.status) && !assignments.some(a => a.duty === 'confirmation') && (
-                                <AssignmentPopover
-                                    orderId={order.id}
-                                    duty="confirmation"
-                                    onAssign={onAssignDuty}
-                                />
-                            )}
-
-                            {onAssignDuty && order.status === 'confirmed' && !assignments.some(a => a.duty === 'fulfillment') && (
-                                <AssignmentPopover
-                                    orderId={order.id}
-                                    duty="fulfillment"
-                                    onAssign={onAssignDuty}
-                                />
-                            )}
 
                             {/* Detailed Risk Warning - Only show in full view */}
                             {compact === 0 && (riskLevel === 'high' || riskLevel === 'blocked' || riskLevel === 'medium') &&
