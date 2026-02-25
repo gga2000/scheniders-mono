@@ -57,14 +57,14 @@ export function parseRawAddress(rawAddress: any): ParsedAddress {
     if (extracted.governorate) {
         // Find the index of the district or governorate match to remove it from details
         let remainingDetails = text;
-        const matchStr = extracted.matched_district || extracted.governorate.name_en || ''; // A simple heuristic, can be improved
+        const matchStr = (extracted as any).matched_district || extracted.governorate.nameEn || ''; // A simple heuristic, can be improved
 
         // Simple removal (case insensitive), this isn't perfect but helps clean it up
-        if (extracted.matched_district) {
-            const regex = new RegExp(extracted.matched_district, 'i');
+        if ((extracted as any).matched_district) {
+            const regex = new RegExp((extracted as any).matched_district, 'i');
             remainingDetails = remainingDetails.replace(regex, '').trim();
-        } else if (extracted.governorate.name_ar) {
-            const regex = new RegExp(extracted.governorate.name_ar, 'g');
+        } else if (extracted.governorate.nameAr) {
+            const regex = new RegExp(extracted.governorate.nameAr, 'g');
             remainingDetails = remainingDetails.replace(regex, '').trim();
         }
 
@@ -73,7 +73,7 @@ export function parseRawAddress(rawAddress: any): ParsedAddress {
 
         return {
             governorate_code: extracted.governorate.code,
-            city: extracted.matched_district || text, // Give sensible default if strict district matching failed
+            city: (extracted as any).matched_district || text, // Give sensible default if strict district matching failed
             address_details: remainingDetails || text,
             status: 'valid'
         };

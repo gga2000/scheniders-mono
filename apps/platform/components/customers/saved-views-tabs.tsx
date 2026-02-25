@@ -67,7 +67,7 @@ export function SavedCustomerViewsTabs({
     // Find active preset name
     const activePresetName = activePresetId
         ? presets.find(p => p.id === activePresetId)?.name
-        : (t("customers.views.allCustomers") || "All Customers");
+        : (t("customers.views.allCustomers") !== "customers.views.allCustomers" ? t("customers.views.allCustomers") : "All Customers");
 
     return (
         <div className="relative z-10">
@@ -107,7 +107,7 @@ export function SavedCustomerViewsTabs({
                             className="absolute left-0 mt-2 w-72 p-2 rounded-2xl bg-white/90 backdrop-blur-xl border border-white/20 shadow-2xl z-20 flex flex-col gap-1 dark:bg-[#1E1E1E] dark:border-[#333333] dark:shadow-[0_12px_40px_rgba(0,0,0,0.5)]"
                         >
                             <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                {t("customers.views.switchView") || "Switch View"}
+                                {t("customers.views.switchView") !== "customers.views.switchView" ? t("customers.views.switchView") : "Switch View"}
                             </div>
 
                             {/* All Customers Option */}
@@ -125,7 +125,7 @@ export function SavedCustomerViewsTabs({
                             >
                                 <div className="flex items-center gap-2">
                                     <Star className={cn("w-4 h-4", activePresetId === null ? "fill-primary text-primary" : "text-muted-foreground")} />
-                                    <span>{t("customers.views.allCustomers") || "All Customers"}</span>
+                                    <span>{t("customers.views.allCustomers") !== "customers.views.allCustomers" ? t("customers.views.allCustomers") : "All Customers"}</span>
                                 </div>
                                 {activePresetId === null && (
                                     <Check className="w-4 h-4 text-primary" />
@@ -203,7 +203,7 @@ export function SavedCustomerViewsTabs({
                                             value={newName}
                                             onChange={(e) => setNewName(e.target.value)}
                                             onKeyDown={handleKeyDown}
-                                            placeholder={t("customers.views.presetName") || "Preset name..."}
+                                            placeholder={t("customers.views.presetName") !== "customers.views.presetName" ? t("customers.views.presetName") : "Preset name..."}
                                             autoFocus
                                             className="flex-1 px-3 py-1.5 text-sm bg-white border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-[#2A2A2A] dark:border-[#444] dark:text-white"
                                         />
@@ -232,7 +232,7 @@ export function SavedCustomerViewsTabs({
                                     className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:bg-black/5 hover:text-foreground transition-all dark:hover:bg-white/5 dark:hover:text-white"
                                 >
                                     <Plus className="w-4 h-4" />
-                                    <span>{t("customers.views.saveCurrentView") || "Save Current View"}</span>
+                                    <span>{t("customers.views.saveCurrentView") !== "customers.views.saveCurrentView" ? t("customers.views.saveCurrentView") : "Save Current View"}</span>
                                 </button>
                             )}
                         </motion.div>

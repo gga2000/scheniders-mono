@@ -1,19 +1,20 @@
 "use client";
 
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useCallback, useRef } from "react";
 import { useCustomerUrlState } from "@/hooks/use-customer-url-state";
 import { usePaginatedCustomers } from "@/hooks/use-paginated-customers";
 import { useLanguage } from "@/hooks/use-language";
 import { PageTransition } from "@/components/layout/page-transition";
 import { motion, AnimatePresence } from "framer-motion";
-import { Users, LayoutGrid, List, Rows3 } from "lucide-react";
+import { LayoutGrid, List, Rows3, ChevronDown, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import { CustomerOmniSearch } from "@/components/customers/omni-search";
 import { VirtualizedCustomerList } from "@/components/customers/virtualized-list";
-import { CustomerTopMetrics } from "@/components/customers/top-metrics";
+import { CustomerDashboardMetrics, InsightsDrawer } from "@/components/customers/dashboard-metrics";
 import { CustomerDetailModal } from "@/components/customers/customer-detail-modal";
 import { AdvancedCustomerFilters } from "@/components/customers/advanced-filters";
+// ^kept import for potential future use but component is not rendered
 import { BulkTagModal } from "@/components/customers/bulk-tag-modal";
 import { BroadcastModal } from "@/components/customers/broadcast-modal";
 import { CustomerSplitPaneSkeleton } from "@/components/ui/skeletons";
@@ -23,6 +24,8 @@ import { StickyCustomerFilterBar } from "@/components/customers/sticky-filter-ba
 import { FloatingCustomerActionBar } from "@/components/customers/floating-action-bar";
 import { SavedCustomerViewsTabs } from "@/components/customers/saved-views-tabs";
 import { useCustomerFilterPresets } from "@/hooks/use-customer-filter-presets";
+import { useOrdersContext } from "@/components/providers/orders-provider";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 
 export default function CustomersPage() {
     const { t } = useLanguage();
@@ -55,19 +58,53 @@ export default function CustomersPage() {
     const [selectedPhones, setSelectedPhones] = useState<Set<string>>(new Set());
     const [isTagModalOpen, setIsTagModalOpen] = useState(false);
     const [isBroadcastModalOpen, setIsBroadcastModalOpen] = useState(false);
-    const [isAdvancedFiltersOpen, setIsAdvancedFiltersOpen] = useState(false);
-    const [compactLevel, setCompactLevel] = useState<0 | 1 | 2>(1); // 0=full, 1=semi, 2=ultra
+    const [compactLevel, setCompactLevel] = useState<0 | 1 | 2>(2); // 0=full, 1=semi, 2=ultra
     const [activePresetId, setActivePresetId] = useState<string | null>(null);
     const [showFilters, setShowFilters] = useState(true);
     const [groupBy, setGroupBy] = useState<'none' | 'status' | 'city' | 'governorate'>('none');
+    const [isExpandedAnalytics, setIsExpandedAnalytics] = useState(false);
+    const [metricsCollapsed, setMetricsCollapsed] = useState(false);
+    const lastScrollTopRef = useRef(0);
+
+    // Date range state (default: all time = undefined)
+    const [dateFrom, setDateFrom] = useState<string | undefined>(undefined);
+    const [dateTo, setDateTo] = useState<string | undefined>(undefined);
+
+    // Bidirectional scroll: collapse on scroll down, expand on scroll back to top
+    const handleListScroll = useCallback((scrollTop: number) => {
+        const scrollingDown = scrollTop > lastScrollTopRef.current;
+        lastScrollTopRef.current = scrollTop;
+
+        if (scrollingDown && scrollTop > 30 && !metricsCollapsed) {
+            setMetricsCollapsed(true);
+            setIsExpandedAnalytics(false);
+        } else if (!scrollingDown && scrollTop <= 5 && metricsCollapsed) {
+            setMetricsCollapsed(false);
+        }
+    }, [metricsCollapsed]);
 
     const { exportToCSV, bulkAddTags, isTagging } = useCustomerBulkActions();
     const { presets, savePreset, deletePreset, applyPreset } = useCustomerFilterPresets();
+    const { getCustomerOrderCount } = useOrdersContext();
 
-    // Derived state
+    // Check if a customer has potential duplicates (more than 1 active order)
+    const customerHasDuplicates = useCallback((phone: string): boolean => {
+        return getCustomerOrderCount(phone) > 1;
+    }, [getCustomerOrderCount]);
+
+    // Derived state — with client-side sort for VIP (highest paying) and Loss (lowest LTV)
     const customers = useMemo(() => {
-        return data?.pages.flatMap(page => page.customers) ?? [];
-    }, [data]);
+        const flat = data?.pages.flatMap(page => page.customers) ?? [];
+        if (statusFilter === 'vip') {
+            // VIP: descending by total_spent (highest paying first)
+            return [...flat].sort((a, b) => b.total_spent - a.total_spent);
+        }
+        if (statusFilter === 'regular') {
+            // Loss: ascending by total_spent (customers that cost us most)
+            return [...flat].sort((a, b) => a.total_spent - b.total_spent);
+        }
+        return flat;
+    }, [data, statusFilter]);
 
     const totalCount = data?.pages[0]?.totalCount ?? 0;
 
@@ -141,159 +178,154 @@ export default function CustomersPage() {
         <PageTransition>
             <div className="min-h-[calc(100vh-5rem)] h-[calc(100vh-5rem)] p-4 md:p-6 flex flex-col overflow-hidden relative">
 
-                {/* Global Header with Saved Views */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 flex-shrink-0">
-                    <div className="flex items-center gap-4">
-                        <div>
-                            <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight flex items-center gap-3">
-                                <Users className="w-6 h-6 sm:w-8 sm:h-8" />
-                                {t("customers.title")}
-                            </h1>
-                            <p className="text-muted mt-1 text-sm">
-                                Managing {totalCount.toLocaleString()} {totalCount === 1 ? 'customer' : 'customers'}
-                            </p>
+                {/* Main Content Layout Wrapper (Metrics + List AND Drawer) */}
+                <div className="flex flex-1 overflow-hidden min-h-0 relative gap-6">
+
+                    {/* Main Content Left Side */}
+                    <div className="flex-1 flex flex-col min-w-0 min-h-0 h-full">
+
+                        {/* Collapsible Metrics Section */}
+                        <div
+                            className={cn(
+                                "overflow-hidden flex-shrink-0",
+                                metricsCollapsed ? "max-h-0 opacity-0 mb-0" : "max-h-[500px] opacity-100 mb-0"
+                            )}
+                            style={{ transition: "max-height 400ms cubic-bezier(0.4, 0, 0.2, 1), opacity 300ms ease, margin 300ms ease" }}
+                        >
+                            <CustomerDashboardMetrics
+                                isExpanded={isExpandedAnalytics}
+                                onToggleExpand={() => setIsExpandedAnalytics(prev => !prev)}
+                            />
                         </div>
-                    </div>
 
-                    {/* Saved Views Tabs & View Mode Toggle */}
-                    <div className="flex items-center gap-3">
-                        <SavedCustomerViewsTabs
-                            presets={presets}
-                            activePresetId={activePresetId}
-                            onSelect={handleSelectPreset}
-                            onSave={handleSavePreset}
-                            onDelete={handleDeletePreset}
-                            onClearFilter={handleClearFilter}
-                        />
-
-                        {/* View Mode Toggle */}
-                        <div className="flex items-center gap-1 p-1 bg-white/60 dark:bg-[#1E1E1E] backdrop-blur-md border border-white/20 dark:border-[#333333] rounded-xl">
+                        {/* Show metrics button when collapsed */}
+                        {metricsCollapsed && (
                             <button
-                                onClick={() => setCompactLevel(0)}
-                                className={cn(
-                                    "p-2 rounded-lg transition-all",
-                                    compactLevel === 0
-                                        ? "bg-white dark:bg-[#2A2A2A] shadow-sm text-primary dark:text-[#EFFF00]"
-                                        : "text-muted-foreground hover:text-foreground dark:hover:text-white"
-                                )}
-                                title="Full View"
+                                onClick={() => {
+                                    setMetricsCollapsed(false);
+                                }}
+                                className="flex items-center justify-center gap-2 mb-2 py-1.5 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground bg-[var(--card-bg)] dark:bg-[#1E1E1E] border border-[var(--card-border)] hover:border-primary/30 transition-all duration-300 flex-shrink-0 group"
                             >
-                                <LayoutGrid className="w-4 h-4" />
+                                <ChevronDown className="w-3.5 h-3.5 group-hover:translate-y-0.5 transition-transform" />
+                                Show Metrics
                             </button>
-                            <button
-                                onClick={() => setCompactLevel(1)}
-                                className={cn(
-                                    "p-2 rounded-lg transition-all",
-                                    compactLevel === 1
-                                        ? "bg-white dark:bg-[#2A2A2A] shadow-sm text-primary dark:text-[#EFFF00]"
-                                        : "text-muted-foreground hover:text-foreground dark:hover:text-white"
-                                )}
-                                title="Semi-Compact"
-                            >
-                                <List className="w-4 h-4" />
-                            </button>
-                            <button
-                                onClick={() => setCompactLevel(2)}
-                                className={cn(
-                                    "p-2 rounded-lg transition-all",
-                                    compactLevel === 2
-                                        ? "bg-white dark:bg-[#2A2A2A] shadow-sm text-primary dark:text-[#EFFF00]"
-                                        : "text-muted-foreground hover:text-foreground dark:hover:text-white"
-                                )}
-                                title="Ultra-Compact"
-                            >
-                                <Rows3 className="w-4 h-4" />
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                        )}
 
-                {/* Top Level Analytics */}
-                <CustomerTopMetrics />
+                        {/* Master List Area - extends below the fold */}
+                        <div className={cn(
+                            "flex-1 flex flex-col min-w-0 min-h-0 bg-[var(--card-bg)] dark:bg-[#1E1E1E] border border-[var(--card-border)] shadow-sm overflow-hidden mt-2 p-4 md:p-6 pb-0",
+                            metricsCollapsed ? "rounded-xl" : "rounded-2xl md:rounded-3xl"
+                        )}>
 
-                {/* Main Content Layout */}
-                <div className="flex flex-1 overflow-hidden relative">
-
-                    {/* Master List */}
-                    <div className="w-full h-full flex flex-col">
-                        {/* Search & Sticky Filter Bar */}
-                        <div className="space-y-4 mb-4 flex-shrink-0">
-                            <div className="flex gap-2 items-center w-full">
+                            {/* Compact Header: Title + Tabs + Date + Search + View Icons */}
+                            <div className="flex items-center gap-2 mb-3 flex-shrink-0">
+                                <h2 className="text-sm font-bold tracking-tight text-foreground whitespace-nowrap hidden md:flex items-center gap-1.5">
+                                    Customers
+                                    <span className="text-xs font-normal text-muted-foreground">· {totalCount.toLocaleString()}</span>
+                                </h2>
+                                <div className="flex items-center bg-slate-100 dark:bg-black/40 p-0.5 rounded-lg border border-slate-200 dark:border-white/10 shrink-0">
+                                    <button onClick={() => setStatus('all')} className={cn("px-2.5 py-1 text-xs font-medium rounded transition-colors", statusFilter === 'all' ? "bg-white dark:bg-slate-700 text-foreground dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-800 dark:hover:text-white")}>All</button>
+                                    <button onClick={() => setStatus('vip')} className={cn("px-2.5 py-1 text-xs font-medium rounded transition-colors", statusFilter === 'vip' ? "bg-white dark:bg-slate-700 text-foreground dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-800 dark:hover:text-white")}>VIP</button>
+                                    <button onClick={() => setStatus('regular')} className={cn("px-2.5 py-1 text-xs font-medium rounded transition-colors", statusFilter === 'regular' ? "bg-white dark:bg-slate-700 text-foreground dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-800 dark:hover:text-white")}>Loss</button>
+                                    <button onClick={() => setStatus('new')} className={cn("px-2.5 py-1 text-xs font-medium rounded transition-colors", statusFilter === 'new' ? "bg-white dark:bg-slate-700 text-foreground dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-800 dark:hover:text-white")}>New</button>
+                                </div>
+                                <div className="shrink-0">
+                                    <DateRangePicker
+                                        dateFrom={dateFrom}
+                                        dateTo={dateTo}
+                                        onDateChange={(from, to) => {
+                                            setDateFrom(from);
+                                            setDateTo(to);
+                                        }}
+                                    />
+                                </div>
                                 <div className="flex-1">
                                     <CustomerOmniSearch rawSearch={rawSearch || ""} setSearch={setSearch} />
                                 </div>
-                                <button
-                                    onClick={() => setIsAdvancedFiltersOpen(true)}
-                                    className="h-10 px-4 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-sm font-medium hover:bg-[var(--card-border)] transition-colors flex items-center gap-2"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>
-                                    Filters
-                                    {/* Show count of active advanced filters */}
-                                    {(() => {
-                                        const count = [state.minLtv, state.maxLtv, state.lastOrderWithinDays, state.tagId].filter(v => v !== undefined).length;
-                                        return count > 0 ? (
-                                            <span className="w-5 h-5 rounded-full bg-[var(--ink)] text-white text-[10px] flex items-center justify-center -ml-1">
-                                                {count}
-                                            </span>
-                                        ) : null;
-                                    })()}
-                                </button>
+                                {/* View Mode Toggle */}
+                                <div className="flex items-center gap-0.5 p-0.5 bg-white/60 dark:bg-black/30 backdrop-blur-sm border border-white/20 dark:border-white/10 rounded-lg shrink-0">
+                                    <button
+                                        onClick={() => setCompactLevel(0)}
+                                        className={cn(
+                                            "p-1.5 rounded transition-all",
+                                            compactLevel === 0
+                                                ? "bg-white dark:bg-[#2A2A2A] shadow-sm text-primary dark:text-[#EFFF00]"
+                                                : "text-muted-foreground hover:text-foreground dark:hover:text-white"
+                                        )}
+                                        title="Full View"
+                                    >
+                                        <LayoutGrid className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                        onClick={() => setCompactLevel(1)}
+                                        className={cn(
+                                            "p-1.5 rounded transition-all",
+                                            compactLevel === 1
+                                                ? "bg-white dark:bg-[#2A2A2A] shadow-sm text-primary dark:text-[#EFFF00]"
+                                                : "text-muted-foreground hover:text-foreground dark:hover:text-white"
+                                        )}
+                                        title="Semi-Compact"
+                                    >
+                                        <List className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                        onClick={() => setCompactLevel(2)}
+                                        className={cn(
+                                            "p-1.5 rounded transition-all",
+                                            compactLevel === 2
+                                                ? "bg-white dark:bg-[#2A2A2A] shadow-sm text-primary dark:text-[#EFFF00]"
+                                                : "text-muted-foreground hover:text-foreground dark:hover:text-white"
+                                        )}
+                                        title="Ultra-Compact"
+                                    >
+                                        <Rows3 className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
                             </div>
 
-                            {/* NEW: Sticky Filter Bar with Status Pills */}
-                            <StickyCustomerFilterBar
-                                filters={{
-                                    status: statusFilter,
-                                    search: state.search,
-                                    city: state.city,
-                                    minLtv: state.minLtv,
-                                    maxLtv: state.maxLtv,
-                                    lastOrderWithinDays: state.lastOrderWithinDays,
-                                    tagId: state.tagId,
-                                }}
-                                setFilters={(newFilters) => {
-                                    if (newFilters.status !== undefined) setStatus(newFilters.status);
-                                }}
-                                statusCounts={{
-                                    all: totalCount,
-                                    vip: 0, // Will be calculated from data
-                                    regular: 0,
-                                    new: 0,
-                                }}
-                                showFilters={showFilters}
-                                setShowFilters={setShowFilters}
-                                hasActiveFilters={!!(state.minLtv || state.maxLtv || state.lastOrderWithinDays || state.tagId)}
-                                groupBy={groupBy}
-                                setGroupBy={setGroupBy}
-                            />
-                        </div>
+                            {/* The High-Performance List */}
+                            <div className="flex-1 flex flex-col min-h-0 relative is-active group md:-mx-2">
+                                {/* Faded gradient at top of list for smooth visual entry */}
+                                <div className="absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-[var(--card-bg)] dark:from-[#1E1E1E] to-transparent z-10 pointer-events-none" />
 
-                        {/* The High-Performance List */}
-                        <div className="flex-1 bg-[var(--background)] border border-[var(--card-border)] rounded-3xl overflow-hidden shadow-sm flex flex-col relative is-active group">
-                            {/* Faded gradient at top of list for smooth visual entry */}
-                            <div className="absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-[var(--background)] to-transparent z-10 pointer-events-none" />
+                                <VirtualizedCustomerList
+                                    customers={customers}
+                                    totalCount={totalCount}
+                                    isLoading={isLoading}
+                                    isFetchingNextPage={isFetchingNextPage}
+                                    hasNextPage={!!hasNextPage}
+                                    fetchNextPage={fetchNextPage}
+                                    selectedCustomerId={selectedCustomerId}
+                                    onSelectCustomer={setSelectedCustomer}
+                                    selectedPhones={selectedPhones}
+                                    onToggleSelection={handleToggleSelection}
+                                    onSelectAll={handleSelectAll}
+                                    onClearSelection={handleClearSelection}
+                                    compactLevel={compactLevel}
+                                    onListScroll={handleListScroll}
+                                    hasDuplicates={customerHasDuplicates}
+                                />
 
-                            <VirtualizedCustomerList
-                                customers={customers}
-                                totalCount={totalCount}
-                                isLoading={isLoading}
-                                isFetchingNextPage={isFetchingNextPage}
-                                hasNextPage={!!hasNextPage}
-                                fetchNextPage={fetchNextPage}
-                                selectedCustomerId={selectedCustomerId}
-                                onSelectCustomer={setSelectedCustomer}
-                                selectedPhones={selectedPhones}
-                                onToggleSelection={handleToggleSelection}
-                                onSelectAll={handleSelectAll}
-                                onClearSelection={handleClearSelection}
-                                compactLevel={compactLevel}
-                            />
-
-                            {/* Faded gradient at bottom of list */}
-                            <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-[var(--background)] to-transparent z-10 pointer-events-none" />
+                                {/* Faded gradient at bottom of list */}
+                                <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-[var(--card-bg)] dark:from-[#1E1E1E] to-transparent z-10 pointer-events-none" />
+                            </div>
                         </div>
                     </div>
 
+                    {/* Conditional Right Column: Insights Drawer */}
+                    <AnimatePresence>
+                        {isExpandedAnalytics && (
+                            <motion.div
+                                initial={{ width: 0, opacity: 0, marginLeft: 0 }}
+                                animate={{ width: "340px", opacity: 1, marginLeft: 24 }}
+                                exit={{ width: 0, opacity: 0, marginLeft: 0 }}
+                                transition={{ type: "spring", bounce: 0, duration: 0.4 }}
+                                className="hidden xl:flex flex-col flex-shrink-0 min-h-0 h-full"
+                            >
+                                <InsightsDrawer onClose={() => setIsExpandedAnalytics(false)} />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
 
                 <CustomerDetailModal
@@ -329,11 +361,7 @@ export default function CustomersPage() {
                     selectedPhones={Array.from(selectedPhones)}
                 />
 
-                <AdvancedCustomerFilters
-                    isOpen={isAdvancedFiltersOpen}
-                    onClose={() => setIsAdvancedFiltersOpen(false)}
-                />
             </div>
-        </PageTransition>
+        </PageTransition >
     );
 }

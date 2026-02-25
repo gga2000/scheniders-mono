@@ -50,7 +50,7 @@ export function ScrollToTopButton({
                         stiffness: 400,
                         damping: 25,
                     }}
-                    className="fixed top-24 left-1/2 -translate-x-1/2 z-50"
+                    className="fixed top-24 left-1/2 -translate-x-1/2 z-40"
                 >
                     <motion.button
                         onClick={scrollToTop}

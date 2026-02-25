@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Filter, Layers, ChevronDown, ShieldCheck } from "lucide-react";
+import { Filter, Layers, ChevronDown, ShieldCheck, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Order, OrderStatus, OrderPriority } from "@/lib/supabase";
 import {
@@ -34,6 +34,8 @@ interface StickyFilterBarProps {
     hasActiveFilters: boolean;
     groupBy: 'none' | 'status' | 'city' | 'verified';
     setGroupBy: (group: 'none' | 'status' | 'city' | 'verified') => void;
+    filterDuplicatesOnly?: boolean;
+    setFilterDuplicatesOnly?: (val: boolean) => void;
     className?: string;
     isMobile?: boolean;
 }
@@ -48,6 +50,8 @@ export function StickyFilterBar({
     hasActiveFilters,
     groupBy,
     setGroupBy,
+    filterDuplicatesOnly,
+    setFilterDuplicatesOnly,
     className,
     isMobile = false
 }: StickyFilterBarProps) {
@@ -189,6 +193,25 @@ export function StickyFilterBar({
                         <span>{!isMobile && "المرتجعات"}</span>
                     </div>
                 </button>
+
+                {/* Duplicates Filter Toggle */}
+                {setFilterDuplicatesOnly && (
+                    <button
+                        onClick={() => {
+                            setFilterDuplicatesOnly(!filterDuplicatesOnly);
+                        }}
+                        className={cn(
+                            "rounded-full whitespace-nowrap transition-all flex items-center gap-2 border",
+                            isMobile ? "px-4 py-2.5 text-sm" : "px-4 py-2 text-sm font-medium",
+                            filterDuplicatesOnly
+                                ? "bg-orange-100 text-orange-700 border-orange-300 shadow-sm dark:bg-[rgba(255,106,0,0.15)] dark:text-[#FF8C42] dark:border-[rgba(255,106,0,0.3)]"
+                                : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95 dark:hover:bg-white/5 dark:hover:border-[#4a5f87]"
+                        )}
+                    >
+                        <Copy className="w-4 h-4" />
+                        <span>{!isMobile && "المكررين"}</span>
+                    </button>
+                )}
 
                 {/* Risk Filter Toggle */}
                 <button

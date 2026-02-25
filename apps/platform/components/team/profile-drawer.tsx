@@ -7,23 +7,8 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
-
-// Local type referencing the structure in team page
-interface EmployeeStats {
-    user_id: string;
-    user_email: string;
-    display_name: string | null;
-    avatar_url: string | null;
-    role: string;
-    is_active: boolean;
-    last_login_at: string | null;
-    total_actions: number;
-    status_changes: number;
-    orders_created: number;
-    orders_printed: number;
-    orders_edited: number;
-    logins: number;
-}
+import { EmployeeStats } from '@/lib/team-types';
+import { ActivityLogEntry } from '@/lib/activity-logger';
 
 interface ProfileDrawerProps {
     employee: EmployeeStats | null;
@@ -32,14 +17,22 @@ interface ProfileDrawerProps {
 }
 
 export function ProfileDrawer({ employee, isOpen, onClose }: ProfileDrawerProps) {
-    const [recentLogs, setRecentLogs] = useState<any[]>([]);
+    const [recentLogs, setRecentLogs] = useState<ActivityLogEntry[]>([]);
     const [loadingLogs, setLoadingLogs] = useState(false);
 
     useEffect(() => {
         if (isOpen && employee) {
             fetchUserLogs(employee.user_id);
-            // Prevent body scroll when drawer is open
             document.body.style.overflow = 'hidden';
+
+            const handleKeyDown = (e: KeyboardEvent) => {
+                if (e.key === 'Escape') onClose();
+            };
+            document.addEventListener('keydown', handleKeyDown);
+            return () => {
+                document.body.style.overflow = '';
+                document.removeEventListener('keydown', handleKeyDown);
+            };
         } else {
             document.body.style.overflow = '';
         }
@@ -47,7 +40,7 @@ export function ProfileDrawer({ employee, isOpen, onClose }: ProfileDrawerProps)
         return () => {
             document.body.style.overflow = '';
         };
-    }, [isOpen, employee]);
+    }, [isOpen, employee, onClose]);
 
     const fetchUserLogs = async (userId: string) => {
         setLoadingLogs(true);
@@ -110,6 +103,7 @@ export function ProfileDrawer({ employee, isOpen, onClose }: ProfileDrawerProps)
 
                             <button
                                 onClick={onClose}
+                                aria-label="إغلاق"
                                 className="absolute top-4 left-4 w-8 h-8 rounded-full bg-black/20 hover:bg-black/40 text-white flex items-center justify-center transition-colors backdrop-blur-md z-10"
                             >
                                 <X className="w-4 h-4" />
@@ -262,7 +256,7 @@ export function ProfileDrawer({ employee, isOpen, onClose }: ProfileDrawerProps)
                                                         {log.details && Object.keys(log.details).length > 0 && (
                                                             <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-black/20 p-2 rounded-xl">
                                                                 {log.action === 'order.status_change' && log.details.newStatus ? (
-                                                                    <span>تغيرت الحالة إلى: <strong className="text-gray-900 dark:text-white">{log.details.newStatus}</strong></span>
+                                                                    <span>تغيرت الحالة إلى: <strong className="text-gray-900 dark:text-white">{String(log.details.newStatus)}</strong></span>
                                                                 ) : log.entity_id ? (
                                                                     <span>معرف الطلب: <strong className="text-gray-900 dark:text-white font-mono break-all">{log.entity_id}</strong></span>
                                                                 ) : (

@@ -14,7 +14,7 @@ import {
     Calendar,
     ShoppingBag,
     Tag as TagIcon,
-    MoreVertical,
+    MoreHorizontal,
     Eye,
     Mail,
 } from "lucide-react";
@@ -91,8 +91,95 @@ export const CustomerCard = memo(function CustomerCard({
         window.open(link, "_blank");
     };
 
-    // ULTRA-COMPACT VIEW (Level 2) - Single dense row
+    // Helper to get days since last order easily
+    const daysSinceLastOrder = customer.last_order_date
+        ? Math.floor((new Date().getTime() - new Date(customer.last_order_date).getTime()) / (1000 * 3600 * 24))
+        : 999;
+
+    // New Tier Helper (Mock Data based on customer total spent for visual concept)
+    const getCustomerTier = (spent: number) => {
+        if (spent >= 10000000) return "Enterprise";
+        if (spent >= 5000000) return "Mid-Market";
+        if (spent >= 1000000) return "SMB";
+        return "Startup";
+    };
+
+    // New Status Badge System matching dark theme concept
+    const renderStatusPill = () => {
+        if (customer.calculated_status === "vip" || daysSinceLastOrder <= 30) {
+            return (
+                <span className="inline-flex items-center justify-center px-2.5 py-0.5 bg-green-100 text-green-800 dark:bg-[#00ff9d]/10 dark:text-[#00ff9d] rounded-full text-xs font-medium">
+                    Healthy
+                </span>
+            );
+        } else if (daysSinceLastOrder > 180) {
+            return (
+                <span className="inline-flex items-center justify-center px-2.5 py-0.5 bg-red-100 text-red-800 dark:bg-[#ff3366]/10 dark:text-[#ff3366] rounded-full text-xs font-medium">
+                    At Risk
+                </span>
+            );
+        } else {
+            return (
+                <span className="inline-flex items-center justify-center px-2.5 py-0.5 bg-yellow-100 text-yellow-800 dark:bg-yellow-500/10 dark:text-yellow-500 rounded-full text-xs font-medium">
+                    Warning
+                </span>
+            );
+        }
+    };
+
+    // Mock Engagement Sparklines SVG — neon colors matching reference
+    const renderMockSparkline = () => {
+        if (customer.calculated_status === "vip" || daysSinceLastOrder <= 30) {
+            return (
+                <div className="w-24 h-8">
+                    <svg className="w-full h-full overflow-visible" viewBox="0 0 100 30">
+                        <path d="M0 25 L 20 20 L 40 22 L 60 10 L 80 15 L 100 5" fill="none" stroke="#00ff9d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-md" />
+                        <circle cx="100" cy="5" r="3" fill="#00ff9d" />
+                    </svg>
+                </div>
+            );
+        } else if (daysSinceLastOrder > 180) {
+            return (
+                <div className="w-24 h-8">
+                    <svg className="w-full h-full overflow-visible" viewBox="0 0 100 30">
+                        <path d="M0 5 L 20 10 L 40 15 L 60 15 L 80 25 L 100 28" fill="none" stroke="#ff3366" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-md" />
+                        <circle cx="100" cy="28" r="3" fill="#ff3366" />
+                    </svg>
+                </div>
+            );
+        } else {
+            return (
+                <div className="w-24 h-8">
+                    <svg className="w-full h-full overflow-visible" viewBox="0 0 100 30">
+                        <path d="M0 15 L 20 12 L 40 18 L 60 15 L 80 15 L 100 15" fill="none" stroke="#eab308" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        <circle cx="100" cy="15" r="3" fill="#eab308" />
+                    </svg>
+                </div>
+            );
+        }
+    };
+
+    // Mock Activity (Action + Time)
+    const renderMockActivity = () => {
+        // Deterministic mock based on phone
+        const hash = (customer.phone.charCodeAt(customer.phone.length - 1) || 0) + (customer.name.length || 0);
+        const activities = [
+            { action: "Login", time: "2 mins ago" },
+            { action: "Email Open", time: "3 days ago" },
+            { action: "Ticket", time: "5 hours ago" },
+            { action: "Order Placed", time: "Yesterday" }
+        ];
+        return activities[hash % activities.length];
+    };
+
+    // ULTRA-COMPACT VIEW (Level 2) - Seamless Datatable Row
     if (compact === 2) {
+        // Initials avatar
+        const initials = customer.name.substring(0, 2).toUpperCase();
+        // Dot Color map — neon colors matching reference
+        const dotColor = (customer.calculated_status === "vip" || daysSinceLastOrder <= 30) ? "bg-[#00ff9d]" : (daysSinceLastOrder > 180 ? "bg-[#ff3366] animate-pulse" : "bg-yellow-500");
+        const activity = renderMockActivity();
+
         return (
             <motion.div
                 layout={!isVirtualized}
@@ -100,80 +187,81 @@ export const CustomerCard = memo(function CustomerCard({
                 onClick={() => onViewDetails(customer.phone)}
                 className={cn(
                     "group relative w-full isolate",
-                    "bg-[var(--card-bg)] rounded-xl shadow-sm hover:shadow-md",
-                    "flex items-center gap-3 px-3 py-2",
-                    "border border-[var(--card-border)]/50",
-                    "hover:border-[var(--secondary)] transition-all duration-300 cursor-pointer",
-                    isSelected && "ring-2 ring-[var(--pastel-yellow-solid)] border-[var(--pastel-yellow-solid)]"
+                    "grid grid-cols-[auto_2fr_1.5fr_1.5fr_1fr_1fr_auto] gap-4 items-center px-6 py-4",
+                    "border-b border-slate-100 dark:border-white/5 last:border-0",
+                    "hover:bg-slate-50 dark:hover:bg-white/5 transition-all cursor-pointer",
+                    isSelected && "bg-slate-50 dark:bg-white/5"
                 )}
             >
-                {/* Selection Checkbox */}
-                {onToggleSelection && (
-                    <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={(e) => {
-                            e.stopPropagation();
-                            onToggleSelection(customer.phone);
-                        }}
-                        className="w-4 h-4 rounded border-gray-300 text-[var(--pastel-yellow-solid)] focus:ring-[var(--pastel-yellow-solid)]"
-                    />
-                )}
-
-                {/* Status & Dormancy */}
-                <div className="relative flex-shrink-0">
-                    <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", getStatusColor(customer.calculated_status))}>
-                        {getStatusIcon(customer.calculated_status)}
-                    </div>
-                    <div
-                        className={cn("absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-[var(--card-bg)]", getDormancyColor(customer.last_order_date))}
-                        title={getDormancyTooltip(customer.last_order_date)}
-                    />
+                {/* 1. Selection Checkbox */}
+                <div className="w-10 flex justify-center">
+                    {onToggleSelection ? (
+                        <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => {
+                                e.stopPropagation();
+                                onToggleSelection(customer.phone);
+                            }}
+                            className="rounded border-slate-300 dark:border-slate-600 bg-transparent text-primary focus:ring-offset-0 focus:ring-primary"
+                        />
+                    ) : <div className="w-4" />}
                 </div>
 
-                {/* Name & Phone */}
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                        <p className="font-bold text-sm text-foreground truncate">{customer.name}</p>
-                        {customer.is_blacklisted && <AlertTriangle className="w-3 h-3 text-red-500 flex-shrink-0" />}
-                        {hasDuplicates && (
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onShowDuplicates?.(customer.phone);
-                                }}
-                                className="text-xs font-medium text-orange-600 hover:text-orange-700"
-                            >
-                                Duplicates
-                            </button>
-                        )}
+                {/* 2. Customer Avatar, Name, Tier */}
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className="relative flex-shrink-0">
+                        <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 flex items-center justify-center text-sm font-bold ring-2 ring-white dark:ring-slate-700 shadow-sm">
+                            {initials}
+                        </div>
+                        {/* Status Dot */}
+                        <span className={cn("absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-[#0f172a]", dotColor)} />
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-muted">
-                        <Phone className="w-3 h-3" />
-                        <span className="font-mono">{customer.phone}</span>
-                        {customer.city && (
-                            <>
-                                <span className="w-1 h-1 rounded-full bg-muted" />
-                                <MapPin className="w-3 h-3" />
-                                <span className="truncate max-w-[100px]">{customer.city}</span>
-                            </>
-                        )}
+                    <div className="flex-1 min-w-0 text-left">
+                        <div className="flex items-center gap-1.5">
+                            <p className="font-bold text-sm text-slate-800 dark:text-white truncate leading-tight group-hover:text-primary transition-colors">{customer.name}</p>
+                            {customer.is_blacklisted && <AlertTriangle className="w-3 h-3 text-red-500 flex-shrink-0" />}
+                            {hasDuplicates && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onShowDuplicates?.(customer.phone); }}
+                                    className="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-1.5 rounded"
+                                >
+                                    Dupes
+                                </button>
+                            )}
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5">Tier: {getCustomerTier(customer.total_spent)}</p>
                     </div>
                 </div>
 
-                {/* Metrics */}
-                <div className="flex items-center gap-4 flex-shrink-0">
-                    <div className="text-right">
-                        <p className="text-sm font-bold text-foreground">{formatIQD(customer.total_spent)}</p>
-                        <p className="text-xs text-muted">{customer.total_orders} orders</p>
-                    </div>
+                {/* 3. Status Pill — centered */}
+                <div className="text-center">
+                    {renderStatusPill()}
+                </div>
 
-                    {/* WhatsApp Button */}
-                    <button
-                        onClick={handleWhatsApp}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366] hover:text-white transition-all opacity-0 group-hover:opacity-100"
-                    >
-                        <MessageCircle className="w-4 h-4" />
+                {/* 4. Engagement Sparkline */}
+                <div>
+                    {renderMockSparkline()}
+                </div>
+
+                {/* 5. LTV — right-aligned, font-mono */}
+                <div className="text-right">
+                    <span className="text-sm font-mono font-medium text-slate-700 dark:text-slate-200">{formatIQD(customer.total_spent)}</span>
+                </div>
+
+                {/* 6. Activity — right-aligned */}
+                <div className="text-right">
+                    <div className="flex flex-col items-end">
+                        <span className="text-slate-700 dark:text-slate-300 text-xs font-medium">{activity.action}</span>
+                        <span className="text-slate-400 text-[10px]">{activity.time}</span>
+                    </div>
+                </div>
+
+                {/* 7. Actions — Horizontal Dots */}
+                <div className="w-10 flex justify-end">
+                    <button className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 transition-colors">
+                        <MoreHorizontal className="w-5 h-5" />
                     </button>
                 </div>
             </motion.div>
@@ -281,7 +369,7 @@ export const CustomerCard = memo(function CustomerCard({
                         </div>
                         <div>
                             <p className="text-xs text-muted uppercase tracking-wider mb-0.5">Last</p>
-                            <p className="text-sm font-bold text-foreground">{formatDate(customer.last_order_date, "short")}</p>
+                            <p className="text-sm font-bold text-foreground">{customer.last_order_date ? formatDate(customer.last_order_date) : "-"}</p>
                         </div>
                     </div>
 
@@ -308,7 +396,9 @@ export const CustomerCard = memo(function CustomerCard({
         );
     }
 
-    // FULL VIEW (Level 0) - Complete customer card
+    // FULL VIEW (Level 0) - Data-Table Row (Matches Reference Design)
+    const fullActivity = renderMockActivity();
+    const fullDotColor = (customer.calculated_status === "vip" || daysSinceLastOrder <= 30) ? "bg-[#00ff9d]" : (daysSinceLastOrder > 180 ? "bg-[#ff3366] animate-pulse" : "bg-yellow-500");
     return (
         <motion.div
             layout={!isVirtualized}
@@ -316,150 +406,99 @@ export const CustomerCard = memo(function CustomerCard({
             onClick={() => onViewDetails(customer.phone)}
             className={cn(
                 "group relative w-full isolate",
-                "bg-[var(--card-bg)] rounded-3xl shadow-sm hover:shadow-xl",
-                "border border-[var(--card-border)]",
-                "hover:border-[var(--secondary)] transition-all duration-300 cursor-pointer",
-                "overflow-hidden",
-                isSelected && "ring-2 ring-[var(--pastel-yellow-solid)] border-[var(--pastel-yellow-solid)] shadow-[0_6px_20px_rgba(0,0,0,0.12)]"
+                "hover:bg-slate-50 dark:hover:bg-white/5 transition-all cursor-pointer",
+                "border-b border-slate-100 dark:border-white/5 last:border-0",
+                "grid grid-cols-[auto_2fr_1.5fr_1.5fr_1fr_1fr_auto] gap-4 items-center px-6 py-4",
+                isSelected && "bg-slate-50 dark:bg-white/5"
             )}
         >
-            {/* Status Bar */}
-            <div className={cn("h-2 w-full", customer.calculated_status === "vip" ? "bg-gradient-to-r from-amber-400 to-amber-500" : customer.calculated_status === "regular" ? "bg-gradient-to-r from-green-400 to-green-500" : "bg-gradient-to-r from-teal-400 to-teal-500")} />
+            {/* Col 0: Selection Checkbox */}
+            <div className="w-10 flex justify-center">
+                {onToggleSelection && (
+                    <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => {
+                            e.stopPropagation();
+                            onToggleSelection(customer.phone);
+                        }}
+                        className="rounded border-slate-300 dark:border-slate-600 bg-transparent text-primary focus:ring-offset-0 focus:ring-primary"
+                    />
+                )}
+            </div>
 
-            <div className="p-6">
-                {/* Header */}
-                <div className="flex items-start gap-4 mb-4">
-                    {/* Selection Checkbox */}
-                    {onToggleSelection && (
-                        <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={(e) => {
-                                e.stopPropagation();
-                                onToggleSelection(customer.phone);
-                            }}
-                            className="mt-2 w-5 h-5 rounded border-gray-300 text-[var(--pastel-yellow-solid)] focus:ring-[var(--pastel-yellow-solid)]"
-                        />
-                    )}
-
-                    {/* Avatar & Status */}
-                    <div className="relative flex-shrink-0">
-                        <div className={cn("w-16 h-16 rounded-2xl flex items-center justify-center relative overflow-hidden border-2", getStatusColor(customer.calculated_status))}>
-                            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-black to-transparent" />
-                            <div className="relative z-10 scale-110">{getStatusIcon(customer.calculated_status)}</div>
-                        </div>
-                        <div
-                            className={cn("absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-[var(--card-bg)]", getDormancyColor(customer.last_order_date))}
-                            title={getDormancyTooltip(customer.last_order_date)}
-                        />
-                    </div>
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                            <h2 className="text-xl font-bold text-foreground truncate">{customer.name}</h2>
-                            {customer.is_blacklisted && (
-                                <span className="px-2 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-bold uppercase flex items-center gap-1">
-                                    <AlertTriangle className="w-3 h-3" />
-                                    Blacklisted
-                                </span>
-                            )}
-                            {hasDuplicates && (
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onShowDuplicates?.(customer.phone);
-                                    }}
-                                    className="px-2 py-1 rounded-lg bg-orange-100 text-orange-700 text-xs font-bold uppercase hover:bg-orange-200"
-                                >
-                                    View Duplicates
-                                </button>
-                            )}
-                        </div>
-
-                        <div className="flex items-center gap-3 text-sm text-muted mb-2">
-                            <div className="flex items-center gap-1.5">
-                                <Phone className="w-4 h-4" />
-                                <span className="font-mono">{customer.phone}</span>
-                            </div>
-                            {customer.city && (
-                                <>
-                                    <span className="w-1 h-1 rounded-full bg-muted" />
-                                    <div className="flex items-center gap-1.5">
-                                        <MapPin className="w-4 h-4" />
-                                        <span>{customer.city}</span>
-                                        {customer.governorate && <span className="text-xs">({customer.governorate})</span>}
-                                    </div>
-                                </>
-                            )}
-                        </div>
-
-                        {/* Tags */}
-                        {tags.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                                {tags.map((tag) => (
-                                    <span
-                                        key={tag.id}
-                                        className="px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700 flex items-center gap-1"
-                                    >
-                                        <TagIcon className="w-3 h-3" />
-                                        {tag.name}
-                                    </span>
-                                ))}
-                            </div>
+            {/* Col 1: Avatar, Name, Tier (CUSTOMER) */}
+            <div className="flex items-center gap-3 min-w-0">
+                <div className="relative">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 ring-2 ring-white dark:ring-slate-700 shadow-sm">
+                        {customer.name ? (
+                            <span className="text-sm font-bold">
+                                {customer.name.substring(0, 2).toUpperCase()}
+                            </span>
+                        ) : (
+                            <User className="w-4 h-4" />
                         )}
                     </div>
-
-                    {/* Quick Actions */}
-                    <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                            onClick={handleWhatsApp}
-                            className="p-2.5 rounded-xl bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366] hover:text-white transition-all shadow-sm"
-                            title="WhatsApp"
-                        >
-                            <MessageCircle className="w-5 h-5" />
-                        </button>
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setActionsOpen(!actionsOpen);
-                            }}
-                            className="p-2.5 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all shadow-sm"
-                            title="More Actions"
-                        >
-                            <MoreVertical className="w-5 h-5" />
-                        </button>
+                    {/* Tiny Status Dot */}
+                    <span
+                        className={cn("absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-[#0f172a]", fullDotColor)}
+                        title={getDormancyTooltip(customer.last_order_date)}
+                    />
+                </div>
+                <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                        <p className="text-sm font-bold text-slate-800 dark:text-white truncate group-hover:text-primary transition-colors">{customer.name || customer.phone}</p>
+                        {customer.is_blacklisted && <AlertTriangle className="w-3 h-3 text-red-500" />}
+                        {hasDuplicates && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onShowDuplicates?.(customer.phone); }}
+                                className="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-1.5 rounded"
+                            >
+                                Dupes
+                            </button>
+                        )}
+                    </div>
+                    <div className="text-xs text-slate-500">
+                        Tier: {getCustomerTier(customer.total_spent)}
                     </div>
                 </div>
+            </div>
 
-                {/* Metrics Grid */}
-                <div className="grid grid-cols-4 gap-4 p-4 bg-[var(--background)] rounded-2xl border border-[var(--card-border)]">
-                    <div className="text-center">
-                        <p className="text-xs font-bold uppercase tracking-wider text-muted mb-1">Lifetime Value</p>
-                        <p className="text-lg font-bold text-foreground">{formatIQD(customer.total_spent)}</p>
-                    </div>
-                    <div className="text-center">
-                        <p className="text-xs font-bold uppercase tracking-wider text-muted mb-1">Total Orders</p>
-                        <p className="text-lg font-bold text-foreground">{customer.total_orders}</p>
-                    </div>
-                    <div className="text-center">
-                        <p className="text-xs font-bold uppercase tracking-wider text-muted mb-1">Avg. Order</p>
-                        <p className="text-lg font-bold text-foreground">{formatIQD(customer.total_spent / customer.total_orders)}</p>
-                    </div>
-                    <div className="text-center">
-                        <p className="text-xs font-bold uppercase tracking-wider text-muted mb-1">Last Order</p>
-                        <p className="text-sm font-bold text-foreground">{formatDate(customer.last_order_date, "short")}</p>
-                    </div>
-                </div>
+            {/* Col 2: Status Pill (STATUS) — centered */}
+            <div className="text-center">
+                {renderStatusPill()}
+            </div>
 
-                {/* Timeline */}
-                <div className="mt-4 flex items-center gap-2 text-xs text-muted">
-                    <Calendar className="w-3.5 h-3.5" />
-                    <span>Customer since {formatDate(customer.first_order_date, "short")}</span>
-                    <span className="w-1 h-1 rounded-full bg-muted" />
-                    <ShoppingBag className="w-3.5 h-3.5" />
-                    <span>Last purchase {formatDate(customer.last_order_date, "relative")}</span>
+            {/* Col 3: Engagement Sparkline (ENGAGEMENT) */}
+            <div>
+                {renderMockSparkline()}
+            </div>
+
+            {/* Col 4: LTV — right-aligned, font-mono */}
+            <div className="text-right">
+                <span className="text-sm font-mono font-medium text-slate-700 dark:text-slate-200">{formatIQD(customer.total_spent)}</span>
+            </div>
+
+            {/* Col 5: Activity — right-aligned */}
+            <div className="text-right">
+                <div className="flex flex-col items-end">
+                    <span className="text-slate-700 dark:text-slate-300 text-xs font-medium">{fullActivity.action}</span>
+                    <span className="text-slate-400 text-[10px]">{fullActivity.time}</span>
                 </div>
+            </div>
+
+            {/* Col 6: Actions — Horizontal Dots */}
+            <div className="w-10 flex justify-end">
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setActionsOpen(!actionsOpen);
+                    }}
+                    className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 transition-colors"
+                >
+                    <MoreHorizontal className="w-5 h-5" />
+                </button>
             </div>
         </motion.div>
     );

@@ -6,22 +6,7 @@ import { Activity, Package, Printer, RefreshCw, ChevronRight, Settings, Truck, S
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
-
-interface EmployeeStats {
-    user_id: string;
-    user_email: string;
-    display_name: string | null;
-    avatar_url: string | null;
-    role: string;
-    is_active: boolean;
-    last_login_at: string | null;
-    total_actions: number;
-    status_changes: number;
-    orders_created: number;
-    orders_printed: number;
-    orders_edited: number;
-    logins: number;
-}
+import { EmployeeStats } from '@/lib/team-types';
 
 interface TeamMemberCardProps {
     employee: EmployeeStats;
@@ -69,6 +54,13 @@ export function TeamMemberCard({ employee, viewMode, onClick, rank, delay = 0 }:
     const theme = getRoleTheme(employee.role);
     const RoleIcon = theme.icon;
 
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClick();
+        }
+    };
+
     if (viewMode === 'list') {
         return (
             <motion.div
@@ -76,6 +68,9 @@ export function TeamMemberCard({ employee, viewMode, onClick, rank, delay = 0 }:
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay, duration: 0.3 }}
                 onClick={onClick}
+                onKeyDown={handleKeyDown}
+                role="button"
+                tabIndex={0}
                 className={cn(
                     "group relative overflow-hidden cursor-pointer",
                     "bg-white/80 dark:bg-[#1A1A1A]/80 backdrop-blur-xl",
@@ -120,17 +115,17 @@ export function TeamMemberCard({ employee, viewMode, onClick, rank, delay = 0 }:
                         </div>
 
                         {/* Quick Stats Grid */}
-                        <div className="hidden md:flex items-center gap-6 px-6 border-l border-gray-200 dark:border-gray-800">
+                        <div className="hidden md:flex items-center gap-6 px-6 border-l border-gray-200 dark:border-gray-800 rtl:border-l-0 rtl:border-r">
                             <div className="text-center">
-                                <p className="text-[10px] text-gray-500 uppercase font-semibold">Activity</p>
+                                <p className="text-[10px] text-gray-500 uppercase font-semibold">نشاط</p>
                                 <p className="text-sm font-bold text-gray-900 dark:text-white">{employee.total_actions}</p>
                             </div>
                             <div className="text-center">
-                                <p className="text-[10px] text-gray-500 uppercase font-semibold">Orders</p>
+                                <p className="text-[10px] text-gray-500 uppercase font-semibold">طلبات</p>
                                 <p className="text-sm font-bold text-gray-900 dark:text-white">{employee.orders_created}</p>
                             </div>
                             <div className="text-center">
-                                <p className="text-[10px] text-gray-500 uppercase font-semibold">Status</p>
+                                <p className="text-[10px] text-gray-500 uppercase font-semibold">حالات</p>
                                 <p className="text-sm font-bold text-gray-900 dark:text-white">{employee.status_changes}</p>
                             </div>
                         </div>
@@ -149,6 +144,9 @@ export function TeamMemberCard({ employee, viewMode, onClick, rank, delay = 0 }:
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay, duration: 0.3 }}
             onClick={onClick}
+            onKeyDown={handleKeyDown}
+            role="button"
+            tabIndex={0}
             className={cn(
                 "group relative overflow-hidden cursor-pointer",
                 "bg-white/80 dark:bg-[#1A1A1A]/80 backdrop-blur-2xl",

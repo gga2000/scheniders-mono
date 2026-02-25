@@ -24,10 +24,13 @@ import {
     Sparkles,
     ChevronRight,
     Filter,
+    ArrowRightLeft,
+    Equal,
+    AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD, formatDate, getBaseOrderId } from "@/lib/utils";
-import { formatPhoneForDisplay } from "@/lib/order-utils";
+import { formatPhoneForDisplay, normalizePhoneForSearch } from "@/lib/order-utils";
 import type { Order } from "@/lib/supabase";
 
 interface CustomerStats {
@@ -43,9 +46,9 @@ interface DuplicateComparisonModalProps {
     onClose: () => void;
     currentOrder: Order;
     duplicateOrders: Order[];
-    onMerge: (targetOrderId: string, sourceOrderId: string) => Promise<{ success: boolean; error?: string }>;
-    onMarkAsSameCustomer: (orderId: string) => void;
-    onCancelOrder: (orderId: string) => Promise<{ success: boolean; error?: string }>;
+    onMerge: (targetOrderId: string, sourceOrderId: string, notes?: string) => Promise<{ success: boolean; error?: string }>;
+    onMarkAsSameCustomer: (orderId: string, notes?: string) => void;
+    onCancelOrder: (orderId: string, notes?: string) => Promise<{ success: boolean; error?: string }>;
     onViewOrder: (order: Order) => void;
     onDismissDuplicate?: (phone: string, notes?: string) => Promise<void>;
     onFilterDuplicates?: () => void;
@@ -53,18 +56,49 @@ interface DuplicateComparisonModalProps {
     getCustomerOrders?: (phone: string) => Order[];
 }
 
-// Status configuration
-const statusConfig: Record<string, { label: string; color: string; bgColor: string }> = {
-    new: { label: "جديد", color: "text-orange-800", bgColor: "bg-orange-100" },
-    contacted: { label: "تم الاتصال", color: "text-yellow-800", bgColor: "bg-yellow-100" },
-    confirmed: { label: "مؤكد", color: "text-emerald-800", bgColor: "bg-emerald-100" },
-    cancelled: { label: "ملغي", color: "text-gray-600", bgColor: "bg-gray-100" },
-    in_transit: { label: "قيد التوصيل", color: "text-blue-800", bgColor: "bg-blue-100" },
-    delivered: { label: "تم التوصيل", color: "text-teal-800", bgColor: "bg-teal-100" },
-    rejected: { label: "مرفوض", color: "text-rose-800", bgColor: "bg-rose-100" },
-    completed: { label: "طلب تام", color: "text-emerald-900", bgColor: "bg-emerald-200" },
-    no_response: { label: "لم يرد", color: "text-slate-600", bgColor: "bg-slate-100" },
+// Status badge styles — matches order-card.tsx getStatusBadgeStyle exactly
+function getStatusBadgeStyle(status: string): string {
+    switch (status) {
+        case "new": return "bg-orange-200 text-orange-900 dark:bg-[rgba(255,106,0,0.15)] dark:text-[#FF8C42] dark:border-[rgba(255,106,0,0.3)]";
+        case "contacted": return "bg-[var(--pastel-yellow)] text-amber-900 dark:bg-[rgba(239,255,0,0.12)] dark:text-[#EFFF00] dark:border-[rgba(239,255,0,0.3)]";
+        case "confirmed": return "bg-[var(--pastel-green)] text-green-900 dark:bg-[rgba(57,255,20,0.12)] dark:text-[#66FFAA] dark:border-[rgba(57,255,20,0.3)]";
+        case "cancelled": return "bg-red-200 text-red-900 dark:bg-[rgba(255,51,51,0.12)] dark:text-[#FF6666] dark:border-[rgba(255,51,51,0.3)]";
+        case "in_transit": return "bg-blue-200 text-blue-900 dark:bg-[rgba(0,229,255,0.12)] dark:text-[#66DDFF] dark:border-[rgba(0,229,255,0.3)]";
+        case "delivered": return "bg-[var(--pastel-mint)] text-teal-900 dark:bg-[rgba(0,229,255,0.12)] dark:text-[#00E5FF] dark:border-[rgba(0,229,255,0.3)]";
+        case "rejected": return "bg-rose-100 text-rose-700 border border-rose-200 dark:bg-[rgba(255,51,51,0.12)] dark:text-[#FF8899] dark:border-[rgba(255,51,51,0.3)]";
+        case "completed": return "bg-emerald-200 text-emerald-900 ring-2 ring-emerald-400/50 dark:bg-[rgba(0,255,100,0.15)] dark:text-[#66FFAA] dark:border-[rgba(0,255,100,0.3)] dark:ring-[rgba(0,255,100,0.2)]";
+        case "no_response": return "bg-slate-200 text-slate-600 dark:bg-[rgba(184,0,255,0.12)] dark:text-[#CC88FF] dark:border-[rgba(184,0,255,0.3)]";
+        case "return_pending": return "bg-rose-200 text-rose-900 ring-2 ring-rose-400/50 dark:bg-[rgba(255,0,127,0.12)] dark:text-[#FF6699] dark:border-[rgba(255,0,127,0.3)]";
+        default: return "bg-gray-100 text-gray-700 dark:bg-[rgba(255,255,255,0.06)] dark:text-[#A1A1A1] dark:border-[rgba(255,255,255,0.1)]";
+    }
+}
+
+// Status labels in Arabic
+const statusLabels: Record<string, string> = {
+    new: "جديد",
+    contacted: "تم الاتصال",
+    confirmed: "مؤكد",
+    cancelled: "ملغي",
+    in_transit: "قيد التوصيل",
+    delivered: "تم التوصيل",
+    rejected: "مرفوض",
+    completed: "طلب تام",
+    no_response: "لم يرد",
+    return_pending: "قيد الاسترجاع",
 };
+
+// Format date in English: 2025/1/5 07:18 PM
+function formatDateEN(dateStr: string): string {
+    const d = new Date(dateStr);
+    const y = d.getFullYear();
+    const m = d.getMonth() + 1;
+    const day = d.getDate();
+    const hours = d.getHours();
+    const mins = d.getMinutes().toString().padStart(2, "0");
+    const ampm = hours >= 12 ? "PM" : "AM";
+    const h12 = hours % 12 || 12;
+    return `${y}/${m}/${day} ${h12}:${mins} ${ampm}`;
+}
 
 // Calculate relative time
 function getRelativeTime(dateStr: string): string {
@@ -87,22 +121,20 @@ function getRelativeTime(dateStr: string): string {
 function calculateMatchScore(order1: Order, order2: Order): number {
     let score = 0;
 
-    // Phone match (40%)
-    if (order1.phone === order2.phone) score += 40;
-    else if (order1.phone?.slice(-9) === order2.phone?.slice(-9)) score += 30;
+    const phone1 = normalizePhoneForSearch(order1.phone);
+    const phone2 = normalizePhoneForSearch(order2.phone);
+    if (phone1 && phone2 && phone1 === phone2) score += 40;
+    else if (order1.phone === order2.phone) score += 40;
 
-    // Name match (30%)
     const name1 = order1.customer_name?.toLowerCase().trim() || "";
     const name2 = order2.customer_name?.toLowerCase().trim() || "";
     if (name1 === name2) score += 30;
     else if (name1.includes(name2) || name2.includes(name1)) score += 20;
 
-    // City/Address match (20%)
     if (order1.city === order2.city) score += 15;
     if (order1.address_details && order2.address_details &&
         order1.address_details === order2.address_details) score += 5;
 
-    // Products overlap (10%)
     const items1 = order1.items?.map(i => i.name.toLowerCase()) || [];
     const items2 = order2.items?.map(i => i.name.toLowerCase()) || [];
     const overlap = items1.filter(i => items2.includes(i)).length;
@@ -125,49 +157,29 @@ export function DuplicateComparisonModal({
     isBlacklisted,
     getCustomerOrders,
 }: DuplicateComparisonModalProps) {
-    // Multi-select for side-by-side comparison
     const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [actionType, setActionType] = useState<string | null>(null);
-    const [dismissNote, setDismissNote] = useState("");
-    const [showMergePreview, setShowMergePreview] = useState(false);
     const [actionNote, setActionNote] = useState("");
 
-    // Initialize with first duplicate selected
     useEffect(() => {
         if (duplicateOrders.length > 0 && selectedOrderIds.length === 0) {
             setSelectedOrderIds([duplicateOrders[0].id]);
         }
     }, [duplicateOrders, selectedOrderIds.length]);
 
-    // Get selected orders for comparison
     const selectedOrders = useMemo(() =>
         duplicateOrders.filter(o => selectedOrderIds.includes(o.id)),
         [duplicateOrders, selectedOrderIds]
     );
 
-    // All orders to display (current + selected)
     const allDisplayOrders = useMemo(() =>
         [currentOrder, ...selectedOrders],
         [currentOrder, selectedOrders]
     );
 
-    // Calculate customer stats from all orders with same phone
-    const customerStats = useMemo((): CustomerStats => {
-        const allOrders = getCustomerOrders?.(currentOrder.phone) || [...duplicateOrders, currentOrder];
-        return {
-            totalOrders: allOrders.length,
-            totalSpent: allOrders.reduce((sum, o) => sum + (Number(o.price) || 0), 0),
-            deliveredCount: allOrders.filter(o => o.status === "delivered" || o.status === "completed").length,
-            rejectedCount: allOrders.filter(o => o.status === "rejected").length,
-            cancelledCount: allOrders.filter(o => o.status === "cancelled").length,
-        };
-    }, [currentOrder.phone, duplicateOrders, currentOrder, getCustomerOrders]);
-
-    // Check if customer is blacklisted
     const isCustomerBlacklisted = isBlacklisted?.(currentOrder.phone) || false;
 
-    // Calculate match scores for each duplicate
     const matchScores = useMemo(() => {
         const scores: Record<string, number> = {};
         duplicateOrders.forEach(order => {
@@ -176,13 +188,11 @@ export function DuplicateComparisonModal({
         return scores;
     }, [currentOrder, duplicateOrders]);
 
-    // Average match score for header
     const avgMatchScore = useMemo(() => {
         const scores = Object.values(matchScores);
         return scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
     }, [matchScores]);
 
-    // Toggle order in selection
     const toggleOrderSelection = (orderId: string) => {
         setSelectedOrderIds(prev =>
             prev.includes(orderId)
@@ -191,55 +201,47 @@ export function DuplicateComparisonModal({
         );
     };
 
-    // Get merged items preview
     const mergedItemsPreview = useMemo(() => {
         if (selectedOrders.length !== 1) return null;
         const allItems: { name: string; quantity: number; price: number }[] = [];
-
-        // Add current order items
         currentOrder.items?.forEach(item => {
             const existing = allItems.find(i => i.name === item.name);
             if (existing) existing.quantity += item.quantity;
             else allItems.push({ ...item });
         });
-
-        // Add selected order items
         selectedOrders[0].items?.forEach(item => {
             const existing = allItems.find(i => i.name === item.name);
             if (existing) existing.quantity += item.quantity;
             else allItems.push({ ...item });
         });
-
         return {
             items: allItems,
             total: allItems.reduce((sum, i) => sum + (i.price * i.quantity), 0),
         };
     }, [currentOrder, selectedOrders]);
 
-    // Check if action is allowed based on status
     const canMerge = (order: Order) => !["delivered", "rejected", "completed", "cancelled"].includes(order.status);
     const canCancel = (order: Order) => !["delivered", "completed"].includes(order.status);
 
-    // Handlers
     const handleMerge = async () => {
         if (selectedOrders.length !== 1) return;
         setIsProcessing(true);
         setActionType("merge");
-        const result = await onMerge(selectedOrders[0].id, currentOrder.id);
+        const result = await onMerge(currentOrder.id, selectedOrders[0].id, actionNote || undefined);
         setIsProcessing(false);
         setActionType(null);
         if (result.success) onClose();
     };
 
     const handleMarkAsSameCustomer = () => {
-        onMarkAsSameCustomer(currentOrder.id);
+        onMarkAsSameCustomer(currentOrder.id, actionNote || undefined);
         onClose();
     };
 
     const handleCancelNew = async () => {
         setIsProcessing(true);
         setActionType("cancelNew");
-        await onCancelOrder(currentOrder.id);
+        await onCancelOrder(currentOrder.id, actionNote || undefined);
         setIsProcessing(false);
         setActionType(null);
         onClose();
@@ -249,61 +251,59 @@ export function DuplicateComparisonModal({
         if (selectedOrders.length !== 1) return;
         setIsProcessing(true);
         setActionType("cancelOld");
-        await onCancelOrder(selectedOrders[0].id);
+        await onCancelOrder(selectedOrders[0].id, actionNote || undefined);
         setIsProcessing(false);
         setActionType(null);
         onClose();
     };
 
-    const handleDismiss = () => {
-        // Just close the modal - no database tracking needed
-        // The returning customer indicator will continue to show the order count
-        onClose();
+    const handleDismiss = async () => {
+        if (onDismissDuplicate) {
+            setIsProcessing(true);
+            setActionType("dismiss");
+            await onDismissDuplicate(currentOrder.phone, actionNote || undefined);
+            setIsProcessing(false);
+            setActionType(null);
+            onClose();
+        }
     };
 
-    // Get status badge
-    const getStatusBadge = (status: Order["status"]) => {
-        const config = statusConfig[status] || { label: status, color: "text-gray-600", bgColor: "bg-gray-100" };
-        return (
-            <span className={cn("px-2 py-0.5 rounded-full text-xs font-bold", config.bgColor, config.color)}>
-                {config.label}
-            </span>
-        );
-    };
-
-    // Field comparison with highlighting
+    // ─── Comparison row with diff highlighting ───
     const compareField = (
         label: string,
         icon: React.ReactNode,
-        getValue: (order: Order) => string,
-        options?: { highlight?: boolean }
+        getVal: (order: Order) => React.ReactNode,
     ) => {
-        const values = allDisplayOrders.map(o => getValue(o));
-        const allMatch = values.every(v => v === values[0]);
+        const val1 = getVal(currentOrder);
+        const orderVals = duplicateOrders.map(getVal);
+        const allMatch = orderVals.every(v => v === val1);
 
         return (
             <div className={cn(
-                "grid gap-3 py-3 border-b border-dashed border-[var(--card-border)] last:border-0",
-                `grid-cols-${allDisplayOrders.length + 1}`
-            )} style={{ gridTemplateColumns: `140px repeat(${allDisplayOrders.length}, 1fr)` }}>
-                <div className="flex items-center gap-2 text-muted text-sm">
-                    {icon}
+                "grid gap-3 py-2 border-b border-dashed last:border-0",
+                "border-[var(--card-border)]",
+            )} style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, 1fr)` }}>
+                <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
+                    <span className="text-[var(--foreground-subtle)] w-4 h-4 flex-shrink-0">{icon}</span>
                     {label}
                 </div>
-                {allDisplayOrders.map((order, idx) => (
+                {allDisplayOrders.map((order) => (
                     <div
                         key={order.id}
                         className={cn(
-                            "text-sm font-medium text-center px-2 py-1 rounded-lg transition-all",
-                            options?.highlight && (
-                                allMatch
-                                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                    : "bg-orange-50 text-orange-700 border border-orange-200"
-                            ),
-                            !options?.highlight && (allMatch ? "text-emerald-700" : "text-foreground")
+                            "text-sm font-medium text-center px-2 py-1 rounded-lg transition-all flex items-center justify-center",
+                            allMatch
+                                ? cn(
+                                    "bg-emerald-50/60 text-emerald-700 border border-emerald-200/60",
+                                    "dark:bg-[rgba(0,255,100,0.06)] dark:text-[#66FFAA] dark:border-[rgba(0,255,100,0.15)]"
+                                )
+                                : cn(
+                                    "bg-amber-50/80 text-amber-700 border border-amber-200/60",
+                                    "dark:bg-[rgba(255,179,71,0.08)] dark:text-[#FFB347] dark:border-[rgba(255,179,71,0.2)]"
+                                )
                         )}
                     >
-                        {getValue(order)}
+                        {getVal(order)}
                     </div>
                 ))}
             </div>
@@ -325,109 +325,109 @@ export function DuplicateComparisonModal({
                     initial={{ scale: 0.95, y: 20 }}
                     animate={{ scale: 1, y: 0 }}
                     exit={{ scale: 0.95, y: 20 }}
-                    className="w-full max-w-6xl max-h-[90vh] bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-2xl overflow-hidden flex flex-col"
+                    className={cn(
+                        "w-full max-w-5xl max-h-[92vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col",
+                        "bg-gradient-to-br from-[#FFFDF7] to-[#F5F0E8]",
+                        "dark:bg-gradient-to-br dark:from-[#1A1A1A] dark:to-[#121212]",
+                        "dark:border dark:border-[#3F3F3F]",
+                        "dark:shadow-[0_25px_60px_rgba(0,0,0,0.6)]"
+                    )}
                     onClick={(e) => e.stopPropagation()}
                 >
-                    {/* Header with gradient and match score */}
-                    <div className="relative bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 p-6 flex-shrink-0">
-                        <button
-                            onClick={onClose}
-                            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-all"
-                        >
-                            <X className="w-4 h-4" />
-                        </button>
+                    {/* ═══ Compact Header ═══ */}
+                    <div className={cn(
+                        "relative px-5 py-4 flex-shrink-0 border-b",
+                        "bg-gradient-to-r from-[#F5F0E8] via-[#FBE38E]/20 to-[#F4C7CF]/15",
+                        "border-[var(--card-border)]",
+                        "dark:bg-[#1E1E1E] dark:border-[#3F3F3F]",
+                        "dark:bg-gradient-to-r dark:from-[#1E1E1E] dark:via-[#1E1E1E] dark:to-[#1E1E1E]",
+                    )}>
+                        {/* Neon top accent line — dark mode only */}
+                        <div className="hidden dark:block absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[#EFFF00] to-transparent opacity-60" />
 
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center">
-                                    <AlertTriangle className="w-6 h-6 text-white" />
+                                <div className={cn(
+                                    "w-10 h-10 rounded-xl flex items-center justify-center",
+                                    "bg-[var(--pastel-yellow)]/40",
+                                    "dark:bg-[rgba(239,255,0,0.1)] dark:border dark:border-[rgba(239,255,0,0.2)]"
+                                )}>
+                                    <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-[#EFFF00]" />
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-bold text-white">
+                                    <h2 className="text-lg font-bold text-[var(--foreground)]">
                                         طلب مكرر محتمل
                                     </h2>
-                                    <p className="text-white/80 text-sm">
+                                    <p className="text-xs text-[var(--foreground-muted)]">
                                         تم العثور على {duplicateOrders.length} طلب مشابه لهذا العميل
                                     </p>
                                 </div>
                             </div>
 
-                            {/* Match Score Badge */}
-                            <div className="flex flex-col items-end gap-1">
-                                <div className="flex items-center gap-2 bg-white/20 rounded-full px-4 py-2">
-                                    <div className="w-20 h-2 bg-white/30 rounded-full overflow-hidden">
+                            <div className="flex items-center gap-3">
+                                {/* Match Score */}
+                                <div className={cn(
+                                    "flex items-center gap-2.5 rounded-full px-3 py-1.5",
+                                    "bg-[var(--card-bg)] border border-[var(--card-border)]",
+                                    "dark:bg-[#2A2A2A] dark:border-[#3F3F3F]",
+                                    avgMatchScore >= 80 && "dark:border-[rgba(255,80,100,0.3)]",
+                                    avgMatchScore >= 60 && avgMatchScore < 80 && "dark:border-[rgba(255,179,71,0.3)]",
+                                )}>
+                                    <div className="w-16 h-1.5 bg-gray-200 dark:bg-[#333333] rounded-full overflow-hidden">
                                         <div
                                             className={cn(
                                                 "h-full rounded-full transition-all",
-                                                avgMatchScore >= 80 ? "bg-red-400" :
-                                                    avgMatchScore >= 60 ? "bg-orange-400" : "bg-yellow-400"
+                                                avgMatchScore >= 80
+                                                    ? "bg-rose-400 dark:bg-[#FF6B8A]"
+                                                    : avgMatchScore >= 60
+                                                        ? "bg-amber-400 dark:bg-[#FFB347]"
+                                                        : "bg-yellow-400 dark:bg-[#EFFF00]"
                                             )}
                                             style={{ width: `${avgMatchScore}%` }}
                                         />
                                     </div>
-                                    <span className="text-white font-bold text-lg">{avgMatchScore}%</span>
+                                    <span className={cn(
+                                        "font-bold text-sm",
+                                        avgMatchScore >= 80 ? "text-rose-600 dark:text-[#FF6B8A]"
+                                            : avgMatchScore >= 60 ? "text-amber-600 dark:text-[#FFB347]"
+                                                : "text-yellow-600 dark:text-[#EFFF00]"
+                                    )}>
+                                        {avgMatchScore}%
+                                    </span>
                                 </div>
-                                <span className="text-white/70 text-xs">نسبة التطابق</span>
+
+                                {/* Close */}
+                                <button
+                                    onClick={onClose}
+                                    className={cn(
+                                        "w-8 h-8 rounded-full flex items-center justify-center transition-all",
+                                        "bg-[var(--card-bg)] border border-[var(--card-border)] text-[var(--foreground-muted)]",
+                                        "hover:text-[var(--foreground)]",
+                                        "dark:bg-[#2A2A2A] dark:border-[#3F3F3F] dark:text-[#A1A1A1]",
+                                        "dark:hover:border-[rgba(239,255,0,0.3)] dark:hover:text-[#EFFF00]"
+                                    )}
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Scrollable content */}
-                    <div className="flex-1 overflow-y-auto p-6 space-y-6">
-
-                        {/* Blacklist Warning */}
+                        {/* Blacklist Warning — compact inline */}
                         {isCustomerBlacklisted && (
-                            <motion.div
-                                initial={{ opacity: 0, y: -10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="flex items-center gap-3 p-4 bg-red-50 border-2 border-red-200 rounded-2xl"
-                            >
-                                <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
-                                    <ShieldX className="w-5 h-5 text-red-600" />
-                                </div>
-                                <div>
-                                    <p className="font-bold text-red-800">⚠️ تحذير: هذا العميل في القائمة السوداء</p>
-                                    <p className="text-sm text-red-600">يرجى مراجعة سجل العميل قبل المتابعة</p>
-                                </div>
-                            </motion.div>
+                            <div className={cn(
+                                "flex items-center gap-2 mt-3 px-3 py-2 rounded-xl text-sm",
+                                "bg-red-50 border border-red-200 text-red-700",
+                                "dark:bg-[rgba(255,80,100,0.08)] dark:border-[rgba(255,80,100,0.3)] dark:text-[#FF8899]"
+                            )}>
+                                <ShieldX className="w-4 h-4 flex-shrink-0" />
+                                <span className="font-semibold">⚠️ هذا العميل في القائمة السوداء — يرجى مراجعة السجل</span>
+                            </div>
                         )}
 
-                        {/* Customer Stats */}
-                        <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100">
-                            <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
-                                <History className="w-6 h-6 text-blue-600" />
-                            </div>
-                            <div className="flex-1">
-                                <p className="font-bold text-blue-900">
-                                    👤 هذا العميل لديه {customerStats.totalOrders} طلب
-                                </p>
-                                <p className="text-sm text-blue-700">
-                                    القيمة الإجمالية: {formatIQD(customerStats.totalSpent)}
-                                </p>
-                            </div>
-                            <div className="flex gap-2">
-                                {customerStats.deliveredCount > 0 && (
-                                    <span className="px-2 py-1 rounded-full bg-teal-100 text-teal-700 text-xs font-bold">
-                                        ✓ {customerStats.deliveredCount} تم
-                                    </span>
-                                )}
-                                {customerStats.rejectedCount > 0 && (
-                                    <span className="px-2 py-1 rounded-full bg-rose-100 text-rose-700 text-xs font-bold">
-                                        ✗ {customerStats.rejectedCount} مرفوض
-                                    </span>
-                                )}
-                                {customerStats.cancelledCount > 0 && (
-                                    <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-bold">
-                                        ⊘ {customerStats.cancelledCount} ملغي
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Order Selector - Multi-select chips */}
-                        <div>
-                            <p className="text-sm text-muted mb-3">اختر الطلبات للمقارنة (يمكنك اختيار أكثر من واحد):</p>
-                            <div className="flex gap-2 flex-wrap">
+                        {/* Order Selector — compact chips inline */}
+                        {duplicateOrders.length > 1 && (
+                            <div className="flex items-center gap-2 mt-3 flex-wrap">
+                                <span className="text-xs text-[var(--foreground-subtle)]">اختر للمقارنة:</span>
                                 {duplicateOrders.map((order) => {
                                     const score = matchScores[order.id];
                                     const isSelected = selectedOrderIds.includes(order.id);
@@ -436,250 +436,410 @@ export function DuplicateComparisonModal({
                                             key={order.id}
                                             onClick={() => toggleOrderSelection(order.id)}
                                             className={cn(
-                                                "flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all border-2",
+                                                "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all border",
                                                 isSelected
-                                                    ? "bg-amber-500 text-white border-amber-600 shadow-lg shadow-amber-500/25"
-                                                    : "bg-white text-gray-700 border-gray-200 hover:border-amber-300 hover:bg-amber-50"
+                                                    ? cn(
+                                                        "bg-[var(--ink)] text-[var(--ink-contrast)] border-[var(--ink)]",
+                                                        "dark:bg-[rgba(239,255,0,0.12)] dark:text-[#EFFF00] dark:border-[rgba(239,255,0,0.4)]"
+                                                    )
+                                                    : cn(
+                                                        "bg-[var(--card-bg)] text-[var(--foreground-muted)] border-[var(--card-border)]",
+                                                        "dark:bg-[#2A2A2A] dark:border-[#3F3F3F]",
+                                                        "hover:border-[var(--pastel-yellow)] dark:hover:border-[rgba(239,255,0,0.3)]"
+                                                    )
                                             )}
                                         >
                                             <span>#{getBaseOrderId(order.order_id)}</span>
-                                            {order.delivery_order_id && (
-                                                <span className="px-1 py-0.5 rounded bg-violet-100 text-violet-700 text-[9px] font-semibold">
-                                                    🚚 {order.delivery_order_id}
-                                                </span>
-                                            )}
                                             <span className={cn(
-                                                "px-1.5 py-0.5 rounded text-[10px] font-bold",
-                                                score >= 80 ? "bg-red-100 text-red-700" :
-                                                    score >= 60 ? "bg-orange-100 text-orange-700" :
-                                                        "bg-yellow-100 text-yellow-700"
+                                                "px-1 py-0.5 rounded text-[9px] font-bold",
+                                                score >= 80 ? "text-red-600 dark:text-[#FF8899]"
+                                                    : score >= 60 ? "text-amber-600 dark:text-[#FFB347]"
+                                                        : "text-yellow-600 dark:text-[#EFFF00]"
                                             )}>
                                                 {score}%
                                             </span>
-                                            {isSelected && <CheckCircle className="w-4 h-4" />}
+                                            {isSelected && <CheckCircle className="w-3 h-3" />}
                                         </button>
                                     );
                                 })}
                             </div>
-                        </div>
+                        )}
+                    </div>
 
-                        {/* Dynamic Comparison Table */}
+                    {/* ═══ Scrollable Content — Comparison Table + Actions ═══ */}
+                    <div className="flex-1 overflow-y-auto">
                         {selectedOrders.length > 0 && (
-                            <div className="bg-white rounded-2xl border border-[var(--card-border)] overflow-hidden">
-                                {/* Table Header */}
+                            <div className="flex flex-col">
+                                {/* ─── Table Header ─── */}
                                 <div
-                                    className="grid gap-3 p-4 bg-gray-50 border-b border-[var(--card-border)]"
-                                    style={{ gridTemplateColumns: `140px repeat(${allDisplayOrders.length}, 1fr)` }}
+                                    className={cn(
+                                        "grid gap-3 px-5 py-3 border-b sticky top-0 z-10",
+                                        "bg-[var(--background-soft)] border-[var(--card-border)]",
+                                        "dark:bg-[#1E1E1E] dark:border-[#3F3F3F]"
+                                    )}
+                                    style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, 1fr)` }}
                                 >
-                                    <div className="text-sm font-bold text-muted">الحقل</div>
+                                    <div className="text-xs font-bold text-[var(--foreground-muted)]">الحقل</div>
                                     {allDisplayOrders.map((order, idx) => (
-                                        <div key={order.id} className="text-center">
-                                            <div className="flex items-center justify-center gap-2">
-                                                <span className={cn(
-                                                    "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold",
-                                                    idx === 0
-                                                        ? "bg-orange-100 text-orange-800"
-                                                        : "bg-blue-100 text-blue-800"
-                                                )}>
-                                                    {idx === 0 && <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />}
-                                                    {idx === 0 ? "الطلب الجديد" : `#${getBaseOrderId(order.order_id)}`}
-                                                </span>
-                                                <button
-                                                    onClick={() => onViewOrder(order)}
-                                                    className="w-6 h-6 rounded-lg bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors"
-                                                    title="عرض التفاصيل"
-                                                >
-                                                    <Eye className="w-3 h-3 text-gray-600" />
-                                                </button>
-                                            </div>
-                                            <p className="text-[10px] text-muted mt-1">{getRelativeTime(order.created_at)}</p>
+                                        <div key={order.id} className="flex items-center justify-center gap-2">
+                                            <span className={cn(
+                                                "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border",
+                                                idx === 0
+                                                    ? cn(
+                                                        "bg-[var(--pastel-yellow)]/30 text-amber-800 border-[var(--pastel-yellow)]/40",
+                                                        "dark:bg-[rgba(239,255,0,0.1)] dark:text-[#EFFF00] dark:border-[rgba(239,255,0,0.25)]"
+                                                    )
+                                                    : cn(
+                                                        "bg-[var(--pastel-blue)]/20 text-blue-800 border-[var(--pastel-blue)]/30",
+                                                        "dark:bg-[rgba(0,255,255,0.08)] dark:text-[#00FFFF] dark:border-[rgba(0,255,255,0.2)]"
+                                                    )
+                                            )}>
+                                                {idx === 0 && <span className={cn(
+                                                    "w-1.5 h-1.5 rounded-full animate-pulse",
+                                                    "bg-amber-500 dark:bg-[#EFFF00]"
+                                                )} />}
+                                                {idx === 0 ? "الطلب الجديد" : "الطلب السابق"}
+                                            </span>
+                                            <button
+                                                onClick={() => onViewOrder(order)}
+                                                className={cn(
+                                                    "w-5 h-5 rounded flex items-center justify-center transition-colors",
+                                                    "bg-gray-200 hover:bg-gray-300 dark:bg-[#333333] dark:hover:bg-[#444444]"
+                                                )}
+                                                title="عرض التفاصيل"
+                                            >
+                                                <Eye className="w-3 h-3 text-gray-500 dark:text-[#A1A1A1]" />
+                                            </button>
                                         </div>
                                     ))}
                                 </div>
 
-                                {/* Comparison Rows */}
-                                <div className="p-4">
-                                    {compareField("رقم الطلب", <Hash className="w-4 h-4" />,
-                                        (o) => `#${getBaseOrderId(o.order_id)}`)}
-                                    {compareField("التاريخ", <Calendar className="w-4 h-4" />,
-                                        (o) => formatDate(o.created_at))}
-                                    {compareField("اسم العميل", <User className="w-4 h-4" />,
-                                        (o) => o.customer_name, { highlight: true })}
-                                    {compareField("رقم الهاتف", <Phone className="w-4 h-4" />,
-                                        (o) => formatPhoneForDisplay(o.phone), { highlight: true })}
-                                    {compareField("المدينة", <Truck className="w-4 h-4" />,
-                                        (o) => o.city || "—", { highlight: true })}
-
-                                    {/* Products with images */}
+                                {/* ─── Comparison Rows ─── */}
+                                <div className="px-5 py-2">
+                                    {/* Custom Customer Details Row to support individual highlighting */}
                                     <div
-                                        className="grid gap-3 py-3 border-b border-dashed border-[var(--card-border)]"
-                                        style={{ gridTemplateColumns: `140px repeat(${allDisplayOrders.length}, 1fr)` }}
+                                        className="grid gap-3 py-2 border-b border-dashed border-[var(--card-border)] last:border-0"
+                                        style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, 1fr)` }}
                                     >
-                                        <div className="flex items-center gap-2 text-muted text-sm">
-                                            <Package className="w-4 h-4" />
+                                        <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
+                                            <span className="text-[var(--foreground-subtle)] w-4 h-4 flex-shrink-0"><User className="w-3.5 h-3.5" /></span>
+                                            تفاصيل العميل
+                                        </div>
+                                        {allDisplayOrders.map((order) => {
+                                            const isCurrent = order.id === currentOrder.id;
+
+                                            // Compare order ID
+                                            const currentOrderId = getBaseOrderId(currentOrder.order_id);
+                                            const thisOrderId = getBaseOrderId(order.order_id);
+                                            const orderIdMatch = duplicateOrders.every(o => getBaseOrderId(o.order_id) === currentOrderId);
+
+                                            // Compare customer name
+                                            const nameMatch = duplicateOrders.every(o => o.customer_name === currentOrder.customer_name);
+
+                                            return (
+                                                <div
+                                                    key={order.id}
+                                                    className="flex w-full items-stretch gap-1.5"
+                                                >
+                                                    <span className={cn(
+                                                        "inline-flex items-center justify-center font-mono text-[11px] px-2 py-1 flex-shrink-0 rounded-md transition-all border",
+                                                        orderIdMatch
+                                                            ? cn(
+                                                                "bg-emerald-50/60 text-emerald-700 border-emerald-200/60",
+                                                                "dark:bg-[rgba(0,255,100,0.06)] dark:text-[#66FFAA] dark:border-[rgba(0,255,100,0.15)]"
+                                                            )
+                                                            : cn(
+                                                                "bg-amber-50/80 text-amber-700 border-amber-200/60",
+                                                                "dark:bg-[rgba(255,179,71,0.08)] dark:text-[#FFB347] dark:border-[rgba(255,179,71,0.2)]"
+                                                            )
+                                                    )}>
+                                                        #{thisOrderId}
+                                                    </span>
+                                                    <span className={cn(
+                                                        "flex-1 flex items-center justify-center text-xs font-semibold px-2 py-1 rounded-md transition-all border min-w-0 truncate",
+                                                        nameMatch
+                                                            ? cn(
+                                                                "bg-emerald-50/60 text-emerald-700 border-emerald-200/60",
+                                                                "dark:bg-[rgba(0,255,100,0.06)] dark:text-[#66FFAA] dark:border-[rgba(0,255,100,0.15)]"
+                                                            )
+                                                            : cn(
+                                                                "bg-amber-50/80 text-amber-700 border-amber-200/60",
+                                                                "dark:bg-[rgba(255,179,71,0.08)] dark:text-[#FFB347] dark:border-[rgba(255,179,71,0.2)]"
+                                                            )
+                                                    )} title={order.customer_name}>
+                                                        {order.customer_name}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    {compareField("التاريخ", <Calendar className="w-3.5 h-3.5" />,
+                                        (o) => formatDateEN(o.created_at))}
+                                    {compareField("رقم الهاتف", <Phone className="w-3.5 h-3.5" />,
+                                        (o) => formatPhoneForDisplay(o.phone))}
+                                    {compareField("المدينة", <Truck className="w-3.5 h-3.5" />,
+                                        (o) => o.city || "—")}
+
+                                    {/* Products */}
+                                    <div
+                                        className="grid gap-3 py-2.5 border-b border-dashed border-[var(--card-border)]"
+                                        style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, 1fr)` }}
+                                    >
+                                        <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
+                                            <Package className="w-3.5 h-3.5 text-[var(--foreground-subtle)]" />
                                             المنتجات
                                         </div>
-                                        {allDisplayOrders.map((order) => (
-                                            <div key={order.id} className="space-y-2">
-                                                {order.items?.map((item, idx) => (
-                                                    <div key={idx} className="flex items-center gap-2 bg-gray-50 rounded-lg p-2">
-                                                        {item.image_url ? (
-                                                            <img
-                                                                src={item.image_url}
-                                                                alt={item.name}
-                                                                className="w-10 h-10 rounded-lg object-cover"
-                                                            />
-                                                        ) : (
-                                                            <div className="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center">
-                                                                <Package className="w-4 h-4 text-gray-400" />
+                                        {allDisplayOrders.map((order) => {
+                                            const currentOrderItems = currentOrder.items || [];
+                                            const currentItemsMatch = (order.items || []).every(item =>
+                                                currentOrderItems.some(cItem => cItem.name === item.name && cItem.quantity === item.quantity)
+                                            ) && (order.items || []).length === currentOrderItems.length;
+
+                                            return (
+                                                <div key={order.id} className="space-y-1.5">
+                                                    {order.items?.map((item, idx) => {
+                                                        const matchingItemInCurrent = currentOrderItems.find(c => c.name === item.name);
+                                                        const nameMatches = !!matchingItemInCurrent;
+                                                        const qtyMatches = nameMatches && matchingItemInCurrent.quantity === item.quantity;
+                                                        const isExactMatch = nameMatches && qtyMatches;
+
+                                                        return (
+                                                            <div key={idx} className={cn(
+                                                                "flex items-center gap-2 rounded-lg p-1.5 border transition-all",
+                                                                isExactMatch
+                                                                    ? cn(
+                                                                        "bg-emerald-50/40 border-emerald-100/50",
+                                                                        "dark:bg-[rgba(0,255,100,0.03)] dark:border-[rgba(0,255,100,0.1)]"
+                                                                    )
+                                                                    : cn(
+                                                                        "bg-amber-50/60 border-amber-200/50",
+                                                                        "dark:bg-[rgba(255,179,71,0.05)] dark:border-[rgba(255,179,71,0.15)]"
+                                                                    )
+                                                            )}>
+                                                                {item.image_url ? (
+                                                                    <img src={item.image_url} alt={item.name}
+                                                                        className="w-8 h-8 rounded-md object-cover" />
+                                                                ) : (
+                                                                    <div className="w-8 h-8 rounded-md bg-gray-200 dark:bg-[#333333] flex items-center justify-center flex-shrink-0">
+                                                                        <Package className="w-3 h-3 text-gray-400 dark:text-[#6B6B6B]" />
+                                                                    </div>
+                                                                )}
+                                                                <div className="flex-1 min-w-0">
+                                                                    <p className={cn(
+                                                                        "text-[11px] font-bold truncate",
+                                                                        nameMatches
+                                                                            ? "text-emerald-700 dark:text-[#66FFAA]"
+                                                                            : "text-amber-700 dark:text-[#FFB347]"
+                                                                    )}>
+                                                                        {item.name}
+                                                                    </p>
+                                                                    <p className={cn(
+                                                                        "text-[10px] font-bold",
+                                                                        qtyMatches
+                                                                            ? "text-emerald-600 dark:text-[#66FFAA]/80"
+                                                                            : "text-amber-600 dark:text-[#FFB347]/80"
+                                                                    )}>
+                                                                        ×{item.quantity}
+                                                                    </p>
+                                                                </div>
                                                             </div>
-                                                        )}
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-xs font-medium truncate">{item.name}</p>
-                                                            <p className="text-[10px] text-muted">×{item.quantity}</p>
-                                                        </div>
-                                                    </div>
-                                                )) || <span className="text-xs text-muted">—</span>}
-                                            </div>
-                                        ))}
+                                                        );
+                                                    }) || <span className="text-xs text-[var(--foreground-muted)]">—</span>}
+                                                </div>
+                                            );
+                                        })}
                                     </div>
 
-                                    {/* Status */}
+                                    {/* Status row */}
                                     <div
-                                        className="grid gap-3 py-3 border-b border-dashed border-[var(--card-border)]"
-                                        style={{ gridTemplateColumns: `140px repeat(${allDisplayOrders.length}, 1fr)` }}
+                                        className="grid gap-3 py-2.5 border-b border-dashed border-[var(--card-border)]"
+                                        style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, 1fr)` }}
                                     >
-                                        <div className="flex items-center gap-2 text-muted text-sm">
-                                            <Sparkles className="w-4 h-4" />
+                                        <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
+                                            <Sparkles className="w-3.5 h-3.5 text-[var(--foreground-subtle)]" />
                                             الحالة
                                         </div>
                                         {allDisplayOrders.map((order) => (
                                             <div key={order.id} className="text-center">
-                                                {getStatusBadge(order.status)}
+                                                <span className={cn(
+                                                    "inline-block px-2.5 py-1 rounded-full text-[11px] font-bold border",
+                                                    getStatusBadgeStyle(order.status)
+                                                )}>
+                                                    {statusLabels[order.status] || order.status}
+                                                </span>
                                             </div>
                                         ))}
                                     </div>
 
-                                    {compareField("المبلغ", <Clock className="w-4 h-4" />,
-                                        (o) => formatIQD(Number(o.price)), { highlight: true })}
+                                    {compareField("المبلغ", <Clock className="w-3.5 h-3.5" />,
+                                        (o) => formatIQD(Number(o.price)))}
                                 </div>
-                            </div>
-                        )}
 
-                        {/* Merge Preview */}
-                        {selectedOrders.length === 1 && mergedItemsPreview && (
-                            <div className="p-4 bg-purple-50 rounded-2xl border border-purple-200">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <GitMerge className="w-5 h-5 text-purple-600" />
-                                    <span className="font-bold text-purple-800">معاينة الدمج</span>
-                                </div>
-                                <div className="space-y-2">
-                                    {mergedItemsPreview.items.map((item, idx) => (
-                                        <div key={idx} className="flex items-center justify-between text-sm">
-                                            <span className="text-purple-700">{item.name} ×{item.quantity}</span>
-                                            <span className="font-mono text-purple-800">{formatIQD(item.price * item.quantity)}</span>
+                                {/* ─── Merge Preview (compact) ─── */}
+                                {selectedOrders.length === 1 && mergedItemsPreview && (
+                                    <div className={cn(
+                                        "mx-5 mb-3 p-3 rounded-xl border",
+                                        "bg-[var(--pastel-purple)]/8 border-[var(--pastel-purple)]/20",
+                                        "dark:bg-[rgba(0,255,255,0.03)] dark:border-[rgba(0,255,255,0.12)]"
+                                    )}>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <GitMerge className="w-4 h-4 text-purple-600 dark:text-[#00FFFF]" />
+                                            <span className="font-bold text-sm text-purple-800 dark:text-[#00FFFF]">معاينة الدمج</span>
                                         </div>
-                                    ))}
-                                    <div className="pt-2 mt-2 border-t border-purple-200 flex items-center justify-between">
-                                        <span className="font-bold text-purple-900">المجموع بعد الدمج</span>
-                                        <span className="font-bold font-mono text-purple-900">{formatIQD(mergedItemsPreview.total)}</span>
+                                        <div className="space-y-1">
+                                            {mergedItemsPreview.items.map((item, idx) => (
+                                                <div key={idx} className="flex items-center justify-between text-xs">
+                                                    <span className="text-purple-700 dark:text-[var(--foreground-muted)]">{item.name} ×{item.quantity}</span>
+                                                    <span className="font-mono text-purple-800 dark:text-[var(--foreground)]">{formatIQD(item.price * item.quantity)}</span>
+                                                </div>
+                                            ))}
+                                            <div className="pt-1.5 mt-1.5 border-t border-purple-200/50 dark:border-[rgba(0,255,255,0.12)] flex items-center justify-between">
+                                                <span className="font-bold text-xs text-purple-900 dark:text-[#00FFFF]">المجموع بعد الدمج</span>
+                                                <span className="font-bold text-xs font-mono text-purple-900 dark:text-[#EFFF00]">{formatIQD(mergedItemsPreview.total)}</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
                         )}
 
-                        {/* Quick Note */}
-                        <div className="flex items-center gap-3">
-                            <MessageSquare className="w-5 h-5 text-muted flex-shrink-0" />
-                            <input
-                                type="text"
-                                value={actionNote}
-                                onChange={(e) => setActionNote(e.target.value)}
-                                placeholder="أضف ملاحظة (اختياري)..."
-                                className="flex-1 px-4 py-2 bg-white border border-[var(--card-border)] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                            />
-                        </div>
+                        {/* ═══ Action Bar — Premium glass strip ═══ */}
+                        <div className={cn(
+                            "sticky bottom-0 px-5 py-3 border-t",
+                            "bg-[var(--background-soft)]/95 backdrop-blur-xl border-[var(--card-border)]",
+                            "dark:bg-[#1A1A1A]/95 dark:border-[#3F3F3F]"
+                        )}>
+                            {/* Note input — inline compact */}
+                            <div className="flex items-center gap-2 mb-3">
+                                <MessageSquare className="w-4 h-4 text-[var(--foreground-subtle)] flex-shrink-0" />
+                                <input
+                                    type="text"
+                                    value={actionNote}
+                                    onChange={(e) => setActionNote(e.target.value)}
+                                    placeholder="أضف ملاحظة (اختياري)..."
+                                    className={cn(
+                                        "flex-1 px-3 py-1.5 rounded-lg text-xs transition-all",
+                                        "bg-[var(--card-bg)] border border-[var(--card-border)] text-[var(--foreground)]",
+                                        "placeholder:text-[var(--foreground-subtle)]",
+                                        "focus:outline-none focus:ring-1",
+                                        "focus:ring-[var(--pastel-yellow)]/50 focus:border-[var(--pastel-yellow)]",
+                                        "dark:bg-[#1E1E1E] dark:border-[#3F3F3F]",
+                                        "dark:focus:ring-[rgba(0,255,255,0.2)] dark:focus:border-[rgba(0,255,255,0.4)]",
+                                    )}
+                                />
+                            </div>
 
-                        {/* Action Buttons */}
-                        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-                            {/* Merge Orders */}
-                            <button
-                                onClick={handleMerge}
-                                disabled={isProcessing || selectedOrders.length !== 1 || !canMerge(currentOrder) || !canMerge(selectedOrders[0])}
-                                className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white font-semibold hover:from-purple-600 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/25"
-                                title={selectedOrders.length !== 1 ? "اختر طلب واحد للدمج" : !canMerge(currentOrder) || !canMerge(selectedOrders[0]) ? "لا يمكن دمج الطلبات المكتملة" : ""}
-                            >
-                                <GitMerge className="w-6 h-6" />
-                                <span className="text-sm">دمج الطلبات</span>
-                                {actionType === "merge" && (
-                                    <span className="text-xs opacity-80">جاري الدمج...</span>
-                                )}
-                            </button>
-
-                            {/* Mark as Same Customer */}
-                            <button
-                                onClick={handleMarkAsSameCustomer}
-                                disabled={isProcessing}
-                                className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-semibold hover:from-emerald-600 hover:to-teal-700 transition-all disabled:opacity-50 shadow-lg shadow-emerald-500/25"
-                            >
-                                <UserPlus className="w-6 h-6" />
-                                <span className="text-sm">نفس العميل</span>
-                            </button>
-
-                            {/* Cancel New Order */}
-                            <button
-                                onClick={handleCancelNew}
-                                disabled={isProcessing || !canCancel(currentOrder)}
-                                className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 text-white font-semibold hover:from-rose-600 hover:to-pink-700 transition-all disabled:opacity-50 shadow-lg shadow-rose-500/25"
-                            >
-                                <XCircle className="w-6 h-6" />
-                                <span className="text-sm">إلغاء الجديد</span>
-                                {actionType === "cancelNew" && (
-                                    <span className="text-xs opacity-80">جاري الإلغاء...</span>
-                                )}
-                            </button>
-
-                            {/* Cancel Old Order */}
-                            <button
-                                onClick={handleCancelOld}
-                                disabled={isProcessing || selectedOrders.length !== 1 || !canCancel(selectedOrders[0])}
-                                className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-gradient-to-br from-gray-500 to-slate-600 text-white font-semibold hover:from-gray-600 hover:to-slate-700 transition-all disabled:opacity-50 shadow-lg shadow-gray-500/25"
-                            >
-                                <XCircle className="w-6 h-6" />
-                                <span className="text-sm">إلغاء السابق</span>
-                                {actionType === "cancelOld" && (
-                                    <span className="text-xs opacity-80">جاري الإلغاء...</span>
-                                )}
-                            </button>
-
-                            {/* Not Duplicate - Just close modal */}
-                            <button
-                                onClick={handleDismiss}
-                                className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white border-2 border-amber-300 text-amber-700 font-semibold hover:bg-amber-50 hover:border-amber-400 transition-all"
-                            >
-                                <Ban className="w-6 h-6" />
-                                <span className="text-sm">ليست مكررة</span>
-                            </button>
-
-                            {/* Show All Duplicates Filter */}
-                            {onFilterDuplicates && (
+                            {/* Action buttons — horizontal pill strip */}
+                            <div className="flex items-center gap-2 flex-wrap">
+                                {/* Primary: Merge */}
                                 <button
-                                    onClick={() => {
-                                        onFilterDuplicates();
-                                        onClose();
-                                    }}
-                                    className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 text-white font-semibold hover:from-orange-600 hover:to-amber-700 transition-all shadow-lg shadow-orange-500/25"
+                                    onClick={handleMerge}
+                                    disabled={isProcessing || selectedOrders.length !== 1 || !canMerge(currentOrder) || !canMerge(selectedOrders[0])}
+                                    className={cn(
+                                        "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
+                                        "disabled:opacity-35 disabled:cursor-not-allowed disabled:pointer-events-none",
+                                        // Light
+                                        "bg-[var(--ink)] text-[var(--ink-contrast)]",
+                                        "hover:bg-[var(--ink-hover)] shadow-sm",
+                                        // Dark: neon cyan primary
+                                        "dark:bg-[rgba(0,255,255,0.1)] dark:text-[#00FFFF] dark:border dark:border-[rgba(0,255,255,0.25)]",
+                                        "dark:hover:bg-[rgba(0,255,255,0.15)] dark:hover:border-[rgba(0,255,255,0.4)]",
+                                        "dark:hover:shadow-[0_0_14px_rgba(0,255,255,0.12)]",
+                                    )}
                                 >
-                                    <Filter className="w-6 h-6" />
-                                    <span className="text-sm">عرض جميع المكررين</span>
+                                    <GitMerge className="w-4 h-4" />
+                                    <span>{actionType === "merge" ? "جاري الدمج..." : "دمج الطلبات"}</span>
                                 </button>
-                            )}
-                        </div>
 
-                        {/* Footer hint */}
-                        <p className="text-center text-xs text-muted">
-                            💡 دمج الطلبات سيجمع المنتجات في طلب واحد ويلغي الطلب الآخر
-                        </p>
+                                {/* Same Customer */}
+                                <button
+                                    onClick={handleMarkAsSameCustomer}
+                                    disabled={isProcessing}
+                                    className={cn(
+                                        "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
+                                        "disabled:opacity-35 disabled:cursor-not-allowed",
+                                        "bg-emerald-500/10 text-emerald-700 border border-emerald-200",
+                                        "hover:bg-emerald-500/20 hover:border-emerald-300",
+                                        "dark:bg-[rgba(0,255,100,0.06)] dark:text-[#66FFAA] dark:border-[rgba(0,255,100,0.2)]",
+                                        "dark:hover:bg-[rgba(0,255,100,0.12)] dark:hover:border-[rgba(0,255,100,0.4)]",
+                                        "dark:hover:shadow-[0_0_14px_rgba(0,255,100,0.1)]",
+                                    )}
+                                >
+                                    <UserPlus className="w-4 h-4" />
+                                    <span>نفس العميل</span>
+                                </button>
+
+                                {/* Cancel New */}
+                                <button
+                                    onClick={handleCancelNew}
+                                    disabled={isProcessing || !canCancel(currentOrder)}
+                                    className={cn(
+                                        "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
+                                        "disabled:opacity-35 disabled:cursor-not-allowed",
+                                        "bg-rose-500/10 text-rose-600 border border-rose-200",
+                                        "hover:bg-rose-500/20 hover:border-rose-300",
+                                        "dark:bg-[rgba(255,107,138,0.06)] dark:text-[#FF6B8A] dark:border-[rgba(255,107,138,0.2)]",
+                                        "dark:hover:bg-[rgba(255,107,138,0.12)] dark:hover:border-[rgba(255,107,138,0.4)]",
+                                        "dark:hover:shadow-[0_0_14px_rgba(255,107,138,0.1)]",
+                                    )}
+                                >
+                                    <XCircle className="w-4 h-4" />
+                                    <span>{actionType === "cancelNew" ? "جاري..." : "إلغاء الجديد"}</span>
+                                </button>
+
+                                {/* Cancel Old */}
+                                <button
+                                    onClick={handleCancelOld}
+                                    disabled={isProcessing || selectedOrders.length !== 1 || !canCancel(selectedOrders[0])}
+                                    className={cn(
+                                        "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
+                                        "disabled:opacity-35 disabled:cursor-not-allowed",
+                                        "bg-gray-500/10 text-gray-600 border border-gray-200",
+                                        "hover:bg-gray-500/15 hover:border-gray-300",
+                                        "dark:bg-[rgba(255,255,255,0.04)] dark:text-[#A1A1A1] dark:border-[rgba(255,255,255,0.1)]",
+                                        "dark:hover:bg-[rgba(255,255,255,0.08)] dark:hover:border-[rgba(255,255,255,0.2)]",
+                                    )}
+                                >
+                                    <XCircle className="w-4 h-4" />
+                                    <span>{actionType === "cancelOld" ? "جاري..." : "إلغاء السابق"}</span>
+                                </button>
+
+                                {/* Spacer */}
+                                <div className="flex-1" />
+
+                                {/* Filter All Duplicates */}
+                                {onFilterDuplicates && (
+                                    <button
+                                        onClick={() => { onFilterDuplicates(); onClose(); }}
+                                        className={cn(
+                                            "inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all",
+                                            "text-[var(--foreground-muted)] border border-[var(--card-border)]",
+                                            "hover:bg-[var(--card-bg)] hover:text-[var(--foreground)]",
+                                            "dark:border-[#3F3F3F] dark:hover:border-[rgba(255,179,71,0.3)] dark:hover:text-[#FFB347]",
+                                        )}
+                                    >
+                                        <Filter className="w-3.5 h-3.5" />
+                                        <span>عرض الكل</span>
+                                    </button>
+                                )}
+
+                                {/* Dismiss — Not Duplicate */}
+                                <button
+                                    onClick={handleDismiss}
+                                    className={cn(
+                                        "inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all border",
+                                        "bg-[var(--card-bg)] border-[var(--pastel-yellow)] text-amber-700",
+                                        "hover:bg-[var(--pastel-yellow-light)]",
+                                        "dark:bg-[#1E1E1E] dark:border-[rgba(239,255,0,0.3)] dark:text-[#EFFF00]",
+                                        "dark:hover:bg-[rgba(239,255,0,0.06)] dark:hover:border-[rgba(239,255,0,0.5)]",
+                                        "dark:hover:shadow-[0_0_14px_rgba(239,255,0,0.08)]",
+                                    )}
+                                >
+                                    <Ban className="w-4 h-4" />
+                                    <span>ليست مكررة</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </motion.div>
             </motion.div>

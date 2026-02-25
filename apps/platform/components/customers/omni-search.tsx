@@ -14,16 +14,16 @@ export function CustomerOmniSearch({ rawSearch, setSearch }: CustomerOmniSearchP
 
     return (
         <div className="relative flex-1 w-full group">
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--foreground-subtle)] group-focus-within:text-[var(--pastel-yellow-solid)] transition-colors duration-300">
-                <Search className="h-5 w-5" />
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--foreground-subtle)] group-focus-within:text-primary transition-colors duration-300">
+                <Search className="h-4 w-4" />
             </div>
 
             <input
                 type="text"
-                placeholder={t("customers.searchPlaceholder") || "Search customers by name, phone, or city..."}
+                placeholder={t("customers.searchPlaceholder") !== "customers.searchPlaceholder" ? t("customers.searchPlaceholder") : "Search by name, phone, or city..."}
                 value={rawSearch}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-12 pr-12 py-3.5 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow-solid)] focus:border-transparent transition-all shadow-sm"
+                className="w-full pl-9 pr-9 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/30 transition-all"
             />
 
             <AnimatePresence>
