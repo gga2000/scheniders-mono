@@ -44,7 +44,8 @@ export function useCustomerFilterPresets() {
                         maxLtv: state.maxLtv,
                         lastOrderWithinDays: state.lastOrderWithinDays,
                         tagId: state.tagId,
-                        sort: state.sort,
+                        sortBy: state.sortBy,
+                        sortOrder: state.sortOrder,
                     },
                 })
                 .select()
@@ -78,7 +79,7 @@ export function useCustomerFilterPresets() {
         setSearch(filters.search || "");
         setStatus(filters.status || "all");
         setCity(filters.city || "");
-        setSort(filters.sort || "last_order_date", "desc");
+        setSort(filters.sortBy || "last_order_date", filters.sortOrder || "desc");
         setAdvancedFilters({
             minLtv: filters.minLtv,
             maxLtv: filters.maxLtv,

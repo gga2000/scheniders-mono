@@ -7,7 +7,7 @@ import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Order, PaymentStatus } from "@/lib/supabase";
-import { validatePhoneDetailed } from "@/lib/order-utils";
+import { validatePhoneDetailed, normalizePhoneForSearch } from "@/lib/order-utils";
 import { isOrderFlagged } from "@/lib/data-quality-utils";
 import { OrderCard } from "@/components/dashboard/order-card";
 import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
@@ -158,9 +158,7 @@ export default function OrdersPage() {
         loadFilterPreset,
         deleteFilterPreset,
         getOrderTimeline,
-        hasDuplicates, // Added this
-        checkDuplicateOrder,
-        getDuplicatesForOrder,
+        hasDuplicates,
         getCustomerHistory,
         getCustomerOrderCount,
         mergeOrders,
@@ -1764,6 +1762,8 @@ export default function OrdersPage() {
                                                         hasActiveFilters={hasActiveFilters}
                                                         groupBy={groupBy}
                                                         setGroupBy={setGroupBy}
+                                                        filterDuplicatesOnly={filterDuplicatesOnly}
+                                                        setFilterDuplicatesOnly={setFilterDuplicatesOnly}
                                                         isMobile={false}
                                                     />
                                                 )}
@@ -2037,6 +2037,8 @@ export default function OrdersPage() {
                                         hasActiveFilters={hasActiveFilters}
                                         groupBy={groupBy}
                                         setGroupBy={setGroupBy}
+                                        filterDuplicatesOnly={filterDuplicatesOnly}
+                                        setFilterDuplicatesOnly={setFilterDuplicatesOnly}
                                         isMobile={true}
                                     />
                                 )}
@@ -2125,7 +2127,7 @@ export default function OrdersPage() {
                                                                 setDuplicateOrder(o);
                                                                 setShowDuplicateModal(true);
                                                             }}
-                                                            hasDuplicates={hasDuplicates(order.phone)}
+                                                            hasDuplicates={hasDuplicates(order.id)}
                                                             getCustomerOrderCount={(phone: string) => getCustomerOrderCount(phone, order.order_id)}
                                                             onTogglePin={(id: string) => togglePin(id)}
                                                             onClone={(o: any) => cloneOrder(o)}
@@ -2369,7 +2371,7 @@ export default function OrdersPage() {
                             currentOrder={duplicateOrder}
                             duplicateOrders={orders.filter(o =>
                                 o.id !== duplicateOrder.id &&
-                                o.phone === duplicateOrder.phone &&
+                                normalizePhoneForSearch(o.phone) === normalizePhoneForSearch(duplicateOrder.phone) &&
                                 !o.is_return
                             )}
                             onMerge={async (targetId, sourceId) => {

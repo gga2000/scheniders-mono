@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    Calendar,
+    CalendarDays,
     ChevronLeft,
     ChevronRight,
     X,
@@ -295,16 +295,16 @@ export function DateRangePicker({
                         className={cn(
                             "h-9 w-9 rounded-xl text-sm font-medium transition-all relative",
                             !day && "invisible",
-                            day && "hover:bg-[var(--pastel-yellow)] hover:text-amber-900",
-                            isInRange(day!) && !isStart(day!) && !isEnd(day!) && "bg-amber-100/50",
+                            day && "hover:bg-lime-100 hover:text-lime-900 dark:hover:bg-[#EFFF00]/15 dark:hover:text-[#EFFF00]",
+                            isInRange(day!) && !isStart(day!) && !isEnd(day!) && "bg-lime-100/50 dark:bg-[#EFFF00]/10",
                             (isStart(day!) || isEnd(day!)) &&
-                            "bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/30",
-                            isToday(day!) && !isInRange(day!) && "ring-2 ring-amber-400 ring-offset-2"
+                            "bg-gradient-to-br from-lime-400 to-[#EFFF00] text-black shadow-lg shadow-lime-500/30",
+                            isToday(day!) && !isInRange(day!) && "ring-2 ring-[#EFFF00] ring-offset-2 dark:ring-offset-[#1a1a2e]"
                         )}
                     >
                         {day}
                         {isToday(day!) && (
-                            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-amber-500 rounded-full" />
+                            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-[#EFFF00] rounded-full" />
                         )}
                     </motion.button>
                 ))}
@@ -331,10 +331,10 @@ export function DateRangePicker({
         return (
             <div className={cn("flex bg-white rounded-2xl min-w-[420px]", className)}>
                 {/* Presets Sidebar */}
-                <div className="w-40 bg-gradient-to-b from-amber-50 to-orange-50 p-3 border-r border-amber-100">
+                <div className="w-40 bg-gradient-to-b from-lime-50 to-green-50 dark:from-[#151528] dark:to-[#1a1a2e] p-3 border-r border-lime-200 dark:border-white/10">
                     <div className="flex items-center gap-2 mb-3 px-2">
-                        <Sparkles className="w-4 h-4 text-amber-500" />
-                        <span className="text-xs font-semibold text-amber-700 uppercase tracking-wider">
+                        <Sparkles className="w-4 h-4 text-lime-500" />
+                        <span className="text-xs font-semibold text-lime-700 uppercase tracking-wider">
                             Quick Pick
                         </span>
                     </div>
@@ -349,7 +349,7 @@ export function DateRangePicker({
                                 className={cn(
                                     "w-full px-3 py-2 rounded-xl text-sm text-left transition-all flex items-center gap-2",
                                     activePreset === preset.id
-                                        ? "bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-md shadow-amber-500/30"
+                                        ? "bg-gradient-to-r from-lime-400 to-[#EFFF00] text-black shadow-md shadow-lime-500/30"
                                         : "text-foreground hover:bg-white hover:shadow-sm"
                                 )}
                             >
@@ -373,7 +373,7 @@ export function DateRangePicker({
                             onClick={goToPrevMonth}
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
-                            className="p-2 rounded-xl hover:bg-amber-100 text-muted transition-all"
+                            className="p-2 rounded-xl hover:bg-lime-100 text-muted transition-all"
                         >
                             <ChevronLeft className="w-5 h-5" />
                         </motion.button>
@@ -388,7 +388,7 @@ export function DateRangePicker({
                             onClick={goToNextMonth}
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
-                            className="p-2 rounded-xl hover:bg-amber-100 text-muted transition-all"
+                            className="p-2 rounded-xl hover:bg-lime-100 text-muted transition-all"
                         >
                             <ChevronRight className="w-5 h-5" />
                         </motion.button>
@@ -398,13 +398,13 @@ export function DateRangePicker({
                     {renderCalendar()}
 
                     {/* Actions */}
-                    <div className="flex gap-2 mt-4 pt-4 border-t border-amber-100">
+                    <div className="flex gap-2 mt-4 pt-4 border-t border-lime-200">
                         <motion.button
                             type="button"
                             onClick={handleClear}
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
-                            className="flex-1 py-2.5 rounded-xl border border-amber-200 text-sm font-medium text-muted hover:bg-amber-50 transition-all"
+                            className="flex-1 py-2.5 rounded-xl border border-lime-300 text-sm font-medium text-muted hover:bg-lime-50 transition-all"
                         >
                             All Orders
                         </motion.button>
@@ -413,7 +413,7 @@ export function DateRangePicker({
                             onClick={handleApply}
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
-                            className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 text-white text-sm font-semibold shadow-md shadow-amber-500/30 hover:shadow-lg transition-all"
+                            className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-lime-400 to-[#EFFF00] text-black text-sm font-semibold shadow-md shadow-lime-500/30 hover:shadow-lg transition-all"
                         >
                             Apply
                         </motion.button>
@@ -432,18 +432,16 @@ export function DateRangePicker({
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 className={cn(
-                    "flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all",
-                    "bg-gradient-to-br from-white to-amber-50/50",
-                    "border-amber-200 hover:border-amber-300",
-                    "shadow-sm hover:shadow-md hover:shadow-amber-100",
-                    isOpen && "ring-2 ring-amber-400 ring-offset-2",
-                    dateFrom && "border-amber-400 bg-gradient-to-br from-amber-50 to-orange-50"
+                    "flex items-center gap-2 px-3 py-2 rounded-lg border transition-all text-sm",
+                    "bg-[var(--card-bg)] dark:bg-[#1E1E1E]",
+                    "border-[var(--card-border)] hover:border-lime-400/40 dark:border-white/10 dark:hover:border-[#EFFF00]/40",
+                    "shadow-sm hover:shadow-md dark:hover:shadow-none",
+                    isOpen && "ring-2 ring-[#EFFF00]/50 ring-offset-1 dark:ring-offset-[#1E1E1E]",
+                    dateFrom && "border-lime-400 dark:border-[#EFFF00]/40 bg-lime-50 dark:bg-[#EFFF00]/5"
                 )}
             >
-                <div className="p-2 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm">
-                    <Calendar className="w-4 h-4" />
-                </div>
-                <span className="font-medium text-foreground">{getDisplayValue()}</span>
+                <CalendarDays className="w-4 h-4 text-lime-600 dark:text-[#EFFF00]" />
+                <span className="font-medium text-foreground text-xs">{getDisplayValue()}</span>
                 {dateFrom && (
                     <motion.span
                         role="button"
@@ -459,9 +457,9 @@ export function DateRangePicker({
                             }
                         }}
                         whileHover={{ scale: 1.1, rotate: 90 }}
-                        className="p-1 rounded-full hover:bg-amber-100 text-muted cursor-pointer"
+                        className="p-0.5 rounded-full hover:bg-lime-100 dark:hover:bg-[#EFFF00]/10 text-muted cursor-pointer"
                     >
-                        <X className="w-4 h-4" />
+                        <X className="w-3.5 h-3.5" />
                     </motion.span>
                 )}
             </motion.button>
@@ -474,13 +472,13 @@ export function DateRangePicker({
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -10, scale: 0.95 }}
                         transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                        className="absolute top-full left-0 mt-2 z-50 flex bg-white rounded-3xl shadow-2xl shadow-black/10 border border-amber-100 overflow-hidden"
+                        className="absolute top-full left-0 mt-2 z-50 flex bg-white dark:bg-[#1a1a2e] rounded-2xl shadow-2xl shadow-black/10 dark:shadow-black/40 border border-lime-200 dark:border-white/10 overflow-hidden"
                     >
                         {/* Presets Sidebar */}
-                        <div className="w-40 bg-gradient-to-b from-amber-50 to-orange-50 p-3 border-r border-amber-100">
+                        <div className="w-40 bg-gradient-to-b from-lime-50 to-green-50 dark:from-[#151528] dark:to-[#1a1a2e] p-3 border-r border-lime-200 dark:border-white/10">
                             <div className="flex items-center gap-2 mb-3 px-2">
-                                <Sparkles className="w-4 h-4 text-amber-500" />
-                                <span className="text-xs font-semibold text-amber-700 uppercase tracking-wider">
+                                <Sparkles className="w-4 h-4 text-lime-500 dark:text-[#EFFF00]" />
+                                <span className="text-xs font-semibold text-lime-700 dark:text-[#EFFF00] uppercase tracking-wider">
                                     Quick Pick
                                 </span>
                             </div>
@@ -495,8 +493,8 @@ export function DateRangePicker({
                                         className={cn(
                                             "w-full px-3 py-2 rounded-xl text-sm text-left transition-all flex items-center gap-2",
                                             activePreset === preset.id
-                                                ? "bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-md shadow-amber-500/30"
-                                                : "text-foreground hover:bg-white hover:shadow-sm"
+                                                ? "bg-gradient-to-r from-lime-400 to-[#EFFF00] text-black shadow-md shadow-lime-500/30"
+                                                : "text-foreground hover:bg-white dark:hover:bg-white/5 hover:shadow-sm"
                                         )}
                                     >
                                         {activePreset === preset.id && (
@@ -519,7 +517,7 @@ export function DateRangePicker({
                                     onClick={goToPrevMonth}
                                     whileHover={{ scale: 1.1 }}
                                     whileTap={{ scale: 0.9 }}
-                                    className="p-2 rounded-xl hover:bg-amber-100 text-muted transition-all"
+                                    className="p-2 rounded-xl hover:bg-lime-100 dark:hover:bg-[#EFFF00]/10 text-muted transition-all"
                                 >
                                     <ChevronLeft className="w-5 h-5" />
                                 </motion.button>
@@ -534,7 +532,7 @@ export function DateRangePicker({
                                     onClick={goToNextMonth}
                                     whileHover={{ scale: 1.1 }}
                                     whileTap={{ scale: 0.9 }}
-                                    className="p-2 rounded-xl hover:bg-amber-100 text-muted transition-all"
+                                    className="p-2 rounded-xl hover:bg-lime-100 dark:hover:bg-[#EFFF00]/10 text-muted transition-all"
                                 >
                                     <ChevronRight className="w-5 h-5" />
                                 </motion.button>
@@ -544,13 +542,13 @@ export function DateRangePicker({
                             {renderCalendar()}
 
                             {/* Actions */}
-                            <div className="flex gap-2 mt-4 pt-4 border-t border-amber-100">
+                            <div className="flex gap-2 mt-4 pt-4 border-t border-lime-200 dark:border-white/10">
                                 <motion.button
                                     type="button"
                                     onClick={handleClear}
                                     whileHover={{ scale: 1.02 }}
                                     whileTap={{ scale: 0.98 }}
-                                    className="flex-1 py-2.5 rounded-xl border border-amber-200 text-sm font-medium text-muted hover:bg-amber-50 transition-all"
+                                    className="flex-1 py-2.5 rounded-xl border border-lime-300 dark:border-white/10 text-sm font-medium text-muted hover:bg-lime-50 dark:hover:bg-white/5 transition-all"
                                 >
                                     All Orders
                                 </motion.button>
@@ -559,7 +557,7 @@ export function DateRangePicker({
                                     onClick={handleApply}
                                     whileHover={{ scale: 1.02 }}
                                     whileTap={{ scale: 0.98 }}
-                                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 text-white text-sm font-semibold shadow-md shadow-amber-500/30 hover:shadow-lg transition-all"
+                                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-lime-400 to-[#EFFF00] text-black text-sm font-semibold shadow-md shadow-lime-500/30 hover:shadow-lg transition-all"
                                 >
                                     Apply
                                 </motion.button>

@@ -67,28 +67,28 @@ export function StickyCustomerFilterBar({
     const statusOptions = [
         {
             id: "all",
-            label: t("customers.status.all") || "All Customers",
+            label: (t("customers.status.all") !== "customers.status.all" ? t("customers.status.all") : "All Customers"),
             count: statusCounts.all,
             icon: Users,
             color: "default"
         },
         {
             id: "vip",
-            label: t("customers.status.vip") || "VIP",
+            label: (t("customers.status.vip") !== "customers.status.vip" ? t("customers.status.vip") : "VIP"),
             count: statusCounts.vip || 0,
             icon: Crown,
             color: "amber"
         },
         {
             id: "regular",
-            label: t("customers.status.regular") || "Regular",
+            label: (t("customers.status.regular") !== "customers.status.regular" ? t("customers.status.regular") : "Regular"),
             count: statusCounts.regular || 0,
             icon: Star,
             color: "green"
         },
         {
             id: "new",
-            label: t("customers.status.new") || "New",
+            label: (t("customers.status.new") !== "customers.status.new" ? t("customers.status.new") : "New"),
             count: statusCounts.new || 0,
             icon: User,
             color: "mint"
@@ -162,11 +162,11 @@ export function StickyCustomerFilterBar({
 
                                 isActive
                                     ? cn(
-                                        "font-bold shadow-[0_0_15px_rgba(239,255,0,0.2)] scale-105",
+                                        "font-bold shadow-sm scale-105",
                                         option.color === "default" && "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]",
-                                        option.color === "amber" && "bg-[var(--pastel-yellow)] text-amber-900 border-amber-200 shadow-[0_0_15px_rgba(251,191,36,0.3)]",
-                                        option.color === "green" && "bg-[var(--pastel-green)] text-green-900 border-green-200 shadow-[0_0_15px_rgba(34,197,94,0.3)]",
-                                        option.color === "mint" && "bg-[var(--pastel-mint)] text-teal-900 border-teal-200 shadow-[0_0_15px_rgba(20,184,166,0.3)]"
+                                        option.color === "amber" && "bg-[var(--pastel-yellow)] text-amber-900 border-amber-200",
+                                        option.color === "green" && "bg-[var(--pastel-green)] text-green-900 border-green-200",
+                                        option.color === "mint" && "bg-[var(--pastel-mint)] text-teal-900 border-teal-200"
                                     )
                                     : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95 dark:bg-[#1E1E1E] dark:text-[#A1A1A1] dark:border-[#3F3F3F] dark:hover:border-[rgba(0,255,255,0.4)] dark:hover:text-white dark:hover:bg-[#242424]"
                             )}
@@ -208,11 +208,11 @@ export function StickyCustomerFilterBar({
 
                                         isActive
                                             ? cn(
-                                                "font-bold scale-105",
-                                                option.color === "green" && "bg-green-100 text-green-700 border-green-200 shadow-[0_0_15px_rgba(34,197,94,0.2)]",
-                                                option.color === "amber" && "bg-amber-100 text-amber-700 border-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.2)]",
-                                                option.color === "orange" && "bg-orange-100 text-orange-700 border-orange-200 shadow-[0_0_15px_rgba(249,115,22,0.2)]",
-                                                option.color === "rose" && "bg-rose-100 text-rose-700 border-rose-200 shadow-[0_0_15px_rgba(244,63,94,0.2)]"
+                                                "font-bold scale-105 shadow-sm",
+                                                option.color === "green" && "bg-green-100 text-green-700 border-green-200",
+                                                option.color === "amber" && "bg-amber-100 text-amber-700 border-amber-200",
+                                                option.color === "orange" && "bg-orange-100 text-orange-700 border-orange-200",
+                                                option.color === "rose" && "bg-rose-100 text-rose-700 border-rose-200"
                                             )
                                             : "bg-background text-muted-foreground border-border/50 hover:bg-muted dark:hover:bg-white/5 dark:hover:border-[#4a5f87]"
                                     )}
@@ -250,7 +250,7 @@ export function StickyCustomerFilterBar({
                     )}
                 >
                     <Filter className="w-4 h-4" />
-                    {!isMobile && (t("customers.toolbar.filter") || "Filters")}
+                    {!isMobile && (t("customers.toolbar.filter") !== "customers.toolbar.filter" ? t("customers.toolbar.filter") : "Filters")}
                     {hasActiveFilters && (
                         <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
                     )}
@@ -270,12 +270,11 @@ export function StickyCustomerFilterBar({
                                 )}
                             >
                                 <Layers className="w-4 h-4" />
-                                {!isMobile && `${t("common.group") || "Group"}: ${
-                                    groupBy === 'none' ? t("common.none") || "None" :
+                                {!isMobile && `${t("common.group") !== "common.group" ? t("common.group") : "Group"}: ${groupBy === 'none' ? (t("common.none") !== "common.none" ? t("common.none") : "None") :
                                     groupBy === 'status' ? 'Status' :
-                                    groupBy === 'city' ? 'City' :
-                                    groupBy === 'governorate' ? 'Governorate' : groupBy
-                                }`}
+                                        groupBy === 'city' ? 'City' :
+                                            groupBy === 'governorate' ? 'Governorate' : groupBy
+                                    }`}
                                 {isMobile && groupBy !== 'none' && groupBy}
                                 <ChevronDown className="w-3 h-3 opacity-50" />
                             </button>

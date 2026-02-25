@@ -1426,10 +1426,11 @@ export function useOrders() {
     function checkDuplicateOrder(phone: string, items: string[]): Order[] {
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const normalizedPhone = normalizePhoneForSearch(phone);
 
         return orders.filter((order) => {
-            // Same phone number
-            if (order.phone !== phone) return false;
+            // Same phone number (normalized)
+            if (normalizePhoneForSearch(order.phone) !== normalizedPhone) return false;
 
             if (order.is_return) return false;
 
@@ -1446,26 +1447,52 @@ export function useOrders() {
         });
     }
 
-    // Get duplicate orders for a specific order (same phone within 24 hours)
+    // Get duplicate orders for a specific order
+    // Matches: same phone within 72h, OR same phone + overlapping products within 7 days
     function getDuplicatesForOrder(orderId: string): Order[] {
         const order = orders.find((o) => o.id === orderId);
         if (!order) return [];
 
-        const twentyFourHoursAgo = new Date(order.created_at);
-        twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+        const PHONE_WINDOW_HOURS = 72;
+        const PRODUCT_WINDOW_DAYS = 7;
 
-        const twentyFourHoursAfter = new Date(order.created_at);
-        twentyFourHoursAfter.setHours(twentyFourHoursAfter.getHours() + 24);
+        const phoneWindowStart = new Date(order.created_at);
+        phoneWindowStart.setHours(phoneWindowStart.getHours() - PHONE_WINDOW_HOURS);
+
+        const phoneWindowEnd = new Date(order.created_at);
+        phoneWindowEnd.setHours(phoneWindowEnd.getHours() + PHONE_WINDOW_HOURS);
+
+        const productWindowStart = new Date(order.created_at);
+        productWindowStart.setDate(productWindowStart.getDate() - PRODUCT_WINDOW_DAYS);
+
+        const productWindowEnd = new Date(order.created_at);
+        productWindowEnd.setDate(productWindowEnd.getDate() + PRODUCT_WINDOW_DAYS);
 
         const normalizedOrderPhone = normalizePhoneForSearch(order.phone);
+        const orderItemNames = order.items?.map((i) => i.name.toLowerCase()) || [];
 
         return orders.filter((o) => {
             if (o.id === orderId || o.is_return) return false;
-            // Use normalized phone comparison
+            // Must be same phone (normalized)
             if (normalizePhoneForSearch(o.phone) !== normalizedOrderPhone) return false;
 
             const orderDate = new Date(o.created_at);
-            return orderDate >= twentyFourHoursAgo && orderDate <= twentyFourHoursAfter;
+
+            // Match 1: Same phone within 72h window
+            if (orderDate >= phoneWindowStart && orderDate <= phoneWindowEnd) {
+                return true;
+            }
+
+            // Match 2: Same phone + overlapping products within 7 days
+            if (orderDate >= productWindowStart && orderDate <= productWindowEnd && orderItemNames.length > 0) {
+                const otherItemNames = o.items?.map((i) => i.name.toLowerCase()) || [];
+                const hasOverlap = orderItemNames.some((item) =>
+                    otherItemNames.some((other) => other.includes(item) || item.includes(other))
+                );
+                if (hasOverlap) return true;
+            }
+
+            return false;
         });
     }
 
@@ -1773,11 +1800,9 @@ export function useOrders() {
 
     // Get all orders for a specific customer phone
     function getCustomerOrders(phone: string): Order[] {
-        const normalizedPhone = phone?.replace(/\D/g, "").slice(-10) || "";
-        return orders.filter(o => {
-            const orderPhone = o.phone?.replace(/\D/g, "").slice(-10) || "";
-            return orderPhone === normalizedPhone;
-        });
+        const normalizedPhone = normalizePhoneForSearch(phone);
+        if (!normalizedPhone) return [];
+        return orders.filter(o => normalizePhoneForSearch(o.phone) === normalizedPhone);
     }
 
     // Dismiss duplicate alert for a phone number (won't show again)

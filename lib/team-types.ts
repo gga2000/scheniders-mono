@@ -1,3 +1,20 @@
+// Shared employee stats used across team page components
+export interface EmployeeStats {
+    user_id: string;
+    user_email: string;
+    display_name: string | null;
+    avatar_url: string | null;
+    role: string;
+    is_active: boolean;
+    last_login_at: string | null;
+    total_actions: number;
+    status_changes: number;
+    orders_created: number;
+    orders_printed: number;
+    orders_edited: number;
+    logins: number;
+}
+
 export type OrderDuty = 'confirmation' | 'fulfillment';
 export type RuleConditionType = 'city' | 'priority' | 'order_status' | 'product_selected';
 export type RuleOperator = 'equals' | 'contains' | 'any';

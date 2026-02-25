@@ -4,7 +4,7 @@ import React, { useRef } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
 import { Package, CheckCircle2, Clock, ChevronRight, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
 
 interface ActiveTask {
@@ -58,7 +58,10 @@ const MOCK_TASKS: ActiveTask[] = [
 ];
 
 interface MyActiveDeskProps {
-    profile: any;
+    profile: {
+        display_name?: string | null;
+        email?: string;
+    } | null;
 }
 
 export function MyActiveDesk({ profile }: MyActiveDeskProps) {
@@ -107,7 +110,7 @@ export function MyActiveDesk({ profile }: MyActiveDeskProps) {
             </motion.div>
 
             {/* Horizontal Task List */}
-            <div className="relative relative w-full rounded-3xl overflow-hidden">
+            <div className="relative w-full rounded-3xl overflow-hidden">
                 {/* Fade Indicators for scrolling */}
                 <motion.div
                     style={{ opacity: leftShadowOpacity }}
@@ -197,7 +200,7 @@ function TaskCard({ task, index }: { task: ActiveTask, index: number }) {
             <div className="flex items-center justify-between mt-auto border-t border-gray-100 dark:border-white/5 pt-4">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500">
                     <Clock className="w-3.5 h-3.5" />
-                    <span>منذ {format(new Date(task.assignedAt), 'mm')} دقيقة</span>
+                    <span>{formatDistanceToNow(new Date(task.assignedAt), { addSuffix: true, locale: ar })}</span>
                 </div>
 
                 <div className={cn(

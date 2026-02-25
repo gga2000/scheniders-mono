@@ -4,6 +4,7 @@ import { useRef, useEffect, useCallback, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 import { useLanguage } from "@/hooks/use-language";
+import { cn } from "@/lib/utils";
 import { User } from "lucide-react";
 import { CustomerCard } from "./customer-card";
 
@@ -22,6 +23,9 @@ interface VirtualizedCustomerListProps {
     onSelectAll?: () => void;
     onClearSelection?: () => void;
     compactLevel?: 0 | 1 | 2; // 0=full, 1=semi-compact, 2=ultra-compact
+    onListScroll?: (scrollTop: number) => void;
+    hasDuplicates?: (phone: string) => boolean;
+    onShowDuplicates?: (phone: string) => void;
 }
 
 export function VirtualizedCustomerList({
@@ -38,6 +42,9 @@ export function VirtualizedCustomerList({
     onSelectAll,
     onClearSelection,
     compactLevel = 0,
+    onListScroll,
+    hasDuplicates,
+    onShowDuplicates,
 }: VirtualizedCustomerListProps) {
     const { t } = useLanguage();
     const parentRef = useRef<HTMLDivElement>(null);
@@ -46,9 +53,9 @@ export function VirtualizedCustomerList({
     // Adjust row size based on compact level
     const getRowSize = () => {
         switch (compactLevel) {
-            case 2: return 60;  // Ultra-compact
-            case 1: return 140; // Semi-compact
-            default: return 180; // Full
+            case 2: return 48;  // Ultra-compact
+            case 1: return 60; // Semi-compact
+            default: return 72; // Full (Data Table Row)
         }
     };
 
@@ -139,75 +146,117 @@ export function VirtualizedCustomerList({
 
     return (
         <div
-            ref={parentRef}
-            className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin h-full"
-            style={{ contain: 'strict' }}
+            className="flex-1 flex flex-col overflow-hidden h-full"
         >
-            <div
-                className="w-full relative"
-                style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
-            >
-                {items.map((virtualRow) => {
-                    const isLoaderRow = virtualRow.index > customers.length - 1;
-                    const customer = customers[virtualRow.index];
-
-                    if (isLoaderRow) {
-                        return (
-                            <div
-                                key={`loader-${virtualRow.index}`}
-                                ref={lastRowRef}
-                                className="absolute top-0 left-0 w-full flex items-center justify-center p-4"
-                                style={{
-                                    height: `${virtualRow.size}px`,
-                                    transform: `translateY(${virtualRow.start}px)`,
-                                }}
-                            >
-                                <span className="inline-flex gap-1 items-center bg-[var(--card-bg)] px-4 py-2 rounded-full shadow-sm border border-[var(--card-border)]">
-                                    <span className="text-xs text-muted font-medium mr-2">Loading more...</span>
-                                    <span className="w-1.5 h-1.5 bg-muted rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                                    <span className="w-1.5 h-1.5 bg-muted rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                                    <span className="w-1.5 h-1.5 bg-muted rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                                </span>
-                            </div>
-                        );
-                    }
-
-                    const isSelected = selectedPhones.has(customer.phone);
-                    const isDetailSelected = selectedCustomerId === customer.phone;
-
-                    return (
-                        <div
-                            key={customer.phone}
-                            ref={rowVirtualizer.measureElement}
-                            data-index={virtualRow.index}
-                            className="absolute top-0 left-0 w-full px-2 transition-all"
-                            style={{
-                                transform: `translateY(${virtualRow.start}px)`,
-                            }}
-                            onClick={(e) => {
-                                // If shift key, do range selection
-                                if (e.shiftKey && onToggleSelection) {
-                                    handleToggleSelection(customer.phone, virtualRow.index, true);
-                                } else if ((e.metaKey || e.ctrlKey) && onToggleSelection) {
-                                    // If cmd/ctrl key, toggle individual selection
-                                    handleToggleSelection(customer.phone, virtualRow.index, false);
+            {/* TABLE HEADER (Sticky) */}
+            <div className="flex-shrink-0 grid grid-cols-[auto_2fr_1.5fr_1.5fr_1fr_1fr_auto] gap-4 items-center px-6 py-4 border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-black/20 backdrop-blur-md z-20 text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider sticky top-0">
+                <div className="w-10 flex justify-center">
+                    {showSelectAll && (
+                        <input
+                            type="checkbox"
+                            checked={allSelected}
+                            onChange={(e) => {
+                                e.stopPropagation();
+                                if (allSelected) {
+                                    onClearSelection?.();
                                 } else {
-                                    // Normal click - show details
-                                    onSelectCustomer(customer.phone);
+                                    onSelectAll?.();
                                 }
                             }}
-                        >
-                            <CustomerCard
-                                customer={customer}
-                                isSelected={isDetailSelected || isSelected}
-                                onToggleSelection={onToggleSelection ? (phone: string) => handleToggleSelection(phone, virtualRow.index, false) : undefined}
-                                onViewDetails={onSelectCustomer}
-                                compact={compactLevel}
-                                isVirtualized={true}
-                            />
-                        </div>
-                    );
-                })}
+                            className="rounded border-slate-300 dark:border-slate-600 bg-transparent text-primary focus:ring-offset-0 focus:ring-primary"
+                        />
+                    )}
+                </div>
+                <div>CUSTOMER</div>
+                <div className="text-center">STATUS</div>
+                <div>ENGAGEMENT</div>
+                <div className="text-right">LTV</div>
+                <div className="text-right">ACTIVITY</div>
+                <div className="w-10"></div>
+            </div>
+
+            {/* VIRTUALIZED SCROLL CONTAINER */}
+            <div
+                ref={parentRef}
+                className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin h-full bg-[var(--background)] py-2"
+                style={{ contain: 'strict' }}
+                onScroll={(e) => {
+                    if (onListScroll) {
+                        onListScroll((e.target as HTMLDivElement).scrollTop);
+                    }
+                }}
+            >
+                <div
+                    className="w-full relative"
+                    style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
+                >
+                    {items.map((virtualRow) => {
+                        const isLoaderRow = virtualRow.index > customers.length - 1;
+                        const customer = customers[virtualRow.index];
+
+                        if (isLoaderRow) {
+                            return (
+                                <div
+                                    key={`loader-${virtualRow.index}`}
+                                    ref={lastRowRef}
+                                    className="absolute top-0 left-0 w-full flex items-center justify-center p-4"
+                                    style={{
+                                        height: `${virtualRow.size}px`,
+                                        transform: `translateY(${virtualRow.start}px)`,
+                                    }}
+                                >
+                                    <span className="inline-flex gap-1 items-center bg-[var(--card-bg)] px-4 py-2 rounded-full shadow-sm border border-[var(--card-border)]">
+                                        <span className="text-xs text-muted font-medium mr-2">Loading more...</span>
+                                        <span className="w-1.5 h-1.5 bg-muted rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                                        <span className="w-1.5 h-1.5 bg-muted rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                                        <span className="w-1.5 h-1.5 bg-muted rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                                    </span>
+                                </div>
+                            );
+                        }
+
+                        const isSelected = selectedPhones.has(customer.phone);
+                        const isDetailSelected = selectedCustomerId === customer.phone;
+
+                        return (
+                            <div
+                                key={customer.phone}
+                                ref={rowVirtualizer.measureElement}
+                                data-index={virtualRow.index}
+                                className={cn(
+                                    "absolute top-0 left-0 w-full transition-all",
+                                    compactLevel === 2 ? "px-0" : "px-2"
+                                )}
+                                style={{
+                                    transform: `translateY(${virtualRow.start}px)`,
+                                }}
+                                onClick={(e) => {
+                                    // If shift key, do range selection
+                                    if (e.shiftKey && onToggleSelection) {
+                                        handleToggleSelection(customer.phone, virtualRow.index, true);
+                                    } else if ((e.metaKey || e.ctrlKey) && onToggleSelection) {
+                                        // If cmd/ctrl key, toggle individual selection
+                                        handleToggleSelection(customer.phone, virtualRow.index, false);
+                                    } else {
+                                        // Normal click - show details
+                                        onSelectCustomer(customer.phone);
+                                    }
+                                }}
+                            >
+                                <CustomerCard
+                                    customer={customer}
+                                    isSelected={isDetailSelected || isSelected}
+                                    onToggleSelection={onToggleSelection ? (phone: string) => handleToggleSelection(phone, virtualRow.index, false) : undefined}
+                                    onViewDetails={onSelectCustomer}
+                                    compact={compactLevel}
+                                    isVirtualized={true}
+                                    hasDuplicates={hasDuplicates?.(customer.phone) || false}
+                                    onShowDuplicates={onShowDuplicates}
+                                />
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
         </div>
     );

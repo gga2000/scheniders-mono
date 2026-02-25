@@ -7,7 +7,6 @@ import {
     Trophy,
     Activity,
     Users,
-    TrendingUp,
     Clock,
     Package,
     Printer,
@@ -17,13 +16,11 @@ import {
     Crown,
     Medal,
     Award,
-    ChevronRight,
     LayoutGrid,
     BarChart3,
     GitCompare,
     Target,
-    ArrowUpRight,
-    ArrowDownRight,
+    Settings2,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { formatDistanceToNow } from "date-fns";
@@ -34,29 +31,13 @@ import { ActivityLogEntry } from "@/lib/activity-logger";
 import { TeamAnalyticsTab } from "@/components/team/team-analytics-tab";
 import { EmployeeComparison } from "@/components/team/employee-comparison";
 import { GoalTracking } from "@/components/team/goal-tracking";
-import { PastelCard, StatCard, pastelColors, PastelColor } from "@/components/team/shared-pastel-components";
+import { PastelCard, StatCard } from "@/components/team/shared-pastel-components";
 import { TeamMemberCard } from "@/components/team/team-member-card";
 import { ProfileDrawer } from "@/components/team/profile-drawer";
 import { MyActiveDesk } from "@/components/team/my-active-desk";
 import { AssignmentRulesTab } from "@/components/team/assignment-rules-tab";
-import { Settings2 } from "lucide-react";
-
-// Types
-interface EmployeeStats {
-    user_id: string;
-    user_email: string;
-    display_name: string | null;
-    avatar_url: string | null;
-    role: string;
-    is_active: boolean;
-    last_login_at: string | null;
-    total_actions: number;
-    status_changes: number;
-    orders_created: number;
-    orders_printed: number;
-    orders_edited: number;
-    logins: number;
-}
+import { toast } from "@/hooks/use-toast";
+import { EmployeeStats } from "@/lib/team-types";
 
 type TimeRange = "today" | "week" | "month" | "all";
 type ViewMode = "overview" | "analytics" | "comparison" | "goals" | "rules";
@@ -67,8 +48,8 @@ function LiveIndicator({ isConnected }: { isConnected: boolean }) {
         <div className={cn(
             "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold",
             isConnected
-                ? "bg-[#E8F8E0] text-green-700"
-                : "bg-[#FCEEF1] text-rose-700"
+                ? "bg-[#E8F8E0] text-green-700 dark:bg-green-500/20 dark:text-green-400"
+                : "bg-[#FCEEF1] text-rose-700 dark:bg-rose-500/20 dark:text-rose-400"
         )}>
             <span className="relative flex h-2 w-2">
                 {isConnected && (
@@ -84,151 +65,15 @@ function LiveIndicator({ isConnected }: { isConnected: boolean }) {
     );
 }
 
-// Enhanced Employee Card
-function EmployeeCard({
-    employee,
-    rank,
-    isActive,
-    onClick,
-    delay = 0,
-}: {
-    employee: EmployeeStats;
-    rank: number;
-    isActive: boolean;
-    onClick: () => void;
-    delay?: number;
-}) {
-    const online = isUserOnline(employee.last_login_at);
-    const rankColors = {
-        1: { bg: "bg-[#FBE38E]", icon: Crown, label: "🥇" },
-        2: { bg: "bg-[#E5E7EB]", icon: Medal, label: "🥈" },
-        3: { bg: "bg-[#F4C7CF]", icon: Award, label: "🥉" },
-    };
-    const config = rankColors[rank as keyof typeof rankColors];
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay, duration: 0.4 }}
-            onClick={onClick}
-            className="group cursor-pointer"
-        >
-            <PastelCard
-                className={cn(
-                    "p-5",
-                    isActive && "ring-2 ring-[#FBE38E]"
-                )}
-            >
-                {/* Rank Badge */}
-                {rank <= 3 && config && (
-                    <div className="absolute -top-2 -right-2 z-20">
-                        <motion.div
-                            initial={{ scale: 0, rotate: -180 }}
-                            animate={{ scale: 1, rotate: 0 }}
-                            transition={{ delay: delay + 0.2, type: "spring" }}
-                            className={cn(
-                                "w-8 h-8 rounded-full flex items-center justify-center shadow-md",
-                                config.bg
-                            )}
-                        >
-                            <config.icon className="w-4 h-4 text-[#1E1E1E]" />
-                        </motion.div>
-                    </div>
-                )}
-
-                <div className="flex items-start gap-4">
-                    {/* Avatar */}
-                    <div className="relative">
-                        <motion.div
-                            className={cn(
-                                "w-14 h-14 rounded-2xl overflow-hidden",
-                                "bg-gradient-to-br from-[#B8E8E0] to-[#E4C1F9]",
-                                "flex items-center justify-center",
-                                "border-2 border-white",
-                                "shadow-md"
-                            )}
-                            whileHover={{ scale: 1.05 }}
-                        >
-                            {employee.avatar_url ? (
-                                <img
-                                    src={employee.avatar_url}
-                                    alt=""
-                                    className="w-full h-full object-cover"
-                                />
-                            ) : (
-                                <span className="text-xl font-bold text-[#1E1E1E]">
-                                    {(employee.display_name || employee.user_email)?.[0]?.toUpperCase()}
-                                </span>
-                            )}
-                        </motion.div>
-
-                        {/* Online indicator */}
-                        <div className={cn(
-                            "absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white",
-                            online ? "bg-green-500" : "bg-gray-400"
-                        )}>
-                            {online && (
-                                <span className="absolute inset-0 rounded-full bg-green-500 animate-ping opacity-50" />
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                            <p className="font-bold text-[#1E1E1E] truncate">
-                                {employee.display_name || employee.user_email?.split("@")[0]}
-                            </p>
-                            {employee.role === "admin" && (
-                                <span className="shrink-0 px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase bg-[#FBE38E] text-amber-800">
-                                    مسؤول
-                                </span>
-                            )}
-                        </div>
-                        <p className="text-xs text-[#6B6B6B] truncate">{employee.user_email}</p>
-                    </div>
-                </div>
-
-                {/* Stats Row */}
-                <div className="mt-4 pt-4 border-t border-[#E8E4DC] flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1.5">
-                            <div className="w-7 h-7 rounded-xl bg-[#FDF5D4] flex items-center justify-center">
-                                <Activity className="w-3.5 h-3.5 text-amber-600" />
-                            </div>
-                            <span className="text-sm font-bold text-[#1E1E1E]">{employee.total_actions}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <div className="w-7 h-7 rounded-xl bg-[#E8F8E0] flex items-center justify-center">
-                                <Package className="w-3.5 h-3.5 text-green-600" />
-                            </div>
-                            <span className="text-sm font-bold text-[#1E1E1E]">{employee.orders_created}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <div className="w-7 h-7 rounded-xl bg-[#F5E8FC] flex items-center justify-center">
-                                <RefreshCw className="w-3.5 h-3.5 text-purple-600" />
-                            </div>
-                            <span className="text-sm font-bold text-[#1E1E1E]">{employee.status_changes}</span>
-                        </div>
-                    </div>
-
-                    <ChevronRight className="w-5 h-5 text-[#9A9A9A] group-hover:text-[#1E1E1E] group-hover:translate-x-1 transition-all" />
-                </div>
-            </PastelCard>
-        </motion.div>
-    );
-}
-
 // Top Performer Podium (Pastel Style)
 function TopPerformerPodium({ performers }: { performers: EmployeeStats[] }) {
     const top3 = performers.slice(0, 3);
     if (top3.length === 0) return null;
 
     const podiumConfig = [
-        { order: 1, height: "h-32", y: 0, color: "from-[#FBE38E] to-[#FDF5D4]", ring: "ring-[#FBE38E]", icon: Crown },
-        { order: 0, height: "h-24", y: 32, color: "from-[#E5E7EB] to-[#F3F4F6]", ring: "ring-gray-300", icon: Medal },
-        { order: 2, height: "h-20", y: 48, color: "from-[#F4C7CF] to-[#FCEEF1]", ring: "ring-[#F4C7CF]", icon: Award },
+        { order: 1, height: "h-32", y: 0, color: "from-[#FBE38E] to-[#FDF5D4] dark:from-amber-500/30 dark:to-amber-500/10", ring: "ring-[#FBE38E] dark:ring-amber-500/40", icon: Crown },
+        { order: 0, height: "h-24", y: 32, color: "from-[#E5E7EB] to-[#F3F4F6] dark:from-gray-600/30 dark:to-gray-600/10", ring: "ring-gray-300 dark:ring-gray-500/40", icon: Medal },
+        { order: 2, height: "h-20", y: 48, color: "from-[#F4C7CF] to-[#FCEEF1] dark:from-rose-500/30 dark:to-rose-500/10", ring: "ring-[#F4C7CF] dark:ring-rose-500/40", icon: Award },
     ];
 
     return (
@@ -239,8 +84,8 @@ function TopPerformerPodium({ performers }: { performers: EmployeeStats[] }) {
                 transition={{ duration: 2, repeat: Infinity }}
                 className="absolute top-2 left-1/2 -translate-x-1/2"
             >
-                <div className="w-14 h-14 rounded-2xl bg-[#FBE38E] flex items-center justify-center shadow-lg">
-                    <Trophy className="w-7 h-7 text-amber-700" />
+                <div className="w-14 h-14 rounded-2xl bg-[#FBE38E] dark:bg-amber-500/20 flex items-center justify-center shadow-lg">
+                    <Trophy className="w-7 h-7 text-amber-700 dark:text-amber-400" />
                 </div>
             </motion.div>
 
@@ -263,13 +108,13 @@ function TopPerformerPodium({ performers }: { performers: EmployeeStats[] }) {
                                 config.color,
                                 "ring-2",
                                 config.ring,
-                                "shadow-lg"
+                                "shadow-lg dark:shadow-xl"
                             )}>
                                 {/* Rank badge */}
                                 <div className={cn(
                                     "absolute -top-3 left-1/2 -translate-x-1/2",
-                                    "w-10 h-10 rounded-full bg-white flex items-center justify-center",
-                                    "shadow-md border-2 border-white"
+                                    "w-10 h-10 rounded-full bg-white dark:bg-[#1A1A1A] flex items-center justify-center",
+                                    "shadow-md border-2 border-white dark:border-[#1A1A1A]"
                                 )}>
                                     <config.icon className={cn(
                                         "w-5 h-5",
@@ -278,11 +123,11 @@ function TopPerformerPodium({ performers }: { performers: EmployeeStats[] }) {
                                 </div>
 
                                 {/* Avatar */}
-                                <div className="w-20 h-20 mx-auto mt-2 rounded-2xl overflow-hidden bg-white flex items-center justify-center border-2 border-white shadow-md">
+                                <div className="w-20 h-20 mx-auto mt-2 rounded-2xl overflow-hidden bg-white dark:bg-[#1A1A1A] flex items-center justify-center border-2 border-white dark:border-[#1A1A1A] shadow-md">
                                     {emp.avatar_url ? (
                                         <img src={emp.avatar_url} alt="" className="w-full h-full object-cover" />
                                     ) : (
-                                        <span className="text-2xl font-bold text-[#1E1E1E]">
+                                        <span className="text-2xl font-bold text-[#1E1E1E] dark:text-white">
                                             {(emp.display_name || emp.user_email)?.[0]?.toUpperCase()}
                                         </span>
                                     )}
@@ -290,16 +135,16 @@ function TopPerformerPodium({ performers }: { performers: EmployeeStats[] }) {
 
                                 {/* Info */}
                                 <div className="mt-4 text-center">
-                                    <p className="font-bold text-[#1E1E1E] truncate max-w-[100px]">
+                                    <p className="font-bold text-[#1E1E1E] dark:text-white truncate max-w-[100px]">
                                         {emp.display_name || emp.user_email?.split("@")[0]}
                                     </p>
                                     <p className={cn(
                                         "text-2xl font-bold mt-1",
-                                        index === 0 ? "text-amber-700" : index === 1 ? "text-gray-600" : "text-rose-600"
+                                        index === 0 ? "text-amber-700 dark:text-amber-400" : index === 1 ? "text-gray-600 dark:text-gray-300" : "text-rose-600 dark:text-rose-400"
                                     )}>
                                         {emp.total_actions}
                                     </p>
-                                    <p className="text-xs text-[#6B6B6B]">نشاط</p>
+                                    <p className="text-xs text-[#6B6B6B] dark:text-gray-400">نشاط</p>
                                 </div>
                             </div>
                         </motion.div>
@@ -313,11 +158,11 @@ function TopPerformerPodium({ performers }: { performers: EmployeeStats[] }) {
 // Activity Item (Pastel)
 function ActivityItem({ activity, isNew }: { activity: ActivityLogEntry; isNew?: boolean }) {
     const actionConfig: Record<string, { icon: React.ElementType; bg: string; text: string; label: string }> = {
-        "order.create": { icon: Package, bg: "bg-[#E8F8E0]", text: "text-green-600", label: "طلب جديد" },
-        "order.status_change": { icon: RefreshCw, bg: "bg-[#FDF5D4]", text: "text-amber-600", label: "تغيير حالة" },
-        "order.edit": { icon: Activity, bg: "bg-[#F5E8FC]", text: "text-purple-600", label: "تعديل" },
-        "order.print": { icon: Printer, bg: "bg-[#E5F6F3]", text: "text-teal-600", label: "طباعة" },
-        "user.login": { icon: Users, bg: "bg-[#F3F4F6]", text: "text-gray-600", label: "دخول" },
+        "order.create": { icon: Package, bg: "bg-[#E8F8E0] dark:bg-green-500/15", text: "text-green-600 dark:text-green-400", label: "طلب جديد" },
+        "order.status_change": { icon: RefreshCw, bg: "bg-[#FDF5D4] dark:bg-amber-500/15", text: "text-amber-600 dark:text-amber-400", label: "تغيير حالة" },
+        "order.edit": { icon: Activity, bg: "bg-[#F5E8FC] dark:bg-purple-500/15", text: "text-purple-600 dark:text-purple-400", label: "تعديل" },
+        "order.print": { icon: Printer, bg: "bg-[#E5F6F3] dark:bg-teal-500/15", text: "text-teal-600 dark:text-teal-400", label: "طباعة" },
+        "user.login": { icon: Users, bg: "bg-[#F3F4F6] dark:bg-gray-500/15", text: "text-gray-600 dark:text-gray-400", label: "دخول" },
     };
 
     const config = actionConfig[activity.action] || { icon: Activity, bg: "bg-gray-100", text: "text-gray-600", label: activity.action };
@@ -329,8 +174,8 @@ function ActivityItem({ activity, isNew }: { activity: ActivityLogEntry; isNew?:
             animate={{ opacity: 1, x: 0 }}
             className={cn(
                 "flex items-center gap-3 p-3 rounded-2xl",
-                "hover:bg-[#FAF8F5] transition-colors",
-                isNew && "bg-[#FDF5D4]"
+                "hover:bg-[#FAF8F5] dark:hover:bg-white/5 transition-colors",
+                isNew && "bg-[#FDF5D4] dark:bg-amber-500/10"
             )}
         >
             <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center", config.bg)}>
@@ -339,14 +184,14 @@ function ActivityItem({ activity, isNew }: { activity: ActivityLogEntry; isNew?:
 
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-[#1E1E1E] truncate">
+                    <span className="text-sm font-semibold text-[#1E1E1E] dark:text-white truncate">
                         {activity.user_email?.split("@")[0]}
                     </span>
                     <span className={cn("text-xs px-2 py-0.5 rounded-lg", config.bg, config.text)}>
                         {config.label}
                     </span>
                 </div>
-                <p className="text-xs text-[#9A9A9A]">
+                <p className="text-xs text-[#9A9A9A] dark:text-gray-500">
                     {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true, locale: ar })}
                 </p>
             </div>
@@ -365,14 +210,14 @@ function AccessDenied() {
     return (
         <div className="min-h-screen flex items-center justify-center p-6">
             <PastelCard className="p-12 text-center max-w-md" variant="pink">
-                <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-white flex items-center justify-center shadow-md">
+                <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-white dark:bg-[#1A1A1A] flex items-center justify-center shadow-md">
                     <Lock className="w-10 h-10 text-rose-500" />
                 </div>
-                <h1 className="text-2xl font-bold text-[#1E1E1E] mb-2">الوصول مقيّد</h1>
-                <p className="text-[#6B6B6B] mb-6">هذه الصفحة متاحة للمسؤولين فقط.</p>
+                <h1 className="text-2xl font-bold text-[#1E1E1E] dark:text-white mb-2">الوصول مقيّد</h1>
+                <p className="text-[#6B6B6B] dark:text-gray-400 mb-6">هذه الصفحة متاحة للمسؤولين فقط.</p>
                 <a
                     href="/dashboard"
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-[#1E1E1E] text-white font-bold hover:bg-[#2D2D2D] transition-colors"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-[#1E1E1E] dark:bg-white text-white dark:text-[#1E1E1E] font-bold hover:bg-[#2D2D2D] dark:hover:bg-gray-100 transition-colors"
                 >
                     العودة للرئيسية
                 </a>
@@ -425,7 +270,10 @@ export default function TeamPage() {
         if (dateFilter) query = query.gte("created_at", dateFilter);
 
         const { data, error } = await query;
-        if (error) return;
+        if (error) {
+            toast({ title: "خطأ في تحميل البيانات", description: "تعذر تحميل بيانات الفريق. حاول مرة أخرى.", variant: "error" });
+            return;
+        }
 
         const statsMap = new Map<string, EmployeeStats>();
 
@@ -495,7 +343,11 @@ export default function TeamPage() {
         if (dateFilter) query = query.gte("created_at", dateFilter);
 
         const { data, error } = await query;
-        if (!error && data) setActivities(data);
+        if (error) {
+            toast({ title: "خطأ في تحميل النشاطات", description: "تعذر تحميل سجل النشاطات.", variant: "error" });
+            return;
+        }
+        if (data) setActivities(data);
     }, [timeRange, getDateFilter]);
 
     // Initial fetch
@@ -581,15 +433,15 @@ export default function TeamPage() {
                     animate={{ opacity: 1, scale: 1 }}
                     className="text-center"
                 >
-                    <div className="w-16 h-16 rounded-2xl bg-[#FBE38E] flex items-center justify-center shadow-lg mx-auto">
+                    <div className="w-16 h-16 rounded-2xl bg-[#FBE38E] dark:bg-amber-500/20 flex items-center justify-center shadow-lg mx-auto">
                         <motion.div
                             animate={{ rotate: 360 }}
                             transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                         >
-                            <RefreshCw className="w-8 h-8 text-amber-700" />
+                            <RefreshCw className="w-8 h-8 text-amber-700 dark:text-amber-400" />
                         </motion.div>
                     </div>
-                    <p className="text-[#1E1E1E] font-medium mt-4">جاري التحميل...</p>
+                    <p className="text-[#1E1E1E] dark:text-white font-medium mt-4">جاري التحميل...</p>
                 </motion.div>
             </div>
         );
@@ -597,7 +449,7 @@ export default function TeamPage() {
 
     if (!isAdmin) return <AccessDenied />;
 
-    const tabs: { id: ViewMode; label: string; icon: any }[] = [
+    const tabs: { id: ViewMode; label: string; icon: React.ElementType }[] = [
         { id: "overview", label: "نظرة عامة", icon: LayoutGrid },
         { id: "analytics", label: "التحليلات", icon: BarChart3 },
         { id: "comparison", label: "المقارنة", icon: GitCompare },
@@ -622,12 +474,12 @@ export default function TeamPage() {
                     </motion.div>
                     <div>
                         <div className="flex items-center gap-3">
-                            <h1 className="text-2xl font-bold text-[#1E1E1E]">
+                            <h1 className="text-2xl font-bold text-[#1E1E1E] dark:text-white">
                                 {t("team.title")}
                             </h1>
                             <LiveIndicator isConnected={isConnected} />
                         </div>
-                        <p className="text-[#6B6B6B] mt-0.5">{t("team.subtitle")}</p>
+                        <p className="text-[#6B6B6B] dark:text-gray-400 mt-0.5">{t("team.subtitle")}</p>
                     </div>
                 </div>
 
@@ -637,12 +489,13 @@ export default function TeamPage() {
                         disabled={refreshing}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        className="p-3 rounded-2xl bg-white border border-[#E8E4DC] hover:shadow-md transition-all"
+                        className="p-3 rounded-2xl bg-white dark:bg-[#1A1A1A] border border-[#E8E4DC] dark:border-white/10 hover:shadow-md transition-all"
+                        aria-label="تحديث البيانات"
                     >
-                        <RefreshCw className={cn("w-5 h-5 text-[#1E1E1E]", refreshing && "animate-spin")} />
+                        <RefreshCw className={cn("w-5 h-5 text-[#1E1E1E] dark:text-white", refreshing && "animate-spin")} />
                     </motion.button>
 
-                    <div className="flex bg-white border border-[#E8E4DC] rounded-2xl p-1 shadow-sm">
+                    <div className="flex bg-white dark:bg-[#1A1A1A] border border-[#E8E4DC] dark:border-white/10 rounded-2xl p-1 shadow-sm">
                         {(["today", "week", "month", "all"] as TimeRange[]).map((range) => (
                             <button
                                 key={range}
@@ -650,8 +503,8 @@ export default function TeamPage() {
                                 className={cn(
                                     "px-4 py-2 rounded-xl text-sm font-bold transition-all",
                                     timeRange === range
-                                        ? "bg-[#1E1E1E] text-white shadow-md"
-                                        : "text-[#6B6B6B] hover:text-[#1E1E1E]"
+                                        ? "bg-[#1E1E1E] dark:bg-white text-white dark:text-[#1E1E1E] shadow-md"
+                                        : "text-[#6B6B6B] dark:text-gray-400 hover:text-[#1E1E1E] dark:hover:text-white"
                                 )}
                             >
                                 {{ today: "اليوم", week: "الأسبوع", month: "الشهر", all: "الكل" }[range]}
@@ -666,7 +519,7 @@ export default function TeamPage() {
 
             {/* View Tabs */}
             <div className="flex justify-center">
-                <div className="flex items-center p-1 bg-white border border-[#E8E4DC] rounded-2xl shadow-sm overflow-x-auto max-w-full">
+                <div className="flex items-center p-1 bg-white dark:bg-[#1A1A1A] border border-[#E8E4DC] dark:border-white/10 rounded-2xl shadow-sm overflow-x-auto max-w-full">
                     {tabs.map((tab) => (
                         <button
                             key={tab.id}
@@ -674,8 +527,8 @@ export default function TeamPage() {
                             className={cn(
                                 "flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
                                 viewMode === tab.id
-                                    ? "bg-[#1E1E1E] text-white shadow-md"
-                                    : "text-[#6B6B6B] hover:text-[#1E1E1E] hover:bg-[#FAF8F5]"
+                                    ? "bg-[#1E1E1E] dark:bg-white text-white dark:text-[#1E1E1E] shadow-md"
+                                    : "text-[#6B6B6B] dark:text-gray-400 hover:text-[#1E1E1E] dark:hover:text-white hover:bg-[#FAF8F5] dark:hover:bg-white/5"
                             )}
                         >
                             <tab.icon className="w-4 h-4" />
@@ -696,11 +549,11 @@ export default function TeamPage() {
                         className="space-y-8"
                     >
                         {/* Stats Grid */}
-                        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                            <StatCard icon={Activity} label="إجمالي النشاطات" value={stats.totalActions} trend={12} color="yellow" delay={0.1} />
-                            <StatCard icon={Package} label="طلبات جديدة" value={stats.ordersCreated} trend={8} color="green" delay={0.15} />
-                            <StatCard icon={RefreshCw} label="تغييرات الحالة" value={stats.statusChanges} trend={-3} color="mint" delay={0.2} />
-                            <StatCard icon={Printer} label="عمليات الطباعة" value={stats.ordersPrinted} trend={5} color="purple" delay={0.25} />
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                            <StatCard icon={Activity} label="إجمالي النشاطات" value={stats.totalActions} color="yellow" delay={0.1} />
+                            <StatCard icon={Package} label="طلبات جديدة" value={stats.ordersCreated} color="green" delay={0.15} />
+                            <StatCard icon={RefreshCw} label="تغييرات الحالة" value={stats.statusChanges} color="mint" delay={0.2} />
+                            <StatCard icon={Printer} label="عمليات الطباعة" value={stats.ordersPrinted} color="purple" delay={0.25} />
 
                             {/* Online Count */}
                             <motion.div
@@ -711,16 +564,16 @@ export default function TeamPage() {
                                 <PastelCard className="p-5 h-full" variant="green">
                                     <div className="flex items-center gap-3">
                                         <div className="relative">
-                                            <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-md">
-                                                <Zap className="w-6 h-6 text-green-600" />
+                                            <div className="w-12 h-12 rounded-2xl bg-white dark:bg-[#1A1A1A] flex items-center justify-center shadow-md">
+                                                <Zap className="w-6 h-6 text-green-600 dark:text-green-400" />
                                             </div>
                                             <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-green-500 shadow-md">
                                                 <span className="absolute inset-0 rounded-full bg-green-500 animate-ping opacity-75" />
                                             </span>
                                         </div>
                                         <div>
-                                            <p className="text-3xl font-bold text-[#1E1E1E]">{stats.onlineCount}</p>
-                                            <p className="text-sm text-green-700">متصل الآن</p>
+                                            <p className="text-3xl font-bold text-[#1E1E1E] dark:text-white">{stats.onlineCount}</p>
+                                            <p className="text-sm text-green-700 dark:text-green-400">متصل الآن</p>
                                         </div>
                                     </div>
                                 </PastelCard>
@@ -731,10 +584,12 @@ export default function TeamPage() {
                         {leaderboard.length > 0 && (
                             <PastelCard className="p-6">
                                 <div className="flex items-center gap-3 mb-2">
-                                    <div className="w-10 h-10 rounded-xl bg-[#FBE38E] flex items-center justify-center">
-                                        <Trophy className="w-5 h-5 text-amber-700" />
+                                    <div className="w-10 h-10 rounded-xl bg-[#FBE38E] dark:bg-amber-500/20 flex items-center justify-center">
+                                        <Trophy className="w-5 h-5 text-amber-700 dark:text-amber-400" />
                                     </div>
-                                    <h2 className="text-xl font-bold text-[#1E1E1E]">أبطال الأسبوع</h2>
+                                    <h2 className="text-xl font-bold text-[#1E1E1E] dark:text-white">
+                                        {{ today: "أبطال اليوم", week: "أبطال الأسبوع", month: "أبطال الشهر", all: "الأبطال" }[timeRange]}
+                                    </h2>
                                 </div>
                                 <TopPerformerPodium performers={leaderboard} />
                             </PastelCard>
@@ -745,14 +600,15 @@ export default function TeamPage() {
                             {/* Employee List */}
                             <div className="lg:col-span-2 space-y-4">
                                 <div className="flex items-center justify-between">
-                                    <h2 className="text-lg font-bold text-[#1E1E1E] flex items-center gap-2">
-                                        <Users className="w-5 h-5 text-purple-600" />
+                                    <h2 className="text-lg font-bold text-[#1E1E1E] dark:text-white flex items-center gap-2">
+                                        <Users className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                                         أداء الموظفين
                                     </h2>
                                     <div className="flex items-center gap-3">
                                         <div className="flex bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-xl p-1 shadow-sm backdrop-blur-sm">
                                             <button
                                                 onClick={() => setTeamViewMode('grid')}
+                                                aria-label="عرض شبكي"
                                                 className={cn(
                                                     "p-1.5 rounded-lg transition-all",
                                                     teamViewMode === 'grid'
@@ -764,6 +620,7 @@ export default function TeamPage() {
                                             </button>
                                             <button
                                                 onClick={() => setTeamViewMode('list')}
+                                                aria-label="عرض قائمة"
                                                 className={cn(
                                                     "p-1.5 rounded-lg transition-all",
                                                     teamViewMode === 'list'
@@ -774,7 +631,7 @@ export default function TeamPage() {
                                                 <Users className="w-4 h-4" />
                                             </button>
                                         </div>
-                                        <span className="text-sm text-[#6B6B6B]">{leaderboard.length} موظف</span>
+                                        <span className="text-sm text-[#6B6B6B] dark:text-gray-400">{leaderboard.length} موظف</span>
                                     </div>
                                 </div>
 
@@ -798,12 +655,12 @@ export default function TeamPage() {
                             {/* Activity Feed */}
                             <div className="lg:col-span-1">
                                 <PastelCard className="overflow-hidden">
-                                    <div className="p-4 border-b border-[#E8E4DC] flex items-center justify-between">
+                                    <div className="p-4 border-b border-[#E8E4DC] dark:border-white/10 flex items-center justify-between">
                                         <div className="flex items-center gap-2">
-                                            <div className="w-8 h-8 rounded-xl bg-[#E5F6F3] flex items-center justify-center">
-                                                <Clock className="w-4 h-4 text-teal-600" />
+                                            <div className="w-8 h-8 rounded-xl bg-[#E5F6F3] dark:bg-teal-500/15 flex items-center justify-center">
+                                                <Clock className="w-4 h-4 text-teal-600 dark:text-teal-400" />
                                             </div>
-                                            <h2 className="font-bold text-[#1E1E1E]">آخر النشاطات</h2>
+                                            <h2 className="font-bold text-[#1E1E1E] dark:text-white">آخر النشاطات</h2>
                                         </div>
                                         <span className="relative flex h-2.5 w-2.5">
                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
@@ -813,7 +670,7 @@ export default function TeamPage() {
 
                                     <div className="max-h-[600px] overflow-y-auto p-2">
                                         {activities.length === 0 ? (
-                                            <p className="text-center text-[#9A9A9A] py-8">لا توجد نشاطات</p>
+                                            <p className="text-center text-[#9A9A9A] dark:text-gray-500 py-8">لا توجد نشاطات</p>
                                         ) : (
                                             activities.slice(0, 20).map((activity) => (
                                                 <ActivityItem
@@ -852,7 +709,7 @@ export default function TeamPage() {
                             <EmployeeComparison employees={employeesAdapter} />
                         ) : (
                             <div className="text-center py-20">
-                                <p className="text-[#6B6B6B]">البيانات غير كافية للمقارنة. تحتاج إلى موظفين اثنين على الأقل.</p>
+                                <p className="text-[#6B6B6B] dark:text-gray-400">البيانات غير كافية للمقارنة. تحتاج إلى موظفين اثنين على الأقل.</p>
                             </div>
                         )}
                     </motion.div>

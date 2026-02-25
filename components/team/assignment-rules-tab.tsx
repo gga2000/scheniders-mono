@@ -9,6 +9,7 @@ import { AssignmentRule, mockAssignmentRules, mockEmployees, RuleConditionType, 
 export function AssignmentRulesTab() {
     const [rules, setRules] = useState<AssignmentRule[]>(mockAssignmentRules);
     const [isCreating, setIsCreating] = useState(false);
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
     // Form State
     const [newName, setNewName] = useState('');
@@ -23,6 +24,7 @@ export function AssignmentRulesTab() {
 
     const handleDeleteRule = (id: string) => {
         setRules(rules.filter(r => r.id !== id));
+        setConfirmDeleteId(null);
     };
 
     const handleCreateRule = () => {
@@ -268,12 +270,29 @@ export function AssignmentRulesTab() {
                                 >
                                     {rule.is_active ? <PowerOff className="w-5 h-5" /> : <Power className="w-5 h-5" />}
                                 </button>
-                                <button
-                                    onClick={() => handleDeleteRule(rule.id)}
-                                    className="w-10 h-10 rounded-xl flex items-center justify-center text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
-                                >
-                                    <Trash2 className="w-5 h-5" />
-                                </button>
+                                {confirmDeleteId === rule.id ? (
+                                    <div className="flex items-center gap-1.5 bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-white/10 rounded-xl p-1.5 shadow-lg">
+                                        <button
+                                            onClick={() => handleDeleteRule(rule.id)}
+                                            className="px-2.5 py-1 rounded-lg bg-rose-500 text-white text-xs font-bold hover:bg-rose-600 transition-colors"
+                                        >
+                                            حذف
+                                        </button>
+                                        <button
+                                            onClick={() => setConfirmDeleteId(null)}
+                                            className="px-2.5 py-1 rounded-lg text-xs font-bold text-gray-500 hover:bg-gray-50 dark:hover:bg-white/10 transition-colors"
+                                        >
+                                            إلغاء
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => setConfirmDeleteId(rule.id)}
+                                        className="w-10 h-10 rounded-xl flex items-center justify-center text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
+                                    >
+                                        <Trash2 className="w-5 h-5" />
+                                    </button>
+                                )}
                             </div>
                         </motion.div>
                     );

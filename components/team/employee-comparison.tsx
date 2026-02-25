@@ -60,12 +60,12 @@ function ComparisonRow({
     const colorConfig = pastelColors[pastelColor];
 
     return (
-        <div className="flex items-center gap-4 py-4 border-b border-[#F5F0E8] last:border-0 hover:bg-[#FAF8F5] px-4 -mx-4 transition-colors">
+        <div className="flex items-center gap-4 py-4 border-b border-[#F5F0E8] dark:border-white/5 last:border-0 hover:bg-[#FAF8F5] dark:hover:bg-white/5 px-4 -mx-4 transition-colors">
             {/* Employee 1 value */}
             <div className="w-24 text-left">
                 <span className={cn(
                     "text-xl font-bold transition-colors",
-                    value1 > value2 ? "text-[#1E1E1E]" : "text-[#9A9A9A]"
+                    value1 > value2 ? "text-[#1E1E1E] dark:text-white" : "text-[#9A9A9A] dark:text-gray-500"
                 )}>
                     {value1}
                 </span>
@@ -79,14 +79,14 @@ function ComparisonRow({
                 )}>
                     <Icon className={cn("w-6 h-6", colorConfig.text)} />
                 </div>
-                <span className="text-xs font-medium text-[#6B6B6B] text-center mt-1">{label}</span>
+                <span className="text-xs font-medium text-[#6B6B6B] dark:text-gray-400 text-center mt-1">{label}</span>
             </div>
 
             {/* Employee 2 value */}
             <div className="w-24 text-right">
                 <span className={cn(
                     "text-xl font-bold transition-colors",
-                    value2 > value1 ? "text-[#1E1E1E]" : "text-[#9A9A9A]"
+                    value2 > value1 ? "text-[#1E1E1E] dark:text-white" : "text-[#9A9A9A] dark:text-gray-500"
                 )}>
                     {value2}
                 </span>
@@ -125,9 +125,9 @@ function EmployeeSelector({
                     value={selectedId || ""}
                     onChange={(e) => onSelect(e.target.value)}
                     className={cn(
-                        "w-full px-4 py-3 rounded-2xl bg-white border border-[#E8E4DC]",
-                        "text-sm font-bold text-[#1E1E1E] focus:ring-2 focus:ring-[#FBE38E] outline-none",
-                        "appearance-none cursor-pointer shadow-sm hover:border-[#D6D3D1] transition-all"
+                        "w-full px-4 py-3 rounded-2xl bg-white dark:bg-[#1A1A1A] border border-[#E8E4DC] dark:border-white/10",
+                        "text-sm font-bold text-[#1E1E1E] dark:text-white focus:ring-2 focus:ring-[#FBE38E] dark:focus:ring-amber-500/50 outline-none",
+                        "appearance-none cursor-pointer shadow-sm hover:border-[#D6D3D1] dark:hover:border-white/20 transition-all"
                     )}
                 >
                     <option value="">اختر موظف...</option>
@@ -138,7 +138,7 @@ function EmployeeSelector({
                     ))}
                 </select>
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <ArrowDownRight className="w-4 h-4 text-[#9A9A9A] rotate-45" />
+                    <ArrowDownRight className="w-4 h-4 text-[#9A9A9A] dark:text-gray-500 rotate-45" />
                 </div>
             </div>
 
@@ -154,7 +154,7 @@ function EmployeeSelector({
                                 {selected.avatarUrl ? (
                                     <img src={selected.avatarUrl} alt="" className="w-full h-full object-cover" />
                                 ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-[#1E1E1E]">
+                                    <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-[#1E1E1E] dark:text-white">
                                         {(selected.displayName || selected.email)?.[0]?.toUpperCase()}
                                     </div>
                                 )}
@@ -165,10 +165,10 @@ function EmployeeSelector({
                         )}
                     </div>
 
-                    <h3 className="mt-4 text-xl font-bold text-[#1E1E1E] text-center">
+                    <h3 className="mt-4 text-xl font-bold text-[#1E1E1E] dark:text-white text-center">
                         {selected.displayName || selected.email.split("@")[0]}
                     </h3>
-                    <p className="text-sm text-[#9A9A9A]">{selected.email}</p>
+                    <p className="text-sm text-[#9A9A9A] dark:text-gray-500">{selected.email}</p>
                 </motion.div>
             )}
         </div>
@@ -215,18 +215,18 @@ export function EmployeeComparison({
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-[#E4C1F9] flex items-center justify-center">
-                        <GitCompare className="w-6 h-6 text-purple-700" />
+                    <div className="w-12 h-12 rounded-2xl bg-[#E4C1F9] dark:bg-purple-500/20 flex items-center justify-center">
+                        <GitCompare className="w-6 h-6 text-purple-700 dark:text-purple-400" />
                     </div>
                     <div>
-                        <h2 className="text-2xl font-bold text-[#1E1E1E]">مقارنة الموظفين</h2>
-                        <p className="text-[#6B6B6B]">قارن الأداء وجهاً لوجه</p>
+                        <h2 className="text-2xl font-bold text-[#1E1E1E] dark:text-white">مقارنة الموظفين</h2>
+                        <p className="text-[#6B6B6B] dark:text-gray-400">قارن الأداء وجهاً لوجه</p>
                     </div>
                 </div>
                 {onClose && (
                     <button
                         onClick={onClose}
-                        className="p-3 rounded-2xl hover:bg-white hover:shadow-md transition-all text-[#9A9A9A] hover:text-[#1E1E1E]"
+                        className="p-3 rounded-2xl hover:bg-white dark:hover:bg-white/10 hover:shadow-md transition-all text-[#9A9A9A] dark:text-gray-500 hover:text-[#1E1E1E] dark:hover:text-white"
                     >
                         <X className="w-6 h-6" />
                     </button>
@@ -243,8 +243,8 @@ export function EmployeeComparison({
                 />
 
                 <div className="flex items-center justify-center py-4 md:py-0">
-                    <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center shadow-md border-4 border-[#F5F0E8] z-10">
-                        <span className="text-lg font-black text-[#1E1E1E] italic">VS</span>
+                    <div className="w-14 h-14 rounded-full bg-white dark:bg-[#1A1A1A] flex items-center justify-center shadow-md border-4 border-[#F5F0E8] dark:border-[#121212] z-10">
+                        <span className="text-lg font-black text-[#1E1E1E] dark:text-white italic">VS</span>
                     </div>
                 </div>
 
@@ -265,7 +265,7 @@ export function EmployeeComparison({
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
                     >
-                        <PastelCard className="p-2 md:p-6 mb-6">
+                        <PastelCard className="p-4 md:p-6 mb-6">
                             <div className="group">
                                 {comparisonMetrics.map((metric) => (
                                     <ComparisonRow
@@ -315,10 +315,10 @@ export function EmployeeComparison({
                         animate={{ opacity: 1 }}
                         className="text-center py-12"
                     >
-                        <div className="w-20 h-20 mx-auto mb-4 rounded-3xl bg-white border-dashed border-2 border-[#E8E4DC] flex items-center justify-center">
-                            <Users className="w-8 h-8 text-[#9A9A9A]" />
+                        <div className="w-20 h-20 mx-auto mb-4 rounded-3xl bg-white dark:bg-[#1A1A1A] border-dashed border-2 border-[#E8E4DC] dark:border-white/10 flex items-center justify-center">
+                            <Users className="w-8 h-8 text-[#9A9A9A] dark:text-gray-600" />
                         </div>
-                        <p className="text-[#6B6B6B] font-medium">اختر موظفين للمقارنة وبدء التحدي</p>
+                        <p className="text-[#6B6B6B] dark:text-gray-400 font-medium">اختر موظفين للمقارنة وبدء التحدي</p>
                     </motion.div>
                 )}
             </AnimatePresence>

@@ -14,11 +14,13 @@ export interface BusinessMetrics {
     retention_rate: number; // Percentage
     avg_customer_ltv: number;
     repeat_purchase_rate: number; // Percentage
+    total_orders: number;
+    repeat_customers: number;
 }
 
 export function useBusinessMetrics() {
     return useQuery({
-        queryKey: ["business-metrics"],
+        queryKey: ["business-metrics", "v2"],
         queryFn: async (): Promise<BusinessMetrics> => {
             // Get current date boundaries
             const now = new Date();
@@ -117,6 +119,8 @@ export function useBusinessMetrics() {
                 retention_rate,
                 avg_customer_ltv,
                 repeat_purchase_rate,
+                total_orders,
+                repeat_customers,
             };
         },
         staleTime: 5 * 60 * 1000, // 5 minutes
