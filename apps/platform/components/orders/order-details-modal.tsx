@@ -28,6 +28,9 @@ import { DiscountPresetSelector } from "./discount-preset-selector";
 import { DiscountBadge } from "./discount-badge";
 import { SplitOrderDialog } from "./split-order-dialog";
 import { useOrdersContext } from "@/components/providers/orders-provider";
+import { useOrderDetailsForm, useOrderIdEdit } from "@/hooks/use-order-details-form";
+import { useOrderDetailsState } from "@/hooks/use-order-details-state";
+
 import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { OrderAssignment, OrderDuty, mockEmployees } from "@/lib/team-types";
 import { AvatarPill } from "@/components/ui/avatar-pill";
@@ -104,289 +107,104 @@ export function OrderDetailsModal({
     useEffect(() => {
         setOrder(propOrder);
     }, [propOrder]);
-    const [isEditing, setIsEditing] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-    const [formData, setFormData] = useState<Partial<Order>>({});
-    const [activeTab, setActiveTab] = useState<"details" | "timeline">("details");
-    const [timeline, setTimeline] = useState<OrderStatusHistory[]>([]);
-    const [notes, setNotes] = useState<OrderNote[]>([]);
-    const [loadingTimeline, setLoadingTimeline] = useState(false);
-    const [newNote, setNewNote] = useState("");
-    const [isAddingNote, setIsAddingNote] = useState(false);
-    const [showProductPicker, setShowProductPicker] = useState(false);
-    // Delete confirmation state
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const [deleteCountdown, setDeleteCountdown] = useState(5);
-    const [isDeleting, setIsDeleting] = useState(false);
-    // Return order state
-    const [showReturnModal, setShowReturnModal] = useState(false);
-    const [returnReason, setReturnReason] = useState("");
-    const [deductDeliveryFee, setDeductDeliveryFee] = useState(false);
-    const [isCreatingReturn, setIsCreatingReturn] = useState(false);
-    // Split Order state
-    const [showSplitDialog, setShowSplitDialog] = useState(false);
+
+    const {
+        isEditing,
+        setIsEditing,
+        isSaving,
+        formData,
+        setFormData,
+        handleEdit,
+        handleCancel,
+        handleSave,
+        displayValue,
+        updateFormData,
+        handleRemoveItem,
+        handleUpdateItemQuantity,
+        handleAddItem,
+        handleProductSelect,
+        showProductPicker,
+        setShowProductPicker
+    } = useOrderDetailsForm({
+        order,
+        setOrder,
+        onUpdate,
+        t
+    });
+
+    const {
+        isEditingId,
+        tempOrderId,
+        idError,
+        isCheckingId,
+        showIdWarning,
+        setShowIdWarning,
+        idCountdown,
+        isSavingId,
+        startIdEdit,
+        cancelIdEdit,
+        handleIdChange,
+        initiateIdSave,
+        confirmIdSave
+    } = useOrderIdEdit({
+        order,
+        setOrder,
+        onUpdate,
+        checkOrderIdExists,
+        t
+    });
+
     const { splitOrder } = useOrdersContext();
+    const {
+        activeTab, setActiveTab,
+        timeline, notes, loadingTimeline,
+        newNote, setNewNote, isAddingNote, handleAddNote,
+        isUpdatingStatus, handleStatusChangeForm,
+        showDeleteConfirm, deleteCountdown, isDeleting,
+        handleDeleteClick, handleDeleteConfirm, handleCancelDelete,
+        showReturnModal, setShowReturnModal,
+        returnReason, setReturnReason,
+        deductDeliveryFee, setDeductDeliveryFee,
+        isCreatingReturn, setIsCreatingReturn,
+        showSplitDialog, setShowSplitDialog, handleSplitOrder,
+    } = useOrderDetailsState({
+        order,
+        open,
+        onClose,
+        onUpdate,
+        onStatusUpdate,
+        onGetTimeline,
+        onGetNotes,
+        onAddNote,
+        onDelete,
+        splitOrder,
+        t
+    });
 
-    const handleSplitOrder = async (kept: any[], returned: any[]) => {
-        if (!order || !splitOrder) return;
-        const result = await splitOrder(order.id, kept, returned);
-        if (result.success) {
-            onClose(); // Close modal as the order is now split and changed significantly
-            // Optionally show toast success
-        } else {
-            toast.error(t("toast.splitFailed"), result.error || t("toast.splitFailedDesc"));
-        }
+    const handleStatusChange = (newStatus: Order["status"]) => {
+        handleStatusChangeForm(newStatus, setOrder);
     };
 
-    // ID Edit State
-    const [isEditingId, setIsEditingId] = useState(false);
-    const [tempOrderId, setTempOrderId] = useState("");
-    const [idError, setIdError] = useState<string | null>(null);
-    const [isCheckingId, setIsCheckingId] = useState(false);
-    const [showIdWarning, setShowIdWarning] = useState(false);
-    const [idCountdown, setIdCountdown] = useState(5);
-    const [isSavingId, setIsSavingId] = useState(false);
-    // Date picker state
-    const [showDatePicker, setShowDatePicker] = useState(false);
-    const [tempDate, setTempDate] = useState("");
-
-    // Fetch timeline when tab switches
-    useEffect(() => {
-        if (open && activeTab === "timeline" && order && onGetTimeline) {
-            setLoadingTimeline(true);
-            Promise.all([
-                onGetTimeline(order.id),
-                onGetNotes ? onGetNotes(order.id) : Promise.resolve([]),
-            ]).then(([timelineData, notesData]) => {
-                setTimeline(timelineData);
-                setNotes(notesData);
-                setLoadingTimeline(false);
-            });
-        }
-    }, [open, activeTab, order?.id]);
-
-    // Reset when closed
-    useEffect(() => {
-        if (!open) {
-            setIsEditing(false);
-            setFormData({});
-            setActiveTab("details");
-            setTimeline([]);
-            setNotes([]);
-            setShowDeleteConfirm(false);
-            setDeleteCountdown(5);
-        }
-    }, [open]);
-
-    // Delete countdown timer
-    useEffect(() => {
-        let timer: NodeJS.Timeout;
-        if (showDeleteConfirm && deleteCountdown > 0) {
-            timer = setTimeout(() => setDeleteCountdown(prev => prev - 1), 1000);
-        }
-        return () => clearTimeout(timer);
-    }, [showDeleteConfirm, deleteCountdown]);
-
-    // ID Change Countdown
-    useEffect(() => {
-        let timer: NodeJS.Timeout;
-        if (showIdWarning && idCountdown > 0) {
-            timer = setTimeout(() => setIdCountdown(prev => prev - 1), 1000);
-        }
-        return () => clearTimeout(timer);
-    }, [showIdWarning, idCountdown]);
-
-    const handleDeleteClick = () => {
-        setShowDeleteConfirm(true);
-        setDeleteCountdown(5);
-    };
-
-    const handleDeleteConfirm = async () => {
-        if (!order || !onDelete || deleteCountdown > 0) return;
-        setIsDeleting(true);
-        const result = await onDelete(order.id);
-        setIsDeleting(false);
-        if (result.success) {
-            setShowDeleteConfirm(false);
-            onClose();
-        }
-    };
-
-    const handleCancelDelete = () => {
-        setShowDeleteConfirm(false);
-        setDeleteCountdown(5);
-    };
+    
 
 
 
-    const startIdEdit = () => {
-        setTempOrderId(getBaseOrderId(order?.order_id || ""));
-        setIdError(null);
-        setIsEditingId(true);
-    };
 
-    const cancelIdEdit = () => {
-        setIsEditingId(false);
-        setTempOrderId("");
-        setIdError(null);
-    };
 
-    const handleIdChange = async (val: string) => {
-        setTempOrderId(val);
-        setIdError(null);
 
-        if (!val.trim()) {
-            setIdError(t("orderDetail.idEmpty"));
-            return;
-        }
 
-        if (checkOrderIdExists) {
-            setIsCheckingId(true);
-            const exists = await checkOrderIdExists(val, order?.id);
-            setIsCheckingId(false);
-            if (exists) {
-                setIdError(t("orderDetail.idExists"));
-            }
-        }
-    };
 
-    const initiateIdSave = () => {
-        if (idError || !tempOrderId.trim()) return;
-        if (tempOrderId === order?.order_id) {
-            setIsEditingId(false);
-            return;
-        }
-        setShowIdWarning(true);
-        setIdCountdown(5);
-    };
 
-    const confirmIdSave = async () => {
-        if (!order || !onUpdate) return;
 
-        setIsSavingId(true);
-        const result = await onUpdate(order.id, { order_id: tempOrderId } as Partial<Order>);
-        setIsSavingId(false);
 
-        if (result.success) {
-            setOrder(prev => prev ? { ...prev, order_id: tempOrderId } : prev);
-            setShowIdWarning(false);
-            setIsEditingId(false);
-        } else {
-            toast.error(t("toast.updateFailed"), result.error || t("toast.updateIdFailedDesc"));
-            setShowIdWarning(false);
-        }
-    };
 
     if (!order) return null;
 
-    const handleEdit = () => {
-        setFormData({
-            customer_name: order.customer_name,
-            phone: formatPhoneForDisplay(order.phone),
-            secondary_phone: formatPhoneForDisplay(order.secondary_phone) || "",
-            city: order.city || "",
-            governorate_code: order.governorate_code || "",
-            address_details: order.address_details || "",
-            notes: order.notes || "",
-            internal_notes: order.internal_notes || "",
-            price: order.price,
-            discount_amount: order.discount_amount || 0,
-            payment_status: order.payment_status || "cod",
-            delivery_slot: order.delivery_slot || undefined,
-            delivery_order_id: order.delivery_order_id || "",
-            items: order.items ? [...order.items] : [],
-            created_at: order.created_at,
-        });
-        setIsEditing(true);
-    };
-
-    const handleCancel = () => {
-        setIsEditing(false);
-        setFormData({});
-    };
-
-    const handleSave = async () => {
-        setIsSaving(true);
-
-        // If date is being modified and original_created_at is not already set
-        const dataToSave = { ...formData };
-        const dateActuallyChanged = dataToSave.created_at &&
-            new Date(dataToSave.created_at).getTime() !== new Date(order.created_at).getTime();
-        if (dateActuallyChanged && !order.original_created_at) {
-            dataToSave.original_created_at = order.created_at;
-        }
-
-        const result = await onUpdate(order.id, dataToSave);
-
-        if (result.success) {
-            // Update local order state with new values immediately
-            setOrder((prev) => prev ? { ...prev, ...dataToSave } as Order : prev);
-            setIsEditing(false);
-            setFormData({});
-            toast.success(t("toast.orderUpdated"), t("toast.orderUpdatedDesc"));
-        } else {
-            toast.error(t("toast.saveFailed"), result.error || t("orderDetail.saveFailed"));
-        }
-
-        setIsSaving(false);
-    };
 
 
-    const handleAddNote = async () => {
-        if (!newNote.trim() || !onAddNote || !order) return;
 
-        setIsAddingNote(true);
-        const result = await onAddNote(order.id, newNote);
 
-        if (result.success) {
-            setNewNote("");
-            // Refresh timeline/notes
-            if (onGetNotes) {
-                const updatedNotes = await onGetNotes(order.id);
-                setNotes(updatedNotes);
-            }
-            toast.success(t("toast.noteAdded"), t("toast.noteAddedDesc"));
-        } else {
-            toast.error(t("toast.noteFailed"), result.error || t("orderDetail.noteFailed"));
-        }
-        setIsAddingNote(false);
-    };
 
-    const handleStatusChange = async (newStatus: Order["status"]) => {
-        if (!onStatusUpdate || !order) return;
-
-        setIsUpdatingStatus(true);
-
-        const previousStatus = order.status;
-
-        // Optimistic update
-        setOrder(prev => prev ? { ...prev, status: newStatus } : null);
-
-        let rejectionReason: string | undefined;
-        if (newStatus === "cancelled") {
-            const promptResult = prompt(t("orderDetail.cancelReason"));
-            if (promptResult === null) {
-                // User cancelled, revert
-                setOrder(prev => prev ? { ...prev, status: previousStatus } : null);
-                setIsUpdatingStatus(false);
-                return;
-            }
-            rejectionReason = promptResult;
-        }
-
-        const result = await onStatusUpdate(order.id, newStatus, rejectionReason);
-
-        if (!result.success) {
-            toast.error(t("toast.statusFailed"), result.error || t("orderDetail.statusFailed"));
-            // Revert on failure
-            setOrder(prev => prev ? { ...prev, status: previousStatus } : null);
-        } else {
-            toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDesc").replace("{status}", String(newStatus)));
-        }
-
-        setIsUpdatingStatus(false);
-    };
 
     const handleWhatsApp = () => {
         const link = generateWhatsAppLink(
@@ -396,63 +214,11 @@ export function OrderDetailsModal({
         window.open(link, "_blank");
     };
 
-    const displayValue = (key: keyof Order) => {
-        if (isEditing && key in formData) {
-            return formData[key];
-        }
-        return order[key];
-    };
 
-    const updateFormData = (key: string, value: any) => {
-        setFormData((prev) => ({ ...prev, [key]: value }));
-    };
 
-    // Helper to remove an item from the order
-    const handleRemoveItem = (indexToRemove: number) => {
-        const currentItems = (formData.items || order.items || []) as any[];
-        const updatedItems = currentItems.filter((_, idx) => idx !== indexToRemove);
-        // Recalculate total
-        const newTotal = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-        setFormData((prev) => ({
-            ...prev,
-            items: updatedItems,
-            price: newTotal
-        }));
-    };
 
-    // Helper to update item quantity
-    const handleUpdateItemQuantity = (index: number, newQuantity: number) => {
-        if (newQuantity < 1) return;
-        const currentItems = [...((formData.items || order.items || []) as any[])];
-        currentItems[index] = { ...currentItems[index], quantity: newQuantity };
-        // Recalculate total
-        const newTotal = currentItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-        setFormData((prev) => ({
-            ...prev,
-            items: currentItems,
-            price: newTotal
-        }));
-    };
 
-    // Helper to open product picker
-    const handleAddItem = () => {
-        setShowProductPicker(true);
-    };
 
-    // Handle product selection from picker
-    const handleProductSelect = (product: { name: string; price: number; quantity: number; image_url?: string }) => {
-        setFormData((prev) => {
-            const currentItems = [...((prev.items || order.items || []) as any[])];
-            currentItems.push(product);
-            // Recalculate total
-            const newTotal = currentItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            return {
-                ...prev,
-                items: currentItems,
-                price: newTotal
-            };
-        });
-    };
 
     const getStatusBadgeStyle = () => {
         switch (order.status) {

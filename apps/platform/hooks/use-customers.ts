@@ -2,54 +2,16 @@
 
 import { useMemo } from "react";
 import { Order } from "@/lib/supabase";
-import { CustomerTag, CustomerTagAssignment, CustomerMetadata, CustomerStatus } from "@/lib/customer-types";
+import type { CustomerTag, CustomerTagAssignment, CustomerMetadata } from "@/lib/customer-types";
 import {
     useAllTagAssignmentsQuery,
     useAllMetadataQuery,
     useBlacklistQuery
 } from "@/hooks/use-customers-query";
+import type { Customer, CustomerFilters, GeoDistribution, CustomerGrowth } from "@/types/customer";
 
-export interface Customer {
-    id: string;
-    name: string;
-    phone: string;
-    city?: string;
-    governorate?: string;
-    totalOrders: number;
-    totalSpent: number;
-    lastOrderDate: string;
-    firstOrderDate: string;
-    orders: Order[];
-    status: CustomerStatus;
-    favoriteProducts: { name: string; count: number }[];
-    tags?: CustomerTag[];
-    metadata?: CustomerMetadata;
-    isBlacklisted?: boolean;
-}
-
-export interface CustomerFilters {
-    status?: CustomerStatus | "all";
-    city?: string;
-    dateRange?: { start: string; end: string };
-    minSpend?: number;
-    maxSpend?: number;
-    productName?: string;
-    search?: string;
-    sortBy?: "name" | "orders" | "spent" | "lastOrder";
-    sortOrder?: "asc" | "desc";
-}
-
-export interface GeoDistribution {
-    city: string;
-    count: number;
-    revenue: number;
-}
-
-export interface CustomerGrowth {
-    date: string;
-    newCustomers: number;
-    totalCustomers: number;
-}
+// Re-export types for backward compatibility (consumers import from this file)
+export type { Customer, CustomerFilters, GeoDistribution, CustomerGrowth };
 
 /**
  * useCustomers hook - now uses React Query
@@ -65,7 +27,7 @@ export function useCustomers(orders: Order[], filters?: CustomerFilters) {
     const tagAssignments = useMemo(() => {
         const map = new Map<string, CustomerTag[]>();
         if (assignmentsData) {
-            assignmentsData.forEach((a: CustomerTagAssignment & { tag: CustomerTag }) => {
+            assignmentsData.forEach((a) => {
                 const existing = map.get(a.customer_phone) || [];
                 if (a.tag) existing.push(a.tag);
                 map.set(a.customer_phone, existing);

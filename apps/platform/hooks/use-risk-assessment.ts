@@ -136,6 +136,7 @@ export function useBatchRiskAssessment(orders: OrderWithPhone[]) {
     // Calculate provisional risk based ONLY on loaded orders
     // This gives 0ms feedback while the RPC runs
     const localRiskMap = useMemo(() => {
+        console.time("[useBatchRiskAssessment] localRiskMap calc");
         const map = new Map<string, RiskAssessment>();
 
         // Group orders by phone (normalized)
@@ -182,6 +183,7 @@ export function useBatchRiskAssessment(orders: OrderWithPhone[]) {
             }
         });
 
+        console.timeEnd("[useBatchRiskAssessment] localRiskMap calc");
         return map;
     }, [orders]);
 

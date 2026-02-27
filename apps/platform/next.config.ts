@@ -23,6 +23,18 @@ const nextConfig: NextConfig = {
       "@radix-ui/react-dialog",
       "@radix-ui/react-dropdown-menu",
       "@radix-ui/react-select",
+      "@radix-ui/react-popover",
+      "@radix-ui/react-slot",
+      "@radix-ui/react-toast",
+      "@radix-ui/react-switch",
+      "exceljs",
+      "html2canvas",
+      "jspdf",
+      "jspdf-autotable",
+      "@tanstack/react-virtual",
+      "zustand",
+      "xlsx",
+      "sonner"
     ],
   },
 

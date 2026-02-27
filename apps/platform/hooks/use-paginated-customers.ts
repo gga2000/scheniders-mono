@@ -3,6 +3,7 @@
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CustomerStatus } from "@/lib/customer-types";
+import { CACHE_PRESETS } from '@/lib/query-config';
 
 export interface PaginatedCustomerFilters {
     status?: CustomerStatus | "all";
@@ -107,7 +108,8 @@ export function usePaginatedCustomers(
             };
         },
         getNextPageParam: (lastPage) => lastPage.nextPage,
-        staleTime: 1000 * 60 * 5, // 5 minutes fresh
+        staleTime: CACHE_PRESETS.PAGINATION.staleTime,
+        gcTime: CACHE_PRESETS.PAGINATION.gcTime,
     });
 }
 
@@ -144,6 +146,7 @@ export function useCustomerDashboardStats() {
                 new_count: Number(stats.new_count),
             };
         },
-        staleTime: 1000 * 60 * 15, // 15 mins fresh, these don't change wildly second to second
+        staleTime: CACHE_PRESETS.PAGINATION.staleTime,
+        gcTime: CACHE_PRESETS.PAGINATION.gcTime,
     });
 }

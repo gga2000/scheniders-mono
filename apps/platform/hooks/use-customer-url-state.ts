@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { PaginatedCustomerFilters } from "@/hooks/use-paginated-customers";
 import { CustomerStatus } from "@/lib/customer-types";
@@ -13,14 +13,16 @@ interface CustomerUrlState extends PaginatedCustomerFilters {
 /**
  * Hook to strictly sync Customer Page state (filters, search, selected customer)
  * deeply into the URL so state survives reloads and links are shareable.
+ * 
+ * OPTIMIZED: Derives state strictly from URL to prevent Render Cascades.
  */
 export function useCustomerUrlState() {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
 
-    // Parse initial state from URL
-    const getInitialState = (): CustomerUrlState => ({
+    // 1. Derive active state directly from the URL on every render
+    const state: CustomerUrlState = {
         search: searchParams.get("search") || "",
         status: (searchParams.get("status") as CustomerStatus | "all") || "all",
         city: searchParams.get("city") || "",
@@ -31,16 +33,13 @@ export function useCustomerUrlState() {
         maxLtv: searchParams.has("maxLtv") ? Number(searchParams.get("maxLtv")) : undefined,
         lastOrderWithinDays: searchParams.has("withinDays") ? Number(searchParams.get("withinDays")) : undefined,
         tagId: searchParams.get("tagId") || undefined,
-    });
+    };
 
-    const [state, setState] = useState<CustomerUrlState>(getInitialState);
-    const debouncedSearch = useDebounce(state.search || "", 300);
+    // 2. Local search tracking strictly for fast typing UI
+    const [localSearch, setLocalSearch] = useState(state.search || "");
+    const debouncedSearch = useDebounce(localSearch, 300);
 
-    // Update URL when state changes (debounced for search)
-    // We remove useCallback and useEffect to avoid dependency loop issues that trigger React re-renders.
-    // Instead we only push to the router when we EXPLICITLY set a state, rather than reacting to it.
-
-    // Helper to safely update the URL without causing infinite loops
+    // Helper to push URL safely
     const pushStateToUrl = (key: string, value: string | null) => {
         const params = new URLSearchParams(searchParams.toString());
         if (value === null || value === "" || value === "all") {
@@ -53,35 +52,24 @@ export function useCustomerUrlState() {
         const currentQueryString = searchParams.toString();
 
         if (newQueryString !== currentQueryString) {
-            const newUrl = `${pathname}${newQueryString ? `?${newQueryString}` : ''}`;
-            router.replace(newUrl, { scroll: false });
+            router.replace(`${pathname}${newQueryString ? `?${newQueryString}` : ''}`, { scroll: false });
         }
     };
 
-    // Helpers to update individual pieces AND the URL simultaneously to prevent loops
-    const setSearch = (search: string) => {
-        setState(prev => ({ ...prev, search }));
-        // Note: we don't push URL here immediately, we let the debounced value handle it below
-    };
-
-    // React to debounced search changing
+    // 3. Sync debounced search to URL
     useEffect(() => {
-        pushStateToUrl("search", debouncedSearch || null);
-    }, [debouncedSearch]);
+        if (debouncedSearch !== state.search) {
+            pushStateToUrl("search", debouncedSearch || null);
+        }
+    }, [debouncedSearch, state.search]); // Depend on derived state to prevent loops
 
-    const setStatus = (status: CustomerStatus | "all") => {
-        setState(prev => ({ ...prev, status }));
-        pushStateToUrl("status", status);
-    };
-
-    const setCity = (city: string) => {
-        setState(prev => ({ ...prev, city }));
-        pushStateToUrl("city", city);
-    };
+    // Setters just push to the URL. React will handle the re-render.
+    const setSearch = (search: string) => setLocalSearch(search);
+    const setStatus = (status: CustomerStatus | "all") => pushStateToUrl("status", status);
+    const setCity = (city: string) => pushStateToUrl("city", city);
+    const setSelectedCustomer = (customerId: string | null) => pushStateToUrl("customer", customerId);
 
     const setSort = (sortBy: CustomerUrlState["sortBy"], sortOrder: "asc" | "desc") => {
-        setState(prev => ({ ...prev, sortBy, sortOrder }));
-
         const params = new URLSearchParams(searchParams.toString());
         if (sortBy === "last_order_date") params.delete("sortBy");
         else params.set("sortBy", sortBy || "");
@@ -92,26 +80,16 @@ export function useCustomerUrlState() {
         router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     };
 
-    const setSelectedCustomer = (customerId: string | null) => {
-        setState(prev => ({ ...prev, customerId }));
-        pushStateToUrl("customer", customerId);
-    };
-
-    // Advanced Setters
     const setAdvancedFilters = (filters: Pick<CustomerUrlState, "minLtv" | "maxLtv" | "lastOrderWithinDays" | "tagId">) => {
-        setState(prev => ({ ...prev, ...filters }));
         const params = new URLSearchParams(searchParams.toString());
-
         if (filters.minLtv !== undefined) params.set("minLtv", filters.minLtv.toString()); else params.delete("minLtv");
         if (filters.maxLtv !== undefined) params.set("maxLtv", filters.maxLtv.toString()); else params.delete("maxLtv");
         if (filters.lastOrderWithinDays !== undefined) params.set("withinDays", filters.lastOrderWithinDays.toString()); else params.delete("withinDays");
         if (filters.tagId) params.set("tagId", filters.tagId); else params.delete("tagId");
-
         router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     };
 
     const clearAdvancedFilters = () => {
-        setState(prev => ({ ...prev, minLtv: undefined, maxLtv: undefined, lastOrderWithinDays: undefined, tagId: undefined }));
         const params = new URLSearchParams(searchParams.toString());
         params.delete("minLtv");
         params.delete("maxLtv");
@@ -123,9 +101,9 @@ export function useCustomerUrlState() {
     return {
         state: {
             ...state,
-            search: debouncedSearch // Expose the debounced version for actual fetching
+            search: state.search // Exposed true URL state for fetchers
         },
-        rawSearch: state.search, // Expose raw for the input field instantly
+        rawSearch: localSearch, // Instant view for search box
         setSearch,
         setStatus,
         setCity,

@@ -1,0 +1,1195 @@
+"use client";
+
+import { useState, useRef, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/components/auth/auth-provider";
+import {
+    supabase,
+    type Order,
+    type OrderNote,
+    type OrderStatusHistory,
+    type FollowUpReminder,
+    type OrderPriority,
+    type PaymentStatus,
+} from "@/lib/supabase";
+import { normalizeOrder } from "@/lib/order-normalize-utils";
+import { cleanPhoneForExport } from "@/lib/export-utils";
+import { activityLogger } from "@/lib/activity-logger";
+import { OrderSchema } from "@/lib/schemas";
+import { createOrderAction, splitOrderAction } from "@/app/actions/orders";
+import { SyncQueue } from "@/lib/sync-queue";
+import {
+    useUpdateStatusMutation,
+    useUpdateOrderMutation,
+    useDeleteOrderMutation,
+    useCreateOrderMutation,
+    orderKeys
+} from "@/hooks/use-orders-query";
+
+// =============================================
+// ORDER CRUD HOOK
+// All create/read/update/delete operations,
+// bulk operations, undo, notes, timeline,
+// reminders, batch, export, and more.
+// =============================================
+
+interface UndoEntry {
+    orderId: string;
+    previousState: Partial<Order>;
+    action: string;
+    timestamp: Date;
+}
+
+interface UseOrderCrudOptions {
+    orders: Order[];
+    setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
+}
+
+export function useOrderCrud({ orders, setOrders }: UseOrderCrudOptions) {
+    const queryClient = useQueryClient();
+    const { user, profile } = useAuth();
+
+    // Mutations
+    const updateStatusMutation = useUpdateStatusMutation();
+    const updateOrderMutation = useUpdateOrderMutation();
+    const deleteOrderMutation = useDeleteOrderMutation();
+    const createOrderMutation = useCreateOrderMutation();
+
+    // Undo stack
+    const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
+    const MAX_UNDO_STACK = 10;
+
+    // Abort controller for fetch
+    const abortControllerRef = useRef<AbortController | null>(null);
+    const isMountedRef = useRef(true);
+
+    // =============================================
+    // LEGACY FETCH (kept for backward compat)
+    // =============================================
+
+    async function fetchOrders(isInitialLoad: boolean = false) {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+
+        try {
+            const { data, error: fetchError } = await supabase
+                .from("orders")
+                .select("*")
+                .eq("is_archived", false)
+                .order("created_at", { ascending: false })
+                .abortSignal(controller.signal);
+
+            if (controller.signal.aborted) return;
+            if (!isMountedRef.current) return;
+            if (fetchError) throw fetchError;
+
+            const ordersWithDefaults = (data || []).map(normalizeOrder);
+            setOrders(ordersWithDefaults);
+        } catch (err) {
+            if (err instanceof Error && err.name === 'AbortError') return;
+            if (isMountedRef.current && !controller.signal.aborted) {
+                console.error("Error fetching orders:", err);
+            }
+        }
+    }
+
+    async function fetchArchivedOrders() {
+        try {
+            const { data, error: fetchError } = await supabase
+                .from("orders")
+                .select("*")
+                .eq("is_archived", true)
+                .order("created_at", { ascending: false });
+
+            if (fetchError) throw fetchError;
+
+            const ordersWithDefaults = (data || []).map(normalizeOrder);
+            return { success: true, count: ordersWithDefaults.length };
+        } catch (err) {
+            console.error("Error fetching archived orders:", err);
+            return { success: false, error: err instanceof Error ? err.message : "Failed to fetch archived orders" };
+        }
+    }
+
+    // =============================================
+    // SINGLE ORDER OPERATIONS
+    // =============================================
+
+    async function updateOrderStatus(
+        orderId: string,
+        status: Order["status"],
+        rejectionReason?: string
+    ) {
+        try {
+            const previousOrder = orders.find(o => o.id === orderId);
+            if (previousOrder) {
+                const undoEntry = {
+                    orderId,
+                    previousState: {
+                        status: previousOrder.status,
+                        rejection_reason: previousOrder.rejection_reason,
+                    },
+                    action: `Changed status to ${status} `,
+                    timestamp: new Date(),
+                };
+                setUndoStack(prev => [undoEntry, ...prev.slice(0, MAX_UNDO_STACK - 1)]);
+            }
+
+            const { updateData } = await updateStatusMutation.mutateAsync({
+                orderId,
+                status,
+                rejectionReason
+            });
+
+            // Handle Advanced Inventory & Supplies based on Status Changes
+            if (previousOrder && previousOrder.status !== status) {
+                import("@/lib/inventory-engine").then(engine => {
+                    const items = previousOrder.items || [];
+                    const prevWasActive = !['completed', 'delivered', 'rejected', 'refund_delivered', 'refund_failed', 'cancelled'].includes(previousOrder.status);
+                    const nowIsActive = !['completed', 'delivered', 'rejected', 'refund_delivered', 'refund_failed', 'cancelled'].includes(status);
+
+                    if (status === 'completed' || status === 'delivered') {
+                        engine.fulfillOrder(items);
+                        engine.deductSupplies(items.length);
+                    } else if (status === 'rejected' || status === 'refund_delivered') {
+                        engine.quarantineOrder(orderId, items, rejectionReason || `Changed to ${status}`);
+                    } else if (status === 'cancelled' && prevWasActive) {
+                        engine.releaseAllocation(items);
+                    } else if (nowIsActive && !prevWasActive) {
+                        if (previousOrder.status === 'rejected' || previousOrder.status === 'refund_delivered' || previousOrder.status === 'cancelled') {
+                            engine.removeFromQuarantine(orderId);
+                        }
+                        engine.allocateOrder(items);
+                    }
+                }).catch(console.error);
+            }
+
+            // Record status change to history table
+            if (previousOrder && previousOrder.status !== status) {
+                supabase
+                    .from("order_status_history")
+                    .insert([{
+                        order_id: orderId,
+                        from_status: previousOrder.status,
+                        to_status: status,
+                        changed_at: new Date().toISOString(),
+                        notes: rejectionReason || null,
+                        changed_by: profile?.display_name || user?.email || 'System',
+                    }]).then(({ error }) => {
+                        if (error) console.error("Failed to record status history:", error);
+                    });
+            }
+
+            // Log activity
+            if (previousOrder && previousOrder.status !== status) {
+                activityLogger.logStatusChange(
+                    orderId,
+                    previousOrder.order_id,
+                    previousOrder.status,
+                    status,
+                    rejectionReason
+                );
+            }
+
+            return { success: true };
+        } catch (err) {
+            console.error("Error updating order:", err);
+            return {
+                success: false,
+                error: err instanceof Error ? err.message : "Failed to update order",
+            };
+        }
+    }
+
+    async function updateOrder(orderId: string, updates: Partial<Order>, retryCount = 0): Promise<{ success: boolean; error?: string }> {
+        try {
+            const cleanUpdates = { ...updates };
+            delete (cleanUpdates as any).customer;
+
+            await updateOrderMutation.mutateAsync({
+                orderId,
+                updates: cleanUpdates
+            });
+
+            return { success: true };
+        } catch (err) {
+            console.error("Error updating order:", err);
+            return {
+                success: false,
+                error: err instanceof Error ? err.message : "Failed to update order",
+            };
+        }
+    }
+
+    async function createOrder(orderData: Omit<Order, "id" | "created_at" | "updated_at">): Promise<{ success: boolean; data?: Order; error?: string }> {
+        try {
+            const validationResult = OrderSchema.safeParse({
+                ...orderData,
+                items: orderData.items || [],
+            });
+
+            if (!validationResult.success) {
+                const errorMessage = validationResult.error.issues.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
+                console.error("Validation failed:", errorMessage);
+                return { success: false, error: `Validation Error: ${errorMessage}` };
+            }
+
+            // Offline handling
+            if (!navigator.onLine) {
+                console.log("Offline: Queuing order creation");
+                const tempId = `temp-${Date.now()}`;
+                const offlineOrder = { ...orderData, id: tempId, created_at: new Date().toISOString() } as Order;
+
+                await SyncQueue.enqueue({
+                    type: "CREATE_ORDER",
+                    payload: orderData,
+                });
+
+                queryClient.setQueryData<Order[]>(["orders", "list"], (old) => {
+                    return [offlineOrder, ...(old || [])];
+                });
+
+                setOrders(prev => [offlineOrder, ...prev]);
+                return { success: true, data: offlineOrder };
+            }
+
+            // Calculate risk assessment before creation
+            try {
+                if (orderData.phone) {
+                    const { fraudDetector } = await import("@/lib/fraud-detector");
+                    const riskAssessment = await fraudDetector.assessCustomerRisk(orderData.phone);
+                    const riskPayload = fraudDetector.getPersistencePayload(riskAssessment);
+
+                    // @ts-ignore - risk_metadata is added to schema but TypeScript might lag
+                    orderData.risk_metadata = riskPayload;
+
+                    if (riskAssessment.level === 'high' || riskAssessment.level === 'blocked') {
+                        // @ts-ignore
+                        orderData.needs_attention = true;
+                        // @ts-ignore
+                        orderData.attention_reasons = [...(orderData.attention_reasons || []), 'high_risk_customer'];
+                    }
+                }
+            } catch (riskErr) {
+                console.error("Error calculating initial risk:", riskErr);
+            }
+
+            const data = await createOrderMutation.mutateAsync(orderData);
+
+            // Handle Advanced Inventory
+            import("@/lib/inventory-engine").then(engine => {
+                engine.allocateOrder(orderData.items || []);
+            }).catch(console.error);
+
+            activityLogger.logOrderCreate(
+                data.id,
+                data.order_id,
+                orderData.source || "manual"
+            );
+
+            return { success: true, data };
+        } catch (err) {
+            console.error("Error creating order:", err);
+            return {
+                success: false,
+                error: err instanceof Error ? err.message : "Failed to create order",
+            };
+        }
+    }
+
+    async function cloneOrder(orderId: string) {
+        try {
+            const originalOrder = orders.find(o => o.id === orderId);
+            if (!originalOrder) {
+                return { success: false, error: "Order not found" };
+            }
+
+            const newOrderId = `CLN - ${originalOrder.order_id} -${Date.now().toString(36).toUpperCase()} `;
+
+            const clonedOrderData = {
+                order_id: newOrderId,
+                customer_name: originalOrder.customer_name,
+                phone: originalOrder.phone,
+                secondary_phone: originalOrder.secondary_phone,
+                city: originalOrder.city,
+                governorate_code: originalOrder.governorate_code,
+                address_details: originalOrder.address_details,
+                price: originalOrder.price,
+                items: originalOrder.items,
+                notes: `Cloned from order #${originalOrder.order_id} `,
+                status: "new" as const,
+                priority: "normal" as const,
+                payment_status: originalOrder.payment_status || "cod",
+                is_return: false,
+                is_archived: false,
+            };
+
+            return createOrder(clonedOrderData);
+        } catch (err) {
+            console.error("Error cloning order:", err);
+            return {
+                success: false,
+                error: err instanceof Error ? err.message : "Failed to clone order",
+            };
+        }
+    }
+
+    async function splitOrder(originalOrderId: string, keptItems: any[], returnedItems: any[]): Promise<{ success: boolean; error?: string }> {
+        try {
+            const originalOrder = orders.find(o => o.id === originalOrderId);
+
+            const result = await splitOrderAction(originalOrderId, keptItems, returnedItems);
+
+            if (result.success) {
+                await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+
+                if (originalOrder) {
+                    const calculateTotal = (items: any[]) => items.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
+                    const keptTotal = calculateTotal(keptItems);
+                    const returnedTotal = calculateTotal(returnedItems);
+
+                    activityLogger.log({
+                        action: 'order.edit',
+                        entityType: 'order',
+                        entityId: originalOrderId,
+                        details: {
+                            order_id: originalOrder.order_id,
+                            note: `Split order: Kept ${keptItems.length} items (${keptTotal}), Returned ${returnedItems.length} items (${returnedTotal}). New Return Order: ${result.data?.order_id || 'Generated'}`
+                        }
+                    });
+                }
+
+                return { success: true };
+            } else {
+                return {
+                    success: false,
+                    error: result.error || "Failed to split order"
+                };
+            }
+        } catch (err) {
+            console.error("Split order failed:", err);
+            return {
+                success: false,
+                error: err instanceof Error ? err.message : "Failed to split order"
+            };
+        }
+    }
+
+    // =============================================
+    // SCHEDULED DELIVERY DATE
+    // =============================================
+
+    async function setScheduledDate(
+        orderId: string,
+        date: Date | "tomorrow" | "+2days" | null
+    ) {
+        let scheduledDate: string | null = null;
+
+        if (date === "tomorrow") {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            scheduledDate = tomorrow.toISOString().split("T")[0];
+        } else if (date === "+2days") {
+            const twoDays = new Date();
+            twoDays.setDate(twoDays.getDate() + 2);
+            scheduledDate = twoDays.toISOString().split("T")[0];
+        } else if (date instanceof Date) {
+            scheduledDate = date.toISOString().split("T")[0];
+        }
+
+        return updateOrder(orderId, { scheduled_date: scheduledDate || undefined });
+    }
+
+    async function setPriority(orderId: string, priority: OrderPriority) {
+        return updateOrder(orderId, { priority });
+    }
+
+    async function setPaymentStatus(orderId: string, paymentStatus: PaymentStatus) {
+        return updateOrder(orderId, { payment_status: paymentStatus });
+    }
+
+    // =============================================
+    // PIN ORDERS
+    // =============================================
+
+    async function togglePin(orderId: string) {
+        const order = orders.find(o => o.id === orderId);
+        if (!order) return { success: false, error: "Order not found" };
+
+        const newPinnedState = !order.is_pinned;
+
+        setOrders((prev) =>
+            prev.map((o) =>
+                o.id === orderId ? { ...o, is_pinned: newPinnedState } : o
+            )
+        );
+
+        try {
+            const { error } = await supabase
+                .from("orders")
+                .update({ is_pinned: newPinnedState })
+                .eq("id", orderId);
+
+            if (error) throw error;
+            return { success: true };
+        } catch (err) {
+            console.error("Error toggling pin:", err);
+            setOrders((prev) =>
+                prev.map((o) =>
+                    o.id === orderId ? { ...o, is_pinned: !newPinnedState } : o
+                )
+            );
+            return { success: false, error: err instanceof Error ? err.message : "Failed to toggle pin" };
+        }
+    }
+
+    async function setPin(orderId: string, isPinned: boolean) {
+        setOrders((prev) =>
+            prev.map((o) =>
+                o.id === orderId ? { ...o, is_pinned: isPinned } : o
+            )
+        );
+
+        try {
+            const { error } = await supabase
+                .from("orders")
+                .update({ is_pinned: isPinned })
+                .eq("id", orderId);
+
+            if (error) throw error;
+            return { success: true };
+        } catch (err) {
+            console.error("Error setting pin:", err);
+            setOrders((prev) =>
+                prev.map((o) =>
+                    o.id === orderId ? { ...o, is_pinned: !isPinned } : o
+                )
+            );
+            return { success: false, error: err instanceof Error ? err.message : "Failed to set pin" };
+        }
+    }
+
+    // =============================================
+    // REVIEW / VERIFIED
+    // =============================================
+
+    async function toggleReviewed(orderId: string) {
+        const order = orders.find(o => o.id === orderId);
+        if (!order) return { success: false, error: "Order not found" };
+
+        const newReviewedState = !order.is_reviewed;
+
+        setOrders((prev) =>
+            prev.map((o) =>
+                o.id === orderId ? { ...o, is_reviewed: newReviewedState } : o
+            )
+        );
+
+        try {
+            const { error } = await supabase
+                .from("orders")
+                .update({ is_reviewed: newReviewedState })
+                .eq("id", orderId);
+
+            if (error) throw error;
+            return { success: true };
+        } catch (err) {
+            console.error("Error toggling reviewed:", err);
+            setOrders((prev) =>
+                prev.map((o) =>
+                    o.id === orderId ? { ...o, is_reviewed: !newReviewedState } : o
+                )
+            );
+            return { success: false, error: err instanceof Error ? err.message : "Failed to toggle reviewed" };
+        }
+    }
+
+    async function markAsVerifiedCustomer(orderId: string) {
+        const order = orders.find(o => o.id === orderId);
+        if (!order) return { success: false, error: "Order not found" };
+
+        const phone = order.phone;
+        setOrders((prev) =>
+            prev.map((o) =>
+                o.phone === phone ? { ...o, is_verified_customer: true } : o
+            )
+        );
+
+        try {
+            const { error } = await supabase
+                .from("orders")
+                .update({ is_verified_customer: true })
+                .eq("phone", phone);
+
+            if (error) throw error;
+            return { success: true };
+        } catch (err) {
+            console.error("Error marking as verified customer:", err);
+            setOrders((prev) =>
+                prev.map((o) =>
+                    o.phone === phone ? { ...o, is_verified_customer: false } : o
+                )
+            );
+            return { success: false, error: err instanceof Error ? err.message : "Failed to mark as verified" };
+        }
+    }
+
+    // =============================================
+    // BULK OPERATIONS
+    // =============================================
+
+    async function bulkUpdateStatus(orderIds: string[], status: Order["status"]) {
+        try {
+            const previousOrders = orders.filter(o => orderIds.includes(o.id));
+
+            const { error: updateError } = await supabase
+                .from("orders")
+                .update({ status })
+                .in("id", orderIds);
+
+            if (updateError) throw updateError;
+
+            // Handle Advanced Inventory & Supplies for each order
+            import("@/lib/inventory-engine").then(engine => {
+                const nowIsActive = !['completed', 'delivered', 'rejected', 'refund_delivered', 'refund_failed', 'cancelled'].includes(status);
+
+                previousOrders.forEach(previousOrder => {
+                    const items = previousOrder.items || [];
+                    const prevWasActive = !['completed', 'delivered', 'rejected', 'refund_delivered', 'refund_failed', 'cancelled'].includes(previousOrder.status);
+
+                    if (status === 'completed' || status === 'delivered') {
+                        engine.fulfillOrder(items);
+                        engine.deductSupplies(items.length);
+                    } else if (status === 'rejected' || status === 'refund_delivered') {
+                        engine.quarantineOrder(previousOrder.id, items, `Bulk changed to ${status}`);
+                    } else if (status === 'cancelled' && prevWasActive) {
+                        engine.releaseAllocation(items);
+                    } else if (nowIsActive && !prevWasActive) {
+                        engine.allocateOrder(items);
+                    }
+                });
+            }).catch(console.error);
+
+            setOrders((prev) =>
+                prev.map((order) =>
+                    orderIds.includes(order.id) ? { ...order, status } : order
+                )
+            );
+
+            return { success: true, count: orderIds.length };
+        } catch (err) {
+            console.error("Error bulk updating orders:", err);
+            return {
+                success: false,
+                error: err instanceof Error ? err.message : "Failed to bulk update",
+            };
+        }
+    }
+
+    async function bulkArchive(orderIds: string[]) {
+        try {
+            const { error: updateError } = await supabase
+                .from("orders")
+                .update({ is_archived: true })
+                .in("id", orderIds);
+
+            if (updateError) throw updateError;
+
+            setOrders((prev) => prev.filter((order) => !orderIds.includes(order.id)));
+            return { success: true, count: orderIds.length };
+        } catch (err) {
+            console.error("Error archiving orders:", err);
+            return {
+                success: false,
+                error: err instanceof Error ? err.message : "Failed to archive orders",
+            };
+        }
+    }
+
+    async function bulkUnarchive(orderIds: string[]) {
+        try {
+            const { error: updateError } = await supabase
+                .from("orders")
+                .update({ is_archived: false })
+                .in("id", orderIds);
+
+            if (updateError) throw updateError;
+
+            await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+            return { success: true, count: orderIds.length };
+        } catch (err) {
+            console.error("Error unarchiving orders:", err);
+            return {
+                success: false,
+                error: err instanceof Error ? err.message : "Failed to unarchive orders",
+            };
+        }
+    }
+
+    async function bulkDelete(orderIds: string[]) {
+        try {
+            const uniqueOrderIds = Array.from(new Set(orderIds));
+            if (uniqueOrderIds.length === 0) {
+                return { success: true, count: 0 };
+            }
+
+            const { error: unlinkError } = await supabase
+                .from("orders")
+                .update({ original_order_id: null })
+                .in("original_order_id", uniqueOrderIds);
+
+            if (unlinkError) console.warn("Error unlinking child orders:", unlinkError);
+
+            const { data: deletedRows, error: deleteError } = await supabase
+                .from("orders")
+                .delete()
+                .in("id", uniqueOrderIds)
+                .select("id");
+
+            if (deleteError) throw deleteError;
+
+            const deletedIds = new Set((deletedRows || []).map((row) => row.id));
+
+            if (deletedIds.size === 0) {
+                throw new Error("No orders were deleted. You may not have permission to delete these orders.");
+            }
+
+            setOrders((prev) => prev.filter((order) => !deletedIds.has(order.id)));
+
+            return {
+                success: deletedIds.size === uniqueOrderIds.length,
+                count: deletedIds.size,
+                requestedCount: uniqueOrderIds.length,
+                deletedIds: Array.from(deletedIds),
+            };
+        } catch (err) {
+            console.error("Error deleting orders:", err);
+            return {
+                success: false,
+                error: err instanceof Error ? err.message : "Failed to delete orders",
+            };
+        }
+    }
+
+    async function deleteOrder(orderId: string) {
+        try {
+            await supabase
+                .from("orders")
+                .update({ original_order_id: null })
+                .eq("original_order_id", orderId);
+
+            await deleteOrderMutation.mutateAsync(orderId);
+            return { success: true };
+        } catch (err) {
+            console.error("Error deleting order:", err);
+            return {
+                success: false,
+                error: err instanceof Error ? err.message : "Failed to delete order",
+            };
+        }
+    }
+
+    async function checkOrderIdExists(orderId: string, excludeUuid?: string): Promise<boolean> {
+        try {
+            let query = supabase
+                .from("orders")
+                .select("id")
+                .eq("order_id", orderId);
+
+            if (excludeUuid) {
+                query = query.neq("id", excludeUuid);
+            }
+
+            const { data, error } = await query;
+            if (error) throw error;
+            return data && data.length > 0;
+        } catch (err) {
+            console.error("Error checking order ID:", err);
+            return false;
+        }
+    }
+
+    // =============================================
+    // EXPORT
+    // =============================================
+
+    function exportOrders(orderIds: string[], format: "csv" | "xlsx" = "csv") {
+        const ordersToExport = orders.filter((o) => orderIds.includes(o.id));
+
+        const headers = [
+            "Order ID", "Customer Name", "Phone", "City", "Address",
+            "Items", "Total", "Status", "Payment Status", "Created At",
+        ];
+
+        const rows = ordersToExport.map((order) => [
+            order.order_id,
+            order.customer_name,
+            cleanPhoneForExport(order.phone),
+            order.city || "",
+            order.address_details || "",
+            order.items?.map((i) => `${i.name} x${i.quantity} `).join("; ") || "",
+            order.price,
+            order.status,
+            order.payment_status,
+            new Date(order.created_at).toLocaleDateString(),
+        ]);
+
+        if (format === "csv") {
+            const csvContent = [
+                headers.join(","),
+                ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+            ].join("\n");
+
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `orders_export_${new Date().toISOString().split("T")[0]}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            return { success: true, count: ordersToExport.length };
+        }
+
+        const tsvContent = [
+            headers.join("\t"),
+            ...rows.map((row) => row.map((cell) => `${cell} `).join("\t")),
+        ].join("\n");
+
+        const blob = new Blob([tsvContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `orders_export_${new Date().toISOString().split("T")[0]}.xls`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        return { success: true, count: ordersToExport.length };
+    }
+
+    // =============================================
+    // RETURN ORDERS
+    // =============================================
+
+    async function createReturnOrder(originalOrderId: string, returnData: {
+        return_amount: number;
+        reason: string;
+        items?: Order["items"];
+        deductDeliveryFee?: boolean;
+        notes?: string;
+    }) {
+        const originalOrder = orders.find((o) => o.id === originalOrderId);
+        if (!originalOrder) {
+            return { success: false, error: "Original order not found" };
+        }
+
+        if (!originalOrder.items || originalOrder.items.length === 0) {
+            return { success: false, error: "الطلب الأصلي لا يحتوي على منتجات" };
+        }
+
+        const existingReturns = orders.filter(o =>
+            o.is_return && o.original_order_id === originalOrderId
+        );
+        const returnCount = existingReturns.length + 1;
+
+        const sequenceNum = originalOrder.sequence_number || originalOrder.order_id;
+        const returnOrderId = `RTN-${sequenceNum}-${returnCount}`;
+
+        const deliveryFeeDeduction = returnData.deductDeliveryFee ? 5000 : 0;
+        const finalReturnAmount = returnData.return_amount - deliveryFeeDeduction;
+
+        const returnOrder: Omit<Order, "id" | "created_at" | "updated_at"> = {
+            order_id: returnOrderId,
+            customer_name: originalOrder.customer_name,
+            phone: originalOrder.phone,
+            city: originalOrder.city,
+            governorate_code: originalOrder.governorate_code,
+            address_details: originalOrder.address_details,
+            items: returnData.items || originalOrder.items,
+            price: -finalReturnAmount,
+            status: "return_pending",
+            notes: returnData.notes || undefined,
+            is_return: true,
+            original_order_id: originalOrderId,
+            priority: "high",
+            payment_status: "pending",
+            is_archived: false,
+            delivery_fee: deliveryFeeDeduction,
+            rejection_reason: returnData.reason,
+            source: originalOrder.source || "other",
+        };
+
+        return createOrder(returnOrder);
+    }
+
+    // =============================================
+    // MERGE ORDERS
+    // =============================================
+
+    async function mergeOrders(keepOrderId: string, archiveOrderId: string): Promise<{ success: boolean; error?: string }> {
+        try {
+            const keepOrder = orders.find((o) => o.id === keepOrderId);
+            const archiveOrder = orders.find((o) => o.id === archiveOrderId);
+
+            if (!keepOrder || !archiveOrder) {
+                return { success: false, error: "One or both orders not found" };
+            }
+
+            const combinedItems = [...(keepOrder.items || [])];
+            for (const archiveItem of archiveOrder.items || []) {
+                const existingItem = combinedItems.find((i) => i.name === archiveItem.name);
+                if (existingItem) {
+                    existingItem.quantity = (existingItem.quantity || 1) + (archiveItem.quantity || 1);
+                } else {
+                    combinedItems.push(archiveItem);
+                }
+            }
+
+            const combinedPrice = (Number(keepOrder.price) || 0) + (Number(archiveOrder.price) || 0);
+            const combinedNotes = [keepOrder.notes, archiveOrder.notes].filter(Boolean).join(' | ');
+
+            const { error: updateError } = await supabase
+                .from("orders")
+                .update({
+                    items: combinedItems,
+                    price: combinedPrice,
+                    notes: combinedNotes || keepOrder.notes,
+                })
+                .eq("id", keepOrderId);
+
+            if (updateError) throw updateError;
+
+            const { error: archiveError } = await supabase
+                .from("orders")
+                .update({
+                    is_archived: true,
+                    notes: `[مدمج مع #${keepOrder.order_id}] ${archiveOrder.notes || ''} `.trim(),
+                    status: "rejected" as Order["status"],
+                    rejection_reason: "duplicate_merged",
+                })
+                .eq("id", archiveOrderId);
+
+            if (archiveError) throw archiveError;
+
+            setOrders((prev) =>
+                prev
+                    .map((order) => {
+                        if (order.id === keepOrderId) {
+                            return { ...order, items: combinedItems, price: combinedPrice, notes: combinedNotes || order.notes };
+                        }
+                        return order;
+                    })
+                    .filter((order) => order.id !== archiveOrderId)
+            );
+
+            return { success: true };
+        } catch (err) {
+            console.error("Error merging orders:", err);
+            return {
+                success: false,
+                error: err instanceof Error ? err.message : "Failed to merge orders",
+            };
+        }
+    }
+
+    // =============================================
+    // ORDER NOTES
+    // =============================================
+
+    async function addOrderNote(orderId: string, note: string) {
+        try {
+            const { data, error: insertError } = await supabase
+                .from("order_notes")
+                .insert([{ order_id: orderId, note }])
+                .select()
+                .single();
+
+            if (insertError) throw insertError;
+            return { success: true, data };
+        } catch (err) {
+            console.error("Error adding note:", err);
+            return {
+                success: false,
+                error: err instanceof Error ? err.message : "Failed to add note",
+            };
+        }
+    }
+
+    async function getOrderNotes(orderId: string): Promise<OrderNote[]> {
+        try {
+            const { data, error: fetchError } = await supabase
+                .from("order_notes")
+                .select("*")
+                .eq("order_id", orderId)
+                .order("created_at", { ascending: false });
+
+            if (fetchError) throw fetchError;
+            return data || [];
+        } catch (err) {
+            console.error("Error fetching notes:", err);
+            return [];
+        }
+    }
+
+    // =============================================
+    // ORDER TIMELINE
+    // =============================================
+
+    async function getOrderTimeline(orderId: string): Promise<OrderStatusHistory[]> {
+        try {
+            const { data, error: fetchError } = await supabase
+                .from("order_status_history")
+                .select("*")
+                .eq("order_id", orderId)
+                .order("changed_at", { ascending: true });
+
+            if (fetchError) throw fetchError;
+            return data || [];
+        } catch (err) {
+            console.error("Error fetching timeline:", err);
+            return [];
+        }
+    }
+
+    // =============================================
+    // BATCH MANAGEMENT
+    // =============================================
+
+    async function createBatch(
+        name: string,
+        orderIds: string[],
+        invoiceTemplate: string = "prime",
+        printType: string = "invoice"
+    ) {
+        try {
+            const selectedOrders = orders.filter((o) => orderIds.includes(o.id));
+            const totalValue = selectedOrders.reduce((sum, o) => sum + Number(o.price || 0), 0);
+            const cities = [...new Set(selectedOrders.map((o) => o.city).filter(Boolean))] as string[];
+
+            const { data, error } = await supabase
+                .from("print_batches")
+                .insert({
+                    name,
+                    order_count: orderIds.length,
+                    total_value: totalValue,
+                    cities,
+                    order_ids: orderIds,
+                    invoice_template: invoiceTemplate,
+                    print_type: printType,
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+            return { success: true, batch: data };
+        } catch (err) {
+            console.error("Error creating batch:", err);
+            return { success: false, error: err instanceof Error ? err.message : "Failed to create batch" };
+        }
+    }
+
+    // =============================================
+    // FOLLOW-UP REMINDERS
+    // =============================================
+
+    async function setFollowUpReminder(
+        orderId: string,
+        reminderDate: Date,
+        note?: string
+    ) {
+        try {
+            const { data, error: insertError } = await supabase
+                .from("follow_up_reminders")
+                .insert([{
+                    order_id: orderId,
+                    reminder_date: reminderDate.toISOString(),
+                    note,
+                }])
+                .select()
+                .single();
+
+            if (insertError) throw insertError;
+            return { success: true, data };
+        } catch (err) {
+            console.error("Error setting reminder:", err);
+            return {
+                success: false,
+                error: err instanceof Error ? err.message : "Failed to set reminder",
+            };
+        }
+    }
+
+    async function getActiveReminders(): Promise<FollowUpReminder[]> {
+        try {
+            const { data, error: fetchError } = await supabase
+                .from("follow_up_reminders")
+                .select("*")
+                .eq("is_completed", false)
+                .lte("reminder_date", new Date().toISOString())
+                .order("reminder_date");
+
+            if (fetchError) throw fetchError;
+            return data || [];
+        } catch (err) {
+            console.error("Error fetching reminders:", err);
+            return [];
+        }
+    }
+
+    async function completeReminder(reminderId: string) {
+        try {
+            const { error: updateError } = await supabase
+                .from("follow_up_reminders")
+                .update({ is_completed: true })
+                .eq("id", reminderId);
+
+            if (updateError) throw updateError;
+            return { success: true };
+        } catch (err) {
+            console.error("Error completing reminder:", err);
+            return {
+                success: false,
+                error: err instanceof Error ? err.message : "Failed to complete reminder",
+            };
+        }
+    }
+
+    // =============================================
+    // DUPLICATE DISMISSAL
+    // =============================================
+
+    async function dismissDuplicate(phone: string, notes?: string): Promise<{ success: boolean; error?: string }> {
+        try {
+            const { error: insertError } = await supabase
+                .from("duplicate_dismissals")
+                .insert([{
+                    phone: phone,
+                    notes: notes || null,
+                }]);
+
+            if (insertError) throw insertError;
+            return { success: true };
+        } catch (err) {
+            console.error("Error dismissing duplicate:", err);
+            return {
+                success: false,
+                error: err instanceof Error ? err.message : "Failed to dismiss duplicate",
+            };
+        }
+    }
+
+    // =============================================
+    // UNDO FUNCTIONALITY
+    // =============================================
+
+    async function undoLastAction(): Promise<{ success: boolean; error?: string; undoneAction?: string }> {
+        if (undoStack.length === 0) {
+            return { success: false, error: "Nothing to undo" };
+        }
+
+        const lastAction = undoStack[0];
+
+        try {
+            const { error: updateError } = await supabase
+                .from("orders")
+                .update(lastAction.previousState)
+                .eq("id", lastAction.orderId);
+
+            if (updateError) throw updateError;
+
+            setOrders((prev) =>
+                prev.map((order) =>
+                    order.id === lastAction.orderId
+                        ? { ...order, ...lastAction.previousState }
+                        : order
+                )
+            );
+
+            setUndoStack(prev => prev.slice(1));
+
+            return {
+                success: true,
+                undoneAction: lastAction.action
+            };
+        } catch (err) {
+            console.error("Error undoing action:", err);
+            return {
+                success: false,
+                error: err instanceof Error ? err.message : "Failed to undo",
+            };
+        }
+    }
+
+    function getLastUndoAction(): UndoEntry | null {
+        return undoStack.length > 0 ? undoStack[0] : null;
+    }
+
+    function clearUndoStack(): void {
+        setUndoStack([]);
+    }
+
+    return {
+        // Legacy fetch
+        fetchOrders,
+        fetchArchivedOrders,
+
+        // Single order operations
+        updateOrderStatus,
+        updateOrder,
+        createOrder,
+        cloneOrder,
+        splitOrder,
+        setScheduledDate,
+        setPriority,
+        setPaymentStatus,
+        togglePin,
+        setPin,
+        toggleReviewed,
+        markAsVerifiedCustomer,
+        deleteOrder,
+
+        // Bulk operations
+        bulkUpdateStatus,
+        bulkArchive,
+        bulkUnarchive,
+        bulkDelete,
+        exportOrders,
+        createBatch,
+
+        // Return orders
+        createReturnOrder,
+
+        // Merge
+        mergeOrders,
+
+        // Notes
+        addOrderNote,
+        getOrderNotes,
+
+        // Timeline
+        getOrderTimeline,
+
+        // Reminders
+        setFollowUpReminder,
+        getActiveReminders,
+        completeReminder,
+
+        // Duplicate management
+        dismissDuplicate,
+
+        // Undo
+        undoLastAction,
+        getLastUndoAction,
+        clearUndoStack,
+        canUndo: undoStack.length > 0,
+        checkOrderIdExists,
+    };
+}

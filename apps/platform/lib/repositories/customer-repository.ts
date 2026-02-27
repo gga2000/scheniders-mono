@@ -1,0 +1,183 @@
+import { supabase } from "@/lib/supabase";
+import type {
+    CustomerTag,
+    CustomerTagAssignment,
+    CustomerMetadata,
+    CustomerNote,
+    CustomerStatus,
+} from "@/types/customer";
+
+/**
+ * CustomerRepository — Centralized data access for customer-related tables.
+ */
+export const customerRepository = {
+    // =============================================
+    // TAGS
+    // =============================================
+
+    async findAllTags(): Promise<CustomerTag[]> {
+        const { data, error } = await supabase
+            .from("customer_tags")
+            .select("*")
+            .order("name");
+
+        if (error) throw error;
+        return data as CustomerTag[];
+    },
+
+    async createTag(name: string, color: string): Promise<CustomerTag> {
+        const { data, error } = await supabase
+            .from("customer_tags")
+            .insert([{ name, color }])
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    },
+
+    async deleteTag(id: string): Promise<void> {
+        const { error } = await supabase
+            .from("customer_tags")
+            .delete()
+            .eq("id", id);
+
+        if (error) throw error;
+    },
+
+    // =============================================
+    // TAG ASSIGNMENTS
+    // =============================================
+
+    async findAllTagAssignments(): Promise<CustomerTagAssignment[]> {
+        const { data, error } = await supabase
+            .from("customer_tag_assignments")
+            .select(`*, tag:customer_tags(*)`);
+
+        if (error) throw error;
+        return data as CustomerTagAssignment[];
+    },
+
+    async findTagAssignmentsByPhone(phone: string): Promise<CustomerTagAssignment[]> {
+        const { data, error } = await supabase
+            .from("customer_tag_assignments")
+            .select(`*, tag:customer_tags(*)`)
+            .eq("customer_phone", phone);
+
+        if (error) throw error;
+        return data as CustomerTagAssignment[];
+    },
+
+    async assignTag(phone: string, tagId: string): Promise<void> {
+        const { error } = await supabase
+            .from("customer_tag_assignments")
+            .insert([{ customer_phone: phone, tag_id: tagId }]);
+
+        if (error) throw error;
+    },
+
+    async removeTag(phone: string, tagId: string): Promise<void> {
+        const { error } = await supabase
+            .from("customer_tag_assignments")
+            .delete()
+            .eq("customer_phone", phone)
+            .eq("tag_id", tagId);
+
+        if (error) throw error;
+    },
+
+    // =============================================
+    // METADATA
+    // =============================================
+
+    async findAllMetadata(): Promise<CustomerMetadata[]> {
+        const { data, error } = await supabase
+            .from("customer_metadata")
+            .select("*");
+
+        if (error) throw error;
+        return data as CustomerMetadata[];
+    },
+
+    async findMetadataByPhone(phone: string): Promise<CustomerMetadata | null> {
+        const { data, error } = await supabase
+            .from("customer_metadata")
+            .select("*")
+            .eq("customer_phone", phone)
+            .single();
+
+        if (error && error.code !== "PGRST116") throw error;
+        return data as CustomerMetadata | null;
+    },
+
+    async upsertMetadata(
+        phone: string,
+        updates: { birthday?: string; manual_status?: CustomerStatus }
+    ): Promise<void> {
+        const { error } = await supabase
+            .from("customer_metadata")
+            .upsert(
+                { customer_phone: phone, ...updates },
+                { onConflict: "customer_phone" }
+            );
+
+        if (error) throw error;
+    },
+
+    // =============================================
+    // NOTES
+    // =============================================
+
+    async findNotesByPhone(phone: string): Promise<CustomerNote[]> {
+        const { data, error } = await supabase
+            .from("customer_notes")
+            .select("*")
+            .eq("customer_phone", phone)
+            .order("created_at", { ascending: false });
+
+        if (error) throw error;
+        return data as CustomerNote[];
+    },
+
+    async createNote(phone: string, note: string): Promise<CustomerNote> {
+        const { data, error } = await supabase
+            .from("customer_notes")
+            .insert([{ customer_phone: phone, note }])
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    },
+
+    async updateNote(id: string, note: string): Promise<void> {
+        const { error } = await supabase
+            .from("customer_notes")
+            .update({ note })
+            .eq("id", id);
+
+        if (error) throw error;
+    },
+
+    async deleteNote(id: string): Promise<void> {
+        const { error } = await supabase
+            .from("customer_notes")
+            .delete()
+            .eq("id", id);
+
+        if (error) throw error;
+    },
+
+    // =============================================
+    // BLACKLIST
+    // =============================================
+
+    async findBlacklistedPhones(): Promise<{ phone: string }[]> {
+        const { data, error } = await supabase
+            .from("blacklist")
+            .select("phone");
+
+        if (error) throw error;
+        return data as { phone: string }[];
+    },
+};

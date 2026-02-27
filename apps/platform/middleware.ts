@@ -1,9 +1,51 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+// Fail-fast env validation for Edge runtime (Zod unavailable in Edge)
+function getRequiredEnv(key: string): string {
+    const value = process.env[key];
+    if (!value) {
+        throw new Error(`❌ Missing ${key} in environment`);
+    }
+    return value;
+}
+
+const SUPABASE_URL = getRequiredEnv('NEXT_PUBLIC_SUPABASE_URL');
+const SUPABASE_ANON_KEY = getRequiredEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+
+// --- Edge-Compatible Permission Map ---
+type UserRole = "admin" | "employee" | "viewer";
+
+const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
+    '/admin/data-import': ['admin'],
+    '/settings': ['admin'],
+    '/analytics': ['admin'],
+    '/reports': ['admin'],
+    '/team': ['admin'],
+    '/printing': ['admin', 'employee'], // Assuming employees can print
+    '/products': ['admin', 'employee', 'viewer'],
+    '/orders': ['admin', 'employee', 'viewer'],
+    '/customers': ['admin', 'employee', 'viewer'],
+};
+
+// exact path matches or startsWith matches
+function getRequiredRolesForPath(pathname: string): UserRole[] | null {
+    // First try exact match
+    if (ROUTE_PERMISSIONS[pathname]) {
+        return ROUTE_PERMISSIONS[pathname];
+    }
+    // Then try nested paths (e.g. /settings/team)
+    for (const [route, roles] of Object.entries(ROUTE_PERMISSIONS)) {
+        if (pathname.startsWith(`${route}/`)) {
+            return roles;
+        }
+    }
+    return null;
+}
+
 /**
  * Next.js Middleware for Route Protection
- * 
+ *
  * This middleware runs on every request to check authentication status.
  * Unauthenticated users are redirected to /login.
  */
@@ -33,8 +75,8 @@ export async function middleware(request: NextRequest) {
     });
 
     const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
         {
             cookies: {
                 getAll() {
@@ -65,6 +107,30 @@ export async function middleware(request: NextRequest) {
         const loginUrl = new URL('/login', request.url);
         loginUrl.searchParams.set('returnTo', pathname);
         return NextResponse.redirect(loginUrl);
+    }
+
+    // --- Role-Based Route Protection ---
+    const requiredRoles = getRequiredRolesForPath(pathname);
+
+    if (requiredRoles) {
+        // Query user's role from user_profiles
+        // In Edge middleware, we use supabase admin or standard client. 
+        // User is authenticated, so standard client works for their own profile.
+        const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+
+        const userRole = (profile?.role as UserRole) || 'viewer'; // safe fallback
+
+        if (!requiredRoles.includes(userRole)) {
+            // User does not have permission
+            // Redirect to a safe page or show access denied
+            const deniedUrl = new URL('/orders', request.url);
+            deniedUrl.searchParams.set('error', 'access_denied');
+            return NextResponse.redirect(deniedUrl);
+        }
     }
 
     return response;

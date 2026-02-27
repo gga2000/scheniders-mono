@@ -6,6 +6,7 @@ import {
     logWebhookRequest,
 } from "@/lib/webhook-handler";
 import { fetchCheckoutById, getSavedAccessToken } from "@/lib/lightfunnels-api";
+import { env } from "@/lib/env";
 
 /**
  * LightFunnels Webhook Endpoint
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
     try {
         // 1. Verify webhook secret for security (optional - Lightfunnels may not send one)
         const secret = request.headers.get("x-webhook-secret");
-        const expectedSecret = process.env.LIGHTFUNNELS_WEBHOOK_SECRET;
+        const expectedSecret = env.LIGHTFUNNELS_WEBHOOK_SECRET;
 
         // Only validate secret if both are configured and provided
         if (expectedSecret && secret && secret !== expectedSecret) {
@@ -103,7 +104,7 @@ export async function POST(request: NextRequest) {
         const result = await createOrderFromWebhook(webhookData);
 
         // 5. Log request (for debugging)
-        if (process.env.WEBHOOK_LOGGING_ENABLED === "true") {
+        if (env.WEBHOOK_LOGGING_ENABLED === "true") {
             logWebhookRequest(payload, result);
         }
 

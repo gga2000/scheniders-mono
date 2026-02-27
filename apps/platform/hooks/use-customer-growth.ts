@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { CACHE_PRESETS } from '@/lib/query-config';
 import { supabase } from "@/lib/supabase";
 import { CustomerGrowthData } from "@/components/customers/customer-growth-chart";
 
@@ -62,7 +63,8 @@ export function useCustomerGrowth(days: number = 365) {
 
             return result;
         },
-        staleTime: 5 * 60 * 1000, // 5 minutes
+        staleTime: CACHE_PRESETS.STANDARD.staleTime,
+        gcTime: CACHE_PRESETS.STANDARD.gcTime,
         refetchOnWindowFocus: false,
     });
 }

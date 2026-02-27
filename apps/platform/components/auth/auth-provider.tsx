@@ -4,31 +4,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from "rea
 import { User, Session, AuthError } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { activityLogger } from "@/lib/activity-logger";
-
-// Define UserProfile type locally or import it
-interface UserProfile {
-    id: string;
-    email: string;
-    display_name: string | null;
-    role: string;
-    avatar_url: string | null;
-    // ... other fields
-}
-
-interface AuthContextType {
-    user: User | null;
-    session: Session | null;
-    role: string | null;
-    profile: UserProfile | null; // Added profile
-    permissions: string[];
-    isLoading: boolean;
-    signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
-    signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
-    signOut: () => Promise<void>;
-    resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
-    updatePassword: (password: string) => Promise<{ error: AuthError | null }>;
-    refreshProfile: () => Promise<void>;
-}
+import type { UserProfile, AuthContextType } from "@/types/auth";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 

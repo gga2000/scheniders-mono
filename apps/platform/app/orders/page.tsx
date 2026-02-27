@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, useRef, useDeferredValue } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { useOrdersContext } from "@/components/providers/orders-provider";
+import { useOrderStore } from "@/store/use-order-store";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Order, PaymentStatus } from "@/lib/supabase";
@@ -132,6 +133,7 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useLanguage } from "@/hooks/use-language";
 
 export default function OrdersPage() {
+    console.log("[OrdersPage] Render");
     const {
         orders,
         filteredOrders: hookFilteredOrders,
@@ -200,15 +202,62 @@ export default function OrdersPage() {
     const { products } = useProductsCrud();
     const isMobile = useIsMobile();
     const { t } = useLanguage();
-    const [isFilterPanelAnimating, setIsFilterPanelAnimating] = useState(false);
-    const [isHeaderAnimating, setIsHeaderAnimating] = useState(false);
 
-    const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
-    const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
+    // ── Zustand Store (replaces ~35 useState calls) ──
+    const {
+        // View preferences
+        viewMode, setViewMode,
+        compactView, setCompactView,
+        compactGrid, setCompactGrid,
+        actionDock, setActionDock,
+        showSearchBar, setShowSearchBar,
+        analyticsLevel, setAnalyticsLevel,
+        toolbarCollapsed, toggleToolbarCollapse,
+        workflowMode, toggleWorkflowMode,
+        soundEnabled, setSoundEnabled,
+        // Filter UI
+        showFilters, setShowFilters,
+        showPresets, setShowPresets,
+        newPresetName, setNewPresetName,
+        groupBy, setGroupBy,
+        filterDuplicatesOnly, setFilterDuplicatesOnly,
+        sortConfig, toggleSort,
+        columnFilters, setColumnFilters,
+        openFilterColumn, setOpenFilterColumn,
+        activePresetId, setActivePresetId,
+        localSearchQuery, setLocalSearchQuery,
+        // Modals
+        isModalOpen, setIsModalOpen,
+        selectedOrder, setSelectedOrder,
+        isCreateModalOpen, setIsCreateModalOpen,
+        showDuplicateModal, setShowDuplicateModal,
+        duplicateOrder, setDuplicateOrder,
+        cancelDialogOpen, setCancelDialogOpen,
+        orderToCancel, setOrderToCancel,
+        rejectDialogOpen, setRejectDialogOpen,
+        orderToReject, setOrderToReject,
+        templatePanelOpen, setTemplatePanelOpen,
+        orderForTemplate, setOrderForTemplate,
+        isImportModalOpen, setIsImportModalOpen,
+        isExportModalOpen, setIsExportModalOpen,
+        splitOrderDialog, setSplitOrderDialog,
+        screenshotOrder, setScreenshotOrder,
+        showDatePicker, setShowDatePicker,
+        datePickerPos, setDatePickerPos,
+        colorPickerOpenId, setColorPickerOpenId,
+        // Selection
+        selectedOrders, setSelectedOrders,
+        showArchived, setShowArchived,
+        loadingId, setLoadingId,
+        // Transient
+        isFilterPanelAnimating, setIsFilterPanelAnimating,
+        isHeaderAnimating, setIsHeaderAnimating,
+        notificationsEnabled, setNotificationsEnabled,
+    } = useOrderStore();
+
     const debouncedColumnFilters = useDebounce(columnFilters, 300);
 
     // Debounce global search to prevent typing latency
-    const [localSearchQuery, setLocalSearchQuery] = useState(filters.searchQuery || "");
     const debouncedSearchQuery = useDebounce(localSearchQuery, 300);
 
     useEffect(() => {
@@ -225,69 +274,8 @@ export default function OrdersPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filters.searchQuery]);
 
-    const [groupBy, setGroupBy] = useState<'none' | 'status' | 'city' | 'verified'>('none');
-    const [openFilterColumn, setOpenFilterColumn] = useState<string | null>(null);
-    const [compactView, setCompactView] = useState<0 | 1 | 2>(() => {
-        if (typeof window !== "undefined") {
-            const stored = localStorage.getItem("ordersCompactView");
-            if (stored === "2") return 2;
-            if (stored === "1" || stored === "true") return 1;
-        }
-        return 0;
-    });
-    const [compactGrid, setCompactGrid] = useState(() => {
-        if (typeof window !== "undefined") {
-            return localStorage.getItem("ordersCompactGrid") === "true";
-        }
-        return false;
-    });
-    const [actionDock, setActionDock] = useState(() => {
-        if (typeof window !== "undefined") {
-            return localStorage.getItem("ordersActionDock") === "true";
-        }
-        return false;
-    });
-    const [showArchived, setShowArchived] = useState(false);
-    const [soundEnabled, setSoundEnabled] = useState(() => {
-        if (typeof window !== "undefined") {
-            return notificationService.soundEnabled;
-        }
-        return true;
-    });
-    const [loadingId, setLoadingId] = useState<string | null>(null);
-    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+    // Domain state (stays local — not UI state)
     const [assignments, setAssignments] = useState<OrderAssignment[]>(mockAssignments);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-    const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
-    const [showFilters, setShowFilters] = useState(false);
-
-    // State for active saved view
-    const [activePresetId, setActivePresetId] = useState<string | null>(null);
-
-    // State for screenshot modal
-    const [screenshotOrder, setScreenshotOrder] = useState<Order | null>(null);
-    // State for duplicate comparison modal
-    const [duplicateOrder, setDuplicateOrder] = useState<Order | null>(null);
-    const [showDuplicateModal, setShowDuplicateModal] = useState(false);
-    const [filterDuplicatesOnly, setFilterDuplicatesOnly] = useState(false);
-    // State for cancellation reason dialog
-    const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
-    const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
-    // State for rejection reason dialog
-    const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-    const [orderToReject, setOrderToReject] = useState<Order | null>(null);
-    // State for WhatsApp template panel
-    const [templatePanelOpen, setTemplatePanelOpen] = useState(false);
-    const [orderForTemplate, setOrderForTemplate] = useState<Order | null>(null);
-    // State for import modal
-    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-    const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-    // State for split order dialog
-    const [splitOrderDialog, setSplitOrderDialog] = useState<{ open: boolean; order: Order | null }>({
-        open: false,
-        order: null
-    });
     const { splitOrder } = useOrdersContext();
 
     const handleSplitOrder = async (keptItems: any[], returnedItems: any[]) => {
@@ -352,58 +340,15 @@ export default function OrdersPage() {
         [messageTemplates]
     );
 
-    // 3-State Sorting Helper
-    const toggleSort = (key: string) => {
-        setSortConfig(current => {
-            if (current?.key === key) {
-                if (current.direction === 'asc') return { key, direction: 'desc' };
-                return null; // Cycle to off
-            }
-            return { key, direction: 'asc' };
-        });
-    };
-
     // Helper for filter icon color
     const getFilterIconClass = (key: string) => {
         const isActive = columnFilters[key] !== undefined && columnFilters[key] !== '';
         return isActive ? "text-blue-600 opacity-100" : "text-muted opacity-0 group-hover:opacity-100";
     };
 
-    // State for color picker dropdown
-    const [colorPickerOpenId, setColorPickerOpenId] = useState<string | null>(null);
-    const [showSearchBar, setShowSearchBar] = useState(() => {
-        if (typeof window !== "undefined") {
-            return localStorage.getItem("ordersShowSearchBar") !== "false";
-        }
-        return true;
-    });
-    // Two-stage analytics: 0 = all hidden, 1 = top stats shown, 2 = all shown
-    const [analyticsLevel, setAnalyticsLevel] = useState<0 | 1 | 2>(() => {
-        if (typeof window !== "undefined") {
-            const saved = localStorage.getItem("ordersAnalyticsLevel");
-            return (saved ? parseInt(saved) : 0) as 0 | 1 | 2;
-        }
-        return 0; // Default hidden
-    });
-    const [showPresets, setShowPresets] = useState(false);
-    const [newPresetName, setNewPresetName] = useState("");
-    const [viewMode, setViewMode] = useState<"cards" | "table" | "kanban">(() => {
-        if (typeof window !== "undefined") {
-            const saved = localStorage.getItem("ordersViewMode");
-            if (saved === "cards" || saved === "table" || saved === "kanban") return saved;
-        }
-        return "cards";
-    });
-    const [workflowMode, setWorkflowMode] = useState(() => {
-        if (typeof window !== "undefined") {
-            return localStorage.getItem("ordersWorkflowMode") === "true";
-        }
-        return false;
-    });
-    const [showDatePicker, setShowDatePicker] = useState(false);
+    // Refs for date picker positioning (not state — stays local)
     const dateButtonRef = useRef<HTMLButtonElement>(null);
     const datePickerRef = useRef<HTMLDivElement>(null);
-    const [datePickerPos, setDatePickerPos] = useState({ top: 0, left: 0 });
 
     // Update date picker position when opened
     useEffect(() => {
@@ -411,7 +356,7 @@ export default function OrdersPage() {
             const rect = dateButtonRef.current.getBoundingClientRect();
             setDatePickerPos({ top: rect.bottom + 8, left: rect.left });
         }
-    }, [showDatePicker]);
+    }, [showDatePicker, setDatePickerPos]);
 
     // Close date picker on click outside
     useEffect(() => {
@@ -426,37 +371,7 @@ export default function OrdersPage() {
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [showDatePicker]);
-    const [notificationsEnabled, setNotificationsEnabled] = useState(
-        typeof window !== "undefined" && notificationService.isEnabled()
-    );
-
-    // Toolbar collapse state - maximizes workspace for order cards
-    const [toolbarCollapsed, setToolbarCollapsed] = useState(() => {
-        if (typeof window !== "undefined") {
-            return localStorage.getItem("ordersToolbarCollapsed") === "true";
-        }
-        return false;
-    });
-
-    // Toggle toolbar collapse
-    const toggleToolbarCollapse = () => {
-        const newValue = !toolbarCollapsed;
-        setToolbarCollapsed(newValue);
-        localStorage.setItem("ordersToolbarCollapsed", String(newValue));
-    };
-
-    // Toggle workflow mode
-    const toggleWorkflowMode = () => {
-        const newMode = !workflowMode;
-        setWorkflowMode(newMode);
-        localStorage.setItem("ordersWorkflowMode", String(newMode));
-    };
-
-    // Save viewMode to localStorage when it changes
-    useEffect(() => {
-        localStorage.setItem("ordersViewMode", viewMode);
-    }, [viewMode]);
+    }, [showDatePicker, setShowDatePicker]);
 
     // Keyboard shortcut: Cmd/Ctrl + \ to toggle toolbar
     useEffect(() => {
@@ -468,19 +383,27 @@ export default function OrdersPage() {
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [toolbarCollapsed]);
+    }, [toggleToolbarCollapse]);
 
 
     // Batch Risk Assessment
     const { getRiskLevel, getAssessment, loading: riskLoading } = useBatchRiskAssessment(hookFilteredOrders);
 
+    // Defer heavy list inputs to prevent main-thread blocking during concurrent renders
+    const defHookFilteredOrders = React.useDeferredValue(hookFilteredOrders);
+    const defColumnFilters = React.useDeferredValue(debouncedColumnFilters);
+    const defFilterDuplicatesOnly = React.useDeferredValue(filterDuplicatesOnly);
+    const defRiskLevel = React.useDeferredValue(filters.riskLevel);
+    const defSortConfig = React.useDeferredValue(sortConfig);
+
     // Sort hook's filtered orders
     // Advanced Filtering & Sorting
     const filteredOrders = useMemo(() => {
-        let result = [...hookFilteredOrders];
+        console.time("[OrdersPage] filteredOrders calc");
+        let result = [...defHookFilteredOrders];
 
         // 1. Apply Column Filters
-        Object.entries(debouncedColumnFilters).forEach(([key, value]) => {
+        Object.entries(defColumnFilters).forEach(([key, value]) => {
             if (!value) return;
             const lowerValue = value.toLowerCase();
             result = result.filter(o => {
@@ -500,19 +423,18 @@ export default function OrdersPage() {
         });
 
         // 1.2. Apply Risk/Flagged Filter
-        if (filters.riskLevel) {
-            if (filters.riskLevel === 'flagged') {
+        if (defRiskLevel) {
+            if (defRiskLevel === 'flagged') {
                 // "Flagged" = data quality issues OR rejected orders
-                // Uses the shared isOrderFlagged helper which matches the red/yellow dots on cards
                 result = result.filter(o => isOrderFlagged(o) || o.status === 'rejected');
             } else if (!riskLoading) {
-                // Other risk levels use the fraud detector (only filter after assessments load)
-                result = result.filter(o => getRiskLevel(o.phone) === filters.riskLevel);
+                // Other risk levels use the fraud detector
+                result = result.filter(o => getRiskLevel(o.phone) === defRiskLevel);
             }
         }
 
         // 1.5. Apply Duplicates-Only Filter
-        if (filterDuplicatesOnly) {
+        if (defFilterDuplicatesOnly) {
             result = result.filter(o => getCustomerOrderCount(o.phone) > 1);
         }
 
@@ -522,40 +444,50 @@ export default function OrdersPage() {
             if (a.is_pinned && !b.is_pinned) return -1;
             if (!a.is_pinned && b.is_pinned) return 1;
 
-            if (sortConfig) {
-                let aVal: any = a[sortConfig.key as keyof Order];
-                let bVal: any = b[sortConfig.key as keyof Order];
+            if (defSortConfig) {
+                let aVal: any = a[defSortConfig.key as keyof Order];
+                let bVal: any = b[defSortConfig.key as keyof Order];
 
                 // Handle special keys
-                if (sortConfig.key === 'amount') { aVal = Number(a.price); bVal = Number(b.price); }
-                if (sortConfig.key === 'order_id') { aVal = a.sequence_number || a.order_id; bVal = b.sequence_number || b.order_id; }
-                if (sortConfig.key === 'created_at') { aVal = new Date(a.created_at).getTime(); bVal = new Date(b.created_at).getTime(); }
+                if (defSortConfig.key === 'amount') { aVal = Number(a.price); bVal = Number(b.price); }
+                if (defSortConfig.key === 'order_id') { aVal = a.sequence_number || a.order_id; bVal = b.sequence_number || b.order_id; }
+                if (defSortConfig.key === 'created_at') { aVal = new Date(a.created_at).getTime(); bVal = new Date(b.created_at).getTime(); }
 
-                if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-                if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+                if (aVal < bVal) return defSortConfig.direction === 'asc' ? -1 : 1;
+                if (aVal > bVal) return defSortConfig.direction === 'asc' ? 1 : -1;
                 return 0;
             } else {
                 // Default sort: Newest first
                 return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
             }
         });
+        console.timeEnd("[OrdersPage] filteredOrders calc");
         return result;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [hookFilteredOrders, sortConfig, debouncedColumnFilters, filterDuplicatesOnly, getCustomerOrderCount, realtimeVersion, filters.riskLevel, getRiskLevel, riskLoading]);
+    }, [defHookFilteredOrders, defSortConfig, defColumnFilters, defFilterDuplicatesOnly, getCustomerOrderCount, realtimeVersion, defRiskLevel, getRiskLevel, riskLoading]);
 
+    const defOrders = React.useDeferredValue(orders);
 
-
-    // Calculate flagged orders count for "Needs Attention" card (data quality issues + rejected orders)
     // Calculate flagged orders count for "Needs Attention" card (data quality issues + rejected orders)
     const flaggedCount = useMemo(() => {
-        return hookFilteredOrders.filter(o => isOrderFlagged(o) || o.status === 'rejected').length;
-    }, [hookFilteredOrders]);
+        return defHookFilteredOrders.filter(o => isOrderFlagged(o) || o.status === 'rejected').length;
+    }, [defHookFilteredOrders]);
 
     // Calculate global risk count for the key filter button (all orders)
     const totalRiskCount = useMemo(() => {
-        if (!orders) return 0;
-        return orders.filter(o => isOrderFlagged(o) || o.status === 'rejected').length;
-    }, [orders]);
+        if (!defOrders) return 0;
+        return defOrders.filter(o => isOrderFlagged(o) || o.status === 'rejected').length;
+    }, [defOrders]);
+
+    // Count orders needing attention (⚠️ in notes, missing products, etc.)
+    const needsReviewCount = useMemo(() => {
+        return defOrders.filter(o => {
+            if (o.notes && o.notes.includes('⚠️')) return true;
+            if ((!o.items || o.items.length === 0) && o.customer_name !== 'Manual Order') return true;
+            if (o.customer_name?.startsWith('Customer ') && o.customer_name !== 'Customer') return true;
+            return false;
+        }).length;
+    }, [defOrders]);
 
     // Scroll to top when filters change to prevent empty list illusion
     useEffect(() => {
@@ -575,23 +507,18 @@ export default function OrdersPage() {
         }
     };
 
-    const toggleOrderSelection = (orderId: string) => {
-        const newSelected = new Set(selectedOrders);
-        if (newSelected.has(orderId)) {
-            newSelected.delete(orderId);
-        } else {
-            newSelected.add(orderId);
-        }
-        setSelectedOrders(newSelected);
-    };
+    const toggleOrderSelection = useCallback((orderId: string) => {
+        useOrderStore.getState().toggleOrderSelection(orderId);
+    }, []);
 
-    const selectAll = () => {
-        if (selectedOrders.size === filteredOrders.length) {
-            setSelectedOrders(new Set());
+    const selectAll = useCallback(() => {
+        const store = useOrderStore.getState();
+        if (store.selectedOrders.size === filteredOrders.length) {
+            store.clearSelection();
         } else {
-            setSelectedOrders(new Set(filteredOrders.map(o => o.id)));
+            store.selectAll(filteredOrders.map(o => o.id));
         }
-    };
+    }, [filteredOrders]);
 
     // Handle bulk actions
     const handleBulkConfirm = async () => {
@@ -807,10 +734,14 @@ export default function OrdersPage() {
 
     // Grouping Logic
     const groupedOrders = useMemo(() => {
-        if (groupBy === 'none') return {};
+        console.time("[OrdersPage] groupedOrders calc");
+        if (groupBy === 'none') {
+            console.timeEnd("[OrdersPage] groupedOrders calc");
+            return {};
+        }
 
         const groups: Record<string, Order[]> = {};
-        displayedOrders.forEach(order => {
+        deferredDisplayedOrders.forEach(order => {
             let key = 'Other';
             if (groupBy === 'status') key = order.status;
             else if (groupBy === 'city') key = order.city || 'Unknown';
@@ -819,8 +750,9 @@ export default function OrdersPage() {
             if (!groups[key]) groups[key] = [];
             groups[key].push(order);
         });
+        console.timeEnd("[OrdersPage] groupedOrders calc");
         return groups;
-    }, [displayedOrders, groupBy]);
+    }, [deferredDisplayedOrders, groupBy]);
 
     // Calculate mode price for deviation highlighting
     const modePrice = useMemo(() => {
@@ -836,20 +768,6 @@ export default function OrdersPage() {
         });
         return mode;
     }, [deferredDisplayedOrders]);
-
-    // Count orders needing attention (⚠️ in notes, missing products, etc.)
-    // Exclude: orders with "Manual Order" name (intentional), orders with just "[Delivery Import]" without ⚠️
-    const needsReviewCount = useMemo(() => {
-        return orders.filter(o => {
-            // Only count if has warning flags in notes (actual issues)
-            if (o.notes && o.notes.includes('⚠️')) return true;
-            // Or if items are truly empty (not just manual orders)
-            if ((!o.items || o.items.length === 0) && o.customer_name !== 'Manual Order') return true;
-            // Or if customer name is placeholder like "Customer XXXXX"
-            if (o.customer_name?.startsWith('Customer ') && o.customer_name !== 'Customer') return true;
-            return false;
-        }).length;
-    }, [orders]);
 
 
 
@@ -1174,7 +1092,7 @@ export default function OrdersPage() {
                                                         title={v.label}
                                                         className={cn(
                                                             "p-2.5 rounded-xl transition-all duration-300",
-                                                            viewMode === v.mode
+                                                            (viewMode === v.mode || (viewMode === "list" && v.mode === "cards"))
                                                                 ? "bg-white text-foreground shadow-sm dark:bg-[var(--primary)] dark:text-black dark:shadow-[0_0_8px_rgba(239,255,0,0.2)] ring-1 ring-black/5"
                                                                 : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground dark:hover:bg-white/5"
                                                         )}
@@ -1184,7 +1102,7 @@ export default function OrdersPage() {
                                                 ))}
 
                                                 {/* Compact Toggle */}
-                                                {!workflowMode && viewMode === "cards" && (
+                                                {!workflowMode && (viewMode === "cards" || viewMode === "list") && (
                                                     <button
                                                         onClick={() => {
                                                             const newLevel = ((compactView + 1) % 3) as 0 | 1 | 2;
@@ -1209,7 +1127,7 @@ export default function OrdersPage() {
                                                 )}
 
                                                 {/* Grid Toggle - only visible in compact modes */}
-                                                {!workflowMode && viewMode === "cards" && compactView >= 1 && (
+                                                {!workflowMode && (viewMode === "cards" || viewMode === "list") && compactView >= 1 && (
                                                     <button
                                                         onClick={() => {
                                                             const newVal = !compactGrid;
@@ -1229,7 +1147,7 @@ export default function OrdersPage() {
                                                 )}
 
                                                 {/* Action Dock Toggle */}
-                                                {!workflowMode && viewMode === "cards" && (
+                                                {!workflowMode && (viewMode === "cards" || viewMode === "list") && (
                                                     <button
                                                         onClick={() => {
                                                             const newVal = !actionDock;
@@ -2082,7 +2000,7 @@ export default function OrdersPage() {
                         ) : (
                             <>
                                 {/* Cards View */}
-                                {viewMode === "cards" && (
+                                {(viewMode === "cards" || viewMode === "list") && (
                                     <>
                                         {displayedOrders.length === 0 ? (
                                             <EmptyState
