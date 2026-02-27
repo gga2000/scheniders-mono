@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Activity, Package, Printer, RefreshCw, LogIn, Calendar, Clock, Mail, ShieldAlert, Truck, Settings, Edit3 } from 'lucide-react';
+import { X, Activity, Package, Printer, RefreshCw, LogIn, Calendar, Clock, Mail, ShieldAlert, Truck, Settings, Edit3, AlertCircle } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -19,6 +19,7 @@ interface ProfileDrawerProps {
 export function ProfileDrawer({ employee, isOpen, onClose }: ProfileDrawerProps) {
     const [recentLogs, setRecentLogs] = useState<ActivityLogEntry[]>([]);
     const [loadingLogs, setLoadingLogs] = useState(false);
+    const [logsError, setLogsError] = useState(false);
 
     useEffect(() => {
         if (isOpen && employee) {
@@ -44,7 +45,7 @@ export function ProfileDrawer({ employee, isOpen, onClose }: ProfileDrawerProps)
 
     const fetchUserLogs = async (userId: string) => {
         setLoadingLogs(true);
-        // Fetch last 15 actions
+        setLogsError(false);
         const { data, error } = await supabase
             .from('activity_logs')
             .select('*')
@@ -52,8 +53,11 @@ export function ProfileDrawer({ employee, isOpen, onClose }: ProfileDrawerProps)
             .order('created_at', { ascending: false })
             .limit(15);
 
-        if (!error && data) {
-            setRecentLogs(data);
+        if (error) {
+            setLogsError(true);
+            setRecentLogs([]);
+        } else {
+            setRecentLogs(data || []);
         }
         setLoadingLogs(false);
     };
@@ -213,6 +217,17 @@ export function ProfileDrawer({ employee, isOpen, onClose }: ProfileDrawerProps)
                                 {loadingLogs ? (
                                     <div className="flex justify-center p-8">
                                         <RefreshCw className="w-6 h-6 text-gray-400 animate-spin" />
+                                    </div>
+                                ) : logsError ? (
+                                    <div className="text-center p-8 bg-rose-50 dark:bg-rose-500/10 rounded-2xl border border-dashed border-rose-200 dark:border-rose-800">
+                                        <AlertCircle className="w-8 h-8 text-rose-400 mx-auto mb-2" />
+                                        <p className="text-sm text-rose-600 dark:text-rose-400 font-medium">تعذر تحميل السجلات</p>
+                                        <button
+                                            onClick={() => employee && fetchUserLogs(employee.user_id)}
+                                            className="mt-2 text-xs text-rose-500 hover:text-rose-700 underline"
+                                        >
+                                            إعادة المحاولة
+                                        </button>
                                     </div>
                                 ) : recentLogs.length === 0 ? (
                                     <div className="text-center p-8 bg-gray-50 dark:bg-[#1A1A1A] rounded-2xl border border-dashed border-gray-200 dark:border-gray-800">

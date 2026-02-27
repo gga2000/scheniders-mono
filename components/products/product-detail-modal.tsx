@@ -255,17 +255,32 @@ export function ProductDetailModal({
                         {/* Inventory */}
                         <div className="pastel-card p-5">
                             <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
-                                Inventory
+                                Internal Stock Tracking
                             </h3>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 <div>
-                                    <p className="text-sm text-muted">Current Stock</p>
+                                    <p className="text-sm text-muted">Physical</p>
                                     <p className="text-lg font-bold text-foreground">
                                         {product.stock_quantity} units
                                     </p>
+                                    <p className="text-xs text-muted mt-1 shadow-sm">On Shelf</p>
                                 </div>
                                 <div>
-                                    <p className="text-sm text-muted">Low Stock Alert</p>
+                                    <p className="text-sm text-muted">Reserved</p>
+                                    <p className="text-lg font-bold text-amber-600">
+                                        {product.reserved_quantity || 0} units
+                                    </p>
+                                    <p className="text-xs text-muted mt-1">In active orders</p>
+                                </div>
+                                <div className="border-l border-[var(--card-border)] pl-4">
+                                    <p className="text-sm text-muted">Available</p>
+                                    <p className="text-lg font-bold text-green-600">
+                                        {Math.max(0, product.stock_quantity - (product.reserved_quantity || 0))} units
+                                    </p>
+                                    <p className="text-xs text-muted mt-1">Actual to sell</p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-muted">Alert Threshold</p>
                                     <p className="text-lg font-bold text-foreground">
                                         ≤ {product.low_stock_threshold} units
                                     </p>

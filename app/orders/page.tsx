@@ -63,6 +63,7 @@ import { CancellationReasonDialog } from "@/components/orders/cancellation-reaso
 import { StickyFilterBar } from "@/components/orders/sticky-filter-bar";
 import { VirtualizedOrderTable } from "@/components/orders/virtualized-order-table";
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
+import { BackupPrompt } from "@/components/vault/backup-prompt";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -2428,6 +2429,9 @@ export default function OrdersPage() {
                 {/* Scroll to Top Button */}
                 <ScrollToTopButton />
 
+                {/* Monthly Backup Reminder */}
+                <BackupPrompt />
+
                 {/* Order Confirmation Screenshot Modal */}
                 <AnimatePresence>
                     {screenshotOrder && (
@@ -2448,6 +2452,40 @@ export default function OrdersPage() {
                     allOrders={orders}
                     currentDateFrom={filters.dateFrom}
                     currentDateTo={filters.dateTo}
+                />
+
+                {/* Cancellation Reason Dialog */}
+                <CancellationReasonDialog
+                    open={cancelDialogOpen}
+                    onClose={() => {
+                        setCancelDialogOpen(false);
+                        setOrderToCancel(null);
+                    }}
+                    onConfirm={async (reason) => {
+                        if (orderToCancel) {
+                            await handleStatusUpdate(orderToCancel.id, "cancelled", reason);
+                        }
+                    }}
+                    customerName={orderToCancel?.customer_name}
+                    orderId={orderToCancel?.sequence_number ? String(orderToCancel.sequence_number) : orderToCancel?.order_id}
+                    type="cancel"
+                />
+
+                {/* Rejection Reason Dialog */}
+                <CancellationReasonDialog
+                    open={rejectDialogOpen}
+                    onClose={() => {
+                        setRejectDialogOpen(false);
+                        setOrderToReject(null);
+                    }}
+                    onConfirm={async (reason) => {
+                        if (orderToReject) {
+                            await handleStatusUpdate(orderToReject.id, "rejected", reason);
+                        }
+                    }}
+                    customerName={orderToReject?.customer_name}
+                    orderId={orderToReject?.sequence_number ? String(orderToReject.sequence_number) : orderToReject?.order_id}
+                    type="reject"
                 />
 
             </div >

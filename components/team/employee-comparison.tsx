@@ -60,7 +60,7 @@ function ComparisonRow({
     const colorConfig = pastelColors[pastelColor];
 
     return (
-        <div className="flex items-center gap-4 py-4 border-b border-[#F5F0E8] dark:border-white/5 last:border-0 hover:bg-[#FAF8F5] dark:hover:bg-white/5 px-4 -mx-4 transition-colors">
+        <div className="group/row relative flex items-center gap-4 py-4 border-b border-[#F5F0E8] dark:border-white/5 last:border-0 hover:bg-[#FAF8F5] dark:hover:bg-white/5 px-4 -mx-4 transition-colors">
             {/* Employee 1 value */}
             <div className="w-24 text-left">
                 <span className={cn(
@@ -72,7 +72,7 @@ function ComparisonRow({
             </div>
 
             {/* Center with icon and label */}
-            <div className="flex-1 flex flex-col items-center">
+            <div className="flex-1 flex flex-col items-center relative">
                 <div className={cn(
                     "w-12 h-12 rounded-2xl flex items-center justify-center mb-1 transition-transform hover:scale-110",
                     colorConfig.bg
@@ -80,6 +80,17 @@ function ComparisonRow({
                     <Icon className={cn("w-6 h-6", colorConfig.text)} />
                 </div>
                 <span className="text-xs font-medium text-[#6B6B6B] dark:text-gray-400 text-center mt-1">{label}</span>
+
+                {/* Diff Indicator */}
+                {diff !== 0 && (
+                    <div className={cn(
+                        "absolute -top-3 left-1/2 -translate-x-1/2 opacity-0 group-hover/row:opacity-100 transition-opacity pointer-events-none",
+                        "px-2 py-1 rounded-lg text-[10px] font-bold shadow-sm",
+                        diff > 0 ? "bg-[#E8F8E0] text-green-700" : "bg-[#FCEEF1] text-rose-700"
+                    )}>
+                        {diff > 0 ? "+" : ""}{diff}
+                    </div>
+                )}
             </div>
 
             {/* Employee 2 value */}
@@ -90,15 +101,6 @@ function ComparisonRow({
                 )}>
                     {value2}
                 </span>
-            </div>
-
-            {/* Diff Indicator - Absolute positioned or floating */}
-            <div className={cn(
-                "absolute left-1/2 -translate-x-1/2 -translate-y-[28px] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none",
-                "px-2 py-1 rounded-lg text-[10px] font-bold shadow-sm",
-                diff > 0 ? "bg-[#E8F8E0] text-green-700" : diff < 0 ? "bg-[#FCEEF1] text-rose-700" : "bg-gray-100 text-gray-500"
-            )}>
-                {diff > 0 ? "+" : ""}{diff}
             </div>
         </div>
     );

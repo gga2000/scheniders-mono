@@ -28,6 +28,11 @@ export interface PaginatedCustomer {
     first_order_date: string;
     calculated_status: CustomerStatus;
     is_blacklisted: boolean;
+    total_items: number;
+    last_order_id?: string;
+    last_order_status?: string;
+    secondary_phone?: string;
+    address_details?: string;
 }
 
 export interface PaginatedCustomersResponse {
@@ -87,6 +92,9 @@ export function usePaginatedCustomers(
                 first_order_date: row.first_order_date,
                 calculated_status: row.calculated_status as CustomerStatus,
                 is_blacklisted: row.blacklisted,
+                total_items: Number(row.total_items || 0),
+                last_order_id: row.last_order_id,
+                last_order_status: row.last_order_status,
             }));
 
             // Determine if there's a next page

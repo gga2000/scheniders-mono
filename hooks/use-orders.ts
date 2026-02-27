@@ -686,6 +686,30 @@ export function useOrders() {
                 rejectionReason
             });
 
+            // Handle Advanced Inventory & Supplies based on Status Changes
+            if (previousOrder && previousOrder.status !== status) {
+                import("@/lib/inventory-engine").then(engine => {
+                    const items = previousOrder.items || [];
+                    const prevWasActive = !['completed', 'delivered', 'rejected', 'refund_delivered', 'refund_failed', 'cancelled'].includes(previousOrder.status);
+                    const nowIsActive = !['completed', 'delivered', 'rejected', 'refund_delivered', 'refund_failed', 'cancelled'].includes(status);
+
+                    if (status === 'completed' || status === 'delivered') {
+                        engine.fulfillOrder(items);
+                        engine.deductSupplies(items.length); // BOM Logic
+                    } else if (status === 'rejected' || status === 'refund_delivered') {
+                        engine.quarantineOrder(orderId, items, rejectionReason || `Changed to ${status}`);
+                    } else if (status === 'cancelled' && prevWasActive) {
+                        engine.releaseAllocation(items); // Just release reserved stock if cancelled before shipping
+                    } else if (nowIsActive && !prevWasActive) {
+                        // If it came back from rejected/cancelled, remove it from QC and re-allocate
+                        if (previousOrder.status === 'rejected' || previousOrder.status === 'refund_delivered' || previousOrder.status === 'cancelled') {
+                            engine.removeFromQuarantine(orderId);
+                        }
+                        engine.allocateOrder(items); // Re-allocate if order was reopened
+                    }
+                }).catch(console.error);
+            }
+
             // Record status change to history table for timeline tracking
             // Note: This is a side effect we still run directly
             if (previousOrder && previousOrder.status !== status) {
@@ -703,8 +727,6 @@ export function useOrders() {
                         if (error) console.error("Failed to record status history:", error);
                     });
             }
-
-
 
             // Log activity
             if (previousOrder && previousOrder.status !== status) {
@@ -828,6 +850,12 @@ export function useOrders() {
 
             // Use React Query mutation for optimistic update
             const data = await createOrderMutation.mutateAsync(orderData);
+
+            // Handle Advanced Inventory 
+            // Only try to allocate valid product items (with product_id)
+            import("@/lib/inventory-engine").then(engine => {
+                engine.allocateOrder(orderData.items || []);
+            }).catch(console.error);
 
             // Log activity
             activityLogger.logOrderCreate(
@@ -1119,12 +1147,36 @@ export function useOrders() {
 
     async function bulkUpdateStatus(orderIds: string[], status: Order["status"]) {
         try {
+            // Find the orders to check their previous state
+            const previousOrders = orders.filter(o => orderIds.includes(o.id));
+
             const { error: updateError } = await supabase
                 .from("orders")
                 .update({ status })
                 .in("id", orderIds);
 
             if (updateError) throw updateError;
+
+            // Handle Advanced Inventory & Supplies for each order
+            import("@/lib/inventory-engine").then(engine => {
+                const nowIsActive = !['completed', 'delivered', 'rejected', 'refund_delivered', 'refund_failed', 'cancelled'].includes(status);
+
+                previousOrders.forEach(previousOrder => {
+                    const items = previousOrder.items || [];
+                    const prevWasActive = !['completed', 'delivered', 'rejected', 'refund_delivered', 'refund_failed', 'cancelled'].includes(previousOrder.status);
+
+                    if (status === 'completed' || status === 'delivered') {
+                        engine.fulfillOrder(items);
+                        engine.deductSupplies(items.length); // BOM Logic
+                    } else if (status === 'rejected' || status === 'refund_delivered') {
+                        engine.quarantineOrder(previousOrder.id, items, `Bulk changed to ${status}`);
+                    } else if (status === 'cancelled' && prevWasActive) {
+                        engine.releaseAllocation(items);
+                    } else if (nowIsActive && !prevWasActive) {
+                        engine.allocateOrder(items);
+                    }
+                });
+            }).catch(console.error);
 
             // Update local state
             setOrders((prev) =>

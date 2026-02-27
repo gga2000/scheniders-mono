@@ -20,10 +20,13 @@ import {
     Loader2,
     AlertCircle,
     X,
+    Pencil,
+    Trash2,
+    Key,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { cn } from "@/lib/utils";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
 
 // Types
 type UserRole = "admin" | "employee" | "viewer";
@@ -83,38 +86,30 @@ function InviteUserModal({ onClose, onUserCreated }: InviteUserModalProps) {
         setLoading(true);
 
         try {
-            // Create user via Supabase Auth
-            const { data, error: signUpError } = await supabase.auth.signUp({
-                email,
-                password,
-                options: {
-                    data: {
-                        display_name: displayName || email.split("@")[0],
-                    },
-                },
+            const response = await fetch("/api/auth/create-user", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    email,
+                    password,
+                    displayName: displayName || email.split("@")[0],
+                    role,
+                }),
             });
 
-            if (signUpError) {
-                throw signUpError;
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || "حدث خطأ أثناء إنشاء المستخدم");
             }
 
-            if (data.user) {
-                // Update the user profile with the role
-                const { error: profileError } = await supabase
-                    .from("user_profiles")
-                    .update({
-                        role,
-                        display_name: displayName || email.split("@")[0],
-                        is_active: true,
-                    })
-                    .eq("id", data.user.id);
-
-                if (profileError) {
-                    console.error("Error updating profile:", profileError);
-                }
-
-                onUserCreated();
+            if (response.status === 207) {
+                toast({ title: "تنبيه", description: result.error, variant: "error" });
+            } else {
+                toast({ title: "تم إنشاء الحساب", description: `تم إنشاء حساب ${email} بنجاح.` });
             }
+
+            onUserCreated();
         } catch (err) {
             console.error("Error creating user:", err);
             setError(err instanceof Error ? err.message : "حدث خطأ أثناء إنشاء المستخدم");
@@ -299,6 +294,10 @@ export default function TeamSettingsPage() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [showInviteModal, setShowInviteModal] = useState(false);
+    const [actionMenuUserId, setActionMenuUserId] = useState<string | null>(null);
+    const [editingUser, setEditingUser] = useState<{ id: string; name: string } | null>(null);
+    const [editName, setEditName] = useState("");
+    const [confirmDeleteUserId, setConfirmDeleteUserId] = useState<string | null>(null);
 
     // Fetch all users
     const fetchUsers = async () => {
@@ -335,8 +334,10 @@ export default function TeamSettingsPage() {
             setUsers(prev =>
                 prev.map(u => (u.id === userId ? { ...u, role: newRole } : u))
             );
+            toast({ title: "تم تحديث الدور", description: "تم تغيير دور المستخدم بنجاح." });
         } catch (err) {
             console.error("Error updating role:", err);
+            toast({ title: "خطأ في تحديث الدور", description: "تعذر تغيير دور المستخدم. حاول مرة أخرى.", variant: "error" });
         }
     };
 
@@ -353,8 +354,52 @@ export default function TeamSettingsPage() {
             setUsers(prev =>
                 prev.map(u => (u.id === userId ? { ...u, is_active: !isActive } : u))
             );
+            toast({ title: isActive ? "تم تعطيل المستخدم" : "تم تفعيل المستخدم", description: isActive ? "تم تعطيل حساب المستخدم." : "تم تفعيل حساب المستخدم." });
         } catch (err) {
             console.error("Error toggling status:", err);
+            toast({ title: "خطأ في تغيير الحالة", description: "تعذر تغيير حالة المستخدم. حاول مرة أخرى.", variant: "error" });
+        }
+    };
+
+    // Update display name
+    const updateDisplayName = async (userId: string, newName: string) => {
+        try {
+            const { error } = await supabase
+                .from("user_profiles")
+                .update({ display_name: newName })
+                .eq("id", userId);
+
+            if (error) throw error;
+
+            setUsers(prev =>
+                prev.map(u => (u.id === userId ? { ...u, display_name: newName } : u))
+            );
+            toast({ title: "تم تحديث الاسم", description: "تم تغيير اسم المستخدم بنجاح." });
+            setEditingUser(null);
+        } catch (err) {
+            console.error("Error updating name:", err);
+            toast({ title: "خطأ في تحديث الاسم", description: "تعذر تغيير اسم المستخدم.", variant: "error" });
+        }
+    };
+
+    // Deactivate user (soft delete)
+    const deactivateUser = async (userId: string) => {
+        try {
+            const { error } = await supabase
+                .from("user_profiles")
+                .update({ is_active: false })
+                .eq("id", userId);
+
+            if (error) throw error;
+
+            setUsers(prev =>
+                prev.map(u => (u.id === userId ? { ...u, is_active: false } : u))
+            );
+            toast({ title: "تم تعطيل الحساب", description: "تم تعطيل حساب المستخدم بنجاح." });
+            setConfirmDeleteUserId(null);
+        } catch (err) {
+            console.error("Error deactivating user:", err);
+            toast({ title: "خطأ", description: "تعذر تعطيل الحساب.", variant: "error" });
         }
     };
 
@@ -554,11 +599,50 @@ export default function TeamSettingsPage() {
 
                                             {/* Actions */}
                                             <td className="p-4">
-                                                <button
-                                                    className="p-2 rounded-lg hover:bg-surface transition-colors text-muted-foreground hover:text-foreground"
-                                                >
-                                                    <MoreVertical className="w-5 h-5" />
-                                                </button>
+                                                <div className="relative">
+                                                    <button
+                                                        onClick={() => setActionMenuUserId(actionMenuUserId === user.id ? null : user.id)}
+                                                        className="p-2 rounded-lg hover:bg-surface transition-colors text-muted-foreground hover:text-foreground"
+                                                    >
+                                                        <MoreVertical className="w-5 h-5" />
+                                                    </button>
+
+                                                    <AnimatePresence>
+                                                        {actionMenuUserId === user.id && (
+                                                            <>
+                                                                <div className="fixed inset-0 z-40" onClick={() => setActionMenuUserId(null)} />
+                                                                <motion.div
+                                                                    initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                                                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                                    exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                                                                    className="absolute left-0 top-full mt-1 w-48 bg-background border border-border rounded-xl shadow-xl z-50 overflow-hidden"
+                                                                >
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setEditingUser({ id: user.id, name: user.display_name || "" });
+                                                                            setEditName(user.display_name || "");
+                                                                            setActionMenuUserId(null);
+                                                                        }}
+                                                                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-surface transition-colors"
+                                                                    >
+                                                                        <Pencil className="w-4 h-4 text-muted-foreground" />
+                                                                        تعديل الاسم
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setConfirmDeleteUserId(user.id);
+                                                                            setActionMenuUserId(null);
+                                                                        }}
+                                                                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-rose-500 hover:bg-rose-500/10 transition-colors"
+                                                                    >
+                                                                        <Trash2 className="w-4 h-4" />
+                                                                        تعطيل الحساب
+                                                                    </button>
+                                                                </motion.div>
+                                                            </>
+                                                        )}
+                                                    </AnimatePresence>
+                                                </div>
                                             </td>
                                         </motion.tr>
                                     );
@@ -568,6 +652,84 @@ export default function TeamSettingsPage() {
                     </div>
                 )}
             </div>
+
+            {/* Edit Name Modal */}
+            <AnimatePresence>
+                {editingUser && (
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-background border border-border rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+                        >
+                            <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                                <Pencil className="w-5 h-5 text-primary" />
+                                تعديل اسم المستخدم
+                            </h3>
+                            <input
+                                type="text"
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                placeholder="الاسم الجديد"
+                                className="w-full h-11 px-4 rounded-xl bg-surface border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 mb-4"
+                                autoFocus
+                            />
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={() => setEditingUser(null)}
+                                    className="px-4 py-2 rounded-xl bg-surface border border-border hover:bg-surface-hover transition-colors text-sm"
+                                >
+                                    إلغاء
+                                </button>
+                                <button
+                                    onClick={() => updateDisplayName(editingUser.id, editName)}
+                                    disabled={!editName.trim()}
+                                    className="px-4 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary-hover transition-colors text-sm disabled:opacity-50"
+                                >
+                                    حفظ
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Confirm Deactivate Modal */}
+            <AnimatePresence>
+                {confirmDeleteUserId && (
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-background border border-border rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+                        >
+                            <div className="w-12 h-12 rounded-xl bg-rose-500/10 flex items-center justify-center mx-auto mb-4">
+                                <AlertCircle className="w-6 h-6 text-rose-500" />
+                            </div>
+                            <h3 className="text-lg font-bold text-foreground text-center mb-2">تعطيل الحساب</h3>
+                            <p className="text-sm text-muted-foreground text-center mb-6">
+                                هل أنت متأكد من تعطيل هذا الحساب؟ لن يتمكن المستخدم من تسجيل الدخول.
+                            </p>
+                            <div className="flex justify-center gap-3">
+                                <button
+                                    onClick={() => setConfirmDeleteUserId(null)}
+                                    className="px-4 py-2 rounded-xl bg-surface border border-border hover:bg-surface-hover transition-colors text-sm"
+                                >
+                                    إلغاء
+                                </button>
+                                <button
+                                    onClick={() => deactivateUser(confirmDeleteUserId)}
+                                    className="px-4 py-2 rounded-xl bg-rose-500 text-white hover:bg-rose-600 transition-colors text-sm"
+                                >
+                                    تعطيل
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
 
             {/* Invite Modal */}
             {showInviteModal && (

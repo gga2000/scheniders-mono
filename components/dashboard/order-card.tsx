@@ -2109,6 +2109,27 @@ export const OrderCard = memo(function OrderCard({
                             </button>
                         )}
 
+                        {/* Undo Status Button - Only for terminal/advanced statuses */}
+                        {["delivered", "completed", "rejected", "cancelled", "no_response", "return_pending"].includes(order.status) && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    let prevStatus: Order["status"] = "in_transit";
+                                    if (order.status === "cancelled" || order.status === "no_response") {
+                                        prevStatus = "contacted";
+                                    } else if (order.status === "return_pending") {
+                                        prevStatus = "delivered";
+                                    }
+                                    onStatusUpdate(order.id, prevStatus);
+                                }}
+                                disabled={isLoading}
+                                className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200 transition-all flex items-center justify-center disabled:opacity-50 dark:bg-white/10 dark:border-white/20 dark:text-[#A1A1A1] dark:hover:text-white dark:hover:bg-white/20"
+                                title="تراجع - Undo Status Change"
+                            >
+                                <RotateCcw className="w-4 h-4" />
+                            </button>
+                        )}
+
                         {/* Quick Status Actions */}
                         {order.status !== "completed" && order.status !== "rejected" && order.status !== "cancelled" && order.status !== "no_response" && (
                             <>

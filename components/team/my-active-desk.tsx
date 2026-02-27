@@ -1,84 +1,80 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
-import { Package, CheckCircle2, Clock, ChevronRight, Settings } from 'lucide-react';
+import { Package, CheckCircle2, Clock, ChevronRight, RefreshCw, Printer, Edit3, LogIn, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
+import { supabase } from '@/lib/supabase';
 
-interface ActiveTask {
+interface RecentTask {
     id: string;
-    orderId: string;
-    customerName: string;
-    duty: 'confirmation' | 'fulfillment';
-    status: 'pending' | 'in_progress';
-    assignedAt: string;
-    priority: 'high' | 'medium' | 'low';
+    action: string;
+    entity_id: string | null;
+    details: Record<string, unknown>;
+    created_at: string;
 }
-
-// Mock tasks for development
-const MOCK_TASKS: ActiveTask[] = [
-    {
-        id: '1',
-        orderId: 'ORD-2024-089',
-        customerName: 'أحمد محمود',
-        duty: 'confirmation',
-        status: 'pending',
-        assignedAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(), // 15 mins ago
-        priority: 'high'
-    },
-    {
-        id: '2',
-        orderId: 'ORD-2024-090',
-        customerName: 'منى علي',
-        duty: 'fulfillment',
-        status: 'in_progress',
-        assignedAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(), // 45 mins ago
-        priority: 'medium'
-    },
-    {
-        id: '3',
-        orderId: 'ORD-2024-091',
-        customerName: 'سارة خالد',
-        duty: 'confirmation',
-        status: 'pending',
-        assignedAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
-        priority: 'low'
-    },
-    {
-        id: '4',
-        orderId: 'ORD-2024-092',
-        customerName: 'عمر زيد',
-        duty: 'fulfillment',
-        status: 'pending',
-        assignedAt: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(), // 3 hours ago
-        priority: 'medium'
-    }
-];
 
 interface MyActiveDeskProps {
     profile: {
+        id?: string;
         display_name?: string | null;
         email?: string;
     } | null;
 }
 
+const ACTION_CONFIG: Record<string, { label: string; duty: 'confirmation' | 'fulfillment'; icon: React.ElementType; priority: 'high' | 'medium' | 'low' }> = {
+    'order.create': { label: 'إنشاء طلب', duty: 'confirmation', icon: Package, priority: 'high' },
+    'order.status_change': { label: 'تغيير حالة', duty: 'fulfillment', icon: RefreshCw, priority: 'medium' },
+    'order.edit': { label: 'تعديل طلب', duty: 'confirmation', icon: Edit3, priority: 'medium' },
+    'order.print': { label: 'طباعة طلب', duty: 'fulfillment', icon: Printer, priority: 'low' },
+};
+
 export function MyActiveDesk({ profile }: MyActiveDeskProps) {
     const listRef = useRef<HTMLDivElement>(null);
     const { scrollXProgress } = useScroll({ container: listRef });
+    const [tasks, setTasks] = useState<RecentTask[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    // Fade out edges based on scroll position
     const leftShadowOpacity = useTransform(scrollXProgress, [0, 0.05], [0, 1]);
     const rightShadowOpacity = useTransform(scrollXProgress, [0.95, 1], [1, 0]);
+
+    useEffect(() => {
+        if (!profile?.id) {
+            setLoading(false);
+            return;
+        }
+
+        const fetchRecentTasks = async () => {
+            setLoading(true);
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+
+            const { data, error } = await supabase
+                .from('activity_logs')
+                .select('id, action, entity_id, details, created_at')
+                .eq('user_id', profile.id)
+                .gte('created_at', todayStart.toISOString())
+                .in('action', ['order.create', 'order.status_change', 'order.edit', 'order.print'])
+                .order('created_at', { ascending: false })
+                .limit(10);
+
+            if (!error && data) {
+                setTasks(data);
+            }
+            setLoading(false);
+        };
+
+        fetchRecentTasks();
+    }, [profile?.id]);
 
     if (!profile) return null;
 
     const firstName = profile.display_name?.split(' ')[0] || profile.email?.split('@')[0] || 'زميل';
 
-    // Greeting based on time of day
     const hour = new Date().getHours();
-    const greeting = hour < 12 ? 'صباح الخير' : hour < 18 ? 'مساء الخير' : 'مساء الخير';
+    const greeting = hour < 12 ? 'صباح الخير' : 'مساء الخير';
 
     return (
         <div className="mb-10 w-full relative">
@@ -91,21 +87,17 @@ export function MyActiveDesk({ profile }: MyActiveDeskProps) {
                 <div>
                     <div className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white mb-1">
                         <span>{greeting}،</span>
-                        <span className="text-blue-600 dark:text-blue-400">{firstName} 👋</span>
+                        <span className="text-blue-600 dark:text-blue-400">{firstName}</span>
                     </div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                        لديك <strong className="text-gray-900 dark:text-white">{MOCK_TASKS.length} مهام</strong> نشطة في مكتبك اليوم.
+                        {loading ? (
+                            'جاري التحميل...'
+                        ) : tasks.length > 0 ? (
+                            <>لديك <strong className="text-gray-900 dark:text-white">{tasks.length} نشاطات</strong> اليوم.</>
+                        ) : (
+                            'لا توجد نشاطات حتى الآن اليوم.'
+                        )}
                     </p>
-                </div>
-
-                {/* Actions / Filter (Placeholder) */}
-                <div className="flex items-center gap-2">
-                    <button className="px-4 py-2 rounded-xl text-sm font-semibold bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors shadow-sm">
-                        عرض الكل
-                    </button>
-                    <button className="w-10 h-10 rounded-xl flex items-center justify-center bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors shadow-sm text-gray-500">
-                        <Settings className="w-4 h-4" />
-                    </button>
                 </div>
             </motion.div>
 
@@ -125,20 +117,31 @@ export function MyActiveDesk({ profile }: MyActiveDeskProps) {
                     ref={listRef}
                     className="flex items-center gap-4 overflow-x-auto pb-4 pt-2 px-1 snap-x snap-mandatory hide-scrollbar"
                 >
-                    <AnimatePresence>
-                        {MOCK_TASKS.map((task, index) => (
-                            <TaskCard key={task.id} task={task} index={index} />
-                        ))}
-                    </AnimatePresence>
+                    {loading ? (
+                        // Loading skeleton cards
+                        Array.from({ length: 3 }).map((_, i) => (
+                            <div key={i} className="shrink-0 w-[280px] sm:w-[320px] rounded-3xl p-5 bg-white dark:bg-[#1A1A1A] border-2 border-gray-100 dark:border-white/5 animate-pulse">
+                                <div className="h-6 w-24 bg-gray-100 dark:bg-gray-800 rounded-full mb-4" />
+                                <div className="h-6 w-40 bg-gray-100 dark:bg-gray-800 rounded mb-2" />
+                                <div className="h-4 w-28 bg-gray-50 dark:bg-gray-800/50 rounded" />
+                            </div>
+                        ))
+                    ) : (
+                        <AnimatePresence>
+                            {tasks.map((task, index) => (
+                                <TaskCard key={task.id} task={task} index={index} />
+                            ))}
+                        </AnimatePresence>
+                    )}
 
-                    {/* Add empty state if no tasks */}
-                    {MOCK_TASKS.length === 0 && (
+                    {/* Empty state */}
+                    {!loading && tasks.length === 0 && (
                         <div className="w-full py-12 flex flex-col items-center justify-center text-center bg-white/50 dark:bg-black/10 border border-dashed border-gray-200 dark:border-white/10 rounded-3xl backdrop-blur-md">
                             <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4 text-gray-400">
                                 <CheckCircle2 className="w-8 h-8" />
                             </div>
                             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">مكتبك فارغ!</h3>
-                            <p className="text-sm text-gray-500 max-w-xs">لا توجد لديك مهام نشطة حالياً. يمكنك أخذ استراحة أو مساعدة زملائك.</p>
+                            <p className="text-sm text-gray-500 max-w-xs">لا توجد لديك نشاطات حالياً اليوم.</p>
                         </div>
                     )}
                 </div>
@@ -148,11 +151,11 @@ export function MyActiveDesk({ profile }: MyActiveDeskProps) {
 }
 
 // Internal Task Card Component
-function TaskCard({ task, index }: { task: ActiveTask, index: number }) {
-    const isConfirmation = task.duty === 'confirmation';
-    const isPending = task.status === 'pending';
+function TaskCard({ task, index }: { task: RecentTask; index: number }) {
+    const config = ACTION_CONFIG[task.action] || { label: task.action, duty: 'confirmation' as const, icon: Activity, priority: 'low' as const };
+    const isConfirmation = config.duty === 'confirmation';
+    const TaskIcon = config.icon;
 
-    // Theming based on duty
     const theme = isConfirmation
         ? {
             bg: 'bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20',
@@ -167,16 +170,23 @@ function TaskCard({ task, index }: { task: ActiveTask, index: number }) {
             accent: 'bg-emerald-500 shadow-emerald-500/30'
         };
 
+    const entityDisplay = task.entity_id
+        ? task.entity_id.length > 12 ? `...${task.entity_id.slice(-8)}` : task.entity_id
+        : '';
+
+    const statusDetail = task.action === 'order.status_change' && task.details?.newStatus
+        ? String(task.details.newStatus)
+        : null;
+
     return (
         <motion.div
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.1, duration: 0.4, type: 'spring' }}
             className={cn(
-                "group shrink-0 w-[280px] sm:w-[320px] rounded-3xl p-5 cursor-pointer snap-start",
+                "group shrink-0 w-[280px] sm:w-[320px] rounded-3xl p-5 snap-start",
                 "bg-white dark:bg-[#1A1A1A] border-2 transition-all duration-300",
-                isPending ? "border-gray-100 dark:border-white/5 hover:border-gray-200 dark:hover:border-white/10 shadow-sm hover:shadow-md"
-                    : `${theme.border} shadow-md`
+                `${theme.border} shadow-sm hover:shadow-md`
             )}
         >
             <div className="flex items-start justify-between mb-4">
@@ -184,31 +194,38 @@ function TaskCard({ task, index }: { task: ActiveTask, index: number }) {
                     "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
                     theme.bg, theme.text
                 )}>
-                    {isConfirmation ? 'تأكيد طلب' : 'تجهيز طلب'}
+                    {config.label}
                 </div>
 
-                {task.priority === 'high' && (
+                {config.priority === 'high' && (
                     <div className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.6)]" />
                 )}
             </div>
 
             <div className="mb-5">
-                <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-1">{task.customerName}</h4>
-                <p className="text-sm text-gray-500 font-mono tracking-tight">{task.orderId}</p>
+                <div className="flex items-center gap-2 mb-1">
+                    <TaskIcon className={cn("w-5 h-5", theme.text)} />
+                    <h4 className="text-lg font-bold text-gray-900 dark:text-white">{config.label}</h4>
+                </div>
+                {entityDisplay && (
+                    <p className="text-sm text-gray-500 font-mono tracking-tight">{entityDisplay}</p>
+                )}
+                {statusDetail && (
+                    <p className="text-xs text-gray-400 mt-1">الحالة الجديدة: <strong className="text-gray-700 dark:text-gray-300">{statusDetail}</strong></p>
+                )}
             </div>
 
             <div className="flex items-center justify-between mt-auto border-t border-gray-100 dark:border-white/5 pt-4">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500">
                     <Clock className="w-3.5 h-3.5" />
-                    <span>{formatDistanceToNow(new Date(task.assignedAt), { addSuffix: true, locale: ar })}</span>
+                    <span>{formatDistanceToNow(new Date(task.created_at), { addSuffix: true, locale: ar })}</span>
                 </div>
 
                 <div className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center transition-transform group-hover:scale-110",
-                    isPending ? "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300" : theme.accent,
-                    !isPending && "text-white shadow-lg"
+                    "w-8 h-8 rounded-full flex items-center justify-center",
+                    theme.accent, "text-white shadow-lg"
                 )}>
-                    {isPending ? <ChevronRight className="w-4 h-4" /> : <Package className="w-4 h-4" />}
+                    <TaskIcon className="w-4 h-4" />
                 </div>
             </div>
         </motion.div>

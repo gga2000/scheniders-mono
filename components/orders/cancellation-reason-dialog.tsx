@@ -90,21 +90,21 @@ export function CancellationReasonDialog({
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
                     onClick={(e) => e.stopPropagation()}
-                    className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+                    className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-2xl w-full max-w-md overflow-hidden dark:shadow-[0_10px_40px_rgba(0,0,0,0.8)]"
                 >
                     {/* Header */}
                     <div className={cn(
                         "flex items-center justify-between px-5 py-4 border-b border-[var(--card-border)]",
-                        isReject ? "bg-orange-50" : "bg-rose-50"
+                        isReject ? "bg-orange-50 dark:bg-orange-500/10" : "bg-rose-50 dark:bg-rose-500/10"
                     )}>
                         <div className="flex items-center gap-3">
                             <div className={cn(
                                 "w-10 h-10 rounded-xl flex items-center justify-center",
-                                isReject ? "bg-orange-100" : "bg-rose-100"
+                                isReject ? "bg-orange-100 dark:bg-orange-500/20" : "bg-rose-100 dark:bg-rose-500/20"
                             )}>
                                 <XCircle className={cn(
                                     "w-5 h-5",
-                                    isReject ? "text-orange-600" : "text-rose-600"
+                                    isReject ? "text-orange-600 dark:text-orange-400" : "text-rose-600 dark:text-rose-400"
                                 )} />
                             </div>
                             <div>
@@ -118,7 +118,7 @@ export function CancellationReasonDialog({
                             onClick={handleClose}
                             className={cn(
                                 "w-8 h-8 rounded-lg flex items-center justify-center transition-all",
-                                isReject ? "hover:bg-orange-100" : "hover:bg-rose-100"
+                                isReject ? "hover:bg-orange-100 dark:hover:bg-orange-500/20" : "hover:bg-rose-100 dark:hover:bg-rose-500/20"
                             )}
                         >
                             <X className="w-4 h-4 text-muted" />
@@ -141,18 +141,18 @@ export function CancellationReasonDialog({
                                         "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-right transition-all",
                                         selectedReason === reason.id
                                             ? isReject
-                                                ? "bg-orange-100 ring-2 ring-orange-400 text-orange-900"
-                                                : "bg-rose-100 ring-2 ring-rose-400 text-rose-900"
-                                            : "bg-[var(--background)] hover:bg-gray-100 text-foreground"
+                                                ? "bg-orange-100 ring-2 ring-orange-400 text-orange-900 dark:bg-orange-500/20 dark:text-orange-300 dark:ring-orange-500/50"
+                                                : "bg-rose-100 ring-2 ring-rose-400 text-rose-900 dark:bg-rose-500/20 dark:text-rose-300 dark:ring-rose-500/50"
+                                            : "bg-[var(--background)] hover:bg-gray-100 dark:hover:bg-white/5 text-foreground"
                                     )}
                                 >
                                     <div className={cn(
                                         "w-4 h-4 rounded-full border-2 flex-shrink-0",
                                         selectedReason === reason.id
                                             ? isReject
-                                                ? "border-orange-500 bg-orange-500"
-                                                : "border-rose-500 bg-rose-500"
-                                            : "border-gray-300"
+                                                ? "border-orange-500 bg-orange-500 dark:border-orange-400 dark:bg-orange-400"
+                                                : "border-rose-500 bg-rose-500 dark:border-rose-400 dark:bg-rose-400"
+                                            : "border-gray-300 dark:border-white/20"
                                     )}>
                                         {selectedReason === reason.id && (
                                             <div className="w-full h-full rounded-full flex items-center justify-center">
@@ -181,7 +181,7 @@ export function CancellationReasonDialog({
                                         placeholder={customPlaceholder}
                                         className={cn(
                                             "w-full h-24 pr-10 pl-4 py-3 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-sm resize-none focus:outline-none focus:ring-2 focus:border-transparent",
-                                            isReject ? "focus:ring-orange-400" : "focus:ring-rose-400"
+                                            isReject ? "focus:ring-orange-400 dark:focus:ring-orange-500/50" : "focus:ring-rose-400 dark:focus:ring-rose-500/50"
                                         )}
                                         dir="rtl"
                                     />
@@ -191,10 +191,10 @@ export function CancellationReasonDialog({
                     </div>
 
                     {/* Footer */}
-                    <div className="flex items-center justify-end gap-2 px-5 py-4 bg-[var(--background)] border-t border-[var(--card-border)]">
+                    <div className="flex items-center justify-end gap-2 px-5 py-4 bg-[var(--background)] border-t border-[var(--card-border)] transition-colors">
                         <button
                             onClick={handleClose}
-                            className="px-4 py-2.5 text-sm font-medium text-muted hover:text-foreground transition-colors rounded-xl hover:bg-gray-100"
+                            className="px-4 py-2.5 text-sm font-medium text-muted hover:text-foreground transition-colors rounded-xl hover:bg-gray-100 dark:hover:bg-white/5"
                         >
                             إلغاء
                         </button>
@@ -205,9 +205,9 @@ export function CancellationReasonDialog({
                                 "flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl transition-all",
                                 selectedReason && (selectedReason !== "other" || customReason.trim())
                                     ? isReject
-                                        ? "bg-orange-500 text-white hover:bg-orange-600 shadow-md"
-                                        : "bg-rose-500 text-white hover:bg-rose-600 shadow-md"
-                                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                        ? "bg-orange-500 text-white hover:bg-orange-600 shadow-md dark:shadow-[0_0_15px_rgba(249,115,22,0.3)]"
+                                        : "bg-rose-500 text-white hover:bg-rose-600 shadow-md dark:shadow-[0_0_15px_rgba(244,63,94,0.3)]"
+                                    : "bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-white/5 dark:text-[#A1A1A1]"
                             )}
                         >
                             <XCircle className="w-4 h-4" />

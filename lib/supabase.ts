@@ -120,17 +120,35 @@ export interface Product {
     price: number;
     compare_at_price?: number; // Original price before discount (shows "was X, now Y")
     cost?: number;
-    stock_quantity: number;
+    stock_quantity: number; // Physical on-hand stock
+    reserved_quantity: number; // Stock currently locked in active orders
     low_stock_threshold: number;
     image_url?: string;
     tag_color?: string; // Custom tag color for product display
     is_archived: boolean;
+    is_supply: boolean; // True for packaging, samples, etc.
     // Computed fields (not in DB)
     variants?: ProductVariant[];
     times_sold?: number;
     total_revenue?: number;
     profit_margin?: number;
     average_order_value?: number;
+}
+
+export interface QCItem {
+    id: string;
+    order_id?: string;
+    product_id: string;
+    quantity: number;
+    status: 'pending_inspection' | 'restocked' | 'written_off';
+    reason: string;
+    created_at: string;
+    resolved_at?: string;
+    resolved_by?: string;
+    notes?: string;
+    // Joined fields
+    product?: Product;
+    order?: Order;
 }
 
 export interface ProductVariant {
@@ -158,8 +176,9 @@ export interface ProductPriceHistory {
 export type StockStatus = 'in_stock' | 'low_stock' | 'out_of_stock';
 
 export function getStockStatus(product: Product): StockStatus {
-    if (product.stock_quantity <= 0) return 'out_of_stock';
-    if (product.stock_quantity <= product.low_stock_threshold) return 'low_stock';
+    const available = product.stock_quantity - (product.reserved_quantity || 0);
+    if (available <= 0) return 'out_of_stock';
+    if (available <= product.low_stock_threshold) return 'low_stock';
     return 'in_stock';
 }
 
