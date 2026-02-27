@@ -29,6 +29,7 @@ interface ProductFormData {
     low_stock_threshold: number;
     image_url?: string;
     tag_color?: string; // Custom color for product tag display
+    is_supply?: boolean;
 }
 
 interface VariantFormData {

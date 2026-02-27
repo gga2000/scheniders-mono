@@ -12,6 +12,7 @@ import {
     BarChart3,
     X,
     UsersRound,
+    Database,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -30,6 +31,7 @@ const MORE_NAV_ITEMS = [
     { key: "nav.analytics", icon: BarChart3, href: "/analytics" },
     { key: "nav.printing", icon: Printer, href: "/printing" },
     { key: "nav.team", icon: UsersRound, href: "/team" },
+    { key: "nav.vault", icon: Database, href: "/vault" },
     { key: "nav.settings", icon: Settings, href: "/settings" },
 ];
 

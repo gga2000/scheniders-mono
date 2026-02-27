@@ -4,10 +4,36 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, Power, PowerOff, ShieldAlert, Settings2, MapPin, Flag, HelpCircle, Package, Truck, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { AssignmentRule, mockAssignmentRules, mockEmployees, RuleConditionType, OrderDuty } from '@/lib/team-types';
+import { AssignmentRule, RuleConditionType, OrderDuty } from '@/lib/team-types';
 
-export function AssignmentRulesTab() {
-    const [rules, setRules] = useState<AssignmentRule[]>(mockAssignmentRules);
+interface EmployeeOption {
+    id: string;
+    name: string;
+    avatarUrl?: string | null;
+}
+
+interface AssignmentRulesTabProps {
+    employees?: EmployeeOption[];
+}
+
+const RULES_STORAGE_KEY = "assignment-rules";
+
+function loadRulesFromStorage(): AssignmentRule[] {
+    if (typeof window === 'undefined') return [];
+    try {
+        const stored = localStorage.getItem(RULES_STORAGE_KEY);
+        return stored ? JSON.parse(stored) : [];
+    } catch {
+        return [];
+    }
+}
+
+function saveRulesToStorage(rules: AssignmentRule[]) {
+    localStorage.setItem(RULES_STORAGE_KEY, JSON.stringify(rules));
+}
+
+export function AssignmentRulesTab({ employees = [] }: AssignmentRulesTabProps) {
+    const [rules, setRules] = useState<AssignmentRule[]>(() => loadRulesFromStorage());
     const [isCreating, setIsCreating] = useState(false);
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
@@ -18,12 +44,17 @@ export function AssignmentRulesTab() {
     const [newConditionField, setNewConditionField] = useState<RuleConditionType>('city');
     const [newConditionValue, setNewConditionValue] = useState('');
 
+    const updateRules = (newRules: AssignmentRule[]) => {
+        setRules(newRules);
+        saveRulesToStorage(newRules);
+    };
+
     const handleToggleRule = (id: string) => {
-        setRules(rules.map(r => r.id === id ? { ...r, is_active: !r.is_active } : r));
+        updateRules(rules.map(r => r.id === id ? { ...r, is_active: !r.is_active } : r));
     };
 
     const handleDeleteRule = (id: string) => {
-        setRules(rules.filter(r => r.id !== id));
+        updateRules(rules.filter(r => r.id !== id));
         setConfirmDeleteId(null);
     };
 
@@ -40,12 +71,11 @@ export function AssignmentRulesTab() {
                 { field: newConditionField, operator: 'equals', value: newConditionValue }
             ],
             created_at: new Date().toISOString(),
-            priority: 10
+            priority: rules.length > 0 ? Math.max(...rules.map(r => r.priority)) + 10 : 10
         };
 
-        setRules([newRule, ...rules]);
+        updateRules([newRule, ...rules]);
         setIsCreating(false);
-        // Reset form
         setNewName('');
         setNewConditionValue('');
         setNewEmployeeId('');
@@ -121,8 +151,8 @@ export function AssignmentRulesTab() {
                                                 className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/50"
                                             >
                                                 <option value="" disabled>اختر موظفاً</option>
-                                                {mockEmployees.map(emp => (
-                                                    <option key={emp.id} value={emp.id}>{emp.first_name} {emp.last_name}</option>
+                                                {employees.map(emp => (
+                                                    <option key={emp.id} value={emp.id}>{emp.name}</option>
                                                 ))}
                                             </select>
                                         </div>
@@ -188,8 +218,8 @@ export function AssignmentRulesTab() {
                     </div>
                 )}
 
-                {rules.map((rule) => {
-                    const employee = mockEmployees.find(e => e.id === rule.employee_id);
+                {[...rules].sort((a, b) => b.priority - a.priority).map((rule) => {
+                    const employee = employees.find(e => e.id === rule.employee_id);
                     const isConfirmation = rule.duty === 'confirmation';
 
                     return (
@@ -219,11 +249,11 @@ export function AssignmentRulesTab() {
                                     </div>
                                     <div className="w-8 h-px bg-gray-300 dark:bg-gray-700" />
                                     <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-800 border-2 border-white dark:border-[#1A1A1A] shadow-md flex items-center justify-center relative z-10 overflow-hidden">
-                                        {employee?.avatar_url ? (
-                                            <img src={employee.avatar_url} alt="" className="w-full h-full object-cover" />
+                                        {employee?.avatarUrl ? (
+                                            <img src={employee.avatarUrl} alt="" className="w-full h-full object-cover" />
                                         ) : (
                                             <span className="font-bold text-gray-600 dark:text-gray-300">
-                                                {employee?.first_name?.[0]}
+                                                {employee?.name?.[0]}
                                             </span>
                                         )}
                                     </div>
@@ -245,15 +275,18 @@ export function AssignmentRulesTab() {
                                     إذا كان <strong>{rule.conditions[0].field}</strong> يساوي <strong>"{rule.conditions[0].value}"</strong>
                                 </p>
 
-                                <div className="flex items-center gap-3 text-xs">
+                                <div className="flex items-center gap-3 text-xs flex-wrap">
                                     <span className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md">
-                                        تعيين إلى: <strong className="text-gray-900 dark:text-white">{employee?.first_name} {employee?.last_name}</strong>
+                                        تعيين إلى: <strong className="text-gray-900 dark:text-white">{employee?.name || 'غير محدد'}</strong>
                                     </span>
                                     <span className={cn(
                                         "px-2 py-1 rounded-md font-semibold font-mono",
                                         isConfirmation ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400" : "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
                                     )}>
                                         {isConfirmation ? 'تأكيد' : 'تجهيز'}
+                                    </span>
+                                    <span className="px-2 py-1 rounded-md font-mono font-semibold bg-gray-50 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                                        أولوية: {rule.priority}
                                     </span>
                                 </div>
                             </div>

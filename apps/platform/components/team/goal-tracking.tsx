@@ -13,6 +13,7 @@ import {
     Flag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
 import { PastelCard, pastelColors, PastelButton } from "./shared-pastel-components";
 
 // Types
@@ -370,18 +371,88 @@ function AddGoalForm({
     );
 }
 
+// Map goal metric names to activity_logs action values
+const METRIC_TO_ACTIONS: Record<Goal["metric"], string[]> = {
+    totalActions: ["order.create", "order.status_change", "order.edit", "order.print"],
+    ordersCreated: ["order.create"],
+    statusChanges: ["order.status_change"],
+    ordersPrinted: ["order.print"],
+};
+
+function getDateFilterForGoalType(type: Goal["type"]): string {
+    const now = new Date();
+    switch (type) {
+        case "daily":
+            now.setHours(0, 0, 0, 0);
+            return now.toISOString();
+        case "weekly":
+            now.setDate(now.getDate() - 7);
+            return now.toISOString();
+        case "monthly":
+            now.setMonth(now.getMonth() - 1);
+            return now.toISOString();
+    }
+}
+
 export function GoalTracking({ employees, className }: GoalTrackingProps) {
     const { goals, addGoal, deleteGoal } = useGoals();
     const [isAdding, setIsAdding] = useState(false);
+    const [periodStats, setPeriodStats] = useState<Record<string, number>>({});
 
-    // Calculate current values for each goal
+    // Fetch period-specific stats for each goal
+    useEffect(() => {
+        if (goals.length === 0) return;
+
+        const fetchPeriodStats = async () => {
+            const statsMap: Record<string, number> = {};
+
+            // Group goals by employee + type to minimize queries
+            const queryGroups = new Map<string, { employeeId: string; type: Goal["type"]; metrics: Goal["metric"][]; goalIds: string[] }>();
+            for (const goal of goals) {
+                const key = `${goal.employeeId}_${goal.type}`;
+                if (!queryGroups.has(key)) {
+                    queryGroups.set(key, { employeeId: goal.employeeId, type: goal.type, metrics: [], goalIds: [] });
+                }
+                const group = queryGroups.get(key)!;
+                group.metrics.push(goal.metric);
+                group.goalIds.push(goal.id);
+            }
+
+            await Promise.all(
+                Array.from(queryGroups.values()).map(async (group) => {
+                    const dateFilter = getDateFilterForGoalType(group.type);
+                    const allActions = [...new Set(group.metrics.flatMap(m => METRIC_TO_ACTIONS[m]))];
+
+                    const { data, error } = await supabase
+                        .from("activity_logs")
+                        .select("action")
+                        .eq("user_id", group.employeeId)
+                        .gte("created_at", dateFilter)
+                        .in("action", allActions);
+
+                    if (!error && data) {
+                        // Count actions for each metric
+                        for (const goal of goals.filter(g => g.employeeId === group.employeeId && g.type === group.type)) {
+                            const targetActions = METRIC_TO_ACTIONS[goal.metric];
+                            statsMap[goal.id] = data.filter(d => targetActions.includes(d.action)).length;
+                        }
+                    }
+                })
+            );
+
+            setPeriodStats(statsMap);
+        };
+
+        fetchPeriodStats();
+    }, [goals]);
+
+    // Calculate current values for each goal using period-specific stats
     const goalsWithProgress = useMemo(() => {
         return goals.map((goal) => {
-            const employee = employees.find((e) => e.userId === goal.employeeId);
-            const currentValue = employee?.[goal.metric] || 0;
+            const currentValue = periodStats[goal.id] ?? 0;
             return { goal, currentValue };
         });
-    }, [goals, employees]);
+    }, [goals, periodStats]);
 
     const achievedCount = goalsWithProgress.filter((g) => g.currentValue >= g.goal.target).length;
 

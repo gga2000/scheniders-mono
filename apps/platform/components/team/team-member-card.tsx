@@ -14,10 +14,12 @@ interface TeamMemberCardProps {
     onClick: () => void;
     rank?: number;
     delay?: number;
+    /** Real-time active indicator from useTeamRealtime */
+    isActive?: boolean;
 }
 
-export function TeamMemberCard({ employee, viewMode, onClick, rank, delay = 0 }: TeamMemberCardProps) {
-    const isOnline = employee.last_login_at ? new Date(employee.last_login_at).getTime() > Date.now() - 15 * 60 * 1000 : false;
+export function TeamMemberCard({ employee, viewMode, onClick, rank, delay = 0, isActive = false }: TeamMemberCardProps) {
+    const isOnline = isActive || (employee.last_login_at ? new Date(employee.last_login_at).getTime() > Date.now() - 15 * 60 * 1000 : false);
 
     // Role-based theming
     const getRoleTheme = (role: string) => {
@@ -93,9 +95,9 @@ export function TeamMemberCard({ employee, viewMode, onClick, rank, delay = 0 }:
                         </div>
                         <div className={cn(
                             "absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-[#1A1A1A]",
-                            isOnline ? "bg-emerald-500" : "bg-gray-400"
+                            isActive ? "bg-emerald-500" : isOnline ? "bg-emerald-500" : "bg-gray-400"
                         )}>
-                            {isOnline && <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-50" />}
+                            {isActive && <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-50" />}
                         </div>
                     </div>
 
@@ -168,9 +170,15 @@ export function TeamMemberCard({ employee, viewMode, onClick, rank, delay = 0 }:
                         {employee.role}
                     </div>
                     {isOnline ? (
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded-full">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            مباشر
+                        <div className={cn(
+                            "flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded-full",
+                            isActive && "ring-2 ring-emerald-400/50 ring-offset-1 dark:ring-offset-[#1A1A1A]"
+                        )}>
+                            <span className={cn(
+                                "w-1.5 h-1.5 rounded-full bg-emerald-500",
+                                isActive ? "animate-ping" : "animate-pulse"
+                            )} />
+                            {isActive ? "نشط الآن" : "مباشر"}
                         </div>
                     ) : (
                         <div className="text-xs font-semibold text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800/50 px-2 py-1 rounded-full">

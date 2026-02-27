@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback, useRef } from "react";
+import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import { useCustomerUrlState } from "@/hooks/use-customer-url-state";
 import { usePaginatedCustomers } from "@/hooks/use-paginated-customers";
 import { useLanguage } from "@/hooks/use-language";
@@ -75,13 +75,22 @@ export default function CustomersPage() {
         const scrollingDown = scrollTop > lastScrollTopRef.current;
         lastScrollTopRef.current = scrollTop;
 
-        if (scrollingDown && scrollTop > 30 && !metricsCollapsed) {
+        if (scrollingDown && scrollTop > 150 && !metricsCollapsed) {
             setMetricsCollapsed(true);
             setIsExpandedAnalytics(false);
-        } else if (!scrollingDown && scrollTop <= 5 && metricsCollapsed) {
+            localStorage.setItem("customersToolbarCollapsed", "true");
+        } else if (!scrollingDown && scrollTop <= 20 && metricsCollapsed) {
             setMetricsCollapsed(false);
+            localStorage.setItem("customersToolbarCollapsed", "false");
         }
     }, [metricsCollapsed]);
+
+    // Ensure we clean up the collapsed state when unmounting
+    useEffect(() => {
+        return () => {
+            localStorage.setItem("customersToolbarCollapsed", "false");
+        };
+    }, []);
 
     const { exportToCSV, bulkAddTags, isTagging } = useCustomerBulkActions();
     const { presets, savePreset, deletePreset, applyPreset } = useCustomerFilterPresets();

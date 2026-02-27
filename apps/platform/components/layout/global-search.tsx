@@ -321,16 +321,21 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
     const router = useRouter();
     const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
 
-    // Track if orders toolbar is collapsed (read from localStorage)
+    // Track if toolbars are collapsed (read from localStorage)
     const [isOrdersToolbarCollapsed, setIsOrdersToolbarCollapsed] = useState(false);
+    const [isCustomersToolbarCollapsed, setIsCustomersToolbarCollapsed] = useState(false);
     const isOrdersPage = pathname === '/orders' || pathname.startsWith('/orders?');
+    const isCustomersPage = pathname === '/customers' || pathname.startsWith('/customers?');
 
     // Listen for localStorage changes and initial load
     useEffect(() => {
         // Initial check
         const checkCollapsed = () => {
-            const collapsed = localStorage.getItem("ordersToolbarCollapsed") === "true";
-            setIsOrdersToolbarCollapsed(collapsed);
+            const ordersCollapsed = localStorage.getItem("ordersToolbarCollapsed") === "true";
+            setIsOrdersToolbarCollapsed(ordersCollapsed);
+
+            const customersCollapsed = localStorage.getItem("customersToolbarCollapsed") === "true";
+            setIsCustomersToolbarCollapsed(customersCollapsed);
         };
         checkCollapsed();
 
@@ -338,6 +343,9 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
         const handleStorage = (e: StorageEvent) => {
             if (e.key === "ordersToolbarCollapsed") {
                 setIsOrdersToolbarCollapsed(e.newValue === "true");
+            }
+            if (e.key === "customersToolbarCollapsed") {
+                setIsCustomersToolbarCollapsed(e.newValue === "true");
             }
         };
         window.addEventListener("storage", handleStorage);
@@ -355,8 +363,12 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
         alert("Notifications feature coming soon!");
     };
 
-    // Hide TopBar when on orders page and toolbar is collapsed
+    // Hide TopBar when on orders or customers page and their respective toolbars are collapsed
     if (isOrdersPage && isOrdersToolbarCollapsed) {
+        return null;
+    }
+
+    if (isCustomersPage && isCustomersToolbarCollapsed) {
         return null;
     }
 

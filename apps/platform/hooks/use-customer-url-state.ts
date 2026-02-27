@@ -37,96 +37,88 @@ export function useCustomerUrlState() {
     const debouncedSearch = useDebounce(state.search || "", 300);
 
     // Update URL when state changes (debounced for search)
-    const updateUrl = useCallback((newState: CustomerUrlState, currentSearch: string) => {
+    // We remove useCallback and useEffect to avoid dependency loop issues that trigger React re-renders.
+    // Instead we only push to the router when we EXPLICITLY set a state, rather than reacting to it.
+
+    // Helper to safely update the URL without causing infinite loops
+    const pushStateToUrl = (key: string, value: string | null) => {
         const params = new URLSearchParams(searchParams.toString());
-
-        // Handle Search (debounced)
-        if (currentSearch) {
-            params.set("search", currentSearch);
+        if (value === null || value === "" || value === "all") {
+            params.delete(key);
         } else {
-            params.delete("search");
+            params.set(key, value);
         }
 
-        // Handle Status
-        if (newState.status && newState.status !== "all") {
-            params.set("status", newState.status);
-        } else {
-            params.delete("status");
-        }
-
-        // Handle City
-        if (newState.city) {
-            params.set("city", newState.city);
-        } else {
-            params.delete("city");
-        }
-
-        // Handle Sorting
-        if (newState.sortBy && newState.sortBy !== "last_order_date") {
-            params.set("sortBy", newState.sortBy);
-        } else {
-            params.delete("sortBy");
-        }
-
-        if (newState.sortOrder && newState.sortOrder !== "desc") {
-            params.set("sortOrder", newState.sortOrder);
-        } else {
-            params.delete("sortOrder"); // desc is default
-        }
-
-        // Handle Selected Customer
-        if (newState.customerId) {
-            params.set("customer", newState.customerId);
-        } else {
-            params.delete("customer");
-        }
-
-        // Handle Advanced Filters
-        if (newState.minLtv !== undefined) params.set("minLtv", newState.minLtv.toString());
-        else params.delete("minLtv");
-
-        if (newState.maxLtv !== undefined) params.set("maxLtv", newState.maxLtv.toString());
-        else params.delete("maxLtv");
-
-        if (newState.lastOrderWithinDays !== undefined) params.set("withinDays", newState.lastOrderWithinDays.toString());
-        else params.delete("withinDays");
-
-        if (newState.tagId) params.set("tagId", newState.tagId);
-        else params.delete("tagId");
-
-        // Only push if params actually changed
         const newQueryString = params.toString();
         const currentQueryString = searchParams.toString();
 
         if (newQueryString !== currentQueryString) {
             const newUrl = `${pathname}${newQueryString ? `?${newQueryString}` : ''}`;
-            // Use replace to avoid filling history stack for every keystroke filter
             router.replace(newUrl, { scroll: false });
         }
-    }, [pathname, router, searchParams]);
+    };
 
-    // Effect to trigger URL update when relevant state pieces change
+    // Helpers to update individual pieces AND the URL simultaneously to prevent loops
+    const setSearch = (search: string) => {
+        setState(prev => ({ ...prev, search }));
+        // Note: we don't push URL here immediately, we let the debounced value handle it below
+    };
+
+    // React to debounced search changing
     useEffect(() => {
-        updateUrl(state, debouncedSearch);
-    }, [
-        state.status, state.city, state.sortBy, state.sortOrder, state.customerId, debouncedSearch,
-        state.minLtv, state.maxLtv, state.lastOrderWithinDays, state.tagId,
-        updateUrl
-    ]);
+        pushStateToUrl("search", debouncedSearch || null);
+    }, [debouncedSearch]);
 
-    // Helpers to update individual pieces
-    const setSearch = (search: string) => setState(prev => ({ ...prev, search }));
-    const setStatus = (status: CustomerStatus | "all") => setState(prev => ({ ...prev, status }));
-    const setCity = (city: string) => setState(prev => ({ ...prev, city }));
-    const setSort = (sortBy: CustomerUrlState["sortBy"], sortOrder: "asc" | "desc") =>
+    const setStatus = (status: CustomerStatus | "all") => {
+        setState(prev => ({ ...prev, status }));
+        pushStateToUrl("status", status);
+    };
+
+    const setCity = (city: string) => {
+        setState(prev => ({ ...prev, city }));
+        pushStateToUrl("city", city);
+    };
+
+    const setSort = (sortBy: CustomerUrlState["sortBy"], sortOrder: "asc" | "desc") => {
         setState(prev => ({ ...prev, sortBy, sortOrder }));
-    const setSelectedCustomer = (customerId: string | null) => setState(prev => ({ ...prev, customerId }));
+
+        const params = new URLSearchParams(searchParams.toString());
+        if (sortBy === "last_order_date") params.delete("sortBy");
+        else params.set("sortBy", sortBy || "");
+
+        if (sortOrder === "desc") params.delete("sortOrder");
+        else params.set("sortOrder", sortOrder);
+
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    };
+
+    const setSelectedCustomer = (customerId: string | null) => {
+        setState(prev => ({ ...prev, customerId }));
+        pushStateToUrl("customer", customerId);
+    };
 
     // Advanced Setters
-    const setAdvancedFilters = (filters: Pick<CustomerUrlState, "minLtv" | "maxLtv" | "lastOrderWithinDays" | "tagId">) =>
+    const setAdvancedFilters = (filters: Pick<CustomerUrlState, "minLtv" | "maxLtv" | "lastOrderWithinDays" | "tagId">) => {
         setState(prev => ({ ...prev, ...filters }));
-    const clearAdvancedFilters = () =>
+        const params = new URLSearchParams(searchParams.toString());
+
+        if (filters.minLtv !== undefined) params.set("minLtv", filters.minLtv.toString()); else params.delete("minLtv");
+        if (filters.maxLtv !== undefined) params.set("maxLtv", filters.maxLtv.toString()); else params.delete("maxLtv");
+        if (filters.lastOrderWithinDays !== undefined) params.set("withinDays", filters.lastOrderWithinDays.toString()); else params.delete("withinDays");
+        if (filters.tagId) params.set("tagId", filters.tagId); else params.delete("tagId");
+
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    };
+
+    const clearAdvancedFilters = () => {
         setState(prev => ({ ...prev, minLtv: undefined, maxLtv: undefined, lastOrderWithinDays: undefined, tagId: undefined }));
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("minLtv");
+        params.delete("maxLtv");
+        params.delete("withinDays");
+        params.delete("tagId");
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    };
 
     return {
         state: {

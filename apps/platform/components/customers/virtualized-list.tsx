@@ -53,9 +53,9 @@ export function VirtualizedCustomerList({
     // Adjust row size based on compact level
     const getRowSize = () => {
         switch (compactLevel) {
-            case 2: return 48;  // Ultra-compact
-            case 1: return 60; // Semi-compact
-            default: return 72; // Full (Data Table Row)
+            case 2: return 84;  // Ultra-compact (Same as 0 but no px padding)
+            case 1: return 140; // Semi-compact (Box card)
+            default: return 84; // Full (Data Table Row)
         }
     };
 
@@ -76,10 +76,10 @@ export function VirtualizedCustomerList({
             if (observerRef.current) observerRef.current.disconnect();
 
             observerRef.current = new IntersectionObserver(entries => {
-                if (entries[0].isIntersecting && hasNextPage) {
+                if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage && !isLoading) {
                     fetchNextPage();
                 }
-            });
+            }, { rootMargin: '400px' });
 
             if (node) observerRef.current.observe(node);
         },
@@ -87,8 +87,11 @@ export function VirtualizedCustomerList({
     );
 
     // Handle shift+click range selection
-    const handleToggleSelection = useCallback((phone: string, index: number, isShiftKey: boolean) => {
+    const handleToggleSelection = useCallback((phone: string, isShiftKey?: boolean) => {
         if (!onToggleSelection) return;
+
+        const index = customers.findIndex(c => c.phone === phone);
+        if (index === -1) return;
 
         if (isShiftKey && lastSelectedIndex !== null) {
             // Range selection
@@ -149,8 +152,8 @@ export function VirtualizedCustomerList({
             className="flex-1 flex flex-col overflow-hidden h-full"
         >
             {/* TABLE HEADER (Sticky) */}
-            <div className="flex-shrink-0 grid grid-cols-[auto_2fr_1.5fr_1.5fr_1fr_1fr_auto] gap-4 items-center px-6 py-4 border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-black/20 backdrop-blur-md z-20 text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider sticky top-0">
-                <div className="w-10 flex justify-center">
+            <div className="flex-shrink-0 grid grid-cols-[48px_minmax(200px,2fr)_minmax(120px,1.5fr)_minmax(80px,0.8fr)_minmax(120px,1fr)_minmax(140px,1.5fr)_80px] gap-4 items-center px-6 py-4 border-b border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-[#0A0A0A]/80 backdrop-blur-md z-20 text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider sticky top-0">
+                <div className="w-full flex justify-center">
                     {showSelectAll && (
                         <input
                             type="checkbox"
@@ -168,10 +171,10 @@ export function VirtualizedCustomerList({
                     )}
                 </div>
                 <div>CUSTOMER</div>
-                <div className="text-center">STATUS</div>
+                <div className="text-center">LAST ORDER</div>
+                <div className="text-center">ITEMS</div>
+                <div className="text-right">VALUATION</div>
                 <div>ENGAGEMENT</div>
-                <div className="text-right">LTV</div>
-                <div className="text-right">ACTIVITY</div>
                 <div className="w-10"></div>
             </div>
 
@@ -221,7 +224,6 @@ export function VirtualizedCustomerList({
                         return (
                             <div
                                 key={customer.phone}
-                                ref={rowVirtualizer.measureElement}
                                 data-index={virtualRow.index}
                                 className={cn(
                                     "absolute top-0 left-0 w-full transition-all",
@@ -229,14 +231,15 @@ export function VirtualizedCustomerList({
                                 )}
                                 style={{
                                     transform: `translateY(${virtualRow.start}px)`,
+                                    height: `${virtualRow.size}px`,
                                 }}
                                 onClick={(e) => {
                                     // If shift key, do range selection
                                     if (e.shiftKey && onToggleSelection) {
-                                        handleToggleSelection(customer.phone, virtualRow.index, true);
+                                        handleToggleSelection(customer.phone, true);
                                     } else if ((e.metaKey || e.ctrlKey) && onToggleSelection) {
                                         // If cmd/ctrl key, toggle individual selection
-                                        handleToggleSelection(customer.phone, virtualRow.index, false);
+                                        handleToggleSelection(customer.phone, false);
                                     } else {
                                         // Normal click - show details
                                         onSelectCustomer(customer.phone);
@@ -246,7 +249,7 @@ export function VirtualizedCustomerList({
                                 <CustomerCard
                                     customer={customer}
                                     isSelected={isDetailSelected || isSelected}
-                                    onToggleSelection={onToggleSelection ? (phone: string) => handleToggleSelection(phone, virtualRow.index, false) : undefined}
+                                    onToggleSelection={onToggleSelection ? handleToggleSelection : undefined}
                                     onViewDetails={onSelectCustomer}
                                     compact={compactLevel}
                                     isVirtualized={true}

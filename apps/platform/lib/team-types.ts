@@ -69,6 +69,7 @@ export interface AssignmentRule {
     priority: number; // Higher number = higher priority when merging rules
 }
 
+// TODO: Replace with real database queries - these mock data exports are still used by order-related components
 // Mock Data to simulate Database
 export const mockEmployees: Employee[] = [
     {

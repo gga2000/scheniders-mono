@@ -26,6 +26,7 @@ export interface ProductFormData {
     low_stock_threshold: number;
     image_url: string;
     tag_color: string; // Custom color for product tag display
+    is_supply: boolean;
     variants: VariantFormData[];
 }
 
@@ -57,6 +58,7 @@ export function ProductFormModal({
         low_stock_threshold: 5,
         image_url: "",
         tag_color: "#22c55e", // Default green
+        is_supply: false,
         variants: [],
     });
 
@@ -74,6 +76,7 @@ export function ProductFormModal({
                 low_stock_threshold: product.low_stock_threshold,
                 image_url: product.image_url || "",
                 tag_color: product.tag_color || "#22c55e",
+                is_supply: product.is_supply || false,
                 variants: (product.variants || []).map((v) => ({
                     id: v.id,
                     name: v.name,
@@ -95,6 +98,7 @@ export function ProductFormModal({
                 low_stock_threshold: 5,
                 image_url: "",
                 tag_color: "#22c55e",
+                is_supply: false,
                 variants: [],
             });
         }
@@ -184,6 +188,24 @@ export function ProductFormModal({
 
                     {/* Form */}
                     <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                        {/* Supply Toggle */}
+                        <div className="p-4 bg-[var(--background)] border border-[var(--card-border)] rounded-xl">
+                            <label className="flex items-center gap-3 cursor-pointer">
+                                <div className="relative flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={formData.is_supply}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, is_supply: e.target.checked }))}
+                                        className="w-5 h-5 rounded border-2 border-[var(--muted)] text-[var(--pastel-yellow)] focus:ring-[var(--pastel-yellow)] focus:ring-offset-0 bg-transparent transition-all cursor-pointer"
+                                    />
+                                </div>
+                                <div>
+                                    <p className="font-medium text-sm text-foreground">Track as Internal Supply</p>
+                                    <p className="text-xs text-muted mt-0.5">Check this if this item is used for packaging or internal use (e.g., boxes, wrappers, vials). It will be tracked but hidden from the main product catalog.</p>
+                                </div>
+                            </label>
+                        </div>
+
                         {/* Basic Info */}
                         <div className="space-y-4">
                             <h3 className="text-sm font-semibold text-muted uppercase tracking-wider">
@@ -240,106 +262,115 @@ export function ProductFormModal({
                                 </div>
 
                                 {/* Tag Color Picker */}
-                                <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-foreground mb-2">
-                                        Tag Color
-                                    </label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {[
-                                            { color: '#22c55e', name: 'Green' },
-                                            { color: '#f97316', name: 'Orange' },
-                                            { color: '#3b82f6', name: 'Blue' },
-                                            { color: '#a855f7', name: 'Purple' },
-                                            { color: '#ec4899', name: 'Pink' },
-                                            { color: '#14b8a6', name: 'Teal' },
-                                            { color: '#eab308', name: 'Yellow' },
-                                            { color: '#ef4444', name: 'Red' },
-                                        ].map((preset) => (
-                                            <button
-                                                key={preset.color}
-                                                type="button"
-                                                onClick={() => setFormData((prev) => ({ ...prev, tag_color: preset.color }))}
-                                                className={`w-10 h-10 rounded-xl border-2 transition-all ${formData.tag_color === preset.color
-                                                    ? 'border-foreground scale-110 shadow-lg'
-                                                    : 'border-transparent hover:scale-105'
-                                                    }`}
-                                                style={{ backgroundColor: preset.color }}
-                                                title={preset.name}
-                                            />
-                                        ))}
+                                {!formData.is_supply && (
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium text-foreground mb-2">
+                                            Tag Color
+                                        </label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {[
+                                                { color: '#22c55e', name: 'Green' },
+                                                { color: '#f97316', name: 'Orange' },
+                                                { color: '#3b82f6', name: 'Blue' },
+                                                { color: '#a855f7', name: 'Purple' },
+                                                { color: '#ec4899', name: 'Pink' },
+                                                { color: '#14b8a6', name: 'Teal' },
+                                                { color: '#eab308', name: 'Yellow' },
+                                                { color: '#ef4444', name: 'Red' },
+                                            ].map((preset) => (
+                                                <button
+                                                    key={preset.color}
+                                                    type="button"
+                                                    onClick={() => setFormData((prev) => ({ ...prev, tag_color: preset.color }))}
+                                                    className={`w-10 h-10 rounded-xl border-2 transition-all ${formData.tag_color === preset.color
+                                                        ? 'border-foreground scale-110 shadow-lg'
+                                                        : 'border-transparent hover:scale-105'
+                                                        }`}
+                                                    style={{ backgroundColor: preset.color }}
+                                                    title={preset.name}
+                                                />
+                                            ))}
+                                        </div>
+                                        <p className="text-xs text-muted mt-2">This color will be used for the product tag in orders</p>
                                     </div>
-                                    <p className="text-xs text-muted mt-2">This color will be used for the product tag in orders</p>
-                                </div>
+                                )}
                             </div>
                         </div>
 
                         {/* Pricing */}
                         <div className="space-y-4">
                             <h3 className="text-sm font-semibold text-muted uppercase tracking-wider">
-                                Pricing
+                                {formData.is_supply ? "Cost & Pricing" : "Pricing"}
                             </h3>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-foreground mb-2">
-                                        Selling Price (IQD) *
-                                    </label>
-                                    <input
-                                        type="number"
-                                        value={formData.price}
-                                        onChange={(e) => setFormData((prev) => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
-                                        placeholder="0"
-                                        required
-                                        min={0}
-                                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
-                                    />
-                                </div>
+                                {!formData.is_supply && (
+                                    <>
+                                        <div>
+                                            <label className="block text-sm font-medium text-foreground mb-2">
+                                                Selling Price (IQD) *
+                                            </label>
+                                            <input
+                                                type="number"
+                                                value={formData.price}
+                                                onChange={(e) => setFormData((prev) => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
+                                                placeholder="0"
+                                                required={!formData.is_supply}
+                                                min={0}
+                                                className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-foreground mb-2">
+                                                Compare At Price (IQD)
+                                                <span className="text-xs text-muted ml-1">(Original price before discount)</span>
+                                            </label>
+                                            <input
+                                                type="number"
+                                                value={formData.compare_at_price}
+                                                onChange={(e) => setFormData((prev) => ({ ...prev, compare_at_price: parseFloat(e.target.value) || 0 }))}
+                                                placeholder="0"
+                                                min={0}
+                                                className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                                            />
+                                        </div>
+                                    </>
+                                )}
 
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-2">
-                                        Compare At Price (IQD)
-                                        <span className="text-xs text-muted ml-1">(Original price before discount)</span>
-                                    </label>
-                                    <input
-                                        type="number"
-                                        value={formData.compare_at_price}
-                                        onChange={(e) => setFormData((prev) => ({ ...prev, compare_at_price: parseFloat(e.target.value) || 0 }))}
-                                        placeholder="0"
-                                        min={0}
-                                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-foreground mb-2">
-                                        Cost Price (IQD)
+                                        Cost Price (IQD) {formData.is_supply && "*"}
                                     </label>
                                     <input
                                         type="number"
                                         value={formData.cost}
                                         onChange={(e) => setFormData((prev) => ({ ...prev, cost: parseFloat(e.target.value) || 0 }))}
                                         placeholder="0"
+                                        required={formData.is_supply}
                                         min={0}
                                         className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                                     />
                                 </div>
 
-                                <div className="flex items-end gap-2">
-                                    {profitMargin && (
-                                        <div className="flex-1 px-4 py-3 bg-[var(--pastel-green)] rounded-xl text-center">
-                                            <p className="text-xs text-green-700">Profit</p>
-                                            <p className="text-lg font-bold text-green-900">{profitMargin}%</p>
-                                        </div>
-                                    )}
-                                    {formData.compare_at_price > formData.price && (
-                                        <div className="flex-1 px-4 py-3 bg-[var(--pastel-pink)] rounded-xl text-center">
-                                            <p className="text-xs text-rose-700">Discount</p>
-                                            <p className="text-lg font-bold text-rose-900">
-                                                {Math.round((1 - formData.price / formData.compare_at_price) * 100)}%
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
+                                {!formData.is_supply && (
+                                    <div className="flex items-end gap-2">
+                                        {profitMargin && (
+                                            <div className="flex-1 px-4 py-3 bg-[var(--pastel-green)] rounded-xl text-center">
+                                                <p className="text-xs text-green-700">Profit</p>
+                                                <p className="text-lg font-bold text-green-900">{profitMargin}%</p>
+                                            </div>
+                                        )}
+                                        {formData.compare_at_price > formData.price && (
+                                            <div className="flex-1 px-4 py-3 bg-[var(--pastel-pink)] rounded-xl text-center">
+                                                <p className="text-xs text-rose-700">Discount</p>
+                                                <p className="text-lg font-bold text-rose-900">
+                                                    {Math.round((1 - formData.price / formData.compare_at_price) * 100)}%
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -377,85 +408,88 @@ export function ProductFormModal({
                                         className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                                     />
                                 </div>
+
                             </div>
                         </div>
 
                         {/* Variants */}
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-sm font-semibold text-muted uppercase tracking-wider">
-                                    Variants (Sizes)
-                                </h3>
-                                <button
-                                    type="button"
-                                    onClick={addVariant}
-                                    className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors"
-                                >
-                                    <Plus className="w-4 h-4" />
-                                    Add Variant
-                                </button>
-                            </div>
+                        {!formData.is_supply && (
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-sm font-semibold text-muted uppercase tracking-wider">
+                                        Variants (Sizes)
+                                    </h3>
+                                    <button
+                                        type="button"
+                                        onClick={addVariant}
+                                        className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        Add Variant
+                                    </button>
+                                </div>
 
-                            {formData.variants.length === 0 ? (
-                                <div className="p-6 bg-[var(--background)] rounded-xl border border-dashed border-[var(--card-border)] text-center">
-                                    <p className="text-muted text-sm">
-                                        No variants added. Click "Add Variant" to create size options (e.g., 50ml, 100ml)
-                                    </p>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {formData.variants.map((variant, index) => (
-                                        <div
-                                            key={index}
-                                            className="p-4 bg-[var(--background)] rounded-xl border border-[var(--card-border)]"
-                                        >
-                                            <div className="flex items-center justify-between mb-3">
-                                                <span className="text-sm font-medium text-foreground">
-                                                    Variant {index + 1}
-                                                </span>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeVariant(index)}
-                                                    className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
+                                {formData.variants.length === 0 ? (
+                                    <div className="p-6 bg-[var(--background)] rounded-xl border border-dashed border-[var(--card-border)] text-center">
+                                        <p className="text-muted text-sm">
+                                            No variants added. Click "Add Variant" to create size options (e.g., 50ml, 100ml)
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {formData.variants.map((variant, index) => (
+                                            <div
+                                                key={index}
+                                                className="p-4 bg-[var(--background)] rounded-xl border border-[var(--card-border)]"
+                                            >
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <span className="text-sm font-medium text-foreground">
+                                                        Variant {index + 1}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeVariant(index)}
+                                                        className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                    <input
+                                                        type="text"
+                                                        value={variant.name}
+                                                        onChange={(e) => updateVariant(index, "name", e.target.value)}
+                                                        placeholder="Size (e.g., 50ml)"
+                                                        className="px-3 py-2 bg-white border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
+                                                    />
+                                                    <input
+                                                        type="number"
+                                                        value={variant.price}
+                                                        onChange={(e) => updateVariant(index, "price", parseFloat(e.target.value) || 0)}
+                                                        placeholder="Price"
+                                                        className="px-3 py-2 bg-white border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
+                                                    />
+                                                    <input
+                                                        type="number"
+                                                        value={variant.stock_quantity}
+                                                        onChange={(e) => updateVariant(index, "stock_quantity", parseInt(e.target.value) || 0)}
+                                                        placeholder="Stock"
+                                                        className="px-3 py-2 bg-white border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={variant.sku}
+                                                        onChange={(e) => updateVariant(index, "sku", e.target.value)}
+                                                        placeholder="SKU (optional)"
+                                                        className="px-3 py-2 bg-white border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
+                                                    />
+                                                </div>
                                             </div>
-                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                                <input
-                                                    type="text"
-                                                    value={variant.name}
-                                                    onChange={(e) => updateVariant(index, "name", e.target.value)}
-                                                    placeholder="Size (e.g., 50ml)"
-                                                    className="px-3 py-2 bg-white border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
-                                                />
-                                                <input
-                                                    type="number"
-                                                    value={variant.price}
-                                                    onChange={(e) => updateVariant(index, "price", parseFloat(e.target.value) || 0)}
-                                                    placeholder="Price"
-                                                    className="px-3 py-2 bg-white border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
-                                                />
-                                                <input
-                                                    type="number"
-                                                    value={variant.stock_quantity}
-                                                    onChange={(e) => updateVariant(index, "stock_quantity", parseInt(e.target.value) || 0)}
-                                                    placeholder="Stock"
-                                                    className="px-3 py-2 bg-white border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
-                                                />
-                                                <input
-                                                    type="text"
-                                                    value={variant.sku}
-                                                    onChange={(e) => updateVariant(index, "sku", e.target.value)}
-                                                    placeholder="SKU (optional)"
-                                                    className="px-3 py-2 bg-white border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
-                                                />
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Submit Button */}
                         <div className="flex gap-3 pt-4 border-t border-[var(--card-border)]">
@@ -468,7 +502,7 @@ export function ProductFormModal({
                             </button>
                             <button
                                 type="submit"
-                                disabled={loading || !formData.name || formData.price <= 0}
+                                disabled={loading || !formData.name || (!formData.is_supply && formData.price <= 0)}
                                 className="flex-1 px-6 py-3 bg-[var(--ink)] text-white rounded-xl font-medium hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {loading ? (
