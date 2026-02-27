@@ -1,76 +1,25 @@
-// Shared employee stats used across team page components
-export interface EmployeeStats {
-    user_id: string;
-    user_email: string;
-    display_name: string | null;
-    avatar_url: string | null;
-    role: string;
-    is_active: boolean;
-    last_login_at: string | null;
-    total_actions: number;
-    status_changes: number;
-    orders_created: number;
-    orders_printed: number;
-    orders_edited: number;
-    logins: number;
-}
+// =============================================
+// RE-EXPORTS FROM CENTRALIZED TYPES
+// All types that were previously defined here are now in @/types/team
+// These re-exports maintain backward compatibility.
+// =============================================
+export type {
+    EmployeeStats,
+    OrderDuty,
+    RuleConditionType,
+    RuleOperator,
+    EmployeeRole,
+    EmployeeStatus,
+    EmployeeThemeColor,
+    Employee,
+    OrderAssignment,
+    RuleCondition,
+    AssignmentRule,
+} from '@/types/team';
 
-export type OrderDuty = 'confirmation' | 'fulfillment';
-export type RuleConditionType = 'city' | 'priority' | 'order_status' | 'product_selected';
-export type RuleOperator = 'equals' | 'contains' | 'any';
-
-export type EmployeeRole = 'admin' | 'support' | 'logistics' | 'manager';
-
-export type EmployeeStatus = 'online' | 'away' | 'busy' | 'offline';
-
-export type EmployeeThemeColor = 'gold' | 'blue' | 'green' | 'purple' | 'orange' | 'pink';
-
-export interface Employee {
-    id: string;
-    first_name: string;
-    last_name: string;
-    email: string;
-    role: EmployeeRole;
-    avatar_url?: string;
-    status: EmployeeStatus;
-    // For the UI aura/theming
-    theme_color: EmployeeThemeColor;
-    created_at: string;
-    is_active: boolean;
-}
-
-// An assignment mapping an order to an employee for a specific duty
-export interface OrderAssignment {
-    id: string;
-    order_id: string;
-    employee_id: string;
-    duty: OrderDuty;
-    assigned_by?: string; // admin who assigned it
-    assigned_at: string;
-    completed_at?: string; // when the duty was finished
-    status: 'pending' | 'in_progress' | 'completed';
-}
-
-export interface RuleCondition {
-    field: RuleConditionType;
-    operator: RuleOperator;
-    value: string;
-}
-
-export interface AssignmentRule {
-    id: string;
-    name: string;
-    description?: string;
-    is_active: boolean;
-    duty: OrderDuty;
-    employee_id: string;
-    conditions: RuleCondition[];
-    created_at: string;
-    priority: number; // Higher number = higher priority when merging rules
-}
+import type { Employee, OrderAssignment, AssignmentRule } from '@/types/team';
 
 // TODO: Replace with real database queries - these mock data exports are still used by order-related components
-// Mock Data to simulate Database
 export const mockEmployees: Employee[] = [
     {
         id: 'emp_1',
@@ -128,7 +77,7 @@ export const mockAssignmentRules: AssignmentRule[] = [
         description: 'Auto-assign Baghdad orders to Noor for confirmation.',
         is_active: true,
         duty: 'confirmation',
-        employee_id: 'emp_2', // Noor
+        employee_id: 'emp_2',
         conditions: [
             { field: 'city', operator: 'equals', value: 'بغداد' }
         ],
@@ -141,7 +90,7 @@ export const mockAssignmentRules: AssignmentRule[] = [
         description: 'Mohammed handles immediate logistics.',
         is_active: true,
         duty: 'fulfillment',
-        employee_id: 'emp_4', // Mohammed Logistics
+        employee_id: 'emp_4',
         conditions: [
             { field: 'priority', operator: 'equals', value: 'high' }
         ],

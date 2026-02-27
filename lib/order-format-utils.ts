@@ -1,0 +1,202 @@
+import { Order } from "@/lib/supabase";
+import { extractGovernorate } from "@/lib/address-validator";
+
+export const formatShortDate = (dateStr: string | Date | undefined | null) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "";
+    return `${date.getMonth() + 1}/${date.getDate()}`;
+};
+
+export const formatTime = (dateStr: string | Date | undefined | null) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "";
+    return date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+    }).replace(' ', '');
+};
+
+export const getOrderAge = (dateStr: string | Date | undefined | null) => {
+    if (!dateStr) return "";
+    const now = new Date();
+    const orderDate = new Date(dateStr);
+    if (isNaN(orderDate.getTime())) return "";
+    const diffMs = now.getTime() - orderDate.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return "1d ago";
+    return `${diffDays}d ago`;
+};
+
+export const getAgeUrgency = (status: Order["status"], dateStr: string | Date | undefined | null) => {
+    if (status === "delivered" || status === "rejected") return "none";
+    if (!dateStr) return "none";
+
+    const now = new Date();
+    const orderDate = new Date(dateStr);
+    if (isNaN(orderDate.getTime())) return "none";
+    const diffHours = (now.getTime() - orderDate.getTime()) / 3600000;
+
+    if (diffHours < 2) return "fresh";      // Green - just arrived
+    if (diffHours < 4) return "normal";     // Default - normal processing
+    if (diffHours < 8) return "attention";  // Yellow - needs attention
+    if (diffHours < 24) return "urgent";    // Orange - getting old
+    return "stale";                         // Red - very old
+};
+
+export const getItemsDisplay = (items: any[]) => {
+    if (!items || items.length === 0) return [];
+    return items.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        image_url: item.image_url,
+        tag_color: item.tag_color
+    }));
+};
+
+export const getFullAddress = (city?: string | null, addressDetails?: string | null) => {
+    const parts = [];
+    if (city) parts.push(city);
+    if (addressDetails && addressDetails.trim().length > 0) {
+        parts.push(addressDetails);
+    }
+    return parts.join(' • ');
+};
+
+export const cleanSystemNotes = (text?: string | null) => {
+    if (!text) return '';
+    return text
+        .replace(/\[Partial Return\] Items split to return order\.?/g, '')
+        .replace(/\[Partial Return\] Items returned from original order\.?/g, '')
+        .replace(/Split from order (LF-\d+-\d+|\d+|(?:RTN|CLN-LF)-\d+(?:-\d+)?)/gi, '')
+        .replace(/استرجاع:.*?(\||$)/g, '')
+        .replace(/خصم التوصيل:.*?(\||$)/g, '')
+        .replace(/الطلب الأصلي:.*?(\||$)/g, '')
+        .replace(/\|/g, '') // Remove any remaining pipes
+        .replace(/\s{2,}/g, ' ') // Collapse multiple spaces
+        .replace(/^\s+|\s+$/g, '') // Trim
+        .trim();
+};
+
+export const getActualNotes = (notes?: string | null) => {
+    return cleanSystemNotes(notes);
+};
+
+export const getOrderReasonInfo = (order: Partial<Order>, isReturn: boolean = false) => {
+    const hasReason = order.rejection_reason;
+    const isRejected = order.status === 'rejected';
+    const isCancelled = order.status === 'cancelled';
+    const isNoResponse = order.status === 'no_response';
+
+    // Determine delivery deduction for return orders
+    let deliveryDeduction = 0;
+    if (isReturn) {
+        deliveryDeduction = order.delivery_fee || 0;
+    }
+
+    // 1. Use structured rejection_reason field if available
+    if (hasReason) {
+        return {
+            reason: order.rejection_reason!,
+            deliveryDeduction,
+            type: isReturn ? 'return' as const
+                : isRejected ? 'rejected' as const
+                    : isCancelled ? 'cancelled' as const
+                        : isNoResponse ? 'no_response' as const
+                            : 'other' as const,
+        };
+    }
+
+    // 2. Fallback for return orders: Parse from legacy notes string
+    if (isReturn) {
+        const notesStr = order.notes || "";
+        const reasonMatch = notesStr.match(/استرجاع:\s*([^|]+)/);
+        const deliveryMatch = notesStr.match(/خصم التوصيل:\s*([\d,]+)/);
+
+        if (reasonMatch || deliveryMatch) {
+            return {
+                reason: reasonMatch ? reasonMatch[1].trim() : null,
+                deliveryDeduction: deliveryMatch ? parseInt(deliveryMatch[1].replace(/,/g, "")) : deliveryDeduction,
+                type: 'return' as const,
+            };
+        }
+    }
+
+    // 3. No reason found
+    if (isReturn && deliveryDeduction > 0) {
+        return { reason: null, deliveryDeduction, type: 'return' as const };
+    }
+
+    return null;
+};
+
+export const getGovernorateCode = (order: Partial<Order>) => {
+    if (order.validated_governorate_code) return order.validated_governorate_code;
+    if (order.governorate_code) return order.governorate_code;
+
+    if (order.city) {
+        const { governorate } = extractGovernorate(order.city, undefined, order.address_details || undefined);
+        return governorate?.code || '';
+    }
+    return '';
+};
+
+export const getStatusColor = (status: Order["status"], isReturn: boolean = false) => {
+    if (isReturn || status === 'rejected') return "bg-red-400 dark:bg-[#FF3333]"; // Neon Red
+    switch (status) {
+        case "new": return "bg-orange-300 dark:bg-[#FF6A00]"; // Neon Orange
+        case "contacted": return "bg-[var(--pastel-yellow)] dark:bg-[#EFFF00]"; // App Primary Neon Green/Yellow
+        case "confirmed": return "bg-[var(--pastel-green)] dark:bg-[#39FF14]"; // Neon Green
+        case "in_transit": return "bg-blue-200 dark:bg-[#00FFAA]"; // Neon Teal/Blue
+        case "delivered": return "bg-[var(--pastel-mint)] dark:bg-[#00E5FF]"; // Neon Cyan
+        case "no_response": return "bg-slate-200 dark:bg-[#B800FF]"; // Neon Purple
+        case "return_pending": return "bg-rose-400 dark:bg-[#FF007F]"; // Neon Pink
+        case "cancelled": return "bg-red-300 dark:bg-[#FF3333]"; // Neon Red
+        default: return "bg-[var(--card-border)] dark:bg-[#555555]";
+    }
+};
+
+export const getStatusBadgeStyle = (status: Order["status"]) => {
+    switch (status) {
+        case "new": return "bg-orange-200 text-orange-900";
+        case "contacted": return "bg-[var(--pastel-yellow)] text-amber-900";
+        case "confirmed": return "bg-[var(--pastel-green)] text-green-900";
+        case "cancelled": return "bg-red-200 text-red-900";
+        case "in_transit": return "bg-blue-200 text-blue-900";
+        case "delivered": return "bg-[var(--pastel-mint)] text-teal-900";
+        case "rejected": return "bg-rose-100 text-rose-700 border border-rose-200";
+        case "completed": return "bg-emerald-200 text-emerald-900 ring-2 ring-emerald-400/50 shadow-[0_0_10px_rgba(16,185,129,0.3)]";
+        case "no_response": return "bg-slate-200 text-slate-600";
+        case "return_pending": return "bg-rose-200 text-rose-900 ring-2 ring-rose-400/50";
+        default: return "bg-gray-100 text-gray-700";
+    }
+};
+
+export const getDropdownItemStyle = (status: Order["status"]) => {
+    switch (status) {
+        case "new": return "bg-orange-100 text-orange-900 border border-transparent dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/20 data-[highlighted]:bg-orange-200 dark:data-[highlighted]:bg-orange-500/20";
+        case "contacted": return "bg-[var(--pastel-yellow-light)] text-amber-900 border border-transparent dark:bg-[#1E1E1E] dark:text-[#EFFF00] dark:border-[rgba(239,255,0,0.3)] data-[highlighted]:bg-[var(--pastel-yellow)] dark:data-[highlighted]:bg-[rgba(239,255,0,0.1)]";
+        case "confirmed": return "bg-[var(--pastel-green-light)] text-green-900 border border-transparent dark:bg-[rgba(0,255,100,0.1)] dark:text-emerald-400 dark:border-[rgba(0,255,100,0.2)] data-[highlighted]:bg-[var(--pastel-green)] dark:data-[highlighted]:bg-[rgba(0,255,100,0.2)]";
+        case "cancelled": return "bg-[var(--pastel-pink-light)] text-rose-800 border border-transparent dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20 data-[highlighted]:bg-[var(--pastel-pink)] dark:data-[highlighted]:bg-rose-500/20";
+        case "in_transit": return "bg-blue-100 text-blue-900 border border-transparent dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20 data-[highlighted]:bg-blue-200 dark:data-[highlighted]:bg-blue-500/20";
+        case "delivered": return "bg-[var(--pastel-mint)] text-teal-900 border border-transparent dark:bg-teal-500/10 dark:text-teal-400 dark:border-teal-500/20 data-[highlighted]:bg-teal-200 dark:data-[highlighted]:bg-teal-500/20";
+        case "rejected": return "bg-rose-100 text-rose-800 border border-transparent dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20 data-[highlighted]:bg-rose-200 dark:data-[highlighted]:bg-red-500/20";
+        case "completed": return "bg-emerald-100 text-emerald-900 border border-transparent dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 data-[highlighted]:bg-emerald-200 dark:data-[highlighted]:bg-emerald-500/20";
+        case "no_response": return "bg-slate-100 text-slate-700 border border-transparent dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20 data-[highlighted]:bg-slate-200 dark:data-[highlighted]:bg-slate-500/20";
+        case "return_pending": return "bg-rose-100 text-rose-900 border border-transparent dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20 data-[highlighted]:bg-rose-200 dark:data-[highlighted]:bg-rose-500/20";
+        default: return "bg-gray-100 text-gray-700 border border-transparent dark:bg-gray-500/10 dark:text-gray-400 dark:border-gray-500/20 data-[highlighted]:bg-gray-200 dark:data-[highlighted]:bg-gray-500/20";
+    }
+};
+
+export const getDisplayOrderId = (orderId: string) => {
+    if (!orderId) return "";
+    const lfMatch = orderId.match(/LF-(\d+)-\d+$/);
+    return lfMatch ? lfMatch[1] : orderId;
+};

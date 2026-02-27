@@ -6,6 +6,7 @@ import { useBusinessMetrics } from "@/hooks/use-business-metrics";
 import { formatIQD, cn } from "@/lib/utils";
 import { Users, AlertTriangle, CreditCard, Star, Activity, TrendingUp, TrendingDown, RefreshCw, DollarSign, ShoppingCart, Zap, Crown, UserPlus, UserMinus, X } from "lucide-react";
 import { StatCardsSkeleton } from "@/components/ui/skeletons";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 // Stable format functions — defined OUTSIDE component to avoid re-creation
 const formatShortIQD = (val: number) => {
@@ -37,6 +38,14 @@ function AnimatedCounter({ value, formatFn = (v: number) => Math.round(v).toLoca
 }
 
 export function CustomerDashboardMetrics({ isExpanded, onToggleExpand }: { isExpanded: boolean, onToggleExpand: () => void }) {
+    return (
+        <ErrorBoundary name="Customer Dashboard Metrics">
+            <CustomerDashboardMetricsInner isExpanded={isExpanded} onToggleExpand={onToggleExpand} />
+        </ErrorBoundary>
+    );
+}
+
+function CustomerDashboardMetricsInner({ isExpanded, onToggleExpand }: { isExpanded: boolean, onToggleExpand: () => void }) {
     const { data: metrics, isLoading, isError } = useBusinessMetrics();
 
     if (isLoading) {
@@ -353,6 +362,14 @@ export function CustomerDashboardMetrics({ isExpanded, onToggleExpand }: { isExp
 }
 
 export function InsightsDrawer({ onClose }: { onClose: () => void }) {
+    return (
+        <ErrorBoundary name="Insights Drawer">
+            <InsightsDrawerInner onClose={onClose} />
+        </ErrorBoundary>
+    );
+}
+
+function InsightsDrawerInner({ onClose }: { onClose: () => void }) {
     const { data: metrics } = useBusinessMetrics();
 
     const retentionRate = metrics?.retention_rate ?? 0;

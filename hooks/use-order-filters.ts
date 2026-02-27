@@ -1,0 +1,281 @@
+"use client";
+
+import { useState, useCallback, useMemo, useEffect, useRef, useDeferredValue } from "react";
+import type { Order, OrderFilters, FilterPreset } from "@/lib/supabase";
+import { normalizePhoneForSearch } from "@/lib/order-utils";
+import {
+    getDefaultFilters,
+    loadFilterPresetsFromStorage,
+    saveFilterPresetsToStorage,
+    createFilterPreset,
+} from "@/lib/order-filter-utils";
+import { useUserPreferences, PREFERENCE_KEYS } from "@/hooks/use-user-preferences";
+
+// =============================================
+// ORDER FILTERS HOOK
+// Manages filter state, presets, persistence,
+// and derived filtered/sorted order lists.
+// =============================================
+
+interface UseOrderFiltersOptions {
+    orders: Order[];
+    archivedOrders: Order[];
+}
+
+export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptions) {
+    const { getPreference, setPreference, userId } = useUserPreferences();
+    const hasLoadedUserPrefs = useRef(false);
+
+    // =============================================
+    // FILTER STATE
+    // =============================================
+
+    const [filters, setFiltersState] = useState<OrderFilters>(() => {
+        if (typeof window !== "undefined") {
+            try {
+                const stored = localStorage.getItem(`schneiders_prefs_anonymous_orderFilters`);
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    // Strip riskLevel — it should not persist across sessions
+                    delete parsed.riskLevel;
+                    return parsed;
+                }
+            } catch (e) {
+                // Fall through to default
+            }
+        }
+        return getDefaultFilters();
+    });
+
+    const [filterPresets, setFilterPresets] = useState<FilterPreset[]>(() => {
+        if (typeof window !== "undefined") {
+            return loadFilterPresetsFromStorage();
+        }
+        return [];
+    });
+
+    // Reload filters when user auth resolves (goes from null to actual userId)
+    useEffect(() => {
+        if (userId && !hasLoadedUserPrefs.current) {
+            const saved = getPreference<OrderFilters>(PREFERENCE_KEYS.ORDER_FILTERS);
+            if (saved) {
+                delete saved.riskLevel;
+                setFiltersState(saved);
+            }
+            hasLoadedUserPrefs.current = true;
+        } else if (!userId) {
+            hasLoadedUserPrefs.current = false;
+        }
+    }, [userId, getPreference]);
+
+    // Wrapper to persist filters when they change
+    const setFilters = useCallback((newFilters: OrderFilters | ((prev: OrderFilters) => OrderFilters)) => {
+        setFiltersState(prev => {
+            const updated = typeof newFilters === 'function' ? newFilters(prev) : newFilters;
+            // Strip riskLevel from persistence
+            const { riskLevel, ...persistableFilters } = updated;
+            setPreference(PREFERENCE_KEYS.ORDER_FILTERS, persistableFilters);
+            return updated;
+        });
+    }, [setPreference]);
+
+    const deferredOrders = useDeferredValue(orders);
+    const deferredArchivedOrders = useDeferredValue(archivedOrders);
+    const deferredFilters = useDeferredValue(filters);
+
+    // =============================================
+    // FILTER APPLICATION
+    // =============================================
+
+    const applyFilters = useCallback(
+        (ordersToFilter: Order[], activeFilters: OrderFilters = filters): Order[] => {
+            return ordersToFilter.filter((order) => {
+                // Status filter
+                const statusFilter = activeFilters.status as string;
+                if (statusFilter && statusFilter !== "all") {
+                    if (statusFilter === "needs_review") {
+                        if (order.notes && order.notes.includes('⚠️')) {
+                            // This order needs review
+                        } else if ((!order.items || order.items.length === 0) && order.customer_name !== 'Manual Order') {
+                            // Empty items and not a manual order
+                        } else if (order.customer_name?.startsWith('Customer ') && order.customer_name !== 'Customer') {
+                            // Placeholder customer name
+                        } else {
+                            return false;
+                        }
+                    } else if (order.status !== statusFilter) {
+                        return false;
+                    }
+                }
+
+                // Date range filter
+                if (activeFilters.dateFrom) {
+                    const orderDate = new Date(order.created_at);
+                    const fromDate = new Date(activeFilters.dateFrom);
+                    fromDate.setHours(0, 0, 0, 0);
+                    if (orderDate < fromDate) return false;
+                }
+                if (activeFilters.dateTo) {
+                    const orderDate = new Date(order.created_at);
+                    const toDate = new Date(activeFilters.dateTo);
+                    toDate.setHours(23, 59, 59, 999);
+                    if (orderDate > toDate) return false;
+                }
+
+                // City filter
+                if (activeFilters.city && order.city !== activeFilters.city) {
+                    return false;
+                }
+
+                // Product filter
+                if (activeFilters.product) {
+                    const hasProduct = order.items?.some((item) =>
+                        item.name.toLowerCase().includes(activeFilters.product!.toLowerCase())
+                    );
+                    if (!hasProduct) return false;
+                }
+
+                // Priority filter
+                if (activeFilters.priority && order.priority !== activeFilters.priority) {
+                    return false;
+                }
+
+                // Payment status filter
+                if (activeFilters.paymentStatus && order.payment_status !== activeFilters.paymentStatus) {
+                    return false;
+                }
+
+                // Return orders filter
+                if (activeFilters.isReturn !== undefined && order.is_return !== activeFilters.isReturn) {
+                    return false;
+                }
+
+                // Search query
+                if (activeFilters.searchQuery) {
+                    const query = activeFilters.searchQuery.toLowerCase();
+                    const matchesName = order.customer_name.toLowerCase().includes(query);
+                    const matchesPhone = normalizePhoneForSearch(order.phone).includes(normalizePhoneForSearch(activeFilters.searchQuery));
+                    const matchesOrderId = order.order_id?.toLowerCase().includes(query);
+                    const matchesDeliveryId = order.delivery_order_id?.toLowerCase().includes(query);
+
+                    let matchesOriginalOrderId = false;
+                    if (order.original_order_id) {
+                        if (order.original_order_id.toLowerCase().includes(query)) {
+                            matchesOriginalOrderId = true;
+                        } else {
+                            const parentOrder = ordersToFilter.find(o => o.id === order.original_order_id);
+                            if (parentOrder && parentOrder.order_id?.toLowerCase().includes(query)) {
+                                matchesOriginalOrderId = true;
+                            }
+                        }
+                    }
+
+                    if (!matchesName && !matchesPhone && !matchesOrderId && !matchesDeliveryId && !matchesOriginalOrderId) return false;
+                }
+
+                return true;
+            });
+        },
+        [filters]
+    );
+
+    // =============================================
+    // DERIVED COMPUTATIONS
+    // =============================================
+
+    const filteredOrders = useMemo(() => {
+        console.time("[useOrderFilters] filteredOrders");
+        const ordersToFilter = (deferredFilters.searchQuery && deferredFilters.searchIncludesArchive)
+            ? [...deferredOrders, ...deferredArchivedOrders]
+            : deferredOrders;
+
+        const result = applyFilters(ordersToFilter, deferredFilters).sort((a, b) => {
+            if (a.is_pinned && !b.is_pinned) return -1;
+            if (!a.is_pinned && b.is_pinned) return 1;
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+        console.timeEnd("[useOrderFilters] filteredOrders");
+        return result;
+    }, [deferredOrders, deferredArchivedOrders, deferredFilters, applyFilters]);
+
+    const statusCounts = useMemo(() => {
+        console.time("[useOrderFilters] statusCounts");
+        const filtersWithoutStatus = { ...deferredFilters, status: 'all' as const };
+        const matchingOrders = applyFilters(deferredOrders, filtersWithoutStatus);
+
+        const counts = {
+            all: matchingOrders.length,
+            new: 0,
+            contacted: 0,
+            confirmed: 0,
+            in_transit: 0,
+            delivered: 0,
+            completed: 0,
+            rejected: 0,
+            no_response: 0,
+            return_pending: 0,
+        };
+
+        matchingOrders.forEach(order => {
+            // @ts-ignore
+            if (counts[order.status] !== undefined) {
+                // @ts-ignore
+                counts[order.status]++;
+            }
+        });
+
+        console.timeEnd("[useOrderFilters] statusCounts");
+        return counts;
+    }, [deferredOrders, deferredFilters, applyFilters]);
+
+    const availableCities = useMemo(() => {
+        return [...new Set(deferredOrders.map((o) => o.city).filter(Boolean))] as string[];
+    }, [deferredOrders]);
+
+    const availableProducts = useMemo(() => {
+        return [...new Set(deferredOrders.flatMap((o) => o.items?.map((i) => i.name) || []).filter(Boolean))] as string[];
+    }, [deferredOrders]);
+
+    // =============================================
+    // PRESET OPERATIONS
+    // =============================================
+
+    function saveFilterPreset(name: string) {
+        const preset = createFilterPreset(name, filters, "orders");
+        const updated = [...filterPresets, preset];
+        setFilterPresets(updated);
+        saveFilterPresetsToStorage(updated);
+        return preset;
+    }
+
+    function loadFilterPreset(presetId: string) {
+        const preset = filterPresets.find((p) => p.id === presetId);
+        if (preset) {
+            setFilters(preset.filters);
+        }
+    }
+
+    function deleteFilterPreset(presetId: string) {
+        const updated = filterPresets.filter((p) => p.id !== presetId);
+        setFilterPresets(updated);
+        saveFilterPresetsToStorage(updated);
+    }
+
+    function clearFilters() {
+        setFilters({ status: "all" });
+    }
+
+    return {
+        filters,
+        setFilters,
+        clearFilters,
+        filterPresets,
+        saveFilterPreset,
+        loadFilterPreset,
+        deleteFilterPreset,
+        filteredOrders,
+        statusCounts,
+        availableCities,
+        availableProducts,
+    };
+}

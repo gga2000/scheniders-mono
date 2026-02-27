@@ -1,8 +1,9 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase, type Order } from "@/lib/supabase";
-import { normalizeOrder } from "@/lib/order-normalize-utils";
+import { type Order, type OrderItem } from "@/types";
+import { CACHE_PRESETS } from '@/lib/query-config';
+import { orderRepository } from "@/lib/repositories/order-repository";
 
 // Query keys for cache management
 export const orderKeys = {
@@ -16,26 +17,12 @@ export const orderKeys = {
 
 // Fetch all active orders
 async function fetchOrders(): Promise<Order[]> {
-    const { data, error } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("is_archived", false)
-        .order("created_at", { ascending: false });
-
-    if (error) throw error;
-    return (data || []).map(normalizeOrder);
+    return orderRepository.findAll();
 }
 
 // Fetch archived orders
 async function fetchArchivedOrders(): Promise<Order[]> {
-    const { data, error } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("is_archived", true)
-        .order("created_at", { ascending: false });
-
-    if (error) throw error;
-    return (data || []).map(normalizeOrder);
+    return orderRepository.findArchived();
 }
 
 /**
@@ -51,10 +38,10 @@ export function useOrdersQuery() {
     return useQuery({
         queryKey: orderKeys.lists(),
         queryFn: fetchOrders,
-        // Data is fresh for 2 minutes (balance between freshness and performance)
-        staleTime: 2 * 60 * 1000,
-        // Keep in cache for 10 minutes (allows instant back-navigation)
-        gcTime: 10 * 60 * 1000,
+        // Increased cache time to reduce queries
+        staleTime: CACHE_PRESETS.FREQUENT.staleTime,
+        // Keep data in cache for 10 minutes even when not active
+        gcTime: CACHE_PRESETS.FREQUENT.gcTime,
         // Refetch when window regains focus to catch missed updates
         refetchOnWindowFocus: "always",
         // Don't refetch on mount if data is in cache (use stale data, refetch in background)
@@ -70,7 +57,9 @@ export function useArchivedOrdersQuery(enabled: boolean = true) {
         queryKey: orderKeys.archived(),
         queryFn: fetchArchivedOrders,
         enabled,
-        staleTime: 10 * 60 * 1000, // Archived orders change less frequently
+        // Archived orders don't need real-time freshness
+        staleTime: CACHE_PRESETS.STATIC.staleTime, // Archived orders change less frequently
+        gcTime: CACHE_PRESETS.STATIC.gcTime,
     });
 }
 
@@ -82,12 +71,7 @@ export function useUpdateOrderMutation() {
 
     return useMutation({
         mutationFn: async ({ orderId, updates }: { orderId: string; updates: Partial<Order> }) => {
-            const { error } = await supabase
-                .from("orders")
-                .update(updates)
-                .eq("id", orderId);
-
-            if (error) throw error;
+            await orderRepository.update(orderId, updates);
             return { orderId, updates };
         },
         // Optimistic update - update cache immediately
@@ -136,17 +120,7 @@ export function useUpdateStatusMutation() {
             status: Order["status"];
             rejectionReason?: string;
         }) => {
-            const updateData: Partial<Order> = { status };
-            if (rejectionReason) updateData.rejection_reason = rejectionReason;
-            if (status === "delivered") updateData.delivered_at = new Date().toISOString();
-            if (status === "cancelled") updateData.cancelled_at = new Date().toISOString();
-
-            const { error } = await supabase
-                .from("orders")
-                .update(updateData)
-                .eq("id", orderId);
-
-            if (error) throw error;
+            const updateData = await orderRepository.updateStatus(orderId, status, rejectionReason);
             return { orderId, status, updateData };
         },
         onMutate: async ({ orderId, status, rejectionReason }) => {
@@ -193,7 +167,7 @@ export function usePrefetchOrders() {
             queryKey: orderKeys.lists(),
             queryFn: fetchOrders,
             // Match staleTime from useOrdersQuery
-            staleTime: 2 * 60 * 1000,
+            staleTime: CACHE_PRESETS.FREQUENT.staleTime,
         });
     };
 }
@@ -206,12 +180,7 @@ export function useDeleteOrderMutation() {
 
     return useMutation({
         mutationFn: async (orderId: string) => {
-            const { error } = await supabase
-                .from("orders")
-                .delete()
-                .eq("id", orderId);
-
-            if (error) throw error;
+            await orderRepository.delete(orderId);
             return orderId;
         },
         onMutate: async (orderId) => {
@@ -252,7 +221,7 @@ export function useCreateOrderMutation() {
             // However, for consistency with other mutations in this file, we might want to keep it simple.
             // BUT createOrderAction handles ID generation which is crucial.
             // Let's defer implementation of logic to the consumer or import the action.
-            // Ideally: import { createOrderAction } from "@/app/actions/orders";
+            // Ideally: import { orderRepository } from "@/lib/repositories/order-repository";
             // But we can't import server actions into this file easily if it's "use client"? 
             // Actually we can.
 

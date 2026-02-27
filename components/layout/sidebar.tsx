@@ -22,9 +22,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { usePrefetchOrders } from "@/hooks/use-orders-query";
+import { usePrefetchCustomers } from "@/hooks/use-customers-query";
+import { usePrefetchProducts } from "@/hooks/use-products-query";
 import { useLanguage } from "@/hooks/use-language";
 import { useState } from "react";
 import { NotificationCenter } from "@/components/ui/notification-center";
+import { TransitionLink } from "./transition-link";
 
 const NAV_ITEMS = [
     { key: "nav.dashboard", icon: LayoutDashboard, href: "/" },
@@ -58,6 +61,8 @@ export function Sidebar({
     const router = useRouter();
     const { user, profile, signOut, isLoading: authLoading } = useAuth();
     const prefetchOrders = usePrefetchOrders();
+    const prefetchCustomers = usePrefetchCustomers();
+    const prefetchProducts = usePrefetchProducts();
     const { t } = useLanguage();
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
@@ -126,16 +131,16 @@ export function Sidebar({
 
                     {NAV_ITEMS.map((item) => {
                         const isActive = pathname === item.href;
-                        // Pages that use orders data - prefetch on hover
-                        const usesOrdersData = ["/", "/orders", "/customers", "/analytics", "/printing"].includes(item.href);
                         return (
-                            <Link
+                            <TransitionLink
                                 key={item.href}
                                 href={item.href}
                                 prefetch={true}
                                 onMouseEnter={() => {
-                                    // Prefetch orders data on hover for pages that need it
-                                    if (usesOrdersData) prefetchOrders();
+                                    // Intent-based rigorous prefetching
+                                    if (["/", "/orders", "/analytics", "/printing"].includes(item.href)) prefetchOrders();
+                                    if (["/customers", "/analytics"].includes(item.href)) prefetchCustomers();
+                                    if (["/products", "/analytics"].includes(item.href)) prefetchProducts();
                                 }}
                                 className={cn(
                                     "flex items-center py-3 rounded-2xl transition-all duration-300 group relative overflow-hidden",
@@ -167,7 +172,7 @@ export function Sidebar({
                                 {isActive && collapsed && (
                                     <div className="absolute right-1.5 top-1.5 w-1.5 h-1.5 rounded-[2px] bg-[var(--primary)] shadow-[0_0_10px_rgba(239,255,0,0.6)]" />
                                 )}
-                            </Link>
+                            </TransitionLink>
                         );
                     })}
                 </nav>
@@ -331,11 +336,17 @@ export function Sidebar({
                             {NAV_ITEMS.map((item) => {
                                 const isActive = pathname === item.href;
                                 return (
-                                    <Link
+                                    <TransitionLink
                                         key={item.href}
                                         href={item.href}
                                         prefetch={true}
                                         onClick={handleNavClick}
+                                        onMouseEnter={() => {
+                                            // Intent-based rigorous prefetching
+                                            if (["/", "/orders", "/analytics", "/printing"].includes(item.href)) prefetchOrders();
+                                            if (["/customers", "/analytics"].includes(item.href)) prefetchCustomers();
+                                            if (["/products", "/analytics"].includes(item.href)) prefetchProducts();
+                                        }}
                                         className={cn(
                                             "flex items-center gap-4 py-4 px-4 rounded-2xl transition-all duration-200",
                                             isActive
@@ -350,7 +361,7 @@ export function Sidebar({
                                         {isActive && (
                                             <div className="ml-auto w-2 h-2 rounded-[2px] bg-[var(--primary)] shadow-[0_0_10px_rgba(239,255,0,0.6)]" />
                                         )}
-                                    </Link>
+                                    </TransitionLink>
                                 );
                             })}
                         </nav>

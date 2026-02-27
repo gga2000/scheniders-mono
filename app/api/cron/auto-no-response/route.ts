@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { env } from '@/lib/env';
 
 // Create admin client for server-side operations
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30; // 30 seconds max
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
     try {
         // Verify cron secret for security (optional but recommended)
         const authHeader = request.headers.get('authorization');
-        const cronSecret = process.env.CRON_SECRET;
+        const cronSecret = env.CRON_SECRET;
 
         // If CRON_SECRET is set, validate the request
         if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {

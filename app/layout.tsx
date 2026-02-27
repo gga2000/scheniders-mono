@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+// Fail-fast: validate all environment variables at app startup
+import "@/lib/env";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PWAProvider } from "@/components/pwa/pwa-provider";
 import { AuthProvider } from "@/components/auth/auth-provider";
@@ -10,6 +12,7 @@ import { ThemeProvider } from "@/components/providers/theme-provider";
 import { LanguageProvider } from "@/components/providers/language-provider";
 import { DevServiceWorkerCleanup } from "@/components/pwa/dev-service-worker-cleanup";
 import { Toaster } from "@/components/ui/toaster";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const geistSans = Geist({
@@ -77,27 +80,29 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased selection:bg-pastel-yellow selection:text-black`}
       >
-        <AuthProvider>
-          <QueryProvider>
-            <OrdersProvider>
-              <PWAProvider>
-                <ThemeProvider
-                  attribute="class"
-                  defaultTheme="system"
-                  enableSystem
-                  enableColorScheme
-                  disableTransitionOnChange
-                >
-                  <LanguageProvider>
-                    <DashboardLayout>
-                      {children}
-                    </DashboardLayout>
-                  </LanguageProvider>
-                </ThemeProvider>
-              </PWAProvider>
-            </OrdersProvider>
-          </QueryProvider>
-        </AuthProvider>
+        <ErrorBoundary name="Root">
+          <AuthProvider>
+            <QueryProvider>
+              <OrdersProvider>
+                <PWAProvider>
+                  <ThemeProvider
+                    attribute="class"
+                    defaultTheme="system"
+                    enableSystem
+                    enableColorScheme
+                    disableTransitionOnChange
+                  >
+                    <LanguageProvider>
+                      <DashboardLayout>
+                        {children}
+                      </DashboardLayout>
+                    </LanguageProvider>
+                  </ThemeProvider>
+                </PWAProvider>
+              </OrdersProvider>
+            </QueryProvider>
+          </AuthProvider>
+        </ErrorBoundary>
         <Toaster />
         <SpeedInsights />
         <DevServiceWorkerCleanup />

@@ -1,18 +1,41 @@
 "use client";
 
-import { useMemo, useState, useCallback, useRef, useEffect } from "react";
+import { useMemo, useCallback, useRef, useEffect, useDeferredValue } from "react";
 import { useCustomerUrlState } from "@/hooks/use-customer-url-state";
 import { usePaginatedCustomers } from "@/hooks/use-paginated-customers";
+import { useCustomerStore } from "@/store/use-customer-store";
 import { useLanguage } from "@/hooks/use-language";
 import { PageTransition } from "@/components/layout/page-transition";
 import { motion, AnimatePresence } from "framer-motion";
 import { LayoutGrid, List, Rows3, ChevronDown, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-import { CustomerOmniSearch } from "@/components/customers/omni-search";
-import { VirtualizedCustomerList } from "@/components/customers/virtualized-list";
-import { CustomerDashboardMetrics, InsightsDrawer } from "@/components/customers/dashboard-metrics";
-import { CustomerDetailModal } from "@/components/customers/customer-detail-modal";
+import dynamic from "next/dynamic";
+
+const CustomerOmniSearch = dynamic(
+    () => import("@/components/customers/omni-search").then(mod => ({ default: mod.CustomerOmniSearch })),
+    { ssr: false }
+);
+
+const VirtualizedCustomerList = dynamic(
+    () => import("@/components/customers/virtualized-list").then(mod => ({ default: mod.VirtualizedCustomerList })),
+    { ssr: false }
+);
+
+const CustomerDashboardMetrics = dynamic(
+    () => import("@/components/customers/dashboard-metrics").then(mod => ({ default: mod.CustomerDashboardMetrics })),
+    { ssr: false }
+);
+
+const InsightsDrawer = dynamic(
+    () => import("@/components/customers/dashboard-metrics").then(mod => ({ default: mod.InsightsDrawer })),
+    { ssr: false }
+);
+
+const CustomerDetailModal = dynamic(
+    () => import("@/components/customers/customer-detail-modal").then(mod => ({ default: mod.CustomerDetailModal })),
+    { ssr: false }
+);
 import { AdvancedCustomerFilters } from "@/components/customers/advanced-filters";
 // ^kept import for potential future use but component is not rendered
 import { BulkTagModal } from "@/components/customers/bulk-tag-modal";
@@ -28,6 +51,7 @@ import { useOrdersContext } from "@/components/providers/orders-provider";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 
 export default function CustomersPage() {
+    console.log("[CustomersPage] Render");
     const { t } = useLanguage();
 
     // 1. URL State Management (Filters & Selection)
@@ -54,36 +78,38 @@ export default function CustomersPage() {
         isFetchingNextPage
     } = usePaginatedCustomers();
 
-    // Local state for bulk actions and UI
-    const [selectedPhones, setSelectedPhones] = useState<Set<string>>(new Set());
-    const [isTagModalOpen, setIsTagModalOpen] = useState(false);
-    const [isBroadcastModalOpen, setIsBroadcastModalOpen] = useState(false);
-    const [compactLevel, setCompactLevel] = useState<0 | 1 | 2>(2); // 0=full, 1=semi, 2=ultra
-    const [activePresetId, setActivePresetId] = useState<string | null>(null);
-    const [showFilters, setShowFilters] = useState(true);
-    const [groupBy, setGroupBy] = useState<'none' | 'status' | 'city' | 'governorate'>('none');
-    const [isExpandedAnalytics, setIsExpandedAnalytics] = useState(false);
-    const [metricsCollapsed, setMetricsCollapsed] = useState(false);
-    const lastScrollTopRef = useRef(0);
+    // ── Zustand Store (replaces ~12 useState calls) ──
+    const {
+        selectedPhones, setSelectedPhones,
+        isTagModalOpen, setIsTagModalOpen,
+        isBroadcastModalOpen, setIsBroadcastModalOpen,
+        compactLevel, setCompactLevel,
+        activePresetId, setActivePresetId,
+        showFilters, setShowFilters,
+        groupBy, setGroupBy,
+        isExpandedAnalytics, setIsExpandedAnalytics,
+        metricsCollapsed, setMetricsCollapsed,
+        dateFrom, setDateFrom,
+        dateTo, setDateTo,
+    } = useCustomerStore();
 
-    // Date range state (default: all time = undefined)
-    const [dateFrom, setDateFrom] = useState<string | undefined>(undefined);
-    const [dateTo, setDateTo] = useState<string | undefined>(undefined);
+    const lastScrollTopRef = useRef(0);
 
     // Bidirectional scroll: collapse on scroll down, expand on scroll back to top
     const handleListScroll = useCallback((scrollTop: number) => {
         const scrollingDown = scrollTop > lastScrollTopRef.current;
         lastScrollTopRef.current = scrollTop;
 
-        if (scrollingDown && scrollTop > 150 && !metricsCollapsed) {
-            setMetricsCollapsed(true);
-            setIsExpandedAnalytics(false);
+        const { metricsCollapsed: collapsed, setMetricsCollapsed: setCollapsed, setIsExpandedAnalytics: setExpanded } = useCustomerStore.getState();
+        if (scrollingDown && scrollTop > 150 && !collapsed) {
+            setCollapsed(true);
+            setExpanded(false);
             localStorage.setItem("customersToolbarCollapsed", "true");
-        } else if (!scrollingDown && scrollTop <= 20 && metricsCollapsed) {
-            setMetricsCollapsed(false);
+        } else if (!scrollingDown && scrollTop <= 20 && collapsed) {
+            setCollapsed(false);
             localStorage.setItem("customersToolbarCollapsed", "false");
         }
-    }, [metricsCollapsed]);
+    }, []);
 
     // Ensure we clean up the collapsed state when unmounting
     useEffect(() => {
@@ -101,19 +127,24 @@ export default function CustomersPage() {
         return getCustomerOrderCount(phone) > 1;
     }, [getCustomerOrderCount]);
 
+    const deferredData = useDeferredValue(data);
+    const deferredStatusFilter = useDeferredValue(statusFilter);
+
     // Derived state — with client-side sort for VIP (highest paying) and Loss (lowest LTV)
     const customers = useMemo(() => {
-        const flat = data?.pages.flatMap(page => page.customers) ?? [];
-        if (statusFilter === 'vip') {
+        console.time("[CustomersPage] customers sort calc");
+        const flat = deferredData?.pages.flatMap(page => page.customers) ?? [];
+        let result = flat;
+        if (deferredStatusFilter === 'vip') {
             // VIP: descending by total_spent (highest paying first)
-            return [...flat].sort((a, b) => b.total_spent - a.total_spent);
-        }
-        if (statusFilter === 'regular') {
+            result = [...flat].sort((a, b) => b.total_spent - a.total_spent);
+        } else if (deferredStatusFilter === 'regular') {
             // Loss: ascending by total_spent (customers that cost us most)
-            return [...flat].sort((a, b) => a.total_spent - b.total_spent);
+            result = [...flat].sort((a, b) => a.total_spent - b.total_spent);
         }
-        return flat;
-    }, [data, statusFilter]);
+        console.timeEnd("[CustomersPage] customers sort calc");
+        return result;
+    }, [deferredData, deferredStatusFilter]);
 
     const totalCount = data?.pages[0]?.totalCount ?? 0;
 
@@ -125,23 +156,15 @@ export default function CustomersPage() {
 
     // Multi-select handlers
     const handleToggleSelection = useCallback((phone: string) => {
-        setSelectedPhones(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(phone)) {
-                newSet.delete(phone);
-            } else {
-                newSet.add(phone);
-            }
-            return newSet;
-        });
+        useCustomerStore.getState().togglePhoneSelection(phone);
     }, []);
 
     const handleSelectAll = useCallback(() => {
-        setSelectedPhones(new Set(customers.map(c => c.phone)));
+        useCustomerStore.getState().selectAllPhones(customers.map(c => c.phone));
     }, [customers]);
 
     const handleClearSelection = useCallback(() => {
-        setSelectedPhones(new Set());
+        useCustomerStore.getState().clearPhoneSelection();
     }, []);
 
     // Preset handlers
@@ -203,7 +226,7 @@ export default function CustomersPage() {
                         >
                             <CustomerDashboardMetrics
                                 isExpanded={isExpandedAnalytics}
-                                onToggleExpand={() => setIsExpandedAnalytics(prev => !prev)}
+                                onToggleExpand={() => setIsExpandedAnalytics(!isExpandedAnalytics)}
                             />
                         </div>
 

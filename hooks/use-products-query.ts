@@ -1,7 +1,9 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase, type Product, type ProductVariant, type ProductPriceHistory } from "@/lib/supabase";
+import { type Product, type ProductVariant, type ProductPriceHistory } from "@/lib/supabase";
+import { productRepository } from "@/lib/repositories/product-repository";
+import { CACHE_PRESETS } from '@/lib/query-config';
 
 // Query keys
 export const productKeys = {
@@ -14,16 +16,7 @@ export const productKeys = {
 
 // Fetch function
 async function fetchProducts(): Promise<Product[]> {
-    const { data, error } = await supabase
-        .from("products")
-        .select(`
-            *,
-            variants:product_variants(*)
-        `)
-        .order("created_at", { ascending: false });
-
-    if (error) throw error;
-    return data || [];
+    return productRepository.findAll();
 }
 
 // Hook
@@ -31,10 +24,24 @@ export function useProductsQuery() {
     return useQuery({
         queryKey: productKeys.lists(),
         queryFn: fetchProducts,
-        staleTime: 5 * 60 * 1000, // 5 minutes standard
-        gcTime: 15 * 60 * 1000,
+        staleTime: CACHE_PRESETS.STANDARD.staleTime,
+        gcTime: CACHE_PRESETS.STANDARD.gcTime,
         refetchOnWindowFocus: true,
     });
+}
+
+/**
+ * Prefetch products for instant navigation
+ */
+export function usePrefetchProducts() {
+    const queryClient = useQueryClient();
+    return () => {
+        queryClient.prefetchQuery({
+            queryKey: productKeys.lists(),
+            queryFn: fetchProducts,
+            staleTime: CACHE_PRESETS.STANDARD.staleTime,
+        });
+    };
 }
 
 // =============================================
@@ -45,15 +52,7 @@ export function useAddProductMutation() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (productData: any) => {
-            // Exclude sku since the column doesn't exist in the database
-            const { sku, ...data } = productData;
-            const { data: newProduct, error } = await supabase
-                .from("products")
-                .insert([{ ...data, is_archived: false }])
-                .select()
-                .single();
-            if (error) throw error;
-            return newProduct;
+            return productRepository.create(productData);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: productKeys.lists() });
@@ -65,12 +64,7 @@ export function useUpdateProductMutation() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async ({ id, data }: { id: string; data: any }) => {
-            const { sku, ...updateData } = data;
-            const { error } = await supabase
-                .from("products")
-                .update(updateData)
-                .eq("id", id);
-            if (error) throw error;
+            await productRepository.update(id, data);
             return { id, data };
         },
         onMutate: async ({ id, data }) => {
@@ -97,8 +91,7 @@ export function useArchiveProductMutation() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (id: string) => {
-            const { error } = await supabase.from("products").update({ is_archived: true }).eq("id", id);
-            if (error) throw error;
+            await productRepository.archive(id);
             return id;
         },
         onMutate: async (id) => {
@@ -122,8 +115,7 @@ export function useRestoreProductMutation() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (id: string) => {
-            const { error } = await supabase.from("products").update({ is_archived: false }).eq("id", id);
-            if (error) throw error;
+            await productRepository.restore(id);
             return id;
         },
         onMutate: async (id) => {
@@ -145,8 +137,7 @@ export function useDeleteProductMutation() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (id: string) => {
-            const { error } = await supabase.from("products").delete().eq("id", id);
-            if (error) throw error;
+            await productRepository.delete(id);
             return id;
         },
         onMutate: async (id) => {
@@ -168,8 +159,7 @@ export function useBulkUpdatePricesMutation() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async ({ ids, price }: { ids: string[]; price: number }) => {
-            const { error } = await supabase.from("products").update({ price }).in("id", ids);
-            if (error) throw error;
+            await productRepository.bulkUpdatePrice(ids, price);
             return { ids, price };
         },
         onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
@@ -180,8 +170,7 @@ export function useBulkArchiveMutation() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (ids: string[]) => {
-            const { error } = await supabase.from("products").update({ is_archived: true }).in("id", ids);
-            if (error) throw error;
+            await productRepository.bulkArchive(ids);
             return ids;
         },
         onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
@@ -193,13 +182,7 @@ export function useAddVariantMutation() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async ({ productId, data }: { productId: string; data: any }) => {
-            const { data: newVariant, error } = await supabase
-                .from("product_variants")
-                .insert([{ product_id: productId, ...data }])
-                .select()
-                .single();
-            if (error) throw error;
-            return newVariant;
+            return productRepository.addVariant(productId, data);
         },
         onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
     });
@@ -209,8 +192,7 @@ export function useUpdateVariantMutation() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async ({ id, data }: { id: string; data: any }) => {
-            const { error } = await supabase.from("product_variants").update(data).eq("id", id);
-            if (error) throw error;
+            await productRepository.updateVariant(id, data);
             return { id, data };
         },
         onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
@@ -221,8 +203,7 @@ export function useDeleteVariantMutation() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (id: string) => {
-            const { error } = await supabase.from("product_variants").delete().eq("id", id);
-            if (error) throw error;
+            await productRepository.deleteVariant(id);
             return id;
         },
         onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
@@ -233,13 +214,7 @@ export function usePriceHistoryQuery(productId: string) {
     return useQuery({
         queryKey: [...productKeys.detail(productId), "history"],
         queryFn: async () => {
-            const { data, error } = await supabase
-                .from("product_price_history")
-                .select("*")
-                .eq("product_id", productId)
-                .order("created_at", { ascending: false });
-            if (error) throw error;
-            return data || [];
+            return productRepository.getPriceHistory(productId);
         },
         enabled: !!productId,
     });

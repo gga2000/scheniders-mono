@@ -14,7 +14,7 @@ import {
     UsersRound,
     Database,
 } from "lucide-react";
-import Link from "next/link";
+import { TransitionLink as Link } from "./transition-link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
