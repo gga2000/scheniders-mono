@@ -73,6 +73,9 @@ export interface LightFunnelsWebhookPayload {
                 };
             };
         }>;
+        checkout?: {
+            _id?: number; // The original checkout ID if this order came from a checkout
+        };
     };
 }
 
@@ -83,6 +86,7 @@ export interface LightFunnelsWebhook {
     order_id: string;
     order_number: string;
     is_checkout: boolean; // true if this is an abandoned checkout, false if completed order
+    checkout_id?: string; // The original checkout ID if this order came from a checkout
     customer: {
         name: string;
         phone: string;
@@ -316,10 +320,14 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
             (node.id && String(node.id).startsWith('checkout_')) ||
             (hasVariants && !hasItems);
 
+        // Extract checkout ID if this order came from a checkout
+        const checkoutId = node.checkout?._id ? String(node.checkout._id) : undefined;
+
         const normalized: LightFunnelsWebhook = {
             order_id: String(node._id || node.id),
             order_number: node.name || String(node._id || node.id),
             is_checkout: isCheckout,
+            checkout_id: checkoutId,
             customer: {
                 name: customerName.trim(),
                 phone: phone,
@@ -748,29 +756,62 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
         console.log(`Order created successfully: ${webhook.order_number}`);
 
         // If this is a real order (not a checkout), clean up any matching abandoned checkouts
-        // Uses phone + 24hr time window to avoid cleaning up unrelated old checkouts
+        // Priority 1: Exact checkout ID match (most reliable)
+        // Priority 2: Phone + 24hr time window (fallback for when checkout ID unavailable)
         if (!webhook.is_checkout && formattedPhone) {
             try {
-                const now = new Date();
-                const windowStart = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+                let abandonedCheckouts: Array<{ id: string; order_id: string }> = [];
+                let cleanupMethod = 'unknown';
 
-                const { data: abandonedCheckouts, error: fetchErr } = await supabase
-                    .from('orders')
-                    .select('id, order_id')
-                    .eq('status', 'pending_checkout')
-                    .eq('phone', formattedPhone)
-                    .eq('source', 'lightfunnels')
-                    .gte('created_at', windowStart);
+                // Priority 1: Try exact checkout ID match first
+                if (webhook.checkout_id) {
+                    const exactCheckoutOrderId = `CHK-${webhook.checkout_id}`;
+                    const { data: exactMatch, error: exactErr } = await supabase
+                        .from('orders')
+                        .select('id, order_id')
+                        .eq('order_id', exactCheckoutOrderId)
+                        .eq('status', 'pending_checkout')
+                        .eq('source', 'lightfunnels');
 
-                if (!fetchErr && abandonedCheckouts && abandonedCheckouts.length > 0) {
+                    if (!exactErr && exactMatch && exactMatch.length > 0) {
+                        abandonedCheckouts = exactMatch;
+                        cleanupMethod = 'exact_checkout_id';
+                        console.log(`[Cleanup] Found exact checkout match: ${exactCheckoutOrderId}`);
+                    }
+                }
+
+                // Priority 2: Fallback to phone-based matching if no exact match found
+                if (abandonedCheckouts.length === 0) {
+                    const now = new Date();
+                    const windowStart = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+
+                    const { data: phoneMatches, error: fetchErr } = await supabase
+                        .from('orders')
+                        .select('id, order_id')
+                        .eq('status', 'pending_checkout')
+                        .eq('phone', formattedPhone)
+                        .eq('source', 'lightfunnels')
+                        .gte('created_at', windowStart);
+
+                    if (!fetchErr && phoneMatches && phoneMatches.length > 0) {
+                        abandonedCheckouts = phoneMatches;
+                        cleanupMethod = 'phone_time_window';
+                        console.log(`[Cleanup] Found ${phoneMatches.length} checkout(s) via phone match for ${formattedPhone}`);
+                    }
+                }
+
+                // Delete matched abandoned checkouts
+                if (abandonedCheckouts.length > 0) {
                     const checkoutIds = abandonedCheckouts.map(c => c.id);
                     await supabase.from('orders').delete().in('id', checkoutIds);
-                    console.log(`Cleaned up ${abandonedCheckouts.length} abandoned checkout(s) for phone ${formattedPhone}:`,
+                    console.log(`[Cleanup] Deleted ${abandonedCheckouts.length} abandoned checkout(s) via ${cleanupMethod}:`,
                         abandonedCheckouts.map(c => c.order_id).join(', '));
+                } else {
+                    console.log(`[Cleanup] No abandoned checkouts found to clean up for order ${webhook.order_number}`);
                 }
             } catch (cleanupErr) {
                 // Non-fatal: order was already created successfully
-                console.error('Error during checkout cleanup:', cleanupErr);
+                console.error('[Cleanup] Error during checkout cleanup:', cleanupErr);
             }
         }
 
