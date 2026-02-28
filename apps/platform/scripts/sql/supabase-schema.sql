@@ -172,3 +172,17 @@ COMMENT ON TABLE blacklist IS 'Stores blocked phone numbers to prevent fraud';
 COMMENT ON COLUMN orders.order_id IS 'Unique order identifier from LightFunnels';
 COMMENT ON COLUMN orders.items IS 'JSONB array of order items with name, quantity, and price';
 COMMENT ON COLUMN orders.status IS 'Order workflow status: new → contacted → confirmed/rejected → delivered';
+
+-- =============================================
+-- SETTINGS TABLE
+-- =============================================
+-- Stores application-level key-value configuration (e.g. access tokens, preferences)
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- RLS: only service role can read/write settings (not exposed to public)
+ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+
