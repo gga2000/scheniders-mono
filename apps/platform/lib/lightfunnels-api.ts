@@ -43,6 +43,7 @@ export interface LightfunnelsOrder {
         quantity?: number;
     }>;
     checkout?: {
+        _id?: number;
         variants: Array<{
             quantity: number;
             variant: {
@@ -179,6 +180,7 @@ query ordersQuery($first: Int, $after: String, $query: String!) {
                     }
                 }
                 checkout {
+                    _id
                     variants {
                         quantity
                         variant {
@@ -290,6 +292,7 @@ const CHECKOUTS_QUERY = `
                 node {
                     _id
                     id
+                    recovered
                     created_at(format: "YYYY-MM-DD HH:mm:ss")
                     updated_at(format: "YYYY-MM-DD HH:mm:ss")
                     total
@@ -347,6 +350,7 @@ export interface LightfunnelsCheckout {
     id: string;
     _id: number;
     step_id?: string;
+    recovered?: boolean;
     created_at: string;
     total: number;
     subtotal?: number;
@@ -700,30 +704,56 @@ export async function importOrder(lfOrder: LightfunnelsOrder): Promise<OrderImpo
             throw error;
         }
 
-        // Clean up any matching abandoned checkouts (same phone)
-        // This prevents duplicates when a checkout becomes a completed order
-        const phone = lfOrder.shipping_address?.phone || lfOrder.customer.phone || '';
-        const formattedPhone = formatPhoneToStandard(phone);
-        if (formattedPhone) {
-            try {
-                const { data: abandonedCheckouts } = await supabase
+        // Clean up matching abandoned checkouts to prevent duplicates
+        // Priority 1: Exact match via order's checkout._id
+        // Priority 2: Fallback to phone + 24hr time window
+        try {
+            let cleaned = false;
+
+            // Priority 1: Exact checkout._id match
+            if (lfOrder.checkout?._id) {
+                const checkoutOrderId = `CHK-${lfOrder.checkout._id}`;
+                const { data: exactMatch } = await supabase
                     .from('orders')
                     .select('id, order_id')
+                    .eq('order_id', checkoutOrderId)
                     .eq('status', 'pending_checkout')
-                    .eq('phone', formattedPhone)
-                    .eq('source', 'lightfunnels');
+                    .single();
 
-                if (abandonedCheckouts && abandonedCheckouts.length > 0) {
-                    await supabase
-                        .from('orders')
-                        .delete()
-                        .in('id', abandonedCheckouts.map(c => c.id));
-
-                    console.log(`Cleaned up ${abandonedCheckouts.length} abandoned checkout(s) for phone ${formattedPhone}`);
+                if (exactMatch) {
+                    await supabase.from('orders').delete().eq('id', exactMatch.id);
+                    console.log(`Cleaned up abandoned checkout (exact match): ${exactMatch.order_id}`);
+                    cleaned = true;
                 }
-            } catch {
-                // Non-fatal
             }
+
+            // Priority 2: Fallback — phone + 24hr time window
+            if (!cleaned) {
+                const phone = lfOrder.shipping_address?.phone || lfOrder.customer.phone || '';
+                const formattedPhone = formatPhoneToStandard(phone);
+                if (formattedPhone && lfOrder.created_at) {
+                    const orderDate = new Date(lfOrder.created_at);
+                    const windowStart = new Date(orderDate.getTime() - 24 * 60 * 60 * 1000).toISOString();
+                    const windowEnd = orderDate.toISOString();
+
+                    const { data: phoneMatches } = await supabase
+                        .from('orders')
+                        .select('id, order_id')
+                        .eq('status', 'pending_checkout')
+                        .eq('phone', formattedPhone)
+                        .eq('source', 'lightfunnels')
+                        .gte('created_at', windowStart)
+                        .lte('created_at', windowEnd);
+
+                    if (phoneMatches && phoneMatches.length > 0) {
+                        await supabase.from('orders').delete().in('id', phoneMatches.map(c => c.id));
+                        console.log(`Cleaned up ${phoneMatches.length} abandoned checkout(s) by phone+time:`,
+                            phoneMatches.map(c => c.order_id).join(', '));
+                    }
+                }
+            }
+        } catch {
+            // Non-fatal: order was already created successfully
         }
 
         return {
@@ -937,6 +967,18 @@ export async function syncCheckouts(
 
         // Import each checkout
         for (const checkout of dateFilteredCheckouts) {
+            // Skip recovered checkouts — they became real orders
+            if (checkout.recovered) {
+                summary.duplicates++;
+                summary.total++;
+                summary.results.push({
+                    lightfunnelsId: String(checkout._id),
+                    orderName: `Checkout #${checkout._id}`,
+                    status: 'duplicate',
+                    message: 'Checkout recovered (became an order)',
+                });
+                continue;
+            }
             const result = await importCheckout(checkout);
             summary.results.push(result);
             summary.total++;

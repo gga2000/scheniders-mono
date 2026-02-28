@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
     parseLightFunnelsPayload,
-    parseCheckoutToWebhook,
     createOrderFromWebhook,
     logWebhookRequest,
 } from "@/lib/webhook-handler";
-import { fetchCheckoutById, getSavedAccessToken } from "@/lib/lightfunnels-api";
 import { env } from "@/lib/env";
 
 /**
@@ -55,42 +53,16 @@ export async function POST(request: NextRequest) {
                 );
             }
 
-            // Handle minimal checkout payload - fetch full data from API
+            // Handle checkout webhook - acknowledge but don't import
+            // Lightfunnels fires checkout/created the moment a customer starts typing,
+            // so data is always incomplete. Checkouts are imported via manual sync instead.
             if (error instanceof Error && error.message.startsWith("fetch_checkout:")) {
                 const checkoutId = error.message.replace("fetch_checkout:", "");
-                // console.log("Fetching checkout from API:", checkoutId);
-
-                // Get saved access token
-                const accessToken = await getSavedAccessToken();
-                if (!accessToken) {
-                    console.error("No Lightfunnels access token configured");
-                    return NextResponse.json(
-                        { success: true, message: "Checkout received but no API token to fetch details" },
-                        { status: 200 }
-                    );
-                }
-
-                // Fetch full checkout data from API
-                const checkout = await fetchCheckoutById(checkoutId, accessToken);
-                if (!checkout) {
-                    console.error("Could not fetch checkout from API:", checkoutId);
-                    return NextResponse.json(
-                        { success: true, message: "Checkout received but could not fetch details" },
-                        { status: 200 }
-                    );
-                }
-
-                // Parse checkout into webhook format
-                webhookData = parseCheckoutToWebhook(checkout);
-                if (!webhookData) {
-                    console.error("Could not parse checkout data:", checkoutId);
-                    return NextResponse.json(
-                        { success: true, message: "Checkout received but could not parse details" },
-                        { status: 200 }
-                    );
-                }
-
-                // console.log("Successfully fetched and parsed checkout:", checkoutId);
+                console.log("Checkout webhook acknowledged (will sync later):", checkoutId);
+                return NextResponse.json(
+                    { success: true, message: "Checkout acknowledged" },
+                    { status: 200 }
+                );
             } else {
                 return NextResponse.json(
                     { error: error instanceof Error ? error.message : "Invalid payload format" },
