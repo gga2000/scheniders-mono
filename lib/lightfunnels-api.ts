@@ -870,6 +870,11 @@ export async function syncCheckouts(
     let cursor: string | undefined;
     let hasMore = true;
 
+    // Parse date boundaries once for client-side filtering
+    const fromDate = dateFrom ? new Date(dateFrom + 'T00:00:00') : null;
+    const toDate = dateTo ? new Date(dateTo + 'T23:59:59.999') : null;
+    let emptyFilteredBatches = 0; // Track consecutive batches with no matches
+
     while (hasMore && summary.total < maxCheckouts) {
         const batchSize = Math.min(50, maxCheckouts - summary.total);
 
@@ -880,32 +885,33 @@ export async function syncCheckouts(
             dateTo,
         });
 
-        // Client-side date filtering (Lightfunnels checkouts API may ignore created_at query filter)
-        const dateFilteredCheckouts = checkouts.filter(checkout => {
-            if (!checkout.created_at) return true;
-            const createdAt = new Date(checkout.created_at);
-            if (dateFrom) {
-                const from = new Date(dateFrom);
-                from.setHours(0, 0, 0, 0);
-                if (createdAt < from) return false;
-            }
-            if (dateTo) {
-                const to = new Date(dateTo);
-                to.setHours(23, 59, 59, 999);
-                if (createdAt > to) return false;
-            }
-            return true;
-        });
+        if (checkouts.length === 0) break;
 
-        // If API returned results but all were filtered out by date, we've gone past our range
-        if (checkouts.length > 0 && dateFilteredCheckouts.length === 0 && dateFrom) {
-            // Check if all returned checkouts are older than our date range
-            const oldestInBatch = new Date(checkouts[checkouts.length - 1].created_at);
-            const fromDate = new Date(dateFrom);
-            fromDate.setHours(0, 0, 0, 0);
-            if (oldestInBatch < fromDate) {
-                break; // Stop pagination - we've gone past our date range
-            }
+        // Client-side date filtering (Lightfunnels checkouts API ignores created_at query filter)
+        const dateFilteredCheckouts = (fromDate || toDate) ? checkouts.filter(checkout => {
+            if (!checkout.created_at) return false; // Skip checkouts with no date when filtering
+            const createdAt = new Date(checkout.created_at);
+            if (fromDate && createdAt < fromDate) return false;
+            if (toDate && createdAt > toDate) return false;
+            return true;
+        }) : checkouts;
+
+        // Early termination: if we have date filters and this batch had no matches
+        if ((fromDate || toDate) && dateFilteredCheckouts.length === 0) {
+            emptyFilteredBatches++;
+            // After 2 consecutive empty batches, stop — we've moved out of the date range
+            if (emptyFilteredBatches >= 2) break;
+        } else {
+            emptyFilteredBatches = 0;
+        }
+
+        // Also break early if all checkouts in batch are BEFORE our date range (API returns newest first)
+        if (fromDate && checkouts.length > 0) {
+            const allBeforeRange = checkouts.every(c => {
+                if (!c.created_at) return false;
+                return new Date(c.created_at) < fromDate;
+            });
+            if (allBeforeRange) break;
         }
 
         // Import each checkout
