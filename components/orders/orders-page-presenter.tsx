@@ -692,7 +692,7 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                                                                 : "border-white/10 text-muted-foreground hover:bg-[var(--pastel-yellow)] hover:border-[var(--primary)]/20 hover:text-foreground dark:hover:bg-[#EFFF00]/10 dark:hover:text-[#EFFF00] dark:border-white/10"
                                                         )}
                                                     >
-                                                        <CalendarDays className="w-4 h-4" />
+                                                        <CalendarDays className="w-4 h-4 text-lime-600 dark:text-[#EFFF00]" />
                                                         <span className="hidden lg:inline">
                                                             {(() => {
                                                                 if (!filters.dateFrom) return "All Orders";
