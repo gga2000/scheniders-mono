@@ -101,4 +101,14 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSerwist(nextConfig);
+import { withSentryConfig } from "@sentry/nextjs";
+
+export default withSentryConfig(withSerwist(nextConfig), {
+  // For all available options, see:
+  // https://github.com/getsentry/sentry-webpack-plugin#options
+
+  // Suppresses source map uploading logs during build
+  silent: true,
+  org: "ali-b1",
+  project: "javascript-nextjs",
+});
