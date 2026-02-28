@@ -130,10 +130,20 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
             throw new Error("is_test_payload");
         }
 
-        // Handle minimal/dummy payloads like { node: { id: null } } or { node: { id: undefined } }
-        // Lightfunnels sends these as "Send dummy" test webhooks
         const nodeKeys = Object.keys(node);
-        if (nodeKeys.length <= 2 && !node.items && !node.variants && !node.phone && !node.customer) {
+
+        // Check if this is a minimal checkout payload with a real ID (e.g., { id: "ch_xxx" })
+        // Must check BEFORE the dummy detection since real checkout webhooks also have few keys
+        const nodeId = node.id || node._id;
+        const isRealCheckoutId = nodeId && typeof nodeId === 'string' && (nodeId.startsWith('ch_') || nodeId.startsWith('checkout_'));
+        if (isRealCheckoutId && nodeKeys.length <= 4 && !node.items && !node.variants) {
+            console.log("Minimal checkout payload with real ID, fetching from API:", nodeId);
+            throw new Error(`fetch_checkout:${nodeId}`);
+        }
+
+        // Handle minimal/dummy payloads like { node: { id: null } } or { node: { id: "" } }
+        // Lightfunnels sends these as "Send dummy" test webhooks
+        if (nodeKeys.length <= 2 && !node.items && !node.variants && !node.phone && !node.customer && !isRealCheckoutId) {
             console.log("Detected dummy/test webhook payload. Node keys:", nodeKeys.join(', '), "Values:", JSON.stringify(node));
             throw new Error("is_test_payload");
         }
