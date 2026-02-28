@@ -105,7 +105,7 @@ export function AvatarPill({
                 s.avatar
             )}>
                 {employee.avatar_url ? (
-                    <img src={employee.avatar_url} alt={employee.first_name} className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={employee.avatar_url} alt={employee.first_name} className="w-full h-full object-cover" />
                 ) : (
                     <span>{initials}</span>
                 )}

@@ -250,7 +250,7 @@ export function AssignmentRulesTab({ employees = [] }: AssignmentRulesTabProps) 
                                     <div className="w-8 h-px bg-gray-300 dark:bg-gray-700" />
                                     <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-800 border-2 border-white dark:border-[#1A1A1A] shadow-md flex items-center justify-center relative z-10 overflow-hidden">
                                         {employee?.avatarUrl ? (
-                                            <img src={employee.avatarUrl} alt="" className="w-full h-full object-cover" />
+                                            <img loading="lazy" decoding="async" src={employee.avatarUrl} alt="" className="w-full h-full object-cover" />
                                         ) : (
                                             <span className="font-bold text-gray-600 dark:text-gray-300">
                                                 {employee?.name?.[0]}

@@ -10,6 +10,7 @@ import { OrdersProvider } from "@/components/providers/orders-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { LanguageProvider } from "@/components/providers/language-provider";
+import { RoleProvider } from "@/components/providers/role-provider";
 import { DevServiceWorkerCleanup } from "@/components/pwa/dev-service-worker-cleanup";
 import { Toaster } from "@/components/ui/toaster";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
@@ -18,11 +19,15 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  display: "swap",
+  preload: true,
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap",
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -92,11 +97,13 @@ export default function RootLayout({
                     enableColorScheme
                     disableTransitionOnChange
                   >
-                    <LanguageProvider>
-                      <DashboardLayout>
-                        {children}
-                      </DashboardLayout>
-                    </LanguageProvider>
+                    <RoleProvider>
+                      <LanguageProvider>
+                        <DashboardLayout>
+                          {children}
+                        </DashboardLayout>
+                      </LanguageProvider>
+                    </RoleProvider>
                   </ThemeProvider>
                 </PWAProvider>
               </OrdersProvider>

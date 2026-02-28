@@ -196,7 +196,7 @@ export function Sidebar({
                         )}>
                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#FBE38E] to-[#F4C7CF] flex items-center justify-center flex-shrink-0 overflow-hidden">
                                 {profile?.avatar_url ? (
-                                    <img src={profile.avatar_url} alt={profile.display_name || "User"} className="w-full h-full object-cover" />
+                                    <img loading="lazy" decoding="async" src={profile.avatar_url} alt={profile.display_name || "User"} className="w-full h-full object-cover" />
                                 ) : (
                                     <span className="text-[#1E1E1E] font-semibold text-sm">
                                         {(profile?.display_name || user.email)?.charAt(0).toUpperCase()}
@@ -372,7 +372,7 @@ export function Sidebar({
                                 <div className="flex items-center gap-3 mb-4">
                                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FBE38E] to-[#F4C7CF] flex items-center justify-center flex-shrink-0 overflow-hidden">
                                         {profile?.avatar_url ? (
-                                            <img src={profile.avatar_url} alt={profile.display_name || "User"} className="w-full h-full object-cover" />
+                                            <img loading="lazy" decoding="async" src={profile.avatar_url} alt={profile.display_name || "User"} className="w-full h-full object-cover" />
                                         ) : (
                                             <span className="text-[#1E1E1E] font-semibold text-base">
                                                 {(profile?.display_name || user.email)?.charAt(0).toUpperCase()}

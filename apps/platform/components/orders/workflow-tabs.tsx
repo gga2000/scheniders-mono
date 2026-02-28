@@ -55,7 +55,9 @@ const tabConfig: Record<WorkflowTab, {
     },
 };
 
-export function WorkflowTabs({
+import { memo } from "react";
+
+export const WorkflowTabs = memo(function WorkflowTabs({
     orders,
     onStatusUpdate,
     onUpdate,
@@ -176,4 +178,4 @@ export function WorkflowTabs({
             </AnimatePresence>
         </div>
     );
-}
+});

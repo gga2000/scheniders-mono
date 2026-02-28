@@ -40,7 +40,9 @@ interface StickyFilterBarProps {
     isMobile?: boolean;
 }
 
-export function StickyFilterBar({
+import { memo } from "react";
+
+export const StickyFilterBar = memo(function StickyFilterBar({
     filters,
     setFilters,
     statusCounts,
@@ -248,4 +250,4 @@ export function StickyFilterBar({
             </div>
         </div>
     );
-}
+});

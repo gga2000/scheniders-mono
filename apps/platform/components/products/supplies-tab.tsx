@@ -76,7 +76,7 @@ export function SuppliesTab({ onEdit }: SuppliesTabProps) {
                                     )}
                                     <div className="w-10 h-10 rounded-lg overflow-hidden flex flex-shrink-0 flex-col items-center justify-center bg-[var(--background)]">
                                         {supply.image_url ? (
-                                            <img src={supply.image_url} alt={supply.name} className="w-full h-full object-cover" />
+                                            <img loading="lazy" decoding="async" src={supply.image_url} alt={supply.name} className="w-full h-full object-cover" />
                                         ) : (
                                             <Box className="w-5 h-5 text-teal-600" />
                                         )}

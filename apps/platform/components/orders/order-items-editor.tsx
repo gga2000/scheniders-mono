@@ -61,7 +61,7 @@ export function OrderItemsEditor({
                             <div key={index} className="flex items-center gap-3 p-3 hover:bg-[var(--background)] transition-colors group">
                                 {/* Product image */}
                                 {item.image_url ? (
-                                    <img src={item.image_url} alt={item.name} className="w-12 h-12 rounded-lg object-cover" />
+                                    <img loading="lazy" decoding="async" src={item.image_url} alt={item.name} className="w-12 h-12 rounded-lg object-cover" />
                                 ) : (
                                     <div className="w-12 h-12 rounded-lg bg-[var(--background)] flex items-center justify-center">
                                         <Package className="w-5 h-5 text-muted" />

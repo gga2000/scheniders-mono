@@ -74,7 +74,7 @@ export function AssignmentPopover({ orderId, duty, onAssign, trigger }: Assignme
                                     <div className="flex items-center gap-2.5">
                                         <div className="relative">
                                             {emp.avatar_url ? (
-                                                <img src={emp.avatar_url} alt={emp.first_name} className="w-8 h-8 rounded-full border border-gray-200 dark:border-gray-700 object-cover" />
+                                                <img loading="lazy" decoding="async" src={emp.avatar_url} alt={emp.first_name} className="w-8 h-8 rounded-full border border-gray-200 dark:border-gray-700 object-cover" />
                                             ) : (
                                                 <div className="w-8 h-8 rounded-full bg-gradient-to-br flex items-center justify-center font-bold text-xs border border-gray-200/50 dark:border-gray-700/50"
                                                     style={{

@@ -27,10 +27,6 @@ const CreateOrderModal = dynamic(
     { ssr: false }
 );
 // Dynamic imports for other heavy components
-const KanbanBoard = dynamic(
-    () => import("@/components/orders/kanban-board").then(mod => ({ default: mod.KanbanBoard })),
-    { loading: () => <div className="skeleton w-full h-96 rounded-2xl" />, ssr: false }
-);
 import { FloatingActionBar } from "@/components/orders/floating-action-bar";
 import { WorkflowTabs } from "@/components/orders/workflow-tabs";
 const DuplicateComparisonModal = dynamic(
@@ -170,8 +166,8 @@ export interface OrdersPagePresenterProps {
     workflowMode: boolean;
     toggleWorkflowMode: () => void;
     setWorkflowMode: (mode: boolean) => void;
-    viewMode: "list" | "cards" | "table" | "kanban";
-    setViewMode: (mode: "cards" | "table" | "kanban") => void;
+    viewMode: "list" | "cards" | "table";
+    setViewMode: (mode: "cards" | "table") => void;
     compactView: 0 | 1 | 2;
     setCompactView: (val: 0 | 1 | 2) => void;
     compactGrid: boolean;
@@ -586,7 +582,6 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                                                 {!workflowMode && [
                                                     { mode: "cards" as const, icon: LayoutGrid, label: "Cards" },
                                                     { mode: "table" as const, icon: Table, label: "Table" },
-                                                    { mode: "kanban" as const, icon: Columns, label: "Kanban" },
                                                 ].map((v) => (
                                                     <button
                                                         key={v.mode}
@@ -1486,7 +1481,7 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                             </div>
                         )}
 
-                        
+
                         {/* Workflow Mode */}
                         {workflowMode ? (
                             <ErrorBoundary name="Workflow Tabs">
@@ -1510,7 +1505,7 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                                         <div className="w-full flex flex-col">
                                             {/* Top bulk actions sticky header */}
                                             {selectedOrders.size > 0 && actionDock}
-                                            
+
                                             {/* Filters & Actions for List View */}
                                             {compactView < 1 ? (
                                                 <StickyFilterBar
@@ -1777,185 +1772,168 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                                         />
                                     </ErrorBoundary>
                                 )}
-
-                                {/* Kanban View */}
-                                {viewMode === "kanban" && (
-                                    <ErrorBoundary name="Order Kanban View">
-                                        <KanbanBoard
-                                            key={`kanban-view-${realtimeVersion}`}
-                                            orders={filteredOrders}
-                                            onStatusChange={async (orderId, newStatus) => {
-                                                await updateOrderStatus(orderId, newStatus);
-                                            }}
-                                            onViewDetails={(order) => {
-                                                setSelectedOrder(order);
-                                                setIsModalOpen(true);
-                                            }}
-                                        />
-                                    </ErrorBoundary>
-                                )}
                             </>
                         )}
                     </div>
                 </div>
                 {/* Modals */}
 
-                    <OrderDetailsModal
-                        order={selectedOrder}
-                        open={isModalOpen}
-                        onClose={() => {
-                            setIsModalOpen(false);
-                            setSelectedOrder(null);
-                        }}
-                        onUpdate={updateOrder}
-                        onStatusUpdate={updateOrderStatus}
-                        onGetTimeline={getOrderTimeline}
-                        onGetNotes={getOrderNotes}
-                        onAddNote={addOrderNote}
-                        onDelete={deleteOrder}
-                        onCreateReturn={createReturnOrder}
-                        checkOrderIdExists={checkOrderIdExists}
-                        assignments={selectedOrder ? assignments.filter(a => a.order_id === selectedOrder.id) : []}
-                        onAssignDuty={handleAssignDuty}
-                    />
-                    <CreateOrderModal
-                        open={isCreateModalOpen}
-                        onClose={() => setIsCreateModalOpen(false)}
-                        onCreate={createOrder}
-                        checkOrderIdExists={checkOrderIdExists}
-                    />
+                <OrderDetailsModal
+                    order={selectedOrder}
+                    open={isModalOpen}
+                    onClose={() => {
+                        setIsModalOpen(false);
+                        setSelectedOrder(null);
+                    }}
+                    onUpdate={updateOrder}
+                    onStatusUpdate={updateOrderStatus}
+                    onGetTimeline={getOrderTimeline}
+                    onGetNotes={getOrderNotes}
+                    onAddNote={addOrderNote}
+                    onDelete={deleteOrder}
+                    onCreateReturn={createReturnOrder}
+                    checkOrderIdExists={checkOrderIdExists}
+                    assignments={selectedOrder ? assignments.filter(a => a.order_id === selectedOrder.id) : []}
+                    onAssignDuty={handleAssignDuty}
+                />
+                <CreateOrderModal
+                    open={isCreateModalOpen}
+                    onClose={() => setIsCreateModalOpen(false)}
+                    onCreate={createOrder}
+                    checkOrderIdExists={checkOrderIdExists}
+                />
 
-                    {/* Duplicate Comparison Modal */}
-                    {
-                        duplicateOrder && (
-                            <DuplicateComparisonModal
-                                open={showDuplicateModal}
-                                onClose={() => {
-                                    setShowDuplicateModal(false);
-                                    setDuplicateOrder(null);
-                                }}
-                                currentOrder={duplicateOrder}
-                                duplicateOrders={orders.filter(o =>
-                                    o.id !== duplicateOrder.id &&
-                                    normalizePhoneForSearch(o.phone) === normalizePhoneForSearch(duplicateOrder.phone) &&
-                                    !o.is_return
-                                )}
-                                onMerge={async (targetId, sourceId) => {
-                                    const result = await mergeOrders(targetId, sourceId);
-                                    return result;
-                                }}
-                                onMarkAsSameCustomer={(orderId) => {
-                                    // Mark this customer as verified returning customer
-                                    markAsVerifiedCustomer(orderId);
-                                    setShowDuplicateModal(false);
-                                    setDuplicateOrder(null);
-                                }}
-                                onCancelOrder={async (orderId) => {
-                                    const result = await updateOrderStatus(orderId, "cancelled", "Cancelled via duplicate comparison");
-                                    return result;
-                                }}
-                                onViewOrder={(order) => {
-                                    setShowDuplicateModal(false);
-                                    setDuplicateOrder(null);
-                                    setSelectedOrder(order);
-                                    setIsModalOpen(true);
-                                }}
-                                onDismissDuplicate={async (phone, notes) => {
-                                    await dismissDuplicate(phone, notes);
-                                }}
-                                onFilterDuplicates={() => {
-                                    setFilterDuplicatesOnly(true);
-                                }}
-                                isBlacklisted={isBlacklisted}
-                                getCustomerOrders={getCustomerOrders}
-                            />
-                        )
-                    }
+                {/* Duplicate Comparison Modal */}
+                {
+                    duplicateOrder && (
+                        <DuplicateComparisonModal
+                            open={showDuplicateModal}
+                            onClose={() => {
+                                setShowDuplicateModal(false);
+                                setDuplicateOrder(null);
+                            }}
+                            currentOrder={duplicateOrder}
+                            duplicateOrders={orders.filter(o =>
+                                o.id !== duplicateOrder.id &&
+                                normalizePhoneForSearch(o.phone) === normalizePhoneForSearch(duplicateOrder.phone) &&
+                                !o.is_return
+                            )}
+                            onMerge={async (targetId, sourceId) => {
+                                const result = await mergeOrders(targetId, sourceId);
+                                return result;
+                            }}
+                            onMarkAsSameCustomer={(orderId) => {
+                                // Mark this customer as verified returning customer
+                                markAsVerifiedCustomer(orderId);
+                                setShowDuplicateModal(false);
+                                setDuplicateOrder(null);
+                            }}
+                            onCancelOrder={async (orderId) => {
+                                const result = await updateOrderStatus(orderId, "cancelled", "Cancelled via duplicate comparison");
+                                return result;
+                            }}
+                            onViewOrder={(order) => {
+                                setShowDuplicateModal(false);
+                                setDuplicateOrder(null);
+                                setSelectedOrder(order);
+                                setIsModalOpen(true);
+                            }}
+                            onDismissDuplicate={async (phone, notes) => {
+                                await dismissDuplicate(phone, notes);
+                            }}
+                            onFilterDuplicates={() => {
+                                setFilterDuplicatesOnly(true);
+                            }}
+                            isBlacklisted={isBlacklisted}
+                            getCustomerOrders={getCustomerOrders}
+                        />
+                    )
+                }
 
-                    {/* Split Order Dialog */}
-                    {
-                        splitOrderDialog.open && splitOrderDialog.order && (
-                            <SplitOrderDialog
-                                order={splitOrderDialog.order}
-                                open={splitOrderDialog.open}
-                                onClose={() => setSplitOrderDialog({ open: false, order: null })}
-                                onConfirm={handleSplitOrder}
-                            />
-                        )
-                    }
+                {/* Split Order Dialog */}
+                {
+                    splitOrderDialog.open && splitOrderDialog.order && (
+                        <SplitOrderDialog
+                            order={splitOrderDialog.order}
+                            open={splitOrderDialog.open}
+                            onClose={() => setSplitOrderDialog({ open: false, order: null })}
+                            onConfirm={handleSplitOrder}
+                        />
+                    )
+                }
 
-                    <FloatingActionBar
-                        selectedCount={selectedOrders.size}
-                        onConfirm={handleBulkConfirm}
-                        onReject={handleBulkReject}
-                        onArchive={handleBulkArchive}
-                        onDelete={handleBulkDelete}
-                    />
-
-
-                    {/* Scroll to Top Button */}
-                    <ScrollToTopButton />
-
-                    {/* Monthly Backup Reminder */}
-                    <BackupPrompt />
-
-                    {/* Order Confirmation Screenshot Modal */}
-                    <AnimatePresence>
-                        {screenshotOrder && (
-                            <OrderConfirmationCard
-                                order={screenshotOrder}
-                                onClose={() => setScreenshotOrder(null)}
-                            />
-                        )}
-                    </AnimatePresence>
+                <FloatingActionBar
+                    selectedCount={selectedOrders.size}
+                    onConfirm={handleBulkConfirm}
+                    onReject={handleBulkReject}
+                    onArchive={handleBulkArchive}
+                    onDelete={handleBulkDelete}
+                />
 
 
-                    {/* Export Report Modal */}
-                    <ExportReportModal
-                        open={isExportModalOpen}
-                        onClose={() => setIsExportModalOpen(false)}
-                        filteredOrders={filteredOrders}
-                        selectedOrderIds={selectedOrders}
-                        allOrders={orders}
-                        currentDateFrom={filters.dateFrom}
-                        currentDateTo={filters.dateTo}
-                    />
+                {/* Scroll to Top Button */}
+                <ScrollToTopButton />
 
-                    {/* Cancellation Reason Dialog */}
-                    <CancellationReasonDialog
-                        open={cancelDialogOpen}
-                        onClose={() => {
-                            setCancelDialogOpen(false);
-                            setOrderToCancel(null);
-                        }}
-                        onConfirm={async (reason) => {
-                            if (orderToCancel) {
-                                await handleStatusUpdate(orderToCancel.id, "cancelled", reason);
-                            }
-                        }}
-                        customerName={orderToCancel?.customer_name}
-                        orderId={orderToCancel?.sequence_number ? String(orderToCancel.sequence_number) : orderToCancel?.order_id}
-                        type="cancel"
-                    />
+                {/* Monthly Backup Reminder */}
+                <BackupPrompt />
 
-                    {/* Rejection Reason Dialog */}
-                    <CancellationReasonDialog
-                        open={rejectDialogOpen}
-                        onClose={() => {
-                            setRejectDialogOpen(false);
-                            setOrderToReject(null);
-                        }}
-                        onConfirm={async (reason) => {
-                            if (orderToReject) {
-                                await handleStatusUpdate(orderToReject.id, "rejected", reason);
-                            }
-                        }}
-                        customerName={orderToReject?.customer_name}
-                        orderId={orderToReject?.sequence_number ? String(orderToReject.sequence_number) : orderToReject?.order_id}
-                        type="reject"
-                    />
+                {/* Order Confirmation Screenshot Modal */}
+                <AnimatePresence>
+                    {screenshotOrder && (
+                        <OrderConfirmationCard
+                            order={screenshotOrder}
+                            onClose={() => setScreenshotOrder(null)}
+                        />
+                    )}
+                </AnimatePresence>
 
-                </div >
+
+                {/* Export Report Modal */}
+                <ExportReportModal
+                    open={isExportModalOpen}
+                    onClose={() => setIsExportModalOpen(false)}
+                    filteredOrders={filteredOrders}
+                    selectedOrderIds={selectedOrders}
+                    allOrders={orders}
+                    currentDateFrom={filters.dateFrom}
+                    currentDateTo={filters.dateTo}
+                />
+
+                {/* Cancellation Reason Dialog */}
+                <CancellationReasonDialog
+                    open={cancelDialogOpen}
+                    onClose={() => {
+                        setCancelDialogOpen(false);
+                        setOrderToCancel(null);
+                    }}
+                    onConfirm={async (reason) => {
+                        if (orderToCancel) {
+                            await handleStatusUpdate(orderToCancel.id, "cancelled", reason);
+                        }
+                    }}
+                    customerName={orderToCancel?.customer_name}
+                    orderId={orderToCancel?.sequence_number ? String(orderToCancel.sequence_number) : orderToCancel?.order_id}
+                    type="cancel"
+                />
+
+                {/* Rejection Reason Dialog */}
+                <CancellationReasonDialog
+                    open={rejectDialogOpen}
+                    onClose={() => {
+                        setRejectDialogOpen(false);
+                        setOrderToReject(null);
+                    }}
+                    onConfirm={async (reason) => {
+                        if (orderToReject) {
+                            await handleStatusUpdate(orderToReject.id, "rejected", reason);
+                        }
+                    }}
+                    customerName={orderToReject?.customer_name}
+                    orderId={orderToReject?.sequence_number ? String(orderToReject.sequence_number) : orderToReject?.order_id}
+                    type="reject"
+                />
+
+            </div >
         </PageTransition>
     );
 }

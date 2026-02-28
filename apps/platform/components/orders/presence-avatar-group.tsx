@@ -32,7 +32,20 @@ export function PresenceAvatarGroup({ orderId, showLimit = 3, className }: Prese
                 >
                     <div className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800 bg-gray-100 flex items-center justify-center overflow-hidden shadow-sm">
                         {user.avatar_url ? (
-                            <img src={user.avatar_url} alt={user.display_name} className="w-full h-full object-cover" />
+                            <picture>
+                                {/* Next-Gen media logic: Let browser pick the best format if available via CDN */}
+                                <source srcSet={`${user.avatar_url}?format=avif`} type="image/avif" />
+                                <source srcSet={`${user.avatar_url}?format=webp`} type="image/webp" />
+                                <img
+                                    loading="lazy"
+                                    decoding="async"
+                                    // High priority for avatars as they represent live presence
+                                    fetchPriority="high"
+                                    src={user.avatar_url}
+                                    alt={user.display_name}
+                                    className="w-full h-full object-cover"
+                                />
+                            </picture>
                         ) : (
                             <UserCircle className="w-5 h-5 text-gray-400" />
                         )}

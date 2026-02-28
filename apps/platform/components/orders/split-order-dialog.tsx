@@ -161,7 +161,11 @@ export function SplitOrderDialog({ order, open, onClose, onConfirm }: SplitOrder
                                     >
                                         <div className="flex items-center gap-3">
                                             {item.image_url && (
-                                                <img src={item.image_url} alt="" className="w-10 h-10 rounded-lg object-cover bg-gray-100" />
+                                                <picture>
+                                                    <source srcSet={`${item.image_url}?format=avif&width=40`} type="image/avif" />
+                                                    <source srcSet={`${item.image_url}?format=webp&width=40`} type="image/webp" />
+                                                    <img loading="lazy" decoding="async" fetchPriority="low" src={item.image_url} alt="" className="w-10 h-10 rounded-lg object-cover bg-gray-100" />
+                                                </picture>
                                             )}
                                             <div>
                                                 <p className="font-medium text-sm text-gray-900">{item.name}</p>
@@ -222,7 +226,11 @@ export function SplitOrderDialog({ order, open, onClose, onConfirm }: SplitOrder
                                                 <p className="text-xs text-muted font-mono">{formatIQD(item.price)} x {item.quantity}</p>
                                             </div>
                                             {item.image_url && (
-                                                <img src={item.image_url} alt="" className="w-10 h-10 rounded-lg object-cover bg-gray-100" />
+                                                <picture>
+                                                    <source srcSet={`${item.image_url}?format=avif&width=40`} type="image/avif" />
+                                                    <source srcSet={`${item.image_url}?format=webp&width=40`} type="image/webp" />
+                                                    <img loading="lazy" decoding="async" fetchPriority="low" src={item.image_url} alt="" className="w-10 h-10 rounded-lg object-cover bg-gray-100" />
+                                                </picture>
                                             )}
                                         </div>
                                     </motion.div>

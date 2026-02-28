@@ -4,6 +4,13 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Performance: Inform browser to optimize font rendering */
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 /* Override Tailwind v4 dark mode to use class-based selector
    instead of prefers-color-scheme, matching our ThemeProvider config */
 @variant dark (&:where(.dark, .dark *));

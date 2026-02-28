@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, memo, useCallback, useEffect, useState } from "react";
+import React, { useRef, memo, useCallback, useEffect, useState } from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { Order, MessageTemplate } from "@/lib/supabase";
 import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
@@ -111,6 +111,16 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
     const handleStatusUpdate = useCallback(onStatusUpdate, [onStatusUpdate]);
     const handleViewDetails = useCallback(onViewDetails, [onViewDetails]);
 
+    const EMPTY_ARRAY: any[] = [];
+    const orderAssignments = React.useMemo(() => {
+        const map = new Map();
+        assignments.forEach(a => {
+            if (!map.has(a.order_id)) map.set(a.order_id, []);
+            map.get(a.order_id).push(a);
+        });
+        return map;
+    }, [assignments]);
+
     if (orders.length === 0) {
         return null;
     }
@@ -174,7 +184,7 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
                                 messageTemplates={messageTemplates}
                                 isSelected={selectedOrders.has(order.id)}
                                 onToggleSelection={onToggleSelection}
-                                assignments={assignments.filter(a => a.order_id === order.id)}
+                                assignments={orderAssignments.get(order.id) || EMPTY_ARRAY}
                                 onAssignDuty={onAssignDuty}
                             />
                         </div>

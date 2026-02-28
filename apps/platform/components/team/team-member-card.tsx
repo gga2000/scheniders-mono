@@ -86,7 +86,7 @@ export function TeamMemberCard({ employee, viewMode, onClick, rank, delay = 0, i
                     <div className="relative shrink-0">
                         <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 border-2 border-white dark:border-gray-800 shadow-sm flex items-center justify-center">
                             {employee.avatar_url ? (
-                                <img src={employee.avatar_url} alt="" className="w-full h-full object-cover" />
+                                <img loading="lazy" decoding="async" src={employee.avatar_url} alt="" className="w-full h-full object-cover" />
                             ) : (
                                 <span className="text-lg font-bold text-gray-700 dark:text-gray-300">
                                     {(employee.display_name || employee.user_email)?.[0]?.toUpperCase()}
@@ -191,7 +191,7 @@ export function TeamMemberCard({ employee, viewMode, onClick, rank, delay = 0, i
                     <div className="relative mb-4 group-hover:-translate-y-1 transition-transform duration-300">
                         <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 border-[3px] border-white dark:border-[#222] shadow-xl flex items-center justify-center">
                             {employee.avatar_url ? (
-                                <img src={employee.avatar_url} alt="" className="w-full h-full object-cover" />
+                                <img loading="lazy" decoding="async" src={employee.avatar_url} alt="" className="w-full h-full object-cover" />
                             ) : (
                                 <span className="text-3xl font-bold text-gray-700 dark:text-gray-300">
                                     {(employee.display_name || employee.user_email)?.[0]?.toUpperCase()}
