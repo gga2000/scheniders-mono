@@ -645,11 +645,26 @@ export function useOrderCrud({ orders, setOrders }: UseOrderCrudOptions) {
 
             if (unlinkError) console.warn("Error unlinking child orders:", unlinkError);
 
+            console.log("bulkDelete: attempting to delete IDs:", uniqueOrderIds);
+
+            // First verify these orders exist
+            const { data: existingRows, error: checkError } = await supabase
+                .from("orders")
+                .select("id, order_id")
+                .in("id", uniqueOrderIds);
+
+            console.log("bulkDelete: existing rows found:", existingRows?.length, "check error:", checkError);
+            if (existingRows) {
+                console.log("bulkDelete: existing order_ids:", existingRows.map(r => r.order_id));
+            }
+
             const { data: deletedRows, error: deleteError } = await supabase
                 .from("orders")
                 .delete()
                 .in("id", uniqueOrderIds)
                 .select("id");
+
+            console.log("bulkDelete: deletedRows:", deletedRows, "deleteError:", deleteError);
 
             if (deleteError) {
                 console.error("Supabase delete error:", deleteError);
