@@ -239,8 +239,8 @@ query GetCheckout($id: ID!) {
             email
             first_name
             last_name
-            created_at
-            updated_at
+            created_at(format: "YYYY-MM-DD HH:mm:ss")
+            updated_at(format: "YYYY-MM-DD HH:mm:ss")
             total
             subtotal
             custom
@@ -297,8 +297,8 @@ const CHECKOUTS_QUERY = `
                 node {
                     _id
                     id
-                    created_at
-                    updated_at
+                    created_at(format: "YYYY-MM-DD HH:mm:ss")
+                    updated_at(format: "YYYY-MM-DD HH:mm:ss")
                     total
                     subtotal
                     email
