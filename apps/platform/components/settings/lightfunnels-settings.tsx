@@ -49,6 +49,8 @@ export function LightfunnelsSettings() {
     const [dateTo, setDateTo] = useState("");
     const [syncSummary, setSyncSummary] = useState<SyncSummary | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [processingQueue, setProcessingQueue] = useState(false);
+    const [queueResult, setQueueResult] = useState<{ processed: number; failed: number } | null>(null);
 
     // Check connection status
     const checkStatus = useCallback(async () => {
@@ -166,6 +168,32 @@ export function LightfunnelsSettings() {
     const handleCancelSync = () => {
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
+        }
+    };
+
+    // Process delayed checkout queue manually
+    const handleProcessQueue = async () => {
+        setProcessingQueue(true);
+        setError(null);
+        setQueueResult(null);
+
+        try {
+            const res = await fetch("/api/cron/process-checkouts");
+            const data = await res.json();
+
+            if (data.success) {
+                setQueueResult({ processed: data.processed, failed: data.failed });
+                if (data.processed > 0) {
+                    // Re-check status or refresh orders if needed
+                    await checkStatus();
+                }
+            } else {
+                setError(data.error || "Failed to process queue");
+            }
+        } catch (err) {
+            setError("Failed to trigger queue processing");
+        } finally {
+            setProcessingQueue(false);
         }
     };
 
@@ -422,15 +450,53 @@ export function LightfunnelsSettings() {
             {/* Help Section */}
             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 p-4">
                 <h4 className="font-medium text-blue-800 dark:text-blue-300 mb-2">
-                    How to get your Access Token
+                    How it works
                 </h4>
-                <ol className="text-sm text-blue-700 dark:text-blue-400 space-y-1 list-decimal list-inside">
-                    <li>Go to <strong>Lightfunnels Partners</strong> dashboard</li>
-                    <li>Create a new app or use existing one</li>
-                    <li>Navigate to <strong>App Settings → API Access</strong></li>
-                    <li>Generate or copy your <strong>Access Token</strong></li>
-                    <li>Paste it in the field above</li>
-                </ol>
+                <div className="text-sm text-blue-700 dark:text-blue-400 space-y-3">
+                    <p>
+                        To prevent incomplete abandoned orders, we wait 2 minutes after a customer starts their checkout before importing.
+                    </p>
+                    <div className="bg-white/50 dark:bg-black/20 p-3 rounded border border-blue-100 dark:border-blue-800/50">
+                        <h5 className="font-semibold mb-1 flex items-center gap-2">
+                            <RefreshCw className={cn("w-3 h-3 text-blue-500", processingQueue && "animate-spin")} />
+                            Checkout Queue Management
+                        </h5>
+                        <p className="text-xs mb-3">
+                            Manually process checkouts that have reached their 2-minute delay.
+                        </p>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={handleProcessQueue}
+                                disabled={processingQueue || !status?.connected}
+                                className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {processingQueue ? (
+                                    <>
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                        Processing...
+                                    </>
+                                ) : (
+                                    <>
+                                        <RefreshCw className="w-3 h-3" />
+                                        Process Queued Checkouts
+                                    </>
+                                )}
+                            </button>
+                            {queueResult && (
+                                <span className="text-xs font-medium text-green-600 dark:text-green-400">
+                                    Processed: {queueResult.processed}, Failed: {queueResult.failed}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                    <ol className="space-y-1 list-decimal list-inside">
+                        <li>Go to <strong>Lightfunnels Partners</strong> dashboard</li>
+                        <li>Create a new app or use existing one</li>
+                        <li>Navigate to <strong>App Settings → API Access</strong></li>
+                        <li>Generate or copy your <strong>Access Token</strong></li>
+                        <li>Paste it in the field above</li>
+                    </ol>
+                </div>
             </div>
         </div>
     );
