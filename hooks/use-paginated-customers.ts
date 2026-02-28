@@ -108,8 +108,13 @@ export function usePaginatedCustomers(
             };
         },
         getNextPageParam: (lastPage) => lastPage.nextPage,
-        staleTime: CACHE_PRESETS.PAGINATION.staleTime,
+        // Keep data fresh for 5 minutes — avoids repeated fetches on navigation
+        staleTime: 5 * 60 * 1000,
         gcTime: CACHE_PRESETS.PAGINATION.gcTime,
+        // Don't refetch on mount if we already have cached pages — show cached data instantly
+        refetchOnMount: false,
+        // Refetch when window regains focus to catch new orders
+        refetchOnWindowFocus: true,
     });
 }
 

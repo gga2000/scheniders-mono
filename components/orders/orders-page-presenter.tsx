@@ -677,7 +677,7 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                                         </div>
 
                                         {/* Filter Group */}
-                                        <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
+                                        <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-sm orders-toolbar-group flex-shrink-0">
                                             <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.filter")}</span>
                                             <div className="flex items-center gap-2">
                                                 {/* Date Picker */}
@@ -688,8 +688,8 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                                                         className={cn(
                                                             "px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300 flex items-center gap-2 border",
                                                             (filters.dateFrom || filters.dateTo)
-                                                                ? "bg-amber-100/50 border-amber-200/50 text-amber-700 shadow-sm"
-                                                                : "border-transparent text-muted-foreground hover:bg-amber-100/40 hover:text-foreground"
+                                                                ? "bg-[var(--pastel-yellow)] border-[var(--primary)]/30 text-amber-900 shadow-sm dark:bg-[#EFFF00]/20 dark:border-[#EFFF00]/40 dark:text-[#EFFF00]"
+                                                                : "border-white/10 text-muted-foreground hover:bg-[var(--pastel-yellow)] hover:border-[var(--primary)]/20 hover:text-foreground dark:hover:bg-[#EFFF00]/10 dark:hover:text-[#EFFF00] dark:border-white/10"
                                                         )}
                                                     >
                                                         <CalendarDays className="w-4 h-4" />
@@ -733,7 +733,7 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                                                     {showDatePicker && createPortal(
                                                         <div
                                                             ref={datePickerRef}
-                                                            className="fixed z-[9999] p-2 bg-white/80 backdrop-blur-xl shadow-2xl rounded-3xl border border-white/20 ring-1 ring-black/5 orders-date-popover"
+                                                            className="fixed z-[9999] p-2 bg-[var(--card-bg)] dark:bg-[#1a1a2e] backdrop-blur-xl shadow-2xl rounded-3xl border border-[var(--card-border)] dark:border-white/10 ring-1 ring-black/5 dark:ring-white/5 orders-date-popover"
                                                             style={{ top: datePickerPos.top, left: datePickerPos.left }}
                                                         >
                                                             <DateRangePicker

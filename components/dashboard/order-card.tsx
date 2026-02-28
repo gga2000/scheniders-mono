@@ -1453,8 +1453,8 @@ export const OrderCard = memo(function OrderCard({
                             )}
                         </div>
 
-                        {/* Notes Row - Order Notes (amber) and Internal Notes (blue) - hidden in semi-compact */}
-                        {compact === 0 && (
+                        {/* Notes Row - Order Notes (amber) and Internal Notes (blue) - hidden in semi-compact and for abandoned orders */}
+                        {compact === 0 && order.status !== "pending_checkout" && (
                             <div className="flex flex-wrap gap-2">
                                 {actualNotes && (
                                     <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 rounded-lg px-2 py-1 max-w-full overflow-hidden border border-amber-200">
