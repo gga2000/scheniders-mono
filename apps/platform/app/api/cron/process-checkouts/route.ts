@@ -51,11 +51,11 @@ export async function GET(request: Request) {
 
         console.log(`[Cron] Processing ${pending.length} queued checkout(s)`);
 
-        // Get Lightfunnels access token once
-        const accessToken = await getSavedAccessToken();
+        // Get Lightfunnels access token once - pass the service role client
+        const accessToken = await getSavedAccessToken(supabase);
         if (!accessToken) {
             console.error('[Cron] No Lightfunnels access token configured');
-            return NextResponse.json({ error: 'No API token configured' }, { status: 500 });
+            return NextResponse.json({ error: 'No API token configured or internal permission error' }, { status: 500 });
         }
 
         let processed = 0;
