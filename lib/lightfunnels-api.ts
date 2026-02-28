@@ -700,6 +700,32 @@ export async function importOrder(lfOrder: LightfunnelsOrder): Promise<OrderImpo
             throw error;
         }
 
+        // Clean up any matching abandoned checkouts (same phone)
+        // This prevents duplicates when a checkout becomes a completed order
+        const phone = lfOrder.shipping_address?.phone || lfOrder.customer.phone || '';
+        const formattedPhone = formatPhoneToStandard(phone);
+        if (formattedPhone) {
+            try {
+                const { data: abandonedCheckouts } = await supabase
+                    .from('orders')
+                    .select('id, order_id')
+                    .eq('status', 'pending_checkout')
+                    .eq('phone', formattedPhone)
+                    .eq('source', 'lightfunnels');
+
+                if (abandonedCheckouts && abandonedCheckouts.length > 0) {
+                    await supabase
+                        .from('orders')
+                        .delete()
+                        .in('id', abandonedCheckouts.map(c => c.id));
+
+                    console.log(`Cleaned up ${abandonedCheckouts.length} abandoned checkout(s) for phone ${formattedPhone}`);
+                }
+            } catch {
+                // Non-fatal
+            }
+        }
+
         return {
             lightfunnelsId: String(lfOrder._id),
             orderName: lfOrder.name,
