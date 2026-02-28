@@ -5,7 +5,10 @@ let qstashClient: Client | null = null;
 function getQStashClient(): Client | null {
     if (!process.env.QSTASH_TOKEN) return null;
     if (!qstashClient) {
-        qstashClient = new Client({ token: process.env.QSTASH_TOKEN });
+        qstashClient = new Client({
+            token: process.env.QSTASH_TOKEN,
+            baseUrl: "https://qstash-us-east-1.upstash.io"
+        });
     }
     return qstashClient;
 }
