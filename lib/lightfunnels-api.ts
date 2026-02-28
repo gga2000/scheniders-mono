@@ -234,7 +234,6 @@ query GetCheckout($id: ID!) {
         ... on Checkout {
             id
             _id
-            step_id
             phone
             email
             first_name
