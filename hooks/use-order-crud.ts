@@ -637,6 +637,7 @@ export function useOrderCrud({ orders, setOrders }: UseOrderCrudOptions) {
                 return { success: true, count: 0 };
             }
 
+            // Unlink self-referencing FK: orders that reference these orders via original_order_id
             const { error: unlinkError } = await supabase
                 .from("orders")
                 .update({ original_order_id: null })
@@ -650,7 +651,10 @@ export function useOrderCrud({ orders, setOrders }: UseOrderCrudOptions) {
                 .in("id", uniqueOrderIds)
                 .select("id");
 
-            if (deleteError) throw deleteError;
+            if (deleteError) {
+                console.error("Supabase delete error:", deleteError);
+                throw new Error(deleteError.message || "Database error during delete");
+            }
 
             const deletedIds = new Set((deletedRows || []).map((row) => row.id));
 
