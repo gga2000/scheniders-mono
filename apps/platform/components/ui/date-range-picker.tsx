@@ -333,8 +333,8 @@ export function DateRangePicker({
                 {/* Presets Sidebar */}
                 <div className="w-40 bg-gradient-to-b from-lime-50 to-green-50 dark:from-[#151528] dark:to-[#1a1a2e] p-3 border-r border-lime-200 dark:border-white/10">
                     <div className="flex items-center gap-2 mb-3 px-2">
-                        <Sparkles className="w-4 h-4 text-lime-500" />
-                        <span className="text-xs font-semibold text-lime-700 uppercase tracking-wider">
+                        <Sparkles className="w-4 h-4 text-lime-500 dark:text-[#EFFF00]" />
+                        <span className="text-xs font-semibold text-lime-700 dark:text-[#EFFF00] uppercase tracking-wider">
                             Quick Pick
                         </span>
                     </div>
@@ -373,7 +373,7 @@ export function DateRangePicker({
                             onClick={goToPrevMonth}
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
-                            className="p-2 rounded-xl hover:bg-lime-100 dark:hover:bg-white/10 text-muted transition-all"
+                            className="p-2 rounded-xl hover:bg-lime-100 dark:hover:bg-[#EFFF00]/10 text-muted transition-all"
                         >
                             <ChevronLeft className="w-5 h-5" />
                         </motion.button>
@@ -388,7 +388,7 @@ export function DateRangePicker({
                             onClick={goToNextMonth}
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
-                            className="p-2 rounded-xl hover:bg-lime-100 dark:hover:bg-white/10 text-muted transition-all"
+                            className="p-2 rounded-xl hover:bg-lime-100 dark:hover:bg-[#EFFF00]/10 text-muted transition-all"
                         >
                             <ChevronRight className="w-5 h-5" />
                         </motion.button>
