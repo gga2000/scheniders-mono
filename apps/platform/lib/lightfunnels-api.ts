@@ -26,7 +26,7 @@ export interface LightfunnelsOrder {
     financial_status: 'pending' | 'paid' | 'refunded' | 'partially_refunded';
     created_at: string;
     updated_at?: string;
-    note?: string;
+    notes?: string;
     customer: {
         id: string;
         full_name: string;
@@ -140,7 +140,7 @@ query ordersQuery($first: Int, $after: String, $query: String!) {
                 financial_status
                 created_at
                 updated_at
-                note
+                notes
                 customer {
                     id
                     full_name
@@ -640,7 +640,7 @@ async function mapToLocalOrder(lfOrder: LightfunnelsOrder): Promise<Omit<Order, 
         price: lfOrder.total,
         status,
         whatsapp_link: formattedPhone ? generateWhatsAppLink(formattedPhone, `مرحباً، بخصوص طلبك ${lfOrder.name}`) : undefined,
-        notes: lfOrder.note || undefined,
+        notes: lfOrder.notes || undefined,
         priority: 'normal',
         payment_status: lfOrder.financial_status === 'paid' ? 'paid' : 'pending',
         is_return: false,
