@@ -35,12 +35,26 @@ export interface LightfunnelsOrder {
     };
     items: Array<{
         id: string;
-        name: string;
-        quantity: number;
+        _id: number;
+        title: string;
         price: number;
         sku?: string;
         product_id?: string;
+        quantity?: number;
     }>;
+    checkout?: {
+        variants: Array<{
+            quantity: number;
+            variant: {
+                id: string;
+                _id: number;
+                title: string;
+                price: number;
+                sku?: string;
+                product_id?: string;
+            };
+        }>;
+    };
     shipping_address?: {
         address1?: string;
         address2?: string;
@@ -140,12 +154,34 @@ query ordersQuery($first: Int, $after: String, $query: String!) {
                     phone
                 }
                 items {
-                    id
-                    name
-                    quantity
-                    price
-                    sku
-                    product_id
+                    ... on VariantSnapshot {
+                        id
+                        _id
+                        title
+                        price
+                        sku
+                        product_id
+                    }
+                    ... on OrderBumpSnapshot {
+                        id
+                        _id
+                        title
+                        price
+                        sku
+                        product_id
+                    }
+                }
+                checkout {
+                    variants {
+                        quantity
+                        variant {
+                            id
+                            title
+                            price
+                            sku
+                            product_id
+                        }
+                    }
                 }
                 shipping_address {
                     address1
@@ -201,17 +237,18 @@ query GetCheckout($id: ID!) {
             total
             subtotal
             custom
-            items {
-                __typename
-                id
-                _id
-                title
-                price
-                sku
-                variant_id
-                product_id
-                image {
-                    path
+            variants {
+                quantity
+                variant {
+                    id
+                    _id
+                    title
+                    price
+                    sku
+                    product_id
+                    image {
+                        path
+                    }
                 }
             }
             shipping_address {
@@ -264,17 +301,18 @@ query GetCheckouts($first: Int!, $after: String, $query: String) {
                 total
                 subtotal
                 custom
-                items {
-                    __typename
-                    id
-                    _id
-                    title
-                    price
-                    sku
-                    variant_id
-                    product_id
-                    image {
-                        path
+                variants {
+                    quantity
+                    variant {
+                        id
+                        _id
+                        title
+                        price
+                        sku
+                        product_id
+                        image {
+                            path
+                        }
                     }
                 }
                 shipping_address {
@@ -327,16 +365,17 @@ export interface LightfunnelsCheckout {
     total: number;
     subtotal?: number;
     custom?: Record<string, unknown>;
-    items: Array<{
-        __typename: string;
-        id: string;
-        _id: number;
-        title: string;
-        price: number;
-        sku?: string;
-        variant_id?: string;
-        product_id?: string;
-        image?: { path: string };
+    variants: Array<{
+        quantity: number;
+        variant: {
+            id: string;
+            _id: number;
+            title: string;
+            price: number;
+            sku?: string;
+            product_id?: string;
+            image?: { path: string };
+        };
     }>;
     shipping_address?: {
         first_name?: string;
@@ -508,14 +547,16 @@ export async function fetchCheckouts(
             created_at: order.created_at,
             total: order.total,
             subtotal: order.subtotal,
-            items: order.items.map(item => ({
-                __typename: 'CheckoutItem',
-                id: item.id,
-                _id: 0, // Not available in Order node
-                title: item.name,
-                price: item.price,
-                sku: item.sku,
-                product_id: item.product_id
+            variants: (order.checkout?.variants || []).map(cv => ({
+                quantity: cv.quantity,
+                variant: {
+                    id: cv.variant.id,
+                    _id: cv.variant._id,
+                    title: cv.variant.title,
+                    price: cv.variant.price,
+                    sku: cv.variant.sku,
+                    product_id: cv.variant.product_id
+                }
             })),
             shipping_address: order.shipping_address ? {
                 first_name: order.customer.full_name?.split(' ')[0] || '',
@@ -595,8 +636,8 @@ async function mapToLocalOrder(lfOrder: LightfunnelsOrder): Promise<Omit<Order, 
             const product = item.sku ? await findProductBySku(item.sku) : null;
 
             return {
-                name: item.name,
-                quantity: item.quantity,
+                name: item.title,
+                quantity: item.quantity || 1,
                 price: item.price,
                 sku: item.sku,
                 product_id: product?.id,
@@ -657,11 +698,12 @@ async function mapCheckoutToLocalOrder(lfCheckout: LightfunnelsCheckout): Promis
     ].filter(Boolean).join(', ');
 
     const items: OrderItem[] = await Promise.all(
-        lfCheckout.items.map(async (item) => {
+        lfCheckout.variants.map(async (v) => {
+            const item = v.variant;
             const product = item.sku ? await findProductBySku(item.sku) : null;
             return {
                 name: item.title,
-                quantity: 1,
+                quantity: v.quantity,
                 price: item.price,
                 sku: item.sku,
                 product_id: product?.id,
