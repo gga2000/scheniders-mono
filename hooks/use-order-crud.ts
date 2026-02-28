@@ -658,6 +658,9 @@ export function useOrderCrud({ orders, setOrders }: UseOrderCrudOptions) {
 
             setOrders((prev) => prev.filter((order) => !deletedIds.has(order.id)));
 
+            // Invalidate React Query cache so stale data doesn't reappear
+            await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+
             return {
                 success: deletedIds.size === uniqueOrderIds.length,
                 count: deletedIds.size,
