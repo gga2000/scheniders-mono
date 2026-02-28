@@ -637,44 +637,23 @@ export function useOrderCrud({ orders, setOrders }: UseOrderCrudOptions) {
                 return { success: true, count: 0 };
             }
 
-            // Unlink self-referencing FK: orders that reference these orders via original_order_id
-            const { error: unlinkError } = await supabase
-                .from("orders")
-                .update({ original_order_id: null })
-                .in("original_order_id", uniqueOrderIds);
+            // Use server-side API route with service role to bypass RLS
+            const res = await fetch("/api/orders/delete", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ids: uniqueOrderIds }),
+            });
 
-            if (unlinkError) console.warn("Error unlinking child orders:", unlinkError);
+            const result = await res.json();
 
-            console.log("bulkDelete: attempting to delete IDs:", uniqueOrderIds);
-
-            // First verify these orders exist
-            const { data: existingRows, error: checkError } = await supabase
-                .from("orders")
-                .select("id, order_id")
-                .in("id", uniqueOrderIds);
-
-            console.log("bulkDelete: existing rows found:", existingRows?.length, "check error:", checkError);
-            if (existingRows) {
-                console.log("bulkDelete: existing order_ids:", existingRows.map(r => r.order_id));
+            if (!result.success) {
+                throw new Error(result.error || "Failed to delete orders");
             }
 
-            const { data: deletedRows, error: deleteError } = await supabase
-                .from("orders")
-                .delete()
-                .in("id", uniqueOrderIds)
-                .select("id");
-
-            console.log("bulkDelete: deletedRows:", deletedRows, "deleteError:", deleteError);
-
-            if (deleteError) {
-                console.error("Supabase delete error:", deleteError);
-                throw new Error(deleteError.message || "Database error during delete");
-            }
-
-            const deletedIds = new Set((deletedRows || []).map((row) => row.id));
+            const deletedIds = new Set(result.deletedIds || []);
 
             if (deletedIds.size === 0) {
-                throw new Error("No orders were deleted. You may not have permission to delete these orders.");
+                throw new Error("No orders were deleted.");
             }
 
             setOrders((prev) => prev.filter((order) => !deletedIds.has(order.id)));
@@ -696,13 +675,8 @@ export function useOrderCrud({ orders, setOrders }: UseOrderCrudOptions) {
 
     async function deleteOrder(orderId: string) {
         try {
-            await supabase
-                .from("orders")
-                .update({ original_order_id: null })
-                .eq("original_order_id", orderId);
-
-            await deleteOrderMutation.mutateAsync(orderId);
-            return { success: true };
+            const result = await bulkDelete([orderId]);
+            return { success: result.success, error: result.error };
         } catch (err) {
             console.error("Error deleting order:", err);
             return {
