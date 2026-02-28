@@ -140,7 +140,12 @@ export function useUpdateStatusMutation() {
                         ? {
                             ...order,
                             status,
-                            rejection_reason: rejectionReason || order.rejection_reason,
+                            // Carry new reason if provided; clear stale one when reverting away from cancelled/rejected
+                            rejection_reason: rejectionReason
+                                ? rejectionReason
+                                : (status === "cancelled" || status === "rejected")
+                                    ? order.rejection_reason
+                                    : undefined,
                             delivered_at: status === "delivered" ? new Date().toISOString() : order.delivered_at,
                         }
                         : order

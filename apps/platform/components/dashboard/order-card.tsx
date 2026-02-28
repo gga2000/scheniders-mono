@@ -284,9 +284,9 @@ export const OrderCard = memo(function OrderCard({
                 );
             case "shop":
                 return (
-                    <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-semibold rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                    <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-semibold rounded-full bg-[var(--pastel-yellow)] text-amber-900 border border-[var(--primary)]/30 dark:bg-[#EFFF00]/20 dark:text-[#EFFF00] dark:border-[#EFFF00]/30">
                         <Store className="w-3 h-3" />
-                        Shop
+                        طلب محل
                     </span>
                 );
             default:
