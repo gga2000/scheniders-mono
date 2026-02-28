@@ -32,14 +32,6 @@ export interface LightfunnelsOrder {
         full_name: string;
         email?: string;
         phone?: string;
-        default_address?: {
-            address1?: string;
-            address2?: string;
-            city?: string;
-            province?: string;
-            country?: string;
-            zip?: string;
-        };
     };
     line_items: Array<{
         id: string;
@@ -146,14 +138,6 @@ query ordersQuery($first: Int, $after: String, $query: String!) {
                     full_name
                     email
                     phone
-                    default_address {
-                        address1
-                        address2
-                        city
-                        province
-                        country
-                        zip
-                    }
                 }
                 line_items {
                     id
@@ -599,7 +583,7 @@ async function mapToLocalOrder(lfOrder: LightfunnelsOrder): Promise<Omit<Order, 
     const formattedPhone = formatPhoneToStandard(phone);
 
     // Get address details
-    const city = lfOrder.shipping_address?.city || lfOrder.customer.default_address?.city || '';
+    const city = lfOrder.shipping_address?.city || '';
     const address = [
         lfOrder.shipping_address?.address1,
         lfOrder.shipping_address?.address2,
