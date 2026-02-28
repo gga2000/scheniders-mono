@@ -880,8 +880,36 @@ export async function syncCheckouts(
             dateTo,
         });
 
+        // Client-side date filtering (Lightfunnels checkouts API may ignore created_at query filter)
+        const dateFilteredCheckouts = checkouts.filter(checkout => {
+            if (!checkout.created_at) return true;
+            const createdAt = new Date(checkout.created_at);
+            if (dateFrom) {
+                const from = new Date(dateFrom);
+                from.setHours(0, 0, 0, 0);
+                if (createdAt < from) return false;
+            }
+            if (dateTo) {
+                const to = new Date(dateTo);
+                to.setHours(23, 59, 59, 999);
+                if (createdAt > to) return false;
+            }
+            return true;
+        });
+
+        // If API returned results but all were filtered out by date, we've gone past our range
+        if (checkouts.length > 0 && dateFilteredCheckouts.length === 0 && dateFrom) {
+            // Check if all returned checkouts are older than our date range
+            const oldestInBatch = new Date(checkouts[checkouts.length - 1].created_at);
+            const fromDate = new Date(dateFrom);
+            fromDate.setHours(0, 0, 0, 0);
+            if (oldestInBatch < fromDate) {
+                break; // Stop pagination - we've gone past our date range
+            }
+        }
+
         // Import each checkout
-        for (const checkout of checkouts) {
+        for (const checkout of dateFilteredCheckouts) {
             const result = await importCheckout(checkout);
             summary.results.push(result);
             summary.total++;
