@@ -476,8 +476,15 @@ export async function fetchOrders(
     let query = '';
     if (dateFrom || dateTo) {
         const filters: string[] = [];
-        if (dateFrom) filters.push(`created_at:>=${dateFrom}`);
-        if (dateTo) filters.push(`created_at:<=${dateTo}`);
+        if (dateFrom) {
+            // Lightfunnels requires YYYY-MM-DD HH:mm:ss
+            const formattedDate = dateFrom.includes(':') ? dateFrom : `${dateFrom} 00:00:00`;
+            filters.push(`created_at:>=${formattedDate}`);
+        }
+        if (dateTo) {
+            const formattedDate = dateTo.includes(':') ? dateTo : `${dateTo} 23:59:59`;
+            filters.push(`created_at:<=${formattedDate}`);
+        }
         query = filters.join(' AND ');
     }
 
@@ -519,8 +526,14 @@ export async function fetchCheckouts(
 
     // Use the orders query with status:pending_checkout filter for abandoned checkouts
     const filters: string[] = ['status:pending_checkout'];
-    if (dateFrom) filters.push(`created_at:>=${dateFrom}`);
-    if (dateTo) filters.push(`created_at:<=${dateTo}`);
+    if (dateFrom) {
+        const formattedDate = dateFrom.includes(':') ? dateFrom : `${dateFrom} 00:00:00`;
+        filters.push(`created_at:>=${formattedDate}`);
+    }
+    if (dateTo) {
+        const formattedDate = dateTo.includes(':') ? dateTo : `${dateTo} 23:59:59`;
+        filters.push(`created_at:<=${formattedDate}`);
+    }
     const query = filters.join(' AND ');
 
     const data = await executeQuery<{
