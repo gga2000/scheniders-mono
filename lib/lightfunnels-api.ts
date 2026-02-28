@@ -278,7 +278,6 @@ query GetCheckout($id: ID!) {
                 country
             }
             customer {
-                id
                 full_name
                 phone
                 location
@@ -339,7 +338,6 @@ const CHECKOUTS_QUERY = `
                         country
                     }
                     customer {
-                        id
                         full_name
                         phone
                         location
@@ -399,7 +397,6 @@ export interface LightfunnelsCheckout {
         country?: string;
     };
     customer?: {
-        id: string;
         full_name?: string;
         phone?: string;
         location?: string;
