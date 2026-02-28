@@ -35,6 +35,9 @@ const serverSchema = z.object({
     LIGHTFUNNELS_WEBHOOK_SECRET: z.string().min(1).optional(),
     WEBHOOK_LOGGING_ENABLED: z.enum(["true", "false"]).optional(),
     CRON_SECRET: z.string().min(1).optional(),
+    QSTASH_TOKEN: z.string().min(1).optional(),
+    QSTASH_CURRENT_SIGNING_KEY: z.string().min(1).optional(),
+    QSTASH_NEXT_SIGNING_KEY: z.string().min(1).optional(),
 });
 
 // =============================================
@@ -65,6 +68,9 @@ function validateEnv() {
             LIGHTFUNNELS_WEBHOOK_SECRET: process.env.LIGHTFUNNELS_WEBHOOK_SECRET,
             WEBHOOK_LOGGING_ENABLED: process.env.WEBHOOK_LOGGING_ENABLED,
             CRON_SECRET: process.env.CRON_SECRET,
+            QSTASH_TOKEN: process.env.QSTASH_TOKEN,
+            QSTASH_CURRENT_SIGNING_KEY: process.env.QSTASH_CURRENT_SIGNING_KEY,
+            QSTASH_NEXT_SIGNING_KEY: process.env.QSTASH_NEXT_SIGNING_KEY,
         });
 
         if (!serverResult.success) {
