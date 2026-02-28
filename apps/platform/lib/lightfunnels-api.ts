@@ -56,10 +56,10 @@ export interface LightfunnelsOrder {
         }>;
     };
     shipping_address?: {
-        address1?: string;
-        address2?: string;
+        line1?: string;
+        line2?: string;
         city?: string;
-        province?: string;
+        area?: string;
         country?: string;
         phone?: string;
     };
@@ -184,10 +184,10 @@ query ordersQuery($first: Int, $after: String, $query: String!) {
                     }
                 }
                 shipping_address {
-                    address1
-                    address2
+                    line1
+                    line2
                     city
-                    province
+                    area
                     country
                     phone
                 }
@@ -562,8 +562,8 @@ export async function fetchCheckouts(
                 first_name: order.customer.full_name?.split(' ')[0] || '',
                 last_name: order.customer.full_name?.split(' ').slice(1).join(' ') || '',
                 phone: order.shipping_address.phone,
-                line1: order.shipping_address.address1 || '',
-                line2: order.shipping_address.address2 || '',
+                line1: order.shipping_address.line1 || '',
+                line2: order.shipping_address.line2 || '',
                 city: order.shipping_address.city || '',
                 country: order.shipping_address.country || '',
             } : undefined,
@@ -626,8 +626,9 @@ async function mapToLocalOrder(lfOrder: LightfunnelsOrder): Promise<Omit<Order, 
     // Get address details
     const city = lfOrder.shipping_address?.city || '';
     const address = [
-        lfOrder.shipping_address?.address1,
-        lfOrder.shipping_address?.address2,
+        lfOrder.shipping_address?.line1,
+        lfOrder.shipping_address?.line2,
+        lfOrder.shipping_address?.area,
     ].filter(Boolean).join(', ');
 
     // Map line items with product linking
