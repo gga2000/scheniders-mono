@@ -6,6 +6,7 @@ import {
 } from "@/lib/webhook-handler";
 import { env } from "@/lib/env";
 import { createClient } from "@supabase/supabase-js";
+import { scheduleCheckoutProcessing } from "@/lib/qstash";
 
 // Service role client to bypass RLS when writing to checkout_queue
 const supabaseAdmin = createClient(
@@ -73,6 +74,18 @@ export async function POST(request: NextRequest) {
                     console.error("[Webhook] Failed to queue checkout:", checkoutId, queueErr);
                 } else {
                     console.log(`[Webhook] Checkout queued for import in ${CHECKOUT_DELAY_MINUTES}min:`, checkoutId);
+
+                    // Schedule QStash delayed callback to trigger processing
+                    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL
+                        || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
+                    if (baseUrl) {
+                        await scheduleCheckoutProcessing(
+                            CHECKOUT_DELAY_MINUTES * 60 + 30, // +30s buffer past process_after
+                            baseUrl
+                        );
+                    } else {
+                        console.warn("[Webhook] No NEXT_PUBLIC_SITE_URL or VERCEL_URL set, cannot schedule QStash callback");
+                    }
                 }
 
                 return NextResponse.json(

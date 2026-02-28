@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { Receiver } from '@upstash/qstash';
 import { env } from '@/lib/env';
 import { fetchCheckoutById, getSavedAccessToken } from '@/lib/lightfunnels-api';
 import { parseCheckoutToWebhook, createOrderFromWebhook } from '@/lib/webhook-handler';
@@ -14,19 +15,9 @@ const MAX_ATTEMPTS = 3;
 const BATCH_SIZE = 10; // Process up to 10 checkouts per cron run
 
 /**
- * GET /api/cron/process-checkouts
- *
- * Runs every 2 minutes via Vercel Cron.
- * Picks up queued checkouts where process_after has passed,
- * fetches full data from Lightfunnels API, and imports them.
+ * Shared processing logic for both GET (manual/cron) and POST (QStash) handlers.
  */
-export async function GET(request: Request) {
-    // Verify cron secret (Vercel automatically sends this)
-    const authHeader = request.headers.get('authorization');
-    if (env.CRON_SECRET && authHeader !== `Bearer ${env.CRON_SECRET}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+async function processCheckoutQueue(): Promise<NextResponse> {
     try {
         const now = new Date().toISOString();
 
@@ -124,4 +115,48 @@ export async function GET(request: Request) {
             { status: 500 }
         );
     }
+}
+
+/**
+ * GET /api/cron/process-checkouts
+ *
+ * Manual trigger (UI button) or Vercel Cron.
+ */
+export async function GET(request: Request) {
+    // Verify cron secret (Vercel automatically sends this)
+    const authHeader = request.headers.get('authorization');
+    if (env.CRON_SECRET && authHeader !== `Bearer ${env.CRON_SECRET}`) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    return processCheckoutQueue();
+}
+
+/**
+ * POST /api/cron/process-checkouts
+ *
+ * Called by Upstash QStash after a scheduled delay.
+ * Verifies the QStash signature before processing.
+ */
+export async function POST(request: Request) {
+    const currentSigningKey = env.QSTASH_CURRENT_SIGNING_KEY;
+    const nextSigningKey = env.QSTASH_NEXT_SIGNING_KEY;
+
+    if (!currentSigningKey || !nextSigningKey) {
+        return NextResponse.json({ error: 'QStash signing keys not configured' }, { status: 401 });
+    }
+
+    const receiver = new Receiver({ currentSigningKey, nextSigningKey });
+    const body = await request.text();
+    const signature = request.headers.get('upstash-signature') || '';
+
+    try {
+        await receiver.verify({ signature, body });
+    } catch {
+        console.error('[Cron] Invalid QStash signature');
+        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+    }
+
+    console.log('[Cron] Processing checkout queue via QStash callback');
+    return processCheckoutQueue();
 }
