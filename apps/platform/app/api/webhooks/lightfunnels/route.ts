@@ -36,6 +36,12 @@ export async function POST(request: NextRequest) {
         // 2. Parse request body
         const payload = await request.json();
 
+        // Log raw payload for debugging (temporary)
+        console.log("[Webhook] Raw payload keys:", Object.keys(payload).join(', '));
+        if (payload.node) {
+            console.log("[Webhook] Node type:", typeof payload.node, "Node keys:", typeof payload.node === 'object' ? Object.keys(payload.node).join(', ') : String(payload.node));
+        }
+
         // 3. Validate payload structure
         let webhookData;
         try {
