@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
     Cloud,
     CloudOff,
@@ -13,6 +13,7 @@ import {
     Key,
     Calendar,
     Trash2,
+    StopCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -120,11 +121,16 @@ export function LightfunnelsSettings() {
         }
     };
 
-    // Sync orders
+    // Sync orders with abort support
+    const abortControllerRef = useRef<AbortController | null>(null);
+
     const handleSync = async () => {
         setSyncing(true);
         setError(null);
         setSyncSummary(null);
+
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
 
         try {
             const res = await fetch("/api/lightfunnels/sync", {
@@ -135,6 +141,7 @@ export function LightfunnelsSettings() {
                     dateFrom: dateFrom || undefined,
                     dateTo: dateTo || undefined,
                 }),
+                signal: controller.signal,
             });
 
             const data = await res.json();
@@ -145,9 +152,20 @@ export function LightfunnelsSettings() {
                 setError(data.error || "Sync failed");
             }
         } catch (err) {
-            setError("Failed to sync orders");
+            if (err instanceof DOMException && err.name === "AbortError") {
+                setError("Sync was cancelled");
+            } else {
+                setError("Failed to sync orders");
+            }
         } finally {
+            abortControllerRef.current = null;
             setSyncing(false);
+        }
+    };
+
+    const handleCancelSync = () => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
         }
     };
 
@@ -303,23 +321,34 @@ export function LightfunnelsSettings() {
                         </div>
                     </div>
 
-                    <button
-                        onClick={handleSync}
-                        disabled={syncing}
-                        className="w-full px-4 py-3 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                        {syncing ? (
-                            <>
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                                Syncing Orders...
-                            </>
-                        ) : (
-                            <>
-                                <RefreshCw className="w-5 h-5" />
-                                Sync Orders Now
-                            </>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleSync}
+                            disabled={syncing}
+                            className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            {syncing ? (
+                                <>
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                    Syncing Orders...
+                                </>
+                            ) : (
+                                <>
+                                    <RefreshCw className="w-5 h-5" />
+                                    Sync Orders Now
+                                </>
+                            )}
+                        </button>
+                        {syncing && (
+                            <button
+                                onClick={handleCancelSync}
+                                className="px-4 py-3 bg-red-600 text-white rounded-md font-medium hover:bg-red-700 flex items-center justify-center gap-2"
+                            >
+                                <StopCircle className="w-5 h-5" />
+                                Stop
+                            </button>
                         )}
-                    </button>
+                    </div>
 
                     {/* Sync Results */}
                     {syncSummary && (
