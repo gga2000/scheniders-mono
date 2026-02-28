@@ -236,13 +236,12 @@ query GetCheckout($id: ID!) {
             _id
             phone
             email
-            first_name
-            last_name
             created_at(format: "YYYY-MM-DD HH:mm:ss")
             updated_at(format: "YYYY-MM-DD HH:mm:ss")
             total
             subtotal
-            custom
+            link
+            recovered
             variants {
                 quantity
                 variant {
@@ -258,8 +257,6 @@ query GetCheckout($id: ID!) {
                 }
             }
             shipping_address {
-                first_name
-                last_name
                 phone
                 line1
                 line2
@@ -270,8 +267,6 @@ query GetCheckout($id: ID!) {
                 state
             }
             billing_address {
-                first_name
-                last_name
                 phone
                 city
                 country
@@ -279,7 +274,6 @@ query GetCheckout($id: ID!) {
             customer {
                 full_name
                 phone
-                location
             }
         }
     }
@@ -318,8 +312,6 @@ const CHECKOUTS_QUERY = `
                         }
                     }
                     shipping_address {
-                        first_name
-                        last_name
                         phone
                         line1
                         line2
@@ -330,8 +322,6 @@ const CHECKOUTS_QUERY = `
                         state
                     }
                     billing_address {
-                        first_name
-                        last_name
                         phone
                         city
                         country
@@ -339,7 +329,6 @@ const CHECKOUTS_QUERY = `
                     customer {
                         full_name
                         phone
-                        location
                     }
                 }
             }
@@ -377,8 +366,6 @@ export interface LightfunnelsCheckout {
         };
     }>;
     shipping_address?: {
-        first_name?: string;
-        last_name?: string;
         phone?: string;
         line1?: string;
         line2?: string;
@@ -389,8 +376,6 @@ export interface LightfunnelsCheckout {
         state?: string;
     };
     billing_address?: {
-        first_name?: string;
-        last_name?: string;
         phone?: string;
         city?: string;
         country?: string;
@@ -398,7 +383,6 @@ export interface LightfunnelsCheckout {
     customer?: {
         full_name?: string;
         phone?: string;
-        location?: string;
     };
 }
 
@@ -634,7 +618,6 @@ async function mapToLocalOrder(lfOrder: LightfunnelsOrder): Promise<Omit<Order, 
  */
 async function mapCheckoutToLocalOrder(lfCheckout: LightfunnelsCheckout): Promise<Omit<Order, 'id' | 'created_at' | 'updated_at'>> {
     const customerName = lfCheckout.customer?.full_name
-        || [lfCheckout.shipping_address?.first_name, lfCheckout.shipping_address?.last_name].filter(Boolean).join(' ').trim()
         || 'Unknown Customer';
 
     const phone = lfCheckout.phone
