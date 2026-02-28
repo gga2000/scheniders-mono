@@ -127,8 +127,8 @@ async function executeQuery<T>(
  * GraphQL query to fetch orders
  */
 const ORDERS_QUERY = `
-query GetOrders($first: Int!, $after: String, $query: String) {
-    orders(first: $first, after: $after, query: $query, sort: { column: "id", order: DESC }) {
+query ordersQuery($first: Int, $after: String, $query: String) {
+    orders(first: $first, after: $after, query: $query) {
         edges {
             node {
                 id
@@ -182,15 +182,17 @@ query GetOrders($first: Int!, $after: String, $query: String) {
 `;
 
 /**
- * Query to test connection and get store info
+ * Query to test connection and get account/store info
  */
 const STORE_INFO_QUERY = `
-query GetStoreInfo {
-    store {
-        id
-        name
-        email
-        currency
+query AccountQuery {
+    account {
+        stores {
+            id
+            name
+            domain
+            currency
+        }
     }
 }
 `;
@@ -252,6 +254,74 @@ query GetCheckout($id: ID!) {
                 phone
                 location
             }
+        }
+    }
+}
+`;
+
+/**
+ * Query to fetch multiple checkouts (abandoned orders)
+ */
+const CHECKOUTS_QUERY = `
+query GetCheckouts($first: Int!, $after: String, $query: String) {
+    checkouts(first: $first, after: $after, query: $query, sort: { column: "id", order: DESC }) {
+        edges {
+            node {
+                id
+                _id
+                step_id
+                phone
+                email
+                first_name
+                last_name
+                created_at
+                updated_at
+                total
+                subtotal
+                custom
+                items {
+                    __typename
+                    id
+                    _id
+                    title
+                    price
+                    sku
+                    variant_id
+                    product_id
+                    image {
+                        path
+                    }
+                }
+                shipping_address {
+                    first_name
+                    last_name
+                    phone
+                    line1
+                    line2
+                    city
+                    country
+                    area
+                    zip
+                    state
+                }
+                billing_address {
+                    first_name
+                    last_name
+                    phone
+                    city
+                    country
+                }
+                customer {
+                    id
+                    full_name
+                    phone
+                    location
+                }
+            }
+        }
+        pageInfo {
+            hasNextPage
+            endCursor
         }
     }
 }
@@ -339,15 +409,21 @@ export async function testConnection(accessToken: string): Promise<{
     error?: string;
 }> {
     try {
-        const data = await executeQuery<{ store: { id: string; name: string; email: string } }>(
+        const data = await executeQuery<{
+            account: {
+                stores: Array<{ id: string; name: string; domain: string; currency: string }>
+            }
+        }>(
             STORE_INFO_QUERY,
             {},
             accessToken
         );
 
+        const store = data.account.stores[0];
+
         return {
             success: true,
-            storeName: data.store.name,
+            storeName: store?.name || 'My Store',
         };
     } catch (error) {
         return {
@@ -397,6 +473,87 @@ export async function fetchOrders(
 
     return {
         orders: data.orders.edges.map(edge => edge.node),
+        hasNextPage: data.orders.pageInfo.hasNextPage,
+        endCursor: data.orders.pageInfo.endCursor,
+    };
+}
+
+/**
+ * Fetch checkouts from Lightfunnels with pagination
+ */
+export async function fetchCheckouts(
+    accessToken: string,
+    options: {
+        limit?: number;
+        cursor?: string;
+        dateFrom?: string;
+        dateTo?: string;
+    } = {}
+): Promise<{
+    checkouts: LightfunnelsCheckout[];
+    hasNextPage: boolean;
+    endCursor?: string;
+}> {
+    const { limit = 50, cursor, dateFrom, dateTo } = options;
+
+    // Use the orders query with status:pending_checkout filter for abandoned checkouts
+    const filters: string[] = ['status:pending_checkout'];
+    if (dateFrom) filters.push(`created_at:>=${dateFrom}`);
+    if (dateTo) filters.push(`created_at:<=${dateTo}`);
+    const query = filters.join(' AND ');
+
+    const data = await executeQuery<{
+        orders: {
+            edges: Array<{ node: LightfunnelsOrder }>;
+            pageInfo: { hasNextPage: boolean; endCursor?: string };
+        };
+    }>(
+        ORDERS_QUERY,
+        { first: limit, after: cursor, query: query },
+        accessToken
+    );
+
+    // Map Order type to Checkout type format
+    const checkouts: LightfunnelsCheckout[] = data.orders.edges.map(edge => {
+        const order = edge.node;
+        return {
+            id: order.id,
+            _id: order._id,
+            phone: order.customer.phone || order.shipping_address?.phone,
+            email: order.customer.email,
+            first_name: order.customer.full_name?.split(' ')[0] || '',
+            last_name: order.customer.full_name?.split(' ').slice(1).join(' ') || '',
+            created_at: order.created_at,
+            total: order.total,
+            subtotal: order.subtotal,
+            items: order.line_items.map(item => ({
+                __typename: 'CheckoutItem',
+                id: item.id,
+                _id: 0, // Not available in Order node
+                title: item.name,
+                price: item.price,
+                sku: item.sku,
+                product_id: item.product_id
+            })),
+            shipping_address: order.shipping_address ? {
+                first_name: order.customer.full_name?.split(' ')[0] || '',
+                last_name: order.customer.full_name?.split(' ').slice(1).join(' ') || '',
+                phone: order.shipping_address.phone,
+                line1: order.shipping_address.address1 || '',
+                line2: order.shipping_address.address2 || '',
+                city: order.shipping_address.city || '',
+                country: order.shipping_address.country || '',
+            } : undefined,
+            customer: {
+                id: order.customer.id,
+                full_name: order.customer.full_name,
+                phone: order.customer.phone,
+            }
+        };
+    });
+
+    return {
+        checkouts,
         hasNextPage: data.orders.pageInfo.hasNextPage,
         endCursor: data.orders.pageInfo.endCursor,
     };
@@ -495,6 +652,65 @@ async function mapToLocalOrder(lfOrder: LightfunnelsOrder): Promise<Omit<Order, 
 }
 
 /**
+ * Map Lightfunnels checkout to our local format
+ */
+async function mapCheckoutToLocalOrder(lfCheckout: LightfunnelsCheckout): Promise<Omit<Order, 'id' | 'created_at' | 'updated_at'>> {
+    const customerName = [lfCheckout.first_name, lfCheckout.last_name].filter(Boolean).join(' ').trim()
+        || lfCheckout.customer?.full_name
+        || lfCheckout.shipping_address?.first_name
+        || 'Unknown Customer';
+
+    const phone = lfCheckout.phone
+        || lfCheckout.shipping_address?.phone
+        || lfCheckout.billing_address?.phone
+        || lfCheckout.customer?.phone
+        || '';
+    const formattedPhone = formatPhoneToStandard(phone);
+
+    const city = lfCheckout.shipping_address?.city || '';
+    const address = [
+        lfCheckout.shipping_address?.line1,
+        lfCheckout.shipping_address?.line2,
+        lfCheckout.shipping_address?.area,
+    ].filter(Boolean).join(', ');
+
+    const items: OrderItem[] = await Promise.all(
+        lfCheckout.items.map(async (item) => {
+            const product = item.sku ? await findProductBySku(item.sku) : null;
+            return {
+                name: item.title,
+                quantity: 1,
+                price: item.price,
+                sku: item.sku,
+                product_id: product?.id,
+                image_url: product?.image_url || item.image?.path,
+                tag_color: product?.tag_color,
+            };
+        })
+    );
+
+    const whatsappMessage = `مرحباً ${customerName}، لاحظنا أنك لم تكمل طلبك. هل تحتاج مساعدة؟`;
+
+    return {
+        order_id: `CHK-${lfCheckout._id}`,
+        customer_name: customerName,
+        phone: formattedPhone,
+        city: city,
+        address_details: address || undefined,
+        items,
+        price: lfCheckout.total || items.reduce((sum, item) => sum + item.price, 0),
+        status: 'pending_checkout',
+        whatsapp_link: formattedPhone ? generateWhatsAppLink(formattedPhone, whatsappMessage) : undefined,
+        notes: `[سلة متروكة]`,
+        priority: 'normal',
+        payment_status: 'pending',
+        is_return: false,
+        is_archived: false,
+        source: 'lightfunnels',
+    };
+}
+
+/**
  * Import a single order from Lightfunnels
  */
 export async function importOrder(lfOrder: LightfunnelsOrder): Promise<OrderImportResult> {
@@ -533,6 +749,58 @@ export async function importOrder(lfOrder: LightfunnelsOrder): Promise<OrderImpo
         return {
             lightfunnelsId: String(lfOrder._id),
             orderName: lfOrder.name,
+            status: 'error',
+            message: error instanceof Error ? error.message : 'Unknown error',
+        };
+    }
+}
+
+/**
+ * Import a single checkout from Lightfunnels
+ */
+export async function importCheckout(lfCheckout: LightfunnelsCheckout): Promise<OrderImportResult> {
+    try {
+        // Check for duplicate
+        const exists = await checkOrderExists(`CHK-${lfCheckout._id}`);
+        // Note: checkOrderExists adds 'LF-' prefix, need to handle CHK separately or directly
+        const { data } = await supabase
+            .from('orders')
+            .select('id')
+            .eq('order_id', `CHK-${lfCheckout._id}`)
+            .single();
+
+        if (data) {
+            return {
+                lightfunnelsId: String(lfCheckout._id),
+                orderName: `Checkout #${lfCheckout._id}`,
+                status: 'duplicate',
+                message: 'Checkout already exists',
+            };
+        }
+
+        // Map and insert order
+        const orderData = await mapCheckoutToLocalOrder(lfCheckout);
+
+        const { data: insertData, error } = await supabase
+            .from('orders')
+            .insert([orderData])
+            .select('id, order_id')
+            .single();
+
+        if (error) {
+            throw error;
+        }
+
+        return {
+            lightfunnelsId: String(lfCheckout._id),
+            orderName: `Checkout #${lfCheckout._id}`,
+            status: 'imported',
+            localOrderId: insertData.id,
+        };
+    } catch (error) {
+        return {
+            lightfunnelsId: String(lfCheckout._id),
+            orderName: `Checkout #${lfCheckout._id}`,
             status: 'error',
             message: error instanceof Error ? error.message : 'Unknown error',
         };
@@ -594,6 +862,66 @@ export async function syncOrders(
 
         cursor = endCursor;
         hasMore = hasNextPage && orders.length > 0;
+    }
+
+    return summary;
+}
+
+/**
+ * Sync all abandoned checkouts from Lightfunnels
+ */
+export async function syncCheckouts(
+    accessToken: string,
+    options: {
+        dateFrom?: string;
+        dateTo?: string;
+        maxCheckouts?: number;
+    } = {}
+): Promise<SyncSummary> {
+    const { dateFrom, dateTo, maxCheckouts = 500 } = options;
+
+    const summary: SyncSummary = {
+        total: 0,
+        imported: 0,
+        duplicates: 0,
+        errors: 0,
+        results: [],
+    };
+
+    let cursor: string | undefined;
+    let hasMore = true;
+
+    while (hasMore && summary.total < maxCheckouts) {
+        const batchSize = Math.min(50, maxCheckouts - summary.total);
+
+        const { checkouts, hasNextPage, endCursor } = await fetchCheckouts(accessToken, {
+            limit: batchSize,
+            cursor,
+            dateFrom,
+            dateTo,
+        });
+
+        // Import each checkout
+        for (const checkout of checkouts) {
+            const result = await importCheckout(checkout);
+            summary.results.push(result);
+            summary.total++;
+
+            switch (result.status) {
+                case 'imported':
+                    summary.imported++;
+                    break;
+                case 'duplicate':
+                    summary.duplicates++;
+                    break;
+                case 'error':
+                    summary.errors++;
+                    break;
+            }
+        }
+
+        cursor = endCursor;
+        hasMore = hasNextPage && checkouts.length > 0;
     }
 
     return summary;
