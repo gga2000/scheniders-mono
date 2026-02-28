@@ -84,15 +84,22 @@ export interface OrderImportResult {
     localOrderId?: string;
 }
 
-/**
- * Sync summary
- */
 export interface SyncSummary {
     total: number;
     imported: number;
     duplicates: number;
     errors: number;
     results: OrderImportResult[];
+}
+
+/**
+ * Common options for synchronization
+ */
+export interface SyncOptions {
+    dateFrom?: string;
+    dateTo?: string;
+    limit?: number;
+    cursor?: string;
 }
 
 /**
@@ -285,69 +292,66 @@ query GetCheckout($id: ID!) {
  * Query to fetch multiple checkouts (abandoned orders)
  */
 const CHECKOUTS_QUERY = `
-query GetCheckouts($first: Int!, $after: String, $query: String) {
-    checkouts(first: $first, after: $after, query: $query, sort: { column: "id", order: DESC }) {
-        edges {
-            node {
-                id
-                _id
-                step_id
-                phone
-                email
-                first_name
-                last_name
-                created_at
-                updated_at
-                total
-                subtotal
-                custom
-                variants {
-                    quantity
-                    variant {
-                        id
-                        _id
-                        title
-                        price
-                        sku
-                        product_id
-                        image {
-                            path
+    query checkoutsQuery($query: String!, $after: String, $first: Int) {
+        checkouts(query: $query, after: $after, first: $first) {
+            edges {
+                node {
+                    _id
+                    id
+                    created_at
+                    updated_at
+                    total
+                    subtotal
+                    email
+                    phone
+                    link
+                    variants {
+                        quantity
+                        variant {
+                            id
+                            _id
+                            title
+                            price
+                            sku
+                            product_id
+                            image {
+                                path
+                            }
                         }
                     }
-                }
-                shipping_address {
-                    first_name
-                    last_name
-                    phone
-                    line1
-                    line2
-                    city
-                    country
-                    area
-                    zip
-                    state
-                }
-                billing_address {
-                    first_name
-                    last_name
-                    phone
-                    city
-                    country
-                }
-                customer {
-                    id
-                    full_name
-                    phone
-                    location
+                    shipping_address {
+                        first_name
+                        last_name
+                        phone
+                        line1
+                        line2
+                        city
+                        country
+                        area
+                        zip
+                        state
+                    }
+                    billing_address {
+                        first_name
+                        last_name
+                        phone
+                        city
+                        country
+                    }
+                    customer {
+                        id
+                        full_name
+                        phone
+                        location
+                    }
                 }
             }
-        }
-        pageInfo {
-            hasNextPage
-            endCursor
+            pageInfo {
+                hasNextPage
+                endCursor
+            }
         }
     }
-}
 `;
 
 /**
@@ -357,14 +361,12 @@ export interface LightfunnelsCheckout {
     id: string;
     _id: number;
     step_id?: string;
-    phone?: string;
-    email?: string;
-    first_name?: string;
-    last_name?: string;
     created_at: string;
     total: number;
     subtotal?: number;
-    custom?: Record<string, unknown>;
+    email?: string;
+    phone?: string;
+    link?: string;
     variants: Array<{
         quantity: number;
         variant: {
@@ -506,23 +508,15 @@ export async function fetchOrders(
 /**
  * Fetch checkouts from Lightfunnels with pagination
  */
-export async function fetchCheckouts(
-    accessToken: string,
-    options: {
-        limit?: number;
-        cursor?: string;
-        dateFrom?: string;
-        dateTo?: string;
-    } = {}
-): Promise<{
+export async function fetchCheckouts(token: string, options?: SyncOptions): Promise<{
     checkouts: LightfunnelsCheckout[];
     hasNextPage: boolean;
     endCursor?: string;
 }> {
-    const { limit = 50, cursor, dateFrom, dateTo } = options;
+    const { dateFrom, dateTo, limit = 50, cursor } = options || {};
 
-    // Use the orders query with status:pending_checkout filter for abandoned checkouts
-    const filters: string[] = ['status:pending_checkout'];
+    // Build query filter for date range
+    const filters: string[] = [];
 
     if (dateFrom || dateTo) {
         const start = dateFrom ? (dateFrom.includes('/') ? dateFrom : `${dateFrom.replace(/-/g, '/')} 00:00:00`) : '2020/01/01 00:00:00';
@@ -533,61 +527,16 @@ export async function fetchCheckouts(
     const query = filters.join(' AND ');
 
     const data = await executeQuery<{
-        orders: {
-            edges: Array<{ node: LightfunnelsOrder }>;
-            pageInfo: { hasNextPage: boolean; endCursor?: string };
+        checkouts: {
+            edges: Array<{ node: LightfunnelsCheckout }>;
+            pageInfo: { hasNextPage: boolean; endCursor: string };
         };
-    }>(
-        ORDERS_QUERY,
-        { first: limit, after: cursor, query: query },
-        accessToken
-    );
-
-    // Map Order type to Checkout type format
-    const checkouts: LightfunnelsCheckout[] = data.orders.edges.map(edge => {
-        const order = edge.node;
-        return {
-            id: order.id,
-            _id: order._id,
-            phone: order.customer.phone || order.shipping_address?.phone,
-            email: order.customer.email,
-            first_name: order.customer.full_name?.split(' ')[0] || '',
-            last_name: order.customer.full_name?.split(' ').slice(1).join(' ') || '',
-            created_at: order.created_at,
-            total: order.total,
-            subtotal: order.subtotal,
-            variants: (order.checkout?.variants || []).map(cv => ({
-                quantity: cv.quantity,
-                variant: {
-                    id: cv.variant.id,
-                    _id: cv.variant._id,
-                    title: cv.variant.title,
-                    price: cv.variant.price,
-                    sku: cv.variant.sku,
-                    product_id: cv.variant.product_id
-                }
-            })),
-            shipping_address: order.shipping_address ? {
-                first_name: order.customer.full_name?.split(' ')[0] || '',
-                last_name: order.customer.full_name?.split(' ').slice(1).join(' ') || '',
-                phone: order.shipping_address.phone,
-                line1: order.shipping_address.line1 || '',
-                line2: order.shipping_address.line2 || '',
-                city: order.shipping_address.city || '',
-                country: order.shipping_address.country || '',
-            } : undefined,
-            customer: {
-                id: order.customer.id,
-                full_name: order.customer.full_name,
-                phone: order.customer.phone,
-            }
-        };
-    });
+    }>(CHECKOUTS_QUERY, { query, first: limit, after: cursor }, token);
 
     return {
-        checkouts,
-        hasNextPage: data.orders.pageInfo.hasNextPage,
-        endCursor: data.orders.pageInfo.endCursor,
+        checkouts: data?.checkouts.edges.map(edge => edge.node) || [],
+        hasNextPage: data?.checkouts.pageInfo.hasNextPage || false,
+        endCursor: data?.checkouts.pageInfo.endCursor,
     };
 }
 
@@ -688,9 +637,8 @@ async function mapToLocalOrder(lfOrder: LightfunnelsOrder): Promise<Omit<Order, 
  * Map Lightfunnels checkout to our local format
  */
 async function mapCheckoutToLocalOrder(lfCheckout: LightfunnelsCheckout): Promise<Omit<Order, 'id' | 'created_at' | 'updated_at'>> {
-    const customerName = [lfCheckout.first_name, lfCheckout.last_name].filter(Boolean).join(' ').trim()
-        || lfCheckout.customer?.full_name
-        || lfCheckout.shipping_address?.first_name
+    const customerName = lfCheckout.customer?.full_name
+        || [lfCheckout.shipping_address?.first_name, lfCheckout.shipping_address?.last_name].filter(Boolean).join(' ').trim()
         || 'Unknown Customer';
 
     const phone = lfCheckout.phone

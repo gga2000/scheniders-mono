@@ -114,26 +114,29 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
         const node = payload.node || payload;
 
         // Detect checkout format: has first_name at root or step_id (checkout-specific)
-        const isCheckoutFormat = !payload.node && (node.first_name !== undefined || node.step_id !== undefined);
+        // Also check if id/node.id starts with 'ch_'
+        const checkoutId = (node.id || node._id || payload.id || payload._id);
+        const isCheckoutId = typeof checkoutId === 'string' && checkoutId.startsWith('ch_');
 
-        console.log("Webhook type:", isCheckoutFormat ? "Checkout" : "Order");
+        const isCheckoutFormat = !payload.node && (node.first_name !== undefined || node.step_id !== undefined || isCheckoutId);
+
+        console.log("Webhook type:", isCheckoutFormat ? "Checkout" : "Order", "ID:", checkoutId);
 
         // Validate required fields
-        if (node._id == null && node.id == null) {
-            const msg = `Missing order/checkout ID in webhook payload. Payload keys: ${Object.keys(node).join(', ')}`;
+        if (checkoutId == null) {
+            const msg = `Missing order/checkout ID in webhook payload. Payload keys: ${Object.keys(payload).join(', ')}`;
             console.error(msg);
             throw new Error(msg);
         }
 
         // Check if this is a minimal/incomplete payload (checkout notification with just ID)
-        // Lightfunnels checkout/created webhook only sends the ID - we need to fetch full data from API
+        // Lightfunnels checkout/created webhook often only sends the ID - we need to fetch full data from API
         const keys = Object.keys(node);
-        const hasMinimalData = keys.length <= 3 && (node.id != null || node._id != null) && !node.items;
-        if (hasMinimalData) {
-            const checkoutId = node.id || node._id;
-            console.log("Detected minimal checkout payload, ID:", checkoutId);
-            // Check if this looks like a checkout ID (starts with 'ch_')
-            if (typeof checkoutId === 'string' && checkoutId.startsWith('ch_')) {
+        const hasMinimalData = keys.length <= 4 && !node.items && !node.variants;
+
+        if (hasMinimalData || isCheckoutId && !node.items && !node.variants) {
+            console.log("Detected minimal checkout payload, triggering API fetch for:", checkoutId);
+            if (isCheckoutId) {
                 // Throw special error that will be caught by webhook route to fetch full checkout
                 throw new Error(`fetch_checkout:${checkoutId}`);
             }
@@ -151,8 +154,11 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
             }
         }
 
-        if (!node.items || !Array.isArray(node.items) || node.items.length === 0) {
-            const msg = `Invalid or empty items array. Items type: ${typeof node.items}`;
+        // Checkouts use 'variants' array, orders use 'items' array
+        const hasItems = node.items && Array.isArray(node.items) && node.items.length > 0;
+        const hasVariants = node.variants && Array.isArray(node.variants) && node.variants.length > 0;
+        if (!hasItems && !hasVariants) {
+            const msg = `Invalid or empty items/variants array. Items type: ${typeof node.items}, Variants type: ${typeof node.variants}`;
             console.error(msg);
             throw new Error(msg);
         }
@@ -241,15 +247,29 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
         // Get payment method (orders only)
         const paymentMethod = node.payments?.[0]?.source?.payment_gateway?.prototype?.key || 'unknown';
 
-        // Normalize items
-        const items = node.items.map((item: any) => ({
-            name: item.title || item.name || 'Unknown Product',
-            quantity: 1,
-            price: item.price || 0,
-            sku: item.sku,
-            image_url: item.image?.path,
-            product_id: item.product_id,
-        }));
+        // Normalize items - handle both order (items) and checkout (variants) formats
+        let items;
+        if (hasVariants && !hasItems) {
+            // Checkout format: variants array with { quantity, variant: { title, price, ... } }
+            items = node.variants.map((v: any) => ({
+                name: v.variant?.title || v.variant?.name || 'Unknown Product',
+                quantity: v.quantity || 1,
+                price: v.variant?.price || 0,
+                sku: v.variant?.sku,
+                image_url: v.variant?.image?.path,
+                product_id: v.variant?.product_id,
+            }));
+        } else {
+            // Order format: flat items array
+            items = node.items.map((item: any) => ({
+                name: item.title || item.name || 'Unknown Product',
+                quantity: 1,
+                price: item.price || 0,
+                sku: item.sku,
+                image_url: item.image?.path,
+                product_id: item.product_id,
+            }));
+        }
 
         // Calculate total (checkouts don't have total field)
         const total = node.total || items.reduce((sum: number, item: any) => sum + item.price, 0);
@@ -257,7 +277,8 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
         // Checkout detection
         const isCheckout = isCheckoutFormat ||
             node.__typename === 'Checkout' ||
-            (node.id && String(node.id).startsWith('checkout_'));
+            (node.id && String(node.id).startsWith('checkout_')) ||
+            (hasVariants && !hasItems);
 
         const normalized: LightFunnelsWebhook = {
             order_id: String(node._id || node.id),
@@ -301,8 +322,8 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
  */
 export function parseCheckoutToWebhook(checkout: any): LightFunnelsWebhook | null {
     try {
-        if (!checkout || !checkout.items || checkout.items.length === 0) {
-            console.error("Invalid checkout data: missing items");
+        if (!checkout || (!checkout.variants || checkout.variants.length === 0)) {
+            console.error("Invalid checkout data: missing variants");
             return null;
         }
 
@@ -337,15 +358,18 @@ export function parseCheckoutToWebhook(checkout: any): LightFunnelsWebhook | nul
             checkout.shipping_address?.area,
         ].filter(Boolean).join(', ');
 
-        // Map items
-        const items = checkout.items.map((item: any) => ({
-            name: item.title || item.name || 'Unknown Product',
-            quantity: 1,
-            price: item.price || 0,
-            sku: item.sku,
-            image_url: item.image?.path,
-            product_id: item.product_id,
-        }));
+        // Map items - Checkouts via API return 'variants' array
+        const items = (checkout.variants || []).map((v: any) => {
+            const item = v.variant;
+            return {
+                name: item.title || item.name || 'Unknown Product',
+                quantity: v.quantity || 1,
+                price: item.price || 0,
+                sku: item.sku,
+                image_url: item.image?.path,
+                product_id: item.product_id,
+            };
+        });
 
         // Calculate total
         const total = checkout.total || items.reduce((sum: number, item: any) => sum + item.price, 0);
