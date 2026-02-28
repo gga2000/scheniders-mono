@@ -127,7 +127,7 @@ async function executeQuery<T>(
  * GraphQL query to fetch orders
  */
 const ORDERS_QUERY = `
-query ordersQuery($first: Int, $after: String, $query: String) {
+query ordersQuery($first: Int, $after: String, $query: String!) {
     orders(first: $first, after: $after, query: $query) {
         edges {
             node {
@@ -182,16 +182,17 @@ query ordersQuery($first: Int, $after: String, $query: String) {
 `;
 
 /**
- * Query to test connection and get account/store info
+ * Query to test connection - uses a minimal orders query since account.stores is not in the schema
  */
 const STORE_INFO_QUERY = `
-query AccountQuery {
-    account {
-        stores {
-            id
-            name
-            domain
-            currency
+query ordersQuery($first: Int, $after: String, $query: String!) {
+    orders(first: $first, after: $after, query: $query) {
+        edges {
+            node {
+                id
+                _id
+                name
+            }
         }
     }
 }
@@ -409,21 +410,18 @@ export async function testConnection(accessToken: string): Promise<{
     error?: string;
 }> {
     try {
-        const data = await executeQuery<{
-            account: {
-                stores: Array<{ id: string; name: string; domain: string; currency: string }>
-            }
+        // Use a minimal orders query to verify the token is valid and has order scope
+        await executeQuery<{
+            orders: { edges: Array<{ node: { id: string } }> }
         }>(
             STORE_INFO_QUERY,
-            {},
+            { first: 1, query: '' },
             accessToken
         );
 
-        const store = data.account.stores[0];
-
         return {
             success: true,
-            storeName: store?.name || 'My Store',
+            storeName: 'Lightfunnels Store',
         };
     } catch (error) {
         return {
@@ -467,7 +465,7 @@ export async function fetchOrders(
         };
     }>(
         ORDERS_QUERY,
-        { first: limit, after: cursor, query: query || undefined },
+        { first: limit, after: cursor, query: query || '' },
         accessToken
     );
 

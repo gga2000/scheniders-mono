@@ -33,7 +33,19 @@ CREATE TABLE IF NOT EXISTS orders (
   price NUMERIC(10, 2) NOT NULL, -- Total order price
   
   -- Order Status
-  status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'contacted', 'confirmed', 'rejected', 'delivered')),
+  status TEXT NOT NULL DEFAULT 'new' CHECK (status IN (
+    'new',           -- Just received
+    'contacted',     -- Employee reached out to customer  
+    'confirmed',     -- Customer confirmed the order
+    'cancelled',     -- Customer cancelled the order
+    'in_transit',    -- Order shipped to delivery company
+    'delivered',     -- Delivery confirmed by delivery person
+    'rejected',      -- Delivery rejected at the door
+    'completed',     -- Delivery verified and finalized
+    'no_response',   -- Customer never responded to contact attempts
+    'return_pending', -- Return order awaiting processing
+    'pending_checkout' -- Checkout initiated but not completed
+  )),
   
   -- Communication
   whatsapp_link TEXT,
