@@ -363,10 +363,8 @@ export function parseCheckoutToWebhook(checkout: any): LightFunnelsWebhook | nul
             return null;
         }
 
-        // Get customer name
-        const customerName = [checkout.first_name, checkout.last_name].filter(Boolean).join(' ').trim()
-            || checkout.customer?.full_name
-            || checkout.shipping_address?.first_name
+        // Get customer name from full_name (first_name/last_name not available on Checkout type)
+        const customerName = checkout.customer?.full_name
             || 'Unknown Customer';
 
         // Get phone - primary from root or shipping
