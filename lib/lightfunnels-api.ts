@@ -33,7 +33,7 @@ export interface LightfunnelsOrder {
         email?: string;
         phone?: string;
     };
-    line_items: Array<{
+    items: Array<{
         id: string;
         name: string;
         quantity: number;
@@ -139,7 +139,7 @@ query ordersQuery($first: Int, $after: String, $query: String!) {
                     email
                     phone
                 }
-                line_items {
+                items {
                     id
                     name
                     quantity
@@ -508,7 +508,7 @@ export async function fetchCheckouts(
             created_at: order.created_at,
             total: order.total,
             subtotal: order.subtotal,
-            items: order.line_items.map(item => ({
+            items: order.items.map(item => ({
                 __typename: 'CheckoutItem',
                 id: item.id,
                 _id: 0, // Not available in Order node
@@ -591,7 +591,7 @@ async function mapToLocalOrder(lfOrder: LightfunnelsOrder): Promise<Omit<Order, 
 
     // Map line items with product linking
     const items: OrderItem[] = await Promise.all(
-        lfOrder.line_items.map(async (item) => {
+        lfOrder.items.map(async (item) => {
             const product = item.sku ? await findProductBySku(item.sku) : null;
 
             return {
