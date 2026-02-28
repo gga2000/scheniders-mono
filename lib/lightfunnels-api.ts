@@ -477,13 +477,13 @@ export async function fetchOrders(
     if (dateFrom || dateTo) {
         const filters: string[] = [];
         if (dateFrom) {
-            // Lightfunnels requires YYYY-MM-DD HH:mm:ss
+            // Lightfunnels requires YYYY-MM-DD HH:mm:ss for from/to filters
             const formattedDate = dateFrom.includes(':') ? dateFrom : `${dateFrom} 00:00:00`;
-            filters.push(`created_at:>=${formattedDate}`);
+            filters.push(`from:${formattedDate}`);
         }
         if (dateTo) {
             const formattedDate = dateTo.includes(':') ? dateTo : `${dateTo} 23:59:59`;
-            filters.push(`created_at:<=${formattedDate}`);
+            filters.push(`to:${formattedDate}`);
         }
         query = filters.join(' AND ');
     }
@@ -528,11 +528,11 @@ export async function fetchCheckouts(
     const filters: string[] = ['status:pending_checkout'];
     if (dateFrom) {
         const formattedDate = dateFrom.includes(':') ? dateFrom : `${dateFrom} 00:00:00`;
-        filters.push(`created_at:>=${formattedDate}`);
+        filters.push(`from:${formattedDate}`);
     }
     if (dateTo) {
         const formattedDate = dateTo.includes(':') ? dateTo : `${dateTo} 23:59:59`;
-        filters.push(`created_at:<=${formattedDate}`);
+        filters.push(`to:${formattedDate}`);
     }
     const query = filters.join(' AND ');
 
