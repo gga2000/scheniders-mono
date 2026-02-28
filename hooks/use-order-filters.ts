@@ -214,6 +214,7 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
             rejected: 0,
             no_response: 0,
             return_pending: 0,
+            pending_checkout: 0,
         };
 
         matchingOrders.forEach(order => {

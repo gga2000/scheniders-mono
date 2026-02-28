@@ -70,6 +70,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
         { id: "rejected", label: t("orders.status.rejected"), count: statusCounts.rejected || 0 },
         { id: "return_pending", label: t("orders.status.returnPending"), count: statusCounts.return_pending || 0 },
         { id: "no_response", label: t("orders.status.noResponse"), count: statusCounts.no_response || 0 },
+        { id: "pending_checkout", label: t("orders.status.pendingCheckout"), count: statusCounts.pending_checkout || 0 },
     ];
 
     return (

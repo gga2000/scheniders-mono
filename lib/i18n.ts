@@ -58,6 +58,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "orders.status.rejected": "Rejected",
         "orders.status.noResponse": "No Response",
         "orders.status.returnPending": "Return Pending",
+        "orders.status.pendingCheckout": "Abandoned",
         // Toolbar sections
         "orders.toolbar.view": "View",
         "orders.toolbar.filter": "Filter",
@@ -515,6 +516,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "orders.status.rejected": "مرفوض",
         "orders.status.noResponse": "لم يرد",
         "orders.status.returnPending": "قيد الاسترجاع",
+        "orders.status.pendingCheckout": "سلة متروكة",
         // Toolbar sections
         "orders.toolbar.view": "عرض",
         "orders.toolbar.filter": "فلتر",
