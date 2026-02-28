@@ -49,6 +49,8 @@ export async function POST(request: NextRequest) {
                     );
                 }
 
+                console.log('[Sync] Starting with dateFrom:', dateFrom, 'dateTo:', dateTo);
+
                 const summary = await syncOrders(token, {
                     dateFrom,
                     dateTo,

@@ -111,20 +111,43 @@ export interface LightFunnelsWebhook {
 export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | null {
     try {
         // Check if payload has the node wrapper (order automation format)
-        const node = payload.node || payload;
+        let node = payload.node || payload;
+
+        // Handle case where node is just a string ID (e.g., checkout webhook sends { node: "ch_xxxxx" })
+        if (typeof node === 'string') {
+            const nodeId = node;
+            console.log("Webhook received string node ID:", nodeId);
+            if (nodeId.startsWith('ch_') || nodeId.startsWith('checkout_')) {
+                throw new Error(`fetch_checkout:${nodeId}`);
+            }
+            // Try to treat as order ID
+            throw new Error("is_test_payload");
+        }
+
+        // Handle case where node is a number (just a numeric ID)
+        if (typeof node === 'number') {
+            console.log("Webhook received numeric node ID:", node);
+            throw new Error("is_test_payload");
+        }
 
         // Detect checkout format: has first_name at root or step_id (checkout-specific)
         // Also check if id/node.id starts with 'ch_'
         const checkoutId = (node.id || node._id || payload.id || payload._id);
-        const isCheckoutId = typeof checkoutId === 'string' && checkoutId.startsWith('ch_');
+        const isCheckoutId = typeof checkoutId === 'string' && (checkoutId.startsWith('ch_') || checkoutId.startsWith('checkout_'));
 
         const isCheckoutFormat = !payload.node && (node.first_name !== undefined || node.step_id !== undefined || isCheckoutId);
 
-        console.log("Webhook type:", isCheckoutFormat ? "Checkout" : "Order", "ID:", checkoutId);
+        console.log("Webhook type:", isCheckoutFormat ? "Checkout" : "Order", "ID:", checkoutId, "Node keys:", Object.keys(node).join(', '));
 
         // Validate required fields
         if (checkoutId == null) {
-            const msg = `Missing order/checkout ID in webhook payload. Payload keys: ${Object.keys(payload).join(', ')}`;
+            // If node looks like a checkout (has checkout-specific fields), try to fetch by any available identifier
+            if (node.__typename === 'Checkout' || node.variants || node.step_id !== undefined) {
+                console.log("Checkout webhook without ID, node keys:", Object.keys(node).join(', '));
+                // Can't fetch without ID, but acknowledge receipt
+                throw new Error("is_test_payload");
+            }
+            const msg = `Missing order/checkout ID in webhook payload. Payload keys: ${Object.keys(payload).join(', ')}, Node keys: ${Object.keys(node).join(', ')}`;
             console.error(msg);
             throw new Error(msg);
         }

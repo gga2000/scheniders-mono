@@ -874,9 +874,13 @@ export async function syncCheckouts(
     const fromDate = dateFrom ? new Date(dateFrom + 'T00:00:00') : null;
     const toDate = dateTo ? new Date(dateTo + 'T23:59:59.999') : null;
     let emptyFilteredBatches = 0; // Track consecutive batches with no matches
+    let pageNumber = 0;
+
+    console.log('[syncCheckouts] dateFrom:', dateFrom, 'dateTo:', dateTo, 'fromDate:', fromDate, 'toDate:', toDate);
 
     while (hasMore && summary.total < maxCheckouts) {
         const batchSize = Math.min(50, maxCheckouts - summary.total);
+        pageNumber++;
 
         const { checkouts, hasNextPage, endCursor } = await fetchCheckouts(accessToken, {
             limit: batchSize,
@@ -885,7 +889,14 @@ export async function syncCheckouts(
             dateTo,
         });
 
+        console.log(`[syncCheckouts] Page ${pageNumber}: ${checkouts.length} checkouts from API`);
+
         if (checkouts.length === 0) break;
+
+        // Log first and last dates in batch for debugging
+        if (checkouts.length > 0) {
+            console.log(`[syncCheckouts] Page ${pageNumber} date range: ${checkouts[0].created_at} to ${checkouts[checkouts.length - 1].created_at}`);
+        }
 
         // Client-side date filtering (Lightfunnels checkouts API ignores created_at query filter)
         const dateFilteredCheckouts = (fromDate || toDate) ? checkouts.filter(checkout => {
@@ -895,6 +906,8 @@ export async function syncCheckouts(
             if (toDate && createdAt > toDate) return false;
             return true;
         }) : checkouts;
+
+        console.log(`[syncCheckouts] Page ${pageNumber}: ${dateFilteredCheckouts.length} after date filter (of ${checkouts.length})`);
 
         // Early termination: if we have date filters and this batch had no matches
         if ((fromDate || toDate) && dateFilteredCheckouts.length === 0) {
