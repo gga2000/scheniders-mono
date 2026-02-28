@@ -130,6 +130,14 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
             throw new Error("is_test_payload");
         }
 
+        // Handle minimal/dummy payloads like { node: { id: null } } or { node: { id: undefined } }
+        // Lightfunnels sends these as "Send dummy" test webhooks
+        const nodeKeys = Object.keys(node);
+        if (nodeKeys.length <= 2 && !node.items && !node.variants && !node.phone && !node.customer) {
+            console.log("Detected dummy/test webhook payload. Node keys:", nodeKeys.join(', '), "Values:", JSON.stringify(node));
+            throw new Error("is_test_payload");
+        }
+
         // Detect checkout format: has first_name at root or step_id (checkout-specific)
         // Also check if id/node.id starts with 'ch_'
         const checkoutId = (node.id || node._id || payload.id || payload._id);
@@ -137,17 +145,17 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
 
         const isCheckoutFormat = !payload.node && (node.first_name !== undefined || node.step_id !== undefined || isCheckoutId);
 
-        console.log("Webhook type:", isCheckoutFormat ? "Checkout" : "Order", "ID:", checkoutId, "Node keys:", Object.keys(node).join(', '));
+        console.log("Webhook type:", isCheckoutFormat ? "Checkout" : "Order", "ID:", checkoutId, "Node keys:", nodeKeys.join(', '));
 
         // Validate required fields
         if (checkoutId == null) {
             // If node looks like a checkout (has checkout-specific fields), try to fetch by any available identifier
             if (node.__typename === 'Checkout' || node.variants || node.step_id !== undefined) {
-                console.log("Checkout webhook without ID, node keys:", Object.keys(node).join(', '));
+                console.log("Checkout webhook without ID, node keys:", nodeKeys.join(', '));
                 // Can't fetch without ID, but acknowledge receipt
                 throw new Error("is_test_payload");
             }
-            const msg = `Missing order/checkout ID in webhook payload. Payload keys: ${Object.keys(payload).join(', ')}, Node keys: ${Object.keys(node).join(', ')}`;
+            const msg = `Missing order/checkout ID in webhook payload. Payload keys: ${Object.keys(payload).join(', ')}, Node keys: ${nodeKeys.join(', ')}`;
             console.error(msg);
             throw new Error(msg);
         }
