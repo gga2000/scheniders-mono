@@ -321,13 +321,13 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
             (hasVariants && !hasItems);
 
         // Extract checkout ID if this order came from a checkout
-        const checkoutId = node.checkout?._id ? String(node.checkout._id) : undefined;
+        const originalCheckoutId = node.checkout?._id ? String(node.checkout._id) : undefined;
 
         const normalized: LightFunnelsWebhook = {
             order_id: String(node._id || node.id),
             order_number: node.name || String(node._id || node.id),
             is_checkout: isCheckout,
-            checkout_id: checkoutId,
+            checkout_id: originalCheckoutId,
             customer: {
                 name: customerName.trim(),
                 phone: phone,
