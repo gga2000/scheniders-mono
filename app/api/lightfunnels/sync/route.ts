@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
     testConnection,
     syncOrders,
+    syncCheckouts,
     getSavedAccessToken,
     saveAccessToken,
     removeAccessToken,
@@ -52,6 +53,34 @@ export async function POST(request: NextRequest) {
                     dateFrom,
                     dateTo,
                     maxOrders: maxOrders || 500,
+                });
+
+                // Also sync checkouts by default when doing a general sync
+                const checkoutSummary = await syncCheckouts(token, {
+                    dateFrom,
+                    dateTo,
+                    maxCheckouts: maxOrders || 500,
+                });
+
+                return NextResponse.json({
+                    success: true,
+                    summary,
+                    checkoutSummary,
+                });
+            }
+
+            case 'sync_checkouts': {
+                if (!token) {
+                    return NextResponse.json(
+                        { success: false, error: 'No access token configured' },
+                        { status: 400 }
+                    );
+                }
+
+                const summary = await syncCheckouts(token, {
+                    dateFrom,
+                    dateTo,
+                    maxCheckouts: maxOrders || 500,
                 });
 
                 return NextResponse.json({
