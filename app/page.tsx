@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { StatsGrid } from "@/components/dashboard/stats-grid";
 import { OrdersTable } from "@/components/dashboard/orders-table";
 import { LiveFeed } from "@/components/dashboard/live-feed";
@@ -12,14 +13,14 @@ import { useStats } from "@/hooks/use-stats";
 import { Plus, Search, Bell } from "lucide-react";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDashboardMetrics } from "@/hooks/use-dashboard-metrics";
-import { UrgencyTriad } from "@/components/dashboard/widgets/urgency-triad";
-import { OrderFunnel } from "@/components/dashboard/widgets/funnel-chart";
-import { VelocityMatrix } from "@/components/dashboard/widgets/velocity-matrix";
-import { CohortGrid } from "@/components/dashboard/widgets/cohort-grid";
-import { TargetRings } from "@/components/dashboard/widgets/target-rings";
-import { ProfitPulse } from "@/components/dashboard/widgets/profit-pulse";
-import { Leaderboard } from "@/components/dashboard/widgets/leaderboard";
-import { GeoMap } from "@/components/dashboard/widgets/geo-map";
+const UrgencyTriad = dynamic(() => import("@/components/dashboard/widgets/urgency-triad").then(mod => ({ default: mod.UrgencyTriad })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+const OrderFunnel = dynamic(() => import("@/components/dashboard/widgets/funnel-chart").then(mod => ({ default: mod.OrderFunnel })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+const VelocityMatrix = dynamic(() => import("@/components/dashboard/widgets/velocity-matrix").then(mod => ({ default: mod.VelocityMatrix })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+const CohortGrid = dynamic(() => import("@/components/dashboard/widgets/cohort-grid").then(mod => ({ default: mod.CohortGrid })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+const TargetRings = dynamic(() => import("@/components/dashboard/widgets/target-rings").then(mod => ({ default: mod.TargetRings })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+const ProfitPulse = dynamic(() => import("@/components/dashboard/widgets/profit-pulse").then(mod => ({ default: mod.ProfitPulse })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+const Leaderboard = dynamic(() => import("@/components/dashboard/widgets/leaderboard").then(mod => ({ default: mod.Leaderboard })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+const GeoMap = dynamic(() => import("@/components/dashboard/widgets/geo-map").then(mod => ({ default: mod.GeoMap })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
 import { PageSkeleton } from "@/components/ui/skeletons";
 import { useLanguage } from "@/hooks/use-language";
 

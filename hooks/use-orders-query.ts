@@ -38,14 +38,16 @@ export function useOrdersQuery() {
     return useQuery({
         queryKey: orderKeys.lists(),
         queryFn: fetchOrders,
-        // Increased cache time to reduce queries
-        staleTime: CACHE_PRESETS.FREQUENT.staleTime,
-        // Keep data in cache for 10 minutes even when not active
-        gcTime: CACHE_PRESETS.FREQUENT.gcTime,
+        // Increased cache time to reduce queries heavily on 3G
+        staleTime: CACHE_PRESETS.FREQUENT.staleTime * 2, // 4 mins
+        gcTime: CACHE_PRESETS.FREQUENT.gcTime * 2, // 20 mins
         // Refetch when window regains focus to catch missed updates
         refetchOnWindowFocus: "always",
         // Don't refetch on mount if data is in cache (use stale data, refetch in background)
         refetchOnMount: false,
+        // Network Optimization: Exponential backoff for 3G drops
+        retry: 3,
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     });
 }
 
@@ -58,8 +60,11 @@ export function useArchivedOrdersQuery(enabled: boolean = true) {
         queryFn: fetchArchivedOrders,
         enabled,
         // Archived orders don't need real-time freshness
-        staleTime: CACHE_PRESETS.STATIC.staleTime, // Archived orders change less frequently
-        gcTime: CACHE_PRESETS.STATIC.gcTime,
+        staleTime: CACHE_PRESETS.STATIC.staleTime * 2, // 1 hour
+        gcTime: CACHE_PRESETS.STATIC.gcTime * 2,
+        // Network Optimization: Exponential backoff for 3G drops
+        retry: 3,
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     });
 }
 

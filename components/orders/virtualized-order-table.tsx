@@ -1,7 +1,7 @@
 "use client";
 
-import { useVirtualizer } from '@tanstack/react-virtual';
-import { useRef, useMemo, Fragment } from 'react';
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
+import { useRef, useMemo, Fragment, useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import type { Order, OrderStatus } from '@/lib/supabase';
 import { ArrowUp, ArrowDown, Filter as FilterIcon, Check, MapPin as Pin, CopyPlus, TrendingUp, TrendingDown, CheckCircle2 } from 'lucide-react';
@@ -38,7 +38,9 @@ interface VirtualizedOrderTableProps {
     setFilters: (filters: any) => void;
 }
 
-export function VirtualizedOrderTable({
+import { memo } from "react";
+
+export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
     groupedOrders,
     groupBy,
     displayedOrders,
@@ -66,6 +68,14 @@ export function VirtualizedOrderTable({
     setFilters
 }: VirtualizedOrderTableProps) {
     const parentRef = useRef<HTMLDivElement>(null);
+    const [scrollMargin, setScrollMargin] = useState(0);
+
+    useEffect(() => {
+        if (parentRef.current) {
+            const rect = parentRef.current.getBoundingClientRect();
+            setScrollMargin(rect.top + window.scrollY);
+        }
+    }, [displayedOrders.length]);
 
     // Flatten groups for virtualization
     const flatItems = useMemo(() => {
@@ -82,11 +92,11 @@ export function VirtualizedOrderTable({
         return items;
     }, [displayedOrders, groupedOrders, groupBy]);
 
-    const rowVirtualizer = useVirtualizer({
+    const rowVirtualizer = useWindowVirtualizer({
         count: flatItems.length,
-        getScrollElement: () => parentRef.current,
         estimateSize: (index) => flatItems[index].type === 'header' ? 40 : 64, // Estimate row heights
         overscan: 10,
+        scrollMargin,
     });
 
     // Helper for regex phone validation matching page.tsx
@@ -102,14 +112,10 @@ export function VirtualizedOrderTable({
     };
 
     return (
-        <div className="pastel-card flex flex-col h-full bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
+        <div className="flex flex-col h-full overflow-visible">
             <div
                 ref={parentRef}
-                className="flex-1 overflow-auto bg-gray-50/50"
-                style={{
-                    height: 'calc(100vh - 250px)', // Appropriate height calculation based on layout
-                    minHeight: '400px'
-                }}
+                className="flex-1 overflow-visible bg-gray-50/50"
             >
                 <div className="w-full relative flex flex-col min-w-[1350px]" role="table">
                     <div className={cn("bg-[var(--background)] border-b border-[var(--card-border)] sticky top-0 z-30", "grid grid-cols-[48px_40px_100px_160px_110px_110px_100px_minmax(150px,1.5fr)_minmax(180px,2fr)_100px_120px_80px_100px_40px]")} role="row">
@@ -298,7 +304,7 @@ export function VirtualizedOrderTable({
                                         style={{
                                             position: 'absolute', top: 0, left: 0, width: '100%',
                                             height: `${virtualRow.size}px`,
-                                            transform: `translateY(${virtualRow.start}px)`
+                                            transform: `translateY(${virtualRow.start - scrollMargin}px)`
                                         }}
                                         className="bg-gray-50/90 backdrop-blur-sm z-20 sticky flex items-center"
                                     >
@@ -337,7 +343,7 @@ export function VirtualizedOrderTable({
                                     style={{
                                         position: 'absolute', top: 0, left: 0, width: '100%',
                                         height: `${virtualRow.size}px`,
-                                        transform: `translateY(${virtualRow.start}px)`
+                                        transform: `translateY(${virtualRow.start - scrollMargin}px)`
                                     }}
                                     role="row"
                                     className={cn(
@@ -654,4 +660,4 @@ export function VirtualizedOrderTable({
             </div>
         </div >
     );
-}
+});

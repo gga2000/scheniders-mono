@@ -24,9 +24,12 @@ export function useProductsQuery() {
     return useQuery({
         queryKey: productKeys.lists(),
         queryFn: fetchProducts,
-        staleTime: CACHE_PRESETS.STANDARD.staleTime,
-        gcTime: CACHE_PRESETS.STANDARD.gcTime,
+        staleTime: CACHE_PRESETS.STANDARD.staleTime * 2, // 10 mins
+        gcTime: CACHE_PRESETS.STANDARD.gcTime * 2, // 30 mins
         refetchOnWindowFocus: true,
+        // Network Optimization: Exponential backoff for 3G drops
+        retry: 3,
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     });
 }
 

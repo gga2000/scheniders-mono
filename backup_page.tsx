@@ -25,10 +25,6 @@ const CreateOrderModal = dynamic(
     { ssr: false }
 );
 // Dynamic imports for other heavy components
-const KanbanBoard = dynamic(
-    () => import("@/components/orders/kanban-board").then(mod => ({ default: mod.KanbanBoard })),
-    { loading: () => <div className="skeleton w-full h-96 rounded-2xl" />, ssr: false }
-);
 import { FloatingActionBar } from "@/components/orders/floating-action-bar";
 import { WorkflowTabs } from "@/components/orders/workflow-tabs";
 const DuplicateComparisonModal = dynamic(
@@ -1029,8 +1025,7 @@ export default function OrdersPage() {
                                                 {/* Layout Toggles */}
                                                 {!workflowMode && [
                                                     { mode: "cards" as const, icon: LayoutGrid, label: "Cards" },
-                                                    { mode: "table" as const, icon: Table, label: "Table" },
-                                                    { mode: "kanban" as const, icon: Columns, label: "Kanban" },
+                                                    { mode: "table" as const, icon: Table, label: "Table" }
                                                 ].map((v) => (
                                                     <button
                                                         key={v.mode}
@@ -2595,20 +2590,7 @@ export default function OrdersPage() {
                                     </div>
                                 )}
 
-                                {/* Kanban View */}
-                                {viewMode === "kanban" && (
-                                    <KanbanBoard
-                                        key={`kanban-view-${realtimeVersion}`}
-                                        orders={filteredOrders}
-                                        onStatusChange={async (orderId, newStatus) => {
-                                            await updateOrderStatus(orderId, newStatus);
-                                        }}
-                                        onViewDetails={(order) => {
-                                            setSelectedOrder(order);
-                                            setIsModalOpen(true);
-                                        }}
-                                    />
-                                )}
+
                             </>
                         )}
                     </div>

@@ -41,7 +41,11 @@ export function useAllTagAssignmentsQuery() {
         queryFn: async () => {
             return customerRepository.findAllTagAssignments();
         },
-        staleTime: CACHE_PRESETS.STANDARD.staleTime,
+        staleTime: CACHE_PRESETS.STANDARD.staleTime * 2, // 10 mins
+        gcTime: CACHE_PRESETS.STANDARD.gcTime * 2,
+        // Network Optimization: Exponential backoff for 3G drops
+        retry: 3,
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     });
 }
 
@@ -61,7 +65,11 @@ export function useAllMetadataQuery() {
         queryFn: async () => {
             return customerRepository.findAllMetadata();
         },
-        staleTime: CACHE_PRESETS.STANDARD.staleTime,
+        staleTime: CACHE_PRESETS.STANDARD.staleTime * 2, // 10 mins
+        gcTime: CACHE_PRESETS.STANDARD.gcTime * 2,
+        // Network Optimization: Exponential backoff for 3G drops
+        retry: 3,
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     });
 }
 

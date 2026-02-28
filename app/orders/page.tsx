@@ -18,38 +18,34 @@ import { useBatchRiskAssessment } from "@/hooks/use-risk-assessment";
 import { RiskBadge } from "@/components/orders/risk-badge";
 const OrderDetailsModal = dynamic(
     () => import("@/components/orders/order-details-modal").then(mod => ({ default: mod.OrderDetailsModal })),
-    { ssr: false }
+    { loading: () => null, ssr: false }
 );
 const CreateOrderModal = dynamic(
     () => import("@/components/orders/create-order-modal").then(mod => ({ default: mod.CreateOrderModal })),
-    { ssr: false }
+    { loading: () => null, ssr: false }
 );
 // Dynamic imports for other heavy components
-const KanbanBoard = dynamic(
-    () => import("@/components/orders/kanban-board").then(mod => ({ default: mod.KanbanBoard })),
-    { loading: () => <div className="skeleton w-full h-96 rounded-2xl" />, ssr: false }
-);
 import { FloatingActionBar } from "@/components/orders/floating-action-bar";
 import { WorkflowTabs } from "@/components/orders/workflow-tabs";
 const DuplicateComparisonModal = dynamic(
     () => import("@/components/orders/duplicate-comparison-modal").then(mod => ({ default: mod.DuplicateComparisonModal })),
-    { ssr: false }
+    { loading: () => null, ssr: false }
 );
 const ImportOrdersModal = dynamic(
     () => import("@/components/orders/import-orders-modal").then(mod => ({ default: mod.ImportOrdersModal })),
-    { ssr: false }
+    { loading: () => null, ssr: false }
 );
 const ExportReportModal = dynamic(
     () => import("@/components/orders/export-report-modal").then(mod => ({ default: mod.ExportReportModal })),
-    { ssr: false }
+    { loading: () => null, ssr: false }
 );
 const WhatsAppTemplatePanel = dynamic(
     () => import("@/components/orders/whatsapp-template-panel").then(mod => ({ default: mod.WhatsAppTemplatePanel })),
-    { ssr: false }
+    { loading: () => null, ssr: false }
 );
 const SplitOrderDialog = dynamic(
     () => import("@/components/orders/split-order-dialog").then(mod => ({ default: mod.SplitOrderDialog })),
-    { ssr: false }
+    { loading: () => null, ssr: false }
 );
 const VirtualizedOrderList = dynamic(
     () => import("@/components/orders/virtualized-order-list").then(mod => ({ default: mod.VirtualizedOrderList })),
@@ -60,9 +56,15 @@ import { EmptyState } from "@/components/ui/empty-states";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layout/page-transition";
 import { SavedViewsTabs } from "@/components/orders/saved-views-tabs";
 import { OrderConfirmationCard } from "@/components/orders/order-confirmation-card";
-import { CancellationReasonDialog } from "@/components/orders/cancellation-reason-dialog";
+const CancellationReasonDialog = dynamic(
+    () => import("@/components/orders/cancellation-reason-dialog").then(mod => ({ default: mod.CancellationReasonDialog })),
+    { loading: () => null, ssr: false }
+);
 import { StickyFilterBar } from "@/components/orders/sticky-filter-bar";
-import { VirtualizedOrderTable } from "@/components/orders/virtualized-order-table";
+const VirtualizedOrderTable = dynamic(
+    () => import("@/components/orders/virtualized-order-table").then(mod => ({ default: mod.VirtualizedOrderTable })),
+    { loading: () => null, ssr: false }
+);
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 import { BackupPrompt } from "@/components/vault/backup-prompt";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -317,18 +319,32 @@ export default function OrdersPage() {
         toast.success(`Assigned to ${duty}`);
     }, []);
 
-    // Evaluate Auto-Assignments when orders change or load
+    // Evaluate Auto-Assignments when orders change or load (Optimized: Web Worker)
     useEffect(() => {
         if (!orders || orders.length === 0) return;
 
-        const newAssignments = evaluateAutoAssignments(orders, mockAssignmentRules, assignments);
+        // Run off-main-thread to avoid blocking React rendering
+        const worker = new Worker('/workers/assignment-worker.js');
 
-        if (newAssignments.length > 0) {
-            setAssignments(prev => [...prev, ...newAssignments]);
-            // Optional: you could show a toast here, but it might be spammy if lots of orders
-            // toast.success(`Auto-assigned ${newAssignments.length} new duties based on rules.`);
-        }
-    }, [orders]); // Exclude assignments to prevent infinite loops, evaluateAutoAssignments handles this by checking !newAssignments
+        worker.onmessage = (e) => {
+            const { type, payload } = e.data;
+            if (type === 'ASSIGNMENTS_RESULT' && payload.length > 0) {
+                setAssignments(prev => [...prev, ...payload]);
+            }
+            worker.terminate();
+        };
+
+        worker.postMessage({
+            type: 'EVALUATE_ASSIGNMENTS',
+            payload: {
+                orders,
+                rules: mockAssignmentRules,
+                currentAssignments: assignments
+            }
+        });
+
+        return () => worker.terminate();
+    }, [orders]); // Exclude assignments to prevent infinite loops
 
     // Get workflow templates for the template panel
     const workflowTemplates = useMemo(() =>
@@ -1084,7 +1100,6 @@ export default function OrdersPage() {
                                                 {!workflowMode && [
                                                     { mode: "cards" as const, icon: LayoutGrid, label: "Cards" },
                                                     { mode: "table" as const, icon: Table, label: "Table" },
-                                                    { mode: "kanban" as const, icon: Columns, label: "Kanban" },
                                                 ].map((v) => (
                                                     <button
                                                         key={v.mode}
@@ -2233,20 +2248,7 @@ export default function OrdersPage() {
                                     />
                                 )}
 
-                                {/* Kanban View */}
-                                {viewMode === "kanban" && (
-                                    <KanbanBoard
-                                        key={`kanban-view-${realtimeVersion}`}
-                                        orders={filteredOrders}
-                                        onStatusChange={async (orderId, newStatus) => {
-                                            await updateOrderStatus(orderId, newStatus);
-                                        }}
-                                        onViewDetails={(order) => {
-                                            setSelectedOrder(order);
-                                            setIsModalOpen(true);
-                                        }}
-                                    />
-                                )}
+
                             </>
                         )}
                     </div>

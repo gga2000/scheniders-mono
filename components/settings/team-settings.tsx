@@ -346,7 +346,7 @@ function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg overflow-hidden relative group">
                             {avatarUrl ? (
-                                <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
+                                <img loading="lazy" decoding="async" src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
                             ) : (
                                 (displayName || user.email)[0].toUpperCase()
                             )}
@@ -407,7 +407,7 @@ function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
                                 <div className="relative group">
                                     <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center text-muted-foreground overflow-hidden border-2 border-border shadow-sm">
                                         {avatarUrl ? (
-                                            <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                            <img loading="lazy" decoding="async" src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                                         ) : (
                                             <User className="w-10 h-10" />
                                         )}
@@ -886,7 +886,7 @@ export function TeamSettings() {
                                                 <div className="relative">
                                                     <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-primary font-bold text-sm overflow-hidden">
                                                         {user.avatar_url ? (
-                                                            <img src={user.avatar_url} alt={user.display_name || user.email} className="w-full h-full object-cover" />
+                                                            <img loading="lazy" decoding="async" src={user.avatar_url} alt={user.display_name || user.email} className="w-full h-full object-cover" />
                                                         ) : (
                                                             (user.display_name || user.email)[0].toUpperCase()
                                                         )}

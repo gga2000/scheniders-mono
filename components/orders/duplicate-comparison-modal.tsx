@@ -617,7 +617,7 @@ export function DuplicateComparisonModal({
                                                                     )
                                                             )}>
                                                                 {item.image_url ? (
-                                                                    <img src={item.image_url} alt={item.name}
+                                                                    <img loading="lazy" decoding="async" src={item.image_url} alt={item.name}
                                                                         className="w-8 h-8 rounded-md object-cover" />
                                                                 ) : (
                                                                     <div className="w-8 h-8 rounded-md bg-gray-200 dark:bg-[#333333] flex items-center justify-center flex-shrink-0">

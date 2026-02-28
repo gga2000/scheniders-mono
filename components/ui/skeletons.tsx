@@ -13,11 +13,13 @@ export function Skeleton({ className, style }: SkeletonProps) {
     return (
         <div
             className={cn(
-                "animate-pulse rounded-md bg-[var(--card-border)]",
+                "rounded-md bg-[var(--card-border)]/50 border border-white/5 relative overflow-hidden shimmer-effect",
                 className
             )}
             style={style}
-        />
+        >
+            <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+        </div>
     );
 }
 

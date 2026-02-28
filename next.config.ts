@@ -34,7 +34,11 @@ const nextConfig: NextConfig = {
       "@tanstack/react-virtual",
       "zustand",
       "xlsx",
-      "sonner"
+      "sonner",
+      "@dnd-kit/core",
+      "@dnd-kit/sortable",
+      "@supabase/supabase-js",
+      "@supabase/ssr"
     ],
   },
 

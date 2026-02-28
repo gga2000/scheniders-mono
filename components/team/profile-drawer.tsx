@@ -120,7 +120,7 @@ export function ProfileDrawer({ employee, isOpen, onClose }: ProfileDrawerProps)
                             <div className="flex flex-col items-center mb-8 relative">
                                 <div className="w-32 h-32 rounded-3xl overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 border-4 border-white dark:border-[#121212] shadow-2xl flex items-center justify-center relative z-10 mb-4">
                                     {employee.avatar_url ? (
-                                        <img src={employee.avatar_url} alt="" className="w-full h-full object-cover" />
+                                        <img loading="lazy" decoding="async" src={employee.avatar_url} alt="" className="w-full h-full object-cover" />
                                     ) : (
                                         <span className="text-4xl font-bold text-gray-700">
                                             {(employee.display_name || employee.user_email)?.[0]?.toUpperCase()}

@@ -154,7 +154,7 @@ function EmployeeSelector({
                         <div className="w-24 h-24 rounded-3xl overflow-hidden bg-gradient-to-br from-[#E4C1F9] to-[#F5E8FC] p-1 shadow-lg">
                             <div className="w-full h-full rounded-[20px] overflow-hidden bg-white">
                                 {selected.avatarUrl ? (
-                                    <img src={selected.avatarUrl} alt="" className="w-full h-full object-cover" />
+                                    <img loading="lazy" decoding="async" src={selected.avatarUrl} alt="" className="w-full h-full object-cover" />
                                 ) : (
                                     <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-[#1E1E1E] dark:text-white">
                                         {(selected.displayName || selected.email)?.[0]?.toUpperCase()}
