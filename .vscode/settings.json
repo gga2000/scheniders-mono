@@ -16,5 +16,14 @@
             "cn\\(([^)]*)\\)",
             "[\"'`]([^\"'`]*)[\"'`]"
         ]
-    ]
+    ],
+    "tailwindCSS.files.exclude": [
+        "**/.git/**",
+        "**/node_modules/**",
+        "**/.next/**",
+        "**/backup_page.tsx",
+        "**/backup_*.tsx"
+    ],
+    "css.validate": false,
+    "tailwindCSS.lint.recommendedVariantOrder": "ignore"
 }

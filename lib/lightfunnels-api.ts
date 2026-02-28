@@ -991,15 +991,28 @@ export async function syncCheckouts(
 
 /**
  * Get the saved access token from database settings
+ * @param supabaseClient Optional custom supabase client (useful on server with service role)
  */
-export async function getSavedAccessToken(): Promise<string | null> {
-    const { data } = await supabase
-        .from('settings')
-        .select('value')
-        .eq('key', 'lightfunnels_access_token')
-        .single();
+export async function getSavedAccessToken(supabaseClient?: any): Promise<string | null> {
+    const client = supabaseClient || supabase;
 
-    return data?.value || null;
+    try {
+        const { data, error } = await client
+            .from('settings')
+            .select('value')
+            .eq('key', 'lightfunnels_access_token')
+            .single();
+
+        if (error) {
+            console.error('Error getting access token from DB:', error.message);
+            return null;
+        }
+
+        return data?.value || null;
+    } catch (err) {
+        console.error('Unexpected error getting access token:', err);
+        return null;
+    }
 }
 
 /**

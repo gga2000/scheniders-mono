@@ -1109,7 +1109,7 @@ export default function OrdersPage() {
                                                             "p-2.5 rounded-xl transition-all duration-300",
                                                             (viewMode === v.mode || (viewMode === "list" && v.mode === "cards"))
                                                                 ? "bg-white text-foreground shadow-sm dark:bg-[var(--primary)] dark:text-black dark:shadow-[0_0_8px_rgba(239,255,0,0.2)] ring-1 ring-black/5"
-                                                                : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground dark:hover:bg-white/5"
+                                                                : "text-muted-foreground hover:bg-lime-50 dark:hover:bg-[#EFFF00]/10 hover:text-foreground dark:hover:bg-white/5"
                                                         )}
                                                     >
                                                         <v.icon className="w-4 h-4" />
@@ -1153,7 +1153,7 @@ export default function OrdersPage() {
                                                             "p-2.5 rounded-xl transition-all duration-300",
                                                             compactGrid
                                                                 ? "bg-amber-100 text-amber-700 shadow-sm dark:bg-[var(--primary)] dark:text-black"
-                                                                : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground dark:hover:bg-white/5"
+                                                                : "text-muted-foreground hover:bg-lime-50 dark:hover:bg-[#EFFF00]/10 hover:text-foreground dark:hover:bg-white/5"
                                                         )}
                                                         title={compactGrid ? "Grid View" : "Switch to Grid"}
                                                     >
@@ -1173,7 +1173,7 @@ export default function OrdersPage() {
                                                             "p-2.5 rounded-xl transition-all duration-300",
                                                             actionDock
                                                                 ? "bg-purple-100 text-purple-700 shadow-sm dark:bg-[var(--primary)] dark:text-black"
-                                                                : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground dark:hover:bg-white/5"
+                                                                : "text-muted-foreground hover:bg-lime-50 dark:hover:bg-[#EFFF00]/10 hover:text-foreground dark:hover:bg-white/5"
                                                         )}
                                                         title={actionDock ? "Disable Action Dock" : "Enable Action Dock"}
                                                     >
@@ -1204,13 +1204,16 @@ export default function OrdersPage() {
                                                         ref={dateButtonRef}
                                                         onClick={() => setShowDatePicker(!showDatePicker)}
                                                         className={cn(
-                                                            "px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300 flex items-center gap-2 border",
+                                                            "px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2 border",
                                                             (filters.dateFrom || filters.dateTo)
-                                                                ? "bg-amber-100/50 border-amber-200/50 text-amber-700 shadow-sm"
-                                                                : "border-transparent text-muted-foreground hover:bg-amber-100/40 hover:text-foreground"
+                                                                ? "bg-lime-50 dark:bg-[#EFFF00]/5 border-lime-400 dark:border-[#EFFF00]/40 text-foreground shadow-sm"
+                                                                : "border-[var(--card-border)] dark:border-white/10 text-muted-foreground hover:bg-lime-50 dark:hover:bg-[#EFFF00]/10 hover:text-foreground hover:border-lime-400/40 dark:hover:border-[#EFFF00]/40"
                                                         )}
                                                     >
-                                                        <CalendarDays className="w-4 h-4" />
+                                                        <CalendarDays className={cn(
+                                                            "w-4 h-4 transition-colors",
+                                                            (filters.dateFrom || filters.dateTo) ? "text-lime-600 dark:text-[#EFFF00]" : "text-muted-foreground group-hover:text-foreground"
+                                                        )} />
                                                         <span className="hidden lg:inline">
                                                             {(() => {
                                                                 if (!filters.dateFrom) return "All Orders";
@@ -1251,7 +1254,7 @@ export default function OrdersPage() {
                                                     {showDatePicker && createPortal(
                                                         <div
                                                             ref={datePickerRef}
-                                                            className="fixed z-[9999] p-2 bg-white/80 backdrop-blur-xl shadow-2xl rounded-3xl border border-white/20 ring-1 ring-black/5 orders-date-popover"
+                                                            className="fixed z-[9999] orders-date-popover"
                                                             style={{ top: datePickerPos.top, left: datePickerPos.left }}
                                                         >
                                                             <DateRangePicker
@@ -1371,7 +1374,7 @@ export default function OrdersPage() {
                                                             animate={{ opacity: 1, scale: 1 }}
                                                             exit={{ opacity: 0, scale: 0.8 }}
                                                             onClick={async () => { await undoLastAction(); }}
-                                                            className="p-2.5 rounded-xl bg-amber-100/50 text-amber-700 hover:bg-amber-100 transition-all shadow-sm"
+                                                            className="p-2.5 rounded-xl bg-lime-100/50 text-lime-700 hover:bg-lime-100 transition-all shadow-sm"
                                                             title="Undo Last Action"
                                                         >
                                                             <RotateCcw className="w-4 h-4" />

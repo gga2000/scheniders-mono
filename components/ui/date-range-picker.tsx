@@ -329,7 +329,7 @@ export function DateRangePicker({
     // For inline mode, render just the panel content directly
     if (inline) {
         return (
-            <div className={cn("flex bg-white dark:bg-[#1a1a2e] rounded-2xl min-w-[420px]", className)}>
+            <div className={cn("flex bg-white dark:bg-[#1a1a2e] rounded-2xl min-w-[420px] shadow-2xl border border-lime-200 dark:border-white/10 overflow-hidden", className)}>
                 {/* Presets Sidebar */}
                 <div className="w-40 bg-gradient-to-b from-lime-50 to-green-50 dark:from-[#151528] dark:to-[#1a1a2e] p-3 border-r border-lime-200 dark:border-white/10">
                     <div className="flex items-center gap-2 mb-3 px-2">
@@ -375,7 +375,7 @@ export function DateRangePicker({
                             whileTap={{ scale: 0.9 }}
                             className="p-2 rounded-xl hover:bg-lime-100 dark:hover:bg-[#EFFF00]/10 text-muted transition-all"
                         >
-                            <ChevronLeft className="w-5 h-5" />
+                            <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-[#EFFF00]" />
                         </motion.button>
                         <span className="font-semibold text-foreground">
                             {viewDate.toLocaleDateString("en-US", {
@@ -390,7 +390,7 @@ export function DateRangePicker({
                             whileTap={{ scale: 0.9 }}
                             className="p-2 rounded-xl hover:bg-lime-100 dark:hover:bg-[#EFFF00]/10 text-muted transition-all"
                         >
-                            <ChevronRight className="w-5 h-5" />
+                            <ChevronRight className="w-5 h-5 text-gray-600 dark:text-[#EFFF00]" />
                         </motion.button>
                     </div>
 
@@ -517,9 +517,9 @@ export function DateRangePicker({
                                     onClick={goToPrevMonth}
                                     whileHover={{ scale: 1.1 }}
                                     whileTap={{ scale: 0.9 }}
-                                    className="p-2 rounded-xl hover:bg-lime-100 dark:hover:bg-[#EFFF00]/10 text-muted transition-all"
+                                    className="p-2 rounded-xl hover:bg-lime-100 dark:hover:bg-[#EFFF00]/10 text-muted dark:text-[#EFFF00] transition-all"
                                 >
-                                    <ChevronLeft className="w-5 h-5" />
+                                    <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-[#EFFF00]" />
                                 </motion.button>
                                 <span className="font-semibold text-foreground">
                                     {viewDate.toLocaleDateString("en-US", {
@@ -532,9 +532,9 @@ export function DateRangePicker({
                                     onClick={goToNextMonth}
                                     whileHover={{ scale: 1.1 }}
                                     whileTap={{ scale: 0.9 }}
-                                    className="p-2 rounded-xl hover:bg-lime-100 dark:hover:bg-[#EFFF00]/10 text-muted transition-all"
+                                    className="p-2 rounded-xl hover:bg-lime-100 dark:hover:bg-[#EFFF00]/10 text-muted dark:text-[#EFFF00] transition-all"
                                 >
-                                    <ChevronRight className="w-5 h-5" />
+                                    <ChevronRight className="w-5 h-5 text-gray-600 dark:text-[#EFFF00]" />
                                 </motion.button>
                             </div>
 
