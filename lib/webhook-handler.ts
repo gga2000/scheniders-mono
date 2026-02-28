@@ -162,17 +162,12 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
 
         // Check if this is a minimal/incomplete payload (checkout notification with just ID)
         // Lightfunnels checkout/created webhook often only sends the ID - we need to fetch full data from API
-        const keys = Object.keys(node);
-        const hasMinimalData = keys.length <= 4 && !node.items && !node.variants;
+        const hasMinimalData = nodeKeys.length <= 4 && !node.items && !node.variants;
 
-        if (hasMinimalData || isCheckoutId && !node.items && !node.variants) {
-            console.log("Detected minimal checkout payload, triggering API fetch for:", checkoutId);
-            if (isCheckoutId) {
-                // Throw special error that will be caught by webhook route to fetch full checkout
-                throw new Error(`fetch_checkout:${checkoutId}`);
-            }
-            // For test payloads or non-checkout minimal data
-            throw new Error("is_test_payload");
+        if (hasMinimalData || (isCheckoutId && !node.items && !node.variants)) {
+            console.log("Detected minimal payload, triggering API fetch for:", checkoutId);
+            // Always try to fetch checkout data from API when payload is minimal
+            throw new Error(`fetch_checkout:${checkoutId}`);
         }
 
         if (!node.phone && !node.shipping_address?.phone && !node.billing_address?.phone) {
