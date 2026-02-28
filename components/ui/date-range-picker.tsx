@@ -329,7 +329,7 @@ export function DateRangePicker({
     // For inline mode, render just the panel content directly
     if (inline) {
         return (
-            <div className={cn("flex bg-white rounded-2xl min-w-[420px]", className)}>
+            <div className={cn("flex bg-white dark:bg-[#1a1a2e] rounded-2xl min-w-[420px]", className)}>
                 {/* Presets Sidebar */}
                 <div className="w-40 bg-gradient-to-b from-lime-50 to-green-50 dark:from-[#151528] dark:to-[#1a1a2e] p-3 border-r border-lime-200 dark:border-white/10">
                     <div className="flex items-center gap-2 mb-3 px-2">
@@ -350,7 +350,7 @@ export function DateRangePicker({
                                     "w-full px-3 py-2 rounded-xl text-sm text-left transition-all flex items-center gap-2",
                                     activePreset === preset.id
                                         ? "bg-gradient-to-r from-lime-400 to-[#EFFF00] text-black shadow-md shadow-lime-500/30"
-                                        : "text-foreground hover:bg-white hover:shadow-sm"
+                                        : "text-foreground hover:bg-white dark:hover:bg-white/10 hover:shadow-sm"
                                 )}
                             >
                                 {activePreset === preset.id && (
@@ -373,7 +373,7 @@ export function DateRangePicker({
                             onClick={goToPrevMonth}
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
-                            className="p-2 rounded-xl hover:bg-lime-100 text-muted transition-all"
+                            className="p-2 rounded-xl hover:bg-lime-100 dark:hover:bg-white/10 text-muted transition-all"
                         >
                             <ChevronLeft className="w-5 h-5" />
                         </motion.button>
@@ -388,7 +388,7 @@ export function DateRangePicker({
                             onClick={goToNextMonth}
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
-                            className="p-2 rounded-xl hover:bg-lime-100 text-muted transition-all"
+                            className="p-2 rounded-xl hover:bg-lime-100 dark:hover:bg-white/10 text-muted transition-all"
                         >
                             <ChevronRight className="w-5 h-5" />
                         </motion.button>
@@ -398,13 +398,13 @@ export function DateRangePicker({
                     {renderCalendar()}
 
                     {/* Actions */}
-                    <div className="flex gap-2 mt-4 pt-4 border-t border-lime-200">
+                    <div className="flex gap-2 mt-4 pt-4 border-t border-lime-200 dark:border-white/10">
                         <motion.button
                             type="button"
                             onClick={handleClear}
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
-                            className="flex-1 py-2.5 rounded-xl border border-lime-300 text-sm font-medium text-muted hover:bg-lime-50 transition-all"
+                            className="flex-1 py-2.5 rounded-xl border border-lime-300 dark:border-white/10 text-sm font-medium text-muted hover:bg-lime-50 dark:hover:bg-white/5 dark:text-gray-300 transition-all"
                         >
                             All Orders
                         </motion.button>

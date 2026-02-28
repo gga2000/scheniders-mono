@@ -159,6 +159,7 @@ export const getStatusColor = (status: Order["status"], isReturn: boolean = fals
         case "no_response": return "bg-slate-200 dark:bg-[#B800FF]"; // Neon Purple
         case "return_pending": return "bg-rose-400 dark:bg-[#FF007F]"; // Neon Pink
         case "cancelled": return "bg-red-300 dark:bg-[#FF3333]"; // Neon Red
+        case "pending_checkout": return "bg-[var(--pastel-yellow)] dark:bg-[#EFFF00]/70"; // Neon Yellow (primary)
         default: return "bg-[var(--card-border)] dark:bg-[#555555]";
     }
 };
@@ -175,6 +176,8 @@ export const getStatusBadgeStyle = (status: Order["status"]) => {
         case "completed": return "bg-emerald-200 text-emerald-900 ring-2 ring-emerald-400/50 shadow-[0_0_10px_rgba(16,185,129,0.3)]";
         case "no_response": return "bg-slate-200 text-slate-600";
         case "return_pending": return "bg-rose-200 text-rose-900 ring-2 ring-rose-400/50";
+        // Abandoned checkout — uses primary neon-yellow accent to match design language
+        case "pending_checkout": return "bg-[var(--pastel-yellow)] text-amber-900 dark:bg-[#EFFF00]/20 dark:text-[#EFFF00] border border-[var(--primary)]/30 ring-1 ring-[var(--primary)]/20";
         default: return "bg-gray-100 text-gray-700";
     }
 };

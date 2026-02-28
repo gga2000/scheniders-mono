@@ -292,7 +292,6 @@ const CHECKOUTS_QUERY = `
                 node {
                     _id
                     id
-                    recovered
                     created_at(format: "YYYY-MM-DD HH:mm:ss")
                     updated_at(format: "YYYY-MM-DD HH:mm:ss")
                     total
@@ -350,7 +349,6 @@ export interface LightfunnelsCheckout {
     id: string;
     _id: number;
     step_id?: string;
-    recovered?: boolean;
     created_at: string;
     total: number;
     subtotal?: number;
@@ -967,18 +965,6 @@ export async function syncCheckouts(
 
         // Import each checkout
         for (const checkout of dateFilteredCheckouts) {
-            // Skip recovered checkouts — they became real orders
-            if (checkout.recovered) {
-                summary.duplicates++;
-                summary.total++;
-                summary.results.push({
-                    lightfunnelsId: String(checkout._id),
-                    orderName: `Checkout #${checkout._id}`,
-                    status: 'duplicate',
-                    message: 'Checkout recovered (became an order)',
-                });
-                continue;
-            }
             const result = await importCheckout(checkout);
             summary.results.push(result);
             summary.total++;

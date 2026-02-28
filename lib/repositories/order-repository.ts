@@ -66,7 +66,12 @@ export const orderRepository = {
         rejectionReason?: string
     ): Promise<Partial<Order>> {
         const updateData: Partial<Order> = { status };
-        if (rejectionReason) updateData.rejection_reason = rejectionReason;
+        if (rejectionReason) {
+            updateData.rejection_reason = rejectionReason;
+        } else if (status !== "cancelled" && status !== "rejected") {
+            // Clear stale rejection/cancellation reason when reverting to any other status
+            (updateData as any).rejection_reason = null;
+        }
         if (status === "delivered") updateData.delivered_at = new Date().toISOString();
         if (status === "cancelled") updateData.cancelled_at = new Date().toISOString();
 
