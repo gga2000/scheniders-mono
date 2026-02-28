@@ -193,7 +193,9 @@ export default function CustomersPage() {
     }, [setStatus]);
 
     // Handle Loader/Error States
-    if (isLoading) return <CustomerSplitPaneSkeleton />;
+    // Only block on skeleton when there is truly no data at all (prevents skeleton flash on stale-while-revalidate)
+    const hasAnyData = (data?.pages?.length ?? 0) > 0;
+    if (isLoading && !hasAnyData) return <CustomerSplitPaneSkeleton />;
 
     if (isError) {
         return (

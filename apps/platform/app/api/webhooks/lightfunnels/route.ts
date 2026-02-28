@@ -5,15 +5,21 @@ import {
     logWebhookRequest,
 } from "@/lib/webhook-handler";
 import { env } from "@/lib/env";
+import { createClient } from "@supabase/supabase-js";
+
+// Service role client to bypass RLS when writing to checkout_queue
+const supabaseAdmin = createClient(
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
+
+// How long to wait before importing (gives customer time to finish filling form)
+const CHECKOUT_DELAY_MINUTES = 2;
 
 /**
  * LightFunnels Webhook Endpoint
- * 
- * This endpoint receives webhooks from LightFunnels when new orders are created.
- * 
+ *
  * URL: POST /api/webhooks/lightfunnels
- * 
- * Security: Requires LIGHTFUNNELS_WEBHOOK_SECRET in headers
  */
 
 export async function POST(request: NextRequest) {
@@ -22,19 +28,15 @@ export async function POST(request: NextRequest) {
         const secret = request.headers.get("x-webhook-secret");
         const expectedSecret = env.LIGHTFUNNELS_WEBHOOK_SECRET;
 
-        // Only validate secret if both are configured and provided
         if (expectedSecret && secret && secret !== expectedSecret) {
             console.error("Invalid webhook secret");
-            return NextResponse.json(
-                { error: "Unauthorized" },
-                { status: 401 }
-            );
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         // 2. Parse request body
         const payload = await request.json();
 
-        // Log raw payload for debugging (temporary)
+        // Log raw payload for debugging
         console.log("[Webhook] Raw payload keys:", Object.keys(payload).join(', '));
         if (payload.node) {
             console.log("[Webhook] Node type:", typeof payload.node, "Node keys:", typeof payload.node === 'object' ? Object.keys(payload.node).join(', ') : String(payload.node));
@@ -53,14 +55,28 @@ export async function POST(request: NextRequest) {
                 );
             }
 
-            // Handle checkout webhook - acknowledge but don't import
-            // Lightfunnels fires checkout/created the moment a customer starts typing,
-            // so data is always incomplete. Checkouts are imported via manual sync instead.
+            // Handle checkout webhook — queue for delayed import
+            // Lightfunnels fires checkout/created while the customer is still filling the form.
+            // We queue it and process after a delay to ensure complete data.
             if (error instanceof Error && error.message.startsWith("fetch_checkout:")) {
                 const checkoutId = error.message.replace("fetch_checkout:", "");
-                console.log("Checkout webhook acknowledged (will sync later):", checkoutId);
+                const processAfter = new Date(Date.now() + CHECKOUT_DELAY_MINUTES * 60 * 1000).toISOString();
+
+                const { error: queueErr } = await supabaseAdmin
+                    .from('checkout_queue')
+                    .upsert(
+                        { checkout_id: checkoutId, process_after: processAfter, queued_at: new Date().toISOString() },
+                        { onConflict: 'checkout_id', ignoreDuplicates: false }
+                    );
+
+                if (queueErr) {
+                    console.error("[Webhook] Failed to queue checkout:", checkoutId, queueErr);
+                } else {
+                    console.log(`[Webhook] Checkout queued for import in ${CHECKOUT_DELAY_MINUTES}min:`, checkoutId);
+                }
+
                 return NextResponse.json(
-                    { success: true, message: "Checkout acknowledged" },
+                    { success: true, message: "Checkout queued for import" },
                     { status: 200 }
                 );
             } else {
