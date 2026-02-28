@@ -1,4 +1,4 @@
-import { useTranslation } from "react-i18next";
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback, useRef, useDeferredValue } from "react";
@@ -303,7 +303,7 @@ export interface OrdersPagePresenterProps {
 }
 
 export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
-    const { t } = useTranslation();
+    const { t } = useLanguage();
     const {
         orders, filteredOrders, displayedOrders, archivedOrders, assignments, loading, error, availableCities, availableProducts,
         statusCounts, phoneCounts, groupedOrders, stats, totalRiskCount, flaggedCount, workflowTemplates, messageTemplates,
