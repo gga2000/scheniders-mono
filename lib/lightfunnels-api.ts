@@ -476,15 +476,12 @@ export async function fetchOrders(
     let query = '';
     if (dateFrom || dateTo) {
         const filters: string[] = [];
-        if (dateFrom) {
-            // Lightfunnels requires YYYY-MM-DD HH:mm:ss for from/to filters
-            const formattedDate = dateFrom.includes(':') ? dateFrom : `${dateFrom} 00:00:00`;
-            filters.push(`from:${formattedDate}`);
-        }
-        if (dateTo) {
-            const formattedDate = dateTo.includes(':') ? dateTo : `${dateTo} 23:59:59`;
-            filters.push(`to:${formattedDate}`);
-        }
+
+        // Lightfunnels URL uses YYYY/MM/DD HH:mm:ss in a range
+        const start = dateFrom ? (dateFrom.includes('/') ? dateFrom : `${dateFrom.replace(/-/g, '/')} 00:00:00`) : '2020/01/01 00:00:00';
+        const end = dateTo ? (dateTo.includes('/') ? dateTo : `${dateTo.replace(/-/g, '/')} 23:59:59`) : new Date().toISOString().split('T')[0].replace(/-/g, '/') + ' 23:59:59';
+
+        filters.push(`created_at:"${start}-${end}"`);
         query = filters.join(' AND ');
     }
 
@@ -526,14 +523,13 @@ export async function fetchCheckouts(
 
     // Use the orders query with status:pending_checkout filter for abandoned checkouts
     const filters: string[] = ['status:pending_checkout'];
-    if (dateFrom) {
-        const formattedDate = dateFrom.includes(':') ? dateFrom : `${dateFrom} 00:00:00`;
-        filters.push(`from:${formattedDate}`);
+
+    if (dateFrom || dateTo) {
+        const start = dateFrom ? (dateFrom.includes('/') ? dateFrom : `${dateFrom.replace(/-/g, '/')} 00:00:00`) : '2020/01/01 00:00:00';
+        const end = dateTo ? (dateTo.includes('/') ? dateTo : `${dateTo.replace(/-/g, '/')} 23:59:59`) : new Date().toISOString().split('T')[0].replace(/-/g, '/') + ' 23:59:59';
+        filters.push(`created_at:"${start}-${end}"`);
     }
-    if (dateTo) {
-        const formattedDate = dateTo.includes(':') ? dateTo : `${dateTo} 23:59:59`;
-        filters.push(`to:${formattedDate}`);
-    }
+
     const query = filters.join(' AND ');
 
     const data = await executeQuery<{
