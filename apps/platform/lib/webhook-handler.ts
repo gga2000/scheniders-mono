@@ -746,6 +746,38 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
         }
 
         console.log(`Order created successfully: ${webhook.order_number}`);
+
+        // If this is a real order (not a checkout), clean up any matching abandoned checkouts
+        // This prevents duplicates when customer completes checkout → both checkout/created and order/created fire
+        if (!webhook.is_checkout && formattedPhone) {
+            try {
+                const { data: abandonedCheckouts, error: fetchErr } = await supabase
+                    .from('orders')
+                    .select('id, order_id')
+                    .eq('status', 'pending_checkout')
+                    .eq('phone', formattedPhone)
+                    .eq('source', 'lightfunnels');
+
+                if (!fetchErr && abandonedCheckouts && abandonedCheckouts.length > 0) {
+                    const checkoutIds = abandonedCheckouts.map(c => c.id);
+                    const { error: deleteErr } = await supabase
+                        .from('orders')
+                        .delete()
+                        .in('id', checkoutIds);
+
+                    if (deleteErr) {
+                        console.error('Error cleaning up abandoned checkouts:', deleteErr);
+                    } else {
+                        console.log(`Cleaned up ${abandonedCheckouts.length} abandoned checkout(s) for phone ${formattedPhone}:`,
+                            abandonedCheckouts.map(c => c.order_id).join(', '));
+                    }
+                }
+            } catch (cleanupErr) {
+                // Non-fatal: order was already created successfully
+                console.error('Error during checkout cleanup:', cleanupErr);
+            }
+        }
+
         return {
             success: true,
             order: data,
