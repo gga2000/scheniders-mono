@@ -26,7 +26,8 @@ export async function proxy(request: NextRequest) {
         pathname.startsWith('/icons') ||
         pathname.includes('.') ||
         pathname.startsWith('/api/webhooks') ||
-        pathname.startsWith('/api/auth');
+        pathname.startsWith('/api/auth') ||
+        pathname === '/api/cron/process-checkouts';
 
     if (isPublicRoute || isStaticAsset) {
         return NextResponse.next();
