@@ -2350,10 +2350,6 @@ export default function OrdersPage() {
                         }}
                         order={orderForTemplate}
                         templates={workflowTemplates}
-                        onContactSent={async (orderId: string, newCount: number) => {
-                            // Update the order's contact count
-                            await updateOrderContactCount(orderId, newCount);
-                        }}
                     />
                 )}
 
