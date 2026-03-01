@@ -1019,9 +1019,21 @@ export function TeamSettings() {
                 )}
             </AnimatePresence>
 
-            {/* Invite Modal (Placeholder if not implemented in this snippet to avoid missing symbol error) */}
-            {/* ... logic for InviteUserModal would go here if I included the component ... */}
-            {/* I need to make sure InviteUserModal is defined or imported, I will include it in the file if I overwrite */}
+            {/* Invite User Modal */}
+            <AnimatePresence>
+                {showInviteModal && (
+                    <InviteUserModal
+                        onClose={() => setShowInviteModal(false)}
+                        onUserCreated={() => {
+                            setShowInviteModal(false);
+                            fetchUsers();
+                            if (isAdmin) {
+                                fetchGlobalLogs();
+                            }
+                        }}
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 }
@@ -1041,23 +1053,27 @@ function InviteUserModal({ onClose, onUserCreated }: { onClose: () => void; onUs
         setLoading(true);
 
         try {
-            const { data, error: signUpError } = await supabase.auth.signUp({
-                email,
-                password,
-                options: {
-                    data: {
-                        display_name: displayName || email.split("@")[0],
-                        role: role,
-                    },
-                },
+            const response = await fetch("/api/auth/create-user", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    email,
+                    password,
+                    displayName: displayName || email.split("@")[0],
+                    role,
+                }),
             });
 
-            if (signUpError) throw signUpError;
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || "Failed to create user");
+            }
+
             onUserCreated();
         } catch (err) {
-            console.error(err);
-            setError(err instanceof Error ? err.message : "Error");
+            console.error("Error creating user:", err);
+            setError(err instanceof Error ? err.message : "Failed to create user");
         } finally {
             setLoading(false);
         }

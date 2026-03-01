@@ -23,6 +23,8 @@ import { cn } from "@/lib/utils";
 import { formatIQD, getBaseOrderId } from "@/lib/utils";
 import { ThemeToggle } from "./theme-toggle";
 import { LanguageToggle } from "./language-toggle";
+import { GlobalPresenceIndicator } from "./global-presence-indicator";
+import { NotificationsDropdown } from "./notifications-dropdown";
 
 type SearchCategory = "all" | "orders" | "customers" | "products";
 
@@ -359,10 +361,6 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
         };
     }, []);
 
-    const handleNotificationClick = () => {
-        alert("Notifications feature coming soon!");
-    };
-
     // Hide TopBar when on orders or customers page and their respective toolbars are collapsed
     if (isOrdersPage && isOrdersToolbarCollapsed) {
         return null;
@@ -424,14 +422,11 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
                     {/* Language Toggle */}
                     <LanguageToggle />
 
-                    {/* Notifications */}
-                    <button
-                        onClick={handleNotificationClick}
-                        className="w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-muted hover:text-foreground hover:border-[var(--foreground-muted)] transition-all"
-                        title="Notifications"
-                    >
-                        <Bell className="w-5 h-5" />
-                    </button>
+                    {/* Global Presence Indicator */}
+                    <GlobalPresenceIndicator />
+
+                    {/* Notifications Dropdown */}
+                    <NotificationsDropdown />
 
                     {/* Settings */}
                     <Link
