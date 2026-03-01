@@ -7,13 +7,13 @@ import { generateWhatsAppLink } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { Banknote, Calendar, Clock, Globe, MapPin, MessageCircle, Phone, Truck, User, CheckCircle, XCircle } from "lucide-react";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
-import type { OrderStatus } from "@/lib/supabase";
+import type { OrderStatus, Order } from "@/lib/supabase";
 
 interface OrderCustomerCardProps {
     isEditing: boolean;
-    order: any;
-    formData: any;
-    updateFormData: (key: string, value: any) => void;
+    order: Order;
+    formData: Partial<Order>;
+    updateFormData: (key: string, value: string | number | null) => void;
     onStatusUpdate?: (orderId: string, status: OrderStatus, reason?: string) => Promise<{ success: boolean; error?: string }>;
     isUpdatingStatus: boolean;
     handleStatusChange: (status: OrderStatus) => void;
@@ -39,11 +39,65 @@ export function OrderCustomerCard({
     };
 
     const handleWhatsApp = () => {
-        const link = generateWhatsAppLink(
-            order.phone,
-            `مرحباً، بخصوص طلب ${order.order_id}`
-        );
-        window.open(link, "_blank");
+        console.log('[WhatsApp] Button clicked', {
+            phone: order.phone,
+            isValid: validatePhoneDetailed(order.phone).isValid,
+            orderId: order.order_id
+        });
+
+        try {
+            const link = generateWhatsAppLink(
+                order.phone,
+                `مرحباً، بخصوص طلب ${order.order_id}`
+            );
+            console.log('[WhatsApp] Generated link:', link);
+
+            const newWindow = window.open(link, "_blank");
+
+            // Check if popup was blocked
+            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+                console.warn('[WhatsApp] Popup blocked by browser');
+                // Fallback: copy to clipboard
+                navigator.clipboard.writeText(link).then(() => {
+                    alert('متصفحك منع فتح النافذة المنبثقة. تم نسخ رابط واتساب إلى الحافظة!');
+                }).catch(() => {
+                    alert(`Popup blocked. Please allow popups or copy this link manually:\n${link}`);
+                });
+            } else {
+                console.log('[WhatsApp] Window opened successfully');
+            }
+        } catch (error) {
+            console.error('[WhatsApp] Error:', error);
+            alert('حدث خطأ عند فتح واتساب. يرجى التحقق من رقم الهاتف.');
+        }
+    };
+
+    const handleSecondaryWhatsApp = () => {
+        if (!order.secondary_phone) return;
+
+        console.log('[WhatsApp] Secondary phone button clicked', {
+            phone: order.secondary_phone,
+            isValid: validatePhoneDetailed(order.secondary_phone).isValid
+        });
+
+        try {
+            const link = generateWhatsAppLink(
+                order.secondary_phone,
+                `مرحباً، بخصوص طلب ${order.order_id}`
+            );
+            const newWindow = window.open(link, "_blank");
+
+            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+                navigator.clipboard.writeText(link).then(() => {
+                    alert('متصفحك منع فتح النافذة المنبثقة. تم نسخ رابط واتساب إلى الحافظة!');
+                }).catch(() => {
+                    alert(`Popup blocked. Link: ${link}`);
+                });
+            }
+        } catch (error) {
+            console.error('[WhatsApp] Error:', error);
+            alert('حدث خطأ عند فتح واتساب.');
+        }
     };
 
     return (
@@ -253,6 +307,7 @@ export function OrderCustomerCard({
                                 </div>
                             )}
                             <button
+                                type="button"
                                 onClick={handleWhatsApp}
                                 disabled={!validatePhoneDetailed(order.phone).isValid}
                                 className={cn(
@@ -324,13 +379,8 @@ export function OrderCustomerCard({
                             )}
                             {order.secondary_phone && validatePhoneDetailed(order.secondary_phone).isValid && (
                                 <button
-                                    onClick={() => {
-                                        const link = generateWhatsAppLink(
-                                            order.secondary_phone!,
-                                            `مرحباً، بخصوص طلب ${order.order_id}`
-                                        );
-                                        window.open(link, "_blank");
-                                    }}
+                                    type="button"
+                                    onClick={handleSecondaryWhatsApp}
                                     className="w-9 h-9 rounded-lg bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)] transition-all flex items-center justify-center flex-shrink-0"
                                     title={t("orderDetail.whatsApp")}
                                 >

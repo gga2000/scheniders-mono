@@ -2340,6 +2340,23 @@ export default function OrdersPage() {
                     />
                 )}
 
+                {/* WhatsApp Template Panel */}
+                {orderForTemplate && (
+                    <WhatsAppTemplatePanel
+                        open={templatePanelOpen}
+                        onClose={() => {
+                            setTemplatePanelOpen(false);
+                            setOrderForTemplate(null);
+                        }}
+                        order={orderForTemplate}
+                        templates={workflowTemplates}
+                        onContactSent={async (orderId: string, newCount: number) => {
+                            // Update the order's contact count
+                            await updateOrderContactCount(orderId, newCount);
+                        }}
+                    />
+                )}
+
                 <FloatingActionBar
                     selectedCount={selectedOrders.size}
                     onConfirm={handleBulkConfirm}
