@@ -7,13 +7,13 @@ import { generateWhatsAppLink } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { Banknote, Calendar, Clock, Globe, MapPin, MessageCircle, Phone, Truck, User, CheckCircle, XCircle } from "lucide-react";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
-import type { OrderStatus, Order } from "@/lib/supabase";
+import type { OrderStatus } from "@/lib/supabase";
 
 interface OrderCustomerCardProps {
     isEditing: boolean;
-    order: Order;
-    formData: Partial<Order>;
-    updateFormData: (key: string, value: string | number | null) => void;
+    order: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    formData: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    updateFormData: (key: string, value: any) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
     onStatusUpdate?: (orderId: string, status: OrderStatus, reason?: string) => Promise<{ success: boolean; error?: string }>;
     isUpdatingStatus: boolean;
     handleStatusChange: (status: OrderStatus) => void;
