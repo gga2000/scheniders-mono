@@ -252,3 +252,25 @@ export async function splitOrderAction(
         return { success: false, error: err.message || "Failed to split order" };
     }
 }
+
+export async function checkOrderIdExists(orderId: string, excludeUuid?: string): Promise<boolean> {
+    const supabase = await createSupabaseServerClient();
+
+    try {
+        let query = supabase
+            .from("orders")
+            .select("id")
+            .eq("order_id", orderId);
+
+        if (excludeUuid) {
+            query = query.neq("id", excludeUuid);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        return data && data.length > 0;
+    } catch (err) {
+        console.error("Error checking order ID:", err);
+        return false;
+    }
+}
