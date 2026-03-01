@@ -41,13 +41,20 @@ interface UndoEntry {
 }
 
 interface UseOrderCrudOptions {
-    orders: Order[];
-    setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
+    orders?: Order[];
+    setOrders?: React.Dispatch<React.SetStateAction<Order[]>>;
 }
 
-export function useOrderCrud({ orders, setOrders }: UseOrderCrudOptions) {
+export function useOrderCrud({ orders = [], setOrders }: UseOrderCrudOptions = {}) {
     const queryClient = useQueryClient();
     const { user, profile } = useAuth();
+
+    // Safe setOrders wrapper
+    const safeSetOrders = (updater: React.SetStateAction<Order[]>) => {
+        if (setOrders) {
+            setOrders(updater);
+        }
+    };
 
     // Mutations
     const updateStatusMutation = useUpdateStatusMutation();
@@ -88,7 +95,7 @@ export function useOrderCrud({ orders, setOrders }: UseOrderCrudOptions) {
             if (fetchError) throw fetchError;
 
             const ordersWithDefaults = (data || []).map(normalizeOrder);
-            setOrders(ordersWithDefaults);
+            safeSetOrders(ordersWithDefaults);
         } catch (err) {
             if (err instanceof Error && err.name === 'AbortError') return;
             if (isMountedRef.current && !controller.signal.aborted) {
@@ -253,7 +260,9 @@ export function useOrderCrud({ orders, setOrders }: UseOrderCrudOptions) {
                     return [offlineOrder, ...(old || [])];
                 });
 
-                setOrders(prev => [offlineOrder, ...prev]);
+                if (setOrders) {
+                    safeSetOrders(prev => [offlineOrder, ...prev]);
+                }
                 return { success: true, data: offlineOrder };
             }
 
@@ -422,7 +431,7 @@ export function useOrderCrud({ orders, setOrders }: UseOrderCrudOptions) {
 
         const newPinnedState = !order.is_pinned;
 
-        setOrders((prev) =>
+        safeSetOrders((prev) =>
             prev.map((o) =>
                 o.id === orderId ? { ...o, is_pinned: newPinnedState } : o
             )
@@ -438,7 +447,7 @@ export function useOrderCrud({ orders, setOrders }: UseOrderCrudOptions) {
             return { success: true };
         } catch (err) {
             console.error("Error toggling pin:", err);
-            setOrders((prev) =>
+            safeSetOrders((prev) =>
                 prev.map((o) =>
                     o.id === orderId ? { ...o, is_pinned: !newPinnedState } : o
                 )
@@ -448,7 +457,7 @@ export function useOrderCrud({ orders, setOrders }: UseOrderCrudOptions) {
     }
 
     async function setPin(orderId: string, isPinned: boolean) {
-        setOrders((prev) =>
+        safeSetOrders((prev) =>
             prev.map((o) =>
                 o.id === orderId ? { ...o, is_pinned: isPinned } : o
             )
@@ -464,7 +473,7 @@ export function useOrderCrud({ orders, setOrders }: UseOrderCrudOptions) {
             return { success: true };
         } catch (err) {
             console.error("Error setting pin:", err);
-            setOrders((prev) =>
+            safeSetOrders((prev) =>
                 prev.map((o) =>
                     o.id === orderId ? { ...o, is_pinned: !isPinned } : o
                 )
@@ -483,7 +492,7 @@ export function useOrderCrud({ orders, setOrders }: UseOrderCrudOptions) {
 
         const newReviewedState = !order.is_reviewed;
 
-        setOrders((prev) =>
+        safeSetOrders((prev) =>
             prev.map((o) =>
                 o.id === orderId ? { ...o, is_reviewed: newReviewedState } : o
             )
@@ -499,7 +508,7 @@ export function useOrderCrud({ orders, setOrders }: UseOrderCrudOptions) {
             return { success: true };
         } catch (err) {
             console.error("Error toggling reviewed:", err);
-            setOrders((prev) =>
+            safeSetOrders((prev) =>
                 prev.map((o) =>
                     o.id === orderId ? { ...o, is_reviewed: !newReviewedState } : o
                 )
@@ -513,7 +522,7 @@ export function useOrderCrud({ orders, setOrders }: UseOrderCrudOptions) {
         if (!order) return { success: false, error: "Order not found" };
 
         const phone = order.phone;
-        setOrders((prev) =>
+        safeSetOrders((prev) =>
             prev.map((o) =>
                 o.phone === phone ? { ...o, is_verified_customer: true } : o
             )
@@ -529,7 +538,7 @@ export function useOrderCrud({ orders, setOrders }: UseOrderCrudOptions) {
             return { success: true };
         } catch (err) {
             console.error("Error marking as verified customer:", err);
-            setOrders((prev) =>
+            safeSetOrders((prev) =>
                 prev.map((o) =>
                     o.phone === phone ? { ...o, is_verified_customer: false } : o
                 )
@@ -574,7 +583,7 @@ export function useOrderCrud({ orders, setOrders }: UseOrderCrudOptions) {
                 });
             }).catch(console.error);
 
-            setOrders((prev) =>
+            safeSetOrders((prev) =>
                 prev.map((order) =>
                     orderIds.includes(order.id) ? { ...order, status } : order
                 )
@@ -599,7 +608,7 @@ export function useOrderCrud({ orders, setOrders }: UseOrderCrudOptions) {
 
             if (updateError) throw updateError;
 
-            setOrders((prev) => prev.filter((order) => !orderIds.includes(order.id)));
+            safeSetOrders((prev) => prev.filter((order) => !orderIds.includes(order.id)));
             return { success: true, count: orderIds.length };
         } catch (err) {
             console.error("Error archiving orders:", err);
@@ -656,7 +665,7 @@ export function useOrderCrud({ orders, setOrders }: UseOrderCrudOptions) {
                 throw new Error("No orders were deleted.");
             }
 
-            setOrders((prev) => prev.filter((order) => !deletedIds.has(order.id)));
+            safeSetOrders((prev) => prev.filter((order) => !deletedIds.has(order.id)));
 
             // Invalidate React Query cache so stale data doesn't reappear
             await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
@@ -875,7 +884,7 @@ export function useOrderCrud({ orders, setOrders }: UseOrderCrudOptions) {
 
             if (archiveError) throw archiveError;
 
-            setOrders((prev) =>
+            safeSetOrders((prev) =>
                 prev
                     .map((order) => {
                         if (order.id === keepOrderId) {
@@ -1101,7 +1110,7 @@ export function useOrderCrud({ orders, setOrders }: UseOrderCrudOptions) {
 
             if (updateError) throw updateError;
 
-            setOrders((prev) =>
+            safeSetOrders((prev) =>
                 prev.map((order) =>
                     order.id === lastAction.orderId
                         ? { ...order, ...lastAction.previousState }
