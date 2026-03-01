@@ -569,44 +569,26 @@ export const OrderCard = memo(function OrderCard({
                                 type="button"
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    console.log('[WhatsApp] OrderCard button clicked', {
-                                        isValidPhone,
-                                        hasTemplatePanel: !!onOpenTemplatePanel,
-                                        templateCount: messageTemplates?.length,
-                                        phone: order.phone,
-                                        orderId: order.order_id
-                                    });
-
-                                    if (!isValidPhone) {
-                                        console.warn('[WhatsApp] Phone invalid, aborting');
-                                        return;
-                                    }
+                                    if (!isValidPhone) return;
 
                                     if (onOpenTemplatePanel && messageTemplates?.length > 0) {
-                                        console.log('[WhatsApp] Opening template panel');
                                         onOpenTemplatePanel(order);
                                     } else {
-                                        console.log('[WhatsApp] Using fallback - direct WhatsApp link');
                                         try {
                                             const link = generateWhatsAppLink(
                                                 order.phone,
                                                 `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
                                             );
-                                            console.log('[WhatsApp] Generated link:', link);
                                             const newWindow = window.open(link, "_blank");
 
                                             if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                                                console.warn('[WhatsApp] Popup blocked by browser');
                                                 navigator.clipboard.writeText(link).then(() => {
                                                     alert('متصفحك منع فتح النافذة المنبثقة. تم نسخ رابط واتساب إلى الحافظة!');
                                                 }).catch(() => {
                                                     alert(`Popup blocked. Link: ${link}`);
                                                 });
-                                            } else {
-                                                console.log('[WhatsApp] Window opened successfully');
                                             }
                                         } catch (error) {
-                                            console.error('[WhatsApp] Error:', error);
                                             alert('حدث خطأ عند فتح واتساب. يرجى التحقق من رقم الهاتف.');
                                         }
                                     }
@@ -792,44 +774,26 @@ export const OrderCard = memo(function OrderCard({
                             type="button"
                             onClick={(e) => {
                                 e.stopPropagation();
-                                console.log('[WhatsApp] OrderCard (ultra-compact) button clicked', {
-                                    isValidPhone,
-                                    hasTemplatePanel: !!onOpenTemplatePanel,
-                                    templateCount: messageTemplates?.length,
-                                    phone: order.phone,
-                                    orderId: order.order_id
-                                });
-
-                                if (!isValidPhone) {
-                                    console.warn('[WhatsApp] Phone invalid, aborting');
-                                    return;
-                                }
+                                if (!isValidPhone) return;
 
                                 if (onOpenTemplatePanel && messageTemplates?.length > 0) {
-                                    console.log('[WhatsApp] Opening template panel');
                                     onOpenTemplatePanel(order);
                                 } else {
-                                    console.log('[WhatsApp] Using fallback - direct WhatsApp link');
                                     try {
                                         const link = generateWhatsAppLink(
                                             order.phone,
                                             `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
                                         );
-                                        console.log('[WhatsApp] Generated link:', link);
                                         const newWindow = window.open(link, "_blank");
 
                                         if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                                            console.warn('[WhatsApp] Popup blocked by browser');
                                             navigator.clipboard.writeText(link).then(() => {
                                                 alert('متصفحك منع فتح النافذة المنبثقة. تم نسخ رابط واتساب إلى الحافظة!');
                                             }).catch(() => {
                                                 alert(`Popup blocked. Link: ${link}`);
                                             });
-                                        } else {
-                                            console.log('[WhatsApp] Window opened successfully');
                                         }
                                     } catch (error) {
-                                        console.error('[WhatsApp] Error:', error);
                                         alert('حدث خطأ عند فتح واتساب. يرجى التحقق من رقم الهاتف.');
                                     }
                                 }
@@ -1601,34 +1565,20 @@ export const OrderCard = memo(function OrderCard({
                                     type="button"
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        console.log('[WhatsApp] Full view button clicked', {
-                                            phone: order.phone,
-                                            isValid: validatePhoneDetailed(order.phone).isValid,
-                                            orderId: order.order_id
-                                        });
-
-                                        if (!validatePhoneDetailed(order.phone).isValid) {
-                                            console.warn('[WhatsApp] Phone invalid, aborting');
-                                            return;
-                                        }
+                                        if (!validatePhoneDetailed(order.phone).isValid) return;
 
                                         try {
                                             const link = generateWhatsAppLink(order.phone, `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`);
-                                            console.log('[WhatsApp] Generated link:', link);
                                             const newWindow = window.open(link, "_blank");
 
                                             if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                                                console.warn('[WhatsApp] Popup blocked by browser');
                                                 navigator.clipboard.writeText(link).then(() => {
                                                     alert('متصفحك منع فتح النافذة المنبثقة. تم نسخ رابط واتساب إلى الحافظة!');
                                                 }).catch(() => {
                                                     alert(`Popup blocked. Link: ${link}`);
                                                 });
-                                            } else {
-                                                console.log('[WhatsApp] Window opened successfully');
                                             }
                                         } catch (error) {
-                                            console.error('[WhatsApp] Error:', error);
                                             alert('حدث خطأ عند فتح واتساب. يرجى التحقق من رقم الهاتف.');
                                         }
                                     }}
@@ -1651,15 +1601,7 @@ export const OrderCard = memo(function OrderCard({
                                         type="button"
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            console.log('[WhatsApp] Full view secondary phone clicked', {
-                                                phone: order.secondary_phone,
-                                                isValid: validatePhoneDetailed(order.secondary_phone!).isValid
-                                            });
-
-                                            if (!validatePhoneDetailed(order.secondary_phone!).isValid) {
-                                                console.warn('[WhatsApp] Secondary phone invalid, aborting');
-                                                return;
-                                            }
+                                            if (!validatePhoneDetailed(order.secondary_phone!).isValid) return;
 
                                             try {
                                                 const link = generateWhatsAppLink(order.secondary_phone!, `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`);
@@ -1673,7 +1615,6 @@ export const OrderCard = memo(function OrderCard({
                                                     });
                                                 }
                                             } catch (error) {
-                                                console.error('[WhatsApp] Error:', error);
                                                 alert('حدث خطأ عند فتح واتساب.');
                                             }
                                         }}
@@ -1831,45 +1772,26 @@ export const OrderCard = memo(function OrderCard({
                                     type="button"
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        console.log('[WhatsApp] Action dock button clicked', {
-                                            isValidPhone,
-                                            hasTemplatePanel: !!onOpenTemplatePanel,
-                                            templateCount: messageTemplates?.length,
-                                            phone: order.phone,
-                                            orderId: order.order_id,
-                                            contactCount
-                                        });
-
-                                        if (!isValidPhone) {
-                                            console.warn('[WhatsApp] Phone invalid, aborting');
-                                            return;
-                                        }
+                                        if (!isValidPhone) return;
 
                                         if (onOpenTemplatePanel && messageTemplates?.length > 0) {
-                                            console.log('[WhatsApp] Opening template panel');
                                             onOpenTemplatePanel(order);
                                         } else {
-                                            console.log('[WhatsApp] Using fallback - direct WhatsApp link');
                                             try {
                                                 const link = generateWhatsAppLink(
                                                     order.phone,
                                                     `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
                                                 );
-                                                console.log('[WhatsApp] Generated link:', link);
                                                 const newWindow = window.open(link, "_blank");
 
                                                 if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                                                    console.warn('[WhatsApp] Popup blocked by browser');
                                                     navigator.clipboard.writeText(link).then(() => {
                                                         alert('متصفحك منع فتح النافذة المنبثقة. تم نسخ رابط واتساب إلى الحافظة!');
                                                     }).catch(() => {
                                                         alert(`Popup blocked. Link: ${link}`);
                                                     });
-                                                } else {
-                                                    console.log('[WhatsApp] Window opened successfully');
                                                 }
                                             } catch (error) {
-                                                console.error('[WhatsApp] Error:', error);
                                                 alert('حدث خطأ عند فتح واتساب. يرجى التحقق من رقم الهاتف.');
                                             }
                                         }
@@ -1899,11 +1821,6 @@ export const OrderCard = memo(function OrderCard({
                                 type="button"
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    console.log('[WhatsApp] Action dock secondary phone clicked', {
-                                        phone: order.secondary_phone,
-                                        isValid: validatePhoneDetailed(order.secondary_phone!).isValid
-                                    });
-
                                     try {
                                         const link = generateWhatsAppLink(
                                             order.secondary_phone!,
@@ -1919,7 +1836,6 @@ export const OrderCard = memo(function OrderCard({
                                             });
                                         }
                                     } catch (error) {
-                                        console.error('[WhatsApp] Error:', error);
                                         alert('حدث خطأ عند فتح واتساب.');
                                     }
                                 }}

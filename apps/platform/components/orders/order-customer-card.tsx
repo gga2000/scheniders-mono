@@ -39,46 +39,27 @@ export function OrderCustomerCard({
     };
 
     const handleWhatsApp = () => {
-        console.log('[WhatsApp] Button clicked', {
-            phone: order.phone,
-            isValid: validatePhoneDetailed(order.phone).isValid,
-            orderId: order.order_id
-        });
-
         try {
             const link = generateWhatsAppLink(
                 order.phone,
                 `مرحباً، بخصوص طلب ${order.order_id}`
             );
-            console.log('[WhatsApp] Generated link:', link);
-
             const newWindow = window.open(link, "_blank");
 
-            // Check if popup was blocked
             if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                console.warn('[WhatsApp] Popup blocked by browser');
-                // Fallback: copy to clipboard
                 navigator.clipboard.writeText(link).then(() => {
                     alert('متصفحك منع فتح النافذة المنبثقة. تم نسخ رابط واتساب إلى الحافظة!');
                 }).catch(() => {
                     alert(`Popup blocked. Please allow popups or copy this link manually:\n${link}`);
                 });
-            } else {
-                console.log('[WhatsApp] Window opened successfully');
             }
         } catch (error) {
-            console.error('[WhatsApp] Error:', error);
             alert('حدث خطأ عند فتح واتساب. يرجى التحقق من رقم الهاتف.');
         }
     };
 
     const handleSecondaryWhatsApp = () => {
         if (!order.secondary_phone) return;
-
-        console.log('[WhatsApp] Secondary phone button clicked', {
-            phone: order.secondary_phone,
-            isValid: validatePhoneDetailed(order.secondary_phone).isValid
-        });
 
         try {
             const link = generateWhatsAppLink(
@@ -95,7 +76,6 @@ export function OrderCustomerCard({
                 });
             }
         } catch (error) {
-            console.error('[WhatsApp] Error:', error);
             alert('حدث خطأ عند فتح واتساب.');
         }
     };
