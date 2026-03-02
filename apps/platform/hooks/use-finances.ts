@@ -379,6 +379,7 @@ export function useFinances(orders: Order[], products: Product[], dateRange?: Da
             refund_delivered: { count: 0, revenue: 0 },
             refund_failed: { count: 0, revenue: 0 },
             pending_checkout: { count: 0, revenue: 0 },
+            suspended: { count: 0, revenue: 0 },
         };
 
         filteredOrders.forEach((order) => {

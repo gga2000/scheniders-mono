@@ -117,7 +117,6 @@ export function useGlobalPresence() {
             isConnectedRef.current = false;
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userId]); // Only re-subscribe when user ID changes (login/logout), NOT on object reference changes
 
     // Exclude current user

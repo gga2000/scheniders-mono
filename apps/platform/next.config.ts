@@ -13,9 +13,7 @@ const nextConfig: NextConfig = {
   // StrictMode helps catch bugs in development
   reactStrictMode: true,
 
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+
   typescript: {
     ignoreBuildErrors: true,
   },

@@ -189,6 +189,7 @@ export function getStatusLabel(status: Order["status"]): string {
         refund_delivered: "Refund Delivered",
         refund_failed: "Refund Failed",
         pending_checkout: "Pending Checkout",
+        suspended: "معلق",
     };
     return labels[status] || status;
 }
@@ -211,6 +212,7 @@ export function getStatusColor(status: Order["status"]): string {
         refund_delivered: "bg-pink-200 text-pink-900",
         refund_failed: "bg-red-200 text-red-900",
         pending_checkout: "bg-indigo-100 text-indigo-800",
+        suspended: "bg-orange-100 text-orange-800",
     };
     return colors[status] || "bg-gray-100 text-gray-800";
 }

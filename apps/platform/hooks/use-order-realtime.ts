@@ -30,7 +30,7 @@ export function useOrderRealtime({ onReconnect }: UseOrderRealtimeOptions) {
     useRealtimeQuery<Order>({
         table: "orders",
         queryKey: orderKeys.lists(),
-        normalizer: normalizeOrder,
+        normalizer: (payload: any) => normalizeOrder(payload),
         onReconnect,
         onInsert: handleInsert,
         batchDelayMs: 200,

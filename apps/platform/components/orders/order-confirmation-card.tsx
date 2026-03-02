@@ -82,6 +82,7 @@ export function OrderConfirmationCard({ order, onClose }: OrderConfirmationCardP
         refund_delivered: { label: "تم الاسترجاع", color: "bg-pink-200 text-pink-900" },
         refund_failed: { label: "فشل الاسترجاع", color: "bg-red-200 text-red-900" },
         pending_checkout: { label: "قيد الدفع", color: "bg-yellow-100 text-yellow-800" },
+        suspended: { label: "معلق", color: "bg-orange-100 text-orange-800" },
     };
 
     const paymentConfig = {
@@ -186,7 +187,7 @@ export function OrderConfirmationCard({ order, onClose }: OrderConfirmationCardP
                         <div className="bg-white/70 rounded-2xl p-4 mb-4 shadow-sm">
                             <p className="text-sm font-bold text-foreground mb-3">المنتجات</p>
                             <div className="space-y-2">
-                                {order.items.map((item, idx) => (
+                                {order.items.map((item: any, idx) => (
                                     <div key={idx} className="flex items-center justify-between text-sm">
                                         <span className="text-foreground">{item.name}</span>
                                         <div className="flex items-center gap-3">

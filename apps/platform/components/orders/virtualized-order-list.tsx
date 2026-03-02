@@ -174,7 +174,7 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
                                 onCancelWithReason={onCancelWithReason}
                                 onRejectWithReason={onRejectWithReason}
                                 onToggleReviewed={onToggleReviewed}
-                                onSplit={() => onSplitOrder && onSplitOrder(order)}
+                                onSplit={onSplitOrder}
                                 returnOrderInfo={getReturnOrderInfo(order.id)}
                                 originalOrderInfo={getOriginalOrderInfo(order.original_order_id)}
                                 compact={compactView}
