@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { RealtimeBatcher } from "@/lib/realtime-batcher";
@@ -61,6 +61,15 @@ export function useRealtimeQuery<T extends { id: string }>({
 }: UseRealtimeQueryOptions<T>) {
     const queryClient = useQueryClient();
 
+    // Stabilize queryKey: only re-subscribe when the *content* changes, not the reference.
+    // orderKeys.lists() returns a new array every call, which would tear down the
+    // Supabase channel on every render if used directly as a dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const stableQueryKey = useMemo(() => queryKey, [JSON.stringify(queryKey)]);
+
+    // Stabilize filter object reference
+    const stableFilterStr = filter ? `${filter.column}=eq.${filter.value}` : undefined;
+
     // Use refs for callbacks to avoid re-subscribing on callback changes
     const onReconnectRef = useRef(onReconnect);
     const onInsertRef = useRef(onInsert);
@@ -72,6 +81,12 @@ export function useRealtimeQuery<T extends { id: string }>({
         normalizerRef.current = normalizer;
     }, [onReconnect, onInsert, normalizer]);
 
+    // Keep queryKey ref in sync for the batcher (which reads it at flush time)
+    const queryKeyRef = useRef(stableQueryKey);
+    useEffect(() => {
+        queryKeyRef.current = stableQueryKey;
+    }, [stableQueryKey]);
+
     useEffect(() => {
         if (!enabled) return;
 
@@ -82,7 +97,7 @@ export function useRealtimeQuery<T extends { id: string }>({
         // Create a batcher for this subscription
         const batcher = new RealtimeBatcher({
             queryClient,
-            queryKey,
+            queryKey: stableQueryKey,
             normalizer: normalizerRef.current,
             flushDelayMs: batchDelayMs,
             onNewOrder: (order) => onInsertRef.current?.(order as unknown as T),
@@ -101,8 +116,8 @@ export function useRealtimeQuery<T extends { id: string }>({
         };
 
         // Add optional filter (e.g., "is_archived=eq.false")
-        if (filter) {
-            subscriptionConfig.filter = `${filter.column}=eq.${filter.value}`;
+        if (stableFilterStr) {
+            subscriptionConfig.filter = stableFilterStr;
         }
 
         console.log(`[Realtime] Subscribing to ${table} (sub=${subscriptionId}, filter=${subscriptionConfig.filter || "none"})`);
@@ -137,5 +152,5 @@ export function useRealtimeQuery<T extends { id: string }>({
             batcher.destroy();
             channel.unsubscribe();
         };
-    }, [table, enabled, batchDelayMs, queryClient, queryKey]); // queryKey and queryClient are stable
+    }, [table, enabled, batchDelayMs, queryClient, stableQueryKey, stableFilterStr]);
 }
