@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -24,20 +24,51 @@ export function useGlobalPresence() {
     const [onlineUsers, setOnlineUsers] = useState<GlobalPresenceUser[]>([]);
     const [isConnected, setIsConnected] = useState(false);
 
+    // Use refs for data that changes without needing to re-subscribe
+    const userRef = useRef(user);
+    const profileRef = useRef(profile);
+    const isConnectedRef = useRef(false);
+
+    // Keep refs up to date (without triggering effect re-run)
     useEffect(() => {
-        if (!user || !profile) {
+        userRef.current = user;
+        profileRef.current = profile;
+    }, [user, profile]);
+
+    useEffect(() => {
+        isConnectedRef.current = isConnected;
+    }, [isConnected]);
+
+    // Only depend on user.id (stable string) — NOT the whole user/profile objects
+    const userId = user?.id;
+
+    useEffect(() => {
+        if (!userId || !userRef.current || !profileRef.current) {
             return;
         }
 
         globalPresenceEffectCount++;
         const effectId = globalPresenceEffectCount;
-        console.log(`[GlobalPresence] Effect #${effectId} RUNNING — user.id=${user.id}`);
+        console.log(`[GlobalPresence] Effect #${effectId} RUNNING — user.id=${userId}`);
+
+        const currentUser = userRef.current;
+        const currentProfile = profileRef.current;
+
+        // Build presence data helper (reads from refs for latest values)
+        const buildPresenceData = () => ({
+            id: userRef.current?.id || currentUser.id,
+            display_name: profileRef.current?.display_name || currentProfile.display_name || currentUser.email?.split('@')[0] || 'User',
+            avatar_url: profileRef.current?.avatar_url || currentProfile.avatar_url,
+            role: profileRef.current?.role || currentProfile.role,
+            online_at: new Date().toISOString(),
+            current_page: typeof window !== 'undefined' ? window.location.pathname : undefined,
+        });
 
         // Global channel for all employees
         const channel = supabase.channel('presence:global', {
             config: {
                 presence: {
-                    key: user.id,
+                    key: userId,
                 },
             },
         });
@@ -63,32 +94,17 @@ export function useGlobalPresence() {
                 console.log(`[GlobalPresence] Effect #${effectId} status=${status}`);
                 if (status === 'SUBSCRIBED') {
                     setIsConnected(true);
-
-                    const presenceData = {
-                        id: user.id,
-                        display_name: profile.display_name || user.email?.split('@')[0] || 'User',
-                        avatar_url: profile.avatar_url,
-                        role: profile.role,
-                        online_at: new Date().toISOString(),
-                        current_page: typeof window !== 'undefined' ? window.location.pathname : undefined,
-                    };
+                    isConnectedRef.current = true;
 
                     // Track current user's presence
-                    await channel.track(presenceData);
+                    await channel.track(buildPresenceData());
                 }
             });
 
-        // Update current page when pathname changes
+        // Re-track presence when tab becomes visible again
         const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible' && isConnected) {
-                channel.track({
-                    id: user.id,
-                    display_name: profile.display_name || user.email?.split('@')[0] || 'User',
-                    avatar_url: profile.avatar_url,
-                    role: profile.role,
-                    online_at: new Date().toISOString(),
-                    current_page: typeof window !== 'undefined' ? window.location.pathname : undefined,
-                });
+            if (document.visibilityState === 'visible' && isConnectedRef.current) {
+                channel.track(buildPresenceData());
             }
         };
 
@@ -98,9 +114,11 @@ export function useGlobalPresence() {
             console.log(`[GlobalPresence] Effect #${effectId} CLEANUP — unsubscribing`);
             channel.unsubscribe();
             setIsConnected(false);
+            isConnectedRef.current = false;
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
-    }, [user, profile]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [userId]); // Only re-subscribe when user ID changes (login/logout), NOT on object reference changes
 
     // Exclude current user
     const otherUsers = onlineUsers.filter(u => u.id !== user?.id);
