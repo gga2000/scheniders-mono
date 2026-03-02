@@ -110,6 +110,7 @@ import { exportOrdersToPrimeCSV } from "@/lib/export-utils";
 import { toast } from "@/hooks/use-toast";
 
 import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useLanguage } from "@/hooks/use-language";
 
 export default function OrdersPage() {
@@ -550,12 +551,23 @@ export default function OrdersPage() {
         else if (result?.error) toast.error(t("toast.archiveFailed"), result.error);
     };
 
+    // Delete confirmation dialog state
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+    const [deleteConfirmText, setDeleteConfirmText] = useState("");
+    const [isDeleting, setIsDeleting] = useState(false);
+
     const handleBulkDelete = async () => {
-        if (!confirm(`Are you sure you want to delete ${selectedOrders.size} orders? This action cannot be undone.`)) {
-            return;
-        }
+        setDeleteConfirmText("");
+        setDeleteConfirmOpen(true);
+    };
+
+    const executeDelete = async () => {
+        setIsDeleting(true);
         const ids = Array.from(selectedOrders);
         const result = await bulkDelete(ids);
+        setIsDeleting(false);
+        setDeleteConfirmOpen(false);
+        setDeleteConfirmText("");
 
         if (!result.success && (!result.count || result.count === 0)) {
             toast.error(t("toast.deleteFailed"), result.error || t("toast.deleteFailedDesc"));
@@ -2416,6 +2428,63 @@ export default function OrdersPage() {
                     orderId={orderToReject?.sequence_number ? String(orderToReject.sequence_number) : orderToReject?.order_id}
                     type="reject"
                 />
+
+                {/* Delete Confirmation Dialog */}
+                <Dialog open={deleteConfirmOpen} onOpenChange={(open) => {
+                    if (!isDeleting) {
+                        setDeleteConfirmOpen(open);
+                        if (!open) setDeleteConfirmText("");
+                    }
+                }}>
+                    <DialogContent className="md:max-w-md" aria-describedby="delete-confirm-desc">
+                        <DialogHeader>
+                            <DialogTitle className="text-red-600">
+                                {t("orders.deleteConfirm.title")}
+                            </DialogTitle>
+                            <DialogDescription id="delete-confirm-desc">
+                                {t("orders.deleteConfirm.description").replace("{count}", String(selectedOrders.size))}
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="py-4">
+                            <label className="block text-sm font-medium text-foreground mb-2">
+                                {t("orders.deleteConfirm.label")}
+                            </label>
+                            <input
+                                type="text"
+                                value={deleteConfirmText}
+                                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                                placeholder="DELETE"
+                                className="w-full px-3 py-2 border border-[var(--card-border)] rounded-xl bg-[var(--background)] text-foreground focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                                autoFocus
+                                disabled={isDeleting}
+                            />
+                        </div>
+                        <DialogFooter>
+                            <button
+                                onClick={() => {
+                                    setDeleteConfirmOpen(false);
+                                    setDeleteConfirmText("");
+                                }}
+                                disabled={isDeleting}
+                                className="px-4 py-2 rounded-xl text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all"
+                            >
+                                {t("common.cancel")}
+                            </button>
+                            <button
+                                onClick={executeDelete}
+                                disabled={deleteConfirmText !== "DELETE" || isDeleting}
+                                className={cn(
+                                    "px-4 py-2 rounded-xl text-sm font-medium transition-all",
+                                    deleteConfirmText === "DELETE" && !isDeleting
+                                        ? "bg-red-600 text-white hover:bg-red-700"
+                                        : "bg-red-200 text-red-400 cursor-not-allowed"
+                                )}
+                            >
+                                {isDeleting ? t("common.deleting") : t("orders.deleteConfirm.button").replace("{count}", String(selectedOrders.size))}
+                            </button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
 
             </div >
         </PageTransition >

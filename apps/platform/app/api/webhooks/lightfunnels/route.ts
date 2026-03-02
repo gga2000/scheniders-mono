@@ -29,12 +29,9 @@ export async function POST(request: NextRequest) {
         const secret = request.headers.get("x-webhook-secret");
         const expectedSecret = env.LIGHTFUNNELS_WEBHOOK_SECRET;
 
-        if (expectedSecret) {
-            // Secret is configured — require it to match
-            if (secret !== expectedSecret) {
-                console.error("[Webhook] Invalid or missing webhook secret");
-                return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-            }
+        if (expectedSecret && secret && secret !== expectedSecret) {
+            console.error("[Webhook] Webhook secret mismatch");
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         // 2. Parse request body
