@@ -20,7 +20,8 @@ interface UseOrderRealtimeOptions {
 export function useOrderRealtime({ setOrders, onReconnect }: UseOrderRealtimeOptions) {
     const queryClient = useQueryClient();
     const [realtimeVersion, setRealtimeVersion] = useState(0);
-    const wasConnectedRef = useRef(false);
+    const hasEverConnectedRef = useRef(false); // true after first SUBSCRIBED
+    const wasDisconnectedRef = useRef(false);  // true after a CHANNEL_ERROR/CLOSED
     const onReconnectRef = useRef(onReconnect);
 
     // Update ref when callback changes (without triggering effect re-run)
@@ -103,7 +104,7 @@ export function useOrderRealtime({ setOrders, onReconnect }: UseOrderRealtimeOpt
                 }
             )
             .subscribe((status, err) => {
-                console.log(`[OrderRealtime] status=${status}, wasConnected=${wasConnectedRef.current}, err=${err}`);
+                console.log(`[OrderRealtime] status=${status}, hasEverConnected=${hasEverConnectedRef.current}, wasDisconnected=${wasDisconnectedRef.current}, err=${err}`);
                 if (status === "SUBSCRIBED") {
                     // Clear polling if realtime starts working
                     if (pollingInterval) {
@@ -111,16 +112,20 @@ export function useOrderRealtime({ setOrders, onReconnect }: UseOrderRealtimeOpt
                         pollingInterval = null;
                     }
 
-                    // Detect reconnection after disconnect
-                    if (wasConnectedRef.current === false) {
-                        console.log("[OrderRealtime] First connect or reconnection — triggering refetch");
+                    // Only trigger refetch on TRUE reconnection (was connected → lost → reconnected)
+                    // Skip the first connection — that's handled by React Query's initial fetch
+                    if (hasEverConnectedRef.current && wasDisconnectedRef.current) {
+                        console.log("[OrderRealtime] TRUE reconnection after disconnect — triggering refetch");
                         onReconnectRef.current?.();
+                    } else {
+                        console.log("[OrderRealtime] Initial connection — no refetch needed");
                     }
-                    wasConnectedRef.current = true;
+                    hasEverConnectedRef.current = true;
+                    wasDisconnectedRef.current = false;
 
                 } else if (status === "CHANNEL_ERROR" || status === "CLOSED") {
-                    console.log(`[OrderRealtime] Error/Closed — wasConnected was: ${wasConnectedRef.current}`);
-                    wasConnectedRef.current = false;
+                    console.log(`[OrderRealtime] Error/Closed — hasEverConnected: ${hasEverConnectedRef.current}`);
+                    wasDisconnectedRef.current = true;
 
                     // Optional polling fallback (currently disabled)
                     // Uncomment if realtime is unreliable
@@ -137,7 +142,8 @@ export function useOrderRealtime({ setOrders, onReconnect }: UseOrderRealtimeOpt
             channel.unsubscribe();
             if (pollingInterval) clearInterval(pollingInterval);
             if (realtimeRefetchTimeout) clearTimeout(realtimeRefetchTimeout);
-            wasConnectedRef.current = false;
+            hasEverConnectedRef.current = false;
+            wasDisconnectedRef.current = false;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Only run once on mount - onReconnect handled via ref
