@@ -218,6 +218,7 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
             refund_delivered: 0,
             refund_failed: 0,
             pending_checkout: 0,
+            suspended: 0,
         };
 
         matchingOrders.forEach(order => {
