@@ -238,11 +238,13 @@ export default function OrdersPage() {
         }
     }, [debouncedSearchQuery, setFilters, filters.searchQuery]);
 
+    // Sync local search input when filters.searchQuery is cleared externally (e.g. "clear filters" button)
     useEffect(() => {
-        if (!filters.searchQuery && localSearchQuery) {
+        if (!filters.searchQuery) {
             setLocalSearchQuery("");
         }
-    }, [filters.searchQuery, localSearchQuery, setLocalSearchQuery]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [filters.searchQuery]);
 
     // Domain state (stays local — not UI state)
     const [assignments, setAssignments] = useState<OrderAssignment[]>(mockAssignments);
