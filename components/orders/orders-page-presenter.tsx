@@ -152,7 +152,6 @@ export interface OrdersPagePresenterProps {
     messageTemplates: any[];
 
     isMobile: boolean;
-    realtimeVersion: number;
     metricsVersion: number;
     activePresetId: string | null;
     setActivePresetId: (id: string | null) => void;
@@ -307,7 +306,7 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
     const {
         orders, filteredOrders, displayedOrders, archivedOrders, assignments, loading, error, availableCities, availableProducts,
         statusCounts, phoneCounts, groupedOrders, stats, totalRiskCount, flaggedCount, workflowTemplates, messageTemplates,
-        isMobile, realtimeVersion, metricsVersion, activePresetId, setActivePresetId, isModalOpen, setIsModalOpen,
+        isMobile, metricsVersion, activePresetId, setActivePresetId, isModalOpen, setIsModalOpen,
         selectedOrder, setSelectedOrder, isCreateModalOpen, setIsCreateModalOpen, workflowMode, toggleWorkflowMode, setWorkflowMode,
         viewMode, setViewMode, compactView, setCompactView, compactGrid, setCompactGrid, actionDock, setActionDock, showFilters,
         setShowFilters, showSearchBar, setShowSearchBar, isFilterPanelAnimating, setIsFilterPanelAnimating, toolbarCollapsed,
@@ -1671,7 +1670,7 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                                                 />
                                             ) : (
                                                 /* Use animated list for <50 orders */
-                                                <StaggerContainer key={`orders-list-${realtimeVersion}`} className="space-y-3">
+                                                <StaggerContainer key="orders-list" className="space-y-3">
                                                     {displayedOrders.map((order) => {
                                                         const customerOrders = getCustomerHistory(order.phone);
                                                         const orderCount = getCustomerOrderCount(order.phone, order.order_id);

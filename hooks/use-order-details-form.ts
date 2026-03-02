@@ -17,6 +17,13 @@ export function useOrderDetailsForm({ order, setOrder, onUpdate, t }: UseOrderDe
     const [formData, setFormData] = useState<Partial<Order>>({});
     const [showProductPicker, setShowProductPicker] = useState(false);
 
+    // Reset form state when order changes to prevent showing stale data
+    useEffect(() => {
+        setIsEditing(false);
+        setFormData({});
+        setShowProductPicker(false);
+    }, [order?.id]);
+
     const handleEdit = () => {
         if (!order) return;
         setFormData({

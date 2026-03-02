@@ -29,18 +29,23 @@ export async function POST(request: NextRequest) {
         const secret = request.headers.get("x-webhook-secret");
         const expectedSecret = env.LIGHTFUNNELS_WEBHOOK_SECRET;
 
-        if (expectedSecret && secret && secret !== expectedSecret) {
-            console.error("Invalid webhook secret");
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        if (expectedSecret) {
+            // Secret is configured — require it to match
+            if (secret !== expectedSecret) {
+                console.error("[Webhook] Invalid or missing webhook secret");
+                return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            }
         }
 
         // 2. Parse request body
         const payload = await request.json();
 
-        // Log raw payload for debugging
-        console.log("[Webhook] Raw payload keys:", Object.keys(payload).join(', '));
-        if (payload.node) {
-            console.log("[Webhook] Node type:", typeof payload.node, "Node keys:", typeof payload.node === 'object' ? Object.keys(payload.node).join(', ') : String(payload.node));
+        // Log raw payload for debugging (only when logging is enabled)
+        if (env.WEBHOOK_LOGGING_ENABLED === "true") {
+            console.log("[Webhook] Raw payload keys:", Object.keys(payload).join(', '));
+            if (payload.node) {
+                console.log("[Webhook] Node type:", typeof payload.node, "Node keys:", typeof payload.node === 'object' ? Object.keys(payload.node).join(', ') : String(payload.node));
+            }
         }
 
         // 3. Validate payload structure

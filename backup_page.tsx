@@ -174,7 +174,7 @@ export default function OrdersPage() {
         // Message templates
         messageTemplates,
         // Realtime version (forces re-renders)
-        realtimeVersion,
+
     } = useOrdersContext();
 
     // Get products for Excel import matching
@@ -478,7 +478,7 @@ export default function OrdersPage() {
         });
         return result;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [hookFilteredOrders, sortConfig, debouncedColumnFilters, filterDuplicatesOnly, getCustomerOrderCount, realtimeVersion, filters.riskLevel, getRiskLevel, riskLoading]);
+    }, [hookFilteredOrders, sortConfig, debouncedColumnFilters, filterDuplicatesOnly, getCustomerOrderCount, filters.riskLevel, getRiskLevel, riskLoading]);
 
 
 
@@ -1906,7 +1906,7 @@ export default function OrdersPage() {
                                             />
                                         ) : (
                                             /* Use animated list for <50 orders */
-                                            <StaggerContainer key={`orders-list-${realtimeVersion}`} className="space-y-3">
+                                            <StaggerContainer key="orders-list" className="space-y-3">
                                                 {displayedOrders.map((order) => {
                                                     const customerOrders = getCustomerHistory(order.phone);
                                                     const orderCount = getCustomerOrderCount(order.phone, order.order_id);
@@ -1971,7 +1971,7 @@ export default function OrdersPage() {
 
                                 {/* Table View - State of the Art */}
                                 {viewMode === "table" && (
-                                    <div key={`table-view-${realtimeVersion}`} className="pastel-card">
+                                    <div key="table-view" className="pastel-card">
                                         <div className="overflow-x-auto">
                                             <table className="w-full">
                                                 <thead className="bg-[var(--background)] border-b border-[var(--card-border)] sticky top-0 z-30">

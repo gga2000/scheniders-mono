@@ -95,10 +95,10 @@ export function CreateOrderModal({
     const [orderIdStatus, setOrderIdStatus] = useState<"idle" | "checking" | "available" | "exists">("idle");
     const [isCheckingId, setIsCheckingId] = useState(false);
     const [deliveryFee, setDeliveryFee] = useState(5000);
-    const [includeDeliveryFee, setIncludeDeliveryFee] = useState(true);
+    const [includeDeliveryFee, setIncludeDeliveryFee] = useState(false);
     const [editingPriceIndex, setEditingPriceIndex] = useState<number | null>(null);
 
-    // Sync formData with initialData when modal opens
+    // Sync formData with initialData only when modal first opens
     useEffect(() => {
         if (open && initialData) {
             setFormData({
@@ -119,7 +119,8 @@ export function CreateOrderModal({
                 setDiscount(0); // Reset discount, user can set it manually
             }
         }
-    }, [open, initialData]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open]); // Only depend on 'open', not initialData, to prevent reset when parent re-renders
 
     // Handle order type change
     const handleOrderTypeChange = (type: OrderType) => {

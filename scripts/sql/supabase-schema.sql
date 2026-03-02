@@ -44,7 +44,8 @@ CREATE TABLE IF NOT EXISTS orders (
     'completed',     -- Delivery verified and finalized
     'no_response',   -- Customer never responded to contact attempts
     'return_pending', -- Return order awaiting processing
-    'pending_checkout' -- Checkout initiated but not completed
+    'pending_checkout', -- Checkout initiated but not completed
+    'suspended'      -- Confirmed order delayed due to stock/waiting time
   )),
   
   -- Communication

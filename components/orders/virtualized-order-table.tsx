@@ -4,7 +4,7 @@ import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useRef, useMemo, Fragment, useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import type { Order, OrderStatus } from '@/lib/supabase';
-import { ArrowUp, ArrowDown, Filter as FilterIcon, Check, MapPin as Pin, CopyPlus, TrendingUp, TrendingDown, CheckCircle2 } from 'lucide-react';
+import { ArrowUp, ArrowDown, Filter as FilterIcon, Check, MapPin as Pin, CopyPlus, TrendingUp, TrendingDown, CheckCircle2, CloudUpload } from 'lucide-react';
 import { RiskBadge } from '@/components/orders/risk-badge';
 import { formatIQD } from '@/lib/utils';
 
@@ -405,7 +405,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                                     {/* Order ID */}
                                     <div role="cell"
                                         className={cn(
-                                            "px-2 py-2.5 h-full flex items-center cursor-pointer border-r border-gray-100",
+                                            "px-2 py-2.5 h-full flex items-center gap-1.5 cursor-pointer border-r border-gray-100",
                                             isCancelled && "bg-gray-50"
                                         )}
                                         onClick={() => { setSelectedOrder(order); setIsModalOpen(true); }}
@@ -422,6 +422,10 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                                                 return order.order_id.slice(-6);
                                             })()}
                                         </span>
+                                        {/* @ts-ignore */}
+                                        {order.__isPendingSync && (
+                                            <CloudUpload className="w-3.5 h-3.5 text-blue-500 animate-pulse" title="Pending offline sync" />
+                                        )}
                                     </div>
 
                                     {/* Customer */}

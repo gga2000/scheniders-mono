@@ -17,7 +17,9 @@ import { cleanPhoneForExport } from "@/lib/export-utils";
 import { activityLogger } from "@/lib/activity-logger";
 import { OrderSchema } from "@/lib/schemas";
 import { createOrderAction, splitOrderAction } from "@/app/actions/orders";
-import { SyncQueue } from "@/lib/sync-queue";
+import { SyncEngine } from "@/lib/sync-engine";
+import { updateWithConflictCheck } from "@/lib/conflict-detection";
+import { getIdempotencyGuard, generateIdempotencyKey } from "@/lib/idempotency";
 import {
     useUpdateStatusMutation,
     useUpdateOrderMutation,
@@ -42,18 +44,18 @@ interface UndoEntry {
 
 interface UseOrderCrudOptions {
     orders?: Order[];
-    setOrders?: React.Dispatch<React.SetStateAction<Order[]>>;
 }
 
-export function useOrderCrud({ orders = [], setOrders }: UseOrderCrudOptions = {}) {
+export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     const queryClient = useQueryClient();
     const { user, profile } = useAuth();
 
-    // Safe setOrders wrapper
-    const safeSetOrders = (updater: React.SetStateAction<Order[]>) => {
-        if (setOrders) {
-            setOrders(updater);
-        }
+    // Helper: optimistically update the React Query orders cache
+    const optimisticUpdate = (updater: (prev: Order[]) => Order[]) => {
+        queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) => {
+            if (!old) return old;
+            return updater(old);
+        });
     };
 
     // Mutations
@@ -67,41 +69,15 @@ export function useOrderCrud({ orders = [], setOrders }: UseOrderCrudOptions = {
     const MAX_UNDO_STACK = 10;
 
     // Abort controller for fetch
-    const abortControllerRef = useRef<AbortController | null>(null);
     const isMountedRef = useRef(true);
 
     // =============================================
-    // LEGACY FETCH (kept for backward compat)
+    // REFETCH VIA REACT QUERY (replaces legacy fetchOrders)
     // =============================================
 
-    async function fetchOrders(isInitialLoad: boolean = false) {
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-        }
-
-        const controller = new AbortController();
-        abortControllerRef.current = controller;
-
-        try {
-            const { data, error: fetchError } = await supabase
-                .from("orders")
-                .select("*")
-                .eq("is_archived", false)
-                .order("created_at", { ascending: false })
-                .abortSignal(controller.signal);
-
-            if (controller.signal.aborted) return;
-            if (!isMountedRef.current) return;
-            if (fetchError) throw fetchError;
-
-            const ordersWithDefaults = (data || []).map(normalizeOrder);
-            safeSetOrders(ordersWithDefaults);
-        } catch (err) {
-            if (err instanceof Error && err.name === 'AbortError') return;
-            if (isMountedRef.current && !controller.signal.aborted) {
-                console.error("Error fetching orders:", err);
-            }
-        }
+    async function fetchOrders() {
+        // Simply invalidate the React Query cache — it will refetch automatically
+        await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
     }
 
     async function fetchArchivedOrders() {
@@ -140,10 +116,36 @@ export function useOrderCrud({ orders = [], setOrders }: UseOrderCrudOptions = {
                         status: previousOrder.status,
                         rejection_reason: previousOrder.rejection_reason,
                     },
-                    action: `Changed status to ${status} `,
+                    action: `Changed status to ${status}`,
                     timestamp: new Date(),
                 };
                 setUndoStack(prev => [undoEntry, ...prev.slice(0, MAX_UNDO_STACK - 1)]);
+            }
+
+            // Offline handling
+            if (!navigator.onLine) {
+                console.log("[Offline] Queuing status update for", orderId);
+                await SyncEngine.enqueue({
+                    type: "UPDATE_STATUS",
+                    payload: {
+                        orderId,
+                        status,
+                        rejectionReason,
+                        expectedUpdatedAt: previousOrder?.updated_at
+                    }
+                });
+
+                // Optimistic UI update
+                optimisticUpdate(prev => prev.map(o =>
+                    o.id === orderId ? {
+                        ...o,
+                        status,
+                        rejection_reason: rejectionReason || null,
+                        __isPendingSync: true
+                    } as Order : o
+                ));
+
+                return { success: true };
             }
 
             const { updateData } = await updateStatusMutation.mutateAsync({
@@ -217,10 +219,67 @@ export function useOrderCrud({ orders = [], setOrders }: UseOrderCrudOptions = {
             const cleanUpdates = { ...updates };
             delete (cleanUpdates as any).customer;
 
-            await updateOrderMutation.mutateAsync({
-                orderId,
-                updates: cleanUpdates
-            });
+            // Get the current order's updated_at for conflict detection
+            const currentOrder = orders.find(o => o.id === orderId);
+            const expectedUpdatedAt = currentOrder?.updated_at;
+
+            // Offline handling
+            if (!navigator.onLine) {
+                console.log("[Offline] Queuing update for", orderId);
+                await SyncEngine.enqueue({
+                    type: "UPDATE_ORDER",
+                    payload: {
+                        orderId,
+                        updates: cleanUpdates,
+                        expectedUpdatedAt
+                    }
+                });
+
+                // Optimistic UI update
+                optimisticUpdate(prev => prev.map(o =>
+                    o.id === orderId ? normalizeOrder({
+                        ...o,
+                        ...cleanUpdates,
+                        // @ts-ignore
+                        __isPendingSync: true
+                    }) : o
+                ));
+
+                return { success: true };
+            }
+
+            if (expectedUpdatedAt) {
+                // Use conflict-aware update
+                const result = await updateWithConflictCheck(
+                    "orders",
+                    orderId,
+                    cleanUpdates,
+                    expectedUpdatedAt
+                );
+
+                if (result.conflict) {
+                    // Invalidate cache to get fresh data
+                    queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+                    return { success: false, error: result.error };
+                }
+
+                if (!result.success) {
+                    return { success: false, error: result.error };
+                }
+
+                // Update cache with the returned data
+                if (result.data) {
+                    optimisticUpdate((prev) =>
+                        prev.map((o) => o.id === orderId ? normalizeOrder({ ...o, ...result.data }) : o)
+                    );
+                }
+            } else {
+                // Fallback: no conflict check possible (order not in cache)
+                await updateOrderMutation.mutateAsync({
+                    orderId,
+                    updates: cleanUpdates
+                });
+            }
 
             return { success: true };
         } catch (err) {
@@ -233,6 +292,15 @@ export function useOrderCrud({ orders = [], setOrders }: UseOrderCrudOptions = {
     }
 
     async function createOrder(orderData: Omit<Order, "id" | "created_at" | "updated_at">): Promise<{ success: boolean; data?: Order; error?: string }> {
+        // Idempotency guard: prevent double-click / duplicate submissions
+        const fingerprint = `create_${orderData.order_id || ''}_${orderData.phone || ''}_${Date.now()}`;
+        const idempotencyKey = generateIdempotencyKey(fingerprint);
+        const guard = getIdempotencyGuard();
+
+        if (!guard.tryExecute(idempotencyKey)) {
+            return { success: false, error: "Duplicate request — this order is already being created." };
+        }
+
         try {
             const validationResult = OrderSchema.safeParse({
                 ...orderData,
@@ -247,22 +315,26 @@ export function useOrderCrud({ orders = [], setOrders }: UseOrderCrudOptions = {
 
             // Offline handling
             if (!navigator.onLine) {
-                console.log("Offline: Queuing order creation");
+                console.log("[Offline] Queuing order creation");
                 const tempId = `temp-${Date.now()}`;
-                const offlineOrder = { ...orderData, id: tempId, created_at: new Date().toISOString() } as Order;
 
-                await SyncQueue.enqueue({
+                // Add pending sync flag
+                const offlineOrder = {
+                    ...orderData,
+                    id: tempId,
+                    created_at: new Date().toISOString(),
+                    __isPendingSync: true
+                } as any;
+
+                await SyncEngine.enqueue({
                     type: "CREATE_ORDER",
                     payload: orderData,
                 });
 
-                queryClient.setQueryData<Order[]>(["orders", "list"], (old) => {
+                queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) => {
                     return [offlineOrder, ...(old || [])];
                 });
 
-                if (setOrders) {
-                    safeSetOrders(prev => [offlineOrder, ...prev]);
-                }
                 return { success: true, data: offlineOrder };
             }
 
@@ -302,6 +374,8 @@ export function useOrderCrud({ orders = [], setOrders }: UseOrderCrudOptions = {
 
             return { success: true, data };
         } catch (err) {
+            // Release idempotency key so the user can retry
+            guard.release(idempotencyKey);
             console.error("Error creating order:", err);
             return {
                 success: false,
@@ -431,7 +505,8 @@ export function useOrderCrud({ orders = [], setOrders }: UseOrderCrudOptions = {
 
         const newPinnedState = !order.is_pinned;
 
-        safeSetOrders((prev) =>
+        // Optimistic update via React Query cache
+        optimisticUpdate((prev) =>
             prev.map((o) =>
                 o.id === orderId ? { ...o, is_pinned: newPinnedState } : o
             )
@@ -447,7 +522,8 @@ export function useOrderCrud({ orders = [], setOrders }: UseOrderCrudOptions = {
             return { success: true };
         } catch (err) {
             console.error("Error toggling pin:", err);
-            safeSetOrders((prev) =>
+            // Rollback optimistic update
+            optimisticUpdate((prev) =>
                 prev.map((o) =>
                     o.id === orderId ? { ...o, is_pinned: !newPinnedState } : o
                 )
@@ -457,7 +533,7 @@ export function useOrderCrud({ orders = [], setOrders }: UseOrderCrudOptions = {
     }
 
     async function setPin(orderId: string, isPinned: boolean) {
-        safeSetOrders((prev) =>
+        optimisticUpdate((prev) =>
             prev.map((o) =>
                 o.id === orderId ? { ...o, is_pinned: isPinned } : o
             )
@@ -473,7 +549,7 @@ export function useOrderCrud({ orders = [], setOrders }: UseOrderCrudOptions = {
             return { success: true };
         } catch (err) {
             console.error("Error setting pin:", err);
-            safeSetOrders((prev) =>
+            optimisticUpdate((prev) =>
                 prev.map((o) =>
                     o.id === orderId ? { ...o, is_pinned: !isPinned } : o
                 )
@@ -492,7 +568,7 @@ export function useOrderCrud({ orders = [], setOrders }: UseOrderCrudOptions = {
 
         const newReviewedState = !order.is_reviewed;
 
-        safeSetOrders((prev) =>
+        optimisticUpdate((prev) =>
             prev.map((o) =>
                 o.id === orderId ? { ...o, is_reviewed: newReviewedState } : o
             )
@@ -508,7 +584,7 @@ export function useOrderCrud({ orders = [], setOrders }: UseOrderCrudOptions = {
             return { success: true };
         } catch (err) {
             console.error("Error toggling reviewed:", err);
-            safeSetOrders((prev) =>
+            optimisticUpdate((prev) =>
                 prev.map((o) =>
                     o.id === orderId ? { ...o, is_reviewed: !newReviewedState } : o
                 )
@@ -522,7 +598,7 @@ export function useOrderCrud({ orders = [], setOrders }: UseOrderCrudOptions = {
         if (!order) return { success: false, error: "Order not found" };
 
         const phone = order.phone;
-        safeSetOrders((prev) =>
+        optimisticUpdate((prev) =>
             prev.map((o) =>
                 o.phone === phone ? { ...o, is_verified_customer: true } : o
             )
@@ -538,7 +614,7 @@ export function useOrderCrud({ orders = [], setOrders }: UseOrderCrudOptions = {
             return { success: true };
         } catch (err) {
             console.error("Error marking as verified customer:", err);
-            safeSetOrders((prev) =>
+            optimisticUpdate((prev) =>
                 prev.map((o) =>
                     o.phone === phone ? { ...o, is_verified_customer: false } : o
                 )
@@ -583,7 +659,8 @@ export function useOrderCrud({ orders = [], setOrders }: UseOrderCrudOptions = {
                 });
             }).catch(console.error);
 
-            safeSetOrders((prev) =>
+            // Update React Query cache
+            optimisticUpdate((prev) =>
                 prev.map((order) =>
                     orderIds.includes(order.id) ? { ...order, status } : order
                 )
@@ -608,7 +685,8 @@ export function useOrderCrud({ orders = [], setOrders }: UseOrderCrudOptions = {
 
             if (updateError) throw updateError;
 
-            safeSetOrders((prev) => prev.filter((order) => !orderIds.includes(order.id)));
+            // Remove archived orders from active list in cache
+            optimisticUpdate((prev) => prev.filter((order) => !orderIds.includes(order.id)));
             return { success: true, count: orderIds.length };
         } catch (err) {
             console.error("Error archiving orders:", err);
@@ -665,7 +743,7 @@ export function useOrderCrud({ orders = [], setOrders }: UseOrderCrudOptions = {
                 throw new Error("No orders were deleted.");
             }
 
-            safeSetOrders((prev) => prev.filter((order) => !deletedIds.has(order.id)));
+            optimisticUpdate((prev) => prev.filter((order) => !deletedIds.has(order.id)));
 
             // Invalidate React Query cache so stale data doesn't reappear
             await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
@@ -884,7 +962,8 @@ export function useOrderCrud({ orders = [], setOrders }: UseOrderCrudOptions = {
 
             if (archiveError) throw archiveError;
 
-            safeSetOrders((prev) =>
+            // Update React Query cache
+            optimisticUpdate((prev) =>
                 prev
                     .map((order) => {
                         if (order.id === keepOrderId) {
@@ -1110,7 +1189,8 @@ export function useOrderCrud({ orders = [], setOrders }: UseOrderCrudOptions = {
 
             if (updateError) throw updateError;
 
-            safeSetOrders((prev) =>
+            // Update React Query cache
+            optimisticUpdate((prev) =>
                 prev.map((order) =>
                     order.id === lastAction.orderId
                         ? { ...order, ...lastAction.previousState }

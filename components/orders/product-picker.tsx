@@ -24,9 +24,9 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
     const [search, setSearch] = useState("");
     const [selectedProducts, setSelectedProducts] = useState<Map<string, SelectedProduct>>(new Map());
 
-    // Only show active (non-archived) products
+    // Only show active (non-archived) products that are not supplies
     const filteredProducts = useMemo(() => {
-        const activeProducts = products.filter(p => !p.is_archived);
+        const activeProducts = products.filter(p => !p.is_archived && !p.is_supply);
         if (!search.trim()) return activeProducts;
         const searchLower = search.toLowerCase();
         return activeProducts.filter(p => p.name.toLowerCase().includes(searchLower));

@@ -25,14 +25,14 @@ export function createIDBPersister(idbValidKey: IDBValidKey = "reactQuery"): Per
 export const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
-            gcTime: 1000 * 60 * 60 * 24, // 24 hours (garbage collection time)
-            staleTime: 1000 * 60 * 5, // 5 minutes (data considered fresh)
+            gcTime: 1000 * 60 * 60, // 1 hour (garbage collection time)
+            staleTime: 1000 * 60, // 1 minute (data considered fresh)
             retry: 1,
-            networkMode: "offlineFirst", // If offline, return cache immediately
+            // networkMode: "online" is the default — fetches from network,
+            // falls back to cache only when offline.
+            // "offlineFirst" was causing stale IndexedDB data to be served
+            // without ever hitting the network.
         },
-        mutations: {
-            networkMode: "offlineFirst",
-        }
     },
 });
 

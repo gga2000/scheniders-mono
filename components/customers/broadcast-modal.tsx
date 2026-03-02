@@ -34,6 +34,9 @@ export function BroadcastModal({ isOpen, onClose, selectedCount, selectedPhones 
 
             navigator.clipboard.writeText(textToCopy).then(() => {
                 alert(`Generated WhatsApp Links for ${selectedCount} customers and copied them to your clipboard.\n\n(In the future, this will connect directly to the WhatsApp Business API for true one-click broadcasting.)`);
+            }).catch(() => {
+                // Fallback: prompt user to copy manually
+                prompt("Failed to copy automatically. Copy the links below:", textToCopy);
             });
         } else {
             // SMS fallback logic (e.g., using a native sms: protocol if on mobile)

@@ -103,13 +103,13 @@ export function useBatchRiskAssessment(orders: OrderWithPhone[]) {
 
         const fetchTimer = setTimeout(() => {
             setLoading(true);
-            console.log("[useBatchRiskAssessment] Starting batch assess for", phonesToFetch.length, "phones");
+
 
             fraudDetector
                 .batchAssess(phonesToFetch)
                 .then((results) => {
                     if (!cancelled) {
-                        console.log("[useBatchRiskAssessment] Assessments loaded:", results.size);
+
                         setAssessments(results);
                         setLastFetchedPhones(phonesToFetch);
                         setLoading(false);
@@ -136,7 +136,7 @@ export function useBatchRiskAssessment(orders: OrderWithPhone[]) {
     // Calculate provisional risk based ONLY on loaded orders
     // This gives 0ms feedback while the RPC runs
     const localRiskMap = useMemo(() => {
-        console.time("[useBatchRiskAssessment] localRiskMap calc");
+
         const map = new Map<string, RiskAssessment>();
 
         // Group orders by phone (normalized)
@@ -183,7 +183,7 @@ export function useBatchRiskAssessment(orders: OrderWithPhone[]) {
             }
         });
 
-        console.timeEnd("[useBatchRiskAssessment] localRiskMap calc");
+
         return map;
     }, [orders]);
 

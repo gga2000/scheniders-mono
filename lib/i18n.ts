@@ -86,6 +86,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         // Order Detail Modal
         "orderDetail.history": "History",
         "orderDetail.edit": "Edit",
+        "orderDetail.reorder": "Reorder",
         "orderDetail.return": "Return",
         "orderDetail.customerInfo": "Customer Information",
         "orderDetail.name": "Name",
@@ -544,6 +545,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         // Order Detail Modal
         "orderDetail.history": "السجل",
         "orderDetail.edit": "تعديل",
+        "orderDetail.reorder": "إعادة طلب",
         "orderDetail.return": "استرجاع",
         "orderDetail.customerInfo": "معلومات العميل",
         "orderDetail.name": "الاسم",

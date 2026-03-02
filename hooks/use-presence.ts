@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -15,14 +15,30 @@ export function usePresence(channelId: string) {
     const [activeUsers, setActiveUsers] = useState<PresenceUser[]>([]);
     const [isConnected, setIsConnected] = useState(false);
 
+    // Use refs for user and profile so the effect doesn't re-subscribe
+    // on every object reference change (same pattern as use-global-presence)
+    const userRef = useRef(user);
+    const profileRef = useRef(profile);
+
     useEffect(() => {
-        if (!user || !profile || !channelId) return;
+        userRef.current = user;
+        profileRef.current = profile;
+    }, [user, profile]);
+
+    // Only depend on stable primitives
+    const userId = user?.id;
+
+    useEffect(() => {
+        if (!userId || !userRef.current || !profileRef.current || !channelId) return;
+
+        const currentUser = userRef.current;
+        const currentProfile = profileRef.current;
 
         // Create a unique channel for this resource (e.g. "order:123")
         const channel = supabase.channel(`presence:${channelId}`, {
             config: {
                 presence: {
-                    key: user.id,
+                    key: userId,
                 },
             },
         });
@@ -44,10 +60,10 @@ export function usePresence(channelId: string) {
                 if (status === 'SUBSCRIBED') {
                     setIsConnected(true);
                     await channel.track({
-                        id: user.id,
-                        display_name: profile.display_name || user.email?.split('@')[0] || 'User',
-                        avatar_url: profile.avatar_url,
-                        role: profile.role,
+                        id: userId,
+                        display_name: profileRef.current?.display_name || currentProfile.display_name || currentUser.email?.split('@')[0] || 'User',
+                        avatar_url: profileRef.current?.avatar_url || currentProfile.avatar_url,
+                        role: profileRef.current?.role || currentProfile.role,
                         online_at: new Date().toISOString(),
                     });
                 }
@@ -57,7 +73,7 @@ export function usePresence(channelId: string) {
             channel.unsubscribe();
             setIsConnected(false);
         };
-    }, [channelId, user, profile]);
+    }, [channelId, userId]); // Only re-subscribe on channelId or userId change, NOT on user/profile object references
 
     // Filter out current user from "others" list if needed, or return all
     const otherUsers = activeUsers.filter(u => u.id !== user?.id);

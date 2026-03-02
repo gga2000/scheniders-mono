@@ -1,4 +1,4 @@
-export function evaluateAutoAssignments(orders, rules, currentAssignments) {
+function evaluateAutoAssignments(orders, rules, currentAssignments) {
     const newAssignments = [];
     const sortedRules = [...rules].sort((a, b) => b.priority - a.priority);
 

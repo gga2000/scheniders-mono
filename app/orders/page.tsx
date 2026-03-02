@@ -195,8 +195,6 @@ export default function OrdersPage() {
         statusCounts,
         // Message templates
         messageTemplates,
-        // Realtime version (forces re-renders)
-        realtimeVersion,
     } = useOrdersContext();
 
     // Get products for Excel import matching
@@ -477,7 +475,7 @@ export default function OrdersPage() {
         });
         return result;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [defHookFilteredOrders, defSortConfig, defColumnFilters, defFilterDuplicatesOnly, getCustomerOrderCount, realtimeVersion, defRiskLevel, getRiskLevel, riskLoading]);
+    }, [defHookFilteredOrders, defSortConfig, defColumnFilters, defFilterDuplicatesOnly, getCustomerOrderCount, defRiskLevel, getRiskLevel, riskLoading]);
 
     const defOrders = React.useDeferredValue(orders);
 
@@ -2145,7 +2143,7 @@ export default function OrdersPage() {
                                             />
                                         ) : (
                                             /* Use animated list for <50 orders */
-                                            <StaggerContainer key={`orders-list-${realtimeVersion}`} className="space-y-3">
+                                            <StaggerContainer key="orders-list" className="space-y-3">
                                                 {displayedOrders.map((order) => {
                                                     const customerOrders = getCustomerHistory(order.phone);
                                                     const orderCount = getCustomerOrderCount(order.phone, order.order_id);

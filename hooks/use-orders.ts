@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Order } from "@/lib/supabase";
 
@@ -10,18 +10,28 @@ import { useOrderRealtime } from "@/hooks/use-order-realtime";
 import { useOrderAuxiliary } from "@/hooks/use-order-auxiliary";
 import { useOrderCrud } from "@/hooks/use-order-crud";
 import { useAppLifecycle } from "@/hooks/use-app-lifecycle";
+import { useRealtimeHeartbeat } from "@/hooks/use-realtime-heartbeat";
 
 // React Query hooks for caching
 import {
     useOrdersQuery,
     useArchivedOrdersQuery,
     orderRefetchTriggers,
+    orderKeys,
 } from "@/hooks/use-orders-query";
+
+import { useState, useEffect } from "react";
+import { SyncEngine } from "@/lib/sync-engine";
 
 // =============================================
 // ENHANCED ORDERS HOOK (Composition Root)
 // Composes focused sub-hooks into a single API
 // surface. Same return type for backward compat.
+//
+// ARCHITECTURE: React Query cache is the SINGLE
+// source of truth for orders. No local useState
+// copy. Sub-hooks manipulate the cache directly
+// via queryClient.setQueryData / invalidateQueries.
 // =============================================
 
 export function useOrders() {
@@ -41,45 +51,40 @@ export function useOrders() {
 
     const { data: cachedOrders, isLoading: queryLoading, error: queryError, isFetching } = useOrdersQuery(refetchTrigger);
 
-    // Core state - seeded from React Query cache
-    const [orders, setOrders] = useState<Order[]>(() => {
-        const cached = queryClient.getQueryData<Order[]>(["orders", "list"]);
-        return cached || [];
-    });
-    const [archivedOrders, setArchivedOrders] = useState<Order[]>([]);
-    const [loading, setLoading] = useState(() => {
-        const cached = queryClient.getQueryData<Order[]>(["orders", "list"]);
-        return !cached;
-    });
-    const [error, setError] = useState<string | null>(null);
+    // Single source of truth: React Query cache
+    const orders = cachedOrders ?? [];
+    const loading = queryLoading;
+    const error = queryError instanceof Error ? queryError.message : queryError ? "Failed to fetch orders" : null;
 
-    // Sync React Query data to local state
+    // =============================================
+    // OFFLINE SYNC ENGINE INTEGRATION
+    // =============================================
     useEffect(() => {
-        if (cachedOrders) {
-            setOrders(cachedOrders);
-            setLoading(false);
-            setError(null);
-        }
-    }, [cachedOrders]);
+        // Attempt sync on absolute mount
+        SyncEngine.sync().catch(console.error);
 
-    // Handle query errors
-    useEffect(() => {
-        if (queryError) {
-            setError(queryError instanceof Error ? queryError.message : "Failed to fetch orders");
-            setLoading(false);
-        }
-    }, [queryError]);
+        // Attempt sync whenever network comes back online
+        const handleOnline = () => {
+            console.log("[useOrders] Network online - triggering offline sync engine");
+            SyncEngine.sync().catch(console.error);
+        };
+
+        window.addEventListener("online", handleOnline);
+        return () => window.removeEventListener("online", handleOnline);
+    }, []);
 
     // =============================================
     // COMPOSE SUB-HOOKS
     // =============================================
 
+    // Archived orders
+    const [archivedOrders, setArchivedOrders] = useState<Order[]>([]);
+
     // 1. Filters — filter state, presets, persistence, derived lists
     const filterHook = useOrderFilters({ orders, archivedOrders });
 
-    // 2. Realtime — Supabase channel subscription
-    const { realtimeVersion } = useOrderRealtime({
-        setOrders,
+    // 2. Realtime — Supabase channel subscription (updates RQ cache directly)
+    useOrderRealtime({
         onReconnect: () => {
             console.log("[useOrders] Realtime reconnected - triggering refetch");
             setRefetchTrigger(orderRefetchTriggers.realtimeReconnect + Date.now());
@@ -90,7 +95,10 @@ export function useOrders() {
     const auxiliaryHook = useOrderAuxiliary({ orders, archivedOrders });
 
     // 4. CRUD — all order mutations, undo, notes, timeline, etc.
-    const crudHook = useOrderCrud({ orders, setOrders });
+    const crudHook = useOrderCrud({ orders });
+
+    // 5. Heartbeat — lightweight 30s check for silent realtime disconnections
+    useRealtimeHeartbeat({ enabled: !loading });
 
     // Sync archived orders from React Query
     const { data: cachedArchivedOrders } = useArchivedOrdersQuery(
@@ -118,7 +126,6 @@ export function useOrders() {
         loading,
         error,
         stats: auxiliaryHook.stats,
-        realtimeVersion,
 
         // Reference data
         rejectionReasons: auxiliaryHook.rejectionReasons,
@@ -199,7 +206,7 @@ export function useOrders() {
         checkOrderIdExists: crudHook.checkOrderIdExists,
     }), [
         orders, filterHook, archivedOrders, loading, error, auxiliaryHook,
-        realtimeVersion, crudHook,
+        crudHook,
     ]);
 
     return contextValue;

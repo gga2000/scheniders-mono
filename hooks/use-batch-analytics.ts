@@ -65,9 +65,8 @@ export function useBatchAnalytics(dateRange: DateRange): UseBatchAnalyticsResult
             setRawBatches(batchData || []);
 
             // Get all order IDs from batches
-            const allOrderIds = (batchData || [])
-                .flatMap(b => b.order_ids || [])
-                .filter((id, index, arr) => arr.indexOf(id) === index);
+            const allOrderIds = [...new Set((batchData || [])
+                .flatMap(b => b.order_ids || []))];
 
             if (allOrderIds.length > 0) {
                 // Fetch order statuses for delivery rate calculation
@@ -114,8 +113,8 @@ export function useBatchAnalytics(dateRange: DateRange): UseBatchAnalyticsResult
             // Determine batch status
             let status: BatchMetrics['status'] = 'pending';
             if (delivered === total && total > 0) status = 'completed';
-            else if (delivered > 0 || rejected > 0) status = 'in_progress';
             else if (delivered > 0 && rejected > 0) status = 'mixed';
+            else if (delivered > 0 || rejected > 0) status = 'in_progress';
 
             return {
                 id: batch.id,

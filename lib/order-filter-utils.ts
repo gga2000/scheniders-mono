@@ -181,6 +181,7 @@ export function calculateStatusCounts(orders: Order[]): Record<string, number> {
         rejected: 0,
         no_response: 0,
         return_pending: 0,
+        suspended: 0,
     };
 
     orders.forEach((order) => {
