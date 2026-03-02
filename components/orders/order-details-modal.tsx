@@ -16,7 +16,7 @@ import { formatIQD, formatDate, generateWhatsAppLink, getStatusLabel, getBaseOrd
 import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
 import { getAllGovernorateCodes, extractGovernorate } from "@/lib/address-validator";
 import { cn } from "@/lib/utils";
-import type { Order, OrderStatusHistory, OrderNote } from "@/lib/supabase";
+import type { Order, OrderStatusHistory, OrderNote, MessageTemplate } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
 import { OrderTimeline } from "./order-timeline";
 import { PresenceAvatarGroup } from "./presence-avatar-group";
@@ -84,6 +84,8 @@ interface OrderDetailsModalProps {
     checkOrderIdExists?: (orderId: string, excludeId?: string) => Promise<boolean>;
     assignments?: OrderAssignment[];
     onAssignDuty?: (orderId: string, duty: OrderDuty, employeeId: string) => void;
+    onOpenTemplatePanel?: (order: Order) => void;
+    messageTemplates?: MessageTemplate[];
 }
 
 export function OrderDetailsModal({
@@ -100,6 +102,8 @@ export function OrderDetailsModal({
     checkOrderIdExists,
     assignments = [],
     onAssignDuty,
+    onOpenTemplatePanel,
+    messageTemplates,
 }: OrderDetailsModalProps) {
     const [order, setOrder] = useState<Order | null>(propOrder);
     const governorates = getAllGovernorateCodes();
@@ -205,7 +209,6 @@ export function OrderDetailsModal({
             address_details: order.address_details || "",
             items: order.items || [],
             notes: `Reorder from #${order.order_id}`,
-            delivery_slot: order.delivery_slot,
             payment_status: "cod" as const,
             source: order.source || "whatsapp" as const,
         };
@@ -236,11 +239,15 @@ export function OrderDetailsModal({
 
 
     const handleWhatsApp = () => {
-        const link = generateWhatsAppLink(
-            order.phone,
-            `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
-        );
-        window.open(link, "_blank");
+        if (onOpenTemplatePanel && messageTemplates && messageTemplates.length > 0) {
+            onOpenTemplatePanel(order);
+        } else {
+            const link = generateWhatsAppLink(
+                order.phone,
+                `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
+            );
+            window.open(link, "_blank");
+        }
     };
 
 

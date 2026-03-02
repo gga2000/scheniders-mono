@@ -1795,6 +1795,11 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                     checkOrderIdExists={checkOrderIdExists}
                     assignments={selectedOrder ? assignments.filter(a => a.order_id === selectedOrder.id) : []}
                     onAssignDuty={handleAssignDuty}
+                    onOpenTemplatePanel={(o) => {
+                        setOrderForTemplate(o);
+                        setTemplatePanelOpen(true);
+                    }}
+                    messageTemplates={workflowTemplates}
                 />
                 <CreateOrderModal
                     open={isCreateModalOpen}
