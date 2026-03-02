@@ -14,15 +14,7 @@ export function GlobalPresenceIndicator() {
     const [isExpanded, setIsExpanded] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // Debug logging
-    useEffect(() => {
-        console.log('[GlobalPresence] Debug:', {
-            isConnected,
-            otherUsersCount: otherUsers.length,
-            totalOnline,
-            otherUsers
-        });
-    }, [isConnected, otherUsers, totalOnline]);
+
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -233,8 +225,8 @@ export function GlobalPresenceIndicator() {
                                                 user.role === 'admin'
                                                     ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
                                                     : user.role === 'employee'
-                                                    ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                                                    : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+                                                        ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                                                        : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
                                             )}>
                                                 {user.role}
                                             </span>

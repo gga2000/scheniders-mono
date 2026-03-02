@@ -526,13 +526,16 @@ export async function fetchCheckouts(token: string, options?: SyncOptions): Prom
  * Check if order already exists in our database
  */
 async function checkOrderExists(lightfunnelsId: string): Promise<boolean> {
-    const { data } = await supabase
+    const { data, error } = await supabase
         .from('orders')
         .select('id')
         .eq('order_id', `LF-${lightfunnelsId}`)
-        .single();
+        .maybeSingle();
 
-    return !!data;
+    // maybeSingle returns null data (no error) when no row found
+    // Returns data when exactly one row found
+    // Returns error only on actual database errors
+    return !!data && !error;
 }
 
 /**
@@ -775,16 +778,14 @@ export async function importOrder(lfOrder: LightfunnelsOrder): Promise<OrderImpo
  */
 export async function importCheckout(lfCheckout: LightfunnelsCheckout): Promise<OrderImportResult> {
     try {
-        // Check for duplicate
-        const exists = await checkOrderExists(`CHK-${lfCheckout._id}`);
-        // Note: checkOrderExists adds 'LF-' prefix, need to handle CHK separately or directly
-        const { data } = await supabase
+        // Check for duplicate - checkouts use CHK- prefix, not LF-
+        const { data: existingCheckout, error: checkError } = await supabase
             .from('orders')
             .select('id')
             .eq('order_id', `CHK-${lfCheckout._id}`)
-            .single();
+            .maybeSingle();
 
-        if (data) {
+        if (existingCheckout && !checkError) {
             return {
                 lightfunnelsId: String(lfCheckout._id),
                 orderName: `Checkout #${lfCheckout._id}`,
@@ -802,8 +803,8 @@ export async function importCheckout(lfCheckout: LightfunnelsCheckout): Promise<
             .select('id, order_id')
             .single();
 
-        if (error) {
-            throw error;
+        if (error || !insertData) {
+            throw error || new Error('Failed to insert checkout');
         }
 
         return {

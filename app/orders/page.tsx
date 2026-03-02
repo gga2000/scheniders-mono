@@ -135,7 +135,6 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useLanguage } from "@/hooks/use-language";
 
 export default function OrdersPage() {
-    console.log("[OrdersPage] Render");
     const {
         orders,
         filteredOrders: hookFilteredOrders,
@@ -415,7 +414,6 @@ export default function OrdersPage() {
     // Sort hook's filtered orders
     // Advanced Filtering & Sorting
     const filteredOrders = useMemo(() => {
-        console.time("[OrdersPage] filteredOrders calc");
         let result = [...defHookFilteredOrders];
 
         // 1. Apply Column Filters
@@ -472,12 +470,11 @@ export default function OrdersPage() {
                 if (aVal < bVal) return defSortConfig.direction === 'asc' ? -1 : 1;
                 if (aVal > bVal) return defSortConfig.direction === 'asc' ? 1 : -1;
                 return 0;
-            } else {
-                // Default sort: Newest first
-                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
             }
+
+            // Default sort: Newest first
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         });
-        console.timeEnd("[OrdersPage] filteredOrders calc");
         return result;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [defHookFilteredOrders, defSortConfig, defColumnFilters, defFilterDuplicatesOnly, getCustomerOrderCount, realtimeVersion, defRiskLevel, getRiskLevel, riskLoading]);
@@ -748,11 +745,8 @@ export default function OrdersPage() {
     const displayedOrders = showArchived ? archivedOrders : filteredOrders;
     const deferredDisplayedOrders = React.useDeferredValue(displayedOrders);
 
-    // Grouping Logic
     const groupedOrders = useMemo(() => {
-        console.time("[OrdersPage] groupedOrders calc");
         if (groupBy === 'none') {
-            console.timeEnd("[OrdersPage] groupedOrders calc");
             return {};
         }
 
@@ -766,7 +760,6 @@ export default function OrdersPage() {
             if (!groups[key]) groups[key] = [];
             groups[key].push(order);
         });
-        console.timeEnd("[OrdersPage] groupedOrders calc");
         return groups;
     }, [deferredDisplayedOrders, groupBy]);
 

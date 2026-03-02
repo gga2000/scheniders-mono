@@ -23,11 +23,9 @@ export function useGlobalPresence() {
 
     useEffect(() => {
         if (!user || !profile) {
-            console.log('[GlobalPresence] No user or profile:', { user: !!user, profile: !!profile });
             return;
         }
 
-        console.log('[GlobalPresence] Setting up channel for user:', user.id);
 
         // Global channel for all employees
         const channel = supabase.channel('presence:global', {
@@ -41,7 +39,6 @@ export function useGlobalPresence() {
         channel
             .on('presence', { event: 'sync' }, () => {
                 const newState = channel.presenceState();
-                console.log('[GlobalPresence] Presence sync:', newState);
 
                 // Flatten the presence state
                 const users = Object.values(newState).flat() as unknown as GlobalPresenceUser[];
@@ -54,12 +51,9 @@ export function useGlobalPresence() {
                     new Date(b.online_at).getTime() - new Date(a.online_at).getTime()
                 );
 
-                console.log('[GlobalPresence] Online users:', uniqueUsers);
                 setOnlineUsers(uniqueUsers);
             })
             .subscribe(async (status) => {
-                console.log('[GlobalPresence] Channel status:', status);
-
                 if (status === 'SUBSCRIBED') {
                     setIsConnected(true);
 
@@ -71,8 +65,6 @@ export function useGlobalPresence() {
                         online_at: new Date().toISOString(),
                         current_page: typeof window !== 'undefined' ? window.location.pathname : undefined,
                     };
-
-                    console.log('[GlobalPresence] Tracking presence:', presenceData);
 
                     // Track current user's presence
                     await channel.track(presenceData);

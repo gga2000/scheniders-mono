@@ -1,9 +1,16 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { type Order, type OrderItem } from "@/types";
 import { CACHE_PRESETS } from '@/lib/query-config';
 import { orderRepository } from "@/lib/repositories/order-repository";
+
+// Refetch trigger constants
+export const orderRefetchTriggers = {
+  appReopen: "appReopen",
+  realtimeReconnect: "realtimeReconnect",
+} as const;
 
 // Query keys for cache management
 export const orderKeys = {
@@ -27,14 +34,27 @@ async function fetchArchivedOrders(): Promise<Order[]> {
 
 /**
  * useOrdersQuery - React Query hook for fetching orders with caching
- * 
+ *
  * Benefits:
  * - Automatic caching with optimized timings
  * - Background refetching for fresh data on window focus
  * - Deduplication of parallel requests
  * - Instant data on repeat visits (from cache)
+ * - Force refetch on app reopen after being closed
+ *
+ * @param refetchTrigger - Optional trigger to force refetch (changes invalidate cache)
  */
-export function useOrdersQuery() {
+export function useOrdersQuery(refetchTrigger?: string) {
+    const queryClient = useQueryClient();
+
+    // Force refetch when trigger changes
+    useEffect(() => {
+        if (refetchTrigger) {
+            console.log(`[useOrdersQuery] Force refetch triggered: ${refetchTrigger}`);
+            queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+        }
+    }, [refetchTrigger, queryClient]);
+
     return useQuery({
         queryKey: orderKeys.lists(),
         queryFn: fetchOrders,

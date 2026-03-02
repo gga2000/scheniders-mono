@@ -27,9 +27,11 @@ import { OrderNotes } from "./order-notes";
 import { DiscountPresetSelector } from "./discount-preset-selector";
 import { DiscountBadge } from "./discount-badge";
 import { SplitOrderDialog } from "./split-order-dialog";
+import { CreateOrderModal } from "./create-order-modal";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderDetailsForm, useOrderIdEdit } from "@/hooks/use-order-details-form";
 import { useOrderDetailsState } from "@/hooks/use-order-details-state";
+import { useOrderCrud } from "@/hooks/use-order-crud";
 
 import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { OrderAssignment, OrderDuty, mockEmployees } from "@/lib/team-types";
@@ -65,6 +67,7 @@ import {
     Scissors,
     Minus,
     Sun,
+    PackagePlus,
 } from "lucide-react";
 
 interface OrderDetailsModalProps {
@@ -185,7 +188,33 @@ export function OrderDetailsModal({
         handleStatusChangeForm(newStatus, setOrder);
     };
 
-    
+    // Reorder functionality
+    const [showCreateOrderModal, setShowCreateOrderModal] = useState(false);
+    const [orderInitialData, setOrderInitialData] = useState<any>(null);
+    const { createOrder } = useOrderCrud();
+
+    const handleReorder = () => {
+        if (!order) return;
+
+        // Prepare customer data from the current order
+        const initialData = {
+            customer_name: order.customer_name,
+            phone: order.phone,
+            secondary_phone: order.secondary_phone || "",
+            city: order.city || "",
+            address_details: order.address_details || "",
+            items: order.items || [],
+            notes: `Reorder from #${order.order_id}`,
+            delivery_slot: order.delivery_slot,
+            payment_status: "cod" as const,
+            source: order.source || "whatsapp" as const,
+        };
+
+        setOrderInitialData(initialData);
+        setShowCreateOrderModal(true);
+    };
+
+
 
 
 
@@ -442,6 +471,16 @@ export function OrderDetailsModal({
                                     >
                                         <Edit2 className="h-3.5 w-3.5" />
                                         {t("orderDetail.edit")}
+                                    </button>
+                                )}
+                                {/* Reorder Button */}
+                                {!isEditing && (
+                                    <button
+                                        onClick={handleReorder}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 text-green-600 border border-green-200 hover:bg-green-100 transition-all text-xs font-medium dark:bg-green-950/30 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/40"
+                                    >
+                                        <PackagePlus className="h-3.5 w-3.5" />
+                                        {t("orderDetail.reorder") || "Reorder"}
                                     </button>
                                 )}
                                 {/* Return Button - Only for delivered/completed orders */}
@@ -931,6 +970,20 @@ export function OrderDetailsModal({
                 }
                 onSelect={handleProductSelect}
             />
+
+            {/* Create Order Modal for Reorder */}
+            {showCreateOrderModal && (
+                <CreateOrderModal
+                    open={showCreateOrderModal}
+                    onClose={() => {
+                        setShowCreateOrderModal(false);
+                        setOrderInitialData(null);
+                    }}
+                    onCreate={createOrder}
+                    checkOrderIdExists={checkOrderIdExists}
+                    initialData={orderInitialData}
+                />
+            )}
         </>
     );
 }

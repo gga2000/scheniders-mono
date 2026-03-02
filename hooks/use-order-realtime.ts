@@ -14,11 +14,19 @@ import { notificationService } from "@/lib/notification-service";
 
 interface UseOrderRealtimeOptions {
     setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
+    onReconnect?: () => void; // Callback when realtime reconnects after disconnect
 }
 
-export function useOrderRealtime({ setOrders }: UseOrderRealtimeOptions) {
+export function useOrderRealtime({ setOrders, onReconnect }: UseOrderRealtimeOptions) {
     const queryClient = useQueryClient();
     const [realtimeVersion, setRealtimeVersion] = useState(0);
+    const wasConnectedRef = useRef(false);
+    const onReconnectRef = useRef(onReconnect);
+
+    // Update ref when callback changes (without triggering effect re-run)
+    useEffect(() => {
+        onReconnectRef.current = onReconnect;
+    }, [onReconnect]);
 
     useEffect(() => {
         const subscriptionId = Math.random().toString(36).substring(7);
@@ -101,8 +109,26 @@ export function useOrderRealtime({ setOrders }: UseOrderRealtimeOptions) {
                         clearInterval(pollingInterval);
                         pollingInterval = null;
                     }
+
+                    // Detect reconnection after disconnect
+                    if (wasConnectedRef.current === false) {
+                        console.log("[Realtime] Reconnected - triggering refetch to catch missed events");
+                        onReconnectRef.current?.();
+                    }
+                    wasConnectedRef.current = true;
+
                 } else if (status === "CHANNEL_ERROR" || status === "CLOSED") {
                     console.log(`[Realtime] Error - falling back to polling: `, err);
+                    wasConnectedRef.current = false;
+
+                    // Optional polling fallback (currently disabled)
+                    // Uncomment if realtime is unreliable
+                    // if (!pollingInterval) {
+                    //     pollingInterval = setInterval(() => {
+                    //         console.log("[Realtime] Polling fallback triggered");
+                    //         onReconnectRef.current?.();
+                    //     }, 60000); // Poll every 60 seconds
+                    // }
                 }
             });
 
@@ -110,8 +136,10 @@ export function useOrderRealtime({ setOrders }: UseOrderRealtimeOptions) {
             channel.unsubscribe();
             if (pollingInterval) clearInterval(pollingInterval);
             if (realtimeRefetchTimeout) clearTimeout(realtimeRefetchTimeout);
+            wasConnectedRef.current = false;
         };
-    }, []);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Only run once on mount - onReconnect handled via ref
 
     return { realtimeVersion };
 }
