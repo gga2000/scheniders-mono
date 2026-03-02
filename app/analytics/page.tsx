@@ -19,6 +19,7 @@ import {
     Target,
     Users,
     Wallet,
+    ListChecks,
 } from "lucide-react";
 
 // Hooks
@@ -92,6 +93,10 @@ const MarketingExpenseModal = dynamic(
 );
 const PipelineSummaryCard = dynamic(
     () => import("@/components/analytics/pipeline-summary-card").then(mod => ({ default: mod.PipelineSummaryCard })),
+    { loading: () => <div className="skeleton h-48 rounded-2xl" /> }
+);
+const OrderFunnelCard = dynamic(
+    () => import("@/components/analytics/order-funnel-card").then(mod => ({ default: mod.OrderFunnelCard })),
     { loading: () => <div className="skeleton h-48 rounded-2xl" /> }
 );
 const OverviewCards = dynamic(
@@ -239,6 +244,7 @@ export default function AnalyticsPage() {
         customerAnalytics,
         productProfitAnalysis,
         pipelineSummary,
+        funnelSummary,
     } = useOrderProfits(ordersInRange, products, marketingCost);
 
     // Period comparison
@@ -315,7 +321,8 @@ export default function AnalyticsPage() {
     const { t } = useLanguage();
 
     return (
-        <div className="min-h-screen bg-[var(--background)] pb-12">
+        <div className="min-h-screen bg-[var(--background)] pb-12 px-4 md:px-8 lg:px-12">
+            <div className="max-w-[1400px] mx-auto">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                 <div>
@@ -464,6 +471,16 @@ export default function AnalyticsPage() {
                             </h2>
                             <PipelineSummaryCard pipeline={pipelineSummary} />
                         </div>
+                    </div>
+
+                    {/* Order Funnel - Full Width */}
+                    <div className="flex flex-col">
+                        <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                            <ListChecks className="w-5 h-5 text-teal-600" />
+                            Order Funnel
+                            <span className="text-xs font-normal text-muted">(Excluding cancelled & rejected)</span>
+                        </h2>
+                        <OrderFunnelCard funnel={funnelSummary} />
                     </div>
 
                     {/* Cost Composition */}
@@ -654,6 +671,7 @@ export default function AnalyticsPage() {
                 onSubmit={handleAddMarketingExpense}
                 dateRange={dateRange}
             />
+            </div>
         </div>
     );
 }

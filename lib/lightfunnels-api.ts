@@ -878,6 +878,32 @@ export async function syncOrders(
         results: [],
     };
 
+    // Pre-fetch existing LF order IDs in one query to avoid per-order DB lookups
+    const existingOrderIds = new Set<string>();
+    try {
+        let query = supabase
+            .from('orders')
+            .select('order_id')
+            .like('order_id', 'LF-%')
+            .eq('source', 'lightfunnels');
+
+        if (dateFrom) {
+            query = query.gte('created_at', `${dateFrom}T00:00:00`);
+        }
+        if (dateTo) {
+            query = query.lte('created_at', `${dateTo}T23:59:59.999`);
+        }
+
+        const { data: existingOrders } = await query;
+        if (existingOrders) {
+            for (const o of existingOrders) {
+                existingOrderIds.add(o.order_id);
+            }
+        }
+    } catch {
+        // Non-fatal: fall back to per-order checks via importOrder()
+    }
+
     let cursor: string | undefined;
     let hasMore = true;
 
@@ -891,15 +917,29 @@ export async function syncOrders(
             dateTo,
         });
 
-        // Import each order
         for (const order of orders) {
+            const orderId = `LF-${order._id}`;
+            summary.total++;
+
+            // Fast path: skip known duplicates without hitting the DB
+            if (existingOrderIds.has(orderId)) {
+                summary.duplicates++;
+                summary.results.push({
+                    lightfunnelsId: String(order._id),
+                    orderName: order.name,
+                    status: 'duplicate',
+                    message: 'Order already exists',
+                });
+                continue;
+            }
+
             const result = await importOrder(order);
             summary.results.push(result);
-            summary.total++;
 
             switch (result.status) {
                 case 'imported':
                     summary.imported++;
+                    existingOrderIds.add(orderId);
                     break;
                 case 'duplicate':
                     summary.duplicates++;
@@ -937,6 +977,48 @@ export async function syncCheckouts(
         errors: 0,
         results: [],
     };
+
+    // Pre-fetch existing CHK order IDs and real order phones to avoid per-checkout DB lookups
+    const existingCheckoutIds = new Set<string>();
+    const realOrderPhones = new Set<string>();
+    try {
+        // Fetch existing checkout IDs
+        const { data: existingCheckouts } = await supabase
+            .from('orders')
+            .select('order_id')
+            .like('order_id', 'CHK-%')
+            .eq('source', 'lightfunnels');
+
+        if (existingCheckouts) {
+            for (const c of existingCheckouts) {
+                existingCheckoutIds.add(c.order_id);
+            }
+        }
+
+        // Fetch phones from real orders in the date range (for abandoned checkout detection)
+        let realQuery = supabase
+            .from('orders')
+            .select('phone')
+            .eq('source', 'lightfunnels')
+            .neq('status', 'pending_checkout')
+            .not('phone', 'is', null);
+
+        if (dateFrom) {
+            realQuery = realQuery.gte('created_at', new Date(new Date(dateFrom + 'T00:00:00').getTime() - 24 * 60 * 60 * 1000).toISOString());
+        }
+        if (dateTo) {
+            realQuery = realQuery.lte('created_at', new Date(new Date(dateTo + 'T23:59:59.999').getTime() + 24 * 60 * 60 * 1000).toISOString());
+        }
+
+        const { data: realOrders } = await realQuery;
+        if (realOrders) {
+            for (const o of realOrders) {
+                if (o.phone) realOrderPhones.add(o.phone);
+            }
+        }
+    } catch {
+        // Non-fatal: fall back to per-checkout checks via importCheckout()
+    }
 
     let cursor: string | undefined;
     let hasMore = true;
@@ -1000,13 +1082,47 @@ export async function syncCheckouts(
 
         // Import each checkout
         for (const checkout of dateFilteredCheckouts) {
+            const checkoutId = `CHK-${checkout._id}`;
+            summary.total++;
+
+            // Fast path: skip if checkout already exists
+            if (existingCheckoutIds.has(checkoutId)) {
+                summary.duplicates++;
+                summary.results.push({
+                    lightfunnelsId: String(checkout._id),
+                    orderName: `Checkout #${checkout._id}`,
+                    status: 'duplicate',
+                    message: 'Checkout already exists',
+                });
+                continue;
+            }
+
+            // Fast path: skip if a real order exists for this phone
+            const chkPhone = checkout.phone
+                || checkout.shipping_address?.phone
+                || checkout.billing_address?.phone
+                || checkout.customer?.phone
+                || '';
+            const chkFormattedPhone = formatPhoneToStandard(chkPhone);
+
+            if (chkFormattedPhone && realOrderPhones.has(chkFormattedPhone)) {
+                summary.duplicates++;
+                summary.results.push({
+                    lightfunnelsId: String(checkout._id),
+                    orderName: `Checkout #${checkout._id}`,
+                    status: 'duplicate',
+                    message: 'Real order already exists for this customer',
+                });
+                continue;
+            }
+
             const result = await importCheckout(checkout);
             summary.results.push(result);
-            summary.total++;
 
             switch (result.status) {
                 case 'imported':
                     summary.imported++;
+                    existingCheckoutIds.add(checkoutId);
                     break;
                 case 'duplicate':
                     summary.duplicates++;
@@ -1028,8 +1144,8 @@ export async function syncCheckouts(
  * Get the saved access token from database settings
  * @param supabaseClient Optional custom supabase client (useful on server with service role)
  */
-export async function getSavedAccessToken(supabaseClient?: any): Promise<string | null> {
-    const client = supabaseClient || supabase;
+export async function getSavedAccessToken(supabaseClient?: unknown): Promise<string | null> {
+    const client = (supabaseClient as { from: (table: string) => any } | undefined) || supabase;
 
     try {
         const { data, error } = await client

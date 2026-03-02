@@ -122,7 +122,12 @@ export function OrderItemsEditor({
                         <DiscountPresetSelector
                             items={(formData.items || order.items || []) as any[]}
                             currentDiscount={(displayValue("discount_amount") as number) || 0}
-                            onDiscountChange={(val) => updateFormData("discount_amount", val)}
+                            onDiscountChange={(val) => {
+                                const items = (formData.items || order.items || []) as any[];
+                                const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                                updateFormData("discount_amount", val);
+                                updateFormData("price", Math.max(0, subtotal - val));
+                            }}
                         />
                     </div>
                 )}
@@ -133,7 +138,13 @@ export function OrderItemsEditor({
                         <input
                             type="number"
                             value={(displayValue("discount_amount") as number) || 0}
-                            onChange={(e) => updateFormData("discount_amount", Number(e.target.value))}
+                            onChange={(e) => {
+                                const newDiscount = Number(e.target.value) || 0;
+                                const items = (formData.items || order.items || []) as any[];
+                                const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                                updateFormData("discount_amount", newDiscount);
+                                updateFormData("price", Math.max(0, subtotal - newDiscount));
+                            }}
                             className="w-24 px-2 py-1 text-right bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
                             placeholder="0"
                         />
@@ -153,42 +164,25 @@ export function OrderItemsEditor({
                 <div className="flex items-center justify-between px-4 py-3 bg-[var(--background)]">
                     <span className="font-semibold text-foreground">{t("orderDetail.grandTotal")}</span>
                     {isEditing ? (
-                        <div className="flex flex-col items-end gap-1">
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="number"
-                                    value={(displayValue("price") as number) || 0}
-                                    onChange={(e) => updateFormData("price", Number(e.target.value))}
-                                    className="w-28 px-3 py-1.5 text-right bg-white border border-[var(--card-border)] rounded-lg text-foreground font-mono font-bold focus:outline-none focus:ring-2 focus:ring-amber-200"
-                                    placeholder="0"
-                                />
-                                <span className="text-xs text-muted">IQD</span>
-                            </div>
-                            {/* Show calculated vs manual difference as audit trail */}
-                            {(() => {
-                                const items = (formData.items || order.items || []) as any[];
-                                const calculatedTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                                const manualPrice = (displayValue("price") as number) || 0;
-                                const diff = manualPrice - calculatedTotal;
-                                if (diff !== 0) {
-                                    return (
-                                        <div className="flex items-center gap-1.5 text-xs">
-                                            <span className="text-muted">{t("orderDetail.calculated")} {formatIQD(calculatedTotal)}</span>
-                                            <span className={cn(
-                                                "px-1.5 py-0.5 rounded font-medium",
-                                                diff > 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                                            )}>
-                                                {diff > 0 ? "+" : ""}{formatIQD(diff)}
-                                            </span>
-                                        </div>
-                                    );
-                                }
-                                return null;
-                            })()}
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="number"
+                                value={(displayValue("price") as number) || 0}
+                                onChange={(e) => {
+                                    const newPrice = Number(e.target.value) || 0;
+                                    const items = (formData.items || order.items || []) as any[];
+                                    const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                                    updateFormData("price", newPrice);
+                                    updateFormData("discount_amount", Math.max(0, subtotal - newPrice));
+                                }}
+                                className="w-28 px-3 py-1.5 text-right bg-white border border-[var(--card-border)] rounded-lg text-foreground font-mono font-bold focus:outline-none focus:ring-2 focus:ring-amber-200"
+                                placeholder="0"
+                            />
+                            <span className="text-xs text-muted">IQD</span>
                         </div>
                     ) : (
                         <span className="text-lg font-bold text-foreground font-mono">
-                            {formatIQD(Number(order.price) - (order.discount_amount || 0))}
+                            {formatIQD(Number(order.price))}
                         </span>
                     )}
                 </div>

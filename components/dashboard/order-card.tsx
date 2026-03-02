@@ -1133,21 +1133,6 @@ export const OrderCard = memo(function OrderCard({
                                 </motion.span>
                             )}
 
-                            {/* Employee Assignments */}
-                            {assignments.map((assignment) => {
-                                const employee = mockEmployees.find(e => e.id === assignment.employee_id);
-                                if (!employee) return null;
-                                return (
-                                    <AvatarPill
-                                        key={assignment.id}
-                                        employee={employee}
-                                        duty={assignment.duty}
-                                        size="sm"
-                                        interactive={true}
-                                        className="h-6 gap-1.5"
-                                    />
-                                );
-                            })}
 
 
                             {/* Detailed Risk Warning - Only show in full view */}

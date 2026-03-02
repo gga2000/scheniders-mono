@@ -128,3 +128,15 @@ export interface PipelineSummary {
     estimatedCosts: number;
     avgOrderValue: number;
 }
+
+export interface FunnelSummary {
+    totalOrders: number;
+    pendingCount: number;       // new + contacted + pending_checkout
+    confirmedCount: number;     // confirmed
+    inTransitCount: number;     // in_transit
+    deliveredCount: number;     // delivered + completed
+    confirmationRate: number;   // (confirmed + inTransit + delivered) / total * 100
+    deliveryRate: number;       // delivered / total * 100
+    totalRevenue: number;       // all non-negative order prices
+    deliveredRevenue: number;   // delivered + completed order prices
+}
