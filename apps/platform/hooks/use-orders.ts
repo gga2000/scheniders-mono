@@ -9,11 +9,13 @@ import { useOrderFilters } from "@/hooks/use-order-filters";
 import { useOrderRealtime } from "@/hooks/use-order-realtime";
 import { useOrderAuxiliary } from "@/hooks/use-order-auxiliary";
 import { useOrderCrud } from "@/hooks/use-order-crud";
+import { useAppLifecycle } from "@/hooks/use-app-lifecycle";
 
 // React Query hooks for caching
 import {
     useOrdersQuery,
     useArchivedOrdersQuery,
+    orderRefetchTriggers,
 } from "@/hooks/use-orders-query";
 
 // =============================================
@@ -27,7 +29,17 @@ export function useOrders() {
     // REACT QUERY INTEGRATION FOR CACHING
     // =============================================
     const queryClient = useQueryClient();
-    const { data: cachedOrders, isLoading: queryLoading, error: queryError, isFetching } = useOrdersQuery();
+
+    // Track refetch triggers for app reopen and realtime reconnection
+    const [refetchTrigger, setRefetchTrigger] = useState<string | undefined>();
+
+    // Detect app reopen and trigger refetch
+    useAppLifecycle(() => {
+        console.log("[useOrders] App reopened - triggering order refetch");
+        setRefetchTrigger(orderRefetchTriggers.appReopen + Date.now());
+    });
+
+    const { data: cachedOrders, isLoading: queryLoading, error: queryError, isFetching } = useOrdersQuery(refetchTrigger);
 
     // Core state - seeded from React Query cache
     const [orders, setOrders] = useState<Order[]>(() => {
@@ -66,7 +78,13 @@ export function useOrders() {
     const filterHook = useOrderFilters({ orders, archivedOrders });
 
     // 2. Realtime — Supabase channel subscription
-    const { realtimeVersion } = useOrderRealtime({ setOrders });
+    const { realtimeVersion } = useOrderRealtime({
+        setOrders,
+        onReconnect: () => {
+            console.log("[useOrders] Realtime reconnected - triggering refetch");
+            setRefetchTrigger(orderRefetchTriggers.realtimeReconnect + Date.now());
+        }
+    });
 
     // 3. Auxiliary — reference data, customer helpers, stats
     const auxiliaryHook = useOrderAuxiliary({ orders, archivedOrders });

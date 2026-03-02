@@ -37,8 +37,6 @@ export function useOrderActivityNotifications() {
     useEffect(() => {
         if (!user) return;
 
-        console.log('[OrderActivity] Setting up realtime subscription');
-
         const channel = supabase
             .channel('order-changes')
             .on(
@@ -49,8 +47,6 @@ export function useOrderActivityNotifications() {
                     table: 'orders',
                 },
                 async (payload: RealtimePostgresChangesPayload<any>) => {
-                    console.log('[OrderActivity] Change detected:', payload);
-
                     // Skip if this is the current user's change (we don't want to notify ourselves)
                     // Note: You'll need to add a `last_modified_by` column to track this
                     // For now, we'll show all changes and you can add user tracking later
@@ -139,11 +135,9 @@ export function useOrderActivityNotifications() {
                 }
             )
             .subscribe((status) => {
-                console.log('[OrderActivity] Subscription status:', status);
             });
 
         return () => {
-            console.log('[OrderActivity] Cleaning up subscription');
             channel.unsubscribe();
         };
     }, [user]);

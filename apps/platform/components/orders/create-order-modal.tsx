@@ -53,6 +53,7 @@ interface CreateOrderModalProps {
     onClose: () => void;
     onCreate: (orderData: any) => Promise<{ success: boolean; error?: string }>;
     checkOrderIdExists?: (orderId: string) => Promise<boolean>;
+    initialData?: Partial<OrderFormData & { secondary_phone?: string; source?: string; order_id?: string }>;
 }
 
 const ORDER_SOURCES = [
@@ -70,19 +71,20 @@ export function CreateOrderModal({
     onClose,
     onCreate,
     checkOrderIdExists,
+    initialData,
 }: CreateOrderModalProps) {
     const [orderType, setOrderType] = useState<OrderType>("delivery");
     const [formData, setFormData] = useState<OrderFormData & { secondary_phone?: string; source?: string; order_id?: string }>({
-        customer_name: "",
-        phone: "",
-        secondary_phone: "",
-        city: "",
-        address_details: "",
-        items: [],
-        notes: "",
-        delivery_slot: undefined,
-        payment_status: "cod",
-        source: "whatsapp",
+        customer_name: initialData?.customer_name || "",
+        phone: initialData?.phone || "",
+        secondary_phone: initialData?.secondary_phone || "",
+        city: initialData?.city || "",
+        address_details: initialData?.address_details || "",
+        items: initialData?.items || [],
+        notes: initialData?.notes || "",
+        delivery_slot: initialData?.delivery_slot,
+        payment_status: initialData?.payment_status || "cod",
+        source: initialData?.source || "whatsapp",
         order_id: "",
     });
     const [errors, setErrors] = useState<ValidationErrors>({});
@@ -95,6 +97,29 @@ export function CreateOrderModal({
     const [deliveryFee, setDeliveryFee] = useState(5000);
     const [includeDeliveryFee, setIncludeDeliveryFee] = useState(true);
     const [editingPriceIndex, setEditingPriceIndex] = useState<number | null>(null);
+
+    // Sync formData with initialData when modal opens
+    useEffect(() => {
+        if (open && initialData) {
+            setFormData({
+                customer_name: initialData.customer_name || "",
+                phone: initialData.phone || "",
+                secondary_phone: initialData.secondary_phone || "",
+                city: initialData.city || "",
+                address_details: initialData.address_details || "",
+                items: initialData.items || [],
+                notes: initialData.notes || "",
+                delivery_slot: initialData.delivery_slot,
+                payment_status: initialData.payment_status || "cod",
+                source: initialData.source || "whatsapp",
+                order_id: "",
+            });
+            // If items are pre-filled, calculate discount if any
+            if (initialData.items && initialData.items.length > 0) {
+                setDiscount(0); // Reset discount, user can set it manually
+            }
+        }
+    }, [open, initialData]);
 
     // Handle order type change
     const handleOrderTypeChange = (type: OrderType) => {

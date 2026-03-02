@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { motion } from "framer-motion";
@@ -9,9 +10,14 @@ import { CustomerTimeline } from "./customer-timeline";
 import { PurchaseHeatmap } from "./purchase-heatmap";
 import { CustomerProfileSkeleton } from "../ui/skeletons";
 import { cn, formatIQD, generateWhatsAppLink } from "@/lib/utils";
-import { Crown, Star, User, Phone, MapPin, Package, MessageCircle } from "lucide-react";
+import { Crown, Star, User, Phone, MapPin, Package, MessageCircle, PackagePlus } from "lucide-react";
 import Link from "next/link";
 import { CommandPalette } from "./command-palette";
+import { ReorderChoiceDialog } from "./reorder-choice-dialog";
+import { CreateOrderModal } from "../orders/create-order-modal";
+import { useOrderCrud } from "@/hooks/use-order-crud";
+import { checkOrderIdExists } from "@/app/actions/orders";
+import { toast } from "sonner";
 
 interface CustomerProfilePanelProps {
     customerSummary: PaginatedCustomer;
@@ -62,6 +68,53 @@ export function CustomerProfilePanel({ customerSummary }: CustomerProfilePanelPr
         },
         staleTime: 1000 * 60 * 2, // 2 mins fresh
     });
+
+    // Reorder functionality state
+    const [showReorderChoice, setShowReorderChoice] = useState(false);
+    const [showCreateOrderModal, setShowCreateOrderModal] = useState(false);
+    const [orderInitialData, setOrderInitialData] = useState<any>(null);
+    const { createOrder } = useOrderCrud();
+
+    // Helper functions for reorder
+    const prepareCustomerData = () => ({
+        customer_name: customerSummary.name,
+        phone: customerSummary.phone,
+        secondary_phone: customerSummary.secondary_phone || "",
+        city: customerSummary.city || "",
+        address_details: customerSummary.address_details || "",
+    });
+
+    const handleNewOrder = () => {
+        setOrderInitialData({
+            ...prepareCustomerData(),
+            items: [],
+            notes: "",
+            delivery_slot: undefined,
+            payment_status: "cod",
+            source: "whatsapp",
+        });
+        setShowReorderChoice(false);
+        setShowCreateOrderModal(true);
+    };
+
+    const handleReorderLast = () => {
+        const lastOrder = deepData?.orders[0]; // Most recent order
+        if (!lastOrder) {
+            toast.error("No previous orders found");
+            return;
+        }
+
+        setOrderInitialData({
+            ...prepareCustomerData(),
+            items: lastOrder.items || [],
+            notes: `Reorder from #${lastOrder.order_id}`,
+            delivery_slot: lastOrder.delivery_slot,
+            payment_status: "cod",
+            source: "whatsapp",
+        });
+        setShowReorderChoice(false);
+        setShowCreateOrderModal(true);
+    };
 
     const getStatusIcon = (status: PaginatedCustomer["calculated_status"]) => {
         switch (status) {
@@ -227,13 +280,25 @@ export function CustomerProfilePanel({ customerSummary }: CustomerProfilePanelPr
                 >
                     <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100 dark:border-[var(--card-border)]/30">
                         <h3 className="text-lg font-bold text-gray-900 dark:text-white">Customer Journey</h3>
-                        <Link
-                            href={`/orders?search=${customerSummary.phone}`}
-                            className="text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-gray-900 dark:hover:text-white flex items-center gap-2 transition-colors bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 px-4 py-2 rounded-full shadow-sm dark:shadow-none"
-                        >
-                            <Package className="w-3.5 h-3.5" />
-                            View Raw Orders
-                        </Link>
+                        <div className="flex items-center gap-3">
+                            {/* Reorder button */}
+                            <button
+                                onClick={() => setShowReorderChoice(true)}
+                                className="text-xs font-bold uppercase tracking-widest text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 flex items-center gap-2 transition-colors bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 px-4 py-2 rounded-full shadow-sm"
+                            >
+                                <PackagePlus className="w-3.5 h-3.5" />
+                                Reorder
+                            </button>
+
+                            {/* View Raw Orders button */}
+                            <Link
+                                href={`/orders?search=${customerSummary.phone}`}
+                                className="text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-gray-900 dark:hover:text-white flex items-center gap-2 transition-colors bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 px-4 py-2 rounded-full shadow-sm dark:shadow-none"
+                            >
+                                <Package className="w-3.5 h-3.5" />
+                                View Raw Orders
+                            </Link>
+                        </div>
                     </div>
 
                     <div className="flex-1 overflow-visible">
@@ -282,6 +347,29 @@ export function CustomerProfilePanel({ customerSummary }: CustomerProfilePanelPr
 
             {/* Command Palette Component (Hidden UI, activated via keyboard) */}
             <CommandPalette customerPhone={phone} />
+
+            {/* Reorder Choice Dialog */}
+            <ReorderChoiceDialog
+                open={showReorderChoice}
+                onClose={() => setShowReorderChoice(false)}
+                onNewOrder={handleNewOrder}
+                onReorderLast={handleReorderLast}
+                hasOrders={(deepData?.orders?.length || 0) > 0}
+            />
+
+            {/* Create Order Modal */}
+            {showCreateOrderModal && (
+                <CreateOrderModal
+                    open={showCreateOrderModal}
+                    onClose={() => {
+                        setShowCreateOrderModal(false);
+                        setOrderInitialData(null);
+                    }}
+                    onCreate={createOrder}
+                    checkOrderIdExists={checkOrderIdExists}
+                    initialData={orderInitialData}
+                />
+            )}
         </div>
     );
 }
