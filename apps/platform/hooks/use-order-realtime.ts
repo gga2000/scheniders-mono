@@ -103,6 +103,7 @@ export function useOrderRealtime({ setOrders, onReconnect }: UseOrderRealtimeOpt
                 }
             )
             .subscribe((status, err) => {
+                console.log(`[OrderRealtime] status=${status}, wasConnected=${wasConnectedRef.current}, err=${err}`);
                 if (status === "SUBSCRIBED") {
                     // Clear polling if realtime starts working
                     if (pollingInterval) {
@@ -112,13 +113,13 @@ export function useOrderRealtime({ setOrders, onReconnect }: UseOrderRealtimeOpt
 
                     // Detect reconnection after disconnect
                     if (wasConnectedRef.current === false) {
-                        console.log("[Realtime] Reconnected - triggering refetch to catch missed events");
+                        console.log("[OrderRealtime] First connect or reconnection — triggering refetch");
                         onReconnectRef.current?.();
                     }
                     wasConnectedRef.current = true;
 
                 } else if (status === "CHANNEL_ERROR" || status === "CLOSED") {
-                    console.log(`[Realtime] Error - falling back to polling: `, err);
+                    console.log(`[OrderRealtime] Error/Closed — wasConnected was: ${wasConnectedRef.current}`);
                     wasConnectedRef.current = false;
 
                     // Optional polling fallback (currently disabled)

@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/use-auth';
 
+// DIAGNOSTIC: Track how many times the effect re-runs (should stay at 1)
+let globalPresenceEffectCount = 0;
+
 export type GlobalPresenceUser = {
     id: string;
     display_name: string;
@@ -26,6 +29,9 @@ export function useGlobalPresence() {
             return;
         }
 
+        globalPresenceEffectCount++;
+        const effectId = globalPresenceEffectCount;
+        console.log(`[GlobalPresence] Effect #${effectId} RUNNING — user.id=${user.id}`);
 
         // Global channel for all employees
         const channel = supabase.channel('presence:global', {
@@ -54,6 +60,7 @@ export function useGlobalPresence() {
                 setOnlineUsers(uniqueUsers);
             })
             .subscribe(async (status) => {
+                console.log(`[GlobalPresence] Effect #${effectId} status=${status}`);
                 if (status === 'SUBSCRIBED') {
                     setIsConnected(true);
 
@@ -88,6 +95,7 @@ export function useGlobalPresence() {
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
         return () => {
+            console.log(`[GlobalPresence] Effect #${effectId} CLEANUP — unsubscribing`);
             channel.unsubscribe();
             setIsConnected(false);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
