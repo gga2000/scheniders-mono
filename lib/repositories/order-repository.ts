@@ -87,6 +87,7 @@ export const orderRepository = {
     async update(id: string, updates: Partial<Order>): Promise<Order> {
         const breaker = getSupabaseCircuitBreaker();
         return breaker.execute(async () => {
+            console.log(`[orderRepo.update] id=${id}, keys=${Object.keys(updates).join(",")}`);
             const { data, error } = await supabase
                 .from("orders")
                 .update(updates)
@@ -94,6 +95,7 @@ export const orderRepository = {
                 .select()
                 .maybeSingle();
 
+            console.log(`[orderRepo.update] id=${id}, error=${error?.message || "none"}, dataReturned=${!!data}`);
             if (error) throw error;
             if (!data) throw new Error("Update failed: row not found or write was rejected. Try refreshing.");
             return normalizeOrder(data);

@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 // read and your write.
 // =============================================
 
-export interface ConflictResult<T = any> {
+export interface ConflictResult<T = unknown> {
     success: boolean;
     conflict: boolean;
     data?: T;
@@ -26,7 +26,7 @@ export interface ConflictResult<T = any> {
  * @param expectedUpdatedAt - The updated_at value the client last saw
  * @returns ConflictResult with success/conflict/error
  */
-export async function updateWithConflictCheck<T extends Record<string, any>>(
+export async function updateWithConflictCheck<T extends Record<string, unknown>>(
     table: string,
     id: string,
     updates: Partial<T>,
@@ -35,7 +35,7 @@ export async function updateWithConflictCheck<T extends Record<string, any>>(
     try {
         let query = supabase
             .from(table)
-            .update(updates as any)
+            .update(updates as Record<string, unknown>)
             .eq("id", id);
 
         // If we have an expected updated_at, add conflict check
@@ -46,6 +46,8 @@ export async function updateWithConflictCheck<T extends Record<string, any>>(
         const { data, error, count } = await query
             .select()
             .maybeSingle();
+
+        console.log(`[conflictCheck] table=${table}, id=${id}, hasExpectedTimestamp=${!!expectedUpdatedAt}, error=${error?.message || "none"}, dataReturned=${!!data}, count=${count}`);
 
         if (error) {
             return { success: false, conflict: false, error: error.message };
@@ -74,7 +76,7 @@ export async function updateWithConflictCheck<T extends Record<string, any>>(
  * Perform a bulk update with conflict detection.
  * Uses a different approach: update all and check affected count.
  */
-export async function bulkUpdateWithConflictCheck<T extends Record<string, any>>(
+export async function bulkUpdateWithConflictCheck<T extends Record<string, unknown>>(
     table: string,
     ids: string[],
     updates: Partial<T>
@@ -82,7 +84,7 @@ export async function bulkUpdateWithConflictCheck<T extends Record<string, any>>
     try {
         const { error } = await supabase
             .from(table)
-            .update(updates as any)
+            .update(updates as Record<string, unknown>)
             .in("id", ids);
 
         if (error) {

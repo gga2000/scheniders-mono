@@ -149,11 +149,13 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 return { success: true };
             }
 
+            console.log(`[updateOrderStatus] orderId=${orderId}, status=${status}, online=${navigator.onLine}`);
             await updateStatusMutation.mutateAsync({
                 orderId,
                 status,
                 rejectionReason
             });
+            console.log(`[updateOrderStatus] mutation succeeded for orderId=${orderId}`);
 
             // Handle Advanced Inventory & Supplies based on Status Changes
             if (previousOrder && previousOrder.status !== status) {
@@ -224,6 +226,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             const currentOrder = orders.find(o => o.id === orderId);
             const expectedUpdatedAt = currentOrder?.updated_at;
 
+            console.log(`[updateOrder] orderId=${orderId}, retryCount=${retryCount}, expectedUpdatedAt=${expectedUpdatedAt}, online=${navigator.onLine}, keys=${Object.keys(cleanUpdates).join(",")}`);
+
             // Offline handling
             if (!navigator.onLine) {
                 console.log("[Offline] Queuing update for", orderId);
@@ -257,6 +261,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     cleanUpdates,
                     expectedUpdatedAt
                 );
+
+                console.log(`[updateOrder] conflictCheck result: success=${result.success}, conflict=${result.conflict}, hasData=${!!result.data}, error=${result.error || "none"}`);
 
                 if (result.conflict) {
                     // Auto-retry once: fetch fresh updated_at directly from the server
@@ -307,6 +313,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 }
             } else {
                 // Fallback: no conflict check possible (order not in cache)
+                console.warn(`[updateOrder] No expectedUpdatedAt — using mutation fallback (order not in cache)`);
                 await updateOrderMutation.mutateAsync({
                     orderId,
                     updates: cleanUpdates
