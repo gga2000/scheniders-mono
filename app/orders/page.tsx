@@ -8,14 +8,12 @@ import { useOrderStore } from "@/store/use-order-store";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Order, PaymentStatus } from "@/lib/supabase";
-import { validatePhoneDetailed, normalizePhoneForSearch } from "@/lib/order-utils";
+import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { isOrderFlagged } from "@/lib/data-quality-utils";
-import { OrderCard } from "@/components/dashboard/order-card";
 import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
 import { OrderCardSkeleton } from "@/components/dashboard/order-card-skeleton";
 import { OrderAssignment, mockAssignments } from "@/lib/team-types";
 import { useBatchRiskAssessment } from "@/hooks/use-risk-assessment";
-import { RiskBadge } from "@/components/orders/risk-badge";
 const OrderDetailsModal = dynamic(
     () => import("@/components/orders/order-details-modal").then(mod => ({ default: mod.OrderDetailsModal })),
     { loading: () => null, ssr: false }
@@ -29,10 +27,6 @@ import { FloatingActionBar } from "@/components/orders/floating-action-bar";
 import { WorkflowTabs } from "@/components/orders/workflow-tabs";
 const DuplicateComparisonModal = dynamic(
     () => import("@/components/orders/duplicate-comparison-modal").then(mod => ({ default: mod.DuplicateComparisonModal })),
-    { loading: () => null, ssr: false }
-);
-const ImportOrdersModal = dynamic(
-    () => import("@/components/orders/import-orders-modal").then(mod => ({ default: mod.ImportOrdersModal })),
     { loading: () => null, ssr: false }
 );
 const ExportReportModal = dynamic(
@@ -79,42 +73,27 @@ import {
     ChevronDown,
     MapPin,
     CreditCard,
-    Calendar,
     CalendarDays,
-    Filter,
     X,
     BarChart3,
-    ChevronUp,
     Bookmark,
     Save,
     Trash2,
     LayoutGrid,
     Table,
-    Columns,
     Bell,
     BellOff,
     List,
     GitBranch,
-    Eye,
-    EyeOff,
     SlidersHorizontal,
     LayoutList,
-    Layers,
     Rows3,
     Archive,
     RotateCcw,
     TrendingUp,
-    TrendingDown,
-    ArrowUp,
-    ArrowDown,
-    Filter as FilterIcon,
-    Pin,
-    CopyPlus,
-    Check,
     ShieldCheck,
     Minimize2,
     Maximize2,
-    Command,
     Truck,
     Sparkles,
     PhoneCall,
@@ -126,7 +105,6 @@ import {
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
 import { notificationService } from "@/lib/notification-service";
-import { evaluateAutoAssignments } from "@/lib/assignment-engine";
 import { mockAssignmentRules } from "@/lib/team-types";
 import { exportOrdersToPrimeCSV } from "@/lib/export-utils";
 import { toast } from "@/hooks/use-toast";
@@ -169,9 +147,6 @@ export default function OrdersPage() {
         fetchOrders: refreshOrders,
         addOrderNote,
         getOrderNotes,
-        setFollowUpReminder,
-        getActiveReminders,
-        completeReminder,
         // Pin & Clone
         togglePin,
         toggleReviewed,
@@ -184,8 +159,6 @@ export default function OrdersPage() {
         getCustomerArchivedCount,
         // Undo
         undoLastAction,
-        getLastUndoAction,
-        clearUndoStack,
         canUndo,
         // Check order ID
         checkOrderIdExists,
@@ -198,7 +171,7 @@ export default function OrdersPage() {
     } = useOrdersContext();
 
     // Get products for Excel import matching
-    const { products } = useProductsCrud();
+    useProductsCrud();
     const isMobile = useIsMobile();
     const { t } = useLanguage();
 
@@ -213,7 +186,7 @@ export default function OrdersPage() {
         analyticsLevel, setAnalyticsLevel,
         toolbarCollapsed, toggleToolbarCollapse,
         workflowMode, toggleWorkflowMode,
-        soundEnabled, setSoundEnabled,
+        setSoundEnabled,
         // Filter UI
         showFilters, setShowFilters,
         showPresets, setShowPresets,
@@ -237,13 +210,12 @@ export default function OrdersPage() {
         orderToReject, setOrderToReject,
         templatePanelOpen, setTemplatePanelOpen,
         orderForTemplate, setOrderForTemplate,
-        isImportModalOpen, setIsImportModalOpen,
+        setIsImportModalOpen,
         isExportModalOpen, setIsExportModalOpen,
         splitOrderDialog, setSplitOrderDialog,
         screenshotOrder, setScreenshotOrder,
         showDatePicker, setShowDatePicker,
         datePickerPos, setDatePickerPos,
-        colorPickerOpenId, setColorPickerOpenId,
         // Selection
         selectedOrders, setSelectedOrders,
         showArchived, setShowArchived,
@@ -263,21 +235,19 @@ export default function OrdersPage() {
         if (debouncedSearchQuery !== (filters.searchQuery || "")) {
             setFilters(prev => ({ ...prev, searchQuery: debouncedSearchQuery || undefined }));
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [debouncedSearchQuery, setFilters]);
+    }, [debouncedSearchQuery, setFilters, filters.searchQuery]);
 
     useEffect(() => {
         if (!filters.searchQuery && localSearchQuery) {
             setLocalSearchQuery("");
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filters.searchQuery]);
+    }, [filters.searchQuery, localSearchQuery, setLocalSearchQuery]);
 
     // Domain state (stays local — not UI state)
     const [assignments, setAssignments] = useState<OrderAssignment[]>(mockAssignments);
     const { splitOrder } = useOrdersContext();
 
-    const handleSplitOrder = async (keptItems: any[], returnedItems: any[]) => {
+    const handleSplitOrder = async (keptItems: unknown[], returnedItems: unknown[]) => {
         if (!splitOrderDialog.order) return;
 
         // Show loading state could be nice here if dialog supported it
@@ -341,7 +311,7 @@ export default function OrdersPage() {
         });
 
         return () => worker.terminate();
-    }, [orders]); // Exclude assignments to prevent infinite loops
+    }, [orders, assignments]);
 
     // Get workflow templates for the template panel
     const workflowTemplates = useMemo(() =>
@@ -457,16 +427,16 @@ export default function OrdersPage() {
             if (!a.is_pinned && b.is_pinned) return 1;
 
             if (defSortConfig) {
-                let aVal: any = a[defSortConfig.key as keyof Order];
-                let bVal: any = b[defSortConfig.key as keyof Order];
+                let aVal: unknown = a[defSortConfig.key as keyof Order];
+                let bVal: unknown = b[defSortConfig.key as keyof Order];
 
                 // Handle special keys
                 if (defSortConfig.key === 'amount') { aVal = Number(a.price); bVal = Number(b.price); }
                 if (defSortConfig.key === 'order_id') { aVal = a.sequence_number || a.order_id; bVal = b.sequence_number || b.order_id; }
                 if (defSortConfig.key === 'created_at') { aVal = new Date(a.created_at).getTime(); bVal = new Date(b.created_at).getTime(); }
 
-                if (aVal < bVal) return defSortConfig.direction === 'asc' ? -1 : 1;
-                if (aVal > bVal) return defSortConfig.direction === 'asc' ? 1 : -1;
+                if (aVal != null && bVal != null && aVal < bVal) return defSortConfig.direction === 'asc' ? -1 : 1;
+                if (aVal != null && bVal != null && aVal > bVal) return defSortConfig.direction === 'asc' ? 1 : -1;
                 return 0;
             }
 
@@ -474,7 +444,6 @@ export default function OrdersPage() {
             return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         });
         return result;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [defHookFilteredOrders, defSortConfig, defColumnFilters, defFilterDuplicatesOnly, getCustomerOrderCount, defRiskLevel, getRiskLevel, riskLoading]);
 
     const defOrders = React.useDeferredValue(orders);
@@ -781,28 +750,48 @@ export default function OrdersPage() {
     // Check if any advanced filters are active
     const hasActiveFilters = !!(filters.dateFrom || filters.dateTo || filters.city || filters.product || filters.priority);
 
+    // Pre-compute maps for O(1) lookups and stable object references to prevent re-renders
+    const returnOrderInfoMap = useMemo(() => {
+        const map = new Map();
+        orders.forEach(o => {
+            if (o.is_return && o.original_order_id) {
+                map.set(o.original_order_id, {
+                    order: o,
+                    returnOrderId: o.order_id,
+                    returnSequenceNumber: o.sequence_number
+                });
+            }
+        });
+        return map;
+    }, [orders]);
+
+    const originalOrderInfoMap = useMemo(() => {
+        const map = new Map();
+        orders.forEach(o => {
+            if (o.is_return && o.original_order_id) {
+                const originalOrder = orders.find(orig => orig.id === o.original_order_id);
+                if (originalOrder) {
+                    map.set(o.id, {
+                        order: originalOrder,
+                        originalOrderId: originalOrder.order_id,
+                        originalSequenceNumber: originalOrder.sequence_number
+                    });
+                }
+            }
+        });
+        return map;
+    }, [orders]);
+
     // Helper function to find return order for an original order
-    const getReturnOrderInfo = (orderId: string) => {
-        const returnOrder = orders.find(o => o.is_return && o.original_order_id === orderId);
-        if (!returnOrder) return null;
-        return {
-            order: returnOrder,
-            returnOrderId: returnOrder.order_id,
-            returnSequenceNumber: returnOrder.sequence_number
-        };
-    };
+    const getReturnOrderInfo = useCallback((orderId: string) => {
+        return returnOrderInfoMap.get(orderId) || null;
+    }, [returnOrderInfoMap]);
 
     // Helper function to find original order info for a return order
-    const getOriginalOrderInfo = (originalOrderId: string | undefined) => {
-        if (!originalOrderId) return null;
-        const originalOrder = orders.find(o => o.id === originalOrderId);
-        if (!originalOrder) return null;
-        return {
-            order: originalOrder,
-            originalOrderId: originalOrder.order_id,
-            originalSequenceNumber: originalOrder.sequence_number
-        };
-    };
+    const getOriginalOrderInfo = useCallback((returnOrderId: string | undefined) => {
+        if (!returnOrderId) return null;
+        return originalOrderInfoMap.get(returnOrderId) || null;
+    }, [originalOrderInfoMap]);
 
     if (loading) {
         return (
@@ -1927,6 +1916,14 @@ export default function OrdersPage() {
                                                                 className="px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 text-sm font-medium hover:bg-emerald-200 transition-all whitespace-nowrap"
                                                             >
                                                                 {t("orders.bulk.completed")}
+                                                            </button>
+                                                            <button
+                                                                onClick={() => {
+                                                                    selectedOrders.forEach(id => updateOrderStatus(id, "suspended", "Bulk action"));
+                                                                }}
+                                                                className="px-3 py-1.5 rounded-lg bg-orange-100 text-orange-700 text-sm font-medium hover:bg-orange-200 transition-all whitespace-nowrap"
+                                                            >
+                                                                {t("orders.bulk.suspended")}
                                                             </button>
                                                             <button
                                                                 onClick={handleBulkNoResponse}

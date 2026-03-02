@@ -101,7 +101,7 @@ interface OrderCardProps {
     isSelected?: boolean;
     onToggleSelection?: (orderId: string) => void;
     // Split functionality
-    onSplit?: () => void;
+    onSplit?: (order: Order) => void;
     // Archive info
     archivedOrderCount?: number;
     // Disable layout animations (e.g. for virtualized lists)
@@ -306,7 +306,8 @@ export const OrderCard = memo(function OrderCard({
         "cancelled",
         "rejected",
         "no_response",
-        "return_pending"
+        "return_pending",
+        "suspended"
     ] as const;
 
     // Map statuses to icons
@@ -1996,7 +1997,7 @@ export const OrderCard = memo(function OrderCard({
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    onSplit();
+                                    onSplit(order);
                                 }}
                                 className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-200 text-orange-600 hover:bg-orange-100 transition-all flex items-center justify-center"
                                 title="Split Order"

@@ -105,7 +105,7 @@ export async function createOrderAction(
         }
 
         return { success: true, data };
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error("Error creating order (server action):", err);
         console.error("Order data that failed:", JSON.stringify(orderData, null, 2));
 
@@ -113,10 +113,13 @@ export async function createOrderAction(
         let errorMessage = "Failed to create order";
         if (err instanceof Error) {
             errorMessage = err.message;
-        } else if (err?.message) {
-            errorMessage = err.message;
-        } else if (err?.code) {
-            errorMessage = `Database error: ${err.code} - ${err.details || err.hint || 'Unknown error'}`;
+        } else if (typeof err === "object" && err !== null) {
+            const errorObj = err as Record<string, unknown>;
+            if (errorObj.message) {
+                errorMessage = String(errorObj.message);
+            } else if (errorObj.code) {
+                errorMessage = `Database error: ${errorObj.code} - ${errorObj.details || errorObj.hint || 'Unknown error'}`;
+            }
         }
 
         return {
@@ -247,9 +250,10 @@ export async function splitOrderAction(
 
         return { success: true, data: createdReturnOrder };
 
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error("Split order action failed with exception:", err);
-        return { success: false, error: err.message || "Failed to split order" };
+        const errorMessage = err instanceof Error ? err.message : "Failed to split order";
+        return { success: false, error: errorMessage };
     }
 }
 

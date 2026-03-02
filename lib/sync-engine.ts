@@ -1,7 +1,7 @@
 import { get, set } from "idb-keyval";
 import { orderRepository } from "@/lib/repositories/order-repository";
 import { updateWithConflictCheck } from "@/lib/conflict-detection";
-import { notificationService } from "@/lib/notification-service";
+import { toast } from "sonner";
 import type { Order } from "@/types/order";
 
 export interface SyncTask {
@@ -108,10 +108,10 @@ export class SyncEngine {
             }
 
             if (successCount > 0) {
-                notificationService.success(`Synced ${successCount} offline change${successCount > 1 ? 's' : ''}`);
+                toast.success(`Synced ${successCount} offline change${successCount > 1 ? 's' : ''}`);
             }
             if (failCount > 0) {
-                notificationService.error(`${failCount} offline change${failCount > 1 ? 's' : ''} failed to sync. Review your connection or data.`);
+                toast.error(`${failCount} offline change${failCount > 1 ? 's' : ''} failed to sync. Review your connection or data.`);
             }
 
         } finally {

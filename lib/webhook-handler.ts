@@ -652,6 +652,32 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
             };
         }
 
+        // --- NEW LOGIC FOR ABANDONED CHECKOUT DEDUPLICATION ---
+        // If this is an abandoned checkout being processed, check if a real order
+        // has already been created for this phone number in the last 24 hours.
+        if (webhook.is_checkout && formattedPhone) {
+            const now = new Date();
+            const windowStart = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+
+            const { data: existingRealOrders, error: checkErr } = await supabase
+                .from("orders")
+                .select("id")
+                .eq("phone", formattedPhone)
+                .neq("status", "pending_checkout")
+                .gte("created_at", windowStart)
+                .limit(1);
+
+            if (!checkErr && existingRealOrders && existingRealOrders.length > 0) {
+                console.log(`[Deduplication] Dropping abandoned checkout ${webhook.order_id || webhook.order_number} to prevent duplicate. Real order exists for phone: ${formattedPhone}`);
+                return {
+                    success: false,
+                    error: "A real order already exists; skipping abandoned checkout.",
+                    duplicate: true, // This tells the queue processor to mark it as processed and not retry
+                };
+            }
+        }
+        // ----------------------------------------------------
+
         // Check for duplicate using the same ID format that will be created
         const duplicateCheckId = webhook.is_checkout
             ? `CHK-${webhook.order_id}`

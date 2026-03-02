@@ -39,9 +39,19 @@ export async function GET(request: Request) {
         let allOrders: any[] = [];
         let hasMoreOrders = true;
         let p = 0;
+        let pRetries = 0;
         while (hasMoreOrders) {
             const { data, error } = await supabase.from('orders').select('*').range(p * 1000, (p + 1) * 1000 - 1);
-            if (error) throw error;
+            if (error) {
+                if (pRetries < 3) {
+                    console.warn(`Retry ${pRetries + 1} for order chunk ${p}`);
+                    pRetries++;
+                    await new Promise(r => setTimeout(r, 1000 * pRetries));
+                    continue;
+                }
+                throw error;
+            }
+            pRetries = 0;
             if (data && data.length > 0) {
                 allOrders = [...allOrders, ...data];
                 p++;
@@ -54,9 +64,19 @@ export async function GET(request: Request) {
         let allCustomers: any[] = [];
         let hasMoreCustomers = true;
         let c = 0;
+        let cRetries = 0;
         while (hasMoreCustomers) {
             const { data, error } = await supabase.from('customers').select('*').range(c * 1000, (c + 1) * 1000 - 1);
-            if (error) throw error;
+            if (error) {
+                if (cRetries < 3) {
+                    console.warn(`Retry ${cRetries + 1} for customer chunk ${c}`);
+                    cRetries++;
+                    await new Promise(r => setTimeout(r, 1000 * cRetries));
+                    continue;
+                }
+                throw error;
+            }
+            cRetries = 0;
             if (data && data.length > 0) {
                 allCustomers = [...allCustomers, ...data];
                 c++;
@@ -110,8 +130,8 @@ export async function GET(request: Request) {
             message: `Automated CSV backup completed. Saved ${allOrders.length} orders.`
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Background Backup Error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: error instanceof Error ? error.message : "Backup failed" }, { status: 500 });
     }
 }

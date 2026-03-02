@@ -423,8 +423,10 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                                             })()}
                                         </span>
                                         {/* @ts-ignore */}
-                                        {order.__isPendingSync && (
-                                            <CloudUpload className="w-3.5 h-3.5 text-blue-500 animate-pulse" title="Pending offline sync" />
+                                        {(order as any).__isPendingSync && (
+                                            <div title="Pending offline sync">
+                                                <CloudUpload className="w-3.5 h-3.5 text-blue-500 animate-pulse" />
+                                            </div>
                                         )}
                                     </div>
 
@@ -601,6 +603,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                                                 <option value="delivered">تم التسليم</option>
                                                 <option value="completed">مكتمل</option>
                                                 <option value="no_response">لم يرد</option>
+                                                <option value="suspended">طلب معلق</option>
                                                 <option value="rejected">مرفوض</option>
                                                 <option value="cancelled">ملغي</option>
                                             </select>

@@ -1416,6 +1416,14 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                                                                 {t("orders.bulk.completed")}
                                                             </button>
                                                             <button
+                                                                onClick={() => {
+                                                                    selectedOrders.forEach(id => updateOrderStatus(id, "suspended", "Bulk action"));
+                                                                }}
+                                                                className="px-3 py-1.5 rounded-lg bg-orange-100 text-orange-700 text-sm font-medium hover:bg-orange-200 transition-all whitespace-nowrap"
+                                                            >
+                                                                {t("orders.bulk.suspended")}
+                                                            </button>
+                                                            <button
                                                                 onClick={handleBulkNoResponse}
                                                                 className="px-3 py-1.5 rounded-lg bg-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-300 transition-all whitespace-nowrap"
                                                             >

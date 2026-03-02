@@ -28,7 +28,7 @@ interface UseRealtimeQueryOptions<T> {
     queryKey: readonly unknown[];
 
     /** Optional normalizer for incoming records */
-    normalizer?: (raw: any) => T;
+    normalizer?: (raw: unknown) => T;
 
     /** Optional filter for the subscription (e.g., only non-archived) */
     filter?: {
@@ -52,7 +52,7 @@ interface UseRealtimeQueryOptions<T> {
 export function useRealtimeQuery<T extends { id: string }>({
     table,
     queryKey,
-    normalizer = (x: any) => x as T,
+    normalizer = (x: unknown) => x as T,
     filter,
     onReconnect,
     onInsert,
@@ -111,8 +111,8 @@ export function useRealtimeQuery<T extends { id: string }>({
                 // Push to batcher instead of updating cache directly
                 batcher.push({
                     eventType: payload.eventType as "INSERT" | "UPDATE" | "DELETE",
-                    new: payload.new as Record<string, any> | undefined,
-                    old: payload.old as Record<string, any> | undefined,
+                    new: payload.new as Record<string, unknown> | undefined,
+                    old: payload.old as Record<string, unknown> | undefined,
                 });
             })
             .subscribe((status, err) => {
@@ -133,6 +133,5 @@ export function useRealtimeQuery<T extends { id: string }>({
             batcher.destroy();
             channel.unsubscribe();
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [table, enabled, batchDelayMs]); // queryKey and queryClient are stable
+    }, [table, enabled, batchDelayMs, queryClient, queryKey]); // queryKey and queryClient are stable
 }

@@ -255,7 +255,7 @@ export function CreateOrderModal({
             } else {
                 setErrors({ items: result.error || "حدث خطأ" });
             }
-        } catch (error) {
+        } catch {
             setErrors({ items: "حدث خطأ غير متوقع" });
         } finally {
             setIsCreating(false);
@@ -268,7 +268,7 @@ export function CreateOrderModal({
 
     return (
         <>
-            <Dialog open={open} onOpenChange={(isOpen) => { if (!showProductPicker) handleClose(); }} modal={!showProductPicker}>
+            <Dialog open={open} onOpenChange={() => { if (!showProductPicker) handleClose(); }} modal={!showProductPicker}>
                 <DialogContent className="max-w-2xl bg-white border border-[var(--card-border)] !rounded-2xl overflow-hidden p-0 create-order-modal">
                     {/* Header */}
                     <DialogHeader className="px-6 py-4 border-b border-[var(--card-border)] bg-[var(--background)]">
