@@ -58,6 +58,7 @@ export function OrdersTable({ orders, onUpdateStatus, onUpdateOrder }: OrdersTab
         { id: "confirmed", label: "مؤكد", labelEn: "Confirmed" },
         { id: "delivered", label: "تم التوصيل", labelEn: "Delivered" },
         { id: "rejected", label: "مرفوض", labelEn: "Rejected" },
+        { id: "suspended", label: "طلب معلق", labelEn: "Suspended" },
     ];
 
     return (

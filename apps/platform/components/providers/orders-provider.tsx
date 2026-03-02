@@ -2,8 +2,6 @@
 
 import { createContext, useContext, ReactNode } from "react";
 import { useOrders } from "@/hooks/use-orders";
-import { Order, OrderFilters, RejectionReason, MessageTemplate, FilterPreset, FollowUpReminder } from "@/lib/supabase";
-
 /**
  * OrdersContext - Provides shared orders state to prevent duplicate subscriptions
  * 
@@ -50,21 +48,16 @@ export function OrdersProvider({ children }: OrdersProviderProps) {
  * useOrdersContext - Use this instead of useOrders() in components
  * 
  * This returns the shared orders state from the context.
- * If used outside of OrdersProvider, it falls back to useOrders().
+ * Must be used within an <OrdersProvider>.
  */
 export function useOrdersContext(): OrdersContextType {
     const context = useContext(OrdersContext);
 
-    // If no provider found, fall back to direct useOrders call
-    // This allows gradual migration and prevents breaking changes
     if (context === null) {
-        console.warn(
-            "useOrdersContext called outside OrdersProvider. " +
-            "Falling back to direct useOrders() call. " +
-            "Wrap your app with <OrdersProvider> to fix duplicate subscriptions."
+        throw new Error(
+            "useOrdersContext must be used within <OrdersProvider>. " +
+            "Wrap your component tree with <OrdersProvider> in layout.tsx."
         );
-        // eslint-disable-next-line react-hooks/rules-of-hooks
-        return useOrders();
     }
 
     return context;

@@ -87,6 +87,7 @@ export function getStatusColor(status: string): string {
         completed: 'text-emerald-600 border-emerald-200 bg-emerald-50',
         no_response: 'text-slate-500 border-slate-200 bg-slate-50',
         return_pending: 'text-rose-600 border-rose-200 bg-rose-50',
+        suspended: 'text-orange-600 border-orange-200 bg-orange-50',
     };
 
     return colors[status as keyof typeof colors] || colors.new;
@@ -107,6 +108,7 @@ export function getStatusLabel(status: string): string {
         completed: 'طلب تام',
         no_response: 'لم يرد',
         return_pending: 'استرجاع معلق',
+        suspended: 'طلب معلق',
     };
 
     return labels[status as keyof typeof labels] || status;

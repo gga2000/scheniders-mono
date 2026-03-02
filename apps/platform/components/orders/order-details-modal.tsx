@@ -200,14 +200,14 @@ export function OrderDetailsModal({
     const handleReorder = () => {
         if (!order) return;
 
-        // Prepare customer data from the current order
+        // Prepare customer data from the current order (fresh slate — no items pre-filled)
         const initialData = {
             customer_name: order.customer_name,
-            phone: order.phone,
-            secondary_phone: order.secondary_phone || "",
+            phone: formatPhoneForDisplay(order.phone),
+            secondary_phone: formatPhoneForDisplay(order.secondary_phone) || "",
             city: order.city || "",
             address_details: order.address_details || "",
-            items: order.items || [],
+            items: [],
             notes: `Reorder from #${order.order_id}`,
             payment_status: "cod" as const,
             source: order.source || "whatsapp" as const,
@@ -327,7 +327,7 @@ export function OrderDetailsModal({
 
     return (
         <>
-            <Dialog open={open} onOpenChange={(isOpen) => { if (!showProductPicker) onClose(); }} modal={!showProductPicker}>
+            <Dialog open={open && !showCreateOrderModal} onOpenChange={(isOpen) => { if (!showProductPicker) onClose(); }} modal={!showProductPicker}>
                 <ContentWrapper
                     className={isMobile ? "" : "max-w-4xl"}
                     {...(isMobile ? { onClose } : {})}

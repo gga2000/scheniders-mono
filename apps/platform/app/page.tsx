@@ -13,6 +13,7 @@ import { useStats } from "@/hooks/use-stats";
 import { Plus, Search, Bell } from "lucide-react";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDashboardMetrics } from "@/hooks/use-dashboard-metrics";
+import { useAuth } from "@/hooks/use-auth";
 const UrgencyTriad = dynamic(() => import("@/components/dashboard/widgets/urgency-triad").then(mod => ({ default: mod.UrgencyTriad })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
 const OrderFunnel = dynamic(() => import("@/components/dashboard/widgets/funnel-chart").then(mod => ({ default: mod.OrderFunnel })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
 const VelocityMatrix = dynamic(() => import("@/components/dashboard/widgets/velocity-matrix").then(mod => ({ default: mod.VelocityMatrix })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
@@ -30,6 +31,7 @@ export default function Home() {
   const stats = useStats(orders);
   const dashboardMetrics = useDashboardMetrics(orders, products || []);
   const { t } = useLanguage();
+  const { profile } = useAuth();
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
@@ -68,7 +70,7 @@ export default function Home() {
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
           <div>
             <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
-              {getGreeting()}, Dr. Ali
+              {getGreeting()}{profile?.display_name ? `, ${profile.display_name}` : ''}
             </h1>
             <p className="text-muted mt-2 text-lg">
               {t("dashboard.subtitle")}
@@ -82,9 +84,11 @@ export default function Home() {
 
             <button className="relative w-12 h-12 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-foreground hover:bg-[var(--background)] transition-all shadow-sm">
               <Bell className="w-5 h-5" />
-              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[var(--pastel-pink)] text-[10px] font-bold text-rose-900 flex items-center justify-center">
-                3
-              </span>
+              {stats.newOrders > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[var(--pastel-pink)] text-[10px] font-bold text-rose-900 flex items-center justify-center">
+                  {stats.newOrders > 99 ? '99+' : stats.newOrders}
+                </span>
+              )}
             </button>
 
             <button
@@ -103,7 +107,7 @@ export default function Home() {
         {/* 2. Urgency Triad (Immediate Action) */}
         <UrgencyTriad
           metrics={dashboardMetrics.urgency}
-          onAction={(type) => console.log('Action:', type)}
+          onAction={() => {}}
         />
 
         {/* 3. Main Intelligence Grid (Bento Layout) */}

@@ -184,7 +184,7 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
     // =============================================
 
     const filteredOrders = useMemo(() => {
-        console.time("[useOrderFilters] filteredOrders");
+
         const ordersToFilter = (deferredFilters.searchQuery && deferredFilters.searchIncludesArchive)
             ? [...deferredOrders, ...deferredArchivedOrders]
             : deferredOrders;
@@ -194,38 +194,39 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
             if (!a.is_pinned && b.is_pinned) return 1;
             return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         });
-        console.timeEnd("[useOrderFilters] filteredOrders");
+
         return result;
     }, [deferredOrders, deferredArchivedOrders, deferredFilters, applyFilters]);
 
     const statusCounts = useMemo(() => {
-        console.time("[useOrderFilters] statusCounts");
+
         const filtersWithoutStatus = { ...deferredFilters, status: 'all' as const };
         const matchingOrders = applyFilters(deferredOrders, filtersWithoutStatus);
 
-        const counts = {
+        const counts: Record<string, number> = {
             all: matchingOrders.length,
             new: 0,
             contacted: 0,
             confirmed: 0,
+            cancelled: 0,
             in_transit: 0,
             delivered: 0,
             completed: 0,
             rejected: 0,
             no_response: 0,
             return_pending: 0,
+            refund_delivered: 0,
+            refund_failed: 0,
             pending_checkout: 0,
         };
 
         matchingOrders.forEach(order => {
-            // @ts-ignore
-            if (counts[order.status] !== undefined) {
-                // @ts-ignore
+            if (order.status in counts) {
                 counts[order.status]++;
             }
         });
 
-        console.timeEnd("[useOrderFilters] statusCounts");
+
         return counts;
     }, [deferredOrders, deferredFilters, applyFilters]);
 

@@ -8,8 +8,8 @@ import { orderRepository } from "@/lib/repositories/order-repository";
 
 // Refetch trigger constants
 export const orderRefetchTriggers = {
-  appReopen: "appReopen",
-  realtimeReconnect: "realtimeReconnect",
+    appReopen: "appReopen",
+    realtimeReconnect: "realtimeReconnect",
 } as const;
 
 // Query keys for cache management
@@ -58,13 +58,13 @@ export function useOrdersQuery(refetchTrigger?: string) {
     return useQuery({
         queryKey: orderKeys.lists(),
         queryFn: fetchOrders,
-        // Increased cache time to reduce queries heavily on 3G
-        staleTime: CACHE_PRESETS.FREQUENT.staleTime * 2, // 4 mins
-        gcTime: CACHE_PRESETS.FREQUENT.gcTime * 2, // 20 mins
+        // Short staleTime — realtime patches keep cache fresh between refetches
+        staleTime: 30 * 1000, // 30 seconds
+        gcTime: CACHE_PRESETS.FREQUENT.gcTime, // 10 mins
         // Refetch when window regains focus to catch missed updates
         refetchOnWindowFocus: "always",
-        // Don't refetch on mount if data is in cache (use stale data, refetch in background)
-        refetchOnMount: false,
+        // Refetch on mount to ensure fresh data (stale cache is shown instantly while refetch happens in background)
+        refetchOnMount: true,
         // Network Optimization: Exponential backoff for 3G drops
         retry: 3,
         retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
@@ -122,10 +122,10 @@ export function useUpdateOrderMutation() {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
         },
-        // Refetch after success to ensure consistency
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-        },
+        // NOTE: No onSettled invalidation — the realtime subscription will
+        // deliver the server-confirmed update, keeping the cache in sync.
+        // Previously, onSettled refetch caused a race condition where stale
+        // data from the refetch would overwrite the optimistic update.
     });
 }
 
@@ -179,9 +179,6 @@ export function useUpdateStatusMutation() {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
         },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-        },
     });
 }
 
@@ -229,9 +226,6 @@ export function useDeleteOrderMutation() {
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
-        },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
         },
     });
 }
@@ -293,14 +287,18 @@ export function useCreateOrderMutation() {
 
             return { previousOrders, tempId };
         },
+        onSuccess: (realOrder, _variables, context) => {
+            // Replace the temporary optimistic order with the real server data
+            if (context?.tempId) {
+                queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) =>
+                    (old || []).map(o => o.id === context.tempId ? realOrder : o)
+                );
+            }
+        },
         onError: (err, variables, context) => {
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
-        },
-        onSettled: () => {
-            // Invalidate to get the real ID and server-side fields
-            queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
         },
     });
 }

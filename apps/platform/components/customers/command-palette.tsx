@@ -37,8 +37,8 @@ export function CommandPalette({ customerPhone }: CommandPaletteProps) {
             name: "Add a Note",
             icon: FileText,
             shortcut: "N",
+            disabled: true,
             action: () => {
-                alert("TODO: Open Add Note Modal for " + customerPhone);
                 setIsOpen(false);
             },
         },
@@ -47,8 +47,8 @@ export function CommandPalette({ customerPhone }: CommandPaletteProps) {
             name: "Manage Tags",
             icon: Tag,
             shortcut: "T",
+            disabled: true,
             action: () => {
-                alert("TODO: Open Tag Manager for " + customerPhone);
                 setIsOpen(false);
             },
         },
@@ -78,8 +78,8 @@ export function CommandPalette({ customerPhone }: CommandPaletteProps) {
             name: "Create New Order",
             icon: PackagePlus,
             shortcut: "O",
+            disabled: true,
             action: () => {
-                alert("TODO: Redirect to New Order page prefilled with " + customerPhone);
                 setIsOpen(false);
             },
         }
@@ -132,7 +132,7 @@ export function CommandPalette({ customerPhone }: CommandPaletteProps) {
                             {filteredCommands.length === 0 ? (
                                 <div className="p-4 text-center text-muted">No commands found.</div>
                             ) : (
-                                filteredCommands.map((command, index) => (
+                                filteredCommands.filter(c => !c.disabled).map((command, index) => (
                                     <button
                                         key={command.id}
                                         onClick={command.action}

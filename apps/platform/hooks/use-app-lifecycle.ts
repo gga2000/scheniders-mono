@@ -23,6 +23,10 @@ export function useAppLifecycle(onAppReopen?: () => void) {
   const onAppReopenRef = useRef(onAppReopen);
   onAppReopenRef.current = onAppReopen;
 
+  // Guard against firing the callback twice (both visibilitychange + focus fire on reopen)
+  const lastFiredRef = useRef(0);
+  const FIRE_GUARD_MS = 5000; // Don't fire more than once per 5 seconds
+
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -61,12 +65,16 @@ export function useAppLifecycle(onAppReopen?: () => void) {
       timeSinceLastVisible,
     });
 
-    // Trigger callback if app was reopened
+    // Trigger callback if app was reopened (with guard)
     if (isAppReopen && onAppReopenRef.current) {
-      console.log(
-        `[AppLifecycle] App reopened after ${Math.round(timeSinceLastVisible! / 1000)}s`
-      );
-      onAppReopenRef.current();
+      const now2 = Date.now();
+      if (now2 - lastFiredRef.current > FIRE_GUARD_MS) {
+        lastFiredRef.current = now2;
+        console.log(
+          `[AppLifecycle] App reopened after ${Math.round(timeSinceLastVisible! / 1000)}s`
+        );
+        onAppReopenRef.current();
+      }
     }
 
     // Save timestamp on initial mount
@@ -92,12 +100,16 @@ export function useAppLifecycle(onAppReopen?: () => void) {
           timeSinceLastVisible,
         });
 
-        // Trigger callback if reopened
+        // Trigger callback if reopened (with guard)
         if (isAppReopen && onAppReopenRef.current) {
-          console.log(
-            `[AppLifecycle] App reopened after ${Math.round(timeSinceLastVisible! / 1000)}s`
-          );
-          onAppReopenRef.current();
+          const now2 = Date.now();
+          if (now2 - lastFiredRef.current > FIRE_GUARD_MS) {
+            lastFiredRef.current = now2;
+            console.log(
+              `[AppLifecycle] App reopened after ${Math.round(timeSinceLastVisible! / 1000)}s`
+            );
+            onAppReopenRef.current();
+          }
         }
 
         // Update timestamp
@@ -123,10 +135,14 @@ export function useAppLifecycle(onAppReopen?: () => void) {
         timeSinceLastVisible > REOPEN_THRESHOLD_MS;
 
       if (isAppReopen && onAppReopenRef.current) {
-        console.log(
-          `[AppLifecycle] App focused after ${Math.round(timeSinceLastVisible! / 1000)}s`
-        );
-        onAppReopenRef.current();
+        const now2 = Date.now();
+        if (now2 - lastFiredRef.current > FIRE_GUARD_MS) {
+          lastFiredRef.current = now2;
+          console.log(
+            `[AppLifecycle] App focused after ${Math.round(timeSinceLastVisible! / 1000)}s`
+          );
+          onAppReopenRef.current();
+        }
       }
 
       saveLastVisibleAt();

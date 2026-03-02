@@ -1846,7 +1846,9 @@ export const OrderCard = memo(function OrderCard({
                                 title="Chat on WhatsApp (Secondary)"
                             >
                                 <MessageCircle className="w-4 h-4" />
-                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full text-[10px] font-bold text-emerald-600 flex items-center justify-center shadow-sm border border-emerald-200 dark:bg-[#1E1E1E] dark:border-[rgba(0,255,100,0.3)] dark:text-[#00FFAA]">2</span>
+                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full text-[10px] font-bold text-emerald-600 flex items-center justify-center shadow-sm border border-emerald-200 dark:bg-[#1E1E1E] dark:border-[rgba(0,255,100,0.3)] dark:text-[#00FFAA]">
+                                    {(order.contact_count || 0) > 0 ? ((order.contact_count || 0) > 9 ? "9+" : order.contact_count) : ""}
+                                </span>
                             </button>
                         )}
 

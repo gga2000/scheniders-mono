@@ -14,7 +14,8 @@
 // - completed: Delivery verified and finalized (طلب تام)
 // - no_response: Customer never responded to contact attempts (لم يرد)
 // - return_pending: Return order awaiting processing (استرجاع معلق)
-export type OrderStatus = 'new' | 'contacted' | 'confirmed' | 'cancelled' | 'in_transit' | 'delivered' | 'rejected' | 'completed' | 'no_response' | 'return_pending' | 'refund_delivered' | 'refund_failed' | 'pending_checkout';
+// - suspended: Confirmed order delayed due to stock/waiting time (طلب معلق)
+export type OrderStatus = 'new' | 'contacted' | 'confirmed' | 'cancelled' | 'in_transit' | 'delivered' | 'rejected' | 'completed' | 'no_response' | 'return_pending' | 'refund_delivered' | 'refund_failed' | 'pending_checkout' | 'suspended';
 
 export type OrderPriority = 'normal' | 'high' | 'urgent';
 
