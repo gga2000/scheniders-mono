@@ -57,6 +57,35 @@ export async function POST(request: NextRequest) {
             env.SUPABASE_SERVICE_ROLE_KEY
         );
 
+        // Snapshot orders before deletion for audit trail
+        const { data: orderSnapshots } = await supabaseAdmin
+            .from('orders')
+            .select('id, order_id, customer_name, phone, status, price, items')
+            .in('id', ids);
+
+        // Log deletion audit to deletion_log table (best-effort, don't block on failure)
+        if (orderSnapshots && orderSnapshots.length > 0) {
+            await supabaseAdmin
+                .from('deletion_log')
+                .insert({
+                    deleted_by: user.id,
+                    deleted_at: new Date().toISOString(),
+                    order_count: orderSnapshots.length,
+                    order_ids: ids,
+                    order_snapshots: orderSnapshots,
+                })
+                .then(({ error: logError }) => {
+                    if (logError) {
+                        // Table may not exist yet - fall back to console logging
+                        console.warn('[Deletion Audit] Could not write to deletion_log table:', logError.message);
+                    }
+                });
+
+            // Always log to console (captured by Vercel)
+            console.warn(`[Deletion Audit] User ${user.email || user.id} deleting ${orderSnapshots.length} orders:`,
+                orderSnapshots.map(o => `${o.order_id} (${o.status})`).join(', '));
+        }
+
         // Unlink self-referencing FK first
         await supabaseAdmin
             .from('orders')

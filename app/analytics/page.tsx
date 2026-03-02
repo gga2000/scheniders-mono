@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
@@ -27,6 +27,8 @@ import { useExpenses } from "@/hooks/use-expenses";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useOrderProfits } from "@/hooks/use-order-profits";
+import { useFinancialEpoch, EraMode } from "@/hooks/use-financial-epoch";
+import { useUserPreferences, PREFERENCE_KEYS } from "@/hooks/use-user-preferences";
 
 // Core components (always needed)
 import { DateRangePicker } from "@/components/ui/date-range-picker";
@@ -96,6 +98,14 @@ const OverviewCards = dynamic(
     () => import("@/components/analytics/overview-cards").then(mod => ({ default: mod.OverviewCards })),
     { loading: () => <div className="skeleton h-32 rounded-2xl" /> }
 );
+const EpochBanner = dynamic(
+    () => import("@/components/analytics/epoch-banner").then(mod => ({ default: mod.EpochBanner })),
+    { loading: () => <div className="skeleton h-20 rounded-2xl" /> }
+);
+const DataQualityBadge = dynamic(
+    () => import("@/components/analytics/data-quality-badge").then(mod => ({ default: mod.DataQualityBadge })),
+    { ssr: false }
+);
 
 // Utils
 import { exportFinancesToCSV, exportFinancesToExcel, printFinancialReport } from "@/lib/finance-export";
@@ -119,9 +129,67 @@ export default function AnalyticsPage() {
     const [expenseModalMode, setExpenseModalMode] = useState<"add" | "edit">("add");
     const [exportMenuOpen, setExportMenuOpen] = useState(false);
 
+    // =============================================
+    // FINANCIAL EPOCH
+    // =============================================
+    const {
+        epochDate,
+        isEpochSet,
+        streakDays,
+        currentMilestone,
+        nextMilestone,
+        milestoneProgress,
+        getEraDateRange,
+        setEpochDate,
+        isUpdating: isEpochUpdating,
+    } = useFinancialEpoch();
+
+    const { getPreference, setPreference } = useUserPreferences();
+
+    // Era mode — persisted in localStorage
+    const [eraMode, setEraMode] = useState<EraMode>(() => {
+        if (typeof window === "undefined") return "clean";
+        try {
+            const stored = getPreference<EraMode>("financialEraMode");
+            return stored || "clean";
+        } catch {
+            return "clean";
+        }
+    });
+
+    const handleEraModeChange = useCallback((mode: EraMode) => {
+        setEraMode(mode);
+        setPreference("financialEraMode", mode);
+        // When switching era modes, clear any custom date range so era filtering takes effect
+        setDateRange({ startDate: "", endDate: "" });
+    }, [setPreference]);
+
+    const handleSetEpoch = useCallback(async (date: string) => {
+        await setEpochDate(date);
+        // Auto-switch to clean era and clear date range
+        setEraMode("clean");
+        setPreference("financialEraMode", "clean");
+        setDateRange({ startDate: "", endDate: "" });
+    }, [setEpochDate, setPreference]);
+
     // Data hooks - single source of truth for orders and products
     const { orders } = useOrdersContext();
     const { products } = useProductsCrud();
+
+    // =============================================
+    // EFFECTIVE DATE RANGE (era-aware)
+    // =============================================
+    // If a custom date range is set, use it. Otherwise, use era-based filtering.
+    const effectiveDateRange = useMemo((): DateRange => {
+        if (dateRange.startDate || dateRange.endDate) {
+            // Custom range takes priority
+            return dateRange;
+        }
+        if (isEpochSet) {
+            return getEraDateRange(eraMode);
+        }
+        return { startDate: "", endDate: "" };
+    }, [dateRange, isEpochSet, eraMode, getEraDateRange]);
 
     // useFinances now receives orders and products as props (no duplicate fetching)
     const {
@@ -133,7 +201,7 @@ export default function AnalyticsPage() {
         comparePeriods,
         rejectionStats,
         filteredOrders,
-    } = useFinances(orders, products, dateRange);
+    } = useFinances(orders, products, effectiveDateRange);
 
     const {
         expenses,
@@ -141,8 +209,8 @@ export default function AnalyticsPage() {
         updateExpense,
         deleteExpense,
     } = useExpenses({
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate,
+        startDate: effectiveDateRange.startDate,
+        endDate: effectiveDateRange.endDate,
     });
 
     // Calculate marketing cost from expenses in period
@@ -154,15 +222,15 @@ export default function AnalyticsPage() {
 
     // Filter orders by date range for profit calculations
     const ordersInRange = useMemo(() => {
-        // If no date range selected, return all orders
-        if (!dateRange.startDate || !dateRange.endDate) {
+        // If no effective date range selected, return all orders
+        if (!effectiveDateRange.startDate || !effectiveDateRange.endDate) {
             return orders;
         }
         return orders.filter(order => {
             const orderDate = new Date(order.created_at).toISOString().split("T")[0];
-            return orderDate >= dateRange.startDate && orderDate <= dateRange.endDate;
+            return orderDate >= effectiveDateRange.startDate && orderDate <= effectiveDateRange.endDate;
         });
-    }, [orders, dateRange]);
+    }, [orders, effectiveDateRange]);
 
     // Use order profits hook
     const {
@@ -175,8 +243,8 @@ export default function AnalyticsPage() {
 
     // Period comparison
     const periodComparison = useMemo(() => {
-        return comparePeriods(dateRange);
-    }, [comparePeriods, dateRange]);
+        return comparePeriods(effectiveDateRange);
+    }, [comparePeriods, effectiveDateRange]);
 
     // Handlers
     const handleAddExpense = () => {
@@ -265,6 +333,7 @@ export default function AnalyticsPage() {
                         dateFrom={dateRange.startDate}
                         dateTo={dateRange.endDate}
                         onDateChange={(start, end) => setDateRange({ startDate: start || "", endDate: end || "" })}
+                        epochDate={epochDate || undefined}
                     />
 
                     {/* Marketing Expense Button */}
@@ -327,8 +396,22 @@ export default function AnalyticsPage() {
                 </div>
             </div>
 
+            {/* Financial Epoch Banner */}
+            <EpochBanner
+                isEpochSet={isEpochSet}
+                epochDate={epochDate}
+                streakDays={streakDays}
+                currentMilestone={currentMilestone}
+                nextMilestone={nextMilestone}
+                milestoneProgress={milestoneProgress}
+                eraMode={eraMode}
+                onEraModeChange={handleEraModeChange}
+                onSetEpoch={handleSetEpoch}
+                isUpdating={isEpochUpdating}
+            />
+
             {/* Tabs */}
-            <div className="flex bg-[var(--card-bg)] rounded-xl p-1 mb-6 w-fit border border-[var(--card-border)] overflow-x-auto">
+            <div className="flex bg-[var(--card-bg)] rounded-xl p-1 mb-6 w-fit border border-[var(--card-border)] overflow-x-auto mt-6">
                 {tabs.map(tab => {
                     const Icon = tab.icon;
                     return (
@@ -354,6 +437,11 @@ export default function AnalyticsPage() {
                 <div className="space-y-6">
                     {/* Overview Cards - Full Width at Top */}
                     <OverviewCards profitSummary={profitSummary} pipelineSummary={pipelineSummary} />
+
+                    {/* Data Quality Badge */}
+                    {isEpochSet && eraMode !== "clean" && (
+                        <DataQualityBadge eraMode={eraMode} epochDate={epochDate} />
+                    )}
 
                     {/* Two Column Grid: Cost Breakdown + Pipeline */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

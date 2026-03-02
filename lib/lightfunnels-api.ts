@@ -794,6 +794,40 @@ export async function importCheckout(lfCheckout: LightfunnelsCheckout): Promise<
             };
         }
 
+        // Check if a real (non-checkout) order already exists for this customer
+        // If the customer completed their purchase, we don't need the abandoned checkout
+        const phone = lfCheckout.phone
+            || lfCheckout.shipping_address?.phone
+            || lfCheckout.billing_address?.phone
+            || lfCheckout.customer?.phone
+            || '';
+        const formattedPhone = formatPhoneToStandard(phone);
+
+        if (formattedPhone && lfCheckout.created_at) {
+            const checkoutDate = new Date(lfCheckout.created_at);
+            const windowStart = new Date(checkoutDate.getTime() - 24 * 60 * 60 * 1000).toISOString();
+            const windowEnd = new Date(checkoutDate.getTime() + 24 * 60 * 60 * 1000).toISOString();
+
+            const { data: existingRealOrders } = await supabase
+                .from('orders')
+                .select('id')
+                .eq('phone', formattedPhone)
+                .eq('source', 'lightfunnels')
+                .neq('status', 'pending_checkout')
+                .gte('created_at', windowStart)
+                .lte('created_at', windowEnd)
+                .limit(1);
+
+            if (existingRealOrders && existingRealOrders.length > 0) {
+                return {
+                    lightfunnelsId: String(lfCheckout._id),
+                    orderName: `Checkout #${lfCheckout._id}`,
+                    status: 'duplicate',
+                    message: 'Real order already exists for this customer',
+                };
+            }
+        }
+
         // Map and insert order
         const orderData = await mapCheckoutToLocalOrder(lfCheckout);
 
