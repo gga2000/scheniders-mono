@@ -83,25 +83,29 @@ export const orderRepository = {
         });
     },
 
-    /** Update an order by ID. Returns nothing — caller handles cache. */
-    async update(id: string, updates: Partial<Order>): Promise<void> {
+    /** Update an order by ID. Verifies the write actually affected a row. */
+    async update(id: string, updates: Partial<Order>): Promise<Order> {
         const breaker = getSupabaseCircuitBreaker();
         return breaker.execute(async () => {
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from("orders")
                 .update(updates)
-                .eq("id", id);
+                .eq("id", id)
+                .select()
+                .maybeSingle();
 
             if (error) throw error;
+            if (!data) throw new Error("Update failed: row not found or write was rejected. Try refreshing.");
+            return normalizeOrder(data);
         });
     },
 
-    /** Update order status with automatic timestamp fields. */
+    /** Update order status with automatic timestamp fields. Verifies write. */
     async updateStatus(
         id: string,
         status: Order["status"],
         rejectionReason?: string
-    ): Promise<Partial<Order>> {
+    ): Promise<Order> {
         const breaker = getSupabaseCircuitBreaker();
         return breaker.execute(async () => {
             const updateData: Partial<Order> = { status };
@@ -109,18 +113,21 @@ export const orderRepository = {
                 updateData.rejection_reason = rejectionReason;
             } else if (status !== "cancelled" && status !== "rejected") {
                 // Clear stale rejection/cancellation reason when reverting to any other status
-                (updateData as any).rejection_reason = null;
+                (updateData as Record<string, unknown>).rejection_reason = null;
             }
             if (status === "delivered") updateData.delivered_at = new Date().toISOString();
             if (status === "cancelled") updateData.cancelled_at = new Date().toISOString();
 
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from("orders")
                 .update(updateData)
-                .eq("id", id);
+                .eq("id", id)
+                .select()
+                .maybeSingle();
 
             if (error) throw error;
-            return updateData;
+            if (!data) throw new Error("Status update failed: row not found or write was rejected. Try refreshing.");
+            return normalizeOrder(data);
         });
     },
 
