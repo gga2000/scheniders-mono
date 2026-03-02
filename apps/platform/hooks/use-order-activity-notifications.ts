@@ -1,7 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/use-auth';
-import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+import { orderKeys } from '@/hooks/use-orders-query';
+import type { Order } from '@/lib/supabase';
 
 export type OrderActivityType = 'status_change' | 'order_updated' | 'order_created';
 
@@ -24,123 +25,120 @@ export interface OrderActivityNotification {
 }
 
 /**
- * Hook to track real-time order changes and show notifications
- * for activities performed by other team members
+ * Hook to track order changes via React Query cache observer and show notifications.
+ *
+ * Previously this opened a separate Supabase realtime channel on the orders table,
+ * duplicating the subscription from useOrderRealtime and doubling bandwidth.
+ * Now it observes the React Query cache instead — same notifications, zero extra connections.
  */
 export function useOrderActivityNotifications() {
     const { user } = useAuth();
+    const queryClient = useQueryClient();
     const [notifications, setNotifications] = useState<OrderActivityNotification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [recentlyChangedOrders, setRecentlyChangedOrders] = useState<Set<string>>(new Set());
 
-    // Subscribe to real-time order changes
+    // Keep a snapshot of the previous orders to detect changes
+    const prevOrdersRef = useRef<Map<string, Order>>(new Map());
+    const isInitializedRef = useRef(false);
+
     useEffect(() => {
         if (!user) return;
 
-        const channel = supabase
-            .channel('order-changes')
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'orders',
-                },
-                async (payload: RealtimePostgresChangesPayload<any>) => {
-                    // Skip if this is the current user's change (we don't want to notify ourselves)
-                    // Note: You'll need to add a `last_modified_by` column to track this
-                    // For now, we'll show all changes and you can add user tracking later
+        const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
+            if (event.type !== 'updated' || event.action.type !== 'success') return;
 
-                    const eventType = payload.eventType;
-                    const newRecord = payload.new as any;
-                    const oldRecord = payload.old as any;
+            // Only care about the orders list query
+            const queryKey = event.query.queryKey;
+            const listsKey = orderKeys.lists();
+            if (JSON.stringify(queryKey) !== JSON.stringify(listsKey)) return;
 
-                    if (!newRecord || !newRecord.id) return;
+            const newOrders = event.query.state.data as Order[] | undefined;
+            if (!newOrders) return;
 
-                    // Fetch user info who made the change (if you have last_modified_by field)
-                    // For now, we'll use a placeholder
-                    const changedByUser = {
-                        id: 'unknown',
-                        name: 'Team Member',
-                        avatar: undefined,
-                    };
+            const prevMap = prevOrdersRef.current;
+            const newMap = new Map(newOrders.map(o => [o.id, o]));
 
-                    let notification: OrderActivityNotification | null = null;
+            // Skip generating notifications on first load
+            if (!isInitializedRef.current) {
+                prevOrdersRef.current = newMap;
+                isInitializedRef.current = true;
+                return;
+            }
 
-                    if (eventType === 'UPDATE') {
-                        // Check if status changed
-                        if (oldRecord.status !== newRecord.status) {
-                            notification = {
-                                id: `${newRecord.id}-${Date.now()}`,
-                                type: 'status_change',
-                                orderId: newRecord.id,
-                                orderDisplayId: `#${newRecord.order_id}`,
-                                userId: changedByUser.id,
-                                userName: changedByUser.name,
-                                userAvatar: changedByUser.avatar,
-                                message: `Order ${newRecord.order_id} status changed: ${oldRecord.status} → ${newRecord.status}`,
-                                timestamp: new Date(),
-                                isRead: false,
-                                metadata: {
-                                    oldStatus: oldRecord.status,
-                                    newStatus: newRecord.status,
-                                },
-                            };
-                        } else {
-                            // Other update
-                            notification = {
-                                id: `${newRecord.id}-${Date.now()}`,
-                                type: 'order_updated',
-                                orderId: newRecord.id,
-                                orderDisplayId: `#${newRecord.order_id}`,
-                                userId: changedByUser.id,
-                                userName: changedByUser.name,
-                                userAvatar: changedByUser.avatar,
-                                message: `Order ${newRecord.order_id} was updated`,
-                                timestamp: new Date(),
-                                isRead: false,
-                            };
-                        }
+            const newNotifications: OrderActivityNotification[] = [];
 
-                        // Mark this order as recently changed (for animation)
-                        setRecentlyChangedOrders(prev => new Set(prev).add(newRecord.id));
+            for (const [id, order] of newMap) {
+                const prev = prevMap.get(id);
 
-                        // Remove from recently changed after 5 seconds
-                        setTimeout(() => {
-                            setRecentlyChangedOrders(prev => {
-                                const newSet = new Set(prev);
-                                newSet.delete(newRecord.id);
-                                return newSet;
-                            });
-                        }, 5000);
-                    } else if (eventType === 'INSERT') {
-                        notification = {
-                            id: `${newRecord.id}-${Date.now()}`,
-                            type: 'order_created',
-                            orderId: newRecord.id,
-                            orderDisplayId: `#${newRecord.order_id}`,
-                            userId: changedByUser.id,
-                            userName: changedByUser.name,
-                            userAvatar: changedByUser.avatar,
-                            message: `New order ${newRecord.order_id} created`,
+                if (!prev) {
+                    // New order appeared (INSERT or un-archived)
+                    newNotifications.push({
+                        id: `${id}-${Date.now()}`,
+                        type: 'order_created',
+                        orderId: id,
+                        orderDisplayId: `#${order.order_id}`,
+                        userId: 'unknown',
+                        userName: 'Team Member',
+                        message: `New order ${order.order_id} created`,
+                        timestamp: new Date(),
+                        isRead: false,
+                    });
+                } else if (prev.updated_at !== order.updated_at) {
+                    // Order was updated — check what changed
+                    if (prev.status !== order.status) {
+                        newNotifications.push({
+                            id: `${id}-${Date.now()}`,
+                            type: 'status_change',
+                            orderId: id,
+                            orderDisplayId: `#${order.order_id}`,
+                            userId: 'unknown',
+                            userName: 'Team Member',
+                            message: `Order ${order.order_id} status changed: ${prev.status} → ${order.status}`,
                             timestamp: new Date(),
                             isRead: false,
-                        };
+                            metadata: {
+                                oldStatus: prev.status,
+                                newStatus: order.status,
+                            },
+                        });
+                    } else {
+                        newNotifications.push({
+                            id: `${id}-${Date.now()}`,
+                            type: 'order_updated',
+                            orderId: id,
+                            orderDisplayId: `#${order.order_id}`,
+                            userId: 'unknown',
+                            userName: 'Team Member',
+                            message: `Order ${order.order_id} was updated`,
+                            timestamp: new Date(),
+                            isRead: false,
+                        });
                     }
 
-                    if (notification) {
-                        setNotifications(prev => [notification!, ...prev].slice(0, 50)); // Keep last 50
-                        setUnreadCount(prev => prev + 1);
-                    }
+                    // Mark as recently changed for animation
+                    setRecentlyChangedOrders(prev => new Set(prev).add(id));
+                    setTimeout(() => {
+                        setRecentlyChangedOrders(prev => {
+                            const newSet = new Set(prev);
+                            newSet.delete(id);
+                            return newSet;
+                        });
+                    }, 5000);
                 }
-            )
-            .subscribe((status) => {
-            });
+            }
 
-        return () => {
-            channel.unsubscribe();
-        };
-    }, [user]);
+            // Update snapshot
+            prevOrdersRef.current = newMap;
+
+            if (newNotifications.length > 0) {
+                setNotifications(prev => [...newNotifications, ...prev].slice(0, 50));
+                setUnreadCount(prev => prev + newNotifications.length);
+            }
+        });
+
+        return () => unsubscribe();
+    }, [user, queryClient]);
 
     // Mark notification as read
     const markAsRead = useCallback((notificationId: string) => {

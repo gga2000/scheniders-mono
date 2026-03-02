@@ -186,6 +186,7 @@ export interface OrderFormData {
     address_details?: string;
     items: OrderItem[];
     notes?: string;
+    internal_notes?: string;
     delivery_slot?: 'morning' | 'afternoon' | 'evening';
     payment_status?: 'cod' | 'prepaid' | 'partial';
 }

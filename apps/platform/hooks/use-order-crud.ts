@@ -6,6 +6,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import {
     supabase,
     type Order,
+    type OrderItem,
     type OrderNote,
     type OrderStatusHistory,
     type FollowUpReminder,
@@ -214,10 +215,10 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         }
     }
 
-    async function updateOrder(orderId: string, updates: Partial<Order>, retryCount = 0): Promise<{ success: boolean; error?: string }> {
+    async function updateOrder(orderId: string, updates: Partial<Order>, retryCount = 0): Promise<{ success: boolean; error?: string; data?: Order }> {
         try {
             const cleanUpdates = { ...updates };
-            delete (cleanUpdates as any).customer;
+            delete (cleanUpdates as Record<string, unknown>).customer;
 
             // Get the current order's updated_at for conflict detection
             const currentOrder = orders.find(o => o.id === orderId);
@@ -240,7 +241,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     o.id === orderId ? normalizeOrder({
                         ...o,
                         ...cleanUpdates,
-                        // @ts-ignore
+                        // @ts-expect-error: __isPendingSync is an optimistic UI flag not in the base Order type
                         __isPendingSync: true
                     }) : o
                 ));
@@ -258,7 +259,26 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 );
 
                 if (result.conflict) {
-                    // Invalidate cache to get fresh data
+                    // Auto-retry once: fetch fresh updated_at from server and retry
+                    if (retryCount < 1) {
+                        console.warn("[updateOrder] Conflict detected — auto-retrying with fresh timestamp");
+                        // Fetch the latest version from the server
+                        const { data: freshOrder } = await supabase
+                            .from("orders")
+                            .select("*")
+                            .eq("id", orderId)
+                            .single();
+
+                        if (freshOrder) {
+                            // Update cache with fresh server data so future ops have correct updated_at
+                            optimisticUpdate((prev) =>
+                                prev.map((o) => o.id === orderId ? normalizeOrder(freshOrder) : o)
+                            );
+                            // Retry the update with the fresh updated_at
+                            return updateOrder(orderId, updates, retryCount + 1);
+                        }
+                    }
+                    // If retry also failed or couldn't fetch, invalidate and report
                     queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
                     return { success: false, error: result.error };
                 }
@@ -267,11 +287,13 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     return { success: false, error: result.error };
                 }
 
-                // Update cache with the returned data
+                // Update cache with the server-returned data (includes fresh updated_at)
                 if (result.data) {
+                    const normalized = normalizeOrder({ ...currentOrder, ...result.data });
                     optimisticUpdate((prev) =>
-                        prev.map((o) => o.id === orderId ? normalizeOrder({ ...o, ...result.data }) : o)
+                        prev.map((o) => o.id === orderId ? normalized : o)
                     );
+                    return { success: true, data: normalized };
                 }
             } else {
                 // Fallback: no conflict check possible (order not in cache)
@@ -308,7 +330,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             });
 
             if (!validationResult.success) {
-                const errorMessage = validationResult.error.issues.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
+                const errorMessage = validationResult.error.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
                 console.error("Validation failed:", errorMessage);
                 return { success: false, error: `Validation Error: ${errorMessage}` };
             }
@@ -324,7 +346,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     id: tempId,
                     created_at: new Date().toISOString(),
                     __isPendingSync: true
-                } as any;
+                } as unknown as Order;
 
                 await SyncEngine.enqueue({
                     type: "CREATE_ORDER",
@@ -345,14 +367,14 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     const riskAssessment = await fraudDetector.assessCustomerRisk(orderData.phone);
                     const riskPayload = fraudDetector.getPersistencePayload(riskAssessment);
 
-                    // @ts-ignore - risk_metadata is added to schema but TypeScript might lag
-                    orderData.risk_metadata = riskPayload;
+                    // risk_metadata is added to schema but TypeScript might lag
+                    (orderData as Record<string, unknown>).risk_metadata = riskPayload;
 
                     if (riskAssessment.level === 'high' || riskAssessment.level === 'blocked') {
-                        // @ts-ignore
+                        // @ts-expect-error: needs_attention is a dynamic flag added by fraud detector
                         orderData.needs_attention = true;
-                        // @ts-ignore
-                        orderData.attention_reasons = [...(orderData.attention_reasons || []), 'high_risk_customer'];
+                        // @ts-expect-error: attention_reasons is a dynamic flag added by fraud detector
+                        orderData.attention_reasons = [...((orderData as Record<string, unknown>).attention_reasons as string[] || []), 'high_risk_customer'];
                     }
                 }
             } catch (riskErr) {
@@ -421,7 +443,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         }
     }
 
-    async function splitOrder(originalOrderId: string, keptItems: any[], returnedItems: any[]): Promise<{ success: boolean; error?: string }> {
+    async function splitOrder(originalOrderId: string, keptItems: OrderItem[], returnedItems: OrderItem[]): Promise<{ success: boolean; error?: string }> {
         try {
             const originalOrder = orders.find(o => o.id === originalOrderId);
 
@@ -431,7 +453,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
 
                 if (originalOrder) {
-                    const calculateTotal = (items: any[]) => items.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
+                    const calculateTotal = (items: OrderItem[]) => items.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
                     const keptTotal = calculateTotal(keptItems);
                     const returnedTotal = calculateTotal(returnedItems);
 

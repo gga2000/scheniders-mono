@@ -1,13 +1,11 @@
 import { get, set } from "idb-keyval";
-import { orderRepository } from "@/lib/repositories/order-repository";
-import { updateWithConflictCheck } from "@/lib/conflict-detection";
 import { toast } from "sonner";
 import type { Order } from "@/types/order";
 
 export interface SyncTask {
     id: string;
     type: "CREATE_ORDER" | "UPDATE_ORDER" | "UPDATE_STATUS";
-    payload: any;
+    payload: unknown;
     createdAt: number;
     status: "PENDING" | "FAILED";
     error?: string;
@@ -128,17 +126,17 @@ export class SyncEngine {
                 await this.handleCreate(payload);
                 break;
             case "UPDATE_ORDER":
-                await this.handleUpdate(payload);
+                await this.handleUpdate(payload as { orderId: string, updates: Partial<Order>, expectedUpdatedAt: string });
                 break;
             case "UPDATE_STATUS":
-                await this.handleUpdateStatus(payload);
+                await this.handleUpdateStatus(payload as { orderId: string, status: string, rejectionReason?: string, expectedUpdatedAt: string });
                 break;
             default:
                 throw new Error(`Unknown sync task type: ${type}`);
         }
     }
 
-    private static async handleCreate(payload: any) {
+    private static async handleCreate(payload: unknown) {
         // Need to use raw supabase insert because orderRepository.create doesn't exist yet
         // In the existing code, createOrder directly used a mutation calling supabase.insert
         const { supabase } = await import("@/lib/supabase");
@@ -147,42 +145,35 @@ export class SyncEngine {
     }
 
     private static async handleUpdate(payload: { orderId: string, updates: Partial<Order>, expectedUpdatedAt: string }) {
-        // Use the conflict-aware update from Phase 2
-        const result = await updateWithConflictCheck(
-            "orders",
-            payload.orderId,
-            payload.updates,
-            payload.expectedUpdatedAt
-        );
+        // Offline tasks are replayed after minutes/hours — the expectedUpdatedAt
+        // captured at enqueue time will almost always be stale, causing guaranteed
+        // conflict failures. Apply the update directly (last-write-wins) since the
+        // user explicitly made this change while offline and expects it to apply.
+        const { supabase } = await import("@/lib/supabase");
+        const { error } = await supabase
+            .from("orders")
+            .update(payload.updates)
+            .eq("id", payload.orderId);
 
-        if (result.conflict) {
-            throw new Error(`Conflict: ${result.error}`);
-        }
-        if (!result.success) {
-            throw new Error(result.error);
-        }
+        if (error) throw error;
     }
 
     private static async handleUpdateStatus(payload: { orderId: string, status: string, rejectionReason?: string, expectedUpdatedAt: string }) {
-        // Similar to update, we must check for conflicts
-        // Since updateStatus in the repo doesn't do conflict checks yet natively, we do it here
-        const result = await updateWithConflictCheck(
-            "orders",
-            payload.orderId,
-            {
-                status: payload.status,
-                rejection_reason: payload.rejectionReason,
-                ...(payload.status === "delivered" ? { delivered_at: new Date().toISOString() } : {}),
-                ...(payload.status === "cancelled" ? { cancelled_at: new Date().toISOString() } : {})
-            },
-            payload.expectedUpdatedAt
-        );
+        // Same as handleUpdate — skip conflict check for offline replay.
+        // The user made this status change while offline; apply it directly.
+        const { supabase } = await import("@/lib/supabase");
+        const updateData: Record<string, string | null> = {
+            status: payload.status,
+            rejection_reason: payload.rejectionReason || null,
+        };
+        if (payload.status === "delivered") updateData.delivered_at = new Date().toISOString();
+        if (payload.status === "cancelled") updateData.cancelled_at = new Date().toISOString();
 
-        if (result.conflict) {
-            throw new Error(`Conflict: ${result.error}`);
-        }
-        if (!result.success) {
-            throw new Error(result.error);
-        }
+        const { error } = await supabase
+            .from("orders")
+            .update(updateData)
+            .eq("id", payload.orderId);
+
+        if (error) throw error;
     }
 }

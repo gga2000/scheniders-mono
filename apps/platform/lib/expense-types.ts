@@ -10,6 +10,7 @@ export type {
     ProfitSummary,
     CustomerAnalytics,
     PipelineSummary,
+    FunnelSummary,
 } from '@/types/expense';
 
 export {

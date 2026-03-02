@@ -30,7 +30,8 @@ export function useOrderRealtime({ onReconnect }: UseOrderRealtimeOptions) {
     useRealtimeQuery<Order>({
         table: "orders",
         queryKey: orderKeys.lists(),
-        normalizer: (payload: any) => normalizeOrder(payload),
+        filter: { column: "is_archived", value: false },
+        normalizer: (payload: unknown) => normalizeOrder(payload as Order),
         onReconnect,
         onInsert: handleInsert,
         batchDelayMs: 200,

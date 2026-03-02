@@ -8,6 +8,7 @@ import {
     ProfitSummary,
     CustomerAnalytics,
     PipelineSummary,
+    FunnelSummary,
 } from "@/lib/expense-types";
 
 /**
@@ -360,6 +361,54 @@ export function useOrderProfits(
         };
     }, [orders, calculateOrderCost]);
 
+    /**
+     * Order funnel: tracks all non-negative orders through lifecycle stages
+     */
+    const funnelSummary = useMemo((): FunnelSummary => {
+        const excludedStatuses = new Set([
+            "cancelled", "rejected", "no_response",
+            "refund_delivered", "refund_failed",
+            "suspended", "return_pending",
+        ]);
+
+        const funnelOrders = orders.filter(o => !excludedStatuses.has(o.status));
+        const totalOrders = funnelOrders.length;
+
+        const pendingCount = funnelOrders.filter(
+            o => o.status === "new" || o.status === "contacted" || o.status === "pending_checkout"
+        ).length;
+
+        const confirmedCount = funnelOrders.filter(o => o.status === "confirmed").length;
+        const inTransitCount = funnelOrders.filter(o => o.status === "in_transit").length;
+        const deliveredCount = funnelOrders.filter(
+            o => o.status === "delivered" || o.status === "completed"
+        ).length;
+
+        const confirmationRate = totalOrders > 0
+            ? ((confirmedCount + inTransitCount + deliveredCount) / totalOrders) * 100
+            : 0;
+        const deliveryRate = totalOrders > 0
+            ? (deliveredCount / totalOrders) * 100
+            : 0;
+
+        const totalRevenue = funnelOrders.reduce((sum, o) => sum + (o.price || 0), 0);
+        const deliveredRevenue = funnelOrders
+            .filter(o => o.status === "delivered" || o.status === "completed")
+            .reduce((sum, o) => sum + (o.price || 0), 0);
+
+        return {
+            totalOrders,
+            pendingCount,
+            confirmedCount,
+            inTransitCount,
+            deliveredCount,
+            confirmationRate,
+            deliveryRate,
+            totalRevenue,
+            deliveredRevenue,
+        };
+    }, [orders]);
+
     return {
         calculateOrderCost,
         orderCostBreakdowns,
@@ -367,5 +416,6 @@ export function useOrderProfits(
         customerAnalytics,
         productProfitAnalysis,
         pipelineSummary,
+        funnelSummary,
     };
 }
