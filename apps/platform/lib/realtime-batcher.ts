@@ -1,6 +1,4 @@
 import { QueryClient } from "@tanstack/react-query";
-import { normalizeOrder } from "@/lib/order-normalize-utils";
-import { notificationService } from "@/lib/notification-service";
 import type { Order } from "@/lib/supabase";
 
 // =============================================
@@ -13,14 +11,14 @@ import type { Order } from "@/lib/supabase";
 
 type RealtimeEvent = {
     eventType: "INSERT" | "UPDATE" | "DELETE";
-    new?: Record<string, any>;
-    old?: Record<string, any>;
+    new?: Record<string, unknown>;
+    old?: Record<string, unknown>;
 };
 
 interface RealtimeBatcherOptions {
     queryClient: QueryClient;
     queryKey: readonly unknown[];
-    normalizer?: (raw: any) => any;
+    normalizer?: (raw: unknown) => unknown;
     flushDelayMs?: number; // Default: 200ms
     onNewOrder?: (order: Order) => void;
 }
@@ -30,14 +28,14 @@ export class RealtimeBatcher {
     private flushTimer: ReturnType<typeof setTimeout> | null = null;
     private queryClient: QueryClient;
     private queryKey: readonly unknown[];
-    private normalizer: (raw: any) => any;
+    private normalizer: (raw: unknown) => unknown;
     private flushDelayMs: number;
     private onNewOrder?: (order: Order) => void;
 
     constructor(options: RealtimeBatcherOptions) {
         this.queryClient = options.queryClient;
         this.queryKey = options.queryKey;
-        this.normalizer = options.normalizer ?? ((x: any) => x);
+        this.normalizer = options.normalizer ?? ((x: unknown) => x);
         this.flushDelayMs = options.flushDelayMs ?? 200;
         this.onNewOrder = options.onNewOrder;
     }
@@ -65,6 +63,7 @@ export class RealtimeBatcher {
 
         const events = [...this.buffer];
         this.buffer = [];
+        console.log(`[RealtimeBatcher] Flushing ${events.length} events: ${events.map(e => `${e.eventType}:${(e.new as Record<string, unknown>)?.id || (e.old as Record<string, unknown>)?.id}`).join(", ")}`);
 
         if (this.flushTimer) {
             clearTimeout(this.flushTimer);
@@ -78,13 +77,13 @@ export class RealtimeBatcher {
 
         for (const event of events) {
             if (event.eventType === "INSERT" && event.new) {
-                const order = this.normalizer(event.new as Order);
+                const order = this.normalizer(event.new as Order) as Order;
                 if (order.is_archived) continue;
                 inserts.set(order.id, order);
                 // Fire notification for new orders
                 this.onNewOrder?.(order);
             } else if (event.eventType === "UPDATE" && event.new) {
-                const order = this.normalizer(event.new as Order);
+                const order = this.normalizer(event.new as Order) as Order;
                 updates.set(order.id, order);
                 // If the same order was inserted in this batch, update the insert instead
                 if (inserts.has(order.id)) {
@@ -103,7 +102,7 @@ export class RealtimeBatcher {
         this.queryClient.setQueryData<Order[]>(this.queryKey, (old) => {
             if (!old) return old;
 
-            let result = old
+            const result = old
                 // Remove deleted orders
                 .filter((o) => !deletes.has(o.id))
                 // Apply updates (or archive removals)
@@ -113,8 +112,10 @@ export class RealtimeBatcher {
                         updates.delete(o.id); // Mark as applied
                         if (updated.is_archived) return null; // Remove archived from active list
                         // Version-aware: skip stale events (if version column exists)
-                        if (typeof (o as any).version === "number" && typeof (updated as any).version === "number") {
-                            if ((updated as any).version < (o as any).version) {
+                        const oVersion = (o as Record<string, unknown>).version;
+                        const updatedVersion = (updated as Record<string, unknown>).version;
+                        if (typeof oVersion === "number" && typeof updatedVersion === "number") {
+                            if (updatedVersion < oVersion) {
                                 return o; // Keep current (newer) version
                             }
                         }
