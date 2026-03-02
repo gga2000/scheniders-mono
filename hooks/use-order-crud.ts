@@ -149,7 +149,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 return { success: true };
             }
 
-            const { updateData } = await updateStatusMutation.mutateAsync({
+            await updateStatusMutation.mutateAsync({
                 orderId,
                 status,
                 rejectionReason
@@ -259,10 +259,11 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 );
 
                 if (result.conflict) {
-                    // Auto-retry once: fetch fresh updated_at from server and retry
+                    // Auto-retry once: fetch fresh updated_at directly from the server
+                    // and retry with it — do NOT call updateOrder() recursively because
+                    // `orders` is a stale closure and would re-read the same wrong timestamp
                     if (retryCount < 1) {
                         console.warn("[updateOrder] Conflict detected — auto-retrying with fresh timestamp");
-                        // Fetch the latest version from the server
                         const { data: freshOrder } = await supabase
                             .from("orders")
                             .select("*")
@@ -270,12 +271,21 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                             .single();
 
                         if (freshOrder) {
-                            // Update cache with fresh server data so future ops have correct updated_at
-                            optimisticUpdate((prev) =>
-                                prev.map((o) => o.id === orderId ? normalizeOrder(freshOrder) : o)
+                            // Retry the update using the FRESH updated_at from the server
+                            const retryResult = await updateWithConflictCheck(
+                                "orders",
+                                orderId,
+                                cleanUpdates,
+                                freshOrder.updated_at
                             );
-                            // Retry the update with the fresh updated_at
-                            return updateOrder(orderId, updates, retryCount + 1);
+
+                            if (retryResult.success && retryResult.data) {
+                                const normalized = normalizeOrder(retryResult.data);
+                                optimisticUpdate((prev) =>
+                                    prev.map((o) => o.id === orderId ? normalized : o)
+                                );
+                                return { success: true, data: normalized };
+                            }
                         }
                     }
                     // If retry also failed or couldn't fetch, invalidate and report
@@ -289,7 +299,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
                 // Update cache with the server-returned data (includes fresh updated_at)
                 if (result.data) {
-                    const normalized = normalizeOrder({ ...currentOrder, ...result.data });
+                    const normalized = normalizeOrder(result.data);
                     optimisticUpdate((prev) =>
                         prev.map((o) => o.id === orderId ? normalized : o)
                     );
@@ -371,10 +381,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     (orderData as Record<string, unknown>).risk_metadata = riskPayload;
 
                     if (riskAssessment.level === 'high' || riskAssessment.level === 'blocked') {
-                        // @ts-expect-error: needs_attention is a dynamic flag added by fraud detector
-                        orderData.needs_attention = true;
-                        // @ts-expect-error: attention_reasons is a dynamic flag added by fraud detector
-                        orderData.attention_reasons = [...((orderData as Record<string, unknown>).attention_reasons as string[] || []), 'high_risk_customer'];
+                        (orderData as Record<string, unknown>).needs_attention = true;
+                        (orderData as Record<string, unknown>).attention_reasons = [...((orderData as Record<string, unknown>).attention_reasons as string[] || []), 'high_risk_customer'];
                     }
                 }
             } catch (riskErr) {
@@ -535,12 +543,15 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         );
 
         try {
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from("orders")
                 .update({ is_pinned: newPinnedState })
-                .eq("id", orderId);
+                .eq("id", orderId)
+                .select()
+                .maybeSingle();
 
             if (error) throw error;
+            if (!data) throw new Error("Pin update failed: write was rejected");
             return { success: true };
         } catch (err) {
             console.error("Error toggling pin:", err);
@@ -562,12 +573,15 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         );
 
         try {
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from("orders")
                 .update({ is_pinned: isPinned })
-                .eq("id", orderId);
+                .eq("id", orderId)
+                .select()
+                .maybeSingle();
 
             if (error) throw error;
+            if (!data) throw new Error("Pin update failed: write was rejected");
             return { success: true };
         } catch (err) {
             console.error("Error setting pin:", err);
@@ -597,12 +611,15 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         );
 
         try {
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from("orders")
                 .update({ is_reviewed: newReviewedState })
-                .eq("id", orderId);
+                .eq("id", orderId)
+                .select()
+                .maybeSingle();
 
             if (error) throw error;
+            if (!data) throw new Error("Review update failed: write was rejected");
             return { success: true };
         } catch (err) {
             console.error("Error toggling reviewed:", err);
@@ -627,12 +644,14 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         );
 
         try {
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from("orders")
                 .update({ is_verified_customer: true })
-                .eq("phone", phone);
+                .eq("phone", phone)
+                .select("id");
 
             if (error) throw error;
+            if (!data || data.length === 0) throw new Error("Verified update failed: write was rejected");
             return { success: true };
         } catch (err) {
             console.error("Error marking as verified customer:", err);
@@ -653,12 +672,14 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         try {
             const previousOrders = orders.filter(o => orderIds.includes(o.id));
 
-            const { error: updateError } = await supabase
+            const { data: updatedRows, error: updateError } = await supabase
                 .from("orders")
                 .update({ status })
-                .in("id", orderIds);
+                .in("id", orderIds)
+                .select("id");
 
             if (updateError) throw updateError;
+            if (!updatedRows || updatedRows.length === 0) throw new Error("Bulk status update failed: no rows were written");
 
             // Handle Advanced Inventory & Supplies for each order
             import("@/lib/inventory-engine").then(engine => {

@@ -92,7 +92,7 @@ export default function RootLayout({
                 <PWAProvider>
                   <ThemeProvider
                     attribute="class"
-                    defaultTheme="system"
+                    defaultTheme="light"
                     enableSystem
                     enableColorScheme
                     disableTransitionOnChange

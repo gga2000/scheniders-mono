@@ -96,8 +96,10 @@ export function useUpdateOrderMutation() {
 
     return useMutation({
         mutationFn: async ({ orderId, updates }: { orderId: string; updates: Partial<Order> }) => {
-            await orderRepository.update(orderId, updates);
-            return { orderId, updates };
+            // orderRepository.update now returns the server-confirmed row (with .select())
+            // and throws if 0 rows were affected — no more silent failures
+            const serverOrder = await orderRepository.update(orderId, updates);
+            return { orderId, updates, serverOrder };
         },
         // Optimistic update - update cache immediately
         onMutate: async ({ orderId, updates }) => {
@@ -116,16 +118,20 @@ export function useUpdateOrderMutation() {
 
             return { previousOrders };
         },
-        // Rollback on error
+        // Replace optimistic data with the real server-confirmed data
+        onSuccess: ({ orderId, serverOrder }) => {
+            queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) =>
+                old?.map((order) =>
+                    order.id === orderId ? serverOrder : order
+                )
+            );
+        },
+        // Rollback on error (includes the new "0 rows affected" throw)
         onError: (err, variables, context) => {
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
         },
-        // NOTE: No onSettled invalidation — the realtime subscription will
-        // deliver the server-confirmed update, keeping the cache in sync.
-        // Previously, onSettled refetch caused a race condition where stale
-        // data from the refetch would overwrite the optimistic update.
     });
 }
 
@@ -145,8 +151,10 @@ export function useUpdateStatusMutation() {
             status: Order["status"];
             rejectionReason?: string;
         }) => {
-            const updateData = await orderRepository.updateStatus(orderId, status, rejectionReason);
-            return { orderId, status, updateData };
+            // Now returns the full server-confirmed order (with .select())
+            // and throws if 0 rows affected
+            const serverOrder = await orderRepository.updateStatus(orderId, status, rejectionReason);
+            return { orderId, status, serverOrder };
         },
         onMutate: async ({ orderId, status, rejectionReason }) => {
             await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
@@ -173,6 +181,14 @@ export function useUpdateStatusMutation() {
             );
 
             return { previousOrders };
+        },
+        // Replace optimistic data with real server-confirmed data
+        onSuccess: ({ orderId, serverOrder }) => {
+            queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) =>
+                old?.map((order) =>
+                    order.id === orderId ? serverOrder : order
+                )
+            );
         },
         onError: (err, variables, context) => {
             if (context?.previousOrders) {

@@ -152,7 +152,7 @@ export const useOrderStore = create<OrderStore>()(
       viewMode: "list",
       compactView: 0,
       compactGrid: false,
-      actionDock: false,
+      actionDock: true,
       showSearchBar: true,
       analyticsLevel: 0,
       toolbarCollapsed: false,
