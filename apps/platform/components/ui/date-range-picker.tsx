@@ -18,9 +18,10 @@ interface DateRangePickerProps {
     onDateChange: (from: string | undefined, to: string | undefined) => void;
     className?: string;
     inline?: boolean; // When true, shows calendar directly without trigger button
+    epochDate?: string; // Financial epoch date — adds "Since Day Zero" preset
 }
 
-type PresetType = "today" | "yesterday" | "thisWeek" | "thisMonth" | "last7" | "last30" | "pastYear" | "custom";
+type PresetType = "dayZero" | "today" | "yesterday" | "thisWeek" | "thisMonth" | "last7" | "last30" | "pastYear" | "custom";
 
 /**
  * Format a Date to YYYY-MM-DD string using LOCAL timezone (not UTC)
@@ -33,7 +34,7 @@ function formatLocalDate(date: Date): string {
     return `${year}-${month}-${day}`;
 }
 
-const presets: { id: PresetType; label: string; getRange: () => { from: string; to: string } }[] = [
+const basePresets: { id: PresetType; label: string; getRange: () => { from: string; to: string } }[] = [
     {
         id: "today",
         label: "Today",
@@ -118,6 +119,20 @@ const presets: { id: PresetType; label: string; getRange: () => { from: string; 
     },
 ];
 
+/** Build presets list, optionally prepending "Since Day Zero" if epochDate is set */
+function buildPresets(epochDate?: string) {
+    if (!epochDate) return basePresets;
+    const dayZeroPreset: typeof basePresets[0] = {
+        id: "dayZero",
+        label: "Since Day Zero 🚀",
+        getRange: () => ({
+            from: epochDate,
+            to: formatLocalDate(new Date()),
+        }),
+    };
+    return [dayZeroPreset, ...basePresets];
+}
+
 function getDaysInMonth(year: number, month: number): number {
     return new Date(year, month + 1, 0).getDate();
 }
@@ -147,7 +162,9 @@ export function DateRangePicker({
     onDateChange,
     className,
     inline = false,
+    epochDate,
 }: DateRangePickerProps) {
+    const presets = buildPresets(epochDate);
     const [isOpen, setIsOpen] = useState(inline); // Start open if inline
     const [activePreset, setActivePreset] = useState<PresetType | null>(null);
     const [viewDate, setViewDate] = useState(() => new Date());
