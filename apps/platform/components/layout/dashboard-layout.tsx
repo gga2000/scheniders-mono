@@ -14,6 +14,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [mounted, setMounted] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [mountTime] = useState(() => performance.now());
 
     const isMobile = useIsMobile();
 
@@ -29,6 +30,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             setIsCollapsed(true);
         }
         setMounted(true);
+        console.log(`[DashboardLayout] mounted at ${Math.round(mountTime)}ms`);
     }, []);
 
     useEffect(() => {
