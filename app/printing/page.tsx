@@ -46,6 +46,64 @@ import {
 import { formatIQD, formatDate, getBaseOrderId } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
+// PDF generation constants
+const A4_WIDTH_PX = 794;
+const A4_HEIGHT_PX = 1123;
+const A4_WIDTH_MM = 210;
+const A4_HEIGHT_MM = 297;
+const IFRAME_LOAD_TIMEOUT_MS = 2000;
+const POST_RENDER_DELAY_MS = 500;
+
+async function generatePdfFromHtml(html: string, filename: string): Promise<void> {
+    const iframe = document.createElement("iframe");
+    iframe.style.cssText = `position:absolute;left:-99999px;top:-99999px;width:${A4_WIDTH_PX}px;height:${A4_HEIGHT_PX}px;border:none;`;
+    iframe.srcdoc = html;
+    document.body.appendChild(iframe);
+
+    await new Promise<void>((resolve) => {
+        iframe.onload = () => resolve();
+        setTimeout(resolve, IFRAME_LOAD_TIMEOUT_MS);
+    });
+    await new Promise((resolve) => setTimeout(resolve, POST_RENDER_DELAY_MS));
+
+    try {
+        const html2canvas = (await import("html2canvas")).default;
+        const { jsPDF } = await import("jspdf");
+
+        const iframeDoc = iframe.contentDocument;
+        if (!iframeDoc) throw new Error("Could not access iframe document");
+
+        const canvas = await html2canvas(iframeDoc.body, {
+            scale: 1.5,
+            useCORS: true,
+            logging: false,
+            backgroundColor: "#ffffff",
+            allowTaint: true,
+        });
+
+        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+        const imgWidth = A4_WIDTH_MM;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        const imgData = canvas.toDataURL("image/png");
+
+        let yPos = 0;
+        let remainingHeight = imgHeight;
+        pdf.addImage(imgData, "PNG", 0, yPos, imgWidth, imgHeight);
+        remainingHeight -= A4_HEIGHT_MM;
+
+        while (remainingHeight > 0) {
+            pdf.addPage();
+            yPos = -(imgHeight - remainingHeight);
+            pdf.addImage(imgData, "PNG", 0, yPos, imgWidth, imgHeight);
+            remainingHeight -= A4_HEIGHT_MM;
+        }
+
+        pdf.save(filename);
+    } finally {
+        document.body.removeChild(iframe);
+    }
+}
+
 export default function PrintingPage() {
     const { orders, loading, error, updateOrderStatus, bulkUpdateStatus } = useOrdersContext();
     const printing = usePrinting(orders);
@@ -247,71 +305,11 @@ export default function PrintingPage() {
             invoiceTemplate: invoiceTemplate,
         };
 
-        // Generate the HTML content
         const html = await generateBulkA6InvoicesHTML(ordersToPrint, labelOptions);
-
-        // Create iframe completely off-screen (iframes don't affect main document layout)
-        const iframe = document.createElement("iframe");
-        iframe.style.cssText = "position:absolute;left:-99999px;top:-99999px;width:794px;height:1123px;border:none;";
-        iframe.srcdoc = html;
-        document.body.appendChild(iframe);
-
-        // Wait for iframe to load
-        await new Promise<void>((resolve) => {
-            iframe.onload = () => resolve();
-            setTimeout(resolve, 2000); // Fallback timeout
-        });
-
-        // Additional wait for content rendering
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
         try {
-            const html2canvas = (await import("html2canvas")).default;
-            const { jsPDF } = await import("jspdf");
-
-            const iframeDoc = iframe.contentDocument;
-            if (!iframeDoc) throw new Error("Could not access iframe document");
-
-            const body = iframeDoc.body;
-
-            const canvas = await html2canvas(body, {
-                scale: 1.5,
-                useCORS: true,
-                logging: false,
-                backgroundColor: "#ffffff",
-                allowTaint: true,
-            });
-
-            const pdf = new jsPDF({
-                orientation: "portrait",
-                unit: "mm",
-                format: "a4",
-            });
-
-            const imgWidth = 210;
-            const pageHeight = 297;
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
-            const imgData = canvas.toDataURL("image/png");
-
-            let yPos = 0;
-            let remainingHeight = imgHeight;
-
-            pdf.addImage(imgData, "PNG", 0, yPos, imgWidth, imgHeight);
-            remainingHeight -= pageHeight;
-
-            while (remainingHeight > 0) {
-                pdf.addPage();
-                yPos = -(imgHeight - remainingHeight);
-                pdf.addImage(imgData, "PNG", 0, yPos, imgWidth, imgHeight);
-                remainingHeight -= pageHeight;
-            }
-
-            pdf.save(`invoices-${new Date().toISOString().slice(0, 10)}.pdf`);
-        } catch (error) {
-            console.error("Error generating PDF:", error);
+            await generatePdfFromHtml(html, `invoices-${new Date().toISOString().slice(0, 10)}.pdf`);
+        } catch {
             alert("Failed to generate PDF. Please try again.");
-        } finally {
-            document.body.removeChild(iframe);
         }
     };
 
@@ -986,54 +984,7 @@ export default function PrintingPage() {
                             invoiceTemplate: template as "classic" | "modern" | "prime",
                         };
                         const html = await generateBulkA6InvoicesHTML(batchOrdersForPdf, labelOptions);
-
-                        const iframe = document.createElement("iframe");
-                        iframe.style.cssText = "position:absolute;left:-99999px;top:-99999px;width:794px;height:1123px;border:none;";
-                        iframe.srcdoc = html;
-                        document.body.appendChild(iframe);
-
-                        await new Promise<void>((resolve) => {
-                            iframe.onload = () => resolve();
-                            setTimeout(resolve, 2000);
-                        });
-                        await new Promise((resolve) => setTimeout(resolve, 500));
-
-                        try {
-                            const html2canvas = (await import("html2canvas")).default;
-                            const { jsPDF } = await import("jspdf");
-                            const iframeDoc = iframe.contentDocument;
-                            if (!iframeDoc) throw new Error("Could not access iframe");
-
-                            const canvas = await html2canvas(iframeDoc.body, {
-                                scale: 1.5,
-                                useCORS: true,
-                                logging: false,
-                                backgroundColor: "#ffffff",
-                                allowTaint: true,
-                            });
-
-                            const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-                            const imgWidth = 210;
-                            const imgHeight = (canvas.height * imgWidth) / canvas.width;
-                            const imgData = canvas.toDataURL("image/png");
-
-                            let yPos = 0;
-                            let remainingHeight = imgHeight;
-                            pdf.addImage(imgData, "PNG", 0, yPos, imgWidth, imgHeight);
-                            remainingHeight -= 297;
-
-                            while (remainingHeight > 0) {
-                                pdf.addPage();
-                                yPos = -(imgHeight - remainingHeight);
-                                pdf.addImage(imgData, "PNG", 0, yPos, imgWidth, imgHeight);
-                                remainingHeight -= 297;
-                            }
-                            pdf.save(`batch-${selectedBatch?.name || "orders"}.pdf`);
-                        } catch (error) {
-                            console.error("PDF generation error:", error);
-                        } finally {
-                            document.body.removeChild(iframe);
-                        }
+                        await generatePdfFromHtml(html, `batch-${selectedBatch?.name || "orders"}.pdf`);
                     }}
                     onDeleteBatch={printing.deleteBatch}
                     onUpdateName={printing.updateBatchName}

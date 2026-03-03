@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Tag as TagIcon, Search, AlertTriangle } from "lucide-react";
 import { useCustomerTags } from "@/hooks/use-customer-management";
-import { tagColorClasses } from "@/lib/customer-types";
+import { tagColorClasses } from "@/types/customer";
 import { cn } from "@/lib/utils";
 
 interface BulkTagModalProps {

@@ -14,7 +14,7 @@ import {
     useCustomerMetadataQuery,
     useUpdateMetadataMutation
 } from "@/hooks/use-customers-query";
-import { CustomerTag, CustomerNote, CustomerMetadata, CustomerTagAssignment, CustomerStatus } from "@/lib/customer-types";
+import { CustomerTag, CustomerNote, CustomerMetadata, CustomerTagAssignment, CustomerStatus } from "@/types/customer";
 
 // =============================================
 // CUSTOMER NOTES HOOK

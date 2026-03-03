@@ -6,6 +6,10 @@ import { env } from '@/lib/env';
 const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+const BATCH_CHUNK_SIZE = 1000;
+const MAX_RETRY_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 1000;
+
 // Reusable CSV Generator
 function generateCsv(data: any[]): string {
     if (!data || data.length === 0) return '';
@@ -14,15 +18,52 @@ function generateCsv(data: any[]): string {
 
     for (const row of data) {
         const values = headers.map(header => {
-            const val = row[header];
-            if (val === null || val === undefined) return '';
-            // Escape quotes and wrap in quotes to handle commas/newlines
-            const stringVal = typeof val === 'object' ? JSON.stringify(val) : String(val);
-            return `"${stringVal.replace(/"/g, '""')}"`;
+            const cellValue = row[header];
+            if (cellValue === null || cellValue === undefined) return '';
+            const stringValue = typeof cellValue === 'object' ? JSON.stringify(cellValue) : String(cellValue);
+            return `"${stringValue.replace(/"/g, '""')}"`;
         });
         csvRows.push(values.join(','));
     }
     return csvRows.join('\n');
+}
+
+// Fetches all rows from a table using chunked pagination with retry logic
+async function fetchAllInBatches(
+    supabase: ReturnType<typeof createClient>,
+    tableName: string
+): Promise<any[]> {
+    let allRows: any[] = [];
+    let hasMore = true;
+    let pageIndex = 0;
+    let retryCount = 0;
+
+    while (hasMore) {
+        const { data, error } = await supabase
+            .from(tableName)
+            .select('*')
+            .range(pageIndex * BATCH_CHUNK_SIZE, (pageIndex + 1) * BATCH_CHUNK_SIZE - 1);
+
+        if (error) {
+            if (retryCount < MAX_RETRY_ATTEMPTS) {
+                console.warn(`Retry ${retryCount + 1} for ${tableName} chunk ${pageIndex}`);
+                retryCount++;
+                await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * retryCount));
+                continue;
+            }
+            throw error;
+        }
+
+        retryCount = 0;
+        if (data && data.length > 0) {
+            allRows = [...allRows, ...data];
+            pageIndex++;
+        } else {
+            hasMore = false;
+        }
+    }
+
+    return allRows;
 }
 
 export async function GET(request: Request) {
@@ -35,57 +76,10 @@ export async function GET(request: Request) {
     try {
         const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-        // 1. Fetch Orders (Max 50,000 via chunking to guarantee we get everything without timeout)
-        let allOrders: any[] = [];
-        let hasMoreOrders = true;
-        let p = 0;
-        let pRetries = 0;
-        while (hasMoreOrders) {
-            const { data, error } = await supabase.from('orders').select('*').range(p * 1000, (p + 1) * 1000 - 1);
-            if (error) {
-                if (pRetries < 3) {
-                    console.warn(`Retry ${pRetries + 1} for order chunk ${p}`);
-                    pRetries++;
-                    await new Promise(r => setTimeout(r, 1000 * pRetries));
-                    continue;
-                }
-                throw error;
-            }
-            pRetries = 0;
-            if (data && data.length > 0) {
-                allOrders = [...allOrders, ...data];
-                p++;
-            } else {
-                hasMoreOrders = false;
-            }
-        }
+        // Fetch all data using chunked pagination with retry
+        const allOrders = await fetchAllInBatches(supabase, 'orders');
+        const allCustomers = await fetchAllInBatches(supabase, 'customers');
 
-        // 2. Fetch Customers
-        let allCustomers: any[] = [];
-        let hasMoreCustomers = true;
-        let c = 0;
-        let cRetries = 0;
-        while (hasMoreCustomers) {
-            const { data, error } = await supabase.from('customers').select('*').range(c * 1000, (c + 1) * 1000 - 1);
-            if (error) {
-                if (cRetries < 3) {
-                    console.warn(`Retry ${cRetries + 1} for customer chunk ${c}`);
-                    cRetries++;
-                    await new Promise(r => setTimeout(r, 1000 * cRetries));
-                    continue;
-                }
-                throw error;
-            }
-            cRetries = 0;
-            if (data && data.length > 0) {
-                allCustomers = [...allCustomers, ...data];
-                c++;
-            } else {
-                hasMoreCustomers = false;
-            }
-        }
-
-        // 3. Fetch Products
         const { data: allProducts, error: prodErr } = await supabase.from('products').select('*');
         if (prodErr) throw prodErr;
 

@@ -8,7 +8,7 @@ import {
     DollarSign,
     TrendingUp,
 } from "lucide-react";
-import { FunnelSummary } from "@/lib/expense-types";
+import { FunnelSummary } from "@/types/expense";
 import { cn } from "@/lib/utils";
 
 interface OrderFunnelCardProps {

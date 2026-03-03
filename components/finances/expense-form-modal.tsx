@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Calendar, DollarSign } from "lucide-react";
-import { Expense, ExpenseCategory, expenseCategoryLabels } from "@/lib/expense-types";
+import { Expense, ExpenseCategory, expenseCategoryLabels } from "@/types/expense";
 
 interface ExpenseFormModalProps {
     isOpen: boolean;

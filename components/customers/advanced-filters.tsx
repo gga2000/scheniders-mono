@@ -6,7 +6,7 @@ import { Filter, X, Calendar, DollarSign, Tag as TagIcon } from "lucide-react";
 import { useCustomerTags } from "@/hooks/use-customer-management";
 import { useCustomerUrlState } from "@/hooks/use-customer-url-state";
 import { cn } from "@/lib/utils";
-import { tagColorClasses } from "@/lib/customer-types";
+import { tagColorClasses } from "@/types/customer";
 
 interface AdvancedFiltersProps {
     isOpen: boolean;

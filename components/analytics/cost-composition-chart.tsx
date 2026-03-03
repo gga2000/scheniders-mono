@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { ProfitSummary } from "@/lib/expense-types";
+import { ProfitSummary } from "@/types/expense";
 import { formatIQD } from "@/lib/utils";
 
 interface CostCompositionChartProps {

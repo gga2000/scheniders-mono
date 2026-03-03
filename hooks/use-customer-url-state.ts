@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { PaginatedCustomerFilters } from "@/hooks/use-paginated-customers";
-import { CustomerStatus } from "@/lib/customer-types";
+import { CustomerStatus } from "@/types/customer";
 import { useDebounce } from "@/hooks/use-debounce";
 
 interface CustomerUrlState extends PaginatedCustomerFilters {

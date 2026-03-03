@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { customerRepository } from "@/lib/repositories/customer-repository";
-import { CustomerTag, CustomerNote, CustomerMetadata, CustomerTagAssignment, CustomerStatus } from "@/lib/customer-types";
+import { CustomerTag, CustomerNote, CustomerMetadata, CustomerTagAssignment, CustomerStatus } from "@/types/customer";
 import { CACHE_PRESETS } from '@/lib/query-config';
 
 // Query Keys

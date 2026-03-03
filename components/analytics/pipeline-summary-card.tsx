@@ -9,7 +9,7 @@ import {
     Target,
     ArrowRight,
 } from "lucide-react";
-import { PipelineSummary } from "@/lib/expense-types";
+import { PipelineSummary } from "@/types/expense";
 import { cn } from "@/lib/utils";
 
 interface PipelineSummaryCardProps {

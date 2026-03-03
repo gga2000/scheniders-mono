@@ -10,7 +10,7 @@ import {
     PiggyBank,
     Target,
 } from "lucide-react";
-import { ProfitSummary, PipelineSummary } from "@/lib/expense-types";
+import { ProfitSummary, PipelineSummary } from "@/types/expense";
 import { cn } from "@/lib/utils";
 
 interface OverviewCardsProps {

@@ -89,8 +89,8 @@ export default function VaultPage() {
         try {
             const vaults = await fetchCloudVaults();
             setCloudVaults(vaults);
-        } catch (e: any) {
-            console.error("Failed to load cloud vaults", e);
+        } catch {
+            // Cloud vault loading failed silently
         } finally {
             setIsFetchingCloud(false);
         }
@@ -112,9 +112,9 @@ export default function VaultPage() {
                 includeCustomers: true
             }, (step) => setGenerationStep(step));
             toast.success(`Backup generated successfully in ${exportFormat.toUpperCase()} format.`);
-        } catch (error: any) {
-            toast.error(error.message || "Failed to generate backup.");
-            console.error(error);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : "Failed to generate backup.";
+            toast.error(message);
         } finally {
             setIsGenerating(false);
             setGenerationStep("");
@@ -137,8 +137,9 @@ export default function VaultPage() {
             }, (step) => setGenerationStep(step));
             toast.success("Successfully synced backup to the secure cloud.");
             loadCloudVaults(); // Refresh timeline
-        } catch (error: any) {
-            toast.error(error.message || "Failed to sync to cloud.");
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : "Failed to sync to cloud.";
+            toast.error(message);
         } finally {
             setIsSyncing(false);
             setGenerationStep("");
@@ -153,8 +154,9 @@ export default function VaultPage() {
             const file = new File([blob], filename, { type: "application/octet-stream" });
             setRestoreFile(file);
             toast.success("Vault file downloaded from cloud. Please enter Vault Key to unlock.");
-        } catch (e: any) {
-            toast.error(e.message || "Failed to download cloud vault.");
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : "Failed to download cloud vault.";
+            toast.error(message);
         } finally {
             setIsDownloadingCloud(null);
         }
@@ -203,9 +205,9 @@ export default function VaultPage() {
             setParsedVaultData(parsedData);
             setDiffResult(diff);
             toast.success("File unlocked and analyzed successfully.");
-        } catch (error: any) {
-            toast.error(error.message || "Failed to unlock vault. Incorrect key or corrupted file.");
-            console.error(error);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : "Failed to unlock vault. Incorrect key or corrupted file.";
+            toast.error(message);
         } finally {
             setIsAnalyzing(false);
         }
@@ -221,9 +223,10 @@ export default function VaultPage() {
             toast.dismiss("restore-progress");
             toast.success("Data successfully restored from vault.");
             clearRestore();
-        } catch (e: any) {
+        } catch (error: unknown) {
             toast.dismiss("restore-progress");
-            toast.error("Restore failed: " + e.message);
+            const message = error instanceof Error ? error.message : "Unknown error";
+            toast.error("Restore failed: " + message);
         } finally {
             setIsRestoring(false);
         }

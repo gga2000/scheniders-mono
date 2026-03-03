@@ -1,7 +1,7 @@
 "use client";
 
 import { Users, UserPlus, UserCheck, DollarSign, Repeat, TrendingUp } from "lucide-react";
-import { CustomerAnalytics } from "@/lib/expense-types";
+import { CustomerAnalytics } from "@/types/expense";
 import { formatIQD } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
