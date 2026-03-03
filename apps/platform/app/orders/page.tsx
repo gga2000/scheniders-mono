@@ -181,13 +181,19 @@ const GlobalSearchField = React.memo(function GlobalSearchField({ filters, setFi
 
 export default function OrdersPage() {
     // 🔍 DIAGNOSTIC: Track loading → content transition (one-shot, not per-render)
-    const pageMountTime = useRef(performance.now());
+    const pageMountTime = useRef<number | null>(null);
     const hasLoggedMount = useRef(false);
     const hasLoggedContent = useRef(false);
-    if (!hasLoggedMount.current) {
-        hasLoggedMount.current = true;
-        console.log(`[OrdersPage] first render at ${Math.round(pageMountTime.current)}ms`);
-    }
+
+    useEffect(() => {
+        if (!hasLoggedMount.current) {
+            pageMountTime.current = performance.now();
+            hasLoggedMount.current = true;
+            if (pageMountTime.current !== null) {
+                console.log(`[OrdersPage] first render at ${Math.round(pageMountTime.current)}ms`);
+            }
+        }
+    }, []);
 
     const [isMounted, setIsMounted] = useState(false);
     useEffect(() => {
@@ -883,10 +889,10 @@ export default function OrdersPage() {
     }, [originalOrderInfoMap]);
 
     // Handle logging transition once
-    if (!loading && !hasLoggedContent.current) {
+    if (!loading && !hasLoggedContent.current && pageMountTime.current !== null) {
         hasLoggedContent.current = true;
         console.log(`[OrdersPage] CONTENT (${orders?.length || 0} orders) at ${Math.round(performance.now() - pageMountTime.current)}ms`);
-    } else if (loading && !hasLoggedContent.current) {
+    } else if (loading && !hasLoggedContent.current && pageMountTime.current !== null) {
         console.log(`[OrdersPage] SKELETON at ${Math.round(performance.now() - pageMountTime.current)}ms`);
     }
 
