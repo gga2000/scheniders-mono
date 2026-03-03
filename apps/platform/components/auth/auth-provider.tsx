@@ -1,7 +1,7 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { User, Session, AuthError } from "@supabase/supabase-js";
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
+import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { activityLogger } from "@/lib/activity-logger";
 import type { UserProfile, AuthContextType } from "@/types/auth";
@@ -12,9 +12,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<Session | null>(null);
     const [role, setRole] = useState<string | null>(null);
-    const [profile, setProfile] = useState<UserProfile | null>(null); // Added state
+    const [profile, setProfile] = useState<UserProfile | null>(null);
     const [permissions, setPermissions] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+
+    // Track the current user ID to avoid redundant state updates on TOKEN_REFRESHED
+    const currentUserIdRef = useRef<string | null>(null);
 
     const fetchRoleAndPermissions = async (userId: string) => {
         try {
@@ -136,28 +139,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, currentSession) => {
+                // TOKEN_REFRESHED fires frequently (every ~hour) and the user/session
+                // objects have new references but the same user ID. Calling setSession/
+                // setUser here would re-render the ENTIRE app tree for no reason.
+                // Only update state when the actual user identity changes.
+                if (event === "TOKEN_REFRESHED") {
+                    // Silently accept the refreshed session — Supabase SDK
+                    // already updates its internal state. No React re-render needed.
+                    return;
+                }
 
                 setSession(currentSession);
                 setUser(currentSession?.user ?? null);
+                currentUserIdRef.current = currentSession?.user?.id ?? null;
 
                 if (currentSession?.user) {
-                    // Only fetch if user changed or just signed in
                     if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-
                         await fetchRoleAndPermissions(currentSession.user.id);
-
 
                         if (event === 'SIGNED_IN') {
                             // Fire-and-forget: Don't block auth flow with activity logging
-
                             (async () => {
                                 try {
-                                    // Update last_login_at
                                     await supabase.from('user_profiles').update({
                                         last_login_at: new Date().toISOString()
                                     }).eq('id', currentSession.user.id);
 
-                                    // Log activity (non-blocking)
                                     activityLogger.log({
                                         action: "user.login",
                                         entityType: "user",
@@ -167,10 +174,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                                     console.error("Error logging login:", err);
                                 }
                             })();
-
                         }
                     } else if (!role) {
-                        // Fallback if role missing
                         await fetchRoleAndPermissions(currentSession.user.id);
                     }
                 } else {
@@ -182,6 +187,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setIsLoading(false);
 
                 if (event === "SIGNED_OUT") {
+                    currentUserIdRef.current = null;
                     setUser(null);
                     setSession(null);
                     setRole(null);
