@@ -123,6 +123,11 @@ export default function OrdersPage() {
         console.log(`[OrdersPage] first render at ${Math.round(pageMountTime.current)}ms`);
     }
 
+    const [isMounted, setIsMounted] = useState(false);
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
     const {
         orders,
         filteredOrders: hookFilteredOrders,
@@ -259,7 +264,8 @@ export default function OrdersPage() {
     const [assignments, setAssignments] = useState<OrderAssignment[]>(mockAssignments);
     const { splitOrder } = useOrdersContext();
 
-    const handleSplitOrder = async (keptItems: unknown[], returnedItems: unknown[]) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handleSplitOrder = async (keptItems: any[], returnedItems: any[]) => {
         if (!splitOrderDialog.order) return;
 
         // Show loading state could be nice here if dialog supported it
@@ -826,9 +832,11 @@ export default function OrdersPage() {
         console.log(`[OrdersPage] SKELETON at ${Math.round(performance.now() - pageMountTime.current)}ms`);
     }
 
+    const isInitialLoading = !isMounted || loading;
+
     return (
         <AnimatePresence mode="wait">
-            {loading ? (
+            {isInitialLoading ? (
                 <motion.div
                     key="skeleton"
                     initial={{ opacity: 1 }}
