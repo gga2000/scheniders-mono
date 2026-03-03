@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { type Order, type OrderItem } from "@/types";
 import { CACHE_PRESETS } from '@/lib/query-config';
 import { orderRepository } from "@/lib/repositories/order-repository";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
 // Refetch trigger constants
@@ -23,8 +24,14 @@ export const orderKeys = {
     archived: () => [...orderKeys.all, "archived"] as const,
 };
 
-// Fetch all active orders
+// Fetch all active orders — checks for auth session first.
+// If no session exists yet (e.g. page just loaded, cookies not parsed),
+// throws so React Query retries shortly after auth initializes.
 async function fetchOrders(): Promise<Order[]> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+        throw new Error("No auth session");
+    }
     return orderRepository.findAll();
 }
 
@@ -66,9 +73,10 @@ export function useOrdersQuery(refetchTrigger?: string) {
         refetchOnWindowFocus: "always",
         // Refetch on mount to ensure fresh data (stale cache is shown instantly while refetch happens in background)
         refetchOnMount: true,
-        // Network Optimization: Exponential backoff for 3G drops
+        // Retry with moderate backoff — fetchOrders will throw fast if no session,
+        // and succeed on first retry once auth initializes (~1-2s)
         retry: 3,
-        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
     });
 }
 
