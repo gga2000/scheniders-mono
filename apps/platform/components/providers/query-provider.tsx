@@ -1,20 +1,13 @@
 "use client";
 
-import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactNode } from "react";
-import { queryClient, persister } from "@/lib/query-client";
+import { queryClient } from "@/lib/query-client";
 
 export function QueryProvider({ children }: { children: ReactNode }) {
     return (
-        <PersistQueryClientProvider
-            client={queryClient}
-            persistOptions={{
-                persister,
-                maxAge: 1000 * 60 * 60, // 1 hour — discard stale IndexedDB data
-            }}
-        >
+        <QueryClientProvider client={queryClient}>
             {children}
-            {/* DevTools could be added here if needed */}
-        </PersistQueryClientProvider>
+        </QueryClientProvider>
     );
 }

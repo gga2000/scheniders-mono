@@ -19,8 +19,8 @@ import { activityLogger } from "@/lib/activity-logger";
 import { OrderSchema } from "@/lib/schemas";
 import { createOrderAction, splitOrderAction } from "@/app/actions/orders";
 import { SyncEngine } from "@/lib/sync-engine";
-import { updateWithConflictCheck } from "@/lib/conflict-detection";
 import { getIdempotencyGuard, generateIdempotencyKey } from "@/lib/idempotency";
+import { toast } from "sonner";
 import {
     useUpdateStatusMutation,
     useUpdateOrderMutation,
@@ -72,6 +72,29 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     // Abort controller for fetch
     const isMountedRef = useRef(true);
 
+    /**
+     * Pre-flight session check — call before critical mutations.
+     * Returns true if the session is valid, false if expired/missing.
+     * Shows a toast and attempts refresh on failure.
+     */
+    async function ensureSession(): Promise<boolean> {
+        try {
+            const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+            if (error || !currentSession) {
+                // Try to refresh the session
+                const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+                if (refreshError || !refreshData.session) {
+                    toast.error("Session expired — please refresh the page or re-login");
+                    return false;
+                }
+            }
+            return true;
+        } catch {
+            toast.error("Could not verify session — please check your connection");
+            return false;
+        }
+    }
+
     // =============================================
     // REFETCH VIA REACT QUERY (replaces legacy fetchOrders)
     // =============================================
@@ -109,6 +132,11 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         rejectionReason?: string
     ) {
         try {
+            // Pre-flight: ensure session is valid before attempting mutation
+            if (!(await ensureSession())) {
+                return { success: false, error: "Session expired" };
+            }
+
             const previousOrder = orders.find(o => o.id === orderId);
             if (previousOrder) {
                 const undoEntry = {
@@ -207,26 +235,19 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             return { success: true };
         } catch (err) {
-            console.error("Error updating order:", err);
-            return {
-                success: false,
-                error: err instanceof Error ? err.message : "Failed to update order",
-            };
+            console.error("Error updating order status:", err);
+            const msg = err instanceof Error ? err.message : "Failed to update order status";
+            toast.error(msg);
+            return { success: false, error: msg };
         }
     }
 
-    async function updateOrder(orderId: string, updates: Partial<Order>, retryCount = 0): Promise<{ success: boolean; error?: string; data?: Order }> {
+    async function updateOrder(orderId: string, updates: Partial<Order>): Promise<{ success: boolean; error?: string; data?: Order }> {
         try {
             const cleanUpdates = { ...updates };
             delete (cleanUpdates as Record<string, unknown>).customer;
 
-            // Get the current order's updated_at for conflict detection
-            const currentOrder = orders.find(o => o.id === orderId);
-            const expectedUpdatedAt = currentOrder?.updated_at;
-
-
-
-            // Offline handling
+            // Offline handling (skip session check — we'll sync later)
             if (!navigator.onLine) {
                 console.log("[Offline] Queuing update for", orderId);
                 await SyncEngine.enqueue({
@@ -234,7 +255,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     payload: {
                         orderId,
                         updates: cleanUpdates,
-                        expectedUpdatedAt
+                        expectedUpdatedAt: undefined
                     }
                 });
 
@@ -251,73 +272,25 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 return { success: true };
             }
 
-            if (expectedUpdatedAt) {
-                // Use conflict-aware update
-                const result = await updateWithConflictCheck(
-                    "orders",
-                    orderId,
-                    cleanUpdates,
-                    expectedUpdatedAt
-                );
-
-                if (result.conflict) {
-                    // Auto-retry once: fetch fresh updated_at directly from the server
-                    // and retry with it — do NOT call updateOrder() recursively because
-                    // `orders` is a stale closure and would re-read the same wrong timestamp
-                    if (retryCount < 1) {
-                        console.warn("[updateOrder] Conflict detected — auto-retrying with fresh timestamp");
-                        const { data: freshOrder } = await supabase
-                            .from("orders")
-                            .select("*")
-                            .eq("id", orderId)
-                            .single();
-
-                        if (freshOrder) {
-                            // Retry the update using the FRESH updated_at from the server
-                            const retryResult = await updateWithConflictCheck(
-                                "orders",
-                                orderId,
-                                cleanUpdates,
-                                freshOrder.updated_at
-                            );
-
-                            if (retryResult.success && retryResult.data) {
-                                const normalized = normalizeOrder(retryResult.data);
-                                optimisticUpdate((prev) =>
-                                    prev.map((o) => o.id === orderId ? normalized : o)
-                                );
-                                return { success: true, data: normalized };
-                            }
-                        }
-                    }
-                    // If retry also failed or couldn't fetch, invalidate and report
-                    queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-                    return { success: false, error: result.error };
-                }
-
-                if (!result.success) {
-                    return { success: false, error: result.error };
-                }
-
-                // Update cache with the server-returned data (includes fresh updated_at)
-                if (result.data) {
-                    const normalized = normalizeOrder(result.data);
-                    optimisticUpdate((prev) =>
-                        prev.map((o) => o.id === orderId ? normalized : o)
-                    );
-                    return { success: true, data: normalized };
-                }
-            } else {
-                // Fallback: no conflict check possible (order not in cache)
-                await updateOrderMutation.mutateAsync({
-                    orderId,
-                    updates: cleanUpdates
-                });
+            // Pre-flight: ensure session is valid before attempting mutation
+            if (!(await ensureSession())) {
+                return { success: false, error: "Session expired" };
             }
 
-            return { success: true };
+            // Use the React Query mutation directly — it does .eq("id") + .select()
+            // + .maybeSingle() to verify the write succeeded.
+            // NOTE: Conflict detection via updated_at was removed because stale
+            // cached timestamps caused massive false-positive "conflict" failures,
+            // which was the primary cause of mutations not persisting.
+            const result = await updateOrderMutation.mutateAsync({
+                orderId,
+                updates: cleanUpdates
+            });
+
+            return { success: true, data: result.serverOrder };
         } catch (err) {
             console.error("Error updating order:", err);
+            toast.error(err instanceof Error ? err.message : "Failed to update order");
             return {
                 success: false,
                 error: err instanceof Error ? err.message : "Failed to update order",
@@ -563,7 +536,9 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     o.id === orderId ? { ...o, is_pinned: !newPinnedState } : o
                 )
             );
-            return { success: false, error: err instanceof Error ? err.message : "Failed to toggle pin" };
+            const msg = err instanceof Error ? err.message : "Failed to toggle pin";
+            toast.error(msg);
+            return { success: false, error: msg };
         }
     }
 
@@ -592,7 +567,9 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     o.id === orderId ? { ...o, is_pinned: !isPinned } : o
                 )
             );
-            return { success: false, error: err instanceof Error ? err.message : "Failed to set pin" };
+            const msg = err instanceof Error ? err.message : "Failed to set pin";
+            toast.error(msg);
+            return { success: false, error: msg };
         }
     }
 
@@ -630,7 +607,9 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     o.id === orderId ? { ...o, is_reviewed: !newReviewedState } : o
                 )
             );
-            return { success: false, error: err instanceof Error ? err.message : "Failed to toggle reviewed" };
+            const msg = err instanceof Error ? err.message : "Failed to toggle reviewed";
+            toast.error(msg);
+            return { success: false, error: msg };
         }
     }
 
@@ -662,7 +641,9 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     o.phone === phone ? { ...o, is_verified_customer: false } : o
                 )
             );
-            return { success: false, error: err instanceof Error ? err.message : "Failed to mark as verified" };
+            const msg = err instanceof Error ? err.message : "Failed to mark as verified";
+            toast.error(msg);
+            return { success: false, error: msg };
         }
     }
 
@@ -714,10 +695,9 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             return { success: true, count: orderIds.length };
         } catch (err) {
             console.error("Error bulk updating orders:", err);
-            return {
-                success: false,
-                error: err instanceof Error ? err.message : "Failed to bulk update",
-            };
+            const msg = err instanceof Error ? err.message : "Failed to bulk update";
+            toast.error(msg);
+            return { success: false, error: msg };
         }
     }
 
@@ -801,10 +781,9 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             };
         } catch (err) {
             console.error("Error deleting orders:", err);
-            return {
-                success: false,
-                error: err instanceof Error ? err.message : "Failed to delete orders",
-            };
+            const msg = err instanceof Error ? err.message : "Failed to delete orders";
+            toast.error(msg);
+            return { success: false, error: msg };
         }
     }
 
@@ -1022,10 +1001,9 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             return { success: true };
         } catch (err) {
             console.error("Error merging orders:", err);
-            return {
-                success: false,
-                error: err instanceof Error ? err.message : "Failed to merge orders",
-            };
+            const msg = err instanceof Error ? err.message : "Failed to merge orders";
+            toast.error(msg);
+            return { success: false, error: msg };
         }
     }
 
