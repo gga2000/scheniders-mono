@@ -118,19 +118,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Initialize auth state
     useEffect(() => {
         const initAuth = async () => {
+            const t0 = performance.now();
+            console.log(`[initAuth] started at ${Math.round(t0)}ms`);
             try {
                 // Get initial session
                 const { data: { session: initialSession } } = await supabase.auth.getSession();
+                const t1 = performance.now();
+                console.log(`[initAuth] getSession took ${Math.round(t1 - t0)}ms, session=${initialSession ? 'YES' : 'NULL'}`);
+
                 setSession(initialSession);
                 setUser(initialSession?.user ?? null);
 
                 if (initialSession?.user) {
                     await fetchRoleAndPermissions(initialSession.user.id);
+                    const t2 = performance.now();
+                    console.log(`[initAuth] fetchRoleAndPermissions took ${Math.round(t2 - t1)}ms`);
                 }
             } catch (error) {
                 console.error("Auth initialization error:", error);
             } finally {
                 setIsLoading(false);
+                console.log(`[initAuth] complete, isLoading=false, total=${Math.round(performance.now() - t0)}ms`);
             }
         };
 

@@ -7,6 +7,8 @@ declare const self: ServiceWorkerGlobalScope & {
     __SW_MANIFEST: any;
 };
 
+console.log("[SW] Serwist SW loaded (v2 — with session check + cache cleanup)");
+
 // Clean up old manual service worker caches on activation.
 // A previous SW used "schenider-v1" and "schenider-dynamic-v1" caches
 // which may still be serving stale assets.

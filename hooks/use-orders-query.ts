@@ -1,11 +1,11 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
-import { type Order, type OrderItem } from "@/types";
+import { useEffect, useState } from "react";
+import { type Order } from "@/types";
 import { CACHE_PRESETS } from '@/lib/query-config';
 import { orderRepository } from "@/lib/repositories/order-repository";
-import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "sonner";
 
 // Refetch trigger constants
@@ -24,15 +24,54 @@ export const orderKeys = {
     archived: () => [...orderKeys.all, "archived"] as const,
 };
 
-// Fetch all active orders — checks for auth session first.
-// If no session exists yet (e.g. page just loaded, cookies not parsed),
-// throws so React Query retries shortly after auth initializes.
-async function fetchOrders(): Promise<Order[]> {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-        throw new Error("No auth session");
+// =============================================
+// SESSION STORAGE SWR CACHE (Stale-While-Revalidate)
+// Shows cached data instantly on refresh while
+// fetching fresh data in the background.
+// Uses sessionStorage (not IndexedDB) to avoid
+// cross-tab staleness / conflict-detection issues.
+// =============================================
+const SS_KEY = "orders_cache_v1";
+
+function getCachedOrders(): Order[] | undefined {
+    try {
+        const raw = sessionStorage.getItem(SS_KEY);
+        if (!raw) return undefined;
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+            console.log(`[SWR] Loaded ${parsed.length} orders from sessionStorage`);
+            return parsed;
+        }
+    } catch {
+        // Corrupt or unavailable — ignore
     }
-    return orderRepository.findAll();
+    return undefined;
+}
+
+function setCachedOrders(orders: Order[]): void {
+    try {
+        sessionStorage.setItem(SS_KEY, JSON.stringify(orders));
+    } catch {
+        // QuotaExceeded — ignore, cache is best-effort
+    }
+}
+
+// Fetch all active orders — no longer checks auth session.
+// Auth gating is handled by the `enabled` flag in useOrdersQuery.
+let fetchAttempt = 0;
+async function fetchOrders(): Promise<Order[]> {
+    const attempt = ++fetchAttempt;
+    const t0 = performance.now();
+    console.log(`[fetchOrders] attempt #${attempt} started at ${Math.round(t0)}ms`);
+
+    const result = await orderRepository.findAll();
+    const t1 = performance.now();
+    console.log(`[fetchOrders] attempt #${attempt} findAll took ${Math.round(t1 - t0)}ms, returned ${result.length} orders`);
+
+    // Persist to sessionStorage for SWR on next refresh
+    setCachedOrders(result);
+
+    return result;
 }
 
 // Fetch archived orders
@@ -43,17 +82,18 @@ async function fetchArchivedOrders(): Promise<Order[]> {
 /**
  * useOrdersQuery - React Query hook for fetching orders with caching
  *
- * Benefits:
- * - Automatic caching with optimized timings
- * - Background refetching for fresh data on window focus
- * - Deduplication of parallel requests
- * - Instant data on repeat visits (from cache)
- * - Force refetch on app reopen after being closed
+ * FAANG-level optimizations:
+ * 1. SessionStorage SWR: cached data shown instantly on refresh
+ * 2. Auth-gated: only fetches when session is ready (no throw+retry)
+ * 3. Column-pruned fetch via orderRepository.findAll()
  *
- * @param refetchTrigger - Optional trigger to force refetch (changes invalidate cache)
+ * @param refetchTrigger - Optional trigger to force refetch
  */
 export function useOrdersQuery(refetchTrigger?: string) {
     const queryClient = useQueryClient();
+    const { session } = useAuth();
+    // Read cached data once via useState lazy initializer (avoids ref-during-render lint)
+    const [cachedInitialData] = useState(() => getCachedOrders());
 
     // Force refetch when trigger changes
     useEffect(() => {
@@ -66,17 +106,24 @@ export function useOrdersQuery(refetchTrigger?: string) {
     return useQuery({
         queryKey: orderKeys.lists(),
         queryFn: fetchOrders,
+        // Auth-gated: don't fetch until we have a session
+        // This eliminates the "No auth session" throw → retry cycle
+        enabled: !!session,
+        // Serve cached data instantly while refetching in background
+        initialData: cachedInitialData,
+        // If we have initialData, mark it as potentially stale so
+        // React Query refetches immediately in the background
+        initialDataUpdatedAt: cachedInitialData ? 0 : undefined,
         // Short staleTime — realtime patches keep cache fresh between refetches
         staleTime: 30 * 1000, // 30 seconds
         gcTime: CACHE_PRESETS.FREQUENT.gcTime, // 10 mins
         // Refetch when window regains focus to catch missed updates
         refetchOnWindowFocus: "always",
-        // Refetch on mount to ensure fresh data (stale cache is shown instantly while refetch happens in background)
+        // Refetch on mount to ensure fresh data
         refetchOnMount: true,
-        // Retry with moderate backoff — fetchOrders will throw fast if no session,
-        // and succeed on first retry once auth initializes (~1-2s)
-        retry: 3,
-        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+        // Lighter retry since we no longer throw for missing auth
+        retry: 2,
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 8000),
     });
 }
 

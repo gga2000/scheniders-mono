@@ -114,6 +114,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useLanguage } from "@/hooks/use-language";
 
 export default function OrdersPage() {
+    // 🔍 DIAGNOSTIC: Track loading → content transition (one-shot, not per-render)
+    const pageMountTime = useRef(performance.now());
+    const hasLoggedMount = useRef(false);
+    const hasLoggedContent = useRef(false);
+    if (!hasLoggedMount.current) {
+        hasLoggedMount.current = true;
+        console.log(`[OrdersPage] first render at ${Math.round(pageMountTime.current)}ms`);
+    }
+
     const {
         orders,
         filteredOrders: hookFilteredOrders,
@@ -810,6 +819,9 @@ export default function OrdersPage() {
     }, [originalOrderInfoMap]);
 
     if (loading) {
+        if (!hasLoggedContent.current) {
+            console.log(`[OrdersPage] SKELETON at ${Math.round(performance.now() - pageMountTime.current)}ms`);
+        }
         return (
             <div className="min-h-screen p-4 md:p-6 lg:p-8 orders-page">
                 <div className="space-y-4">
@@ -847,6 +859,11 @@ export default function OrdersPage() {
                 </div>
             </div>
         );
+    }
+
+    if (!hasLoggedContent.current) {
+        hasLoggedContent.current = true;
+        console.log(`[OrdersPage] CONTENT (${orders.length} orders) at ${Math.round(performance.now() - pageMountTime.current)}ms`);
     }
 
     return (
