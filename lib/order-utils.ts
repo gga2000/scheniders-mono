@@ -21,8 +21,11 @@ export function generateOrderId(): string {
 export function validatePhone(phone: string): boolean {
     if (!phone) return false;
 
+    // Convert Arabic numerals to English numerals
+    let cleaned = phone.replace(/[٠-٩]/g, (d) => (d.charCodeAt(0) - 1632).toString());
+
     // Remove all non-digit and non-plus characters
-    const cleaned = phone.replace(/[^\d+]/g, '');
+    cleaned = cleaned.replace(/[^\d+]/g, '');
 
     // Check Iraqi formats
     const patterns = [
@@ -60,8 +63,11 @@ export function validatePhoneDetailed(phone: string | undefined | null): PhoneVa
         };
     }
 
+    // Convert Arabic numerals to English numerals
+    let cleaned = phone.replace(/[٠-٩]/g, (d) => (d.charCodeAt(0) - 1632).toString());
+
     // Remove all non-digit and non-plus characters (handles invisible chars, dots, etc.)
-    let cleaned = phone.replace(/[^\d+]/g, '');
+    cleaned = cleaned.replace(/[^\d+]/g, '');
 
     // Normalize: convert +964 or 964 prefix to 0
     if (cleaned.startsWith('+964')) {
@@ -129,7 +135,10 @@ export function validatePhoneDetailed(phone: string | undefined | null): PhoneVa
 export function formatPhoneForDisplay(phone: string | undefined | null): string {
     if (!phone) return '';
 
-    let cleaned = phone.replace(/[^\d+]/g, '');
+    // Convert Arabic numerals to English numerals
+    let cleaned = phone.replace(/[٠-٩]/g, (d) => (d.charCodeAt(0) - 1632).toString());
+
+    cleaned = cleaned.replace(/[^\d+]/g, '');
 
     // Remove +964 or 964 prefix
     if (cleaned.startsWith('+964')) {
@@ -149,8 +158,11 @@ export function formatPhoneForDisplay(phone: string | undefined | null): string 
 export function normalizePhoneForSearch(phone: string | undefined | null): string {
     if (!phone) return '';
 
+    // Convert Arabic numerals to English numerals
+    let cleaned = phone.replace(/[٠-٩]/g, (d) => (d.charCodeAt(0) - 1632).toString());
+
     // Remove all non-digit characters
-    let cleaned = phone.replace(/\D/g, '');
+    cleaned = cleaned.replace(/\D/g, '');
 
     // Remove +964 or 964 prefix
     if (cleaned.startsWith('964')) {
@@ -256,7 +268,10 @@ export function validateOrderForm(data: OrderFormData): ValidationErrors {
  * Converts to +9647XXXXXXXX format
  */
 export function formatPhoneToStandard(phone: string): string {
-    const cleaned = phone.replace(/[^\d+]/g, '');
+    // Convert Arabic numerals to English numerals
+    let cleaned = phone.replace(/[٠-٩]/g, (d) => (d.charCodeAt(0) - 1632).toString());
+
+    cleaned = cleaned.replace(/[^\d+]/g, '');
 
     // If starts with 07, replace with +9647
     if (cleaned.startsWith('07')) {
