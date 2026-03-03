@@ -68,6 +68,7 @@ import {
     Minus,
     Sun,
     PackagePlus,
+    Send,
 } from "lucide-react";
 
 interface OrderDetailsModalProps {
@@ -106,6 +107,7 @@ export function OrderDetailsModal({
     messageTemplates,
 }: OrderDetailsModalProps) {
     const [order, setOrder] = useState<Order | null>(propOrder);
+    const [isSendingTemplate, setIsSendingTemplate] = useState(false);
     const governorates = getAllGovernorateCodes();
     const isMobile = useIsMobile();
     const { t } = useLanguage();
@@ -194,7 +196,7 @@ export function OrderDetailsModal({
 
     // Reorder functionality
     const [showCreateOrderModal, setShowCreateOrderModal] = useState(false);
-    const [orderInitialData, setOrderInitialData] = useState<any>(null);
+    const [orderInitialData, setOrderInitialData] = useState<Record<string, unknown> | null>(null);
     const { createOrder } = useOrderCrud();
 
     const handleReorder = () => {
@@ -247,6 +249,29 @@ export function OrderDetailsModal({
                 `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
             );
             window.open(link, "_blank");
+        }
+    };
+
+    const handleSendTemplate = async () => {
+        setIsSendingTemplate(true);
+        try {
+            const response = await fetch("/api/webhooks/interakt/send", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ order }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "Failed to send template");
+            }
+
+            toast.success("تم إرسال رسالة التأكيد بنجاح");
+        } catch (error) {
+            toast.error("فشل في إرسال الرسالة", error instanceof Error ? error.message : "Unknown error");
+        } finally {
+            setIsSendingTemplate(false);
         }
     };
 
@@ -946,6 +971,24 @@ export function OrderDetailsModal({
                                                 {t("orderDetail.close")}
                                             </button>
                                             <button
+                                                onClick={handleSendTemplate}
+                                                disabled={isSendingTemplate || order.status !== "new"}
+                                                className={cn(
+                                                    "flex items-center gap-2 px-6 py-3 rounded-xl text-white transition-all font-semibold shadow-md",
+                                                    order.status !== "new"
+                                                        ? "bg-gray-300 cursor-not-allowed shadow-none"
+                                                        : "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20"
+                                                )}
+                                                title="إرسال رسالة تأكيد (فقط للطلبات الجديدة)"
+                                            >
+                                                {isSendingTemplate ? (
+                                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                ) : (
+                                                    <Send className="h-4 w-4" />
+                                                )}
+                                                إرسال قالب التأكيد
+                                            </button>
+                                            <button
                                                 onClick={handleWhatsApp}
                                                 className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)] transition-all font-semibold shadow-md shadow-green-500/20"
                                             >
@@ -988,7 +1031,8 @@ export function OrderDetailsModal({
                     }}
                     onCreate={createOrder}
                     checkOrderIdExists={checkOrderIdExists}
-                    initialData={orderInitialData}
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    initialData={orderInitialData as any}
                 />
             )}
         </>
