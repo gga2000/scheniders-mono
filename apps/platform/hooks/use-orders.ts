@@ -205,8 +205,21 @@ export function useOrders() {
         canUndo: crudHook.canUndo,
         checkOrderIdExists: crudHook.checkOrderIdExists,
     }), [
-        orders, filterHook, archivedOrders, loading, error, auxiliaryHook,
-        crudHook,
+        orders,
+        archivedOrders,
+        loading,
+        error,
+        filterHook.statusCounts,
+        filterHook.filteredOrders,
+        filterHook.filters,
+        filterHook.filterPresets,
+        filterHook.availableCities,
+        filterHook.availableProducts,
+        auxiliaryHook.stats,
+        auxiliaryHook.rejectionReasons,
+        auxiliaryHook.messageTemplates,
+        crudHook.canUndo,
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     ]);
 
     return contextValue;

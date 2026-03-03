@@ -14,16 +14,35 @@ export interface SyncTask {
 const SYNC_QUEUE_KEY = "offline-sync-queue";
 
 /**
+ * Executes a promise with a hard timeout.
+ * Used to prevent Supabase fetches from hanging indefinitely
+ * when the network is dropping packets but navigator.onLine is true.
+ */
+async function withTimeout<T>(promise: PromiseLike<T>, timeoutMs = 8000): Promise<T> {
+    let timeoutHandle: ReturnType<typeof setTimeout>;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutHandle = setTimeout(() => reject(new Error("NETWORK_TIMEOUT")), timeoutMs);
+    });
+
+    try {
+        return await Promise.race([Promise.resolve(promise), timeoutPromise]);
+    } finally {
+        clearTimeout(timeoutHandle!);
+    }
+}
+
+/**
  * Advanced Sync Engine for handling offline mutations.
  * 
  * Features:
  * - Persistent IndexedDB queue
+ * - Strict Timeout handling for "False Online" scenarios
  * - Sequential replay to preserve temporal order
- * - Conflict awareness (uses Phase 2 optimistic locking)
  * - Error isolation (one failed task doesn't block the queue)
  */
 export class SyncEngine {
     private static isSyncing = false;
+    private static syncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
     /** Get the current queue of tasks */
     static async getQueue(): Promise<SyncTask[]> {
@@ -42,11 +61,18 @@ export class SyncEngine {
         queue.push(newTask);
         await set(SYNC_QUEUE_KEY, queue);
 
-        // Attempt to sync immediately if online
-        if (typeof navigator !== "undefined" && navigator.onLine) {
-            // Fire and forget
-            this.sync().catch(console.error);
+        // Attempt to sync immediately. 
+        // We debounce this slightly to allow React Query's onMutate to finish setup
+        // and to batch multiple rapid enqueues into a single sync run.
+        if (this.syncDebounceTimer) {
+            clearTimeout(this.syncDebounceTimer);
         }
+
+        this.syncDebounceTimer = setTimeout(() => {
+            // Even if navigator.onLine is true, we rely on the actual fetch timeout
+            // to prove connectivity during the sync() run.
+            this.sync().catch(console.error);
+        }, 100);
 
         return newTask;
     }
@@ -74,10 +100,12 @@ export class SyncEngine {
 
     /** 
      * Process the queue sequentially.
-     * Starts automatically when coming back online.
      */
     static async sync(): Promise<void> {
         if (this.isSyncing) return;
+
+        // We check onLine initially to save battery/effort, but do not fully trust it.
+        // If it says false, we definitively abort. If true, we proceed but rely on timeouts.
         if (typeof navigator !== "undefined" && !navigator.onLine) return;
 
         try {
@@ -91,17 +119,29 @@ export class SyncEngine {
             console.log(`[SyncEngine] Starting sync of ${pendingTasks.length} offline tasks...`);
             let successCount = 0;
             let failCount = 0;
+            let networkTimeoutHit = false;
 
             for (const task of pendingTasks) {
+                // If we hit a pure network timeout, abort the rest of the queue
+                // so we don't spam requests into a black hole.
+                if (networkTimeoutHit) break;
+
                 try {
                     await this.processTask(task);
                     await this.remove(task.id);
                     successCount++;
-                } catch (err) {
-                    failCount++;
+                } catch (err: any) {
                     const msg = err instanceof Error ? err.message : "Unknown sync error";
-                    console.error(`[SyncEngine] Task ${task.id} failed:`, msg);
-                    await this.markFailed(task.id, msg);
+
+                    if (msg === "NETWORK_TIMEOUT" || msg.includes("Failed to fetch")) {
+                        console.warn(`[SyncEngine] Network timeout on task ${task.id}. Pausing queue.`);
+                        networkTimeoutHit = true;
+                        // Do NOT mark as failed; keep it pending for next time
+                    } else {
+                        failCount++;
+                        console.error(`[SyncEngine] Task ${task.id} failed permanently:`, msg);
+                        await this.markFailed(task.id, msg);
+                    }
                 }
             }
 
@@ -109,7 +149,7 @@ export class SyncEngine {
                 toast.success(`Synced ${successCount} offline change${successCount > 1 ? 's' : ''}`);
             }
             if (failCount > 0) {
-                toast.error(`${failCount} offline change${failCount > 1 ? 's' : ''} failed to sync. Review your connection or data.`);
+                toast.error(`${failCount} offline change${failCount > 1 ? 's' : ''} failed due to server errors. Please review them.`);
             }
 
         } finally {
@@ -137,30 +177,27 @@ export class SyncEngine {
     }
 
     private static async handleCreate(payload: unknown) {
-        // Need to use raw supabase insert because orderRepository.create doesn't exist yet
-        // In the existing code, createOrder directly used a mutation calling supabase.insert
         const { supabase } = await import("@/lib/supabase");
-        const { error } = await supabase.from("orders").insert(payload);
+        // Use withTimeout to prevent hanging on "False Online"
+        const { error } = await withTimeout<any>(supabase.from("orders").insert(payload).select().single());
         if (error) throw error;
     }
 
     private static async handleUpdate(payload: { orderId: string, updates: Partial<Order>, expectedUpdatedAt: string }) {
-        // Offline tasks are replayed after minutes/hours — the expectedUpdatedAt
-        // captured at enqueue time will almost always be stale, causing guaranteed
-        // conflict failures. Apply the update directly (last-write-wins) since the
-        // user explicitly made this change while offline and expects it to apply.
         const { supabase } = await import("@/lib/supabase");
-        const { error } = await supabase
-            .from("orders")
-            .update(payload.updates)
-            .eq("id", payload.orderId);
+        const { error } = await withTimeout<any>(
+            supabase
+                .from("orders")
+                .update(payload.updates)
+                .eq("id", payload.orderId)
+                .select()
+                .single()
+        );
 
         if (error) throw error;
     }
 
     private static async handleUpdateStatus(payload: { orderId: string, status: string, rejectionReason?: string, expectedUpdatedAt: string }) {
-        // Same as handleUpdate — skip conflict check for offline replay.
-        // The user made this status change while offline; apply it directly.
         const { supabase } = await import("@/lib/supabase");
         const updateData: Record<string, string | null> = {
             status: payload.status,
@@ -169,10 +206,14 @@ export class SyncEngine {
         if (payload.status === "delivered") updateData.delivered_at = new Date().toISOString();
         if (payload.status === "cancelled") updateData.cancelled_at = new Date().toISOString();
 
-        const { error } = await supabase
-            .from("orders")
-            .update(updateData)
-            .eq("id", payload.orderId);
+        const { error } = await withTimeout<any>(
+            supabase
+                .from("orders")
+                .update(updateData)
+                .eq("id", payload.orderId)
+                .select()
+                .single()
+        );
 
         if (error) throw error;
     }

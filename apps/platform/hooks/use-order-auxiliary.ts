@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef, useLayoutEffect } from "react";
 import { supabase, type Order, type RejectionReason, type MessageTemplate } from "@/lib/supabase";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 
@@ -293,13 +293,8 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
         peakTime,
     }), [orders, revenueTrends, velocityMetrics, peakTime]);
 
-    return {
-        // Reference data
-        rejectionReasons: auxData.rejectionReasons,
-        messageTemplates: auxData.messageTemplates,
+    const latestFn = {
         isBlacklisted,
-
-        // Customer helpers
         getCustomerHistory,
         getCustomerOrderCount,
         getCustomerArchivedCount,
@@ -307,8 +302,35 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
         getDuplicatesForOrder,
         hasDuplicates,
         getCustomerOrders,
+    };
+
+    const apiRef = useRef(latestFn);
+
+    useLayoutEffect(() => {
+        apiRef.current = latestFn;
+    });
+
+    const stableAPI = useMemo(() => {
+        const proxy: any = {};
+        for (const key in latestFn) {
+            proxy[key as keyof typeof latestFn] = (...args: any[]) => {
+                // @ts-expect-error dynamic wrapper
+                return apiRef.current[key as keyof typeof latestFn](...args);
+            };
+        }
+        return proxy as typeof latestFn;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    return {
+        // Reference data
+        rejectionReasons: auxData.rejectionReasons,
+        messageTemplates: auxData.messageTemplates,
 
         // Stats
         stats,
+
+        // Stable Functions
+        ...stableAPI,
     };
 }
