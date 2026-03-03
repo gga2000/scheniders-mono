@@ -31,6 +31,7 @@ export const orderKeys = {
 const SS_KEY = "orders_cache_v1";
 
 function getCachedOrders(): Order[] | undefined {
+    if (typeof window === "undefined") return undefined;
     try {
         const raw = sessionStorage.getItem(SS_KEY);
         if (!raw) return undefined;
@@ -46,6 +47,7 @@ function getCachedOrders(): Order[] | undefined {
 }
 
 function setCachedOrders(orders: Order[]): void {
+    if (typeof window === "undefined") return;
     try {
         sessionStorage.setItem(SS_KEY, JSON.stringify(orders));
     } catch {
