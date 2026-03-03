@@ -47,8 +47,6 @@ export async function updateWithConflictCheck<T extends Record<string, unknown>>
             .select()
             .maybeSingle();
 
-        console.log(`[conflictCheck] table=${table}, id=${id}, hasExpectedTimestamp=${!!expectedUpdatedAt}, error=${error?.message || "none"}, dataReturned=${!!data}, count=${count}`);
-
         if (error) {
             return { success: false, conflict: false, error: error.message };
         }

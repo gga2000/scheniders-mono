@@ -120,12 +120,9 @@ export function useRealtimeQuery<T extends { id: string }>({
             subscriptionConfig.filter = stableFilterStr;
         }
 
-        console.log(`[Realtime] Subscribing to ${table} (sub=${subscriptionId}, filter=${subscriptionConfig.filter || "none"})`);
-
         const channel = supabase
             .channel(`${table}_changes_${subscriptionId}`)
             .on("postgres_changes", subscriptionConfig, (payload) => {
-                console.log(`[Realtime] ${table} event: ${payload.eventType}, id=${(payload.new as Record<string, unknown>)?.id || (payload.old as Record<string, unknown>)?.id}`);
                 // Push to batcher instead of updating cache directly
                 batcher.push({
                     eventType: payload.eventType as "INSERT" | "UPDATE" | "DELETE",
@@ -134,7 +131,6 @@ export function useRealtimeQuery<T extends { id: string }>({
                 });
             })
             .subscribe((status, err) => {
-                console.log(`[Realtime] ${table} channel status: ${status}${err ? `, error: ${err}` : ""}`);
                 if (status === "SUBSCRIBED") {
                     if (hasEverConnected && wasDisconnected) {
                         // True reconnection — flush any pending events and trigger refetch

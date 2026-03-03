@@ -26,7 +26,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .single();
 
             if (profileData) {
-                console.log(`[Auth] User ${userId} profile loaded: role=${profileData.role}, display_name=${profileData.display_name}, is_active=${profileData.is_active}`);
                 setRole(profileData.role);
                 setProfile(profileData as UserProfile);
 
@@ -77,6 +76,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             await fetchRoleAndPermissions(user.id);
         }
     }, [user]);
+
+    // Session health check: detect expired/invalid sessions
+    // that would cause silent RLS write failures
+    useEffect(() => {
+        if (!session) return;
+
+        const checkSession = async () => {
+            const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+            if (error || !currentSession) {
+                console.error("[Auth] Session expired or invalid — attempting refresh");
+                const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+                if (refreshError || !refreshData.session) {
+                    console.error("[Auth] Session refresh FAILED — user must re-login", refreshError?.message);
+                    // Force sign out so they get redirected to login
+                    await supabase.auth.signOut();
+                }
+            }
+        };
+
+        // Check session health every 5 minutes
+        const interval = setInterval(checkSession, 5 * 60 * 1000);
+
+        // Also check when app regains focus (user switches back to tab)
+        const handleVisibility = () => {
+            if (document.visibilityState === "visible") {
+                checkSession();
+            }
+        };
+        document.addEventListener("visibilitychange", handleVisibility);
+
+        return () => {
+            clearInterval(interval);
+            document.removeEventListener("visibilitychange", handleVisibility);
+        };
+    }, [session]);
 
     // Initialize auth state
     useEffect(() => {

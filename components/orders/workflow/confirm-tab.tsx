@@ -63,8 +63,11 @@ export function ConfirmTab({
 
     const handleConfirm = async (orderId: string) => {
         setLoadingId(orderId);
-        await onStatusUpdate(orderId, "confirmed");
-        setLoadingId(null);
+        try {
+            await onStatusUpdate(orderId, "confirmed");
+        } finally {
+            setLoadingId(null);
+        }
     };
 
     const handleCancelClick = (order: Order) => {
@@ -75,9 +78,12 @@ export function ConfirmTab({
     const handleCancelConfirm = async (reason: string) => {
         if (!orderToCancel) return;
         setLoadingId(orderToCancel.id);
-        await onStatusUpdate(orderToCancel.id, "cancelled", reason);
-        setLoadingId(null);
-        setOrderToCancel(null);
+        try {
+            await onStatusUpdate(orderToCancel.id, "cancelled", reason);
+        } finally {
+            setLoadingId(null);
+            setOrderToCancel(null);
+        }
     };
 
     if (orders.length === 0) {
