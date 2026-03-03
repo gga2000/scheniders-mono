@@ -1,6 +1,6 @@
 "use client";
 
-import ExcelJS from "exceljs";
+import type ExcelJS from "exceljs";
 import { Order } from "@/lib/supabase";
 
 // ============================================
@@ -146,8 +146,10 @@ function applyStatusStyle(cell: ExcelJS.Cell, status: string) {
 // ============================================
 
 export async function generateExcelReport(options: ExcelReportOptions): Promise<void> {
+    const { default: ExcelJSLib } = await import("exceljs");
+
     const { title, dateRange, reportType, orders } = options;
-    const workbook = new ExcelJS.Workbook();
+    const workbook = new ExcelJSLib.Workbook();
     workbook.creator = "Schneider OMS";
     workbook.created = new Date();
 

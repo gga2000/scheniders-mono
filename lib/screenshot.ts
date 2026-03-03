@@ -3,7 +3,10 @@
  * Generate shareable images from DOM elements using html2canvas
  */
 
-import html2canvas from "html2canvas";
+async function loadHtml2Canvas() {
+    const { default: html2canvas } = await import("html2canvas");
+    return html2canvas;
+}
 
 export interface ScreenshotOptions {
     filename?: string;
@@ -25,6 +28,7 @@ export async function captureAndDownload(
     } = options;
 
     try {
+        const html2canvas = await loadHtml2Canvas();
         const canvas = await html2canvas(element, {
             scale,
             backgroundColor,
@@ -59,6 +63,7 @@ export async function captureAsBlob(
     } = options;
 
     try {
+        const html2canvas = await loadHtml2Canvas();
         const canvas = await html2canvas(element, {
             scale,
             backgroundColor,
