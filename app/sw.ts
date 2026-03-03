@@ -7,6 +7,24 @@ declare const self: ServiceWorkerGlobalScope & {
     __SW_MANIFEST: any;
 };
 
+// Clean up old manual service worker caches on activation.
+// A previous SW used "schenider-v1" and "schenider-dynamic-v1" caches
+// which may still be serving stale assets.
+self.addEventListener("activate", (event) => {
+    event.waitUntil(
+        caches.keys().then((keys) =>
+            Promise.all(
+                keys
+                    .filter((key) => key.startsWith("schenider-"))
+                    .map((key) => {
+                        console.log(`[SW] Deleting old cache: ${key}`);
+                        return caches.delete(key);
+                    })
+            )
+        )
+    );
+});
+
 installSerwist({
     precacheEntries: self.__SW_MANIFEST,
     skipWaiting: true,
