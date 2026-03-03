@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { type Order, type OrderItem } from "@/types";
 import { CACHE_PRESETS } from '@/lib/query-config';
 import { orderRepository } from "@/lib/repositories/order-repository";
+import { toast } from "sonner";
 
 // Refetch trigger constants
 export const orderRefetchTriggers = {
@@ -131,6 +132,7 @@ export function useUpdateOrderMutation() {
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
+            toast.error(err instanceof Error ? err.message : "Failed to update order");
         },
     });
 }
@@ -194,6 +196,7 @@ export function useUpdateStatusMutation() {
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
+            toast.error(err instanceof Error ? err.message : "Failed to update order status");
         },
     });
 }
@@ -242,6 +245,7 @@ export function useDeleteOrderMutation() {
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
+            toast.error(err instanceof Error ? err.message : "Failed to delete order");
         },
     });
 }
@@ -315,6 +319,7 @@ export function useCreateOrderMutation() {
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
+            toast.error(err instanceof Error ? err.message : "Failed to create order");
         },
     });
 }
