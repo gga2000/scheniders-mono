@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { Filter, Layers, ChevronDown, Crown, Star, User, Users, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CustomerStatus } from "@/lib/customer-types";
+import { CustomerStatus } from "@/types/customer";
 import {
     DropdownMenu,
     DropdownMenuContent,

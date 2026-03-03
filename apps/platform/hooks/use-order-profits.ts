@@ -9,7 +9,7 @@ import {
     CustomerAnalytics,
     PipelineSummary,
     FunnelSummary,
-} from "@/lib/expense-types";
+} from "@/types/expense";
 
 /**
  * Hook for calculating per-order profits and customer analytics

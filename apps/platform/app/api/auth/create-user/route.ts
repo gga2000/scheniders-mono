@@ -69,8 +69,7 @@ export async function POST(request: Request) {
         }
 
         return NextResponse.json({ success: true, userId: data.user?.id });
-    } catch (err) {
-        console.error("Error creating user:", err);
+    } catch {
         return NextResponse.json({ error: "حدث خطأ غير متوقع" }, { status: 500 });
     }
 }

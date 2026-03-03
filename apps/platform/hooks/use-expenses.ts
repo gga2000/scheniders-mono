@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
-import { Expense, ExpenseCategory } from "@/lib/expense-types";
+import { Expense, ExpenseCategory } from "@/types/expense";
 
 interface ExpenseFormData {
     expense_date: string;

@@ -14,7 +14,7 @@ import {
     TrendingUp,
     TrendingDown,
 } from "lucide-react";
-import { OrderCostBreakdown } from "@/lib/expense-types";
+import { OrderCostBreakdown } from "@/types/expense";
 import { formatIQD } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 

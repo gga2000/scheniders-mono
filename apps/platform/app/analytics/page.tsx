@@ -114,7 +114,7 @@ const DataQualityBadge = dynamic(
 
 // Utils
 import { exportFinancesToCSV, exportFinancesToExcel, printFinancialReport } from "@/lib/finance-export";
-import { Expense } from "@/lib/expense-types";
+import { Expense } from "@/types/expense";
 import { ExpenseFormData } from "@/components/finances/expense-form-modal";
 import { cn } from "@/lib/utils";
 

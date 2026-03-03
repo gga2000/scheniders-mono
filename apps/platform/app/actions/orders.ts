@@ -59,9 +59,8 @@ export async function createOrderAction(
             .limit(1)
             .maybeSingle();
 
-        // Log for debugging if there's an issue
         if (seqError) {
-            console.error('[createOrderAction] Error fetching max sequence:', seqError);
+            throw seqError;
         }
 
         const currentMaxSeq = maxSeqData?.sequence_number ?? 0;
@@ -88,12 +87,6 @@ export async function createOrderAction(
             .single();
 
         if (insertError) {
-            console.error('[createOrderAction] Insert error:', JSON.stringify(insertError, null, 2));
-            console.error('[createOrderAction] Insert error code:', insertError.code);
-            console.error('[createOrderAction] Insert error message:', insertError.message);
-            console.error('[createOrderAction] Insert error details:', insertError.details);
-            console.error('[createOrderAction] Insert error hint:', insertError.hint);
-
             // Handle duplicate key violation (23505)
             if (insertError.code === '23505' && retryCount < MAX_RETRIES) {
                 // Recursive retry (calls logic again with higher retry count)
@@ -106,9 +99,6 @@ export async function createOrderAction(
 
         return { success: true, data };
     } catch (err: unknown) {
-        console.error("Error creating order (server action):", err);
-        console.error("Order data that failed:", JSON.stringify(orderData, null, 2));
-
         // Extract more detailed error information
         let errorMessage = "Failed to create order";
         if (err instanceof Error) {
@@ -151,7 +141,6 @@ export async function splitOrderAction(
             .single();
 
         if (fetchError || !originalOrder) {
-            console.error("Original order not found or error fetching:", fetchError);
             return { success: false, error: "Original order not found" };
         }
 
@@ -185,10 +174,7 @@ export async function splitOrderAction(
             .eq("id", originalOrderId);
 
         if (updateError) {
-            console.error("Failed to update original order:", updateError);
             throw new Error("Failed to update original order: " + updateError.message);
-        } else {
-            console.log("Original order updated successfully for ID:", originalOrderId);
         }
 
         // 5. Create Return Order
@@ -233,25 +219,15 @@ export async function splitOrderAction(
         delete returnOrderDataAny.created_at;
         delete returnOrderDataAny.updated_at;
 
-        console.log("Creating return order with data:", JSON.stringify(returnOrderDataAny, null, 2));
-
         const { success: createSuccess, data: createdReturnOrder, error: createError } = await createOrderAction(returnOrderDataAny);
 
         if (!createSuccess) {
-            console.error("Failed to create return order:", createError);
-            // Ideally we should rollback the update to original order here, but Supabase doesn't support 
-            // multi-table transactions via client/setup easily without RPC.
-            // For now, we throw error. 
-            // TODO: Consider using RPC for true atomicity if this becomes an issue.
             throw new Error("Failed to create return order: " + createError);
         }
-
-        console.log("Split order action completed successfully. Return Order ID:", createdReturnOrder?.id);
 
         return { success: true, data: createdReturnOrder };
 
     } catch (err: unknown) {
-        console.error("Split order action failed with exception:", err);
         const errorMessage = err instanceof Error ? err.message : "Failed to split order";
         return { success: false, error: errorMessage };
     }
@@ -273,8 +249,7 @@ export async function checkOrderIdExists(orderId: string, excludeUuid?: string):
         const { data, error } = await query;
         if (error) throw error;
         return data && data.length > 0;
-    } catch (err) {
-        console.error("Error checking order ID:", err);
+    } catch {
         return false;
     }
 }

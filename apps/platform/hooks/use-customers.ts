@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { Order } from "@/lib/supabase";
-import type { CustomerTag, CustomerTagAssignment, CustomerMetadata } from "@/lib/customer-types";
+import type { CustomerTag, CustomerTagAssignment, CustomerMetadata } from "@/types/customer";
 import {
     useAllTagAssignmentsQuery,
     useAllMetadataQuery,

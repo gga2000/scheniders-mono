@@ -36,8 +36,6 @@ const CustomerDetailModal = dynamic(
     () => import("@/components/customers/customer-detail-modal").then(mod => ({ default: mod.CustomerDetailModal })),
     { ssr: false }
 );
-import { AdvancedCustomerFilters } from "@/components/customers/advanced-filters";
-// ^kept import for potential future use but component is not rendered
 import { BulkTagModal } from "@/components/customers/bulk-tag-modal";
 import { BroadcastModal } from "@/components/customers/broadcast-modal";
 import { CustomerSplitPaneSkeleton } from "@/components/ui/skeletons";
@@ -51,7 +49,6 @@ import { useOrdersContext } from "@/components/providers/orders-provider";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 
 export default function CustomersPage() {
-    console.log("[CustomersPage] Render");
     const { t } = useLanguage();
 
     // 1. URL State Management (Filters & Selection)
@@ -132,18 +129,13 @@ export default function CustomersPage() {
 
     // Derived state — with client-side sort for VIP (highest paying) and Loss (lowest LTV)
     const customers = useMemo(() => {
-        console.time("[CustomersPage] customers sort calc");
         const flat = deferredData?.pages.flatMap(page => page.customers) ?? [];
-        let result = flat;
         if (deferredStatusFilter === 'vip') {
-            // VIP: descending by total_spent (highest paying first)
-            result = [...flat].sort((a, b) => b.total_spent - a.total_spent);
+            return [...flat].sort((a, b) => b.total_spent - a.total_spent);
         } else if (deferredStatusFilter === 'regular') {
-            // Loss: ascending by total_spent (customers that cost us most)
-            result = [...flat].sort((a, b) => a.total_spent - b.total_spent);
+            return [...flat].sort((a, b) => a.total_spent - b.total_spent);
         }
-        console.timeEnd("[CustomersPage] customers sort calc");
-        return result;
+        return flat;
     }, [deferredData, deferredStatusFilter]);
 
     const totalCount = data?.pages[0]?.totalCount ?? 0;

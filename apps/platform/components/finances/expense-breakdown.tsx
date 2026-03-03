@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
-import { ExpenseCategory, expenseCategoryLabels, expenseCategoryColors } from "@/lib/expense-types";
+import { ExpenseCategory, expenseCategoryLabels, expenseCategoryColors } from "@/types/expense";
 import { formatIQD } from "@/lib/utils";
 
 interface ExpenseBreakdownProps {

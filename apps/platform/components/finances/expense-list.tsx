@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Edit2, Trash2, MoreVertical, Calendar, Filter } from "lucide-react";
-import { Expense, ExpenseCategory, expenseCategoryLabels, expenseCategoryColors } from "@/lib/expense-types";
+import { Expense, ExpenseCategory, expenseCategoryLabels, expenseCategoryColors } from "@/types/expense";
 import { formatIQD } from "@/lib/utils";
 
 interface ExpenseListProps {

@@ -111,7 +111,6 @@ function InviteUserModal({ onClose, onUserCreated }: InviteUserModalProps) {
 
             onUserCreated();
         } catch (err) {
-            console.error("Error creating user:", err);
             setError(err instanceof Error ? err.message : "حدث خطأ أثناء إنشاء المستخدم");
         } finally {
             setLoading(false);
@@ -310,8 +309,7 @@ export default function TeamSettingsPage() {
 
             if (error) throw error;
             setUsers(data || []);
-        } catch (err) {
-            console.error("Error fetching users:", err);
+        } catch {
         } finally {
             setLoading(false);
         }
@@ -335,8 +333,7 @@ export default function TeamSettingsPage() {
                 prev.map(u => (u.id === userId ? { ...u, role: newRole } : u))
             );
             toast({ title: "تم تحديث الدور", description: "تم تغيير دور المستخدم بنجاح." });
-        } catch (err) {
-            console.error("Error updating role:", err);
+        } catch {
             toast({ title: "خطأ في تحديث الدور", description: "تعذر تغيير دور المستخدم. حاول مرة أخرى.", variant: "error" });
         }
     };
@@ -355,8 +352,7 @@ export default function TeamSettingsPage() {
                 prev.map(u => (u.id === userId ? { ...u, is_active: !isActive } : u))
             );
             toast({ title: isActive ? "تم تعطيل المستخدم" : "تم تفعيل المستخدم", description: isActive ? "تم تعطيل حساب المستخدم." : "تم تفعيل حساب المستخدم." });
-        } catch (err) {
-            console.error("Error toggling status:", err);
+        } catch {
             toast({ title: "خطأ في تغيير الحالة", description: "تعذر تغيير حالة المستخدم. حاول مرة أخرى.", variant: "error" });
         }
     };
@@ -376,8 +372,7 @@ export default function TeamSettingsPage() {
             );
             toast({ title: "تم تحديث الاسم", description: "تم تغيير اسم المستخدم بنجاح." });
             setEditingUser(null);
-        } catch (err) {
-            console.error("Error updating name:", err);
+        } catch {
             toast({ title: "خطأ في تحديث الاسم", description: "تعذر تغيير اسم المستخدم.", variant: "error" });
         }
     };
@@ -397,8 +392,7 @@ export default function TeamSettingsPage() {
             );
             toast({ title: "تم تعطيل الحساب", description: "تم تعطيل حساب المستخدم بنجاح." });
             setConfirmDeleteUserId(null);
-        } catch (err) {
-            console.error("Error deactivating user:", err);
+        } catch {
             toast({ title: "خطأ", description: "تعذر تعطيل الحساب.", variant: "error" });
         }
     };

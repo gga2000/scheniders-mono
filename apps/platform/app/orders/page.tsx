@@ -699,7 +699,6 @@ export default function OrdersPage() {
                 throw new Error(batchError || "Failed to create export batch");
             }
         } catch (err) {
-            console.error("Prime export error:", err);
             toast.error(
                 "Export failed",
                 err instanceof Error ? err.message : "Could not complete the export process"
@@ -2059,8 +2058,7 @@ export default function OrdersPage() {
                                                             archivedOrderCount={getCustomerArchivedCount(order.phone)}
                                                             previousOrder={previousOrder}
                                                             onMergeWithPrevious={async (keepId: string, archiveId: string) => {
-                                                                const result = await mergeOrders(keepId, archiveId);
-                                                                if (!result.success) console.error('Merge failed:', result.error);
+                                                                await mergeOrders(keepId, archiveId);
                                                             }}
                                                             onShowDuplicates={(o: any) => {
                                                                 setDuplicateOrder(o);
@@ -2132,10 +2130,7 @@ export default function OrdersPage() {
                                                     setShowDuplicateModal(true);
                                                 }}
                                                 onMergeWithPrevious={async (keepId, archiveId) => {
-                                                    const result = await mergeOrders(keepId, archiveId);
-                                                    if (!result.success) {
-                                                        console.error('Merge failed:', result.error);
-                                                    }
+                                                    await mergeOrders(keepId, archiveId);
                                                 }}
                                                 isBlacklisted={isBlacklisted}
                                                 getRiskAssessment={getAssessment}
@@ -2178,10 +2173,7 @@ export default function OrdersPage() {
                                                                 archivedOrderCount={getCustomerArchivedCount(order.phone)}
                                                                 previousOrder={previousOrder}
                                                                 onMergeWithPrevious={async (keepId: string, archiveId: string) => {
-                                                                    const result = await mergeOrders(keepId, archiveId);
-                                                                    if (!result.success) {
-                                                                        console.error('Merge failed:', result.error);
-                                                                    }
+                                                                    await mergeOrders(keepId, archiveId);
                                                                 }}
                                                                 onShowDuplicates={(o: any) => {
                                                                     setDuplicateOrder(o);

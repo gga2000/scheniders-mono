@@ -2,7 +2,7 @@
 
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { CustomerStatus } from "@/lib/customer-types";
+import { CustomerStatus } from "@/types/customer";
 import { CACHE_PRESETS } from '@/lib/query-config';
 
 export interface PaginatedCustomerFilters {

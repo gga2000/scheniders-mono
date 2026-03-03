@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useExpenses } from "./use-expenses";
-import { ExpenseCategory } from "@/lib/expense-types";
+import { ExpenseCategory } from "@/types/expense";
 import type { Order, Product } from "@/lib/supabase";
 
 export interface DateRange {

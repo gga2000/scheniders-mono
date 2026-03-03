@@ -42,6 +42,8 @@ const serverSchema = z.object({
     QSTASH_TOKEN: z.string().min(1).optional(),
     QSTASH_CURRENT_SIGNING_KEY: z.string().min(1).optional(),
     QSTASH_NEXT_SIGNING_KEY: z.string().min(1).optional(),
+    INTERAKT_API_KEY: z.string().min(1).optional(),
+    INTERAKT_WEBHOOK_SECRET: z.string().min(1).optional(),
 });
 
 // =============================================
@@ -76,6 +78,8 @@ function validateEnv() {
             QSTASH_TOKEN: process.env.QSTASH_TOKEN,
             QSTASH_CURRENT_SIGNING_KEY: process.env.QSTASH_CURRENT_SIGNING_KEY,
             QSTASH_NEXT_SIGNING_KEY: process.env.QSTASH_NEXT_SIGNING_KEY,
+            INTERAKT_API_KEY: process.env.INTERAKT_API_KEY,
+            INTERAKT_WEBHOOK_SECRET: process.env.INTERAKT_WEBHOOK_SECRET,
         });
 
         if (!serverResult.success) {

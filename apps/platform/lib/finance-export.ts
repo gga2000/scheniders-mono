@@ -1,6 +1,6 @@
 import { formatIQD } from "@/lib/utils";
 import { RevenueStats, ProfitStats, DailyData } from "@/hooks/use-finances";
-import { Expense, ExpenseCategory, expenseCategoryLabels } from "@/lib/expense-types";
+import { Expense, ExpenseCategory, expenseCategoryLabels } from "@/types/expense";
 
 interface FinancialReportData {
     dateRange: { start: string; end: string };

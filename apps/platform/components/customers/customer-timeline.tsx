@@ -1,7 +1,7 @@
 "use client";
 
 import { Order } from "@/lib/supabase";
-import { CustomerNote } from "@/lib/customer-types";
+import { CustomerNote } from "@/types/customer";
 import { formatDate, formatIQD } from "@/lib/utils";
 import { ShoppingBag, FileText, CornerDownRight, CheckCircle2, RotateCcw, XCircle, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";

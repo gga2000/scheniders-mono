@@ -8,7 +8,7 @@ import {
     ArrowRight,
     CheckCircle2,
 } from "lucide-react";
-import { ProfitSummary } from "@/lib/expense-types";
+import { ProfitSummary } from "@/types/expense";
 import { cn } from "@/lib/utils";
 
 interface ProfitSummaryCardsProps {

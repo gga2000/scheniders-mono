@@ -15,7 +15,7 @@ import {
     ShoppingBag
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { CustomerTag } from "@/lib/customer-types";
+import { CustomerTag } from "@/types/customer";
 import { RiskBadge } from "@/components/orders/risk-badge";
 
 interface CustomerCardProps {
