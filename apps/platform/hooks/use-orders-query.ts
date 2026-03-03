@@ -151,7 +151,10 @@ export function useUpdateOrderMutation() {
 
     return useMutation({
         mutationFn: async ({ orderId, updates, user_id }: { orderId: string; updates: Partial<Order>; user_id?: string }) => {
+            console.log(`[UpdateOrderMutation] 🚀 mutationFn START for ${orderId}`, Object.keys(updates));
+            const t0 = performance.now();
             const data = await orderRepository.update(orderId, updates);
+            console.log(`[UpdateOrderMutation] ✅ mutationFn END for ${orderId} in ${Math.round(performance.now() - t0)}ms`);
             return { orderId, updates, data };
         },
         // Optimistic update - update cache immediately
@@ -205,10 +208,14 @@ export function useUpdateStatusMutation() {
             status: Order["status"];
             rejectionReason?: string;
         }) => {
+            const t0 = performance.now();
+            console.log(`[UpdateStatusMutation] 🚀 mutationFn START for ${orderId} → ${status}`);
             const data = await orderRepository.updateStatus(orderId, status, rejectionReason);
+            console.log(`[UpdateStatusMutation] ✅ mutationFn END for ${orderId} in ${Math.round(performance.now() - t0)}ms, server status=${data.status}`);
             return { orderId, status, data };
         },
         onMutate: async ({ orderId, status, rejectionReason }) => {
+            console.log(`[UpdateStatusMutation] ⚡ onMutate (optimistic) for ${orderId} → ${status}`);
             await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
 
             const previousOrders = queryClient.getQueryData<Order[]>(orderKeys.lists());
@@ -234,6 +241,7 @@ export function useUpdateStatusMutation() {
             return { previousOrders };
         },
         onSuccess: ({ orderId, data }) => {
+            console.log(`[UpdateStatusMutation] 🎉 onSuccess for ${orderId}, writing server data (status=${data.status})`);
             queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) =>
                 old?.map((order) =>
                     order.id === orderId ? data : order
@@ -241,6 +249,7 @@ export function useUpdateStatusMutation() {
             );
         },
         onError: (err, variables, context) => {
+            console.error(`[UpdateStatusMutation] ❌ onError for ${variables.orderId}:`, err);
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
@@ -306,23 +315,12 @@ export function useCreateOrderMutation() {
 
     return useMutation({
         mutationFn: async (orderData: Omit<Order, "id" | "created_at" | "updated_at">) => {
-            // We can't use server actions here easily if we want to keep it purely client-side hook logic 
-            // but useOrders used createOrderAction. Let's stick to that or import it.
-            // Ideally this should invoke the server action or supabase directly. 
-            // Since createOrderAction is complex (generates ID etc), we should probably wrap it.
-            // However, for consistency with other mutations in this file, we might want to keep it simple.
-            // BUT createOrderAction handles ID generation which is crucial.
-            // Let's defer implementation of logic to the consumer or import the action.
-            // Ideally: import { orderRepository } from "@/lib/repositories/order-repository";
-            // But we can't import server actions into this file easily if it's "use client"? 
-            // Actually we can.
-
-            // Wait, the previous file imported `createOrderAction` in `use-orders.ts`. 
-            // Passing it as a prop or importing it here? 
-            // Let's assume we can fetch it or pass it.
-            // Actually, the mutationFn can just call the server action. 
+            const t0 = performance.now();
+            console.log(`[CreateOrderMutation] 🚀 mutationFn START, order_id=${orderData.order_id}`);
             const { createOrderAction } = await import("@/app/actions/orders");
+            console.log(`[CreateOrderMutation] 📦 Server action imported in ${Math.round(performance.now() - t0)}ms`);
             const result = await createOrderAction(orderData);
+            console.log(`[CreateOrderMutation] ✅ Server action completed in ${Math.round(performance.now() - t0)}ms, success=${result.success}`);
             if (!result.success || !result.data) {
                 console.error("[createOrderMutation] Server action failed:", result.error);
                 console.error("[createOrderMutation] Order data:", JSON.stringify(orderData, null, 2));

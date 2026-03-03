@@ -63,6 +63,7 @@ export class RealtimeBatcher {
 
         const events = [...this.buffer];
         this.buffer = [];
+        console.log(`[RealtimeBatcher] 🔄 Flushing ${events.length} realtime events`);
 
         if (this.flushTimer) {
             clearTimeout(this.flushTimer);
@@ -97,9 +98,22 @@ export class RealtimeBatcher {
             }
         }
 
+        console.log(`[RealtimeBatcher] 📊 Batch summary: ${inserts.size} inserts, ${updates.size} updates, ${deletes.size} deletes`);
+        for (const [id, order] of updates) {
+            console.log(`[RealtimeBatcher] ⚡ UPDATE id=${id} status=${order.status} updated_at=${order.updated_at}`);
+        }
+
         // Apply all changes in a single setQueryData call
         this.queryClient.setQueryData<Order[]>(this.queryKey, (old) => {
             if (!old) return old;
+
+            // DIAGNOSTIC: Check if any incoming updates would overwrite a recently-mutated order
+            for (const [id, incomingOrder] of updates) {
+                const cachedOrder = old.find(o => o.id === id);
+                if (cachedOrder && cachedOrder.status !== incomingOrder.status) {
+                    console.warn(`[RealtimeBatcher] ⚠️ STATUS CONFLICT for ${id}: cache has "${cachedOrder.status}" but realtime says "${incomingOrder.status}" (updated_at: cache=${cachedOrder.updated_at} vs realtime=${incomingOrder.updated_at})`);
+                }
+            }
 
             const result = old
                 // Remove deleted orders

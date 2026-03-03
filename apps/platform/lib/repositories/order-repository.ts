@@ -90,6 +90,9 @@ export const orderRepository = {
         status: Order["status"],
         rejectionReason?: string
     ): Promise<Order> {
+        const t0 = performance.now();
+        console.log(`[orderRepository.updateStatus] START id=${id} status=${status}`);
+
         const updateData: Partial<Order> = { status };
         if (rejectionReason) {
             updateData.rejection_reason = rejectionReason;
@@ -99,12 +102,22 @@ export const orderRepository = {
         if (status === "delivered") updateData.delivered_at = new Date().toISOString();
         if (status === "cancelled") updateData.cancelled_at = new Date().toISOString();
 
-        const { data, error } = await supabase
+        // Wrap the Supabase call with a timeout to prevent infinite hangs
+        const timeoutMs = 10_000;
+        const supabasePromise = supabase
             .from("orders")
             .update(updateData)
             .eq("id", id)
             .select()
             .maybeSingle();
+
+        const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(`updateStatus timed out after ${timeoutMs}ms for order ${id}`)), timeoutMs)
+        );
+
+        console.log(`[orderRepository.updateStatus] 🔄 Supabase .update() sent (${Math.round(performance.now() - t0)}ms)`);
+        const { data, error } = await Promise.race([supabasePromise, timeoutPromise]);
+        console.log(`[orderRepository.updateStatus] 📥 Supabase responded in ${Math.round(performance.now() - t0)}ms, error=${!!error}, data=${!!data}`);
 
         if (error) throw error;
         if (!data) throw new Error("Status update failed: row not found or write was rejected. Try refreshing.");
