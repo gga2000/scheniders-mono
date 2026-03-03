@@ -51,8 +51,8 @@ export interface SendTemplateResult {
 // =============================================
 
 const INTERAKT_API_URL = "https://api.interakt.ai/v1/public/message/";
-const TEMPLATE_NAME = "cod_order_confirmation";
-const TEMPLATE_LANGUAGE = "ar";
+const TEMPLATE_NAME = "cod_order_confirm";
+const TEMPLATE_LANGUAGE = "en";
 const IRAQ_COUNTRY_CODE = "+964";
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 1000;

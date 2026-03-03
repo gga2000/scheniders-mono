@@ -229,7 +229,7 @@ async function updateOrderStatus(
             order_id: orderIdDisplay,
             order_uuid: orderId,
             phone: phone || "unknown",
-            template_name: "cod_order_confirmation",
+            template_name: "cod_order_confirm",
             direction: "inbound",
             status: "received",
             payload: payload as unknown as Record<string, unknown>,
