@@ -1,8 +1,29 @@
-import { createBrowserClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 import { env } from '@/lib/env';
 
-// Create a single supabase client for the entire app with proper auth persistence
-export const supabase = createBrowserClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+// Create a single supabase client for the entire app.
+//
+// IMPORTANT: We use `createClient` from `@supabase/supabase-js` instead of
+// `createBrowserClient` from `@supabase/ssr`. The SSR client uses
+// `navigator.locks` internally for auth token management, which causes
+// DEADLOCKS when concurrent requests compete for the lock (e.g., a background
+// `fetchOrders` refetch running while a user-initiated status mutation fires).
+// The mutation's Supabase call hangs forever waiting for a lock held by the
+// refetch, the optimistic UI reverts, and the status change appears lost.
+//
+// `createClient` uses localStorage for auth persistence (the default) and
+// has no locking mechanism, so concurrent requests work correctly.
+export const supabase = createClient(
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+        auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true,
+        },
+    }
+);
 
 // =============================================
 // RE-EXPORTS FROM CENTRALIZED TYPES

@@ -131,6 +131,7 @@ export function useRealtimeQuery<T extends { id: string }>({
                 });
             })
             .subscribe((status, err) => {
+                console.log(`[RealtimeQuery] 📡 Channel "${table}" status: ${status}${err ? ` error: ${err.message}` : ''}`);
                 if (status === "SUBSCRIBED") {
                     if (hasEverConnected && wasDisconnected) {
                         // True reconnection — flush any pending events and trigger refetch
