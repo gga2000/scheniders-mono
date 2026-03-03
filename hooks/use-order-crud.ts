@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useLayoutEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth/auth-provider";
 import {
@@ -254,7 +254,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 updates: cleanUpdates
             });
 
-            return { success: true, data: result.serverOrder };
+            return { success: true };
         } catch (err) {
             console.error("Error updating order:", err);
             toast.error(err instanceof Error ? err.message : "Failed to update order");
@@ -1211,7 +1211,12 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         setUndoStack([]);
     }
 
-    return {
+    // =============================================
+    // FAANG-GRADE MEMOIZATION
+    // Stabilize the hook payload to prevent Context invalidation loops
+    // =============================================
+
+    const latestFn = {
         // Legacy fetch
         fetchOrders,
         fetchArchivedOrders,
@@ -1264,7 +1269,29 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         undoLastAction,
         getLastUndoAction,
         clearUndoStack,
-        canUndo: undoStack.length > 0,
         checkOrderIdExists,
+    };
+
+    const apiRef = useRef(latestFn);
+
+    useLayoutEffect(() => {
+        apiRef.current = latestFn;
+    });
+
+    const stableAPI = useMemo(() => {
+        const proxy: any = {};
+        for (const key in latestFn) {
+            proxy[key as keyof typeof latestFn] = (...args: any[]) => {
+                // @ts-expect-error dynamic wrapper
+                return apiRef.current[key as keyof typeof latestFn](...args);
+            };
+        }
+        return proxy as typeof latestFn;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    return {
+        ...stableAPI,
+        canUndo: undoStack.length > 0,
     };
 }

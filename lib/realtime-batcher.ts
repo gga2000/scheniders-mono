@@ -76,13 +76,13 @@ export class RealtimeBatcher {
 
         for (const event of events) {
             if (event.eventType === "INSERT" && event.new) {
-                const order = this.normalizer(event.new as Order) as Order;
+                const order = this.normalizer(event.new as unknown as Order) as Order;
                 if (order.is_archived) continue;
                 inserts.set(order.id, order);
                 // Fire notification for new orders
                 this.onNewOrder?.(order);
             } else if (event.eventType === "UPDATE" && event.new) {
-                const order = this.normalizer(event.new as Order) as Order;
+                const order = this.normalizer(event.new as unknown as Order) as Order;
                 updates.set(order.id, order);
                 // If the same order was inserted in this batch, update the insert instead
                 if (inserts.has(order.id)) {
@@ -102,17 +102,26 @@ export class RealtimeBatcher {
             if (!old) return old;
 
             const result = old
-                // Remove deleted orders
-                .filter((o) => !deletes.has(o.id))
+                // Remove deleted orders (unless they are pending a sync that might recreate them, though delete is rare here)
+                .filter((o) => {
+                    if ((o as any).__isPendingSync) return true; // Keep pending optimistic additions
+                    return !deletes.has(o.id);
+                })
                 // Apply updates (or archive removals)
                 .map((o) => {
                     const updated = updates.get(o.id);
+                    // CRITICAL FIX: If this order has an optimistic update waiting in the SyncEngine,
+                    // DO NOT overwrite it with a stale Realtime broadcast!
+                    if ((o as any).__isPendingSync) {
+                        return o;
+                    }
+
                     if (updated) {
                         updates.delete(o.id); // Mark as applied
                         if (updated.is_archived) return null; // Remove archived from active list
                         // Version-aware: skip stale events (if version column exists)
-                        const oVersion = (o as Record<string, unknown>).version;
-                        const updatedVersion = (updated as Record<string, unknown>).version;
+                        const oVersion = (o as unknown as Record<string, unknown>).version;
+                        const updatedVersion = (updated as unknown as Record<string, unknown>).version;
                         if (typeof oVersion === "number" && typeof updatedVersion === "number") {
                             if (updatedVersion < oVersion) {
                                 return o; // Keep current (newer) version

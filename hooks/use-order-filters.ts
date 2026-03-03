@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect, useRef, useDeferredValue } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef, useDeferredValue, useLayoutEffect } from "react";
 import type { Order, OrderFilters, FilterPreset } from "@/lib/supabase";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import {
@@ -268,17 +268,39 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
         setFilters({ status: "all" });
     }
 
-    return {
-        filters,
+    const latestFn = {
         setFilters,
         clearFilters,
-        filterPresets,
         saveFilterPreset,
         loadFilterPreset,
         deleteFilterPreset,
+    };
+
+    const apiRef = useRef(latestFn);
+
+    useLayoutEffect(() => {
+        apiRef.current = latestFn;
+    });
+
+    const stableAPI = useMemo(() => {
+        const proxy: any = {};
+        for (const key in latestFn) {
+            proxy[key as keyof typeof latestFn] = (...args: any[]) => {
+                // @ts-expect-error dynamic wrapper
+                return apiRef.current[key as keyof typeof latestFn](...args);
+            };
+        }
+        return proxy as typeof latestFn;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    return {
+        filters,
+        filterPresets,
         filteredOrders,
         statusCounts,
         availableCities,
         availableProducts,
+        ...stableAPI,
     };
 }
