@@ -149,7 +149,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 return { success: true };
             }
 
-            console.log(`[updateOrderStatus] orderId=${orderId}, status=${status}, online=${navigator.onLine}`);
+            console.log(`[updateOrderStatus] orderId=${orderId}, status=${status}, online=${navigator.onLine}, userRole=${profile?.role || "NO_ROLE"}, userId=${user?.id || "NO_USER"}`);
             await updateStatusMutation.mutateAsync({
                 orderId,
                 status,
@@ -226,7 +226,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             const currentOrder = orders.find(o => o.id === orderId);
             const expectedUpdatedAt = currentOrder?.updated_at;
 
-            console.log(`[updateOrder] orderId=${orderId}, retryCount=${retryCount}, expectedUpdatedAt=${expectedUpdatedAt}, online=${navigator.onLine}, keys=${Object.keys(cleanUpdates).join(",")}`);
+            console.log(`[updateOrder] orderId=${orderId}, retryCount=${retryCount}, expectedUpdatedAt=${expectedUpdatedAt}, online=${navigator.onLine}, keys=${Object.keys(cleanUpdates).join(",")}, userRole=${profile?.role || "NO_ROLE"}, userId=${user?.id || "NO_USER"}`);
 
             // Offline handling
             if (!navigator.onLine) {
