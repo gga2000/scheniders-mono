@@ -123,8 +123,8 @@ let _supabaseBreaker: CircuitBreaker | null = null;
 export function getSupabaseCircuitBreaker(): CircuitBreaker {
     if (!_supabaseBreaker) {
         _supabaseBreaker = new CircuitBreaker({
-            failureThreshold: 5,
-            cooldownMs: 30_000,
+            failureThreshold: 10,   // More forgiving (was 5 — too aggressive for rapid status changes)
+            cooldownMs: 10_000,     // Shorter cooldown (was 30s — too long, locks out entire UI)
             onStateChange: (from, to) => {
                 console.warn(`[CircuitBreaker] Supabase: ${from} → ${to}`);
             },

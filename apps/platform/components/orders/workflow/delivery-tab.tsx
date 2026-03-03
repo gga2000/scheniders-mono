@@ -56,8 +56,11 @@ export function DeliveryTab({
 
     const handleDelivered = async (order: Order) => {
         setLoadingId(order.id);
-        await onStatusUpdate(order.id, "delivered");
-        setLoadingId(null);
+        try {
+            await onStatusUpdate(order.id, "delivered");
+        } finally {
+            setLoadingId(null);
+        }
     };
 
     const openRejectionModal = (order: Order) => {
@@ -69,14 +72,16 @@ export function DeliveryTab({
     const handleRejectSubmit = async () => {
         if (!rejectionModal) return;
         setLoadingId(rejectionModal.order.id);
+        try {
+            const reason = selectedReason === "other"
+                ? customReason || "Other reason"
+                : REJECTION_REASONS.find(r => r.value === selectedReason)?.label || selectedReason;
 
-        const reason = selectedReason === "other"
-            ? customReason || "Other reason"
-            : REJECTION_REASONS.find(r => r.value === selectedReason)?.label || selectedReason;
-
-        await onStatusUpdate(rejectionModal.order.id, "rejected", reason);
-        setLoadingId(null);
-        setRejectionModal(null);
+            await onStatusUpdate(rejectionModal.order.id, "rejected", reason);
+        } finally {
+            setLoadingId(null);
+            setRejectionModal(null);
+        }
     };
 
     const openPartialModal = (order: Order) => {
@@ -97,29 +102,28 @@ export function DeliveryTab({
         if (!order) return;
 
         setLoadingId(partialModal.orderId);
+        try {
+            const totalAccepted = partialModal.items.reduce((sum, i) => sum + i.accepted, 0);
+            const totalOriginal = partialModal.items.reduce((sum, i) => sum + i.quantity, 0);
 
-        const totalAccepted = partialModal.items.reduce((sum, i) => sum + i.accepted, 0);
-        const totalOriginal = partialModal.items.reduce((sum, i) => sum + i.quantity, 0);
-
-        if (totalAccepted === 0) {
-            // Open rejection modal for zero items accepted
-            openRejectionModal(order);
+            if (totalAccepted === 0) {
+                openRejectionModal(order);
+                setPartialModal(null);
+                return;
+            } else if (totalAccepted === totalOriginal) {
+                await handleDelivered(order);
+            } else {
+                await onStatusUpdate(order.id, "delivered");
+                const partialInfo = partialModal.items
+                    .filter(i => i.accepted < i.quantity)
+                    .map(i => `${i.name}: ${i.accepted}/${i.quantity}`)
+                    .join(", ");
+                await onUpdate(order.id, { notes: `Partial: ${partialInfo}` } as Partial<Order>);
+            }
             setPartialModal(null);
+        } finally {
             setLoadingId(null);
-            return;
-        } else if (totalAccepted === totalOriginal) {
-            await handleDelivered(order);
-        } else {
-            await onStatusUpdate(order.id, "delivered");
-            const partialInfo = partialModal.items
-                .filter(i => i.accepted < i.quantity)
-                .map(i => `${i.name}: ${i.accepted}/${i.quantity}`)
-                .join(", ");
-            await onUpdate(order.id, { notes: `Partial: ${partialInfo}` } as Partial<Order>);
         }
-
-        setPartialModal(null);
-        setLoadingId(null);
     };
 
     const handleReorder = async (order: Order) => {

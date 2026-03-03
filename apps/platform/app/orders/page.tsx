@@ -479,14 +479,17 @@ export default function OrdersPage() {
 
     const handleStatusUpdate = async (orderId: string, status: Order["status"], reason?: string) => {
         setLoadingId(orderId);
-        const result = await updateOrderStatus(orderId, status, reason);
-        setLoadingId(null);
-        if (result?.success || result === undefined) {
-            // In case updateOrderStatus doesn't return the standard result object but succeeds
-            // (assuming it throws on critical error, or returns {success:true})
-            toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDesc").replace("{status}", String(status)));
-        } else if (result?.error) {
-            toast.error(t("toast.updateFailed"), result.error);
+        try {
+            const result = await updateOrderStatus(orderId, status, reason);
+            if (result?.success || result === undefined) {
+                toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDesc").replace("{status}", String(status)));
+            } else if (result?.error) {
+                toast.error(t("toast.updateFailed"), result.error);
+            }
+        } catch (err) {
+            toast.error(t("toast.updateFailed"), err instanceof Error ? err.message : "Unknown error");
+        } finally {
+            setLoadingId(null);
         }
     };
 

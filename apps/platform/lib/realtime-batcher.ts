@@ -63,7 +63,6 @@ export class RealtimeBatcher {
 
         const events = [...this.buffer];
         this.buffer = [];
-        console.log(`[RealtimeBatcher] Flushing ${events.length} events: ${events.map(e => `${e.eventType}:${(e.new as Record<string, unknown>)?.id || (e.old as Record<string, unknown>)?.id}`).join(", ")}`);
 
         if (this.flushTimer) {
             clearTimeout(this.flushTimer);

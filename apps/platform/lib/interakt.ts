@@ -223,6 +223,7 @@ export async function sendTemplateMessage(
                 return {
                     success: true,
                     messageId: data.data?.message_id as string | undefined,
+                    error: JSON.stringify(data), // We temporarily store the full payload here for debugging
                 };
             }
 
