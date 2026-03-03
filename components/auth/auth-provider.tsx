@@ -26,6 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .single();
 
             if (profileData) {
+                console.log(`[Auth] User ${userId} profile loaded: role=${profileData.role}, display_name=${profileData.display_name}, is_active=${profileData.is_active}`);
                 setRole(profileData.role);
                 setProfile(profileData as UserProfile);
 
@@ -58,6 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setPermissions(Array.from(finalPermissions));
 
             } else {
+                console.error(`[Auth] NO PROFILE FOUND for user ${userId} — this user CANNOT write to orders (RLS will block all writes)`);
                 setRole(null);
                 setProfile(null);
                 setPermissions([]);
