@@ -104,7 +104,7 @@ export class RealtimeBatcher {
             const result = old
                 // Remove deleted orders (unless they are pending a sync that might recreate them, though delete is rare here)
                 .filter((o) => {
-                    if ((o as any).__isPendingSync) return true; // Keep pending optimistic additions
+                    if ((o as Order & { __isPendingSync?: boolean }).__isPendingSync) return true; // Keep pending optimistic additions
                     return !deletes.has(o.id);
                 })
                 // Apply updates (or archive removals)
@@ -112,7 +112,7 @@ export class RealtimeBatcher {
                     const updated = updates.get(o.id);
                     // CRITICAL FIX: If this order has an optimistic update waiting in the SyncEngine,
                     // DO NOT overwrite it with a stale Realtime broadcast!
-                    if ((o as any).__isPendingSync) {
+                    if ((o as Order & { __isPendingSync?: boolean }).__isPendingSync) {
                         return o;
                     }
 

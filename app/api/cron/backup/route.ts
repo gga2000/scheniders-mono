@@ -29,8 +29,9 @@ function generateCsv(data: any[]): string {
 }
 
 // Fetches all rows from a table using chunked pagination with retry logic
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function fetchAllInBatches(
-    supabase: ReturnType<typeof createClient>,
+    supabase: any,
     tableName: string
 ): Promise<any[]> {
     let allRows: any[] = [];

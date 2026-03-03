@@ -130,7 +130,7 @@ export class SyncEngine {
                     await this.processTask(task);
                     await this.remove(task.id);
                     successCount++;
-                } catch (err: any) {
+                } catch (err: unknown) {
                     const msg = err instanceof Error ? err.message : "Unknown sync error";
 
                     if (msg === "NETWORK_TIMEOUT" || msg.includes("Failed to fetch")) {
@@ -179,13 +179,13 @@ export class SyncEngine {
     private static async handleCreate(payload: unknown) {
         const { supabase } = await import("@/lib/supabase");
         // Use withTimeout to prevent hanging on "False Online"
-        const { error } = await withTimeout<any>(supabase.from("orders").insert(payload).select().single());
+        const { error } = await withTimeout<{ error: unknown }>(supabase.from("orders").insert(payload).select().single());
         if (error) throw error;
     }
 
     private static async handleUpdate(payload: { orderId: string, updates: Partial<Order>, expectedUpdatedAt: string }) {
         const { supabase } = await import("@/lib/supabase");
-        const { error } = await withTimeout<any>(
+        const { error } = await withTimeout<{ error: unknown }>(
             supabase
                 .from("orders")
                 .update(payload.updates)
@@ -206,7 +206,7 @@ export class SyncEngine {
         if (payload.status === "delivered") updateData.delivered_at = new Date().toISOString();
         if (payload.status === "cancelled") updateData.cancelled_at = new Date().toISOString();
 
-        const { error } = await withTimeout<any>(
+        const { error } = await withTimeout<{ error: unknown }>(
             supabase
                 .from("orders")
                 .update(updateData)

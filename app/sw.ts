@@ -37,11 +37,13 @@ installSerwist({
         // These must always go to the network.
         {
             urlPattern: /\.supabase\.co/,
+            // @ts-expect-error - Serwist typing compatibility
             handler: "NetworkOnly" as const,
         },
         // Also exclude our own API routes from caching
         {
             urlPattern: /\/api\//,
+            // @ts-expect-error - Serwist typing compatibility
             handler: "NetworkOnly" as const,
         },
         ...defaultCache,
