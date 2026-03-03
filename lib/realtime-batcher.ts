@@ -102,23 +102,17 @@ export class RealtimeBatcher {
             if (!old) return old;
 
             const result = old
-                // Remove deleted orders (unless they are pending a sync that might recreate them, though delete is rare here)
+                // Remove deleted orders
                 .filter((o) => {
-                    if ((o as Order & { __isPendingSync?: boolean }).__isPendingSync) return true; // Keep pending optimistic additions
                     return !deletes.has(o.id);
                 })
                 // Apply updates (or archive removals)
                 .map((o) => {
                     const updated = updates.get(o.id);
-                    // CRITICAL FIX: If this order has an optimistic update waiting in the SyncEngine,
-                    // DO NOT overwrite it with a stale Realtime broadcast!
-                    if ((o as Order & { __isPendingSync?: boolean }).__isPendingSync) {
-                        return o;
-                    }
-
                     if (updated) {
                         updates.delete(o.id); // Mark as applied
                         if (updated.is_archived) return null; // Remove archived from active list
+
                         // Version-aware: skip stale events (if version column exists)
                         const oVersion = (o as unknown as Record<string, unknown>).version;
                         const updatedVersion = (updated as unknown as Record<string, unknown>).version;

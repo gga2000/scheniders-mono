@@ -158,12 +158,6 @@ const VirtualTableRow = memo(function VirtualTableRow({
                         return order.order_id.slice(-6);
                     })()}
                 </span>
-                {/* @ts-ignore */}
-                {(order as any).__isPendingSync && (
-                    <div title="Syncing changes..." className="flex items-center">
-                        <CloudUpload className="w-3.5 h-3.5 text-blue-500 animate-pulse drop-shadow-sm" />
-                    </div>
-                )}
             </div>
 
             {/* Customer */}
@@ -315,13 +309,11 @@ const VirtualTableRow = memo(function VirtualTableRow({
                 ) : (
                     <select
                         value={order.status}
-                        disabled={(order as any).__isPendingSync}
                         onChange={async (e) => {
                             await updateOrderStatus(order.id, e.target.value as Order["status"]);
                         }}
                         className={cn(
                             "w-full px-2 py-1 text-[11px] font-bold rounded-lg border-0 cursor-pointer appearance-none text-center transition-all",
-                            (order as any).__isPendingSync && "opacity-60 cursor-not-allowed pointer-events-none grayscale-[50%]",
                             order.status === "new" && "bg-orange-100 text-orange-700",
                             order.status === "contacted" && "bg-yellow-100 text-yellow-700",
                             order.status === "confirmed" && "bg-green-100 text-green-700",
