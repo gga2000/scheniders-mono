@@ -1,7 +1,5 @@
 "use client";
 
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import { Order } from "@/lib/supabase";
 import { formatIQD } from "@/lib/utils";
 
@@ -167,6 +165,11 @@ function calculateStats(orders: Order[]) {
 // ============================================
 
 export async function generatePDFReport(options: PDFReportOptions): Promise<void> {
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+        import("jspdf"),
+        import("jspdf-autotable"),
+    ]);
+
     const { title, dateRange, reportType, orders } = options;
     const stats = calculateStats(orders);
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });

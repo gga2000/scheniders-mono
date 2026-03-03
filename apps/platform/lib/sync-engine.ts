@@ -104,9 +104,8 @@ export class SyncEngine {
     static async sync(): Promise<void> {
         if (this.isSyncing) return;
 
-        // We check onLine initially to save battery/effort, but do not fully trust it.
-        // If it says false, we definitively abort. If true, we proceed but rely on timeouts.
-        if (typeof navigator !== "undefined" && !navigator.onLine) return;
+        // We previously checked navigator.onLine here, but it can falsely report 'offline'.
+        // We now rely purely on the actual fetch timeout (withTimeout) to prove connectivity.
 
         try {
             this.isSyncing = true;

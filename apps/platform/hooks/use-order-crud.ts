@@ -110,6 +110,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     ) {
         try {
             const previousOrder = orders.find(o => o.id === orderId);
+            // Record status change to undo stack
             if (previousOrder) {
                 const undoEntry = {
                     orderId,
@@ -121,32 +122,6 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     timestamp: new Date(),
                 };
                 setUndoStack(prev => [undoEntry, ...prev.slice(0, MAX_UNDO_STACK - 1)]);
-            }
-
-            // Offline handling
-            if (!navigator.onLine) {
-                console.log("[Offline] Queuing status update for", orderId);
-                await SyncEngine.enqueue({
-                    type: "UPDATE_STATUS",
-                    payload: {
-                        orderId,
-                        status,
-                        rejectionReason,
-                        expectedUpdatedAt: previousOrder?.updated_at
-                    }
-                });
-
-                // Optimistic UI update
-                optimisticUpdate(prev => prev.map(o =>
-                    o.id === orderId ? {
-                        ...o,
-                        status,
-                        rejection_reason: rejectionReason || null,
-                        __isPendingSync: true
-                    } as Order : o
-                ));
-
-                return { success: true };
             }
 
             await updateStatusMutation.mutateAsync({
@@ -219,32 +194,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             const cleanUpdates = { ...updates };
             delete (cleanUpdates as Record<string, unknown>).customer;
 
-            // Offline handling (skip session check — we'll sync later)
-            if (!navigator.onLine) {
-                console.log("[Offline] Queuing update for", orderId);
-                await SyncEngine.enqueue({
-                    type: "UPDATE_ORDER",
-                    payload: {
-                        orderId,
-                        updates: cleanUpdates,
-                        expectedUpdatedAt: undefined
-                    }
-                });
+            // Use the React Query mutation directly
 
-                // Optimistic UI update
-                optimisticUpdate(prev => prev.map(o =>
-                    o.id === orderId ? normalizeOrder({
-                        ...o,
-                        ...cleanUpdates,
-                        // @ts-expect-error: __isPendingSync is an optimistic UI flag not in the base Order type
-                        __isPendingSync: true
-                    }) : o
-                ));
-
-                return { success: true };
-            }
-
-            // Use the React Query mutation directly — it does .eq("id") + .select()
             // + .maybeSingle() to verify the write succeeded.
             // NOTE: Conflict detection via updated_at was removed because stale
             // cached timestamps caused massive false-positive "conflict" failures,
@@ -287,51 +238,41 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 return { success: false, error: `Validation Error: ${errorMessage}` };
             }
 
-            // Offline handling
-            if (!navigator.onLine) {
-                console.log("[Offline] Queuing order creation");
-                const tempId = `temp-${Date.now()}`;
+            // Start order creation instantly for optimal perceived performance
+            const mutationPromise = createOrderMutation.mutateAsync(orderData);
 
-                // Add pending sync flag
-                const offlineOrder = {
-                    ...orderData,
-                    id: tempId,
-                    created_at: new Date().toISOString(),
-                    __isPendingSync: true
-                } as unknown as Order;
-
-                await SyncEngine.enqueue({
-                    type: "CREATE_ORDER",
-                    payload: orderData,
-                });
-
-                queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) => {
-                    return [offlineOrder, ...(old || [])];
-                });
-
-                return { success: true, data: offlineOrder };
-            }
-
-            // Calculate risk assessment before creation
+            // Calculate risk assessment seamlessly in the background WITHOUT blocking the UI
             try {
                 if (orderData.phone) {
-                    const { fraudDetector } = await import("@/lib/fraud-detector");
-                    const riskAssessment = await fraudDetector.assessCustomerRisk(orderData.phone);
-                    const riskPayload = fraudDetector.getPersistencePayload(riskAssessment);
+                    import("@/lib/fraud-detector").then(async ({ fraudDetector }) => {
+                        try {
+                            const riskAssessment = await fraudDetector.assessCustomerRisk(orderData.phone!);
+                            const riskPayload = fraudDetector.getPersistencePayload(riskAssessment);
 
-                    // risk_metadata is added to schema but TypeScript might lag
-                    (orderData as Record<string, unknown>).risk_metadata = riskPayload;
-
-                    if (riskAssessment.level === 'high' || riskAssessment.level === 'blocked') {
-                        (orderData as Record<string, unknown>).needs_attention = true;
-                        (orderData as Record<string, unknown>).attention_reasons = [...((orderData as Record<string, unknown>).attention_reasons as string[] || []), 'high_risk_customer'];
-                    }
+                            if (riskAssessment.level === 'high' || riskAssessment.level === 'blocked') {
+                                const data = await mutationPromise; // Wait for ID to exist
+                                if (data && data.id) {
+                                    // Soft update the order with the background risk metadata
+                                    await updateOrderMutation.mutateAsync({
+                                        orderId: data.id,
+                                        updates: {
+                                            risk_metadata: riskPayload,
+                                            needs_attention: true,
+                                            attention_reasons: ['high_risk_customer']
+                                        }
+                                    });
+                                }
+                            }
+                        } catch (bgErr) {
+                            console.error("Error in background risk calculation:", bgErr);
+                        }
+                    });
                 }
             } catch (riskErr) {
-                console.error("Error calculating initial risk:", riskErr);
+                console.error("Error initiating risk check:", riskErr);
             }
 
-            const data = await createOrderMutation.mutateAsync(orderData);
+            const data = await mutationPromise;
 
             // Handle Advanced Inventory
             import("@/lib/inventory-engine").then(engine => {

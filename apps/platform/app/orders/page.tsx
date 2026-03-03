@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
+import { useShallow } from "zustand/react/shallow";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Order, PaymentStatus } from "@/lib/supabase";
@@ -12,6 +13,7 @@ import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { isOrderFlagged } from "@/lib/data-quality-utils";
 import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
 import { OrderCardSkeleton } from "@/components/dashboard/order-card-skeleton";
+import { OrdersLoader } from "@/components/ui/orders-loader";
 import { OrderAssignment, mockAssignments } from "@/lib/team-types";
 import { useBatchRiskAssessment } from "@/hooks/use-risk-assessment";
 const OrderDetailsModal = dynamic(
@@ -23,8 +25,14 @@ const CreateOrderModal = dynamic(
     { loading: () => null, ssr: false }
 );
 // Dynamic imports for other heavy components
-import { FloatingActionBar } from "@/components/orders/floating-action-bar";
-import { WorkflowTabs } from "@/components/orders/workflow-tabs";
+const FloatingActionBar = dynamic(
+    () => import("@/components/orders/floating-action-bar").then(mod => ({ default: mod.FloatingActionBar })),
+    { ssr: false }
+);
+const WorkflowTabs = dynamic(
+    () => import("@/components/orders/workflow-tabs").then(mod => ({ default: mod.WorkflowTabs })),
+    { ssr: false }
+);
 const DuplicateComparisonModal = dynamic(
     () => import("@/components/orders/duplicate-comparison-modal").then(mod => ({ default: mod.DuplicateComparisonModal })),
     { loading: () => null, ssr: false }
@@ -45,22 +53,40 @@ const VirtualizedOrderList = dynamic(
     () => import("@/components/orders/virtualized-order-list").then(mod => ({ default: mod.VirtualizedOrderList })),
     { ssr: false }
 );
-import { DateRangePicker } from "@/components/ui/date-range-picker";
+const DateRangePicker = dynamic(
+    () => import("@/components/ui/date-range-picker").then(mod => ({ default: mod.DateRangePicker })),
+    { ssr: false }
+);
 import { EmptyState } from "@/components/ui/empty-states";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layout/page-transition";
-import { SavedViewsTabs } from "@/components/orders/saved-views-tabs";
-import { OrderConfirmationCard } from "@/components/orders/order-confirmation-card";
+const SavedViewsTabs = dynamic(
+    () => import("@/components/orders/saved-views-tabs").then(mod => ({ default: mod.SavedViewsTabs })),
+    { ssr: false }
+);
+const OrderConfirmationCard = dynamic(
+    () => import("@/components/orders/order-confirmation-card").then(mod => ({ default: mod.OrderConfirmationCard })),
+    { ssr: false }
+);
 const CancellationReasonDialog = dynamic(
     () => import("@/components/orders/cancellation-reason-dialog").then(mod => ({ default: mod.CancellationReasonDialog })),
     { loading: () => null, ssr: false }
 );
-import { StickyFilterBar } from "@/components/orders/sticky-filter-bar";
+const StickyFilterBar = dynamic(
+    () => import("@/components/orders/sticky-filter-bar").then(mod => ({ default: mod.StickyFilterBar })),
+    { ssr: false }
+);
 const VirtualizedOrderTable = dynamic(
     () => import("@/components/orders/virtualized-order-table").then(mod => ({ default: mod.VirtualizedOrderTable })),
     { loading: () => null, ssr: false }
 );
-import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
-import { BackupPrompt } from "@/components/vault/backup-prompt";
+const ScrollToTopButton = dynamic(
+    () => import("@/components/ui/scroll-to-top-button").then(mod => ({ default: mod.ScrollToTopButton })),
+    { ssr: false }
+);
+const BackupPrompt = dynamic(
+    () => import("@/components/vault/backup-prompt").then(mod => ({ default: mod.BackupPrompt })),
+    { ssr: false }
+);
 import { useIsMobile } from "@/hooks/use-mobile";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -112,6 +138,46 @@ import { toast } from "@/hooks/use-toast";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useLanguage } from "@/hooks/use-language";
+const GlobalSearchField = React.memo(function GlobalSearchField({ filters, setFilters, inputClassName = "w-full pl-10 pr-12 py-2.5 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all" }: any) {
+    const localSearchQuery = useOrderStore((s: any) => s.localSearchQuery);
+    const setLocalSearchQuery = useOrderStore((s: any) => s.setLocalSearchQuery);
+    const debouncedSearchQuery = useDebounce(localSearchQuery, 300);
+    const { t } = useLanguage();
+
+    useEffect(() => {
+        if (debouncedSearchQuery !== (filters.searchQuery || "")) {
+            setFilters((prev: any) => ({ ...prev, searchQuery: debouncedSearchQuery || undefined }));
+        }
+    }, [debouncedSearchQuery, setFilters, filters.searchQuery]);
+
+    return (
+        <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--foreground-subtle)]" />
+            <input
+                type="text"
+                placeholder={t ? t("orders.searchPlaceholder") : "Search orders..."}
+                value={localSearchQuery}
+                onChange={(e) => setLocalSearchQuery(e.target.value)}
+                className={inputClassName}
+            />
+            {localSearchQuery && (
+                <button
+                    onClick={() => setFilters((prev: any) => ({ ...prev, searchIncludesArchive: !prev.searchIncludesArchive }))}
+                    className={cn(
+                        "absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all flex items-center gap-1",
+                        filters.searchIncludesArchive
+                            ? "bg-orange-100 text-orange-600 shadow-sm dark:bg-[var(--primary)] dark:text-black"
+                            : "text-muted-foreground hover:bg-amber-100/40"
+                    )}
+                    title="Include Archive in Search"
+                >
+                    <Archive className="w-3.5 h-3.5" />
+                    {filters.searchIncludesArchive && <span className="text-[10px] sm:hidden font-bold pr-1">Archived Included</span>}
+                </button>
+            )}
+        </div>
+    );
+});
 
 export default function OrdersPage() {
     // 🔍 DIAGNOSTIC: Track loading → content transition (one-shot, not per-render)
@@ -129,6 +195,7 @@ export default function OrdersPage() {
     }, []);
 
     const {
+
         orders,
         filteredOrders: hookFilteredOrders,
         loading,
@@ -241,24 +308,15 @@ export default function OrdersPage() {
         notificationsEnabled, setNotificationsEnabled,
     } = useOrderStore();
 
-    const debouncedColumnFilters = useDebounce(columnFilters, 300);
-
-    // Debounce global search to prevent typing latency
-    const debouncedSearchQuery = useDebounce(localSearchQuery, 300);
-
-    useEffect(() => {
-        if (debouncedSearchQuery !== (filters.searchQuery || "")) {
-            setFilters(prev => ({ ...prev, searchQuery: debouncedSearchQuery || undefined }));
-        }
-    }, [debouncedSearchQuery, setFilters, filters.searchQuery]);
-
     // Sync local search input when filters.searchQuery is cleared externally (e.g. "clear filters" button)
     useEffect(() => {
         if (!filters.searchQuery) {
-            setLocalSearchQuery("");
+            useOrderStore.getState().setLocalSearchQuery("");
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filters.searchQuery]);
+
+    const debouncedColumnFilters = useDebounce(columnFilters, 300);
 
     // Domain state (stays local — not UI state)
     const [assignments, setAssignments] = useState<OrderAssignment[]>(mockAssignments);
@@ -403,7 +461,7 @@ export default function OrdersPage() {
         let result = [...defHookFilteredOrders];
 
         // 1. Apply Column Filters
-        Object.entries(defColumnFilters).forEach(([key, value]) => {
+        Object.entries(defColumnFilters || {}).forEach(([key, value]) => {
             if (!value) return;
             const lowerValue = value.toLowerCase();
             result = result.filter(o => {
@@ -840,32 +898,10 @@ export default function OrdersPage() {
                 <motion.div
                     key="skeleton"
                     initial={{ opacity: 1 }}
-                    exit={{ opacity: 0, y: -8, scale: 0.99 }}
+                    exit={{ opacity: 0 }}
                     transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                    className="min-h-screen p-4 md:p-6 lg:p-8 orders-page"
                 >
-                    <div className="space-y-4">
-                        {/* Skeleton header */}
-                        <div className="flex items-center justify-between">
-                            <div className="space-y-2">
-                                <div className="skeleton w-48 h-8 rounded-xl" />
-                                <div className="skeleton w-24 h-4 rounded-lg" />
-                            </div>
-                            <div className="skeleton w-32 h-12 rounded-2xl" />
-                        </div>
-
-                        {/* Skeleton filter bar */}
-                        <div className="flex gap-2 overflow-hidden">
-                            {[1, 2, 3, 4, 5].map((i) => (
-                                <div key={i} className="skeleton w-24 h-12 rounded-full flex-shrink-0" />
-                            ))}
-                        </div>
-
-                        {/* Skeleton order cards */}
-                        <div className="space-y-3">
-                            <OrderCardSkeleton count={5} />
-                        </div>
-                    </div>
+                    <OrdersLoader />
                 </motion.div>
             ) : error ? (
                 <motion.div
@@ -936,30 +972,7 @@ export default function OrdersPage() {
 
                                             {/* Center: Quick search */}
                                             <div className="hidden md:flex items-center gap-2 flex-1 max-w-md">
-                                                <div className="relative flex-1">
-                                                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--foreground-subtle)]" />
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Search orders..."
-                                                        value={localSearchQuery}
-                                                        onChange={(e) => setLocalSearchQuery(e.target.value)}
-                                                        className="w-full pl-10 pr-12 py-2.5 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
-                                                    />
-                                                    {localSearchQuery && (
-                                                        <button
-                                                            onClick={() => setFilters(prev => ({ ...prev, searchIncludesArchive: !prev.searchIncludesArchive }))}
-                                                            className={cn(
-                                                                "absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all",
-                                                                filters.searchIncludesArchive
-                                                                    ? "bg-orange-100 text-orange-600 shadow-sm dark:bg-[var(--primary)] dark:text-black"
-                                                                    : "text-muted-foreground hover:bg-amber-100/40"
-                                                            )}
-                                                            title="Include Archive in Search"
-                                                        >
-                                                            <Archive className="w-3.5 h-3.5" />
-                                                        </button>
-                                                    )}
-                                                </div>
+                                                <GlobalSearchField filters={filters} setFilters={setFilters} />
                                             </div>
 
                                             {/* Right: Quick actions + Expand */}
@@ -1692,31 +1705,11 @@ export default function OrdersPage() {
                                                 >
                                                     <div className="pastel-card p-6 space-y-4 orders-search-panel">
                                                         <div className="flex flex-col lg:flex-row gap-4">
-                                                            <div className="relative flex-1">
-                                                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--foreground-subtle)]" />
-                                                                <input
-                                                                    type="text"
-                                                                    placeholder={t("orders.searchPlaceholder")}
-                                                                    value={localSearchQuery}
-                                                                    onChange={(e) => setLocalSearchQuery(e.target.value)}
-                                                                    className="w-full pl-12 pr-14 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all dark:focus:ring-[rgba(0,255,255,0.4)] dark:focus:border-[rgba(0,255,255,0.5)] dark:focus:shadow-[0_0_15px_rgba(0,255,255,0.1)]"
-                                                                />
-                                                                {localSearchQuery && (
-                                                                    <button
-                                                                        onClick={() => setFilters(prev => ({ ...prev, searchIncludesArchive: !prev.searchIncludesArchive }))}
-                                                                        className={cn(
-                                                                            "absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl transition-all flex items-center gap-2",
-                                                                            filters.searchIncludesArchive
-                                                                                ? "bg-orange-100 text-orange-600 shadow-sm dark:bg-[var(--primary)] dark:text-black"
-                                                                                : "text-muted-foreground hover:bg-amber-100/40"
-                                                                        )}
-                                                                        title="Include Archive in Search"
-                                                                    >
-                                                                        <Archive className="w-4 h-4" />
-                                                                        {!isMobile && <span className="text-xs font-bold uppercase tracking-wider">Archive</span>}
-                                                                    </button>
-                                                                )}
-                                                            </div>
+                                                            <GlobalSearchField
+                                                                filters={filters}
+                                                                setFilters={setFilters}
+                                                                inputClassName="w-full pl-12 pr-14 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all dark:focus:ring-[rgba(0,255,255,0.4)] dark:focus:border-[rgba(0,255,255,0.5)] dark:focus:shadow-[0_0_15px_rgba(0,255,255,0.1)]"
+                                                            />
                                                             {/* Sort dropdown removed in favor of column sorting */}
                                                         </div>
 
@@ -2135,7 +2128,7 @@ export default function OrdersPage() {
                                                             );
                                                         })}
                                                     </div>
-                                                ) : displayedOrders.length >= 50 ? (
+                                                ) : displayedOrders.length >= 10 ? (
                                                     /* Use virtualized list for 50+ orders */
                                                     <VirtualizedOrderList
                                                         orders={displayedOrders}
