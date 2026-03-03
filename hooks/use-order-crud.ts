@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth/auth-provider";
 import {
@@ -72,29 +72,6 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     // Abort controller for fetch
     const isMountedRef = useRef(true);
 
-    /**
-     * Pre-flight session check — call before critical mutations.
-     * Returns true if the session is valid, false if expired/missing.
-     * Shows a toast and attempts refresh on failure.
-     */
-    async function ensureSession(): Promise<boolean> {
-        try {
-            const { data: { session: currentSession }, error } = await supabase.auth.getSession();
-            if (error || !currentSession) {
-                // Try to refresh the session
-                const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-                if (refreshError || !refreshData.session) {
-                    toast.error("Session expired — please refresh the page or re-login");
-                    return false;
-                }
-            }
-            return true;
-        } catch {
-            toast.error("Could not verify session — please check your connection");
-            return false;
-        }
-    }
-
     // =============================================
     // REFETCH VIA REACT QUERY (replaces legacy fetchOrders)
     // =============================================
@@ -132,11 +109,6 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         rejectionReason?: string
     ) {
         try {
-            // Pre-flight: ensure session is valid before attempting mutation
-            if (!(await ensureSession())) {
-                return { success: false, error: "Session expired" };
-            }
-
             const previousOrder = orders.find(o => o.id === orderId);
             if (previousOrder) {
                 const undoEntry = {
@@ -270,11 +242,6 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 ));
 
                 return { success: true };
-            }
-
-            // Pre-flight: ensure session is valid before attempting mutation
-            if (!(await ensureSession())) {
-                return { success: false, error: "Session expired" };
             }
 
             // Use the React Query mutation directly — it does .eq("id") + .select()
