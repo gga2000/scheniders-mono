@@ -53,7 +53,7 @@ export interface SendTemplateResult {
 const INTERAKT_API_URL = "https://api.interakt.ai/v1/public/message/";
 const TEMPLATE_NAME = "cod_order_confirm";
 const TEMPLATE_LANGUAGE = "en";
-const IRAQ_COUNTRY_CODE = "+964";
+const IRAQ_COUNTRY_CODE = "964";
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 1000;
 
@@ -73,8 +73,11 @@ export function formatPhoneForInterakt(phone: string): {
     countryCode: string;
     phoneNumber: string;
 } {
+    // Convert Arabic numerals to English numerals
+    let cleaned = phone.replace(/[٠-٩]/g, (d) => (d.charCodeAt(0) - 1632).toString());
+
     // Strip all non-digit characters
-    let cleaned = phone.replace(/\D/g, "");
+    cleaned = cleaned.replace(/\D/g, "");
 
     // Remove leading country code variations
     if (cleaned.startsWith("964")) {
