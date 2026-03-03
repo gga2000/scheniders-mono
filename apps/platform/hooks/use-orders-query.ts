@@ -5,8 +5,6 @@ import { CACHE_PRESETS } from '@/lib/query-config';
 import { orderRepository } from "@/lib/repositories/order-repository";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "sonner";
-import { SyncEngine, SyncTask } from "@/lib/sync-engine";
-
 // Refetch trigger constants
 export const orderRefetchTriggers = {
     appReopen: "appReopen",
@@ -151,48 +149,40 @@ export function useUpdateOrderMutation() {
 
     return useMutation({
         mutationFn: async ({ orderId, updates, user_id }: { orderId: string; updates: Partial<Order>; user_id?: string }) => {
-            // FIRE AND FORGET - Let the SyncEngine handle the actual network request and timeouts!
-            const expectedUpdatedAt = new Date().toISOString();
-
-            await SyncEngine.enqueue({
-                type: "UPDATE_ORDER",
-                payload: { orderId, updates, expectedUpdatedAt, user_id }
-            });
-
-            return { orderId, updates };
+            const data = await orderRepository.update(orderId, updates);
+            return { orderId, updates, data };
         },
         // Optimistic update - update cache immediately
         onMutate: async ({ orderId, updates }) => {
-            // Cancel outgoing refetches so they don't overwrite our optimistic update
             await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
 
-            // Snapshot current data to revert if the queue fails permanently
+            // Snapshot current data to revert if the request fails
             const previousOrders = queryClient.getQueryData<Order[]>(orderKeys.lists());
 
-            // Optimistically update cache and inject the pending sync flag
+            // Optimistically update cache 
             queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) =>
                 old?.map((order) =>
                     order.id === orderId
-                        ? { ...order, ...updates, __isPendingSync: true } as Order
+                        ? { ...order, ...updates } as Order
                         : order
                 )
             );
 
             return { previousOrders };
         },
-        // We do NOT overwrite the cache with server data on success, 
-        // because the request hasn't necessarily reached the server yet.
-        // It simply reached the queue.
-        onSuccess: ({ orderId }) => {
-            // Do nothing on queue success - we leave __isPendingSync: true 
-            // until the server confirms via Realtime subscription or explicit polling
+        onSuccess: ({ orderId, data }) => {
+            // Overwrite optimstic cache with actual server data to ensure consistency
+            queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) =>
+                old?.map((order) =>
+                    order.id === orderId ? data : order
+                )
+            );
         },
-        // Rollback on enqueue error (e.g. out of indexedDB storage)
         onError: (err, variables, context) => {
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
-            toast.error("Failed to queue order update. Check storage space.");
+            toast.error(err instanceof Error ? err.message : "Failed to update order.");
         },
     });
 }
@@ -213,13 +203,8 @@ export function useUpdateStatusMutation() {
             status: Order["status"];
             rejectionReason?: string;
         }) => {
-            // FIRE AND FORGET
-            const expectedUpdatedAt = new Date().toISOString();
-            await SyncEngine.enqueue({
-                type: "UPDATE_STATUS",
-                payload: { orderId, status, rejectionReason, expectedUpdatedAt }
-            });
-            return { orderId, status };
+            const data = await orderRepository.updateStatus(orderId, status, rejectionReason);
+            return { orderId, status, data };
         },
         onMutate: async ({ orderId, status, rejectionReason }) => {
             await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
@@ -239,7 +224,6 @@ export function useUpdateStatusMutation() {
                                     ? order.rejection_reason
                                     : undefined,
                             delivered_at: status === "delivered" ? new Date().toISOString() : order.delivered_at,
-                            __isPendingSync: true
                         } as Order)
                         : order
                 )
@@ -247,13 +231,18 @@ export function useUpdateStatusMutation() {
 
             return { previousOrders };
         },
-        // Again, do not overwrite the cache. Wait for Realtime/Polling.
-        onSuccess: () => { },
+        onSuccess: ({ orderId, data }) => {
+            queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) =>
+                old?.map((order) =>
+                    order.id === orderId ? data : order
+                )
+            );
+        },
         onError: (err, variables, context) => {
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
-            toast.error("Failed to queue status update.");
+            toast.error(err instanceof Error ? err.message : "Failed to update order status.");
         },
     });
 }

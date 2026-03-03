@@ -21,7 +21,6 @@ import {
 } from "@/hooks/use-orders-query";
 
 import { useState, useEffect } from "react";
-import { SyncEngine } from "@/lib/sync-engine";
 
 // =============================================
 // ENHANCED ORDERS HOOK (Composition Root)
@@ -55,23 +54,6 @@ export function useOrders() {
     const orders = cachedOrders ?? [];
     const loading = queryLoading;
     const error = queryError instanceof Error ? queryError.message : queryError ? "Failed to fetch orders" : null;
-
-    // =============================================
-    // OFFLINE SYNC ENGINE INTEGRATION
-    // =============================================
-    useEffect(() => {
-        // Attempt sync on absolute mount
-        SyncEngine.sync().catch(console.error);
-
-        // Attempt sync whenever network comes back online
-        const handleOnline = () => {
-            console.log("[useOrders] Network online - triggering offline sync engine");
-            SyncEngine.sync().catch(console.error);
-        };
-
-        window.addEventListener("online", handleOnline);
-        return () => window.removeEventListener("online", handleOnline);
-    }, []);
 
     // =============================================
     // COMPOSE SUB-HOOKS

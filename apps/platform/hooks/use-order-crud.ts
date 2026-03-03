@@ -18,7 +18,6 @@ import { cleanPhoneForExport } from "@/lib/export-utils";
 import { activityLogger } from "@/lib/activity-logger";
 import { OrderSchema } from "@/lib/schemas";
 import { createOrderAction, splitOrderAction } from "@/app/actions/orders";
-import { SyncEngine } from "@/lib/sync-engine";
 import { getIdempotencyGuard, generateIdempotencyKey } from "@/lib/idempotency";
 import { toast } from "sonner";
 import {
