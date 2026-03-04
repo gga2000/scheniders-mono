@@ -8,6 +8,7 @@ import { MobileNav } from "./mobile-nav";
 import { AnimatePresence } from "framer-motion";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import { PageGuard } from "@/components/auth/role-guard";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -62,44 +63,46 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <div className="flex min-h-screen bg-background text-foreground">
-            {isMobile && mobileMenuOpen && (
-                <div
-                    className="mobile-overlay active"
-                    onClick={() => setMobileMenuOpen(false)}
-                />
-            )}
-
-            <Sidebar
-                collapsed={isCollapsed}
-                setCollapsed={setIsCollapsed}
-                isMobile={isMobile}
-                mobileMenuOpen={mobileMenuOpen}
-                setMobileMenuOpen={setMobileMenuOpen}
-            />
-
-            <main
-                className={cn(
-                    "flex-1 min-w-0 transition-all duration-500 ease-in-out"
+        <PageGuard>
+            <div className="flex min-h-screen bg-background text-foreground">
+                {isMobile && mobileMenuOpen && (
+                    <div
+                        className="mobile-overlay active"
+                        onClick={() => setMobileMenuOpen(false)}
+                    />
                 )}
-                style={{
-                    marginLeft: getMainMargin(),
-                    paddingBottom: isMobile ? "var(--mobile-nav-height)" : "0",
-                }}
-            >
-                <TopBar
-                    onMenuClick={() => setMobileMenuOpen(true)}
+
+                <Sidebar
+                    collapsed={isCollapsed}
+                    setCollapsed={setIsCollapsed}
                     isMobile={isMobile}
+                    mobileMenuOpen={mobileMenuOpen}
+                    setMobileMenuOpen={setMobileMenuOpen}
                 />
 
-                <AnimatePresence mode="wait">
-                    <div className="max-w-[1800px] mx-auto">
-                        {children}
-                    </div>
-                </AnimatePresence>
-            </main>
+                <main
+                    className={cn(
+                        "flex-1 min-w-0 transition-all duration-500 ease-in-out"
+                    )}
+                    style={{
+                        marginLeft: getMainMargin(),
+                        paddingBottom: isMobile ? "var(--mobile-nav-height)" : "0",
+                    }}
+                >
+                    <TopBar
+                        onMenuClick={() => setMobileMenuOpen(true)}
+                        isMobile={isMobile}
+                    />
 
-            {mounted && isMobile && <MobileNav />}
-        </div>
+                    <AnimatePresence mode="wait">
+                        <div className="max-w-[1800px] mx-auto">
+                            {children}
+                        </div>
+                    </AnimatePresence>
+                </main>
+
+                {mounted && isMobile && <MobileNav />}
+            </div>
+        </PageGuard>
     );
 }
