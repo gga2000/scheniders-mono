@@ -55,10 +55,19 @@ export function createSupabaseServiceClient() {
  * Uses the service role client to validate the JWT.
  */
 export async function verifyAccessToken(accessToken: string) {
-    const supabase = createSupabaseServiceClient();
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    // DIAGNOSTIC: Log token verification attempt
+    console.log(`[Auth] Verifying token (first 10 chars): ${accessToken.substring(0, 10)}...`);
+
+    // Instead of using the Service Role Client (which can override Auth headers),
+    // we use the normal client configured with the user's access token.
+    const supabase = createSupabaseServerClientWithToken(accessToken);
+    const { data: { user }, error } = await supabase.auth.getUser();
+
     if (error || !user) {
+        console.error(`[Auth] Token verification failed:`, error?.message);
         return { user: null, error: error?.message || 'Invalid token' };
     }
+
+    console.log(`[Auth] Verified user:`, user.id);
     return { user, error: null };
 }

@@ -48,7 +48,7 @@ interface UseOrderCrudOptions {
 
 export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     const queryClient = useQueryClient();
-    const { user, profile } = useAuth();
+    const { user, profile, session } = useAuth();
 
     // Helper: optimistically update the React Query orders cache
     const optimisticUpdate = (updater: (prev: Order[]) => Order[]) => {
@@ -659,8 +659,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 return { success: true, count: 0 };
             }
 
-            // Get current session token for server-side auth verification
-            const { data: { session } } = await supabase.auth.getSession();
+            // Get current session token for server-side auth verification from context
             if (!session?.access_token) {
                 throw new Error("Not authenticated. Please sign in again.");
             }
