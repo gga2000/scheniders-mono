@@ -140,13 +140,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, currentSession) => {
-                // TOKEN_REFRESHED fires frequently (every ~hour) and the user/session
-                // objects have new references but the same user ID. Calling setSession/
-                // setUser here would re-render the ENTIRE app tree for no reason.
-                // Only update state when the actual user identity changes.
+                // TOKEN_REFRESHED fires every ~hour with new token references.
+                // We MUST update the session state if it was null (race condition:
+                // getSession() can return null when a token refresh is in-flight
+                // during page load, and TOKEN_REFRESHED is the only event that
+                // delivers the valid session). But skip the expensive
+                // fetchRoleAndPermissions — role/permissions don't change on refresh.
                 if (event === "TOKEN_REFRESHED") {
-                    // Silently accept the refreshed session — Supabase SDK
-                    // already updates its internal state. No React re-render needed.
+                    if (!currentUserIdRef.current && currentSession?.user) {
+                        // Session was null (initial load race) — hydrate React state
+                        setSession(currentSession);
+                        setUser(currentSession.user);
+                        currentUserIdRef.current = currentSession.user.id;
+                        await fetchRoleAndPermissions(currentSession.user.id);
+                    }
                     return;
                 }
 

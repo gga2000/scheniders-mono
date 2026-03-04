@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { type Order } from "@/types";
 import { CACHE_PRESETS } from '@/lib/query-config';
 import { orderRepository } from "@/lib/repositories/order-repository";
@@ -49,9 +49,6 @@ function getCachedOrders(): Order[] | undefined {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
             console.log(`[SWR] Loaded ${parsed.length} orders from sessionStorage`);
-            // DIAGNOSTIC: Show exact statuses loaded from sessionStorage
-            const _ss = parsed.slice(0, 8).map((o: Order) => `${(o.id || '?').slice(0, 8)}:${o.status}`).join(' | ');
-            console.log(`[DIAG:SS_READ] sessionStorage statuses (first 8): [${_ss}]`);
             return parsed;
         }
     } catch {
@@ -60,14 +57,10 @@ function getCachedOrders(): Order[] | undefined {
     return undefined;
 }
 
-function setCachedOrders(orders: Order[]): void {
+export function setCachedOrders(orders: Order[]): void {
     if (typeof window === "undefined") return;
     try {
         sessionStorage.setItem(SS_KEY, JSON.stringify(orders));
-        // DIAGNOSTIC: Trace WHO is writing to sessionStorage and WHAT they're writing
-        const _ss = orders.slice(0, 5).map(o => `${o.id.slice(0, 8)}:${o.status}`).join(' | ');
-        const _caller = new Error().stack?.split('\n')[2]?.trim().slice(0, 100) || '?';
-        console.log(`[DIAG:SS_WRITE] Wrote ${orders.length} orders. Statuses: [${_ss}]. Caller: ${_caller}`);
     } catch {
         // QuotaExceeded — ignore, cache is best-effort
     }
@@ -86,9 +79,6 @@ async function fetchOrders(): Promise<Order[]> {
     console.log(`[SYNC #${s}] [fetchOrders] attempt #${attempt} started at ${Math.round(t0)}ms`);
     const result = await orderRepository.findAll();
     console.log(`[SYNC #${s}] [fetchOrders] returned ${result.length} orders in ${Math.round(performance.now() - t0)}ms`);
-    // DIAGNOSTIC: Show exact statuses returned by Supabase REST API
-    const _statuses = result.slice(0, 8).map(o => `${o.id.slice(0, 8)}:${o.status}`).join(' | ');
-    console.log(`[DIAG:FETCH] Supabase REST response statuses (first 8): [${_statuses}]`);
 
     // Persist to sessionStorage for SWR on next refresh
     setCachedOrders(result);
@@ -116,40 +106,6 @@ export function useOrdersQuery(refetchTrigger?: string) {
     const { session } = useAuth();
     // Read cached data once via useState lazy initializer (avoids ref-during-render lint)
     const [cachedInitialData] = useState(() => getCachedOrders());
-
-    // ===== DIAGNOSTIC: Track mount state and enabled transitions =====
-    const _mountTimeRef = useRef(performance.now());
-    const _prevEnabledRef = useRef(false);
-
-    // Q1: What does the component see on mount?
-    useEffect(() => {
-        const _ss = cachedInitialData?.slice(0, 5).map(o => `${o.id?.slice(0, 8)}:${o.status}`).join(' | ');
-        console.log(`[DIAG:MOUNT] useOrdersQuery mounted. session=${!!session}, initialData=${cachedInitialData ? `${cachedInitialData.length} orders [${_ss}]` : 'NONE'}`);
-        const _cacheData = queryClient.getQueryData<Order[]>(orderKeys.lists());
-        if (_cacheData) {
-            const _cs = _cacheData.slice(0, 5).map(o => `${o.id?.slice(0, 8)}:${o.status}`).join(' | ');
-            console.log(`[DIAG:MOUNT] React Query cache already has: [${_cs}]`);
-        } else {
-            console.log(`[DIAG:MOUNT] React Query cache: EMPTY`);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    // Q2: Does React Query actually refetch when enabled transitions false→true?
-    useEffect(() => {
-        const nowEnabled = !!session;
-        if (nowEnabled && !_prevEnabledRef.current) {
-            const elapsed = Math.round(performance.now() - _mountTimeRef.current);
-            console.log(`[DIAG:ENABLED] Query enabled (session ready) after ${elapsed}ms. Expecting fetchOrders to fire now...`);
-            const _cacheData = queryClient.getQueryData<Order[]>(orderKeys.lists());
-            if (_cacheData) {
-                const _cs = _cacheData.slice(0, 5).map(o => `${o.id?.slice(0, 8)}:${o.status}`).join(' | ');
-                console.log(`[DIAG:ENABLED] Cache at enable-time: [${_cs}]`);
-            }
-        }
-        _prevEnabledRef.current = nowEnabled;
-    }, [session, queryClient]);
-    // ===== END DIAGNOSTIC =====
 
     // Force refetch when trigger changes
     useEffect(() => {
@@ -239,12 +195,14 @@ export function useUpdateOrderMutation() {
         },
         onSuccess: ({ orderId, data }) => {
             console.log(`[UpdateOrder] onSuccess for ${orderId}`);
-            // Overwrite optimstic cache with actual server data to ensure consistency
-            queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) =>
-                old?.map((order) =>
+            // Overwrite optimistic cache with actual server data to ensure consistency
+            queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) => {
+                const updated = old?.map((order) =>
                     order.id === orderId ? data : order
-                )
-            );
+                );
+                if (updated) setCachedOrders(updated);
+                return updated;
+            });
         },
         onError: (err, variables, context) => {
             console.error(`[UpdateOrder] onError for ${variables.orderId}:`, err);
@@ -314,27 +272,14 @@ export function useUpdateStatusMutation() {
         onSuccess: ({ orderId, data }, variables, context) => {
             const s = ++seqId;
             console.log(`[SYNC #${s}] [UpdateStatus:onSuccess] ${orderId}, server confirmed status: ${data.status} (from onMutate seq: ${context?.seq})`);
-            // DIAGNOSTIC: Detect if onSuccess is about to CLOBBER a newer optimistic status
-            const _cacheBefore = queryClient.getQueryData<Order[]>(orderKeys.lists());
-            const _cacheOrder = _cacheBefore?.find(o => o.id === orderId);
-            if (_cacheOrder && _cacheOrder.status !== data.status) {
-                console.warn(`[DIAG:CLOBBER] onSuccess for ${orderId.slice(0, 8)}: cache currently has status="${_cacheOrder.status}" but server response has status="${data.status}". Cache will be OVERWRITTEN to "${data.status}". This may revert a later optimistic update!`);
-            }
-            queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) =>
-                old?.map((order) =>
+            queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) => {
+                const updated = old?.map((order) =>
                     order.id === orderId ? data : order
-                )
-            );
-            // DIAGNOSTIC: Check sessionStorage desync after onSuccess
-            try {
-                const _ssRaw = sessionStorage.getItem(SS_KEY);
-                if (_ssRaw) {
-                    const _ssOrder = JSON.parse(_ssRaw).find((o: Order) => o.id === orderId);
-                    if (_ssOrder && _ssOrder.status !== data.status) {
-                        console.warn(`[DIAG:DESYNC] sessionStorage has ${orderId.slice(0, 8)}:status="${_ssOrder.status}" but cache now has "${data.status}". onSuccess does NOT update sessionStorage!`);
-                    }
-                }
-            } catch { /* ignore */ }
+                );
+                // Keep SWR session storage in sync with server-confirmed data
+                if (updated) setCachedOrders(updated);
+                return updated;
+            });
         },
         onError: (err, variables, context) => {
             const s = ++seqId;
