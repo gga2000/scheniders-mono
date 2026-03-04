@@ -180,13 +180,16 @@ export function useUpdateOrderMutation() {
             const previousOrders = queryClient.getQueryData<Order[]>(orderKeys.lists());
 
             // Optimistically update cache 
-            queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) =>
-                old?.map((order) =>
+            queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) => {
+                const updated = old?.map((order) =>
                     order.id === orderId
                         ? { ...order, ...updates } as Order
                         : order
-                )
-            );
+                );
+                // Keep SWR session storage perfectly in sync to avoid stale flash on refresh
+                if (updated) setCachedOrders(updated);
+                return updated;
+            });
 
             return { previousOrders };
         },
@@ -241,8 +244,8 @@ export function useUpdateStatusMutation() {
             const previousOrders = queryClient.getQueryData<Order[]>(orderKeys.lists());
 
             // Optimistic update
-            queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) =>
-                old?.map((order) =>
+            queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) => {
+                const updated = old?.map((order) =>
                     order.id === orderId
                         ? ({
                             ...order,
@@ -256,8 +259,11 @@ export function useUpdateStatusMutation() {
                             updated_at: new Date().toISOString(),
                         } as Order)
                         : order
-                )
-            );
+                );
+                // Keep SWR session storage perfectly in sync to avoid stale flash on refresh
+                if (updated) setCachedOrders(updated);
+                return updated;
+            });
 
             return { previousOrders, seq: s };
         },
@@ -315,9 +321,12 @@ export function useDeleteOrderMutation() {
             const previousOrders = queryClient.getQueryData<Order[]>(orderKeys.lists());
 
             // Optimistic update
-            queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) =>
-                old?.filter((order) => order.id !== orderId) || []
-            );
+            queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) => {
+                const updated = old?.filter((order) => order.id !== orderId) || [];
+                // Keep SWR session storage perfectly in sync to avoid stale flash on refresh
+                setCachedOrders(updated);
+                return updated;
+            });
 
             return { previousOrders };
         },
