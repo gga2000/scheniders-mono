@@ -1,21 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { createSupabaseServerClient } from '@/lib/supabase-server';
-import { env } from '@/lib/env';
+import { verifyAccessToken, createSupabaseServiceClient } from '@/lib/supabase-server';
 
 /**
  * POST /api/orders/delete
  *
  * Delete orders by IDs using service role (bypasses RLS).
- * Requires authenticated admin user.
+ * Requires authenticated admin user via Authorization header.
  * Body: { ids: string[] }
  */
 export async function POST(request: NextRequest) {
     try {
-        // Verify the requesting user is authenticated and is an admin
-        const supabaseUser = await createSupabaseServerClient();
-        const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
+        // Verify the requesting user via access token
+        const authHeader = request.headers.get('Authorization');
+        const token = authHeader?.replace('Bearer ', '');
+        if (!token) {
+            return NextResponse.json(
+                { success: false, error: 'Missing Authorization header' },
+                { status: 401 }
+            );
+        }
 
+        const { user, error: authError } = await verifyAccessToken(token);
         if (authError || !user) {
             return NextResponse.json(
                 { success: false, error: 'Unauthorized' },
@@ -23,7 +28,9 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const { data: profile } = await supabaseUser
+        const supabaseAdmin = createSupabaseServiceClient();
+
+        const { data: profile } = await supabaseAdmin
             .from('user_profiles')
             .select('role')
             .eq('id', user.id)
@@ -44,18 +51,6 @@ export async function POST(request: NextRequest) {
                 { status: 400 }
             );
         }
-
-        if (!env.SUPABASE_SERVICE_ROLE_KEY) {
-            return NextResponse.json(
-                { success: false, error: 'Service role key not configured' },
-                { status: 500 }
-            );
-        }
-
-        const supabaseAdmin = createClient(
-            env.NEXT_PUBLIC_SUPABASE_URL,
-            env.SUPABASE_SERVICE_ROLE_KEY
-        );
 
         // Snapshot orders before deletion for audit trail
         const { data: orderSnapshots } = await supabaseAdmin
