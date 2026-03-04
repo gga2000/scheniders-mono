@@ -181,6 +181,10 @@ export class RealtimeBatcher {
                 }
             }
 
+            // DIAGNOSTIC: Warn that sessionStorage is NOT being updated by the batcher
+            const _newSample = [...newOrders, ...result].slice(0, 5).map(o => `${o.id.slice(0, 8)}:${o.status}`).join(' | ');
+            console.warn(`[DIAG:BATCHER_DESYNC] Realtime batcher updated React Query cache but did NOT update sessionStorage. Cache now: [${_newSample}]. On refresh, sessionStorage will serve STALE data from the last fetchOrders call.`);
+
             return [...newOrders, ...result];
         });
     }
