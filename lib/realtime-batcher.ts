@@ -129,9 +129,17 @@ export class RealtimeBatcher {
             }
         }
 
+        // Log detailed flush info
+        const insertsLog = Array.from(inserts.values()).map(o => `${o.id}:${o.status}`).join(', ');
+        const updatesLog = Array.from(updates.values()).map(o => `${o.id}:${o.status}`).join(', ');
+        const deletesLog = Array.from(deletes).join(', ');
+
+        console.log(`[SYNC BATCHER] FLushing ${events.length} events: inserts=[${insertsLog}], updates=[${updatesLog}], deletes=[${deletesLog}]`);
+
         // Apply all changes in a single setQueryData call
         this.queryClient.setQueryData<Order[]>(this.queryKey, (old) => {
             if (!old) return old;
+            console.log(`[SYNC BATCHER] Cache size before apply: ${old.length}`);
 
             const result = old
                 // Remove deleted orders

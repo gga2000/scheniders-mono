@@ -67,14 +67,18 @@ function setCachedOrders(orders: Order[]): void {
 }
 
 // Fetch all active orders — no longer checks auth session.
+// GLOBAL DIAGNOSTIC COUNTER
+let seqId = 0;
+
 // Auth gating is handled by the `enabled` flag in useOrdersQuery.
 let fetchAttempt = 0;
 async function fetchOrders(): Promise<Order[]> {
+    const s = ++seqId;
     const attempt = ++fetchAttempt;
     const t0 = performance.now();
-    console.log(`[fetchOrders] attempt #${attempt} started at ${Math.round(t0)}ms`);
+    console.log(`[SYNC #${s}] [fetchOrders] attempt #${attempt} started at ${Math.round(t0)}ms`);
     const result = await orderRepository.findAll();
-    console.log(`[fetchOrders] attempt #${attempt} returned ${result.length} orders in ${Math.round(performance.now() - t0)}ms`);
+    console.log(`[SYNC #${s}] [fetchOrders] returned ${result.length} orders in ${Math.round(performance.now() - t0)}ms`);
 
     // Persist to sessionStorage for SWR on next refresh
     setCachedOrders(result);
@@ -222,14 +226,14 @@ export function useUpdateStatusMutation() {
             status: Order["status"];
             rejectionReason?: string;
         }) => {
-            console.log(`[UpdateStatus] mutationFn START: ${orderId} → ${status}`);
             const t0 = performance.now();
             const data = await orderRepository.updateStatus(orderId, status, rejectionReason);
-            console.log(`[UpdateStatus] mutationFn DONE: ${orderId} → ${status} in ${Math.round(performance.now() - t0)}ms`);
             return { orderId, status, data };
         },
         onMutate: async ({ orderId, status, rejectionReason }) => {
-            console.log(`[UpdateStatus] onMutate: ${orderId} → ${status}`);
+            const s = ++seqId;
+            console.log(`[SYNC #${s}] [UpdateStatus:onMutate] ${orderId} → ${status}`);
+
             // Mark as recently mutated so realtime batcher skips stale broadcasts
             getOrderBatcher()?.markMutated(orderId);
             await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
@@ -249,15 +253,17 @@ export function useUpdateStatusMutation() {
                                     ? order.rejection_reason
                                     : undefined,
                             delivered_at: status === "delivered" ? new Date().toISOString() : order.delivered_at,
+                            updated_at: new Date().toISOString(),
                         } as Order)
                         : order
                 )
             );
 
-            return { previousOrders };
+            return { previousOrders, seq: s };
         },
-        onSuccess: ({ orderId, data }) => {
-            console.log(`[UpdateStatus] onSuccess: ${orderId}, server status=${data.status}`);
+        onSuccess: ({ orderId, data }, variables, context) => {
+            const s = ++seqId;
+            console.log(`[SYNC #${s}] [UpdateStatus:onSuccess] ${orderId}, server confirmed status: ${data.status} (from onMutate seq: ${context?.seq})`);
             queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) =>
                 old?.map((order) =>
                     order.id === orderId ? data : order
@@ -265,9 +271,9 @@ export function useUpdateStatusMutation() {
             );
         },
         onError: (err, variables, context) => {
-            console.error(`[UpdateStatus] ⚠️ onError: ${variables.orderId} → ${variables.status}:`, err);
+            const s = ++seqId;
+            console.error(`[SYNC #${s}] [UpdateStatus:onError] ⚠️ reverting ${variables.orderId} → ${variables.status} (from onMutate seq: ${context?.seq}):`, err);
             if (context?.previousOrders) {
-                console.log(`[UpdateStatus] ⚠️ REVERTING to previousOrders snapshot`);
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
             toast.error(err instanceof Error ? err.message : "Failed to update order status.");
