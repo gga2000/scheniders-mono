@@ -18,6 +18,7 @@ import {
     useArchivedOrdersQuery,
     orderRefetchTriggers,
     orderKeys,
+    setOrderBatcher,
 } from "@/hooks/use-orders-query";
 
 import { useState, useEffect } from "react";
@@ -66,12 +67,18 @@ export function useOrders() {
     const filterHook = useOrderFilters({ orders, archivedOrders });
 
     // 2. Realtime — Supabase channel subscription (updates RQ cache directly)
-    useOrderRealtime({
+    const { batcherRef } = useOrderRealtime({
         onReconnect: () => {
             console.log("[useOrders] Realtime reconnected - triggering refetch");
             setRefetchTrigger(orderRefetchTriggers.realtimeReconnect + Date.now());
         }
     });
+
+    // Register batcher for mutation guard (mutations call markMutated on it)
+    useEffect(() => {
+        setOrderBatcher(batcherRef.current);
+        return () => setOrderBatcher(null);
+    }, [batcherRef]);
 
     // 3. Auxiliary — reference data, customer helpers, stats
     const auxiliaryHook = useOrderAuxiliary({ orders, archivedOrders });

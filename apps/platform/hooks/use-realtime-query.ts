@@ -11,13 +11,14 @@ import { RealtimeBatcher } from "@/lib/realtime-batcher";
 // Realtime subscriptions for any table.
 //
 // Usage:
-//   useRealtimeQuery({
+//   const { batcherRef } = useRealtimeQuery({
 //       table: "orders",
 //       queryKey: ["orders", "list"],
 //       filter: { column: "is_archived", value: false },
 //       normalizer: normalizeOrder,
 //       onReconnect: () => refetch(),
 //   });
+//   // In mutations: batcherRef.current?.markMutated(orderId)
 // =============================================
 
 interface UseRealtimeQueryOptions<T> {
@@ -61,6 +62,9 @@ export function useRealtimeQuery<T extends { id: string }>({
 }: UseRealtimeQueryOptions<T>) {
     const queryClient = useQueryClient();
 
+    // Expose batcher ref so mutations can call markMutated()
+    const batcherRef = useRef<RealtimeBatcher | null>(null);
+
     // Stabilize queryKey: only re-subscribe when the *content* changes, not the reference.
     // orderKeys.lists() returns a new array every call, which would tear down the
     // Supabase channel on every render if used directly as a dependency.
@@ -102,6 +106,9 @@ export function useRealtimeQuery<T extends { id: string }>({
             flushDelayMs: batchDelayMs,
             onNewOrder: (order) => onInsertRef.current?.(order as unknown as T),
         });
+
+        // Expose to mutations via ref
+        batcherRef.current = batcher;
 
         // Build the subscription config
         const subscriptionConfig: {
@@ -145,8 +152,12 @@ export function useRealtimeQuery<T extends { id: string }>({
             });
 
         return () => {
+            batcherRef.current = null;
             batcher.destroy();
             channel.unsubscribe();
         };
     }, [table, enabled, batchDelayMs, queryClient, stableQueryKey, stableFilterStr]);
+
+    // Return batcherRef so mutations can call markMutated()
+    return { batcherRef };
 }
