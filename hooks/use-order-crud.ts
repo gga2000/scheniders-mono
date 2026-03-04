@@ -656,10 +656,19 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 return { success: true, count: 0 };
             }
 
+            // Get current session token for server-side auth verification
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) {
+                throw new Error("Not authenticated. Please sign in again.");
+            }
+
             // Use server-side API route with service role to bypass RLS
             const res = await fetch("/api/orders/delete", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${session.access_token}`,
+                },
                 body: JSON.stringify({ ids: uniqueOrderIds }),
             });
 

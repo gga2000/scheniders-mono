@@ -1,6 +1,6 @@
 "use server";
 
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { Order } from "@/lib/supabase";
 
 export async function createOrderAction(
@@ -8,14 +8,9 @@ export async function createOrderAction(
     retryCount = 0
 ): Promise<{ success: boolean; data?: Order; error?: string }> {
     const MAX_RETRIES = 5;
-    const supabase = await createSupabaseServerClient();
+    const supabase = createSupabaseServiceClient();
 
     try {
-        // Authenticate check
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError || !user) {
-            return { success: false, error: "Unauthorized" };
-        }
 
         // Generate smart order ID if not provided
         let generatedOrderId = orderData.order_id;
@@ -124,14 +119,9 @@ export async function splitOrderAction(
     keptItems: any[],
     returnedItems: any[]
 ): Promise<{ success: boolean; data?: any; error?: string }> {
-    const supabase = await createSupabaseServerClient();
+    const supabase = createSupabaseServiceClient();
 
     try {
-        // 1. Authenticate
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError || !user) {
-            return { success: false, error: "Unauthorized" };
-        }
 
         // 2. Fetch original order
         const { data: originalOrder, error: fetchError } = await supabase
@@ -234,7 +224,7 @@ export async function splitOrderAction(
 }
 
 export async function checkOrderIdExists(orderId: string, excludeUuid?: string): Promise<boolean> {
-    const supabase = await createSupabaseServerClient();
+    const supabase = createSupabaseServiceClient();
 
     try {
         let query = supabase
