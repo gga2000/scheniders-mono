@@ -55,8 +55,9 @@ function LoginForm() {
                 return;
             }
 
-            // Success - redirect will happen via useEffect
+            // Success — redirect
             setSuccess("Welcome back! Redirecting...");
+            router.push(returnTo);
         } catch {
             setError("An unexpected error occurred. Please try again.");
             setIsLoading(false);
