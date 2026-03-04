@@ -63,7 +63,6 @@ export class RealtimeBatcher {
 
         const events = [...this.buffer];
         this.buffer = [];
-        console.log(`[RealtimeBatcher] 🔄 Flushing ${events.length} realtime events`);
 
         if (this.flushTimer) {
             clearTimeout(this.flushTimer);
@@ -98,10 +97,7 @@ export class RealtimeBatcher {
             }
         }
 
-        console.log(`[RealtimeBatcher] 📊 Batch summary: ${inserts.size} inserts, ${updates.size} updates, ${deletes.size} deletes`);
-        for (const [id, order] of updates) {
-            console.log(`[RealtimeBatcher] ⚡ UPDATE id=${id} status=${order.status} updated_at=${order.updated_at}`);
-        }
+
 
         // Apply all changes in a single setQueryData call
         this.queryClient.setQueryData<Order[]>(this.queryKey, (old) => {
