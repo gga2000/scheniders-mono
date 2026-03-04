@@ -104,6 +104,7 @@ export const orderRepository = {
 
         for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
             try {
+                const t0 = performance.now();
                 // Wrap the Supabase call with a timeout to prevent infinite hangs
                 const timeoutMs = 10_000;
                 const supabasePromise = supabase
@@ -118,12 +119,21 @@ export const orderRepository = {
                 );
 
                 const { data, error } = await Promise.race([supabasePromise, timeoutPromise]);
+                const elapsed = Math.round(performance.now() - t0);
 
-                if (error) throw error;
-                if (!data) throw new Error("Status update failed: row not found or write was rejected. Try refreshing.");
+                if (error) {
+                    console.error(`[updateStatus] attempt ${attempt + 1} FAILED for ${id} in ${elapsed}ms:`, error.message);
+                    throw error;
+                }
+                if (!data) {
+                    console.error(`[updateStatus] attempt ${attempt + 1} returned NULL for ${id} in ${elapsed}ms (RLS reject?)`);
+                    throw new Error("Status update failed: row not found or write was rejected. Try refreshing.");
+                }
+                console.log(`[updateStatus] attempt ${attempt + 1} SUCCESS for ${id} in ${elapsed}ms, status=${data.status}`);
                 return normalizeOrder(data);
             } catch (err) {
                 lastError = err;
+                console.warn(`[updateStatus] attempt ${attempt + 1} error for ${id}:`, err instanceof Error ? err.message : err);
                 // Don't retry on the last attempt
                 if (attempt < MAX_RETRIES - 1) {
                     await new Promise(r => setTimeout(r, 1000));

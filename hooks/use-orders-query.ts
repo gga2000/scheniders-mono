@@ -71,7 +71,10 @@ function setCachedOrders(orders: Order[]): void {
 let fetchAttempt = 0;
 async function fetchOrders(): Promise<Order[]> {
     const attempt = ++fetchAttempt;
+    const t0 = performance.now();
+    console.log(`[fetchOrders] attempt #${attempt} started at ${Math.round(t0)}ms`);
     const result = await orderRepository.findAll();
+    console.log(`[fetchOrders] attempt #${attempt} returned ${result.length} orders in ${Math.round(performance.now() - t0)}ms`);
 
     // Persist to sessionStorage for SWR on next refresh
     setCachedOrders(result);
@@ -157,11 +160,15 @@ export function useUpdateOrderMutation() {
 
     return useMutation({
         mutationFn: async ({ orderId, updates, user_id }: { orderId: string; updates: Partial<Order>; user_id?: string }) => {
+            console.log(`[UpdateOrder] mutationFn START for ${orderId}`);
+            const t0 = performance.now();
             const data = await orderRepository.update(orderId, updates);
+            console.log(`[UpdateOrder] mutationFn DONE for ${orderId} in ${Math.round(performance.now() - t0)}ms`);
             return { orderId, updates, data };
         },
         // Optimistic update - update cache immediately
         onMutate: async ({ orderId, updates }) => {
+            console.log(`[UpdateOrder] onMutate for ${orderId}`, Object.keys(updates));
             getOrderBatcher()?.markMutated(orderId);
             await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
 
@@ -180,6 +187,7 @@ export function useUpdateOrderMutation() {
             return { previousOrders };
         },
         onSuccess: ({ orderId, data }) => {
+            console.log(`[UpdateOrder] onSuccess for ${orderId}`);
             // Overwrite optimstic cache with actual server data to ensure consistency
             queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) =>
                 old?.map((order) =>
@@ -188,7 +196,9 @@ export function useUpdateOrderMutation() {
             );
         },
         onError: (err, variables, context) => {
+            console.error(`[UpdateOrder] onError for ${variables.orderId}:`, err);
             if (context?.previousOrders) {
+                console.log(`[UpdateOrder] REVERTING to previousOrders snapshot`);
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
             toast.error(err instanceof Error ? err.message : "Failed to update order.");
@@ -212,10 +222,14 @@ export function useUpdateStatusMutation() {
             status: Order["status"];
             rejectionReason?: string;
         }) => {
+            console.log(`[UpdateStatus] mutationFn START: ${orderId} → ${status}`);
+            const t0 = performance.now();
             const data = await orderRepository.updateStatus(orderId, status, rejectionReason);
+            console.log(`[UpdateStatus] mutationFn DONE: ${orderId} → ${status} in ${Math.round(performance.now() - t0)}ms`);
             return { orderId, status, data };
         },
         onMutate: async ({ orderId, status, rejectionReason }) => {
+            console.log(`[UpdateStatus] onMutate: ${orderId} → ${status}`);
             // Mark as recently mutated so realtime batcher skips stale broadcasts
             getOrderBatcher()?.markMutated(orderId);
             await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
@@ -243,6 +257,7 @@ export function useUpdateStatusMutation() {
             return { previousOrders };
         },
         onSuccess: ({ orderId, data }) => {
+            console.log(`[UpdateStatus] onSuccess: ${orderId}, server status=${data.status}`);
             queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) =>
                 old?.map((order) =>
                     order.id === orderId ? data : order
@@ -250,7 +265,9 @@ export function useUpdateStatusMutation() {
             );
         },
         onError: (err, variables, context) => {
+            console.error(`[UpdateStatus] ⚠️ onError: ${variables.orderId} → ${variables.status}:`, err);
             if (context?.previousOrders) {
+                console.log(`[UpdateStatus] ⚠️ REVERTING to previousOrders snapshot`);
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
             toast.error(err instanceof Error ? err.message : "Failed to update order status.");
