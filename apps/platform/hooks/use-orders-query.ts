@@ -60,12 +60,7 @@ function setCachedOrders(orders: Order[]): void {
 let fetchAttempt = 0;
 async function fetchOrders(): Promise<Order[]> {
     const attempt = ++fetchAttempt;
-    const t0 = performance.now();
-    console.log(`[fetchOrders] attempt #${attempt} started at ${Math.round(t0)}ms`);
-
     const result = await orderRepository.findAll();
-    const t1 = performance.now();
-    console.log(`[fetchOrders] attempt #${attempt} findAll took ${Math.round(t1 - t0)}ms, returned ${result.length} orders`);
 
     // Persist to sessionStorage for SWR on next refresh
     setCachedOrders(result);
@@ -117,7 +112,7 @@ export function useOrdersQuery(refetchTrigger?: string) {
         staleTime: 30 * 1000, // 30 seconds
         gcTime: CACHE_PRESETS.FREQUENT.gcTime, // 10 mins
         // Refetch when window regains focus to catch missed updates
-        refetchOnWindowFocus: "always",
+        refetchOnWindowFocus: true, // respects staleTime (30s)
         // Refetch on mount to ensure fresh data
         refetchOnMount: true,
         // Lighter retry since we no longer throw for missing auth
@@ -151,10 +146,7 @@ export function useUpdateOrderMutation() {
 
     return useMutation({
         mutationFn: async ({ orderId, updates, user_id }: { orderId: string; updates: Partial<Order>; user_id?: string }) => {
-            console.log(`[UpdateOrderMutation] 🚀 mutationFn START for ${orderId}`, Object.keys(updates));
-            const t0 = performance.now();
             const data = await orderRepository.update(orderId, updates);
-            console.log(`[UpdateOrderMutation] ✅ mutationFn END for ${orderId} in ${Math.round(performance.now() - t0)}ms`);
             return { orderId, updates, data };
         },
         // Optimistic update - update cache immediately
@@ -208,14 +200,10 @@ export function useUpdateStatusMutation() {
             status: Order["status"];
             rejectionReason?: string;
         }) => {
-            const t0 = performance.now();
-            console.log(`[UpdateStatusMutation] 🚀 mutationFn START for ${orderId} → ${status}`);
             const data = await orderRepository.updateStatus(orderId, status, rejectionReason);
-            console.log(`[UpdateStatusMutation] ✅ mutationFn END for ${orderId} in ${Math.round(performance.now() - t0)}ms, server status=${data.status}`);
             return { orderId, status, data };
         },
         onMutate: async ({ orderId, status, rejectionReason }) => {
-            console.log(`[UpdateStatusMutation] ⚡ onMutate (optimistic) for ${orderId} → ${status}`);
             await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
 
             const previousOrders = queryClient.getQueryData<Order[]>(orderKeys.lists());
@@ -241,7 +229,6 @@ export function useUpdateStatusMutation() {
             return { previousOrders };
         },
         onSuccess: ({ orderId, data }) => {
-            console.log(`[UpdateStatusMutation] 🎉 onSuccess for ${orderId}, writing server data (status=${data.status})`);
             queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) =>
                 old?.map((order) =>
                     order.id === orderId ? data : order
@@ -249,7 +236,6 @@ export function useUpdateStatusMutation() {
             );
         },
         onError: (err, variables, context) => {
-            console.error(`[UpdateStatusMutation] ❌ onError for ${variables.orderId}:`, err);
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
@@ -315,12 +301,8 @@ export function useCreateOrderMutation() {
 
     return useMutation({
         mutationFn: async (orderData: Omit<Order, "id" | "created_at" | "updated_at">) => {
-            const t0 = performance.now();
-            console.log(`[CreateOrderMutation] 🚀 mutationFn START, order_id=${orderData.order_id}`);
             const { createOrderAction } = await import("@/app/actions/orders");
-            console.log(`[CreateOrderMutation] 📦 Server action imported in ${Math.round(performance.now() - t0)}ms`);
             const result = await createOrderAction(orderData);
-            console.log(`[CreateOrderMutation] ✅ Server action completed in ${Math.round(performance.now() - t0)}ms, success=${result.success}`);
             if (!result.success || !result.data) {
                 console.error("[createOrderMutation] Server action failed:", result.error);
                 console.error("[createOrderMutation] Order data:", JSON.stringify(orderData, null, 2));

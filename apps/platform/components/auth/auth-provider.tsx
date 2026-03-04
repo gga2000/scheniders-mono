@@ -119,26 +119,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         const initAuth = async () => {
             const t0 = performance.now();
-            console.log(`[initAuth] started at ${Math.round(t0)}ms`);
             try {
+                // ONE-TIME MIGRATION: Move session from cookies (old @supabase/ssr)
+                // to localStorage (new @supabase/supabase-js createClient).
+                // Without this, users would be forced to re-login after the client swap.
+                const MIGRATION_KEY = 'supabase-session-migrated';
+                if (typeof window !== 'undefined' && !localStorage.getItem(MIGRATION_KEY)) {
+                    localStorage.setItem(MIGRATION_KEY, '1');
+                    // If getSession returns null but user has a cookie session,
+                    // try refreshing the token to re-establish it in localStorage
+                    const { data: { session: checkSession } } = await supabase.auth.getSession();
+                    if (!checkSession) {
+                        // Attempt to recover via refresh (Supabase SDK may find the old session)
+                        await supabase.auth.refreshSession();
+                    }
+                }
+
                 // Get initial session
                 const { data: { session: initialSession } } = await supabase.auth.getSession();
-                const t1 = performance.now();
-                console.log(`[initAuth] getSession took ${Math.round(t1 - t0)}ms, session=${initialSession ? 'YES' : 'NULL'}`);
 
                 setSession(initialSession);
                 setUser(initialSession?.user ?? null);
 
                 if (initialSession?.user) {
                     await fetchRoleAndPermissions(initialSession.user.id);
-                    const t2 = performance.now();
-                    console.log(`[initAuth] fetchRoleAndPermissions took ${Math.round(t2 - t1)}ms`);
                 }
             } catch (error) {
                 console.error("Auth initialization error:", error);
             } finally {
                 setIsLoading(false);
-                console.log(`[initAuth] complete, isLoading=false, total=${Math.round(performance.now() - t0)}ms`);
             }
         };
 

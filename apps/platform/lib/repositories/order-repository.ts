@@ -90,8 +90,6 @@ export const orderRepository = {
         status: Order["status"],
         rejectionReason?: string
     ): Promise<Order> {
-        const t0 = performance.now();
-        console.log(`[orderRepository.updateStatus] START id=${id} status=${status}`);
 
         const updateData: Partial<Order> = { status };
         if (rejectionReason) {
@@ -115,9 +113,7 @@ export const orderRepository = {
             setTimeout(() => reject(new Error(`updateStatus timed out after ${timeoutMs}ms for order ${id}`)), timeoutMs)
         );
 
-        console.log(`[orderRepository.updateStatus] 🔄 Supabase .update() sent (${Math.round(performance.now() - t0)}ms)`);
         const { data, error } = await Promise.race([supabasePromise, timeoutPromise]);
-        console.log(`[orderRepository.updateStatus] 📥 Supabase responded in ${Math.round(performance.now() - t0)}ms, error=${!!error}, data=${!!data}`);
 
         if (error) throw error;
         if (!data) throw new Error("Status update failed: row not found or write was rejected. Try refreshing.");
