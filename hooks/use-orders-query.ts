@@ -5,6 +5,7 @@ import { CACHE_PRESETS } from '@/lib/query-config';
 import { orderRepository } from "@/lib/repositories/order-repository";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "sonner";
+import type { RealtimeBatcher } from "@/lib/realtime-batcher";
 // Refetch trigger constants
 export const orderRefetchTriggers = {
     appReopen: "appReopen",
@@ -20,6 +21,16 @@ export const orderKeys = {
     detail: (id: string) => [...orderKeys.details(), id] as const,
     archived: () => [...orderKeys.all, "archived"] as const,
 };
+
+// =============================================
+// BATCHER REGISTRY
+// Module-level ref so mutations can call markMutated()
+// on the active RealtimeBatcher without threading refs
+// through the component tree.
+// =============================================
+let _orderBatcher: RealtimeBatcher | null = null;
+export function setOrderBatcher(b: RealtimeBatcher | null) { _orderBatcher = b; }
+function getOrderBatcher() { return _orderBatcher; }
 
 // =============================================
 // SESSION STORAGE SWR CACHE (Stale-While-Revalidate)
@@ -151,6 +162,7 @@ export function useUpdateOrderMutation() {
         },
         // Optimistic update - update cache immediately
         onMutate: async ({ orderId, updates }) => {
+            getOrderBatcher()?.markMutated(orderId);
             await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
 
             // Snapshot current data to revert if the request fails
@@ -204,6 +216,8 @@ export function useUpdateStatusMutation() {
             return { orderId, status, data };
         },
         onMutate: async ({ orderId, status, rejectionReason }) => {
+            // Mark as recently mutated so realtime batcher skips stale broadcasts
+            getOrderBatcher()?.markMutated(orderId);
             await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
 
             const previousOrders = queryClient.getQueryData<Order[]>(orderKeys.lists());

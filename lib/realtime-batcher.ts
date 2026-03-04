@@ -32,12 +32,26 @@ export class RealtimeBatcher {
     private flushDelayMs: number;
     private onNewOrder?: (order: Order) => void;
 
+    // Mutation guard: track recently-mutated order IDs to prevent
+    // stale realtime broadcasts from overwriting optimistic updates
+    private recentMutations = new Map<string, number>();
+    private static readonly MUTATION_GUARD_MS = 3_000; // 3 seconds
+
     constructor(options: RealtimeBatcherOptions) {
         this.queryClient = options.queryClient;
         this.queryKey = options.queryKey;
         this.normalizer = options.normalizer ?? ((x: unknown) => x);
         this.flushDelayMs = options.flushDelayMs ?? 200;
         this.onNewOrder = options.onNewOrder;
+    }
+
+    /**
+     * Mark an order as recently mutated. Realtime updates for this order
+     * will be skipped for MUTATION_GUARD_MS to prevent stale broadcasts
+     * from overwriting optimistic UI.
+     */
+    markMutated(orderId: string): void {
+        this.recentMutations.set(orderId, Date.now());
     }
 
     /**
@@ -69,6 +83,14 @@ export class RealtimeBatcher {
             this.flushTimer = null;
         }
 
+        // Prune expired mutation guards
+        const now = Date.now();
+        for (const [id, ts] of this.recentMutations) {
+            if (now - ts > RealtimeBatcher.MUTATION_GUARD_MS) {
+                this.recentMutations.delete(id);
+            }
+        }
+
         // Build maps by id for efficient processing
         const inserts = new Map<string, Order>();
         const updates = new Map<string, Order>();
@@ -83,6 +105,16 @@ export class RealtimeBatcher {
                 this.onNewOrder?.(order);
             } else if (event.eventType === "UPDATE" && event.new) {
                 const order = this.normalizer(event.new as unknown as Order) as Order;
+
+                // MUTATION GUARD: Skip realtime updates for orders we just mutated.
+                // The broadcast is the echo of our own write — the optimistic UI
+                // already has the correct state. Applying the broadcast could
+                // briefly flicker the UI if the broadcast arrives between
+                // onMutate and onSuccess.
+                if (this.recentMutations.has(order.id)) {
+                    continue;
+                }
+
                 updates.set(order.id, order);
                 // If the same order was inserted in this batch, update the insert instead
                 if (inserts.has(order.id)) {
@@ -97,19 +129,9 @@ export class RealtimeBatcher {
             }
         }
 
-
-
         // Apply all changes in a single setQueryData call
         this.queryClient.setQueryData<Order[]>(this.queryKey, (old) => {
             if (!old) return old;
-
-            // DIAGNOSTIC: Check if any incoming updates would overwrite a recently-mutated order
-            for (const [id, incomingOrder] of updates) {
-                const cachedOrder = old.find(o => o.id === id);
-                if (cachedOrder && cachedOrder.status !== incomingOrder.status) {
-                    console.warn(`[RealtimeBatcher] ⚠️ STATUS CONFLICT for ${id}: cache has "${cachedOrder.status}" but realtime says "${incomingOrder.status}" (updated_at: cache=${cachedOrder.updated_at} vs realtime=${incomingOrder.updated_at})`);
-                }
-            }
 
             const result = old
                 // Remove deleted orders
@@ -164,5 +186,6 @@ export class RealtimeBatcher {
             this.flushTimer = null;
         }
         this.buffer = [];
+        this.recentMutations.clear();
     }
 }
