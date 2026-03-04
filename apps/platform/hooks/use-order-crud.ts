@@ -17,7 +17,7 @@ import { normalizeOrder } from "@/lib/order-normalize-utils";
 import { cleanPhoneForExport } from "@/lib/export-utils";
 import { activityLogger } from "@/lib/activity-logger";
 import { OrderSchema } from "@/lib/schemas";
-import { createOrderAction, splitOrderAction } from "@/app/actions/orders";
+import { splitOrderAction } from "@/app/actions/orders";
 import { getIdempotencyGuard, generateIdempotencyKey } from "@/lib/idempotency";
 import { toast } from "sonner";
 import {
@@ -61,7 +61,6 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     // Mutations
     const updateStatusMutation = useUpdateStatusMutation();
     const updateOrderMutation = useUpdateOrderMutation();
-    const deleteOrderMutation = useDeleteOrderMutation();
     const createOrderMutation = useCreateOrderMutation();
 
     // Undo stack
@@ -69,7 +68,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     const MAX_UNDO_STACK = 10;
 
     // Abort controller for fetch
-    const isMountedRef = useRef(true);
+    // const isMountedRef = useRef(true);
 
     // =============================================
     // REFETCH VIA REACT QUERY (replaces legacy fetchOrders)
@@ -108,7 +107,11 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         rejectionReason?: string
     ) {
         try {
-            const previousOrder = orders.find(o => o.id === orderId);
+            // FIX: Don't read from the `orders` closure (which might be stale on rapid double-clicks).
+            // Always read the absolute freshest state synchronously from the React Query cache.
+            const currentCache = queryClient.getQueryData<Order[]>(["orders", "lists"]);
+            const previousOrder = currentCache?.find(o => o.id === orderId) || orders.find(o => o.id === orderId);
+
             // Record status change to undo stack
             if (previousOrder) {
                 const undoEntry = {
@@ -199,7 +202,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             // NOTE: Conflict detection via updated_at was removed because stale
             // cached timestamps caused massive false-positive "conflict" failures,
             // which was the primary cause of mutations not persisting.
-            const result = await updateOrderMutation.mutateAsync({
+            await updateOrderMutation.mutateAsync({
                 orderId,
                 updates: cleanUpdates
             });
@@ -1228,9 +1231,9 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     });
 
     const stableAPI = useMemo(() => {
-        const proxy: any = {};
+        const proxy: Record<string, unknown> = {};
         for (const key in latestFn) {
-            proxy[key as keyof typeof latestFn] = (...args: any[]) => {
+            proxy[key as keyof typeof latestFn] = (...args: unknown[]) => {
                 // @ts-expect-error dynamic wrapper
                 return apiRef.current[key as keyof typeof latestFn](...args);
             };
