@@ -10,71 +10,17 @@ import { normalizeOrder } from "@/lib/order-normalize-utils";
  * making it easy to swap backends or add instrumentation.
  */
 
-// Columns needed for the orders list view and detail modals.
-// Avoids `select("*")` which transfers unused columns for 600+ orders.
-const ORDER_LIST_COLUMNS = [
-    "id",
-    "created_at",
-    "updated_at",
-    "order_id",
-    "customer_name",
-    "phone",
-    "secondary_phone",
-    "city",
-    "governorate_code",
-    "address_details",
-    "items",
-    "price",
-    "status",
-    "whatsapp_link",
-    "notes",
-    "internal_notes",
-    "rejection_reason",
-    "scheduled_date",
-    "priority",
-    "payment_status",
-    "delivery_fee",
-    "discount_amount",
-    "is_return",
-    "original_order_id",
-    "original_created_at",
-    "is_archived",
-    "is_pinned",
-    "delivery_slot",
-    "source",
-    "sequence_number",
-    "delivered_at",
-    "cancelled_at",
-    "printed_at",
-    "print_count",
-    "last_batch_id",
-    "is_gift",
-    "is_shop_order",
-    "needs_attention",
-    "attention_reasons",
-    "delivery_cost",
-    "tag_color",
-    "delivery_order_id",
-    "is_reviewed",
-    "is_verified_customer",
-    "contact_count",
-    "address_status",
-    "address_issues",
-    "validated_governorate_code",
-    "risk_metadata",
-].join(",");
-
 export const orderRepository = {
     /** Fetch all active (non-archived) orders, newest first. */
     async findAll(): Promise<Order[]> {
         const { data, error } = await supabase
             .from("orders")
-            .select(ORDER_LIST_COLUMNS)
+            .select("*")
             .eq("is_archived", false)
             .order("created_at", { ascending: false });
 
         if (error) throw error;
-        return ((data || []) as unknown as Order[]).map(normalizeOrder);
+        return (data || []).map(normalizeOrder);
     },
 
     /**
@@ -85,24 +31,24 @@ export const orderRepository = {
     async findChangedSince(sinceTimestamp: string): Promise<Order[]> {
         const { data, error } = await supabase
             .from("orders")
-            .select(ORDER_LIST_COLUMNS)
+            .select("*")
             .gt("updated_at", sinceTimestamp)
             .order("updated_at", { ascending: false });
 
         if (error) throw error;
-        return ((data || []) as unknown as Order[]).map(normalizeOrder);
+        return (data || []).map(normalizeOrder);
     },
 
     /** Fetch all archived orders, newest first. */
     async findArchived(): Promise<Order[]> {
         const { data, error } = await supabase
             .from("orders")
-            .select(ORDER_LIST_COLUMNS)
+            .select("*")
             .eq("is_archived", true)
             .order("created_at", { ascending: false });
 
         if (error) throw error;
-        return ((data || []) as unknown as Order[]).map(normalizeOrder);
+        return (data || []).map(normalizeOrder);
     },
 
     /** Fetch a single order by ID (all columns for detail view). */
