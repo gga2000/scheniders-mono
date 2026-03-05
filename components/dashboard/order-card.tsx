@@ -9,6 +9,8 @@ import { DiscountBadge } from "@/components/orders/discount-badge";
 import { AvatarPill } from "@/components/ui/avatar-pill";
 
 import { OrderAssignment, mockEmployees } from "@/lib/team-types";
+import { useOrderStore } from "@/store/use-order-store";
+import { HighlightedText } from "@/components/ui/highlighted-text";
 // ... existing imports ...
 
 import { formatIQD, generateWhatsAppLink, getStatusLabel, copyOrderToClipboard, getGuaranteeDaysRemaining, cn } from "@/lib/utils";
@@ -162,6 +164,9 @@ export const OrderCard = memo(function OrderCard({
     const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
     const actionsRef = useRef<HTMLDivElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
+
+    // Search query for highlighting
+    const localSearchQuery = useOrderStore((state: any) => state.localSearchQuery);
 
     // Helper to conditionally disable layout animations
     const getLayoutId = (id: string) => isVirtualized ? undefined : id;
@@ -404,7 +409,7 @@ export const OrderCard = memo(function OrderCard({
                                 "font-semibold text-sm truncate",
                                 isReturn ? "text-rose-700" : "text-foreground"
                             )}>
-                                {order.customer_name}
+                                <HighlightedText text={order.customer_name} query={localSearchQuery} />
                             </span>
                             {renderStatusBadgeWithDropdown(
                                 <span className={cn(
@@ -420,9 +425,9 @@ export const OrderCard = memo(function OrderCard({
                         {/* Row 2: Order ID + Priority */}
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-mono text-muted">
-                                #{(() => {
+                                #<HighlightedText text={(() => {
                                     return getDisplayOrderId(order.order_id);
-                                })()}
+                                })()} query={localSearchQuery} />
                             </span>
                             {isUrgent && <Flame className="w-3 h-3 text-red-500 animate-pulse" />}
                             {isHighPriority && !isUrgent && <Flag className="w-2.5 h-2.5 text-amber-600" />}
@@ -492,7 +497,7 @@ export const OrderCard = memo(function OrderCard({
                                     "font-semibold text-sm truncate",
                                     isReturn ? "text-rose-700" : "text-foreground"
                                 )}>
-                                    {order.customer_name}
+                                    <HighlightedText text={order.customer_name} query={localSearchQuery} />
                                 </span>
                             </div>
                             {renderStatusBadgeWithDropdown(
@@ -509,9 +514,9 @@ export const OrderCard = memo(function OrderCard({
                         {/* Row 2: Order ID + Date */}
                         <div className="flex items-center gap-2 text-[11px]">
                             <span className="font-mono text-muted">
-                                #{(() => {
+                                #<HighlightedText text={(() => {
                                     return getDisplayOrderId(order.order_id);
-                                })()}
+                                })()} query={localSearchQuery} />
                             </span>
                             <span className="text-[var(--card-border)]">·</span>
                             <span className="text-subtle">{formatShortDate(order.created_at)}</span>
@@ -541,7 +546,7 @@ export const OrderCard = memo(function OrderCard({
                             {cityDisplay ? (
                                 <div className="flex items-center gap-1 text-xs text-muted min-w-0">
                                     <MapPin className="w-3 h-3 flex-shrink-0" />
-                                    <span className="truncate">{cityDisplay}</span>
+                                    <span className="truncate"><HighlightedText text={cityDisplay} query={localSearchQuery} /></span>
                                     {governorateCode && (
                                         <span className="px-1 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[8px] font-bold flex-shrink-0">
                                             {governorateCode}
@@ -689,14 +694,14 @@ export const OrderCard = memo(function OrderCard({
                                 "font-semibold text-sm truncate",
                                 isReturn ? "text-rose-700" : "text-foreground"
                             )}>
-                                {order.customer_name}
+                                <HighlightedText text={order.customer_name} query={localSearchQuery} />
                             </span>
                             <span className="text-xs font-mono text-muted flex-shrink-0">
-                                #{(() => {
+                                #<HighlightedText text={(() => {
                                     const lfMatch = order.order_id.match(/LF-(\d+)-\d+$/);
                                     if (lfMatch) return lfMatch[1];
                                     return order.order_id;
-                                })()}
+                                })()} query={localSearchQuery} />
                             </span>
                         </div>
 
@@ -743,7 +748,7 @@ export const OrderCard = memo(function OrderCard({
                         {cityDisplay && (
                             <div className="hidden lg:flex items-center gap-1 text-xs text-muted flex-shrink-0 max-w-[120px]">
                                 <MapPin className="w-3 h-3 flex-shrink-0" />
-                                <span className="truncate">{cityDisplay}</span>
+                                <span className="truncate"><HighlightedText text={cityDisplay} query={localSearchQuery} /></span>
                                 {governorateCode && (
                                     <span className="px-1 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[8px] font-bold flex-shrink-0">
                                         {governorateCode}
@@ -984,7 +989,7 @@ export const OrderCard = memo(function OrderCard({
                                 compact === 1 ? "text-sm" : "text-base",
                                 order.is_return ? "text-rose-700 dark:text-rose-400" : "text-foreground dark:text-white"
                             )}>
-                                {order.customer_name}
+                                <HighlightedText text={order.customer_name} query={localSearchQuery} />
                             </span>
 
 
@@ -1040,7 +1045,7 @@ export const OrderCard = memo(function OrderCard({
                                             }}
                                             title="انقر للنسخ"
                                         >
-                                            #{baseId}
+                                            #<HighlightedText text={baseId} query={localSearchQuery} />
                                         </span>
                                         {order.sequence_number && (
                                             <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] font-semibold">
@@ -1404,7 +1409,7 @@ export const OrderCard = memo(function OrderCard({
                                     hasDuplicates && isVerifiedCustomer && "text-emerald-600 font-semibold dark:text-emerald-400",
                                     !(!validatePhoneDetailed(order.phone).isValid) && !(hasDuplicates) && "dark:text-[#D4D4D4]"
                                 )}>
-                                    {formatPhoneForDisplay(order.phone)}
+                                    <HighlightedText text={formatPhoneForDisplay(order.phone)} query={localSearchQuery} />
                                 </span>
                                 {/* Duplicate/Returning customer icon next to phone */}
                                 {hasDuplicates && (
@@ -1432,7 +1437,7 @@ export const OrderCard = memo(function OrderCard({
                                             "font-mono text-sm",
                                             !validatePhoneDetailed(order.secondary_phone).isValid && "text-red-600"
                                         )}>
-                                            {formatPhoneForDisplay(order.secondary_phone)}
+                                            <HighlightedText text={formatPhoneForDisplay(order.secondary_phone)} query={localSearchQuery} />
                                         </span>
                                     </div>
                                 </>
@@ -1455,7 +1460,7 @@ export const OrderCard = memo(function OrderCard({
                                             </span>
                                         )}
                                         <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
-                                        <span className="truncate text-right" dir="rtl" title={fullAddress}>{fullAddress}</span>
+                                        <span className="truncate text-right" dir="rtl" title={fullAddress}><HighlightedText text={fullAddress} query={localSearchQuery} /></span>
                                         {/* Show governorate code - computed from stored value or extracted from city */}
                                         {governorateCode && (
                                             <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] font-semibold flex-shrink-0">
@@ -1577,7 +1582,7 @@ export const OrderCard = memo(function OrderCard({
                                 >
                                     <MessageCircle className="w-4 h-4" />
                                     <span className="font-mono text-sm font-semibold tracking-wide">
-                                        {formatPhoneForDisplay(order.phone)}
+                                        <HighlightedText text={formatPhoneForDisplay(order.phone)} query={localSearchQuery} />
                                     </span>
                                 </button>
 
@@ -1613,7 +1618,7 @@ export const OrderCard = memo(function OrderCard({
                                     >
                                         <Phone className="w-3.5 h-3.5" />
                                         <span className="font-mono text-xs">
-                                            {formatPhoneForDisplay(order.secondary_phone)}
+                                            <HighlightedText text={formatPhoneForDisplay(order.secondary_phone)} query={localSearchQuery} />
                                         </span>
                                     </button>
                                 )}
@@ -1673,7 +1678,7 @@ export const OrderCard = memo(function OrderCard({
                         {fullAddress && (
                             <div className="flex items-center gap-2 p-2.5 rounded-xl bg-gray-50/80 border border-gray-100 dark:bg-[#1A1A1A] dark:border-white/5">
                                 <MapPin className="w-4 h-4 text-gray-400 dark:text-[var(--foreground-subtle)] flex-shrink-0" />
-                                <span className="text-sm text-gray-600 dark:text-[var(--foreground-muted)] truncate flex-1" dir="rtl">{fullAddress}</span>
+                                <span className="text-sm text-gray-600 dark:text-[var(--foreground-muted)] truncate flex-1" dir="rtl"><HighlightedText text={fullAddress} query={localSearchQuery} /></span>
                                 {governorateCode && (
                                     <span className="px-2 py-1 rounded-lg bg-emerald-500 text-white text-[11px] font-bold flex-shrink-0 shadow-sm">
                                         {governorateCode}

@@ -14,6 +14,8 @@ import { Plus, Search, Bell } from "lucide-react";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDashboardMetrics } from "@/hooks/use-dashboard-metrics";
 import { useAuth } from "@/hooks/use-auth";
+import { useViewport } from "@/hooks/use-viewport";
+import { MobileDashboardPage } from "@/components/mobile/dashboard/MobileDashboardPage";
 const UrgencyTriad = dynamic(() => import("@/components/dashboard/widgets/urgency-triad").then(mod => ({ default: mod.UrgencyTriad })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
 const OrderFunnel = dynamic(() => import("@/components/dashboard/widgets/funnel-chart").then(mod => ({ default: mod.OrderFunnel })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
 const VelocityMatrix = dynamic(() => import("@/components/dashboard/widgets/velocity-matrix").then(mod => ({ default: mod.VelocityMatrix })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
@@ -32,8 +34,12 @@ export default function Home() {
   const dashboardMetrics = useDashboardMetrics(orders, products || []);
   const { t } = useLanguage();
   const { profile } = useAuth();
+  const { isMobile } = useViewport();
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  // Feature flag for mobile dashboard
+  const ENABLE_MOBILE = true;
 
   if (loading || !dashboardMetrics) {
     return (
@@ -41,6 +47,10 @@ export default function Home() {
         <PageSkeleton />
       </div>
     );
+  }
+
+  if (isMobile && ENABLE_MOBILE) {
+    return <MobileDashboardPage />;
   }
 
   if (error) {
@@ -107,7 +117,7 @@ export default function Home() {
         {/* 2. Urgency Triad (Immediate Action) */}
         <UrgencyTriad
           metrics={dashboardMetrics.urgency}
-          onAction={() => {}}
+          onAction={() => { }}
         />
 
         {/* 3. Main Intelligence Grid (Bento Layout) */}
