@@ -48,7 +48,6 @@ function getCachedOrders(): Order[] | undefined {
         if (!raw) return undefined;
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-            console.log(`[SWR] Loaded ${parsed.length} orders from sessionStorage`);
             return parsed;
         }
     } catch {
@@ -76,9 +75,7 @@ async function fetchOrders(): Promise<Order[]> {
     const s = ++seqId;
     const attempt = ++fetchAttempt;
     const t0 = performance.now();
-    console.log(`[SYNC #${s}] [fetchOrders] attempt #${attempt} started at ${Math.round(t0)}ms`);
     const result = await orderRepository.findAll();
-    console.log(`[SYNC #${s}] [fetchOrders] returned ${result.length} orders in ${Math.round(performance.now() - t0)}ms`);
 
     // Persist to sessionStorage for SWR on next refresh
     setCachedOrders(result);
@@ -110,7 +107,6 @@ export function useOrdersQuery(refetchTrigger?: string) {
     // Force refetch when trigger changes
     useEffect(() => {
         if (refetchTrigger) {
-            console.log(`[useOrdersQuery] Force refetch triggered: ${refetchTrigger}`);
             queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
         }
     }, [refetchTrigger, queryClient]);
@@ -164,15 +160,11 @@ export function useUpdateOrderMutation() {
 
     return useMutation({
         mutationFn: async ({ orderId, updates, user_id }: { orderId: string; updates: Partial<Order>; user_id?: string }) => {
-            console.log(`[UpdateOrder] mutationFn START for ${orderId}`);
-            const t0 = performance.now();
             const data = await orderRepository.update(orderId, updates);
-            console.log(`[UpdateOrder] mutationFn DONE for ${orderId} in ${Math.round(performance.now() - t0)}ms`);
             return { orderId, updates, data };
         },
         // Optimistic update - update cache immediately
         onMutate: async ({ orderId, updates }) => {
-            console.log(`[UpdateOrder] onMutate for ${orderId}`, Object.keys(updates));
             getOrderBatcher()?.markMutated(orderId);
             await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
 
@@ -194,11 +186,10 @@ export function useUpdateOrderMutation() {
             return { previousOrders };
         },
         onSuccess: ({ orderId, data }) => {
-            console.log(`[UpdateOrder] onSuccess for ${orderId}`);
             // Overwrite optimistic cache with actual server data to ensure consistency
             queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) => {
                 const updated = old?.map((order) =>
-                    order.id === orderId ? data : order
+                    order.id === orderId ? { ...order, ...data } : order
                 );
                 if (updated) setCachedOrders(updated);
                 return updated;
@@ -207,7 +198,6 @@ export function useUpdateOrderMutation() {
         onError: (err, variables, context) => {
             console.error(`[UpdateOrder] onError for ${variables.orderId}:`, err);
             if (context?.previousOrders) {
-                console.log(`[UpdateOrder] REVERTING to previousOrders snapshot`);
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
             toast.error(err instanceof Error ? err.message : "Failed to update order.");
@@ -237,7 +227,6 @@ export function useUpdateStatusMutation() {
         },
         onMutate: async ({ orderId, status, rejectionReason }) => {
             const s = ++seqId;
-            console.log(`[SYNC #${s}] [UpdateStatus:onMutate] ${orderId} → ${status}`);
 
             // Mark as recently mutated so realtime batcher skips stale broadcasts
             getOrderBatcher()?.markMutated(orderId);
@@ -271,10 +260,9 @@ export function useUpdateStatusMutation() {
         },
         onSuccess: ({ orderId, data }, variables, context) => {
             const s = ++seqId;
-            console.log(`[SYNC #${s}] [UpdateStatus:onSuccess] ${orderId}, server confirmed status: ${data.status} (from onMutate seq: ${context?.seq})`);
             queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) => {
                 const updated = old?.map((order) =>
-                    order.id === orderId ? data : order
+                    order.id === orderId ? { ...order, ...data } : order
                 );
                 // Keep SWR session storage in sync with server-confirmed data
                 if (updated) setCachedOrders(updated);

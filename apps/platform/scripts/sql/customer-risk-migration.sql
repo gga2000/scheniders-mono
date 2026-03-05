@@ -30,8 +30,14 @@ RETURNS TEXT AS $$
 DECLARE
     clean_phone TEXT;
 BEGIN
+    -- Convert Arabic numerals to ASCII
+    clean_phone := translate(input_phone, '٠١٢٣٤٥٦٧٨٩', '0123456789');
+    
+    -- Convert Persian numerals to ASCII
+    clean_phone := translate(clean_phone, '۰۱۲۳۴۵۶۷۸۹', '0123456789');
+
     -- Remove all non-digit characters
-    clean_phone := regexp_replace(input_phone, '\D', '', 'g');
+    clean_phone := regexp_replace(clean_phone, '\D', '', 'g');
 
     -- Remove country code '964' if present at start
     IF clean_phone LIKE '964%' THEN
@@ -63,6 +69,12 @@ DECLARE
     v_no_response_count INTEGER := 0;
     v_pending_count INTEGER := 0;
     v_last_order_date TIMESTAMPTZ;
+    
+    -- Velocity vars (last 30 days)
+    v_recent_cancelled_count INTEGER := 0;
+    v_recent_rejected_count INTEGER := 0;
+    v_recent_refunded_count INTEGER := 0;
+    v_recent_no_response_count INTEGER := 0;
     
     -- Risk calculation variables
     v_score INTEGER := 0;
@@ -118,7 +130,11 @@ BEGIN
         COALESCE(SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END), 0),
         COALESCE(SUM(CASE WHEN status IN ('refund_delivered', 'refund_failed') THEN 1 ELSE 0 END), 0),
         COALESCE(SUM(CASE WHEN status = 'no_response' THEN 1 ELSE 0 END), 0),
-        MAX(created_at)
+        MAX(created_at),
+        COALESCE(SUM(CASE WHEN status = 'cancelled' AND created_at >= NOW() - INTERVAL '30 days' THEN 1 ELSE 0 END), 0),
+        COALESCE(SUM(CASE WHEN status = 'rejected' AND created_at >= NOW() - INTERVAL '30 days' THEN 1 ELSE 0 END), 0),
+        COALESCE(SUM(CASE WHEN status IN ('refund_delivered', 'refund_failed') AND created_at >= NOW() - INTERVAL '30 days' THEN 1 ELSE 0 END), 0),
+        COALESCE(SUM(CASE WHEN status = 'no_response' AND created_at >= NOW() - INTERVAL '30 days' THEN 1 ELSE 0 END), 0)
     INTO
         v_total_orders,
         v_delivered_count,
@@ -126,7 +142,11 @@ BEGIN
         v_rejected_count,
         v_refunded_count,
         v_no_response_count,
-        v_last_order_date
+        v_last_order_date,
+        v_recent_cancelled_count,
+        v_recent_rejected_count,
+        v_recent_refunded_count,
+        v_recent_no_response_count
     FROM orders
     WHERE normalize_phone(phone) = normalized_target 
        OR normalize_phone(secondary_phone) = normalized_target;
@@ -139,22 +159,22 @@ BEGIN
         v_score := 100;
         v_reasons := array_append(v_reasons, '📛 رقم محظور في القائمة السوداء');
     ELSE
-        -- Cancellation Score
-        v_score := v_score + (v_cancelled_count * W_CANCELLED);
+        -- Cancellation Score (2x weight for recent)
+        v_score := v_score + (v_cancelled_count * W_CANCELLED) + (v_recent_cancelled_count * W_CANCELLED);
         IF v_cancelled_count >= C_MEDIUM_RISK_CANCELLATIONS THEN
-            v_reasons := array_append(v_reasons, '⚠️ ' || v_cancelled_count || ' طلبات ملغية سابقة');
+            v_reasons := array_append(v_reasons, '⚠️ ' || v_cancelled_count || ' طلبات ملغية سابقة' || CASE WHEN v_recent_cancelled_count > 0 THEN ' (' || v_recent_cancelled_count || ' حديثة)' ELSE '' END);
         END IF;
 
-        -- Rejection Score (Rejected + Refunded)
-        v_score := v_score + ((v_rejected_count + v_refunded_count) * W_REJECTED);
+        -- Rejection Score (Rejected + Refunded) (2x weight for recent)
+        v_score := v_score + ((v_rejected_count + v_refunded_count) * W_REJECTED) + ((v_recent_rejected_count + v_recent_refunded_count) * W_REJECTED);
         IF (v_rejected_count + v_refunded_count) > 0 THEN
-            v_reasons := array_append(v_reasons, '🚫 ' || (v_rejected_count + v_refunded_count) || ' طلبات سابقة مرفوضة/مسترجعة');
+            v_reasons := array_append(v_reasons, '🚫 ' || (v_rejected_count + v_refunded_count) || ' طلبات سابقة مرفوضة/مسترجعة' || CASE WHEN (v_recent_rejected_count + v_recent_refunded_count) > 0 THEN ' (' || (v_recent_rejected_count + v_recent_refunded_count) || ' حديثة)' ELSE '' END);
         END IF;
 
-        -- No Response Score
-        v_score := v_score + (v_no_response_count * W_NO_RESPONSE);
+        -- No Response Score (2x weight for recent)
+        v_score := v_score + (v_no_response_count * W_NO_RESPONSE) + (v_recent_no_response_count * W_NO_RESPONSE);
         IF v_no_response_count > 0 THEN
-            v_reasons := array_append(v_reasons, '📵 ' || v_no_response_count || ' طلبات دون رد');
+            v_reasons := array_append(v_reasons, '📵 ' || v_no_response_count || ' طلبات دون رد' || CASE WHEN v_recent_no_response_count > 0 THEN ' (' || v_recent_no_response_count || ' حديثة)' ELSE '' END);
         END IF;
 
         -- Delivered Credit

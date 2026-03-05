@@ -180,4 +180,34 @@ export const customerRepository = {
         if (error) throw error;
         return data as { phone: string }[];
     },
+
+    // =============================================
+    // WHITELIST
+    // =============================================
+
+    async findWhitelistedPhones(): Promise<{ phone: string }[]> {
+        const { data, error } = await supabase
+            .from("customer_whitelist")
+            .select("phone");
+
+        if (error) throw error;
+        return data as { phone: string }[];
+    },
+
+    async addToWhitelist(phone: string, reason?: string): Promise<void> {
+        const { error } = await supabase
+            .from("customer_whitelist")
+            .upsert([{ phone, reason }]);
+
+        if (error) throw error;
+    },
+
+    async removeFromWhitelist(phone: string): Promise<void> {
+        const { error } = await supabase
+            .from("customer_whitelist")
+            .delete()
+            .eq("phone", phone);
+
+        if (error) throw error;
+    },
 };

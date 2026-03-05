@@ -157,7 +157,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, currentSession) => {
                 if (!mounted) return;
-                console.log(`[AuthProvider] onAuthStateChange event=${event}`);
 
                 if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
                     if (!currentSession?.user) {
@@ -181,7 +180,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         let finalProfile: UserProfile | null = null;
 
                         if (cachedAuth) {
-                            console.log(`[AuthProvider] Loaded auth state from cache instantly`);
                             setRole(finalRole);
                             setPermissions(finalPermissions);
                             setUser(currentSession.user);
@@ -222,8 +220,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                             cacheAuthState(currentSession.user, profileData.role, finalPermissions);
                         }
 
-                        console.log(`[AuthProvider] Role/Perms fetch completed in ${Math.round(performance.now() - profileStartTime)}ms`);
-
                         // 3. Sync state with fresh DB data
                         if (mounted) {
                             setRole(finalRole);
@@ -251,7 +247,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         console.error('Error in auth state change:', error);
                     } finally {
                         if (mounted) {
-                            console.log(`[AuthProvider] onAuthStateChange ${event} setting isLoading=false`);
                             setIsLoading(false);
                         }
                     }

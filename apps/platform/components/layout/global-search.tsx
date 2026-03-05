@@ -371,7 +371,7 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
     }
 
     return (
-        <header className="sticky top-0 z-50">
+        <header className="sticky top-0 z-40">
             {/* Glassmorphism Background with Fade Edge */}
             <div
                 className="absolute top-0 inset-x-0 -bottom-8 bg-transparent backdrop-blur-md pointer-events-none"

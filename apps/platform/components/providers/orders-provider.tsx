@@ -45,7 +45,6 @@ export function OrdersProvider({ children }: OrdersProviderProps) {
 
     useEffect(() => {
         const elapsed = Math.round(performance.now() - mountTime);
-        console.log(`[OrdersProvider] loading=${ordersData.loading}, orders=${ordersData.orders?.length ?? 0}, elapsed=${elapsed}ms since mount`);
     }, [ordersData.loading, ordersData.orders?.length, mountTime]);
 
     return (

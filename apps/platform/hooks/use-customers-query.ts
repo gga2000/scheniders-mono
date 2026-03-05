@@ -19,6 +19,7 @@ export const customerKeys = {
         byPhone: (phone: string) => [...customerKeys.assignments.all(), phone] as const,
     },
     blacklist: () => [...customerKeys.all, "blacklist"] as const,
+    whitelist: () => [...customerKeys.all, "whitelist"] as const,
 };
 
 // =============================================
@@ -103,6 +104,16 @@ export function useBlacklistQuery() {
     });
 }
 
+export function useWhitelistQuery() {
+    return useQuery({
+        queryKey: customerKeys.whitelist(),
+        queryFn: async () => {
+            return customerRepository.findWhitelistedPhones();
+        },
+        staleTime: CACHE_PRESETS.STATIC.staleTime,
+    });
+}
+
 /**
  * Prefetch all customer-related queries for instant navigation
  */
@@ -130,6 +141,14 @@ export function usePrefetchCustomers() {
             queryKey: customerKeys.blacklist(),
             queryFn: async () => {
                 return customerRepository.findBlacklistedPhones();
+            },
+            staleTime: CACHE_PRESETS.STATIC.staleTime,
+        });
+
+        queryClient.prefetchQuery({
+            queryKey: customerKeys.whitelist(),
+            queryFn: async () => {
+                return customerRepository.findWhitelistedPhones();
             },
             staleTime: CACHE_PRESETS.STATIC.staleTime,
         });
@@ -241,6 +260,33 @@ export function useDeleteNoteMutation() {
         },
         onSettled: (_data, _error, vars) => {
             queryClient.invalidateQueries({ queryKey: customerKeys.notes(vars.phone) });
+        }
+    });
+}
+
+// Whitelist
+export function useAddToWhitelistMutation() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({ phone, reason }: { phone: string; reason?: string }) => {
+            await customerRepository.addToWhitelist(phone, reason);
+            return phone;
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: customerKeys.whitelist() });
+        }
+    });
+}
+
+export function useRemoveFromWhitelistMutation() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (phone: string) => {
+            await customerRepository.removeFromWhitelist(phone);
+            return phone;
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: customerKeys.whitelist() });
         }
     });
 }
