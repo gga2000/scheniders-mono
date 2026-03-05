@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { TopBar } from "./global-search";
 import { MobileNav } from "./mobile-nav";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { PageGuard } from "@/components/auth/role-guard";
@@ -49,8 +49,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     if (isAuthPage) {
         return (
             <div className="min-h-screen bg-background text-foreground">
-                <AnimatePresence mode="wait">
-                    {children}
+                <AnimatePresence mode="wait" initial={false}>
+                    <motion.div key={pathname}>
+                        {children}
+                    </motion.div>
                 </AnimatePresence>
             </div>
         );
@@ -94,10 +96,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                         isMobile={isMobile}
                     />
 
-                    <AnimatePresence mode="wait">
-                        <div className="max-w-[1800px] mx-auto">
+                    <AnimatePresence mode="wait" initial={false}>
+                        <motion.div key={pathname} className="max-w-[1800px] mx-auto">
                             {children}
-                        </div>
+                        </motion.div>
                     </AnimatePresence>
                 </main>
 

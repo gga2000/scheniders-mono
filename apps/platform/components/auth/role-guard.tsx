@@ -68,6 +68,8 @@ export function PageGuard({
     const { user, role: contextRole, permissions, isLoading } = useAuth();
     const router = useRouter();
 
+    console.log(`[PageGuard] render: isLoading=${isLoading}, user=${!!user}`);
+
     // Use effect to handle redirect if needed (for auth)
     useEffect(() => {
         if (!isLoading && !user) {
