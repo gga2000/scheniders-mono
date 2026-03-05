@@ -110,7 +110,7 @@ export function Sidebar({
                     "flex items-center mb-8 transition-all duration-500",
                     collapsed ? "justify-center flex-col gap-2" : "gap-3 px-2"
                 )}>
-                    <div className="w-9 h-9 rounded-xl bg-[var(--primary)] text-[var(--primary-fg)] flex items-center justify-center flex-shrink-0 shadow-[0_0_15px_rgba(239,255,0,0.3)]">
+                    <div className="w-9 h-9 rounded-xl bg-[var(--primary)] text-[var(--primary-fg)] flex items-center justify-center flex-shrink-0 dark:shadow-[0_0_15px_rgba(239,255,0,0.3)]">
                         <Package className="w-5 h-5" />
                     </div>
                     <span className={cn(
@@ -312,7 +312,7 @@ export function Sidebar({
                         {/* Header with Close Button */}
                         <div className="flex items-center justify-between mb-8 px-2">
                             <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-xl bg-[var(--primary)] text-[var(--primary-fg)] flex items-center justify-center flex-shrink-0 shadow-[0_0_15px_rgba(239,255,0,0.3)]">
+                                <div className="w-9 h-9 rounded-xl bg-[var(--primary)] text-[var(--primary-fg)] flex items-center justify-center flex-shrink-0 dark:shadow-[0_0_15px_rgba(239,255,0,0.3)]">
                                     <Package className="w-5 h-5" />
                                 </div>
                                 <span className="font-bold text-xl tracking-tight">

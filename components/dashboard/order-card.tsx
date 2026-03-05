@@ -1139,7 +1139,7 @@ export const OrderCard = memo(function OrderCard({
                             {compact === 0 && (riskLevel === 'high' || riskLevel === 'blocked' || riskLevel === 'medium') &&
                                 ['new', 'contacted', 'confirmed', 'in_transit', 'return_pending'].includes(order.status) && (
                                     <>
-                                        <RiskBadge level={riskLevel} showLabel={true} className="h-6" />
+                                        <RiskBadge level={riskLevel} assessment={riskAssessment} customerPhone={order.phone} showLabel={true} className="h-6" />
 
 
 

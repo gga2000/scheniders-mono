@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+
 import { useAuth } from "@/components/auth/auth-provider";
 import { AccessDenied } from "@/components/auth/access-denied";
 import {
@@ -77,18 +77,13 @@ export function PageGuard({
         }
     }, [user, isLoading, router]);
 
-    if (isLoading) {
-        return (
-            <div className="flex h-screen items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-        );
-    }
-
     const role = contextRole as UserRole;
 
-    if (!user) {
-        return null;
+    // While loading, render children immediately — the sidebar/topbar chrome
+    // appears instantly and each page handles its own skeleton/loading state.
+    // The useEffect above still handles redirect if user turns out unauthenticated.
+    if (isLoading || !user) {
+        return <>{children}</>;
     }
 
     let allowed = true;

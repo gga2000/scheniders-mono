@@ -144,7 +144,7 @@ export function useBatchRiskAssessment(orders: OrderWithPhone[]) {
 
         orders.forEach(o => {
             if (!o.phone) return;
-            const norm = o.phone.replace(/\D/g, "").replace(/^964/, "").replace(/^0/, "");
+            const norm = fraudDetector.normalizePhone(o.phone);
             if (!ordersByPhone.has(norm)) ordersByPhone.set(norm, []);
             ordersByPhone.get(norm)?.push(o);
         });
@@ -193,7 +193,7 @@ export function useBatchRiskAssessment(orders: OrderWithPhone[]) {
     const getAssessment = useCallback((phone: string): RiskAssessment | undefined => {
         if (!phone) return undefined;
         // Normalize phone for lookup
-        const normalized = phone.replace(/\D/g, "").replace(/^964/, "").replace(/^0/, "");
+        const normalized = fraudDetector.normalizePhone(phone);
 
         return assessments.get(normalized) || localRiskMap.get(normalized);
     }, [assessments, localRiskMap]);
@@ -229,7 +229,7 @@ export function useBatchRiskAssessment(orders: OrderWithPhone[]) {
         getAssessment,
         // Helper to check if we are relying on local data (for UI indication if needed)
         isLocalData: (phone: string) => {
-            const norm = phone?.replace(/\D/g, "").replace(/^964/, "").replace(/^0/, "");
+            const norm = phone ? fraudDetector.normalizePhone(phone) : "";
             return !assessments.has(norm) && localRiskMap.has(norm);
         },
         getRiskLevel: useCallback((phone: string) => getAssessment(phone)?.level || "low", [getAssessment]),

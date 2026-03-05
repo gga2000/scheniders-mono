@@ -102,6 +102,13 @@ export interface Order {
     address_issues?: string[];
     validated_governorate_code?: string;
     risk_metadata?: RiskMetadata;
+    risk_data?: {
+        level: RiskLevel;
+        score: number;
+        reasons: string[];
+        stats: Record<string, any>;
+        last_updated: string;
+    };
 }
 
 export interface Blacklist {

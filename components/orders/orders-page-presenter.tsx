@@ -290,8 +290,7 @@ export interface OrdersPagePresenterProps {
     getCustomerHistory: (phone: string) => any[];
     getCustomerOrderCount: (phone: string, currentOrderId: string) => number;
     getCustomerArchivedCount: (phone: string) => number;
-    getRiskLevel: (phone: string) => "high" | "medium" | "low";
-    getAssessment: (phone: string) => any;
+
     isBlacklisted: (phone: string) => boolean;
     hasDuplicates: (orderId: string) => boolean;
     getReturnOrderInfo: (id: string) => any;
@@ -324,7 +323,7 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
         handleBulkNoResponse, handlePrimeExport, handleManualSync, handleStatusUpdate, undoLastAction, canUndo, isSyncing, fetchArchivedOrders,
         updateOrderStatus, updateOrder, createOrder, deleteOrder, cloneOrder, togglePin, getOrderTimeline, getOrderNotes, addOrderNote,
         checkOrderIdExists, handleSplitOrder, createReturnOrder, mergeOrders, markAsVerifiedCustomer, dismissDuplicate, handleAssignDuty,
-        toggleReviewed, getCustomerHistory, getCustomerOrderCount, getCustomerArchivedCount, getRiskLevel, getAssessment, isBlacklisted,
+        toggleReviewed, getCustomerHistory, getCustomerOrderCount, getCustomerArchivedCount, isBlacklisted,
         hasDuplicates, getReturnOrderInfo, getOriginalOrderInfo, getCustomerOrders, modePrice, normalizePhoneForSearch
     } = props;
 
@@ -1577,8 +1576,8 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                                                                 }}
                                                                 onSplit={() => setSplitOrderDialog({ open: true, order })}
                                                                 isBlacklisted={isBlacklisted(order.phone)}
-                                                                riskLevel={getRiskLevel(order.phone)}
-                                                                riskAssessment={getAssessment(order.phone)}
+                                                                riskLevel={(order as any).risk_data?.level || "low"}
+                                                                riskAssessment={(order as any).risk_data}
                                                                 customerOrderCount={orderCount}
                                                                 archivedOrderCount={getCustomerArchivedCount(order.phone)}
                                                                 previousOrder={previousOrder}
@@ -1662,7 +1661,10 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                                                         }
                                                     }}
                                                     isBlacklisted={isBlacklisted}
-                                                    getRiskAssessment={getAssessment}
+                                                    getRiskAssessment={(phone) => {
+                                                        const order = displayedOrders.find(o => o.phone === phone);
+                                                        return (order as any)?.risk_data;
+                                                    }}
                                                     getCustomerOrderCount={getCustomerOrderCount}
                                                     getCustomerArchivedCount={getCustomerArchivedCount}
                                                     getCustomerHistory={getCustomerHistory}
@@ -1670,7 +1672,10 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                                                     getOriginalOrderInfo={getOriginalOrderInfo}
                                                     compactView={compactView}
                                                     actionDock={actionDock}
-                                                    getRiskLevel={getRiskLevel}
+                                                    getRiskLevel={(phone) => {
+                                                        const order = displayedOrders.find(o => o.phone === phone);
+                                                        return (order as any)?.risk_data?.level || "low";
+                                                    }}
                                                     hasDuplicates={hasDuplicates}
                                                     onSplitOrder={(order) => setSplitOrderDialog({ open: true, order })}
                                                     assignments={assignments}
@@ -1696,8 +1701,8 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                                                                     }}
                                                                     onSplit={() => setSplitOrderDialog({ open: true, order })}
                                                                     isBlacklisted={isBlacklisted(order.phone)}
-                                                                    riskLevel={getRiskLevel(order.phone)}
-                                                                    riskAssessment={getAssessment(order.phone)}
+                                                                    riskLevel={(order as any).risk_data?.level || "low"}
+                                                                    riskAssessment={(order as any).risk_data}
                                                                     customerOrderCount={orderCount}
                                                                     archivedOrderCount={getCustomerArchivedCount(order.phone)}
                                                                     previousOrder={previousOrder}
@@ -1767,7 +1772,10 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                                             setShowDuplicateModal={setShowDuplicateModal}
                                             modePrice={modePrice}
                                             updateOrderStatus={updateOrderStatus}
-                                            getRiskLevel={getRiskLevel}
+                                            getRiskLevel={(phone) => {
+                                                const order = displayedOrders.find(o => o.phone === phone);
+                                                return (order as any)?.risk_data?.level || "low";
+                                            }}
                                             columnFilters={columnFilters}
                                             setColumnFilters={setColumnFilters}
                                             openFilterColumn={openFilterColumn}

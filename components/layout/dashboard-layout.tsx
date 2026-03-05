@@ -1,21 +1,32 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { TopBar } from "./global-search";
 import { MobileNav } from "./mobile-nav";
-import { AnimatePresence, motion } from "framer-motion";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { PageGuard } from "@/components/auth/role-guard";
 
+// Sidebar state context — lets child pages know if the sidebar is expanded
+const SidebarContext = createContext<{ sidebarExpanded: boolean }>({ sidebarExpanded: false });
+export function useSidebar() { return useContext(SidebarContext); }
+
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-    const [isCollapsed, setIsCollapsed] = useState(false);
+    // Default to collapsed to prevent open→close flicker on refresh.
+    // Synchronously read localStorage during init for instant correct state.
+    const [isCollapsed, setIsCollapsed] = useState(() => {
+        if (typeof window !== "undefined") {
+            const saved = localStorage.getItem("sidebarCollapsed");
+            // Default to collapsed (true) if no preference saved
+            return saved !== "false";
+        }
+        return true;
+    });
     const [mounted, setMounted] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [mountTime] = useState(() => performance.now());
 
     const isMobile = useIsMobile();
 
@@ -24,14 +35,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         pathname?.startsWith('/forgot-password') ||
         pathname?.startsWith('/reset-password');
 
-    // Load from localStorage after mount
     useEffect(() => {
-        const saved = localStorage.getItem("sidebarCollapsed");
-        if (saved === "true") {
-            setIsCollapsed(true);
-        }
         setMounted(true);
-        console.log(`[DashboardLayout] mounted at ${Math.round(mountTime)}ms`);
     }, []);
 
     useEffect(() => {
@@ -49,11 +54,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     if (isAuthPage) {
         return (
             <div className="min-h-screen bg-background text-foreground">
-                <AnimatePresence mode="wait" initial={false}>
-                    <motion.div key={pathname}>
-                        {children}
-                    </motion.div>
-                </AnimatePresence>
+                <div key={pathname}>
+                    {children}
+                </div>
             </div>
         );
     }
@@ -66,45 +69,45 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
     return (
         <PageGuard>
-            <div className="flex min-h-screen bg-background text-foreground">
-                {isMobile && mobileMenuOpen && (
-                    <div
-                        className="mobile-overlay active"
-                        onClick={() => setMobileMenuOpen(false)}
-                    />
-                )}
-
-                <Sidebar
-                    collapsed={isCollapsed}
-                    setCollapsed={setIsCollapsed}
-                    isMobile={isMobile}
-                    mobileMenuOpen={mobileMenuOpen}
-                    setMobileMenuOpen={setMobileMenuOpen}
-                />
-
-                <main
-                    className={cn(
-                        "flex-1 min-w-0 transition-all duration-500 ease-in-out"
+            <SidebarContext.Provider value={{ sidebarExpanded: !isCollapsed && !isMobile }}>
+                <div className="flex min-h-screen bg-background text-foreground">
+                    {isMobile && mobileMenuOpen && (
+                        <div
+                            className="mobile-overlay active"
+                            onClick={() => setMobileMenuOpen(false)}
+                        />
                     )}
-                    style={{
-                        marginLeft: getMainMargin(),
-                        paddingBottom: isMobile ? "var(--mobile-nav-height)" : "0",
-                    }}
-                >
-                    <TopBar
-                        onMenuClick={() => setMobileMenuOpen(true)}
+
+                    <Sidebar
+                        collapsed={isCollapsed}
+                        setCollapsed={setIsCollapsed}
                         isMobile={isMobile}
+                        mobileMenuOpen={mobileMenuOpen}
+                        setMobileMenuOpen={setMobileMenuOpen}
                     />
 
-                    <AnimatePresence mode="wait" initial={false}>
-                        <motion.div key={pathname} className="max-w-[1800px] mx-auto">
-                            {children}
-                        </motion.div>
-                    </AnimatePresence>
-                </main>
+                    <main
+                        className={cn(
+                            "flex-1 min-w-0 transition-all duration-500 ease-in-out"
+                        )}
+                        style={{
+                            marginLeft: getMainMargin(),
+                            paddingBottom: isMobile ? "var(--mobile-nav-height)" : "0",
+                        }}
+                    >
+                        <TopBar
+                            onMenuClick={() => setMobileMenuOpen(true)}
+                            isMobile={isMobile}
+                        />
 
-                {mounted && isMobile && <MobileNav />}
-            </div>
+                        <div key={pathname} className="max-w-[1800px] mx-auto">
+                            {children}
+                        </div>
+                    </main>
+
+                    {mounted && isMobile && <MobileNav />}
+                </div>
+            </SidebarContext.Provider>
         </PageGuard>
     );
 }

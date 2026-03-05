@@ -14,7 +14,7 @@ export const orderRepository = {
     /** Fetch all active (non-archived) orders, newest first. */
     async findAll(): Promise<Order[]> {
         const { data, error } = await supabase
-            .from("orders")
+            .from("v_orders_with_risk")
             .select("*")
             .eq("is_archived", false)
             .order("created_at", { ascending: false });
@@ -30,7 +30,7 @@ export const orderRepository = {
      */
     async findChangedSince(sinceTimestamp: string): Promise<Order[]> {
         const { data, error } = await supabase
-            .from("orders")
+            .from("v_orders_with_risk")
             .select("*")
             .gt("updated_at", sinceTimestamp)
             .order("updated_at", { ascending: false });
@@ -42,7 +42,7 @@ export const orderRepository = {
     /** Fetch all archived orders, newest first. */
     async findArchived(): Promise<Order[]> {
         const { data, error } = await supabase
-            .from("orders")
+            .from("v_orders_with_risk")
             .select("*")
             .eq("is_archived", true)
             .order("created_at", { ascending: false });
@@ -54,7 +54,7 @@ export const orderRepository = {
     /** Fetch a single order by ID (all columns for detail view). */
     async findById(id: string): Promise<Order | null> {
         const { data, error } = await supabase
-            .from("orders")
+            .from("v_orders_with_risk")
             .select("*")
             .eq("id", id)
             .single();

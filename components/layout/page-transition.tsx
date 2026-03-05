@@ -3,6 +3,26 @@
 import { motion } from "framer-motion";
 import { ReactNode } from "react";
 
+// ─── Shared Animation Constants ─────────────────────────────────────────────
+// UI chrome easing — fast attack, soft land (ease-out-expo style)
+export const EASE_CHROME = [0.16, 1, 0.3, 1] as const;
+
+// Card spring — slightly underdamped for organic feel, no visible overshoot
+export const SPRING_CARD = {
+    type: "spring" as const,
+    stiffness: 380,
+    damping: 30,
+    mass: 0.8,
+};
+
+// Panel reveal easing — smooth S-curve for height:0→auto collapsibles
+export const EASE_PANEL = [0.25, 0.8, 0.25, 1] as const;
+
+// Crossfade easing — standard material fade for skeleton→content blends
+export const EASE_CROSSFADE = [0.4, 0, 0.2, 1] as const;
+
+// ─── Variants ───────────────────────────────────────────────────────────────
+
 interface PageTransitionProps {
     children: ReactNode;
     className?: string;
@@ -11,25 +31,22 @@ interface PageTransitionProps {
 const pageVariants = {
     initial: {
         opacity: 0,
-        y: 12,
-        scale: 0.99,
+        y: 6,
     },
     animate: {
         opacity: 1,
         y: 0,
-        scale: 1,
         transition: {
-            duration: 0.4,
-            ease: [0.16, 1, 0.3, 1],
+            duration: 0.35,
+            ease: EASE_CHROME,
         },
     },
     exit: {
         opacity: 0,
-        y: -12,
-        scale: 0.99,
+        y: -4,
         transition: {
-            duration: 0.25,
-            ease: [0.22, 1, 0.36, 1],
+            duration: 0.2,
+            ease: EASE_CHROME,
         },
     },
 };
@@ -50,9 +67,11 @@ export function PageTransition({ children, className = "" }: PageTransitionProps
 
 // Stagger children animation wrapper
 const staggerContainerVariants = {
+    initial: {},
     animate: {
         transition: {
-            staggerChildren: 0.05,
+            staggerChildren: 0.04,
+            delayChildren: 0.02,
         },
     },
 };
@@ -60,17 +79,12 @@ const staggerContainerVariants = {
 const staggerItemVariants = {
     initial: {
         opacity: 0,
-        y: 20,
-        scale: 0.98,
+        y: 6,
     },
     animate: {
         opacity: 1,
         y: 0,
-        scale: 1,
-        transition: {
-            duration: 0.5,
-            ease: [0.16, 1, 0.3, 1],
-        },
+        transition: SPRING_CARD,
     },
 };
 
