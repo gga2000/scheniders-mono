@@ -384,77 +384,59 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
             />
             {/* Header Content */}
             <div className="relative flex items-center justify-between gap-3 md:gap-6 w-full px-4 md:px-6 py-3 md:py-4">
-                {/* Left side spacer / mobile menu */}
+                {/* Left side spacer */}
                 <div className="flex items-center w-auto md:flex-1 md:min-w-[200px]">
-                    {isMobile && onMenuClick && (
-                        <button
-                            onClick={onMenuClick}
-                            className="w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-foreground hover:bg-[var(--background)] transition-all flex-shrink-0"
-                            aria-label="Open menu"
-                        >
-                            <svg
-                                className="w-5 h-5"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M4 6h16M4 12h16M4 18h16"
-                                />
-                            </svg>
-                        </button>
-                    )}
                 </div>
 
-                {/* Global Search Centered */}
-                <div className="flex-1 flex justify-center w-full max-w-2xl mx-auto">
+                {/* Global Search Centered - Hidden on mobile */}
+                <div className="hidden md:flex flex-1 justify-center w-full max-w-2xl mx-auto">
                     <GlobalSearch />
                 </div>
 
-                {/* Right Side Actions - Hidden on mobile */}
-                <div className="hidden md:flex items-center justify-end gap-2 md:flex-1 md:min-w-[200px]">
-                    {/* Theme Toggle */}
-                    <ThemeToggle />
+                {/* Right Side Actions */}
+                <div className="flex items-center justify-end gap-2 md:flex-1 md:min-w-[200px]">
+                    {/* Desktop Actions - Hidden on mobile */}
+                    <div className="hidden md:flex items-center gap-2">
+                        {/* Theme Toggle */}
+                        <ThemeToggle />
 
-                    {/* Language Toggle */}
-                    <LanguageToggle />
+                        {/* Language Toggle */}
+                        <LanguageToggle />
 
-                    {/* Global Presence Indicator */}
-                    <GlobalPresenceIndicator />
+                        {/* Global Presence Indicator */}
+                        <GlobalPresenceIndicator />
 
-                    {/* Notifications Dropdown */}
-                    <NotificationsDropdown />
+                        {/* Notifications Dropdown */}
+                        <NotificationsDropdown />
 
-                    {/* Settings */}
-                    <Link
-                        href="/settings"
-                        className="w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-muted hover:text-foreground hover:border-[var(--foreground-muted)] transition-all"
-                        title="Settings"
-                    >
-                        <Settings className="w-5 h-5" />
-                    </Link>
+                        {/* Settings */}
+                        <Link
+                            href="/settings"
+                            className="w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-muted hover:text-foreground hover:border-[var(--foreground-muted)] transition-all"
+                            title="Settings"
+                        >
+                            <Settings className="w-5 h-5" />
+                        </Link>
 
-                    {/* User Avatar */}
-                    <Link
-                        href="/settings"
-                        className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FBE38E] to-[#F4C7CF] flex items-center justify-center text-[#1E1E1E] font-bold text-sm hover:scale-105 transition-transform overflow-hidden shadow-sm"
-                        title="Profile"
-                    >
-                        {profile?.avatar_url ? (
-                            <img
-                                src={profile.avatar_url}
-                                alt={profile.display_name || "User"}
-                                className="w-full h-full object-cover"
-                            />
-                        ) : (
-                            <span>
-                                {(profile?.display_name || user?.email || "U")?.charAt(0).toUpperCase()}
-                            </span>
-                        )}
-                    </Link>
+                        {/* User Avatar */}
+                        <Link
+                            href="/settings"
+                            className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FBE38E] to-[#F4C7CF] flex items-center justify-center text-[#1E1E1E] font-bold text-sm hover:scale-105 transition-transform overflow-hidden shadow-sm"
+                            title="Profile"
+                        >
+                            {profile?.avatar_url ? (
+                                <img
+                                    src={profile.avatar_url}
+                                    alt={profile.display_name || "User"}
+                                    className="w-full h-full object-cover"
+                                />
+                            ) : (
+                                <span>
+                                    {(profile?.display_name || user?.email || "U")?.charAt(0).toUpperCase()}
+                                </span>
+                            )}
+                        </Link>
+                    </div>
                 </div>
             </div>
         </header>

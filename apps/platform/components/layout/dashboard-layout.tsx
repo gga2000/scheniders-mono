@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { PageGuard } from "@/components/auth/role-guard";
 
 // Sidebar state context — lets child pages know if the sidebar is expanded
-const SidebarContext = createContext<{ sidebarExpanded: boolean }>({ sidebarExpanded: false });
+const SidebarContext = createContext<{ sidebarExpanded: boolean; setMobileMenuOpen?: (open: boolean) => void }>({ sidebarExpanded: false });
 export function useSidebar() { return useContext(SidebarContext); }
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -69,7 +69,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
     return (
         <PageGuard>
-            <SidebarContext.Provider value={{ sidebarExpanded: !isCollapsed && !isMobile }}>
+            <SidebarContext.Provider value={{ sidebarExpanded: !isCollapsed && !isMobile, setMobileMenuOpen }}>
                 <div className="flex min-h-screen bg-background text-foreground">
                     {isMobile && mobileMenuOpen && (
                         <div
@@ -92,7 +92,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                         )}
                         style={{
                             marginLeft: getMainMargin(),
-                            paddingBottom: isMobile ? "var(--mobile-nav-height)" : "0",
+                            paddingBottom: "0",
                         }}
                     >
                         <TopBar
@@ -104,8 +104,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                             {children}
                         </div>
                     </main>
-
-                    {mounted && isMobile && <MobileNav />}
                 </div>
             </SidebarContext.Provider>
         </PageGuard>
