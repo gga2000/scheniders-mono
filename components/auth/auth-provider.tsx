@@ -115,97 +115,161 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
     }, [session]);
 
+    // Session Storage Keys for instant Auth hydration
+    const AUTH_CACHE_KEY = 'auth_session_cache';
+
+    // Helper to cache auth state
+    const cacheAuthState = (user: User | null, role: string | null, permissions: string[]) => {
+        if (!user) {
+            sessionStorage.removeItem(AUTH_CACHE_KEY);
+            return;
+        }
+        sessionStorage.setItem(AUTH_CACHE_KEY, JSON.stringify({
+            userId: user.id,
+            role,
+            permissions,
+            timestamp: Date.now()
+        }));
+    };
+
+    // Helper to load auth state from cache
+    const getCachedAuthState = (currentUserId: string): { role: string | null, permissions: string[] } | null => {
+        try {
+            const cached = sessionStorage.getItem(AUTH_CACHE_KEY);
+            if (!cached) return null;
+            const parsed = JSON.parse(cached);
+
+            // Only use cache if it belongs to the current user and is less than 1 hour old
+            if (parsed.userId !== currentUserId || (Date.now() - parsed.timestamp) > 60 * 60 * 1000) {
+                sessionStorage.removeItem(AUTH_CACHE_KEY);
+                return null;
+            }
+            return { role: parsed.role, permissions: parsed.permissions };
+        } catch (e) {
+            return null;
+        }
+    };
+
     // Initialize auth state
     useEffect(() => {
-        const initAuth = async () => {
-            try {
-                // Get initial session
-                const { data: { session: initialSession } } = await supabase.auth.getSession();
+        let mounted = true;
 
-                setSession(initialSession);
-                setUser(initialSession?.user ?? null);
-
-                if (initialSession?.user) {
-                    await fetchRoleAndPermissions(initialSession.user.id);
-                }
-            } catch (error) {
-                console.error("Auth initialization error:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        initAuth();
-
-        // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, currentSession) => {
-                // TOKEN_REFRESHED fires every ~hour with new token references.
-                // We MUST update the session state if it was null (race condition:
-                // getSession() can return null when a token refresh is in-flight
-                // during page load, and TOKEN_REFRESHED is the only event that
-                // delivers the valid session). But skip the expensive
-                // fetchRoleAndPermissions — role/permissions don't change on refresh.
-                if (event === "TOKEN_REFRESHED") {
-                    if (!currentUserIdRef.current && currentSession?.user) {
-                        // Session was null (initial load race) — hydrate React state
-                        setSession(currentSession);
-                        setUser(currentSession.user);
-                        currentUserIdRef.current = currentSession.user.id;
-                        await fetchRoleAndPermissions(currentSession.user.id);
+                if (!mounted) return;
+                console.log(`[AuthProvider] onAuthStateChange event=${event}`);
+
+                if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                    if (!currentSession?.user) {
+                        setSession(null);
+                        setUser(null);
+                        setRole(null);
+                        setProfile(null);
+                        setPermissions([]);
+                        cacheAuthState(null, null, []);
+                        setIsLoading(false);
+                        return;
                     }
-                    return;
-                }
 
-                setSession(currentSession);
-                setUser(currentSession?.user ?? null);
-                currentUserIdRef.current = currentSession?.user?.id ?? null;
+                    try {
+                        const profileStartTime = performance.now();
 
-                if (currentSession?.user) {
-                    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-                        await fetchRoleAndPermissions(currentSession.user.id);
+                        // 1. Try Cache for instant hydration
+                        const cachedAuth = getCachedAuthState(currentSession.user.id);
+                        let finalRole = cachedAuth?.role ?? null;
+                        let finalPermissions = cachedAuth?.permissions ?? [];
+                        let finalProfile: UserProfile | null = null;
 
-                        if (event === 'SIGNED_IN') {
-                            // Fire-and-forget: Don't block auth flow with activity logging
-                            (async () => {
-                                try {
-                                    await supabase.from('user_profiles').update({
-                                        last_login_at: new Date().toISOString()
-                                    }).eq('id', currentSession.user.id);
+                        if (cachedAuth) {
+                            console.log(`[AuthProvider] Loaded auth state from cache instantly`);
+                            setRole(finalRole);
+                            setPermissions(finalPermissions);
+                            setUser(currentSession.user);
+                            setSession(currentSession);
+                            currentUserIdRef.current = currentSession.user.id;
 
-                                    activityLogger.log({
-                                        action: "user.login",
-                                        entityType: "user",
-                                        entityId: currentSession.user.id
-                                    });
-                                } catch (err) {
-                                    console.error("Error logging login:", err);
-                                }
-                            })();
+                            // Unblock UI immediately if cache hits
+                            setIsLoading(false);
                         }
-                    } else if (!role) {
-                        await fetchRoleAndPermissions(currentSession.user.id);
+
+                        // 2. Fetch fresh DB data (always do this in background)
+                        const { data: profileData } = await supabase
+                            .from('user_profiles')
+                            .select('*')
+                            .eq('id', currentSession.user.id)
+                            .single();
+
+                        if (profileData) {
+                            finalProfile = profileData as UserProfile;
+
+                            // Re-fetch heavy permissions only if role changed or no cache existed
+                            if (!cachedAuth || cachedAuth.role !== profileData.role) {
+                                finalRole = profileData.role;
+                                const [rolePermsResult, userOverridesResult] = await Promise.all([
+                                    supabase.from('role_permissions').select('permission').eq('role', profileData.role),
+                                    supabase.from('user_permissions').select('permission, is_granted').eq('user_id', currentSession.user.id)
+                                ]);
+
+                                const permsSet = new Set(rolePermsResult.data?.map(p => p.permission) || []);
+                                if (userOverridesResult.data) {
+                                    userOverridesResult.data.forEach(override => {
+                                        if (override.is_granted) permsSet.add(override.permission);
+                                        else permsSet.delete(override.permission);
+                                    });
+                                }
+                                finalPermissions = Array.from(permsSet);
+                            }
+                            cacheAuthState(currentSession.user, profileData.role, finalPermissions);
+                        }
+
+                        console.log(`[AuthProvider] Role/Perms fetch completed in ${Math.round(performance.now() - profileStartTime)}ms`);
+
+                        // 3. Sync state with fresh DB data
+                        if (mounted) {
+                            setRole(finalRole);
+                            setProfile(finalProfile);
+                            setPermissions(finalPermissions);
+                            setUser(currentSession.user);
+                            setSession(currentSession);
+                            currentUserIdRef.current = currentSession.user.id;
+                        }
+
+                        // Background Activity Logging for sign-in
+                        if (event === 'SIGNED_IN') {
+                            supabase.from('user_profiles').update({
+                                last_login_at: new Date().toISOString()
+                            }).eq('id', currentSession.user.id).then();
+
+                            activityLogger.log({
+                                action: "user.login",
+                                entityType: "user",
+                                entityId: currentSession.user.id
+                            });
+                        }
+
+                    } catch (error) {
+                        console.error('Error in auth state change:', error);
+                    } finally {
+                        if (mounted) {
+                            console.log(`[AuthProvider] onAuthStateChange ${event} setting isLoading=false`);
+                            setIsLoading(false);
+                        }
                     }
-                } else {
-                    setRole(null);
-                    setProfile(null);
-                    setPermissions([]);
-                }
-
-                setIsLoading(false);
-
-                if (event === "SIGNED_OUT") {
+                } else if (event === 'SIGNED_OUT') {
                     currentUserIdRef.current = null;
                     setUser(null);
                     setSession(null);
                     setRole(null);
                     setProfile(null);
                     setPermissions([]);
+                    cacheAuthState(null, null, []);
+                    setIsLoading(false);
                 }
             }
         );
 
         return () => {
+            mounted = false;
             subscription.unsubscribe();
         };
     }, []);

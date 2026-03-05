@@ -13,7 +13,6 @@ import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { isOrderFlagged } from "@/lib/data-quality-utils";
 import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
 import { OrderCardSkeleton } from "@/components/dashboard/order-card-skeleton";
-import { OrdersLoader } from "@/components/ui/orders-loader";
 import { OrderAssignment, mockAssignments } from "@/lib/team-types";
 import { useBatchRiskAssessment } from "@/hooks/use-risk-assessment";
 const OrderDetailsModal = dynamic(
@@ -27,11 +26,11 @@ const CreateOrderModal = dynamic(
 // Dynamic imports for other heavy components
 const FloatingActionBar = dynamic(
     () => import("@/components/orders/floating-action-bar").then(mod => ({ default: mod.FloatingActionBar })),
-    { ssr: false }
+    { ssr: false, loading: () => <div className="hidden" /> }
 );
 const WorkflowTabs = dynamic(
     () => import("@/components/orders/workflow-tabs").then(mod => ({ default: mod.WorkflowTabs })),
-    { ssr: false }
+    { ssr: false, loading: () => <div className="w-full h-96 animate-pulse bg-muted/20 rounded-2xl" /> }
 );
 const DuplicateComparisonModal = dynamic(
     () => import("@/components/orders/duplicate-comparison-modal").then(mod => ({ default: mod.DuplicateComparisonModal })),
@@ -51,21 +50,21 @@ const SplitOrderDialog = dynamic(
 );
 const VirtualizedOrderList = dynamic(
     () => import("@/components/orders/virtualized-order-list").then(mod => ({ default: mod.VirtualizedOrderList })),
-    { ssr: false }
+    { ssr: false, loading: () => <div className="w-full h-[600px] animate-pulse bg-muted/20 rounded-2xl" /> }
 );
 const DateRangePicker = dynamic(
     () => import("@/components/ui/date-range-picker").then(mod => ({ default: mod.DateRangePicker })),
-    { ssr: false }
+    { ssr: false, loading: () => <div className="w-full h-10 animate-pulse bg-muted/20 rounded-xl" /> }
 );
 import { EmptyState } from "@/components/ui/empty-states";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layout/page-transition";
 const SavedViewsTabs = dynamic(
     () => import("@/components/orders/saved-views-tabs").then(mod => ({ default: mod.SavedViewsTabs })),
-    { ssr: false }
+    { ssr: false, loading: () => <div className="w-48 h-10 animate-pulse bg-muted/20 rounded-xl" /> }
 );
 const OrderConfirmationCard = dynamic(
     () => import("@/components/orders/order-confirmation-card").then(mod => ({ default: mod.OrderConfirmationCard })),
-    { ssr: false }
+    { ssr: false, loading: () => <div className="hidden" /> }
 );
 const CancellationReasonDialog = dynamic(
     () => import("@/components/orders/cancellation-reason-dialog").then(mod => ({ default: mod.CancellationReasonDialog })),
@@ -73,7 +72,7 @@ const CancellationReasonDialog = dynamic(
 );
 const StickyFilterBar = dynamic(
     () => import("@/components/orders/sticky-filter-bar").then(mod => ({ default: mod.StickyFilterBar })),
-    { ssr: false }
+    { ssr: false, loading: () => <div className="w-full h-14 animate-pulse bg-muted/20 rounded-2xl" /> }
 );
 const VirtualizedOrderTable = dynamic(
     () => import("@/components/orders/virtualized-order-table").then(mod => ({ default: mod.VirtualizedOrderTable })),
@@ -81,11 +80,11 @@ const VirtualizedOrderTable = dynamic(
 );
 const ScrollToTopButton = dynamic(
     () => import("@/components/ui/scroll-to-top-button").then(mod => ({ default: mod.ScrollToTopButton })),
-    { ssr: false }
+    { ssr: false, loading: () => <div className="hidden" /> }
 );
 const BackupPrompt = dynamic(
     () => import("@/components/vault/backup-prompt").then(mod => ({ default: mod.BackupPrompt })),
-    { ssr: false }
+    { ssr: false, loading: () => <div className="hidden" /> }
 );
 import { useIsMobile } from "@/hooks/use-mobile";
 import { motion, AnimatePresence } from "framer-motion";
@@ -906,9 +905,8 @@ export default function OrdersPage() {
                     initial={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                >
-                    <OrdersLoader />
-                </motion.div>
+                    className="min-h-screen bg-[var(--background)]"
+                />
             ) : error ? (
                 <motion.div
                     key="error"
