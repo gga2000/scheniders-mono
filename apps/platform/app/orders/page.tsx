@@ -477,10 +477,9 @@ export default function OrdersPage() {
                 if (key === 'city') return o.city?.toLowerCase().includes(lowerValue);
                 if (key === 'address_details') return (o.address_details?.toLowerCase().includes(lowerValue)) || (o.city?.toLowerCase().includes(lowerValue));
                 if (key === 'order_id') return o.order_id?.toLowerCase().includes(lowerValue) || String(o.sequence_number).includes(lowerValue);
-                // Also search in notes if searching globally
                 if (key === 'all') {
                     // Optimized global search - join fields once per order vs checking all
-                    const searchStr = `${o.customer_name} ${o.phone} ${o.city} ${o.order_id} ${o.sequence_number} ${o.notes || ''}`.toLowerCase();
+                    const searchStr = `${o.customer_name || ''} ${o.phone || ''} ${o.secondary_phone || ''} ${o.city || ''} ${o.address_details || ''} ${o.order_id || ''} ${o.sequence_number || ''} ${o.notes || ''}`.toLowerCase();
                     return searchStr.includes(lowerValue);
                 }
                 return true;
@@ -899,11 +898,10 @@ export default function OrdersPage() {
     const isInitialLoading = !isMounted || loading;
 
     return (
-        <AnimatePresence mode="popLayout">
+        <AnimatePresence mode="wait">
             {isInitialLoading ? (
                 <motion.div
                     key="skeleton"
-                    layout
                     initial={{ opacity: 1 }}
                     exit={{ opacity: 0, transition: { duration: 0.25, ease: EASE_CROSSFADE } }}
                     className="min-h-screen bg-[var(--background)]"
@@ -924,7 +922,6 @@ export default function OrdersPage() {
             ) : (
                 <motion.div
                     key="content"
-                    layout
                     initial="hidden"
                     animate="visible"
                     variants={{
@@ -940,7 +937,7 @@ export default function OrdersPage() {
                     }}
                 >
                     <div className="min-h-screen p-4 md:p-6 lg:p-8 orders-page">
-                        <motion.div layout className="space-y-4 md:space-y-6">
+                        <div className="space-y-4 md:space-y-6">
                             {/* Section 1: Toolbar — stagger child */}
                             <motion.div
                                 variants={{
@@ -2335,7 +2332,7 @@ export default function OrdersPage() {
                                     )}
                                 </div>
                             </motion.div>
-                        </motion.div>
+                        </div>
                     </div>
 
                     {/* Modals */}
