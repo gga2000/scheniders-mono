@@ -109,8 +109,9 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         try {
             // FIX: Don't read from the `orders` closure (which might be stale on rapid double-clicks).
             // Always read the absolute freshest state synchronously from the React Query cache.
-            const currentCache = queryClient.getQueryData<Order[]>(["orders", "lists"]);
+            const currentCache = queryClient.getQueryData<Order[]>(orderKeys.lists());
             const previousOrder = currentCache?.find(o => o.id === orderId) || orders.find(o => o.id === orderId);
+            console.log(`[SYNC] [updateOrderStatus] Cache read: cacheHit=${!!currentCache}, cacheSize=${currentCache?.length ?? 0}, foundOrder=${!!previousOrder}, prevStatus=${previousOrder?.status} → newStatus=${status}`);
 
             // Record status change to undo stack
             if (previousOrder) {

@@ -88,6 +88,7 @@ export class RealtimeBatcher {
         const now = Date.now();
         for (const [id, ts] of this.recentMutations) {
             if (now - ts > RealtimeBatcher.MUTATION_GUARD_MS) {
+                console.log(`[SYNC BATCHER] ⏰ GUARD EXPIRED for ${id} after ${now - ts}ms — future realtime events will be applied`);
                 this.recentMutations.delete(id);
             }
         }
@@ -108,11 +109,10 @@ export class RealtimeBatcher {
                 const order = this.normalizer(event.new as unknown as Order) as Order;
 
                 // MUTATION GUARD: Skip realtime updates for orders we just mutated.
-                // The broadcast is the echo of our own write — the optimistic UI
-                // already has the correct state. Applying the broadcast could
-                // briefly flicker the UI if the broadcast arrives between
-                // onMutate and onSuccess.
-                if (this.recentMutations.has(order.id)) {
+                const mutatedAt = this.recentMutations.get(order.id);
+                if (mutatedAt) {
+                    const age = now - mutatedAt;
+                    console.log(`[SYNC BATCHER] 🛡️ GUARD ACTIVE: Skipping realtime update for ${order.id} (status=${order.status}, guard age=${age}ms/${RealtimeBatcher.MUTATION_GUARD_MS}ms)`);
                     continue;
                 }
 
@@ -140,6 +140,15 @@ export class RealtimeBatcher {
         // Apply all changes in a single setQueryData call
         this.queryClient.setQueryData<Order[]>(this.queryKey, (old) => {
             if (!old) return old;
+
+            // Log what the realtime update will change vs current cache
+            for (const [id, incoming] of updates) {
+                const current = old.find(o => o.id === id);
+                if (current && current.status !== incoming.status) {
+                    console.log(`[SYNC BATCHER] ⚠️ STATUS CHANGE via realtime: ${id} cache=${current.status} → broadcast=${incoming.status}`);
+                }
+            }
+
             console.log(`[SYNC BATCHER] Cache size before apply: ${old.length}`);
 
             const result = old
