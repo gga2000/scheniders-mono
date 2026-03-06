@@ -103,6 +103,8 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
                         } else {
                             return false;
                         }
+                    } else if (statusFilter === "confirmed" && order.status === "return_pending") {
+                        // Allow return_pending to appear in the confirmed tab
                     } else if (order.status !== statusFilter) {
                         return false;
                     }
@@ -224,6 +226,10 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
         matchingOrders.forEach(order => {
             if (order.status in counts) {
                 counts[order.status]++;
+            }
+            // Also count return_pending in the confirmed tab to reflect the combined tab logic
+            if (order.status === "return_pending") {
+                counts.confirmed++;
             }
         });
 

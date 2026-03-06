@@ -96,7 +96,11 @@ export function getStatusColor(status: string): string {
 /**
  * Get status label in Arabic
  */
-export function getStatusLabel(status: string): string {
+export function getStatusLabel(status: string, isReturn?: boolean): string {
+    if (status === 'in_transit' && isReturn) {
+        return 'استرجاع قيد التوصيل';
+    }
+
     const labels = {
         new: 'جديد',
         contacted: 'تم الاتصال',

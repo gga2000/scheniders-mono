@@ -9,6 +9,7 @@ import { verifyAccessToken, createSupabaseServiceClient } from '@/lib/supabase-s
  * Body: { ids: string[] }
  */
 export async function POST(request: NextRequest) {
+    const startTime = performance.now();
     try {
         // Verify the requesting user via access token
         const authHeader = request.headers.get('Authorization');
@@ -20,7 +21,11 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        const t1 = performance.now();
         const { user, error: authError } = await verifyAccessToken(token);
+        const t2 = performance.now();
+        console.log(`[Perf] verifyAccessToken took: ${(t2 - t1).toFixed(2)}ms`);
+
         if (authError || !user) {
             return NextResponse.json(
                 { success: false, error: 'Unauthorized' },
@@ -30,11 +35,14 @@ export async function POST(request: NextRequest) {
 
         const supabaseAdmin = createSupabaseServiceClient();
 
+        const t3 = performance.now();
         const { data: profile } = await supabaseAdmin
             .from('user_profiles')
             .select('role')
             .eq('id', user.id)
             .single();
+        const t4 = performance.now();
+        console.log(`[Perf] Admin role check took: ${(t4 - t3).toFixed(2)}ms`);
 
         if (profile?.role !== 'admin') {
             return NextResponse.json(
@@ -52,14 +60,18 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        const t5 = performance.now();
         // Snapshot orders before deletion for audit trail
         const { data: orderSnapshots } = await supabaseAdmin
             .from('orders')
             .select('id, order_id, customer_name, phone, status, price, items')
             .in('id', ids);
+        const t6 = performance.now();
+        console.log(`[Perf] Snapshot fetch took: ${(t6 - t5).toFixed(2)}ms`);
 
         // Log deletion audit to deletion_log table (best-effort, don't block on failure)
         if (orderSnapshots && orderSnapshots.length > 0) {
+            const t7 = performance.now();
             await supabaseAdmin
                 .from('deletion_log')
                 .insert({
@@ -70,6 +82,8 @@ export async function POST(request: NextRequest) {
                     order_snapshots: orderSnapshots,
                 })
                 .then(({ error: logError }) => {
+                    const t8 = performance.now();
+                    console.log(`[Perf] Audit log insert took: ${(t8 - t7).toFixed(2)}ms`);
                     if (logError) {
                         // Table may not exist yet - fall back to console logging
                         console.warn('[Deletion Audit] Could not write to deletion_log table:', logError.message);
@@ -81,18 +95,26 @@ export async function POST(request: NextRequest) {
                 orderSnapshots.map(o => `${o.order_id} (${o.status})`).join(', '));
         }
 
+        const t9 = performance.now();
         // Unlink self-referencing FK first
         await supabaseAdmin
             .from('orders')
             .update({ original_order_id: null })
             .in('original_order_id', ids);
+        const t10 = performance.now();
+        console.log(`[Perf] FK unlink update took: ${(t10 - t9).toFixed(2)}ms`);
 
+        const t11 = performance.now();
         // Delete the orders
         const { data: deletedRows, error: deleteError } = await supabaseAdmin
             .from('orders')
             .delete()
             .in('id', ids)
             .select('id');
+        const t12 = performance.now();
+        console.log(`[Perf] Actual delete took: ${(t12 - t11).toFixed(2)}ms`);
+
+        console.log(`[Perf] Total backend deletion process took: ${(performance.now() - startTime).toFixed(2)}ms`);
 
         if (deleteError) {
             return NextResponse.json(

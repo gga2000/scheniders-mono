@@ -29,7 +29,8 @@ export async function exportOrdersToPrimeCSV(orderIds: string[], ordersData: Ord
     const selectedOrders = ordersData.filter((o) => orderIds.includes(o.id));
 
     // Dynamically import xlsx library
-    const XLSX = await import('xlsx');
+    const xlsxModule = await import('xlsx');
+    const XLSX = xlsxModule.default || xlsxModule;
 
     // Prime headers (Arabic, exact match to their sample)
     const headers = [
@@ -68,7 +69,7 @@ export async function exportOrdersToPrimeCSV(orderIds: string[], ordersData: Ord
         return {
             'ملاحظات': order.notes || '',
             'عدد القطع': totalQuantity,
-            'يحتوي على ارجاع بضاعة؟': 'N',
+            'يحتوي على ارجاع بضاعة؟': order.is_return ? 'Y' : 'N',
             'هاتف المستلم': phone,
             'تفاصيل العنوان': order.address_details || order.city || '',
             'شفرة المحافظة': govCode,

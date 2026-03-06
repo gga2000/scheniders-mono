@@ -15,6 +15,7 @@ import { formatIQD, cn } from "@/lib/utils";
 import { getAllGovernorateCodes } from "@/lib/address-validator";
 import {
     calculateTotal,
+    normalizeIraqiPhone,
     type OrderFormData,
     type ValidationErrors,
 } from "@/lib/order-utils";
@@ -133,7 +134,7 @@ export function CreateOrderModal({
             setIncludeDeliveryFee(false);
         } else {
             updateField("source", "whatsapp");
-            setIncludeDeliveryFee(true);
+            setIncludeDeliveryFee(false);
             setDiscount(0);
         }
     };
@@ -158,7 +159,7 @@ export function CreateOrderModal({
         setErrors({});
         setDiscount(0);
         setDeliveryFee(5000);
-        setIncludeDeliveryFee(true);
+        setIncludeDeliveryFee(false);
         setOrderIdStatus("idle");
         setEditingPriceIndex(null);
         onClose();
@@ -208,6 +209,12 @@ export function CreateOrderModal({
     };
 
     const handleCreate = async () => {
+        // Normalize phones before validation
+        const normalizedPhone = normalizeIraqiPhone(formData.phone);
+        const normalizedSecondary = normalizeIraqiPhone(formData.secondary_phone || '');
+        // Update form with normalized values
+        setFormData(prev => ({ ...prev, phone: normalizedPhone, secondary_phone: normalizedSecondary || prev.secondary_phone }));
+
         const newErrors: ValidationErrors = {};
 
         if (!formData.customer_name.trim()) {
@@ -215,12 +222,12 @@ export function CreateOrderModal({
         }
         // Phone required only for delivery orders
         if (orderType === "delivery") {
-            if (!formData.phone.trim()) {
+            if (!normalizedPhone.trim()) {
                 newErrors.phone = "رقم الهاتف مطلوب";
-            } else if (!/^07\d{8,9}$/.test(formData.phone.trim())) {
+            } else if (!/^07\d{8,9}$/.test(normalizedPhone.trim())) {
                 newErrors.phone = "رقم الهاتف غير صحيح";
             }
-        } else if (formData.phone.trim() && !/^07\d{8,9}$/.test(formData.phone.trim())) {
+        } else if (normalizedPhone.trim() && !/^07\d{8,9}$/.test(normalizedPhone.trim())) {
             // For shop orders, validate phone only if provided
             newErrors.phone = "رقم الهاتف غير صحيح";
         }
@@ -244,11 +251,13 @@ export function CreateOrderModal({
 
             const result = await onCreate({
                 ...formData,
+                phone: normalizedPhone,
+                secondary_phone: normalizedSecondary || undefined,
                 price: finalPrice,
                 discount_amount: discount,
                 delivery_fee: actualDeliveryFee,
                 is_shop_order: orderType === "shop",
-                status: orderType === "shop" ? "completed" : "new",
+                status: orderType === "shop" ? "completed" : "confirmed",
                 notes: orderType === "shop" ? `[طلب محل] ${formData.notes || ''}`.trim() : formData.notes,
                 internal_notes: formData.internal_notes || "",
                 items: formData.items.filter(item => item.name.trim()),
@@ -276,14 +285,36 @@ export function CreateOrderModal({
                 <DialogContent className="max-w-2xl bg-white border border-[var(--card-border)] !rounded-2xl overflow-hidden p-0 create-order-modal">
                     {/* Header */}
                     <DialogHeader className="px-6 py-4 border-b border-[var(--card-border)] bg-[var(--background)]">
-                        <DialogTitle className="flex items-center gap-3 text-foreground">
-                            <div className="w-9 h-9 rounded-xl bg-[var(--pastel-green)] flex items-center justify-center">
-                                <Package className="h-4 w-4 text-green-700" />
+                        <DialogTitle className="flex items-center justify-between text-foreground">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-[var(--pastel-green)] flex items-center justify-center">
+                                    <Package className="h-4 w-4 text-green-700" />
+                                </div>
+                                <div>
+                                    <span className="text-lg font-bold">طلب جديد</span>
+                                    <p className="text-xs font-normal text-muted mt-0.5">أضف تفاصيل الطلب والمنتجات</p>
+                                </div>
                             </div>
-                            <div>
-                                <span className="text-lg font-bold">طلب جديد</span>
-                                <p className="text-xs font-normal text-muted mt-0.5">أضف تفاصيل الطلب والمنتجات</p>
-                            </div>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setOrderType("delivery");
+                                    setFormData(prev => ({
+                                        ...prev,
+                                        customer_name: "علي-تيست",
+                                        phone: "07802301677",
+                                        secondary_phone: "07811262261",
+                                        city: "واسط",
+                                        address_details: "العزيزية - الجمعية",
+                                        source: "tiktok",
+                                        items: prev.items.length > 0 ? prev.items : [{ name: "Test Product", price: 15000, quantity: 1 }]
+                                    }));
+                                }}
+                                className="px-2 py-1 flex items-center gap-1 text-[10px] font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-md hover:bg-purple-100 transition-all opacity-50 hover:opacity-100 shadow-sm"
+                                title="تعبئة بيانات تجريبية"
+                            >
+                                Test
+                            </button>
                         </DialogTitle>
                     </DialogHeader>
 
@@ -408,7 +439,12 @@ export function CreateOrderModal({
                                     <Input
                                         value={formData.phone}
                                         onChange={(e) => updateField("phone", e.target.value)}
-                                        placeholder="07XXXXXXXX"
+                                        onBlur={() => {
+                                            if (formData.phone) {
+                                                updateField("phone", normalizeIraqiPhone(formData.phone));
+                                            }
+                                        }}
+                                        placeholder="07XXXXXXXX / +964 / ٠٧..."
                                         dir="ltr"
                                         inputMode="tel"
                                         autoComplete="tel"
@@ -429,7 +465,12 @@ export function CreateOrderModal({
                                     <Input
                                         value={formData.secondary_phone || ""}
                                         onChange={(e) => updateField("secondary_phone", e.target.value)}
-                                        placeholder="07XXXXXXXX"
+                                        onBlur={() => {
+                                            if (formData.secondary_phone) {
+                                                updateField("secondary_phone", normalizeIraqiPhone(formData.secondary_phone));
+                                            }
+                                        }}
+                                        placeholder="07XXXXXXXX / +964 / ٠٧..."
                                         dir="ltr"
                                         inputMode="tel"
                                         autoComplete="tel"

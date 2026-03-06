@@ -188,6 +188,7 @@ export const useOrderBulkActions = ({
             const { success: batchSuccess, error: batchError } = await createBatch(
                 batchName,
                 ids,
+                ordersToExport,
                 "prime",
                 "invoice"
             );

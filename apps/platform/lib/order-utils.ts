@@ -151,6 +151,40 @@ export function formatPhoneForDisplay(phone: string | undefined | null): string 
 }
 
 /**
+ * Normalize phone input to standard Iraqi format (07XXXXXXXXX)
+ * Accepts:
+ *   - Arabic numerals (٠٧٨٠٢٣٠١٦٧٧)
+ *   - +964 format (+9647802301677)
+ *   - 964 format (9647802301677)
+ *   - No-zero format (7802301677)
+ *   - Standard format (07802301677)
+ * Returns cleaned 07XXXXXXXXX string ready for storage/display
+ */
+export function normalizeIraqiPhone(phone: string): string {
+    if (!phone) return '';
+
+    // Step 1: Convert Arabic/Eastern-Arabic numerals to Western digits
+    let cleaned = phone.replace(/[٠-٩]/g, (d) => (d.charCodeAt(0) - 1632).toString());
+    // Also handle Eastern Arabic (Persian/Urdu) numerals ۰-۹
+    cleaned = cleaned.replace(/[۰-۹]/g, (d) => (d.charCodeAt(0) - 1776).toString());
+
+    // Step 2: Remove all non-digit characters
+    cleaned = cleaned.replace(/\D/g, '');
+
+    // Step 3: Strip country code prefix
+    if (cleaned.startsWith('964')) {
+        cleaned = cleaned.substring(3);
+    }
+
+    // Step 4: Ensure leading zero for Iraqi mobile (7XXXXXXXXX -> 07XXXXXXXXX)
+    if (cleaned.startsWith('7') && !cleaned.startsWith('0')) {
+        cleaned = '0' + cleaned;
+    }
+
+    return cleaned;
+}
+
+/**
  * Normalize phone number for search comparison
  * Strips all formatting, country codes, and leading zeros to enable
  * matching regardless of format (e.g., 07735441316 will match 7735441316)
