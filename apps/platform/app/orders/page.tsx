@@ -759,7 +759,6 @@ export default function OrdersPage() {
             const { success: batchSuccess, error: batchError } = await createBatch(
                 batchName,
                 ids,
-                ordersToExport,
                 "prime",
                 "invoice" // Prime is essentially an invoice export
             );
