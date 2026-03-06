@@ -274,37 +274,30 @@ export async function POST(request: NextRequest) {
             JSON.stringify(payload, null, 2)
         );
 
-        // 3. Handle delivery status webhooks (sent, delivered, read, failed, button_click)
+        // 3. Handle delivery status webhooks
         const webhookType = payload.type || payload.eventType || "";
 
-        // Check if this is a delivery status event
-        const isDeliveryStatus = [
-            "message_sent", "message_delivered", "message_read",
-            "message_failed", "button_clicked", "message_api_clicked",
-            // Interakt may also use these formats
-            "sent", "delivered", "read", "failed",
-        ].some(t => webhookType.toLowerCase().includes(t.toLowerCase()));
+        // Interakt's exact webhook type names for template messages sent via API
+        const DELIVERY_STATUS_TYPES: Record<string, string> = {
+            "message_api_sent": "sent",
+            "message_api_delivered": "delivered",
+            "message_api_read": "read",
+            "message_api_failed": "failed",
+            // Button click from template
+            "message_api_clicked": "button_clicked",
+        };
 
-        // If it's a delivery status, log it to whatsapp_logs
-        if (isDeliveryStatus && webhookType !== "message_api_clicked") {
+        const mappedStatus = DELIVERY_STATUS_TYPES[webhookType];
+
+        // If it's a delivery status event, log it to whatsapp_logs
+        if (mappedStatus && webhookType !== "message_api_clicked") {
             try {
-                // Try to extract phone and order info from the payload
                 const phone = payload.data?.customer?.phone_number ||
-                    payload.data?.message?.recipient ||
                     payload.endCustomerPhone ||
                     "unknown";
                 const callbackData = payload.data?.message?.context?.callback_data ||
                     payload.data?.callbackData ||
                     payload.callbackData;
-
-                // Determine the mapped status
-                let mappedStatus = "unknown";
-                const typeLower = webhookType.toLowerCase();
-                if (typeLower.includes("fail")) mappedStatus = "failed";
-                else if (typeLower.includes("read")) mappedStatus = "read";
-                else if (typeLower.includes("deliver")) mappedStatus = "delivered";
-                else if (typeLower.includes("sent")) mappedStatus = "delivered"; // sent = accepted by WhatsApp
-                else if (typeLower.includes("button") || typeLower.includes("click")) mappedStatus = "button_clicked";
 
                 // Log to whatsapp_logs
                 await supabaseAdmin.from("whatsapp_logs").insert({
@@ -321,13 +314,10 @@ export async function POST(request: NextRequest) {
                 console.warn("[Interakt Webhook] Failed to log delivery status:", logErr);
             }
 
-            // If it's NOT a button click, just acknowledge
-            if (!webhookType.toLowerCase().includes("button") && !webhookType.toLowerCase().includes("click")) {
-                return NextResponse.json(
-                    { success: true, message: `Delivery status "${webhookType}" logged` },
-                    { status: 200 }
-                );
-            }
+            return NextResponse.json(
+                { success: true, message: `Delivery status "${webhookType}" logged` },
+                { status: 200 }
+            );
         }
 
         // 4. Only process customer interaction types beyond this point
