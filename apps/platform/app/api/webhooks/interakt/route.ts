@@ -265,27 +265,79 @@ export async function POST(request: NextRequest) {
         }
 
         // 2. Parse payload
-        const payload = (await request.json()) as InteraktWebhookPayload;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const payload = (await request.json()) as any;
 
-        if (env.WEBHOOK_LOGGING_ENABLED === "true") {
-            console.log(
-                "[Interakt Webhook] Received:",
-                JSON.stringify({
-                    type: payload.type,
-                    messageType: payload.data?.message?.type,
-                    phone: payload.data?.customer?.phone_number,
-                    callbackData: payload.data?.message?.context?.callback_data,
-                })
-            );
+        // Log ALL webhook payloads for debugging (we can disable this later)
+        console.log(
+            "[Interakt Webhook] Received:",
+            JSON.stringify(payload, null, 2)
+        );
+
+        // 3. Handle delivery status webhooks (sent, delivered, read, failed, button_click)
+        const webhookType = payload.type || payload.eventType || "";
+
+        // Check if this is a delivery status event
+        const isDeliveryStatus = [
+            "message_sent", "message_delivered", "message_read",
+            "message_failed", "button_clicked", "message_api_clicked",
+            // Interakt may also use these formats
+            "sent", "delivered", "read", "failed",
+        ].some(t => webhookType.toLowerCase().includes(t.toLowerCase()));
+
+        // If it's a delivery status, log it to whatsapp_logs
+        if (isDeliveryStatus && webhookType !== "message_api_clicked") {
+            try {
+                // Try to extract phone and order info from the payload
+                const phone = payload.data?.customer?.phone_number ||
+                    payload.data?.message?.recipient ||
+                    payload.endCustomerPhone ||
+                    "unknown";
+                const callbackData = payload.data?.message?.context?.callback_data ||
+                    payload.data?.callbackData ||
+                    payload.callbackData;
+
+                // Determine the mapped status
+                let mappedStatus = "unknown";
+                const typeLower = webhookType.toLowerCase();
+                if (typeLower.includes("fail")) mappedStatus = "failed";
+                else if (typeLower.includes("read")) mappedStatus = "read";
+                else if (typeLower.includes("deliver")) mappedStatus = "delivered";
+                else if (typeLower.includes("sent")) mappedStatus = "delivered"; // sent = accepted by WhatsApp
+                else if (typeLower.includes("button") || typeLower.includes("click")) mappedStatus = "button_clicked";
+
+                // Log to whatsapp_logs
+                await supabaseAdmin.from("whatsapp_logs").insert({
+                    order_id: callbackData || "unknown",
+                    phone: phone,
+                    template_name: "cod_order_confirm",
+                    direction: "status_update",
+                    status: mappedStatus,
+                    payload: payload as unknown as Record<string, unknown>,
+                });
+
+                console.log(`[Interakt Webhook] 📊 Delivery status: ${mappedStatus} for phone ${phone}`);
+            } catch (logErr) {
+                console.warn("[Interakt Webhook] Failed to log delivery status:", logErr);
+            }
+
+            // If it's NOT a button click, just acknowledge
+            if (!webhookType.toLowerCase().includes("button") && !webhookType.toLowerCase().includes("click")) {
+                return NextResponse.json(
+                    { success: true, message: `Delivery status "${webhookType}" logged` },
+                    { status: 200 }
+                );
+            }
         }
 
-        // 3. Only process relevant webhook types
-        const webhookType = payload.type;
+        // 4. Only process customer interaction types beyond this point
         if (
             webhookType !== "message_received" &&
-            webhookType !== "message_api_clicked"
+            webhookType !== "message_api_clicked" &&
+            !webhookType.toLowerCase().includes("button") &&
+            !webhookType.toLowerCase().includes("click")
         ) {
-            // Silently accept other webhook types (delivery receipts, etc.)
+            // Accept but don't process other webhook types
             return NextResponse.json(
                 { success: true, message: `Webhook type "${webhookType}" acknowledged` },
                 { status: 200 }
