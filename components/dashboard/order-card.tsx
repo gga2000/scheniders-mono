@@ -367,7 +367,7 @@ export const OrderCard = memo(function OrderCard({
                                 )}
                             >
                                 {getStatusIcon(status)}
-                                {getStatusLabel(status)}
+                                {getStatusLabel(status, isReturn)}
                                 {order.status === status && <CheckCircle className="w-3.5 h-3.5 ml-auto opacity-70" />}
                             </DropdownMenuItem>
                         ))}
@@ -417,7 +417,7 @@ export const OrderCard = memo(function OrderCard({
                                     getStatusBadgeStyle(order.status),
                                     isReturn && "bg-rose-100 text-rose-700"
                                 )}>
-                                    {getStatusLabel(order.status)}
+                                    {getStatusLabel(order.status, isReturn)}
                                 </span>
                             )}
                         </div>
@@ -506,7 +506,7 @@ export const OrderCard = memo(function OrderCard({
                                     getStatusBadgeStyle(order.status),
                                     isReturn && "bg-rose-100 text-rose-700"
                                 )}>
-                                    {getStatusLabel(order.status)}
+                                    {getStatusLabel(order.status, isReturn)}
                                 </span>
                             )}
                         </div>
@@ -716,7 +716,7 @@ export const OrderCard = memo(function OrderCard({
                                     getStatusBadgeStyle(order.status),
                                     isReturn && "bg-rose-100 text-rose-700"
                                 )}>
-                                    {getStatusLabel(order.status)}
+                                    {getStatusLabel(order.status, isReturn)}
                                 </span>
                             )}
                             {isUrgent && (
@@ -1134,7 +1134,7 @@ export const OrderCard = memo(function OrderCard({
                                 >
                                     {isNew && <Sparkles className="w-3 h-3" />}
                                     {isReturn && <RotateCcw className="w-3 h-3" />}
-                                    {getStatusLabel(order.status)}
+                                    {getStatusLabel(order.status, isReturn)}
                                 </motion.span>
                             )}
 

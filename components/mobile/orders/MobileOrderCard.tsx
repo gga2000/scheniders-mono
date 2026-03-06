@@ -224,7 +224,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                         getStatusBadgeStyle(order.status),
                                         isReturn && "bg-rose-100 text-rose-700"
                                     )}>
-                                        {getStatusLabel(order.status) || order.status.replace('_', ' ')}
+                                        {getStatusLabel(order.status, order.is_return || false) || order.status.replace('_', ' ')}
                                     </div>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-[180px] p-2 space-y-1 rounded-xl bg-[var(--card-bg)] border-[var(--card-border)] shadow-xl z-50">
@@ -243,7 +243,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                             )}
                                         >
                                             {getStatusIcon(status)}
-                                            {getStatusLabel(status) || status.replace('_', ' ')}
+                                            {getStatusLabel(status, order.is_return || false) || status.replace('_', ' ')}
                                             {order.status === status && <CheckCircle className="w-3.5 h-3.5 ml-auto opacity-70" />}
                                         </DropdownMenuItem>
                                     ))}

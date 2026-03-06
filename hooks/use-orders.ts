@@ -22,6 +22,7 @@ import {
 } from "@/hooks/use-orders-query";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 
 // =============================================
 // ENHANCED ORDERS HOOK (Composition Root)
@@ -99,6 +100,39 @@ export function useOrders() {
             setArchivedOrders(cachedArchivedOrders);
         }
     }, [cachedArchivedOrders]);
+
+    // =============================================
+    // AUTO-UPDATE CONTACTED -> NO_RESPONSE
+    // =============================================
+    const [hasRunAutoUpdate, setHasRunAutoUpdate] = useState(false);
+
+    useEffect(() => {
+        if (!orders || orders.length === 0 || hasRunAutoUpdate) return;
+
+        const now = Date.now();
+        const FORTY_EIGHT_HOURS = 48 * 60 * 60 * 1000;
+
+        const expiredIds = orders
+            .filter(o => {
+                if (o.status !== "contacted") return false;
+                const refDate = new Date(o.updated_at || o.created_at).getTime();
+                return (now - refDate) > FORTY_EIGHT_HOURS;
+            })
+            .map(o => o.id);
+
+        if (expiredIds.length > 0) {
+            console.log(`[useOrders] Auto-updating ${expiredIds.length} contacted orders to no_response`);
+            crudHook.bulkUpdateStatus(expiredIds, "no_response").then(res => {
+                if (res?.success || res === undefined) {
+                    toast.success(
+                        `${expiredIds.length} orders safely auto-updated to "No Response"`
+                    );
+                }
+            });
+        }
+
+        setHasRunAutoUpdate(true);
+    }, [orders, hasRunAutoUpdate, crudHook]);
 
     // =============================================
     // RETURN OBJECT (same shape for backward compat)
