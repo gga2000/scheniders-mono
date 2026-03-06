@@ -67,6 +67,11 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
     const MAX_UNDO_STACK = 10;
 
+    // Per-order mutation sequence counter: ensures only the LATEST mutation
+    // for a given order actually writes to Supabase. Earlier mutations detect
+    // they've been superseded and bail out silently.
+    const statusMutationSeqRef = useRef(new Map<string, number>());
+
     // Abort controller for fetch
     // const isMountedRef = useRef(true);
 
@@ -106,12 +111,18 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         status: Order["status"],
         rejectionReason?: string
     ) {
+        // ── LATEST-WINS GATE ──
+        // Increment the per-order sequence counter. If another call comes in for
+        // the same order before this one finishes, the sequence will advance and
+        // this call will detect it's stale and bail out.
+        const seqMap = statusMutationSeqRef.current;
+        const mySeq = (seqMap.get(orderId) ?? 0) + 1;
+        seqMap.set(orderId, mySeq);
+
         try {
-            // FIX: Don't read from the `orders` closure (which might be stale on rapid double-clicks).
-            // Always read the absolute freshest state synchronously from the React Query cache.
             const currentCache = queryClient.getQueryData<Order[]>(orderKeys.lists());
             const previousOrder = currentCache?.find(o => o.id === orderId) || orders.find(o => o.id === orderId);
-            console.log(`[SYNC] [updateOrderStatus] Cache read: cacheHit=${!!currentCache}, cacheSize=${currentCache?.length ?? 0}, foundOrder=${!!previousOrder}, prevStatus=${previousOrder?.status} → newStatus=${status}`);
+            console.log(`[SYNC] [updateOrderStatus] seq=${mySeq} Cache read: cacheHit=${!!currentCache}, cacheSize=${currentCache?.length ?? 0}, prevStatus=${previousOrder?.status} → newStatus=${status}`);
 
             // Record status change to undo stack
             if (previousOrder) {
@@ -125,6 +136,12 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     timestamp: new Date(),
                 };
                 setUndoStack(prev => [undoEntry, ...prev.slice(0, MAX_UNDO_STACK - 1)]);
+            }
+
+            // Check if we've been superseded BEFORE firing the network call
+            if (seqMap.get(orderId) !== mySeq) {
+                console.log(`[SYNC] [updateOrderStatus] seq=${mySeq} SUPERSEDED before network call (latest=${seqMap.get(orderId)}), skipping Supabase write`);
+                return { success: true }; // The optimistic UI from onMutate is already correct
             }
 
             await updateStatusMutation.mutateAsync({
@@ -185,6 +202,11 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             return { success: true };
         } catch (err) {
+            // If we've been superseded, don't show error — a newer mutation owns this order
+            if (seqMap.get(orderId) !== mySeq) {
+                console.log(`[SYNC] [updateOrderStatus] seq=${mySeq} SUPERSEDED during error handling (latest=${seqMap.get(orderId)}), suppressing error`);
+                return { success: true };
+            }
             console.error("Error updating order status:", err);
             const msg = err instanceof Error ? err.message : "Failed to update order status";
             toast.error(msg);

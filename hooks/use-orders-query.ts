@@ -32,6 +32,18 @@ let _orderBatcher: RealtimeBatcher | null = null;
 export function setOrderBatcher(b: RealtimeBatcher | null) { _orderBatcher = b; }
 function getOrderBatcher() { return _orderBatcher; }
 
+// Per-order mutation sequence: prevents stale onSuccess/onError from
+// overwriting newer optimistic state when rapid-fire mutations overlap.
+const _orderMutationSeq = new Map<string, number>();
+function nextMutationSeq(orderId: string): number {
+    const seq = (_orderMutationSeq.get(orderId) ?? 0) + 1;
+    _orderMutationSeq.set(orderId, seq);
+    return seq;
+}
+function isMutationCurrent(orderId: string, seq: number): boolean {
+    return _orderMutationSeq.get(orderId) === seq;
+}
+
 // =============================================
 // SESSION STORAGE SWR CACHE (Stale-While-Revalidate)
 // Shows cached data instantly on refresh while
@@ -231,8 +243,9 @@ export function useUpdateStatusMutation() {
         },
         onMutate: async ({ orderId, status, rejectionReason }) => {
             const s = ++seqId;
+            const mutSeq = nextMutationSeq(orderId);
             const batcher = getOrderBatcher();
-            console.log(`[SYNC #${s}] [UpdateStatus:onMutate] 🚀 Optimistic: ${orderId} → ${status} (batcher=${!!batcher})`);
+            console.log(`[SYNC #${s}] [UpdateStatus:onMutate] 🚀 Optimistic: ${orderId} → ${status} (batcher=${!!batcher}, mutSeq=${mutSeq})`);
 
             // Mark as recently mutated so realtime batcher skips stale broadcasts
             batcher?.markMutated(orderId);
@@ -262,14 +275,18 @@ export function useUpdateStatusMutation() {
                 return updated;
             });
 
-            return { previousOrders, seq: s };
+            return { previousOrders, seq: s, mutSeq };
         },
         onSuccess: ({ orderId, data }, variables, context) => {
             const s = ++seqId;
-            console.log(`[SYNC #${s}] [UpdateStatus:onSuccess] ✅ Server confirmed: ${orderId} → ${data.status} (from onMutate seq: ${context?.seq})`);
+            // LATEST-WINS: If a newer mutation has started for this order,
+            // don't overwrite the cache — the newer mutation's optimistic state is correct.
+            if (context?.mutSeq != null && !isMutationCurrent(orderId, context.mutSeq)) {
+                console.log(`[SYNC #${s}] [UpdateStatus:onSuccess] ⏭️ SKIPPED (superseded): ${orderId} → ${data.status}, mutSeq=${context.mutSeq} but latest=${_orderMutationSeq.get(orderId)}`);
+                return;
+            }
+            console.log(`[SYNC #${s}] [UpdateStatus:onSuccess] ✅ Server confirmed: ${orderId} → ${data.status} (mutSeq=${context?.mutSeq})`);
             queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) => {
-                const currentOrder = old?.find(o => o.id === orderId);
-                console.log(`[SYNC #${s}] [UpdateStatus:onSuccess] Cache state before apply: ${currentOrder?.status} → will set ${data.status}`);
                 const updated = old?.map((order) =>
                     order.id === orderId ? { ...order, ...data } : order
                 );
@@ -280,7 +297,13 @@ export function useUpdateStatusMutation() {
         },
         onError: (err, variables, context) => {
             const s = ++seqId;
-            console.error(`[SYNC #${s}] [UpdateStatus:onError] ⚠️ reverting ${variables.orderId} → ${variables.status} (from onMutate seq: ${context?.seq}):`, err);
+            // LATEST-WINS: If a newer mutation has started for this order,
+            // don't rollback — the newer mutation's optimistic state is correct.
+            if (context?.mutSeq != null && !isMutationCurrent(variables.orderId, context.mutSeq)) {
+                console.log(`[SYNC #${s}] [UpdateStatus:onError] ⏭️ SKIPPED rollback (superseded): ${variables.orderId}, mutSeq=${context.mutSeq} but latest=${_orderMutationSeq.get(variables.orderId)}`);
+                return;
+            }
+            console.error(`[SYNC #${s}] [UpdateStatus:onError] ⚠️ reverting ${variables.orderId} → ${variables.status}:`, err);
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
