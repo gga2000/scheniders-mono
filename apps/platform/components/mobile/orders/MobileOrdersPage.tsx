@@ -14,7 +14,6 @@ import { isOrderFlagged } from "@/lib/data-quality-utils";
 import { Search, Filter, Plus, Download, ChevronRight, ChevronLeft } from "lucide-react";
 import { WhatsAppTemplatePanel } from "@/components/orders/whatsapp-template-panel";
 import { StickyFilterBar } from "@/components/orders/sticky-filter-bar";
-import { AutoSendToggle } from "@/components/orders/auto-send-toggle";
 
 export function MobileOrdersPage() {
     const {
@@ -157,9 +156,6 @@ export function MobileOrdersPage() {
                     >
                         <Download className="w-[18px] h-[18px]" />
                     </button>
-
-                    {/* Auto-Send WhatsApp Toggle */}
-                    <AutoSendToggle />
 
                     {/* Sidebar Menu Button */}
                     <button
