@@ -31,8 +31,6 @@ export function MobileOrdersPage() {
         filters,
         setFilters,
         statusCounts,
-        totalRiskCount,
-        hasActiveFilters,
         getCustomerArchivedCount,
         getCustomerOrderCount,
         hasDuplicates,
@@ -152,7 +150,7 @@ export function MobileOrdersPage() {
 
                     {/* Export Button */}
                     <button
-                        onClick={() => exportOrders(filteredOrders)}
+                        onClick={() => exportOrders(filteredOrders.map(o => o.id))}
                         className="h-full px-3.5 flex items-center justify-center text-muted-foreground hover:bg-muted/50 transition-colors border-l border-[var(--card-border)] shrink-0"
                         aria-label="Export Orders CSV"
                     >
@@ -200,10 +198,10 @@ export function MobileOrdersPage() {
                     filters={filters as any}
                     setFilters={(newFilters) => setFilters(newFilters as any)}
                     statusCounts={statusCounts}
-                    totalRiskCount={totalRiskCount}
+                    totalRiskCount={statusCounts?.flagged || 0}
                     showFilters={filterModalOpen}
                     setShowFilters={setFilterModalOpen}
-                    hasActiveFilters={hasActiveFilters}
+                    hasActiveFilters={Object.values(filters).some((v) => v !== "all" && v !== "")}
                     groupBy={groupBy}
                     setGroupBy={setGroupBy}
                     filterDuplicatesOnly={filterDuplicatesOnly}

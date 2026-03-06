@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
     try {
         const payload = await request.json();
         const order = payload.order as Order;
+        const overridePhone = payload.overridePhone as string | undefined;
 
         if (!order || !order.id || !order.phone) {
             return NextResponse.json(
@@ -22,15 +23,15 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Send the template via Interakt
-        const result = await sendTemplateMessage(order);
+        // Send the template via Interakt (to overridePhone if specified, otherwise primary phone)
+        const result = await sendTemplateMessage(order, overridePhone);
 
         // Log the outbound message to supabase
         try {
             await supabaseAdmin.from("whatsapp_logs").insert({
                 order_id: order.order_id,
                 order_uuid: order.id,
-                phone: order.phone,
+                phone: overridePhone || order.phone,
                 template_name: "cod_order_confirm",
                 direction: "outbound",
                 status: result.success ? "sent" : "failed",

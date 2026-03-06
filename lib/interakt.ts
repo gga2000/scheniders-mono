@@ -11,6 +11,7 @@
 
 import { env } from "./env";
 import type { Order } from "@/types/order";
+import { formatPhoneForDisplay } from "@/lib/order-utils";
 
 // =============================================
 // TYPES
@@ -105,8 +106,9 @@ export function formatPhoneForInterakt(phone: string): {
  * Build the template body from an Order object.
  * Maps order fields to template variables {{1}} through {{7}}.
  */
-function buildTemplateBody(order: Order): InteraktTemplateBody {
-    const { countryCode, phoneNumber } = formatPhoneForInterakt(order.phone);
+function buildTemplateBody(order: Order, overridePhone?: string): InteraktTemplateBody {
+    const targetPhone = overridePhone || order.phone;
+    const { countryCode, phoneNumber } = formatPhoneForInterakt(targetPhone);
 
     // Format items list
     const itemsList = order.items
@@ -126,8 +128,11 @@ function buildTemplateBody(order: Order): InteraktTemplateBody {
     ].filter(Boolean);
     const address = addressParts.join(" - ") || "غير محدد";
 
-    // Secondary phone or dash
-    const secondaryPhone = order.secondary_phone || "—";
+    // Format phone numbers for display in local Iraqi format (07xxxxxxxxx)
+    const displayPhone = formatPhoneForDisplay(targetPhone);
+    const displaySecondaryPhone = order.secondary_phone
+        ? formatPhoneForDisplay(order.secondary_phone)
+        : "—";
 
     return {
         countryCode,
@@ -142,8 +147,8 @@ function buildTemplateBody(order: Order): InteraktTemplateBody {
                 itemsList,                     // {{2}} — Products
                 order.order_id,                // {{3}} — Order number
                 address,                       // {{4}} — Address
-                order.phone,                   // {{5}} — Phone 1
-                secondaryPhone,                // {{6}} — Phone 2 (backup)
+                displayPhone,                  // {{5}} — Phone 1 (local format)
+                displaySecondaryPhone,         // {{6}} — Phone 2 (local format)
                 totalPrice,                    // {{7}} — Total price
             ],
         },
@@ -161,7 +166,8 @@ function buildTemplateBody(order: Order): InteraktTemplateBody {
  * @returns Result with success status, message ID, or error
  */
 export async function sendTemplateMessage(
-    order: Order
+    order: Order,
+    overridePhone?: string
 ): Promise<SendTemplateResult> {
     const apiKey = env.INTERAKT_API_KEY;
 
@@ -173,7 +179,7 @@ export async function sendTemplateMessage(
         };
     }
 
-    const body = buildTemplateBody(order);
+    const body = buildTemplateBody(order, overridePhone);
 
     console.log(
         `[Interakt] Sending template "${TEMPLATE_NAME}" to +${body.countryCode}${body.phoneNumber} for order ${order.order_id}`

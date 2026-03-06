@@ -20,7 +20,9 @@ import {
     Phone,
     Eye,
     EyeOff,
-    Percent
+    Percent,
+    Send,
+    Loader2,
 } from "lucide-react";
 import { cn, formatIQD, generateWhatsAppLink, getBaseOrderId } from "@/lib/utils";
 import { processEmojis } from "@/lib/emoji-shortcodes";
@@ -34,6 +36,7 @@ interface WhatsAppTemplatePanelProps {
     order: Order;
     templates: MessageTemplate[];
     onContactSent?: (orderId: string, newCount: number) => void; // Callback when message is sent
+    onStatusUpdate?: (orderId: string, newStatus: Order["status"]) => void; // Callback when status changes
 }
 
 // Template type configuration
@@ -82,11 +85,14 @@ export function WhatsAppTemplatePanel({
     order,
     templates,
     onContactSent,
+    onStatusUpdate,
 }: WhatsAppTemplatePanelProps) {
     const [selectedType, setSelectedType] = useState<'confirmation' | 'reminder' | 'discount'>('confirmation');
     const [showPreview, setShowPreview] = useState(false);
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [discountPercent, setDiscountPercent] = useState(10);
+    const [sendingTo, setSendingTo] = useState<string | null>(null); // Track which phone is sending
+    const [sendResult, setSendResult] = useState<{ success: boolean; message: string } | null>(null);
 
     // Get the template for the selected type
     const selectedTemplate = useMemo(() => {
@@ -201,9 +207,60 @@ export function WhatsAppTemplatePanel({
         onClose();
     };
 
+    /**
+     * Send the confirmation template via Interakt API (auto-updates status to contacted)
+     */
+    const handleSendTemplate = async (phone: string) => {
+        setSendingTo(phone);
+        setSendResult(null);
+
+        try {
+            const res = await fetch("/api/webhooks/interakt/send", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    order,
+                    overridePhone: phone !== order.phone ? phone : undefined,
+                }),
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                setSendResult({ success: true, message: "✅ تم إرسال الرسالة بنجاح" });
+
+                // Increment contact count
+                const newCount = (order.contact_count || 0) + 1;
+                if (onContactSent) {
+                    onContactSent(order.id, newCount);
+                }
+
+                // Notify parent about status change
+                if (onStatusUpdate) {
+                    onStatusUpdate(order.id, "contacted");
+                }
+
+                // Auto-close after 1.5s
+                setTimeout(() => {
+                    onClose();
+                    setSendResult(null);
+                }, 1500);
+            } else {
+                setSendResult({ success: false, message: `❌ ${data.error || "فشل الإرسال"}` });
+            }
+        } catch (err) {
+            setSendResult({ success: false, message: "❌ خطأ في الاتصال" });
+        } finally {
+            setSendingTo(null);
+        }
+    };
+
     const processedContent = selectedTemplate
         ? processTemplate(selectedTemplate.content_ar || selectedTemplate.content)
         : "";
+
+    const primaryDisplay = formatPhoneForDisplay(order.phone) || order.phone;
+    const secondaryDisplay = order.secondary_phone ? formatPhoneForDisplay(order.secondary_phone) : null;
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
@@ -361,48 +418,107 @@ export function WhatsAppTemplatePanel({
                             )}
                         </AnimatePresence>
                     </div>
+
+                    {/* Send Result Message */}
+                    <AnimatePresence>
+                        {sendResult && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0 }}
+                                className={cn(
+                                    "p-3 rounded-xl text-center text-sm font-semibold",
+                                    sendResult.success
+                                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                        : "bg-red-50 text-red-700 border border-red-200"
+                                )}
+                                dir="rtl"
+                            >
+                                {sendResult.message}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
 
                 {/* Action Buttons */}
                 <DialogFooter className="border-t border-[var(--card-border)] pt-4 mt-2">
-                    <div className="flex items-center gap-2 w-full">
-                        {/* Copy Button */}
-                        <button
-                            onClick={handleCopy}
-                            className={cn(
-                                "flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all",
-                                copiedId
-                                    ? "bg-emerald-100 text-emerald-700"
-                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                            )}
-                        >
-                            {copiedId ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                            {copiedId ? "Copied!" : "Copy"}
-                        </button>
+                    <div className="flex flex-col gap-3 w-full">
+                        {/* Row 1: Send Template via Interakt API */}
+                        {selectedType === 'confirmation' && (
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => handleSendTemplate(order.phone)}
+                                    disabled={!!sendingTo}
+                                    className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold hover:from-blue-600 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg disabled:opacity-60"
+                                >
+                                    {sendingTo === order.phone ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <Send className="w-4 h-4" />
+                                    )}
+                                    <span>إرسال قالب التأكيد</span>
+                                    <span className="text-xs opacity-75">({primaryDisplay})</span>
+                                </button>
 
-                        {/* WhatsApp Buttons */}
-                        <div className="flex-1 flex gap-2">
-                            {/* Primary Phone */}
+                                {/* Send to secondary phone */}
+                                {order.secondary_phone && (
+                                    <button
+                                        onClick={() => handleSendTemplate(order.secondary_phone!)}
+                                        disabled={!!sendingTo}
+                                        className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-indigo-500 text-white font-semibold hover:bg-indigo-600 transition-all disabled:opacity-60"
+                                        title={`إرسال قالب التأكيد إلى ${secondaryDisplay}`}
+                                    >
+                                        {sendingTo === order.secondary_phone ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            <Send className="w-4 h-4" />
+                                        )}
+                                        <span className="text-xs">2nd</span>
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Row 2: Copy + WhatsApp Web */}
+                        <div className="flex items-center gap-2">
+                            {/* Copy Button */}
                             <button
-                                onClick={() => handleSendWhatsApp(order.phone)}
-                                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold hover:from-green-600 hover:to-emerald-700 transition-all shadow-md hover:shadow-lg"
+                                onClick={handleCopy}
+                                className={cn(
+                                    "flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all",
+                                    copiedId
+                                        ? "bg-emerald-100 text-emerald-700"
+                                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                )}
                             >
-                                <MessageCircle className="w-5 h-5" />
-                                <span>Send WhatsApp</span>
-                                <ArrowRight className="w-4 h-4" />
+                                {copiedId ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                                {copiedId ? "Copied!" : "Copy"}
                             </button>
 
-                            {/* Secondary Phone (if exists) */}
-                            {order.secondary_phone && (
+                            {/* WhatsApp Web Buttons */}
+                            <div className="flex-1 flex gap-2">
+                                {/* Primary Phone */}
                                 <button
-                                    onClick={() => handleSendWhatsApp(order.secondary_phone!)}
-                                    className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-emerald-500 text-white font-semibold hover:bg-emerald-600 transition-all"
-                                    title="Send to secondary phone"
+                                    onClick={() => handleSendWhatsApp(order.phone)}
+                                    className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold hover:from-green-600 hover:to-emerald-700 transition-all shadow-md hover:shadow-lg"
                                 >
-                                    <Phone className="w-4 h-4" />
-                                    <span className="text-xs">2nd</span>
+                                    <MessageCircle className="w-5 h-5" />
+                                    <span>Send WhatsApp</span>
+                                    <ArrowRight className="w-4 h-4" />
                                 </button>
-                            )}
+
+                                {/* Secondary Phone (if exists) */}
+                                {order.secondary_phone && (
+                                    <button
+                                        onClick={() => handleSendWhatsApp(order.secondary_phone!)}
+                                        className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-emerald-500 text-white font-semibold hover:bg-emerald-600 transition-all"
+                                        title="Send to secondary phone"
+                                    >
+                                        <Phone className="w-4 h-4" />
+                                        <span className="text-xs">2nd</span>
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </DialogFooter>
@@ -410,3 +526,4 @@ export function WhatsAppTemplatePanel({
         </Dialog>
     );
 }
+
