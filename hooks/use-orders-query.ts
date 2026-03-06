@@ -221,15 +221,21 @@ export function useUpdateStatusMutation() {
             status: Order["status"];
             rejectionReason?: string;
         }) => {
+            const s = ++seqId;
             const t0 = performance.now();
+            console.log(`[SYNC #${s}] [UpdateStatus:mutationFn] ⏳ Sending to Supabase: ${orderId} → ${status}`);
             const data = await orderRepository.updateStatus(orderId, status, rejectionReason);
+            const elapsed = Math.round(performance.now() - t0);
+            console.log(`[SYNC #${s}] [UpdateStatus:mutationFn] ✅ Supabase confirmed in ${elapsed}ms: ${orderId} → ${data.status}`);
             return { orderId, status, data };
         },
         onMutate: async ({ orderId, status, rejectionReason }) => {
             const s = ++seqId;
+            const batcher = getOrderBatcher();
+            console.log(`[SYNC #${s}] [UpdateStatus:onMutate] 🚀 Optimistic: ${orderId} → ${status} (batcher=${!!batcher})`);
 
             // Mark as recently mutated so realtime batcher skips stale broadcasts
-            getOrderBatcher()?.markMutated(orderId);
+            batcher?.markMutated(orderId);
             await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
 
             const previousOrders = queryClient.getQueryData<Order[]>(orderKeys.lists());
@@ -260,7 +266,10 @@ export function useUpdateStatusMutation() {
         },
         onSuccess: ({ orderId, data }, variables, context) => {
             const s = ++seqId;
+            console.log(`[SYNC #${s}] [UpdateStatus:onSuccess] ✅ Server confirmed: ${orderId} → ${data.status} (from onMutate seq: ${context?.seq})`);
             queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) => {
+                const currentOrder = old?.find(o => o.id === orderId);
+                console.log(`[SYNC #${s}] [UpdateStatus:onSuccess] Cache state before apply: ${currentOrder?.status} → will set ${data.status}`);
                 const updated = old?.map((order) =>
                     order.id === orderId ? { ...order, ...data } : order
                 );
