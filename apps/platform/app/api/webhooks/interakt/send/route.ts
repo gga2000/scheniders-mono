@@ -51,8 +51,38 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Auto-update order status to "contacted" on successful send
+        try {
+            const previousStatus = order.status || "new";
+
+            // Only update if not already contacted or beyond
+            if (previousStatus !== "contacted" && previousStatus !== "confirmed" && previousStatus !== "cancelled") {
+                await supabaseAdmin
+                    .from("orders")
+                    .update({
+                        status: "contacted",
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq("id", order.id);
+
+                // Log status change in order_status_history
+                await supabaseAdmin.from("order_status_history").insert({
+                    order_id: order.id,
+                    from_status: previousStatus,
+                    to_status: "contacted",
+                    changed_by: "whatsapp_bot",
+                    notes: "تم إرسال رسالة التأكيد عبر واتساب — Auto-updated on WhatsApp template send",
+                });
+
+                console.log(`[Interakt Send API] ✅ Order ${order.order_id} status updated: ${previousStatus} → contacted`);
+            }
+        } catch (statusErr) {
+            console.error("[Interakt Send API] Failed to update order status:", statusErr);
+            // Don't fail the request — message was sent successfully
+        }
+
         return NextResponse.json(
-            { success: true, messageId: result.messageId },
+            { success: true, messageId: result.messageId, statusUpdated: true },
             { status: 200 }
         );
     } catch (error) {
