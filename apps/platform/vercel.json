@@ -7,7 +7,7 @@
         },
         {
             "path": "/api/cron/auto-send-whatsapp",
-            "schedule": "*/5 * * * *"
+            "schedule": "0 9 * * *"
         }
     ]
 }
