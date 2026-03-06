@@ -279,19 +279,18 @@ export function WhatsAppTemplatePanel({
                 }, 1500);
             } else {
                 setSendResult({ success: false, message: data.error || "فشل الإرسال" });
-                toast({
-                    title: "خطأ في الإرسال",
-                    description: data.error || "فشل إرسال رسالة واتساب",
-                    variant: "error",
-                });
+                toast.error(
+                    "خطأ في الإرسال",
+                    data.error || "فشل إرسال رسالة واتساب"
+                );
             }
-        } catch {
+        } catch (err) {
+            console.error("Fetch error sending template:", err);
             setSendResult({ success: false, message: "خطأ في الاتصال" });
-            toast({
-                title: "خطأ في الاتصال",
-                description: "تعذر الاتصال بالخادم",
-                variant: "error",
-            });
+            toast.error(
+                "خطأ في الاتصال",
+                "تعذر الاتصال بالخادم"
+            );
         } finally {
             setSendingTo(null);
         }

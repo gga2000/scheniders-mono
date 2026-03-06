@@ -196,13 +196,12 @@ function buildReminderBody(order: Order, overridePhone?: string): InteraktTempla
         type: "Template",
         template: {
             name: TEMPLATE_NAMES.reminder,
-            languageCode: TEMPLATE_LANGUAGE,
+            languageCode: "ar",
             bodyValues: [
-                order.customer_name,          // {{1}} — Customer name
-                order.order_id,               // {{2}} — Order number
-                h.itemsList,                  // {{3}} — Products
-                h.address,                    // {{4}} — Address
-                h.totalPrice,                 // {{5}} — Total price
+                order.customer_name || "عميلنا العزيز", // {{1}} — Customer name
+                h.itemsList,                  // {{2}} — Products
+                h.address,                    // {{3}} — Address
+                h.totalPrice,                 // {{4}} — Total price
             ],
         },
     };
