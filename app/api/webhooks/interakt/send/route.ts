@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sendTemplateMessage, TEMPLATE_NAMES, type TemplateType } from "@/lib/interakt";
 import { createClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
+import { scheduleFollowUp, REMINDER_DELAY_HOURS, DISCOUNT_DELAY_HOURS } from "@/lib/qstash";
 import type { Order } from "@/types/order";
 
 // Service role client to bypass RLS for logging
@@ -90,6 +91,35 @@ export async function POST(request: NextRequest) {
             }
 
             console.log(`[Interakt Send API] Order ${order.order_id}: contact_count → ${newContactCount}${shouldUpdateStatus ? `, status: ${previousStatus} → contacted` : ''}`);
+
+            // Schedule follow-up via QStash (only if auto-send is enabled)
+            try {
+                const { data: settings } = await supabaseAdmin
+                    .from("app_settings")
+                    .select("value")
+                    .eq("key", "whatsapp_auto_send")
+                    .single();
+
+                const autoSendEnabled = settings?.value?.enabled === true;
+
+                if (autoSendEnabled) {
+                    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL
+                        || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
+
+                    if (baseUrl) {
+                        if (templateType === 'confirmation') {
+                            // Schedule reminder in 6 hours
+                            await scheduleFollowUp(order.id, 'reminder', REMINDER_DELAY_HOURS * 3600, baseUrl);
+                        } else if (templateType === 'reminder') {
+                            // Schedule discount in 4 more hours (10h total from first contact)
+                            const discountDelay = (DISCOUNT_DELAY_HOURS - REMINDER_DELAY_HOURS) * 3600;
+                            await scheduleFollowUp(order.id, 'discount', discountDelay, baseUrl);
+                        }
+                    }
+                }
+            } catch (scheduleErr) {
+                console.error("[Interakt Send API] Failed to schedule follow-up:", scheduleErr);
+            }
         } catch (statusErr) {
             console.error("[Interakt Send API] Failed to update order status:", statusErr);
         }

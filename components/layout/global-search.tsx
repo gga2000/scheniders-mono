@@ -25,6 +25,7 @@ import { ThemeToggle } from "./theme-toggle";
 import { LanguageToggle } from "./language-toggle";
 import { GlobalPresenceIndicator } from "./global-presence-indicator";
 import { NotificationsDropdown } from "./notifications-dropdown";
+import { AutoSendToggle } from "@/components/orders/auto-send-toggle";
 
 type SearchCategory = "all" | "orders" | "customers" | "products";
 
@@ -397,6 +398,9 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
                 <div className="flex items-center justify-end gap-2 md:flex-1 md:min-w-[200px]">
                     {/* Desktop Actions - Hidden on mobile */}
                     <div className="hidden md:flex items-center gap-2">
+                        {/* Auto-Send WhatsApp Toggle */}
+                        <AutoSendToggle variant="navbar" />
+
                         {/* Theme Toggle */}
                         <ThemeToggle />
 

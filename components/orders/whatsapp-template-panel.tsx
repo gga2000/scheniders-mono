@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { toast } from "@/hooks/use-toast";
 import {
     Dialog,
     DialogContent,
@@ -259,6 +260,11 @@ export function WhatsAppTemplatePanel({
                 const typeLabels = { confirmation: "التأكيد", reminder: "التذكير", discount: "العرض الخاص" };
                 setSendResult({ success: true, message: `تم إرسال قالب ${typeLabels[selectedType]} بنجاح` });
 
+                toast({
+                    title: "نجاح",
+                    description: `تم إرسال قالب ${typeLabels[selectedType]} بنجاح`,
+                });
+
                 const newCount = (order.contact_count || 0) + 1;
                 if (onContactSent) {
                     onContactSent(order.id, newCount);
@@ -273,9 +279,19 @@ export function WhatsAppTemplatePanel({
                 }, 1500);
             } else {
                 setSendResult({ success: false, message: data.error || "فشل الإرسال" });
+                toast({
+                    title: "خطأ في الإرسال",
+                    description: data.error || "فشل إرسال رسالة واتساب",
+                    variant: "error",
+                });
             }
         } catch {
             setSendResult({ success: false, message: "خطأ في الاتصال" });
+            toast({
+                title: "خطأ في الاتصال",
+                description: "تعذر الاتصال بالخادم",
+                variant: "error",
+            });
         } finally {
             setSendingTo(null);
         }
