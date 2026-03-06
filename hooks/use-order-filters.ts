@@ -155,10 +155,15 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
                 // Search query
                 if (activeFilters.searchQuery) {
                     const query = activeFilters.searchQuery.toLowerCase();
-                    const matchesName = order.customer_name.toLowerCase().includes(query);
-                    const matchesPhone = normalizePhoneForSearch(order.phone).includes(normalizePhoneForSearch(activeFilters.searchQuery));
-                    const matchesOrderId = order.order_id?.toLowerCase().includes(query);
-                    const matchesDeliveryId = order.delivery_order_id?.toLowerCase().includes(query);
+                    const matchesName = order.customer_name?.toLowerCase().includes(query) ?? false;
+                    const matchesPhone = order.phone ? normalizePhoneForSearch(order.phone).includes(normalizePhoneForSearch(activeFilters.searchQuery)) : false;
+                    const matchesSecondaryPhone = order.secondary_phone ? normalizePhoneForSearch(order.secondary_phone).includes(normalizePhoneForSearch(activeFilters.searchQuery)) : false;
+                    const matchesOrderId = order.order_id?.toLowerCase().includes(query) ?? false;
+                    const matchesDeliveryId = order.delivery_order_id?.toLowerCase().includes(query) ?? false;
+                    const matchesCity = order.city?.toLowerCase().includes(query) ?? false;
+                    const matchesAddress = order.address_details?.toLowerCase().includes(query) ?? false;
+                    const matchesNotes = order.notes?.toLowerCase().includes(query) ?? false;
+                    const matchesSequence = order.sequence_number ? String(order.sequence_number).includes(query) : false;
 
                     let matchesOriginalOrderId = false;
                     if (order.original_order_id) {
@@ -172,7 +177,7 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
                         }
                     }
 
-                    if (!matchesName && !matchesPhone && !matchesOrderId && !matchesDeliveryId && !matchesOriginalOrderId) return false;
+                    if (!matchesName && !matchesPhone && !matchesSecondaryPhone && !matchesOrderId && !matchesDeliveryId && !matchesCity && !matchesAddress && !matchesNotes && !matchesSequence && !matchesOriginalOrderId) return false;
                 }
 
                 return true;
@@ -196,6 +201,10 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
             if (!a.is_pinned && b.is_pinned) return 1;
             return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         });
+
+        if (deferredFilters.searchQuery) {
+            console.log(`[Search Filter] query="${deferredFilters.searchQuery}" → ${result.length}/${ordersToFilter.length} orders`);
+        }
 
         return result;
     }, [deferredOrders, deferredArchivedOrders, deferredFilters, applyFilters]);
@@ -289,9 +298,9 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
     });
 
     const stableAPI = useMemo(() => {
-        const proxy: any = {};
+        const proxy: Record<string, unknown> = {};
         for (const key in latestFn) {
-            proxy[key as keyof typeof latestFn] = (...args: any[]) => {
+            proxy[key as keyof typeof latestFn] = (...args: unknown[]) => {
                 // @ts-expect-error dynamic wrapper
                 return apiRef.current[key as keyof typeof latestFn](...args);
             };

@@ -166,7 +166,7 @@ export const OrderCard = memo(function OrderCard({
     const menuRef = useRef<HTMLDivElement>(null);
 
     // Search query for highlighting
-    const localSearchQuery = useOrderStore((state: any) => state.localSearchQuery);
+    const localSearchQuery = useOrderStore((state: { localSearchQuery: string }) => state.localSearchQuery);
 
     // Helper to conditionally disable layout animations
     const getLayoutId = (id: string) => isVirtualized ? undefined : id;
@@ -303,6 +303,7 @@ export const OrderCard = memo(function OrderCard({
 
     const ORDER_STATUSES = [
         "new",
+        "pending_checkout",
         "contacted",
         "confirmed",
         "in_transit",
@@ -424,7 +425,10 @@ export const OrderCard = memo(function OrderCard({
 
                         {/* Row 2: Order ID + Priority */}
                         <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-mono text-muted">
+                            <span className="text-[10px] font-mono text-muted flex items-center gap-1">
+                                {order.order_id?.startsWith('CHK-') && (
+                                    <span className="bg-yellow-100 text-yellow-800 text-[8px] px-1 py-0.5 rounded font-bold uppercase ring-1 ring-yellow-200">CHK</span>
+                                )}
                                 #<HighlightedText text={(() => {
                                     return getDisplayOrderId(order.order_id);
                                 })()} query={localSearchQuery} />
@@ -513,7 +517,10 @@ export const OrderCard = memo(function OrderCard({
 
                         {/* Row 2: Order ID + Date */}
                         <div className="flex items-center gap-2 text-[11px]">
-                            <span className="font-mono text-muted">
+                            <span className="font-mono text-muted flex items-center gap-1">
+                                {order.order_id?.startsWith('CHK-') && (
+                                    <span className="bg-yellow-100 text-yellow-800 text-[8.5px] px-1 py-0.5 rounded font-bold uppercase ring-1 ring-yellow-200">CHK</span>
+                                )}
                                 #<HighlightedText text={(() => {
                                     return getDisplayOrderId(order.order_id);
                                 })()} query={localSearchQuery} />
@@ -696,11 +703,14 @@ export const OrderCard = memo(function OrderCard({
                             )}>
                                 <HighlightedText text={order.customer_name} query={localSearchQuery} />
                             </span>
-                            <span className="text-xs font-mono text-muted flex-shrink-0">
+                            <span className="text-xs font-mono text-muted flex-shrink-0 flex items-center gap-1">
+                                {order.order_id?.startsWith('CHK-') && (
+                                    <span className="bg-yellow-100 text-yellow-800 text-[8.5px] px-1 py-0.5 rounded font-bold uppercase ring-1 ring-yellow-200">CHK</span>
+                                )}
                                 #<HighlightedText text={(() => {
                                     const lfMatch = order.order_id.match(/LF-(\d+)-\d+$/);
                                     if (lfMatch) return lfMatch[1];
-                                    return order.order_id;
+                                    return getDisplayOrderId(order.order_id);
                                 })()} query={localSearchQuery} />
                             </span>
                         </div>
@@ -1045,8 +1055,11 @@ export const OrderCard = memo(function OrderCard({
                                             }}
                                             title="انقر للنسخ"
                                         >
-                                            #<HighlightedText text={baseId} query={localSearchQuery} />
+                                            #<HighlightedText text={getDisplayOrderId(baseId)} query={localSearchQuery} />
                                         </span>
+                                        {order.order_id?.startsWith('CHK-') && (
+                                            <span className="bg-yellow-100 text-yellow-800 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ring-1 ring-yellow-200">CHK</span>
+                                        )}
                                         {order.sequence_number && (
                                             <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] font-semibold">
                                                 #{order.sequence_number}

@@ -52,11 +52,18 @@ export interface SendTemplateResult {
 // =============================================
 
 const INTERAKT_API_URL = "https://api.interakt.ai/v1/public/message/";
-const TEMPLATE_NAME = "cod_order_confirm";
 const TEMPLATE_LANGUAGE = "en";
 const IRAQ_COUNTRY_CODE = "964";
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 1000;
+
+export type TemplateType = 'confirmation' | 'reminder' | 'discount';
+
+export const TEMPLATE_NAMES: Record<TemplateType, string> = {
+    confirmation: "cod_order_confirm",
+    reminder: "order_reminder",
+    discount: "order_discount_offer",
+};
 
 // =============================================
 // PHONE FORMATTING
@@ -102,15 +109,14 @@ export function formatPhoneForInterakt(phone: string): {
 // TEMPLATE MESSAGE BUILDER
 // =============================================
 
-/**
- * Build the template body from an Order object.
- * Maps order fields to template variables {{1}} through {{7}}.
- */
-function buildTemplateBody(order: Order, overridePhone?: string): InteraktTemplateBody {
+// =============================================
+// SHARED HELPERS
+// =============================================
+
+function getOrderHelpers(order: Order, overridePhone?: string) {
     const targetPhone = overridePhone || order.phone;
     const { countryCode, phoneNumber } = formatPhoneForInterakt(targetPhone);
 
-    // Format items list
     const itemsList = order.items
         .map((item) => {
             if (item.quantity > 1) return `${item.name} × ${item.quantity}`;
@@ -118,41 +124,148 @@ function buildTemplateBody(order: Order, overridePhone?: string): InteraktTempla
         })
         .join("، ");
 
-    // Format total price
     const totalPrice = `IQD ${order.price.toLocaleString("en-US")}`;
 
-    // Format address
     const addressParts = [
         order.city || order.governorate_code,
         order.address_details,
     ].filter(Boolean);
     const address = addressParts.join(" - ") || "غير محدد";
 
-    // Format phone numbers for display in local Iraqi format (07xxxxxxxxx)
     const displayPhone = formatPhoneForDisplay(targetPhone);
     const displaySecondaryPhone = order.secondary_phone
         ? formatPhoneForDisplay(order.secondary_phone)
         : "—";
 
+    return { countryCode, phoneNumber, itemsList, totalPrice, address, displayPhone, displaySecondaryPhone };
+}
+
+// =============================================
+// TEMPLATE BODY BUILDERS
+// =============================================
+
+/**
+ * Build CONFIRMATION template body.
+ * Maps order fields to template variables {{1}} through {{7}}.
+ */
+function buildConfirmationBody(order: Order, overridePhone?: string): InteraktTemplateBody {
+    const h = getOrderHelpers(order, overridePhone);
+
     return {
-        countryCode,
-        phoneNumber,
-        callbackData: order.id, // UUID — used to match webhook responses back to this order
+        countryCode: h.countryCode,
+        phoneNumber: h.phoneNumber,
+        callbackData: order.id,
         type: "Template",
         template: {
-            name: TEMPLATE_NAME,
+            name: TEMPLATE_NAMES.confirmation,
             languageCode: TEMPLATE_LANGUAGE,
             bodyValues: [
                 order.customer_name,          // {{1}} — Customer name
-                itemsList,                     // {{2}} — Products
-                order.order_id,                // {{3}} — Order number
-                address,                       // {{4}} — Address
-                displayPhone,                  // {{5}} — Phone 1 (local format)
-                displaySecondaryPhone,         // {{6}} — Phone 2 (local format)
-                totalPrice,                    // {{7}} — Total price
+                h.itemsList,                  // {{2}} — Products
+                order.order_id,               // {{3}} — Order number
+                h.address,                    // {{4}} — Address
+                h.displayPhone,               // {{5}} — Phone 1
+                h.displaySecondaryPhone,      // {{6}} — Phone 2
+                h.totalPrice,                 // {{7}} — Total price
             ],
         },
     };
+}
+
+/**
+ * Build REMINDER template body.
+ * Maps order fields to template variables {{1}} through {{4}}.
+ *
+ * Template body:
+ *   مرحباً {{1}} 👋
+ *   نود تذكيرك بأن طلبك لا يزال محجوزا بإسمك‼️
+ *   🛍️ المنتجات: {{2}}
+ *   📍 العنوان: {{3}}
+ *   💰 المبلغ: {{4}}
+ *   نرجو تأكيد الطلب بالضغط على الزر أدناه حتى نتمكن من شحنه في أقرب وقت ⏳
+ *
+ * Buttons: [تأكيد] [إلغاء]
+ */
+function buildReminderBody(order: Order, overridePhone?: string): InteraktTemplateBody {
+    const h = getOrderHelpers(order, overridePhone);
+
+    return {
+        countryCode: h.countryCode,
+        phoneNumber: h.phoneNumber,
+        callbackData: order.id,
+        type: "Template",
+        template: {
+            name: TEMPLATE_NAMES.reminder,
+            languageCode: TEMPLATE_LANGUAGE,
+            bodyValues: [
+                order.customer_name,          // {{1}} — Customer name
+                h.itemsList,                  // {{2}} — Products
+                h.address,                    // {{3}} — Address
+                h.totalPrice,                 // {{4}} — Total price
+            ],
+        },
+    };
+}
+
+/**
+ * Build DISCOUNT template body.
+ * Maps order fields to template variables {{1}} through {{5}}.
+ *
+ * Template body:
+ *   مرحباً {{1}} 🌟
+ *   حبينا نحليلك الصفقة اكثر! 🎁
+ *   🔥 حصلت خصم اضافي {{2}} على طلبك هدية من عدنا
+ *   🛍️ المنتجات: {{3}}
+ *   💰 السعر الأصلي: {{4}}
+ *   🏷️ السعر بعد الخصم: {{5}}
+ *
+ * Buttons: [تأكيد بالخصم] [لا شكراً]
+ */
+function buildDiscountBody(order: Order, discountPercent: number, overridePhone?: string, customPrice?: number): InteraktTemplateBody {
+    const h = getOrderHelpers(order, overridePhone);
+
+    const discountedPrice = customPrice != null
+        ? `IQD ${customPrice.toLocaleString("en-US")}`
+        : `IQD ${Math.round(order.price * (1 - discountPercent / 100)).toLocaleString("en-US")}`;
+
+    return {
+        countryCode: h.countryCode,
+        phoneNumber: h.phoneNumber,
+        callbackData: order.id,
+        type: "Template",
+        template: {
+            name: TEMPLATE_NAMES.discount,
+            languageCode: TEMPLATE_LANGUAGE,
+            bodyValues: [
+                order.customer_name,          // {{1}} — Customer name
+                `${discountPercent}%`,         // {{2}} — Discount (e.g. "10%")
+                h.itemsList,                  // {{3}} — Products
+                h.totalPrice,                 // {{4}} — Original price
+                discountedPrice,              // {{5}} — Discounted price
+            ],
+        },
+    };
+}
+
+/**
+ * Build the correct template body based on type.
+ */
+function buildTemplateBody(
+    order: Order,
+    templateType: TemplateType = 'confirmation',
+    overridePhone?: string,
+    discountPercent?: number,
+    customPrice?: number,
+): InteraktTemplateBody {
+    switch (templateType) {
+        case 'reminder':
+            return buildReminderBody(order, overridePhone);
+        case 'discount':
+            return buildDiscountBody(order, discountPercent || 10, overridePhone, customPrice);
+        case 'confirmation':
+        default:
+            return buildConfirmationBody(order, overridePhone);
+    }
 }
 
 // =============================================
@@ -160,14 +273,21 @@ function buildTemplateBody(order: Order, overridePhone?: string): InteraktTempla
 // =============================================
 
 /**
- * Send a COD confirmation template message via Interakt.
+ * Send a template message via Interakt.
  *
- * @param order - The order to send the confirmation for
+ * @param order - The order to send the template for
+ * @param templateType - Which template to send (confirmation, reminder, discount)
+ * @param overridePhone - Optional phone override (e.g. secondary phone)
+ * @param discountPercent - Discount % for discount template
+ * @param customPrice - Custom discounted price (overrides percentage calculation)
  * @returns Result with success status, message ID, or error
  */
 export async function sendTemplateMessage(
     order: Order,
-    overridePhone?: string
+    templateType: TemplateType = 'confirmation',
+    overridePhone?: string,
+    discountPercent?: number,
+    customPrice?: number,
 ): Promise<SendTemplateResult> {
     const apiKey = env.INTERAKT_API_KEY;
 
@@ -179,10 +299,11 @@ export async function sendTemplateMessage(
         };
     }
 
-    const body = buildTemplateBody(order, overridePhone);
+    const templateName = TEMPLATE_NAMES[templateType];
+    const body = buildTemplateBody(order, templateType, overridePhone, discountPercent, customPrice);
 
     console.log(
-        `[Interakt] Sending template "${TEMPLATE_NAME}" to +${body.countryCode}${body.phoneNumber} for order ${order.order_id}`
+        `[Interakt] Sending template "${templateName}" to +${body.countryCode}${body.phoneNumber} for order ${order.order_id}`
     );
 
     let lastError: string | undefined;

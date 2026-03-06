@@ -112,9 +112,11 @@ export interface LightFunnelsWebhook {
 /**
  * Parse and validate LightFunnels webhook payload (handles both order and checkout formats)
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | null {
     try {
         // Check if payload has the node wrapper (order automation format)
+        // eslint-disable-next-line prefer-const
         let node = payload.node || payload;
 
         // Handle case where node is just a string ID (e.g., checkout webhook sends { node: "ch_xxxxx" })
@@ -291,6 +293,7 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
         let items;
         if (hasVariants && !hasItems) {
             // Checkout format: variants array with { quantity, variant: { title, price, ... } }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             items = node.variants.map((v: any) => ({
                 name: v.variant?.title || v.variant?.name || 'Unknown Product',
                 quantity: v.quantity || 1,
@@ -301,6 +304,7 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
             }));
         } else {
             // Order format: flat items array
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             items = node.items.map((item: any) => ({
                 name: item.title || item.name || 'Unknown Product',
                 quantity: 1,
@@ -312,6 +316,7 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
         }
 
         // Calculate total (checkouts don't have total field)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const total = node.total || items.reduce((sum: number, item: any) => sum + item.price, 0);
 
         // Checkout detection
@@ -364,6 +369,7 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
  * Parse checkout data from API into LightFunnelsWebhook format
  * Used when we receive a minimal checkout payload and fetch full data from API
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function parseCheckoutToWebhook(checkout: any): LightFunnelsWebhook | null {
     try {
         if (!checkout || (!checkout.variants || checkout.variants.length === 0)) {
@@ -393,14 +399,22 @@ export function parseCheckoutToWebhook(checkout: any): LightFunnelsWebhook | nul
         }
 
         // Get city and address
-        const city = checkout.shipping_address?.city || '';
-        const address = [
+        const rawCity = checkout.shipping_address?.city || '';
+        const rawAddress = [
             checkout.shipping_address?.line1,
             checkout.shipping_address?.line2,
             checkout.shipping_address?.area,
         ].filter(Boolean).join(', ');
 
+        const { governorate, city: extractedCity, remainingAddress: extractedAddress } = extractAndSeparateGovernorate(rawCity);
+
+        const city = governorate ? extractedCity : rawCity;
+        const address = governorate
+            ? [extractedAddress, rawAddress].filter(Boolean).join(', ')
+            : rawAddress;
+
         // Map items - Checkouts via API return 'variants' array
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const items = (checkout.variants || []).map((v: any) => {
             const item = v.variant;
             return {
@@ -414,6 +428,7 @@ export function parseCheckoutToWebhook(checkout: any): LightFunnelsWebhook | nul
         });
 
         // Calculate total
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const total = checkout.total || items.reduce((sum: number, item: any) => sum + item.price, 0);
 
         return {
@@ -555,6 +570,7 @@ async function findProductBySku(sku: string | undefined, lightfunnelsName: strin
     // Strategy 2: Check lightfunnels_aliases array
     // This is the most reliable method if aliases are configured
     for (const product of allProducts) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const aliases = (product as any).lightfunnels_aliases as string[] | null;
         if (aliases && aliases.length > 0) {
             // Check if Lightfunnels name contains any alias
@@ -752,6 +768,7 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
             address_details: webhook.customer.address?.trim() || null,
             items,
             price: webhook.total,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             status: orderStatus as any,
             priority: "normal" as const,
             payment_status: webhook.payment_method === 'cod' ? 'cod' as const : 'pending' as const,
@@ -857,6 +874,7 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
 /**
  * Log webhook request for debugging
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function logWebhookRequest(payload: any, result: any) {
     const timestamp = new Date().toISOString();
     console.log("=== WEBHOOK REQUEST ===");

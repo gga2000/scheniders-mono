@@ -362,7 +362,10 @@ export function OrderDetailsModal({
                         {/* Top Row: Order ID, Status, Timeline + Edit Buttons */}
                         <div className="flex items-center justify-between mb-3 mr-10">
                             <div className="flex items-center gap-3">
-                                <div className="relative group/id">
+                                <div className="relative group/id flex items-center gap-2">
+                                    {order.order_id?.startsWith('CHK-') && (
+                                        <span className="bg-yellow-100 text-yellow-800 text-[11px] px-1.5 py-0.5 rounded font-bold uppercase ring-1 ring-yellow-200 mt-1">CHK</span>
+                                    )}
                                     <DialogTitle className="font-mono text-xl">#{getBaseOrderId(order.order_id)}</DialogTitle>
                                     {!isEditingId && (
                                         <button

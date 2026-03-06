@@ -14,6 +14,7 @@ import { isOrderFlagged } from "@/lib/data-quality-utils";
 import { Search, Filter, Plus, Download, ChevronRight, ChevronLeft } from "lucide-react";
 import { WhatsAppTemplatePanel } from "@/components/orders/whatsapp-template-panel";
 import { StickyFilterBar } from "@/components/orders/sticky-filter-bar";
+import { AutoSendToggle } from "@/components/orders/auto-send-toggle";
 
 export function MobileOrdersPage() {
     const {
@@ -96,7 +97,7 @@ export function MobileOrdersPage() {
             if (filters.riskLevel === "flagged") {
                 result = result.filter((o) => isOrderFlagged(o) || o.status === "rejected");
             } else {
-                result = result.filter((o) => (o as any).risk_data?.level === filters.riskLevel);
+                result = result.filter((o) => o.risk_data?.level === filters.riskLevel);
             }
         }
 
@@ -108,7 +109,7 @@ export function MobileOrdersPage() {
 
     // Reset to page 1 when filters change
     useEffect(() => {
-        setCurrentPage(1);
+        setCurrentPage(1); // eslint-disable-line react-hooks/set-state-in-effect
     }, [filteredOrders.length]);
 
     const totalPages = Math.max(1, Math.ceil(filteredOrders.length / ITEMS_PER_PAGE));
@@ -157,6 +158,9 @@ export function MobileOrdersPage() {
                         <Download className="w-[18px] h-[18px]" />
                     </button>
 
+                    {/* Auto-Send WhatsApp Toggle */}
+                    <AutoSendToggle />
+
                     {/* Sidebar Menu Button */}
                     <button
                         onClick={() => setMobileMenuOpen?.(true)}
@@ -195,8 +199,8 @@ export function MobileOrdersPage() {
 
                 {/* Sticky Filter Bar */}
                 <StickyFilterBar
-                    filters={filters as any}
-                    setFilters={(newFilters) => setFilters(newFilters as any)}
+                    filters={filters as Parameters<typeof StickyFilterBar>[0]["filters"]}
+                    setFilters={(newFilters) => setFilters(newFilters as Parameters<typeof setFilters>[0])}
                     statusCounts={statusCounts}
                     totalRiskCount={statusCounts?.flagged || 0}
                     showFilters={filterModalOpen}

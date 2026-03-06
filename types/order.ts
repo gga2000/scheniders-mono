@@ -98,6 +98,7 @@ export interface Order {
     is_reviewed?: boolean;
     is_verified_customer?: boolean;
     contact_count?: number;
+    last_contacted_at?: string;
     address_status?: AddressStatus;
     address_issues?: string[];
     validated_governorate_code?: string;
@@ -106,7 +107,7 @@ export interface Order {
         level: RiskLevel;
         score: number;
         reasons: string[];
-        stats: Record<string, any>;
+        stats: Record<string, unknown>;
         last_updated: string;
     };
 }

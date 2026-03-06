@@ -4,7 +4,6 @@ import { useState, useMemo } from "react";
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -13,7 +12,6 @@ import {
     MessageCircle,
     Copy,
     Check,
-    Sparkles,
     Bell,
     Gift,
     ArrowRight,
@@ -23,6 +21,7 @@ import {
     Percent,
     Send,
     Loader2,
+    Clock,
 } from "lucide-react";
 import { cn, formatIQD, generateWhatsAppLink, getBaseOrderId } from "@/lib/utils";
 import { processEmojis } from "@/lib/emoji-shortcodes";
@@ -35,8 +34,8 @@ interface WhatsAppTemplatePanelProps {
     onClose: () => void;
     order: Order;
     templates: MessageTemplate[];
-    onContactSent?: (orderId: string, newCount: number) => void; // Callback when message is sent
-    onStatusUpdate?: (orderId: string, newStatus: Order["status"]) => void; // Callback when status changes
+    onContactSent?: (orderId: string, newCount: number) => void;
+    onStatusUpdate?: (orderId: string, newStatus: Order["status"]) => void;
 }
 
 // Template type configuration
@@ -52,6 +51,8 @@ const templateConfig = {
         iconClass: "text-emerald-600",
         badgeClass: "bg-emerald-100 text-emerald-700",
         recommended: true,
+        sendLabel: "إرسال قالب التأكيد",
+        gradient: "from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700",
     },
     reminder: {
         icon: Bell,
@@ -64,6 +65,8 @@ const templateConfig = {
         iconClass: "text-amber-600",
         badgeClass: "bg-amber-100 text-amber-700",
         recommended: false,
+        sendLabel: "إرسال قالب التذكير",
+        gradient: "from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700",
     },
     discount: {
         icon: Gift,
@@ -76,8 +79,30 @@ const templateConfig = {
         iconClass: "text-rose-600",
         badgeClass: "bg-rose-100 text-rose-700",
         recommended: false,
+        sendLabel: "إرسال قالب العرض",
+        gradient: "from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700",
     },
 };
+
+/**
+ * Format elapsed time since contact for display
+ */
+function formatTimeSinceContact(lastContactedAt: string | undefined): string | null {
+    if (!lastContactedAt) return null;
+    const elapsed = Date.now() - new Date(lastContactedAt).getTime();
+    if (elapsed < 0) return null;
+
+    const hours = Math.floor(elapsed / 3600000);
+    const minutes = Math.floor((elapsed % 3600000) / 60000);
+
+    if (hours >= 24) {
+        const days = Math.floor(hours / 24);
+        const remainingHours = hours % 24;
+        return `${days}d ${remainingHours}h`;
+    }
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+}
 
 export function WhatsAppTemplatePanel({
     open,
@@ -91,8 +116,22 @@ export function WhatsAppTemplatePanel({
     const [showPreview, setShowPreview] = useState(false);
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [discountPercent, setDiscountPercent] = useState(10);
-    const [sendingTo, setSendingTo] = useState<string | null>(null); // Track which phone is sending
+    const [customPrice, setCustomPrice] = useState<string>("");
+    const [useCustomPrice, setUseCustomPrice] = useState(false);
+    const [sendingTo, setSendingTo] = useState<string | null>(null);
     const [sendResult, setSendResult] = useState<{ success: boolean; message: string } | null>(null);
+
+    const contactCount = order.contact_count || 0;
+    const lastContactedAt = order.last_contacted_at;
+    const timeSinceContact = formatTimeSinceContact(lastContactedAt);
+
+    // Compute effective discounted price
+    const effectiveDiscountedPrice = useMemo(() => {
+        if (useCustomPrice && customPrice) {
+            return Number(customPrice);
+        }
+        return Math.round(order.price * (1 - discountPercent / 100));
+    }, [useCustomPrice, customPrice, order.price, discountPercent]);
 
     // Get the template for the selected type
     const selectedTemplate = useMemo(() => {
@@ -103,7 +142,6 @@ export function WhatsAppTemplatePanel({
     const processTemplate = (content: string): string => {
         if (!order) return content;
 
-        // Build product name(s) - show with + sign if multiple
         const items = order.items || [];
         let productDisplay = "";
         if (items.length === 0) {
@@ -111,42 +149,34 @@ export function WhatsAppTemplatePanel({
         } else if (items.length === 1) {
             productDisplay = items[0].name;
         } else {
-            // Multiple items: "Product1 + Product2 + ..."
             productDisplay = items.map(item => item.name).join(" + ");
         }
 
-        // Calculate items count
         const itemsCount = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
 
-        // Calculate discount percentage from items compare_at_price if available
         const firstItem = items[0];
         const orderPrice = order.price || 0;
 
-        // Try to calculate discount from compare_at_price
         let calculatedDiscount = 0;
         let originalPrice = orderPrice;
 
         if (firstItem?.compare_at_price && firstItem.compare_at_price > firstItem.price) {
-            // Calculate discount from compare_at_price
             calculatedDiscount = Math.round((1 - firstItem.price / firstItem.compare_at_price) * 100);
-            // Calculate total original price based on compare_at_price
             originalPrice = items.reduce((sum, item) => {
                 const comparePrice = item.compare_at_price || item.price;
                 return sum + (comparePrice * (item.quantity || 1));
             }, 0);
         }
 
-        // Use calculated discount if available, otherwise use slider
         const activeDiscount = calculatedDiscount > 0 ? calculatedDiscount : discountPercent;
-        const discountedPrice = calculatedDiscount > 0
-            ? orderPrice  // If we have compare_at_price, order.price is already discounted
-            : Math.round(orderPrice * (1 - discountPercent / 100));  // Otherwise apply slider discount
+        const discountedPrice = useCustomPrice && customPrice
+            ? Number(customPrice)
+            : (calculatedDiscount > 0
+                ? orderPrice
+                : Math.round(orderPrice * (1 - discountPercent / 100)));
 
-        // For display: original price is compare_at_price total, or order price if no discount
         const displayOriginalPrice = calculatedDiscount > 0 ? originalPrice : orderPrice;
 
-        // Build full address: combine city (governorate) with address details
-        // If city and address_details both exist, show "city - address_details"
         const city = order.city || "";
         const addressDetails = order.address_details || "";
         let fullAddress = "";
@@ -156,11 +186,9 @@ export function WhatsAppTemplatePanel({
             fullAddress = city || addressDetails || "";
         }
 
-        // Format phone numbers for display (Iraqi format)
         const formattedPhone = formatPhoneForDisplay(order.phone) || order.phone || "";
         const formattedSecondaryPhone = formatPhoneForDisplay(order.secondary_phone) || "";
 
-        // Replace variables
         let processed = content
             .replace(/\{customer_name\}/g, order.customer_name || "")
             .replace(/\{order_id\}/g, order.order_id || "")
@@ -178,9 +206,7 @@ export function WhatsAppTemplatePanel({
             .replace(/\{city\}/g, city)
             .replace(/\{status\}/g, order.status || "");
 
-        // Convert emoji shortcodes to actual emojis
         processed = processEmojis(processed);
-
         return processed;
     };
 
@@ -198,17 +224,15 @@ export function WhatsAppTemplatePanel({
         const link = generateWhatsAppLink(phone, processed);
         window.open(link, "_blank");
 
-        // Increment contact count
         const newCount = (order.contact_count || 0) + 1;
         if (onContactSent) {
             onContactSent(order.id, newCount);
         }
-
         onClose();
     };
 
     /**
-     * Send the confirmation template via Interakt API (auto-updates status to contacted)
+     * Send template via Interakt API (works for all template types)
      */
     const handleSendTemplate = async (phone: string) => {
         setSendingTo(phone);
@@ -220,36 +244,38 @@ export function WhatsAppTemplatePanel({
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     order,
+                    templateType: selectedType,
                     overridePhone: phone !== order.phone ? phone : undefined,
+                    discountPercent: selectedType === 'discount' ? discountPercent : undefined,
+                    customPrice: selectedType === 'discount' && useCustomPrice && customPrice
+                        ? Number(customPrice)
+                        : undefined,
                 }),
             });
 
             const data = await res.json();
 
             if (data.success) {
-                setSendResult({ success: true, message: "✅ تم إرسال الرسالة بنجاح" });
+                const typeLabels = { confirmation: "التأكيد", reminder: "التذكير", discount: "العرض الخاص" };
+                setSendResult({ success: true, message: `تم إرسال قالب ${typeLabels[selectedType]} بنجاح` });
 
-                // Increment contact count
                 const newCount = (order.contact_count || 0) + 1;
                 if (onContactSent) {
                     onContactSent(order.id, newCount);
                 }
-
-                // Notify parent about status change
                 if (onStatusUpdate) {
                     onStatusUpdate(order.id, "contacted");
                 }
 
-                // Auto-close after 1.5s
                 setTimeout(() => {
                     onClose();
                     setSendResult(null);
                 }, 1500);
             } else {
-                setSendResult({ success: false, message: `❌ ${data.error || "فشل الإرسال"}` });
+                setSendResult({ success: false, message: data.error || "فشل الإرسال" });
             }
-        } catch (err) {
-            setSendResult({ success: false, message: "❌ خطأ في الاتصال" });
+        } catch {
+            setSendResult({ success: false, message: "خطأ في الاتصال" });
         } finally {
             setSendingTo(null);
         }
@@ -261,6 +287,7 @@ export function WhatsAppTemplatePanel({
 
     const primaryDisplay = formatPhoneForDisplay(order.phone) || order.phone;
     const secondaryDisplay = order.secondary_phone ? formatPhoneForDisplay(order.secondary_phone) : null;
+    const currentConfig = templateConfig[selectedType];
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
@@ -270,11 +297,26 @@ export function WhatsAppTemplatePanel({
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center shadow-lg">
                             <MessageCircle className="w-5 h-5 text-white" />
                         </div>
-                        <div>
+                        <div className="flex-1">
                             <span className="text-lg">Select WhatsApp Template</span>
                             <p className="text-sm text-muted font-normal">
                                 Sending to <strong>{order.customer_name}</strong>
                             </p>
+                        </div>
+                        {/* Contact info badges */}
+                        <div className="flex flex-col items-end gap-1">
+                            {contactCount > 0 && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[11px] font-bold">
+                                    <MessageCircle className="w-3 h-3" />
+                                    {contactCount}x contacted
+                                </span>
+                            )}
+                            {timeSinceContact && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[11px] font-semibold">
+                                    <Clock className="w-3 h-3" />
+                                    {timeSinceContact} ago
+                                </span>
+                            )}
                         </div>
                     </DialogTitle>
                 </DialogHeader>
@@ -308,7 +350,7 @@ export function WhatsAppTemplatePanel({
                                 >
                                     {config.recommended && (
                                         <span className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500 text-white shadow-sm">
-                                            ✓ NEW
+                                            NEW
                                         </span>
                                     )}
 
@@ -333,7 +375,7 @@ export function WhatsAppTemplatePanel({
                         })}
                     </div>
 
-                    {/* Discount Slider (only for discount type) */}
+                    {/* Discount Controls (only for discount type) */}
                     <AnimatePresence>
                         {selectedType === 'discount' && (
                             <motion.div
@@ -348,21 +390,64 @@ export function WhatsAppTemplatePanel({
                                             <Percent className="w-4 h-4 text-rose-600" />
                                             <span className="font-semibold text-rose-900">Discount Amount</span>
                                         </div>
-                                        <span className="text-2xl font-bold text-rose-600">{discountPercent}%</span>
+                                        {!useCustomPrice && (
+                                            <span className="text-2xl font-bold text-rose-600">{discountPercent}%</span>
+                                        )}
                                     </div>
-                                    <input
-                                        type="range"
-                                        min="5"
-                                        max="30"
-                                        step="5"
-                                        value={discountPercent}
-                                        onChange={(e) => setDiscountPercent(Number(e.target.value))}
-                                        className="w-full h-2 bg-rose-200 rounded-lg appearance-none cursor-pointer accent-rose-500"
-                                    />
-                                    <div className="flex justify-between text-xs text-rose-600 mt-1">
-                                        <span>5%</span>
-                                        <span>30%</span>
+
+                                    {!useCustomPrice && (
+                                        <>
+                                            <input
+                                                type="range"
+                                                min="5"
+                                                max="30"
+                                                step="5"
+                                                value={discountPercent}
+                                                onChange={(e) => setDiscountPercent(Number(e.target.value))}
+                                                className="w-full h-2 bg-rose-200 rounded-lg appearance-none cursor-pointer accent-rose-500"
+                                            />
+                                            <div className="flex justify-between text-xs text-rose-600 mt-1">
+                                                <span>5%</span>
+                                                <span>30%</span>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {/* Custom price toggle + input */}
+                                    <div className="mt-3 flex items-center gap-2">
+                                        <button
+                                            onClick={() => {
+                                                setUseCustomPrice(!useCustomPrice);
+                                                if (!useCustomPrice) {
+                                                    setCustomPrice(effectiveDiscountedPrice.toString());
+                                                }
+                                            }}
+                                            className={cn(
+                                                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all border",
+                                                useCustomPrice
+                                                    ? "bg-rose-600 text-white border-rose-600"
+                                                    : "bg-white text-rose-600 border-rose-300 hover:bg-rose-50"
+                                            )}
+                                        >
+                                            {useCustomPrice ? "Custom Price ON" : "Enter Custom Price"}
+                                        </button>
+
+                                        {useCustomPrice && (
+                                            <div className="flex-1 flex items-center gap-2">
+                                                <input
+                                                    type="number"
+                                                    value={customPrice}
+                                                    onChange={(e) => setCustomPrice(e.target.value)}
+                                                    placeholder="Enter price..."
+                                                    className="flex-1 px-3 py-1.5 rounded-lg border border-rose-300 text-sm font-mono font-bold text-rose-700 bg-white focus:outline-none focus:ring-2 focus:ring-rose-400"
+                                                    dir="ltr"
+                                                />
+                                                <span className="text-xs font-bold text-rose-600">IQD</span>
+                                            </div>
+                                        )}
                                     </div>
+
+                                    {/* Price summary */}
                                     <div className="mt-3 p-2 bg-white rounded-lg border border-rose-100">
                                         <div className="flex justify-between text-sm">
                                             <span className="text-muted">Original Price:</span>
@@ -370,8 +455,16 @@ export function WhatsAppTemplatePanel({
                                         </div>
                                         <div className="flex justify-between text-sm font-bold text-rose-600">
                                             <span>After Discount:</span>
-                                            <span className="font-mono">{formatIQD(Math.round(order.price * (1 - discountPercent / 100)))}</span>
+                                            <span className="font-mono">{formatIQD(effectiveDiscountedPrice)}</span>
                                         </div>
+                                        {effectiveDiscountedPrice < order.price && (
+                                            <div className="flex justify-between text-xs text-muted mt-1">
+                                                <span>Savings:</span>
+                                                <span className="font-mono text-emerald-600">
+                                                    -{formatIQD(order.price - effectiveDiscountedPrice)} ({Math.round((1 - effectiveDiscountedPrice / order.price) * 100)}%)
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </motion.div>
@@ -397,7 +490,6 @@ export function WhatsAppTemplatePanel({
                                     className="overflow-hidden"
                                 >
                                     <div className="bg-[#e5ddd5] rounded-xl p-4 border border-gray-200">
-                                        {/* WhatsApp-style message bubble */}
                                         <div className="bg-[#dcf8c6] rounded-lg p-3 max-w-[90%] ml-auto shadow-sm">
                                             <p
                                                 className="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed"
@@ -443,45 +535,47 @@ export function WhatsAppTemplatePanel({
                 {/* Action Buttons */}
                 <DialogFooter className="border-t border-[var(--card-border)] pt-4 mt-2">
                     <div className="flex flex-col gap-3 w-full">
-                        {/* Row 1: Send Template via Interakt API */}
-                        {selectedType === 'confirmation' && (
-                            <div className="flex items-center gap-2">
+                        {/* Row 1: Send Template via Interakt API (works for ALL template types) */}
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => handleSendTemplate(order.phone)}
+                                disabled={!!sendingTo}
+                                className={cn(
+                                    "flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-white font-semibold transition-all shadow-md hover:shadow-lg disabled:opacity-60 bg-gradient-to-r",
+                                    currentConfig.gradient
+                                )}
+                            >
+                                {sendingTo === order.phone ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <Send className="w-4 h-4" />
+                                )}
+                                <span>{currentConfig.sendLabel}</span>
+                                <span className="text-xs opacity-75">({primaryDisplay})</span>
+                            </button>
+
+                            {order.secondary_phone && (
                                 <button
-                                    onClick={() => handleSendTemplate(order.phone)}
+                                    onClick={() => handleSendTemplate(order.secondary_phone!)}
                                     disabled={!!sendingTo}
-                                    className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold hover:from-blue-600 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg disabled:opacity-60"
+                                    className={cn(
+                                        "flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-white font-semibold transition-all disabled:opacity-60 bg-gradient-to-r",
+                                        currentConfig.gradient
+                                    )}
+                                    title={`إرسال إلى ${secondaryDisplay}`}
                                 >
-                                    {sendingTo === order.phone ? (
+                                    {sendingTo === order.secondary_phone ? (
                                         <Loader2 className="w-4 h-4 animate-spin" />
                                     ) : (
                                         <Send className="w-4 h-4" />
                                     )}
-                                    <span>إرسال قالب التأكيد</span>
-                                    <span className="text-xs opacity-75">({primaryDisplay})</span>
+                                    <span className="text-xs">2nd</span>
                                 </button>
-
-                                {/* Send to secondary phone */}
-                                {order.secondary_phone && (
-                                    <button
-                                        onClick={() => handleSendTemplate(order.secondary_phone!)}
-                                        disabled={!!sendingTo}
-                                        className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-indigo-500 text-white font-semibold hover:bg-indigo-600 transition-all disabled:opacity-60"
-                                        title={`إرسال قالب التأكيد إلى ${secondaryDisplay}`}
-                                    >
-                                        {sendingTo === order.secondary_phone ? (
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : (
-                                            <Send className="w-4 h-4" />
-                                        )}
-                                        <span className="text-xs">2nd</span>
-                                    </button>
-                                )}
-                            </div>
-                        )}
+                            )}
+                        </div>
 
                         {/* Row 2: Copy + WhatsApp Web */}
                         <div className="flex items-center gap-2">
-                            {/* Copy Button */}
                             <button
                                 onClick={handleCopy}
                                 className={cn(
@@ -495,9 +589,7 @@ export function WhatsAppTemplatePanel({
                                 {copiedId ? "Copied!" : "Copy"}
                             </button>
 
-                            {/* WhatsApp Web Buttons */}
                             <div className="flex-1 flex gap-2">
-                                {/* Primary Phone */}
                                 <button
                                     onClick={() => handleSendWhatsApp(order.phone)}
                                     className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold hover:from-green-600 hover:to-emerald-700 transition-all shadow-md hover:shadow-lg"
@@ -507,7 +599,6 @@ export function WhatsAppTemplatePanel({
                                     <ArrowRight className="w-4 h-4" />
                                 </button>
 
-                                {/* Secondary Phone (if exists) */}
                                 {order.secondary_phone && (
                                     <button
                                         onClick={() => handleSendWhatsApp(order.secondary_phone!)}
@@ -526,4 +617,3 @@ export function WhatsAppTemplatePanel({
         </Dialog>
     );
 }
-
