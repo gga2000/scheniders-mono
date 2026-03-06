@@ -73,13 +73,16 @@ const CANCEL_PATTERNS = ["إلغاء", "الغاء", "cancel", "إلغاء ❌"]
 // =============================================
 
 /**
- * Extract the button text or message text from the webhook payload
+ * Extract the button text or message text from the webhook payload.
+ * Interakt uses varying payload structures depending on webhook type.
  */
-function extractResponseText(message: InteraktWebhookPayload["data"]): string | null {
-    const msg = message?.message;
-    if (!msg) return null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractResponseText(data: any): string | null {
+    if (!data) return null;
 
-    // Quick reply button tap
+    const msg = data.message || data.msg || {};
+
+    // Quick reply button tap (standard format)
     if (msg.button_reply?.title) {
         return msg.button_reply.title.trim();
     }
@@ -89,11 +92,41 @@ function extractResponseText(message: InteraktWebhookPayload["data"]): string | 
         return msg.interactive_reply.title.trim();
     }
 
+    // Interakt "button_text" field (used in message_api_clicked)
+    if (msg.button_text) {
+        return msg.button_text.trim();
+    }
+
+    // Interakt "button" field
+    if (msg.button?.text) {
+        return msg.button.text.trim();
+    }
+
+    // Interakt "button_title" field
+    if (msg.button_title) {
+        return msg.button_title.trim();
+    }
+
+    // Check data-level fields (some Interakt events put button info at data level)
+    if (data.button_text) {
+        return data.button_text.trim();
+    }
+
+    if (data.button_reply?.title) {
+        return data.button_reply.title.trim();
+    }
+
     // Plain text reply
     if (msg.text && typeof msg.text === "string") {
         return msg.text.trim();
     }
 
+    // Last resort: check message_status or any text-like field in message
+    if (msg.message && typeof msg.message === "string" && !msg.message.startsWith("[")) {
+        return msg.message.trim();
+    }
+
+    console.warn("[Interakt Webhook] Could not extract response text from payload:", JSON.stringify(data, null, 2));
     return null;
 }
 
@@ -327,7 +360,18 @@ export async function POST(request: NextRequest) {
             !webhookType.toLowerCase().includes("button") &&
             !webhookType.toLowerCase().includes("click")
         ) {
-            // Accept but don't process other webhook types
+            // Log unrecognized types to database for debugging
+            try {
+                await supabaseAdmin.from("whatsapp_logs").insert({
+                    order_id: "debug",
+                    phone: payload.data?.customer?.phone_number || "unknown",
+                    template_name: "cod_order_confirm",
+                    direction: "webhook_debug",
+                    status: webhookType || "unknown_type",
+                    payload: payload as unknown as Record<string, unknown>,
+                });
+            } catch (_) { /* ignore logging errors */ }
+
             return NextResponse.json(
                 { success: true, message: `Webhook type "${webhookType}" acknowledged` },
                 { status: 200 }
