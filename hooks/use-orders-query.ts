@@ -34,14 +34,28 @@ function getOrderBatcher() { return _orderBatcher; }
 
 // Per-order mutation sequence: prevents stale onSuccess/onError from
 // overwriting newer optimistic state when rapid-fire mutations overlap.
-const _orderMutationSeq = new Map<string, number>();
+const _orderMutationSeq = new Map<string, { seq: number; ts: number }>();
+const SEQ_CLEANUP_INTERVAL_MS = 30_000;
+const SEQ_MAX_AGE_MS = 30_000;
+
 function nextMutationSeq(orderId: string): number {
-    const seq = (_orderMutationSeq.get(orderId) ?? 0) + 1;
-    _orderMutationSeq.set(orderId, seq);
+    const prev = _orderMutationSeq.get(orderId);
+    const seq = (prev?.seq ?? 0) + 1;
+    _orderMutationSeq.set(orderId, { seq, ts: Date.now() });
     return seq;
 }
 function isMutationCurrent(orderId: string, seq: number): boolean {
-    return _orderMutationSeq.get(orderId) === seq;
+    return _orderMutationSeq.get(orderId)?.seq === seq;
+}
+
+// Periodic cleanup: remove entries older than 30s to prevent memory growth
+if (typeof window !== 'undefined') {
+    setInterval(() => {
+        const now = Date.now();
+        for (const [id, entry] of _orderMutationSeq) {
+            if (now - entry.ts > SEQ_MAX_AGE_MS) _orderMutationSeq.delete(id);
+        }
+    }, SEQ_CLEANUP_INTERVAL_MS);
 }
 
 // =============================================
@@ -77,16 +91,8 @@ export function setCachedOrders(orders: Order[]): void {
     }
 }
 
-// Fetch all active orders — no longer checks auth session.
-// GLOBAL DIAGNOSTIC COUNTER
-let seqId = 0;
-
-// Auth gating is handled by the `enabled` flag in useOrdersQuery.
-let fetchAttempt = 0;
+// Fetch all active orders — auth gating is handled by the `enabled` flag in useOrdersQuery.
 async function fetchOrders(): Promise<Order[]> {
-    const s = ++seqId;
-    const attempt = ++fetchAttempt;
-    const t0 = performance.now();
     const result = await orderRepository.findAll();
 
     // Persist to sessionStorage for SWR on next refresh
@@ -233,19 +239,12 @@ export function useUpdateStatusMutation() {
             status: Order["status"];
             rejectionReason?: string;
         }) => {
-            const s = ++seqId;
-            const t0 = performance.now();
-            console.log(`[SYNC #${s}] [UpdateStatus:mutationFn] ⏳ Sending to Supabase: ${orderId} → ${status}`);
             const data = await orderRepository.updateStatus(orderId, status, rejectionReason);
-            const elapsed = Math.round(performance.now() - t0);
-            console.log(`[SYNC #${s}] [UpdateStatus:mutationFn] ✅ Supabase confirmed in ${elapsed}ms: ${orderId} → ${data.status}`);
             return { orderId, status, data };
         },
         onMutate: async ({ orderId, status, rejectionReason }) => {
-            const s = ++seqId;
             const mutSeq = nextMutationSeq(orderId);
             const batcher = getOrderBatcher();
-            console.log(`[SYNC #${s}] [UpdateStatus:onMutate] 🚀 Optimistic: ${orderId} → ${status} (batcher=${!!batcher}, mutSeq=${mutSeq})`);
 
             // Mark as recently mutated so realtime batcher skips stale broadcasts
             batcher?.markMutated(orderId);
@@ -275,39 +274,37 @@ export function useUpdateStatusMutation() {
                 return updated;
             });
 
-            return { previousOrders, seq: s, mutSeq };
+            return { previousOrders, mutSeq };
         },
         onSuccess: ({ orderId, data }, variables, context) => {
-            const s = ++seqId;
             // LATEST-WINS: If a newer mutation has started for this order,
             // don't overwrite the cache — the newer mutation's optimistic state is correct.
-            if (context?.mutSeq != null && !isMutationCurrent(orderId, context.mutSeq)) {
-                console.log(`[SYNC #${s}] [UpdateStatus:onSuccess] ⏭️ SKIPPED (superseded): ${orderId} → ${data.status}, mutSeq=${context.mutSeq} but latest=${_orderMutationSeq.get(orderId)}`);
-                return;
-            }
-            console.log(`[SYNC #${s}] [UpdateStatus:onSuccess] ✅ Server confirmed: ${orderId} → ${data.status} (mutSeq=${context?.mutSeq})`);
+            if (context?.mutSeq != null && !isMutationCurrent(orderId, context.mutSeq)) return;
+
             queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) => {
                 const updated = old?.map((order) =>
                     order.id === orderId ? { ...order, ...data } : order
                 );
-                // Keep SWR session storage in sync with server-confirmed data
                 if (updated) setCachedOrders(updated);
                 return updated;
             });
         },
         onError: (err, variables, context) => {
-            const s = ++seqId;
             // LATEST-WINS: If a newer mutation has started for this order,
             // don't rollback — the newer mutation's optimistic state is correct.
-            if (context?.mutSeq != null && !isMutationCurrent(variables.orderId, context.mutSeq)) {
-                console.log(`[SYNC #${s}] [UpdateStatus:onError] ⏭️ SKIPPED rollback (superseded): ${variables.orderId}, mutSeq=${context.mutSeq} but latest=${_orderMutationSeq.get(variables.orderId)}`);
-                return;
-            }
-            console.error(`[SYNC #${s}] [UpdateStatus:onError] ⚠️ reverting ${variables.orderId} → ${variables.status}:`, err);
+            if (context?.mutSeq != null && !isMutationCurrent(variables.orderId, context.mutSeq)) return;
+
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
             toast.error(err instanceof Error ? err.message : "Failed to update order status.");
+        },
+        // Self-healing: re-sync cache from Supabase after every mutation settles.
+        // This catches any subtle optimistic/realtime desync within 2 seconds.
+        onSettled: () => {
+            setTimeout(() => {
+                queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+            }, 2000);
         },
     });
 }

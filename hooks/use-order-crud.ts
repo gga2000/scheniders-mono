@@ -72,6 +72,10 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     // they've been superseded and bail out silently.
     const statusMutationSeqRef = useRef(new Map<string, number>());
 
+    // Per-order debounce timers: coalesces rapid-fire status changes (300ms)
+    // so only the final status is sent to Supabase.
+    const statusDebounceRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+
     // Abort controller for fetch
     // const isMountedRef = useRef(true);
 
@@ -111,107 +115,111 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         status: Order["status"],
         rejectionReason?: string
     ) {
-        // ── LATEST-WINS GATE ──
-        // Increment the per-order sequence counter. If another call comes in for
-        // the same order before this one finishes, the sequence will advance and
-        // this call will detect it's stale and bail out.
-        const seqMap = statusMutationSeqRef.current;
-        const mySeq = (seqMap.get(orderId) ?? 0) + 1;
-        seqMap.set(orderId, mySeq);
+        // ── INSTANT OPTIMISTIC UPDATE ──
+        // Apply optimistic UI immediately (no debounce) so the user sees feedback.
+        const currentCache = queryClient.getQueryData<Order[]>(orderKeys.lists());
+        const previousOrder = currentCache?.find(o => o.id === orderId) || orders.find(o => o.id === orderId);
 
-        try {
-            const currentCache = queryClient.getQueryData<Order[]>(orderKeys.lists());
-            const previousOrder = currentCache?.find(o => o.id === orderId) || orders.find(o => o.id === orderId);
-            console.log(`[SYNC] [updateOrderStatus] seq=${mySeq} Cache read: cacheHit=${!!currentCache}, cacheSize=${currentCache?.length ?? 0}, prevStatus=${previousOrder?.status} → newStatus=${status}`);
-
-            // Record status change to undo stack
-            if (previousOrder) {
-                const undoEntry = {
-                    orderId,
-                    previousState: {
-                        status: previousOrder.status,
-                        rejection_reason: previousOrder.rejection_reason,
-                    },
-                    action: `Changed status to ${status}`,
-                    timestamp: new Date(),
-                };
-                setUndoStack(prev => [undoEntry, ...prev.slice(0, MAX_UNDO_STACK - 1)]);
-            }
-
-            // Check if we've been superseded BEFORE firing the network call
-            if (seqMap.get(orderId) !== mySeq) {
-                console.log(`[SYNC] [updateOrderStatus] seq=${mySeq} SUPERSEDED before network call (latest=${seqMap.get(orderId)}), skipping Supabase write`);
-                return { success: true }; // The optimistic UI from onMutate is already correct
-            }
-
-            await updateStatusMutation.mutateAsync({
+        // Record to undo stack
+        if (previousOrder) {
+            setUndoStack(prev => [{
                 orderId,
-                status,
-                rejectionReason
-            });
-
-            // Handle Advanced Inventory & Supplies based on Status Changes
-            if (previousOrder && previousOrder.status !== status) {
-                import("@/lib/inventory-engine").then(engine => {
-                    const items = previousOrder.items || [];
-                    const prevWasActive = !['completed', 'delivered', 'rejected', 'refund_delivered', 'refund_failed', 'cancelled'].includes(previousOrder.status);
-                    const nowIsActive = !['completed', 'delivered', 'rejected', 'refund_delivered', 'refund_failed', 'cancelled'].includes(status);
-
-                    if (status === 'completed' || status === 'delivered') {
-                        engine.fulfillOrder(items);
-                        engine.deductSupplies(items.length);
-                    } else if (status === 'rejected' || status === 'refund_delivered') {
-                        engine.quarantineOrder(orderId, items, rejectionReason || `Changed to ${status}`);
-                    } else if (status === 'cancelled' && prevWasActive) {
-                        engine.releaseAllocation(items);
-                    } else if (nowIsActive && !prevWasActive) {
-                        if (previousOrder.status === 'rejected' || previousOrder.status === 'refund_delivered' || previousOrder.status === 'cancelled') {
-                            engine.removeFromQuarantine(orderId);
-                        }
-                        engine.allocateOrder(items);
-                    }
-                }).catch(console.error);
-            }
-
-            // Record status change to history table
-            if (previousOrder && previousOrder.status !== status) {
-                supabase
-                    .from("order_status_history")
-                    .insert([{
-                        order_id: orderId,
-                        from_status: previousOrder.status,
-                        to_status: status,
-                        changed_at: new Date().toISOString(),
-                        notes: rejectionReason || null,
-                        changed_by: profile?.display_name || user?.email || 'System',
-                    }]).then(({ error }) => {
-                        if (error) console.error("Failed to record status history:", error);
-                    });
-            }
-
-            // Log activity
-            if (previousOrder && previousOrder.status !== status) {
-                activityLogger.logStatusChange(
-                    orderId,
-                    previousOrder.order_id,
-                    previousOrder.status,
-                    status,
-                    rejectionReason
-                );
-            }
-
-            return { success: true };
-        } catch (err) {
-            // If we've been superseded, don't show error — a newer mutation owns this order
-            if (seqMap.get(orderId) !== mySeq) {
-                console.log(`[SYNC] [updateOrderStatus] seq=${mySeq} SUPERSEDED during error handling (latest=${seqMap.get(orderId)}), suppressing error`);
-                return { success: true };
-            }
-            console.error("Error updating order status:", err);
-            const msg = err instanceof Error ? err.message : "Failed to update order status";
-            toast.error(msg);
-            return { success: false, error: msg };
+                previousState: {
+                    status: previousOrder.status,
+                    rejection_reason: previousOrder.rejection_reason,
+                },
+                action: `Changed status to ${status}`,
+                timestamp: new Date(),
+            }, ...prev.slice(0, MAX_UNDO_STACK - 1)]);
         }
+
+        // ── DEBOUNCED NETWORK CALL (300ms) ──
+        // If another status change for the same order arrives within 300ms,
+        // cancel the previous timer and only send the latest status.
+        const debounceMap = statusDebounceRef.current;
+        const existingTimer = debounceMap.get(orderId);
+        if (existingTimer) clearTimeout(existingTimer);
+
+        return new Promise<{ success: boolean; error?: string }>((resolve) => {
+            debounceMap.set(orderId, setTimeout(async () => {
+                debounceMap.delete(orderId);
+
+                // Latest-wins gate
+                const seqMap = statusMutationSeqRef.current;
+                const mySeq = (seqMap.get(orderId) ?? 0) + 1;
+                seqMap.set(orderId, mySeq);
+
+                try {
+                    await updateStatusMutation.mutateAsync({
+                        orderId,
+                        status,
+                        rejectionReason
+                    });
+
+                    // Handle Advanced Inventory & Supplies based on Status Changes
+                    if (previousOrder && previousOrder.status !== status) {
+                        import("@/lib/inventory-engine").then(engine => {
+                            const items = previousOrder.items || [];
+                            const prevWasActive = !['completed', 'delivered', 'rejected', 'refund_delivered', 'refund_failed', 'cancelled'].includes(previousOrder.status);
+                            const nowIsActive = !['completed', 'delivered', 'rejected', 'refund_delivered', 'refund_failed', 'cancelled'].includes(status);
+
+                            if (status === 'completed' || status === 'delivered') {
+                                engine.fulfillOrder(items);
+                                engine.deductSupplies(items.length);
+                            } else if (status === 'rejected' || status === 'refund_delivered') {
+                                engine.quarantineOrder(orderId, items, rejectionReason || `Changed to ${status}`);
+                            } else if (status === 'cancelled' && prevWasActive) {
+                                engine.releaseAllocation(items);
+                            } else if (nowIsActive && !prevWasActive) {
+                                if (previousOrder.status === 'rejected' || previousOrder.status === 'refund_delivered' || previousOrder.status === 'cancelled') {
+                                    engine.removeFromQuarantine(orderId);
+                                }
+                                engine.allocateOrder(items);
+                            }
+                        }).catch(console.error);
+                    }
+
+                    // Record status change to history table
+                    if (previousOrder && previousOrder.status !== status) {
+                        supabase
+                            .from("order_status_history")
+                            .insert([{
+                                order_id: orderId,
+                                from_status: previousOrder.status,
+                                to_status: status,
+                                changed_at: new Date().toISOString(),
+                                notes: rejectionReason || null,
+                                changed_by: profile?.display_name || user?.email || 'System',
+                            }]).then(({ error }) => {
+                                if (error) console.error("Failed to record status history:", error);
+                            });
+                    }
+
+                    // Log activity
+                    if (previousOrder && previousOrder.status !== status) {
+                        activityLogger.logStatusChange(
+                            orderId,
+                            previousOrder.order_id,
+                            previousOrder.status,
+                            status,
+                            rejectionReason
+                        );
+                    }
+
+                    resolve({ success: true });
+                } catch (err) {
+                    // If we've been superseded, don't show error
+                    if (seqMap.get(orderId) !== mySeq) {
+                        resolve({ success: true });
+                        return;
+                    }
+                    console.error("Error updating order status:", err);
+                    const msg = err instanceof Error ? err.message : "Failed to update order status";
+                    toast.error(msg);
+                    resolve({ success: false, error: msg });
+                }
+            }, 300));
+        });
     }
 
     async function updateOrder(orderId: string, updates: Partial<Order>): Promise<{ success: boolean; error?: string; data?: Order }> {
@@ -687,6 +695,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 throw new Error("Not authenticated. Please sign in again.");
             }
 
+            const t1 = performance.now();
             // Use server-side API route with service role to bypass RLS
             const res = await fetch("/api/orders/delete", {
                 method: "POST",
@@ -698,6 +707,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             });
 
             const result = await res.json();
+            const t2 = performance.now();
+            console.log(`[Perf] Frontend fetch to /api/orders/delete took: ${(t2 - t1).toFixed(2)}ms`);
 
             if (!result.success) {
                 throw new Error(result.error || "Failed to delete orders");
@@ -709,10 +720,17 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 throw new Error("No orders were deleted.");
             }
 
+            const t3 = performance.now();
             optimisticUpdate((prev) => prev.filter((order) => !deletedIds.has(order.id)));
+            const t4 = performance.now();
+            console.log(`[Perf] Frontend optimistic update took: ${(t4 - t3).toFixed(2)}ms`);
 
+            const t5 = performance.now();
             // Invalidate React Query cache so stale data doesn't reappear
             await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+            const t6 = performance.now();
+            console.log(`[Perf] Frontend query invalidation took: ${(t6 - t5).toFixed(2)}ms`);
+            console.log(`[Perf] Total frontend bulkDelete time: ${(performance.now() - t1).toFixed(2)}ms`);
 
             return {
                 success: deletedIds.size === uniqueOrderIds.length,

@@ -106,7 +106,7 @@ export const orderRepository = {
             try {
                 const t0 = performance.now();
                 // Wrap the Supabase call with a timeout to prevent infinite hangs
-                const timeoutMs = 10_000;
+                const timeoutMs = 30_000;
                 const supabasePromise = supabase
                     .from("orders")
                     .update(updateData)
