@@ -25,6 +25,7 @@ import { ThemeToggle } from "./theme-toggle";
 import { LanguageToggle } from "./language-toggle";
 import { GlobalPresenceIndicator } from "./global-presence-indicator";
 import { NotificationsDropdown } from "./notifications-dropdown";
+import { AutoSendToggle } from "@/components/orders/auto-send-toggle";
 
 type SearchCategory = "all" | "orders" | "customers" | "products";
 
@@ -58,7 +59,7 @@ export function GlobalSearch() {
     // Search logic
     useEffect(() => {
         if (!query.trim()) {
-            setResults([]);
+            setResults([]); // eslint-disable-line react-hooks/set-state-in-effect
             return;
         }
 
@@ -297,7 +298,7 @@ export function GlobalSearch() {
                         ) : query.trim() ? (
                             <div className="py-8 text-center">
                                 <Search className="w-8 h-8 text-muted mx-auto mb-2" />
-                                <p className="text-muted text-sm">No results for "{query}"</p>
+                                <p className="text-muted text-sm">No results for &ldquo;{query}&rdquo;</p>
                             </div>
                         ) : null}
 
@@ -397,6 +398,9 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
                 <div className="flex items-center justify-end gap-2 md:flex-1 md:min-w-[200px]">
                     {/* Desktop Actions - Hidden on mobile */}
                     <div className="hidden md:flex items-center gap-2">
+                        {/* Auto-Send WhatsApp Toggle */}
+                        <AutoSendToggle variant="navbar" />
+
                         {/* Theme Toggle */}
                         <ThemeToggle />
 

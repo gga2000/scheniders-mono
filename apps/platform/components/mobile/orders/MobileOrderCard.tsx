@@ -6,7 +6,8 @@ import { formatIQD } from "@/lib/utils";
 import { formatShortDate, formatTime, getOrderAge, getItemsDisplay, getStatusBadgeStyle, getDisplayOrderId, getGovernorateCode, getFullAddress, getDropdownItemStyle, getStatusColor } from "@/lib/order-format-utils";
 import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
 import { generateWhatsAppLink } from "@/lib/utils";
-import { MapPin, MessageCircle, Phone, Sparkles, PhoneCall, CheckCircle, Truck, Ban, XCircle, RotateCcw, Clock, AlertTriangle, Copy, ShieldAlert, Package } from "lucide-react";
+import { MapPin, MessageCircle, Phone, Sparkles, PhoneCall, CheckCircle, Truck, Ban, XCircle, RotateCcw, Clock, AlertTriangle, Copy, ShieldAlert, Package, Bell, Gift } from "lucide-react";
+import { REMINDER_DELAY_HOURS, DISCOUNT_DELAY_HOURS } from "@/lib/qstash";
 import { cn, getStatusLabel } from "@/lib/utils";
 import { RiskBadge } from "@/components/orders/risk-badge";
 import { DiscountBadge } from "@/components/orders/discount-badge";
@@ -25,8 +26,8 @@ interface MobileOrderCardProps {
     onSwipeRight?: (order: Order) => void;
     onSwipeLeft?: (order: Order) => void;
     // Optional metrics
-    riskLevel?: any;
-    riskAssessment?: any;
+    riskLevel?: string;
+    riskAssessment?: unknown;
     customerOrderCount?: number;
     hasDuplicates?: boolean;
     archivedOrderCount?: number;
@@ -58,9 +59,24 @@ export const MobileOrderCard = memo(function MobileOrderCard({
     const orderAge = getOrderAge(order.created_at);
 
     // If not explicitly passed, try to extract from order object if available
-    const resolvedRiskLevel = riskLevel || (order as any).risk_data?.level;
+    const resolvedRiskLevel = riskLevel || order.risk_data?.level;
     const totalOrders = customerOrderCount + archivedOrderCount;
     const hasManyOrders = totalOrders > 1 || hasDuplicates;
+
+    // Time-based follow-up cue logic
+    const contactCount = order.contact_count || 0;
+    const lastContactedAt = order.last_contacted_at;
+    /* eslint-disable react-hooks/purity */
+    const hoursSinceContact = lastContactedAt
+        ? (Date.now() - new Date(lastContactedAt).getTime()) / 3600000
+        : 0;
+    /* eslint-enable react-hooks/purity */
+
+    // Determine which follow-up cue to show
+    const isContacted = order.status === "contacted";
+    const needsReminder = isContacted && contactCount === 1 && hoursSinceContact >= REMINDER_DELAY_HOURS;
+    const needsDiscount = isContacted && contactCount === 2 && hoursSinceContact >= (DISCOUNT_DELAY_HOURS - REMINDER_DELAY_HOURS);
+    const needsFollowUp = needsReminder || needsDiscount;
 
     // Source badge
     const renderSourceBadge = () => {
@@ -99,7 +115,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
     };
 
     const ORDER_STATUSES = [
-        "new", "contacted", "confirmed", "in_transit", "delivered",
+        "new", "pending_checkout", "contacted", "confirmed", "in_transit", "delivered",
         "completed", "cancelled", "rejected", "no_response", "return_pending", "suspended"
     ] as const;
 
@@ -123,11 +139,15 @@ export const MobileOrderCard = memo(function MobileOrderCard({
         <div
             className="bg-[var(--card-bg)] border border-[var(--card-border)]/60 rounded-2xl p-3 pr-3 pl-4 shadow-sm transition-all relative overflow-hidden flex flex-col gap-2"
         >
-            {/* Status Side Color Accent */}
+            {/* Status Side Color Accent — pulses amber/red when follow-up needed */}
             <div
                 className={cn(
                     "absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl flex-shrink-0",
-                    getStatusColor(order.status, isReturn)
+                    needsDiscount
+                        ? "bg-red-500 animate-pulse"
+                        : needsReminder
+                            ? "bg-amber-500 animate-pulse"
+                            : getStatusColor(order.status, isReturn)
                 )}
             />
 
@@ -147,7 +167,10 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                         <span className="font-bold text-[17px] text-foreground active:opacity-70 transition-opacity truncate shrink min-w-0">
                             {order.customer_name}
                         </span>
-                        <span className="text-[11.5px] font-bold text-muted-foreground/80 font-mono tracking-wider pt-0.5 shrink-0">
+                        <span className="text-[11.5px] font-bold text-muted-foreground/80 font-mono tracking-wider pt-0.5 shrink-0 flex items-center gap-1">
+                            {order.order_id?.startsWith('CHK-') && (
+                                <span className="bg-yellow-100 text-yellow-800 text-[9px] px-1 py-0.5 rounded font-bold uppercase ring-1 ring-yellow-200">CHK</span>
+                            )}
                             #{getDisplayOrderId(order.order_id)}
                         </span>
                         <div className="shrink-0">
@@ -273,6 +296,19 @@ export const MobileOrderCard = memo(function MobileOrderCard({
 
                     {/* Touch-optimized Actions (Far Right in RTL) */}
                     <div className="flex items-center gap-1.5 shrink-0">
+                        {/* Follow-up cue badge */}
+                        {needsFollowUp && (
+                            <div className={cn(
+                                "flex items-center gap-1 px-1.5 py-1 rounded-lg text-[9px] font-bold animate-pulse border shadow-sm",
+                                needsDiscount
+                                    ? "bg-red-50 text-red-700 border-red-300"
+                                    : "bg-amber-50 text-amber-700 border-amber-300"
+                            )}>
+                                {needsDiscount ? <Gift className="w-3 h-3" /> : <Bell className="w-3 h-3" />}
+                                {needsDiscount ? "عرض" : "تذكير"}
+                            </div>
+                        )}
+
                         {phone2 && (
                             <button
                                 type="button"
@@ -295,10 +331,11 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                 }}
                                 disabled={!isValidPhone2}
                                 className={cn(
-                                    "w-8 h-8 rounded-lg flex items-center justify-center transition-all text-white",
+                                    "relative w-8 h-8 rounded-lg flex items-center justify-center transition-all text-white",
                                     isValidPhone2
                                         ? "bg-[#1E1E1E] active:scale-95"
-                                        : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                        : "bg-gray-200 text-gray-400 cursor-not-allowed",
+                                    needsFollowUp && isValidPhone2 && "ring-2 ring-amber-400 ring-offset-1"
                                 )}
                                 aria-label="WhatsApp Secondary"
                             >
@@ -327,14 +364,21 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                             }}
                             disabled={!isValidPhone}
                             className={cn(
-                                "w-8 h-8 rounded-lg flex items-center justify-center transition-all text-white",
+                                "relative w-8 h-8 rounded-lg flex items-center justify-center transition-all text-white",
                                 isValidPhone
                                     ? "bg-[#1E1E1E] active:scale-95"
-                                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                    : "bg-gray-200 text-gray-400 cursor-not-allowed",
+                                needsFollowUp && isValidPhone && "ring-2 ring-amber-400 ring-offset-1"
                             )}
                             aria-label="WhatsApp Primary"
                         >
                             <MessageCircle className="w-4 h-4" />
+                            {/* Contact count badge */}
+                            {contactCount > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-0.5 rounded-full bg-white text-[10px] font-bold text-gray-800 flex items-center justify-center shadow-sm border border-gray-200 leading-none">
+                                    {contactCount}
+                                </span>
+                            )}
                         </button>
                     </div>
 

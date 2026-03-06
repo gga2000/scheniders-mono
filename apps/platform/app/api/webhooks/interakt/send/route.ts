@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sendTemplateMessage } from "@/lib/interakt";
+import { sendTemplateMessage, TEMPLATE_NAMES, type TemplateType } from "@/lib/interakt";
 import { createClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
+import { scheduleFollowUp, REMINDER_DELAY_HOURS, DISCOUNT_DELAY_HOURS } from "@/lib/qstash";
 import type { Order } from "@/types/order";
 
 // Service role client to bypass RLS for logging
@@ -15,6 +16,9 @@ export async function POST(request: NextRequest) {
         const payload = await request.json();
         const order = payload.order as Order;
         const overridePhone = payload.overridePhone as string | undefined;
+        const templateType = (payload.templateType as TemplateType) || 'confirmation';
+        const discountPercent = payload.discountPercent as number | undefined;
+        const customPrice = payload.customPrice as number | undefined;
 
         if (!order || !order.id || !order.phone) {
             return NextResponse.json(
@@ -23,8 +27,10 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Send the template via Interakt (to overridePhone if specified, otherwise primary phone)
-        const result = await sendTemplateMessage(order, overridePhone);
+        const templateName = TEMPLATE_NAMES[templateType];
+
+        // Send the template via Interakt
+        const result = await sendTemplateMessage(order, templateType, overridePhone, discountPercent, customPrice);
 
         // Log the outbound message to supabase
         try {
@@ -32,11 +38,14 @@ export async function POST(request: NextRequest) {
                 order_id: order.order_id,
                 order_uuid: order.id,
                 phone: overridePhone || order.phone,
-                template_name: "cod_order_confirm",
+                template_name: templateName,
                 direction: "outbound",
                 status: result.success ? "sent" : "failed",
                 interakt_message_id: result.messageId || null,
                 payload: {
+                    templateType,
+                    discountPercent,
+                    customPrice,
                     error: result.error,
                     statusCode: result.statusCode,
                 },
@@ -52,34 +61,67 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Auto-update order status to "contacted" on successful send
+        // Auto-update order status + increment contact_count atomically
         try {
             const previousStatus = order.status || "new";
+            const newContactCount = (order.contact_count || 0) + 1;
 
-            // Only update if not already contacted or beyond
-            if (previousStatus !== "contacted" && previousStatus !== "confirmed" && previousStatus !== "cancelled") {
-                await supabaseAdmin
-                    .from("orders")
-                    .update({
-                        status: "contacted",
-                        updated_at: new Date().toISOString(),
-                    })
-                    .eq("id", order.id);
+            // Update status to "contacted" if not already beyond that stage
+            const shouldUpdateStatus = previousStatus !== "contacted" && previousStatus !== "confirmed" && previousStatus !== "cancelled";
 
-                // Log status change in order_status_history
+            await supabaseAdmin
+                .from("orders")
+                .update({
+                    ...(shouldUpdateStatus ? { status: "contacted" } : {}),
+                    contact_count: newContactCount,
+                    last_contacted_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                })
+                .eq("id", order.id);
+
+            // Log status change in order_status_history (only if status changed)
+            if (shouldUpdateStatus) {
                 await supabaseAdmin.from("order_status_history").insert({
                     order_id: order.id,
                     from_status: previousStatus,
                     to_status: "contacted",
                     changed_by: "whatsapp_bot",
-                    notes: "تم إرسال رسالة التأكيد عبر واتساب — Auto-updated on WhatsApp template send",
+                    notes: `تم إرسال قالب ${templateType === 'confirmation' ? 'التأكيد' : templateType === 'reminder' ? 'التذكير' : 'العرض الخاص'} عبر واتساب`,
                 });
+            }
 
-                console.log(`[Interakt Send API] ✅ Order ${order.order_id} status updated: ${previousStatus} → contacted`);
+            console.log(`[Interakt Send API] Order ${order.order_id}: contact_count → ${newContactCount}${shouldUpdateStatus ? `, status: ${previousStatus} → contacted` : ''}`);
+
+            // Schedule follow-up via QStash (only if auto-send is enabled)
+            try {
+                const { data: settings } = await supabaseAdmin
+                    .from("app_settings")
+                    .select("value")
+                    .eq("key", "whatsapp_auto_send")
+                    .single();
+
+                const autoSendEnabled = settings?.value?.enabled === true;
+
+                if (autoSendEnabled) {
+                    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL
+                        || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
+
+                    if (baseUrl) {
+                        if (templateType === 'confirmation') {
+                            // Schedule reminder in 6 hours
+                            await scheduleFollowUp(order.id, 'reminder', REMINDER_DELAY_HOURS * 3600, baseUrl);
+                        } else if (templateType === 'reminder') {
+                            // Schedule discount in 4 more hours (10h total from first contact)
+                            const discountDelay = (DISCOUNT_DELAY_HOURS - REMINDER_DELAY_HOURS) * 3600;
+                            await scheduleFollowUp(order.id, 'discount', discountDelay, baseUrl);
+                        }
+                    }
+                }
+            } catch (scheduleErr) {
+                console.error("[Interakt Send API] Failed to schedule follow-up:", scheduleErr);
             }
         } catch (statusErr) {
             console.error("[Interakt Send API] Failed to update order status:", statusErr);
-            // Don't fail the request — message was sent successfully
         }
 
         return NextResponse.json(

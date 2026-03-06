@@ -51,7 +51,7 @@ export const getAgeUrgency = (status: Order["status"], dateStr: string | Date | 
     return "stale";                         // Red - very old
 };
 
-export const getItemsDisplay = (items: any[]) => {
+export const getItemsDisplay = (items: Array<{ name: string; quantity: number; image_url?: string; tag_color?: string | null }>) => {
     if (!items || items.length === 0) return [];
     return items.map(item => ({
         name: item.name,
@@ -200,6 +200,15 @@ export const getDropdownItemStyle = (status: Order["status"]) => {
 
 export const getDisplayOrderId = (orderId: string) => {
     if (!orderId) return "";
+
+    // Check for LF mapping format
     const lfMatch = orderId.match(/LF-(\d+)-\d+$/);
-    return lfMatch ? lfMatch[1] : orderId;
+    if (lfMatch) return lfMatch[1];
+
+    // Strip CHK- prefix for abandoned checkouts
+    if (orderId.startsWith('CHK-')) {
+        return orderId.substring(4);
+    }
+
+    return orderId;
 };

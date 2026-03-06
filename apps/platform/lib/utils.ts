@@ -223,6 +223,12 @@ export function getBaseOrderId(orderId: string): string {
         if (rtnMatch) return rtnMatch[1];
     }
 
+    // Try to extract from CHK-XXX format
+    if (orderId.startsWith('CHK-')) {
+        const chkMatch = orderId.match(/CHK-(\d+)/);
+        if (chkMatch) return chkMatch[1];
+    }
+
     // For other formats like SYYMMDD### or plain numbers, return as-is
     return orderId;
 }
