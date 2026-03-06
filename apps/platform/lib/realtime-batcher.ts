@@ -88,7 +88,6 @@ export class RealtimeBatcher {
         const now = Date.now();
         for (const [id, ts] of this.recentMutations) {
             if (now - ts > RealtimeBatcher.MUTATION_GUARD_MS) {
-                console.log(`[SYNC BATCHER] ⏰ GUARD EXPIRED for ${id} after ${now - ts}ms — future realtime events will be applied`);
                 this.recentMutations.delete(id);
             }
         }
@@ -109,10 +108,7 @@ export class RealtimeBatcher {
                 const order = this.normalizer(event.new as unknown as Order) as Order;
 
                 // MUTATION GUARD: Skip realtime updates for orders we just mutated.
-                const mutatedAt = this.recentMutations.get(order.id);
-                if (mutatedAt) {
-                    const age = now - mutatedAt;
-                    console.log(`[SYNC BATCHER] 🛡️ GUARD ACTIVE: Skipping realtime update for ${order.id} (status=${order.status}, guard age=${age}ms/${RealtimeBatcher.MUTATION_GUARD_MS}ms)`);
+                if (this.recentMutations.has(order.id)) {
                     continue;
                 }
 
@@ -130,26 +126,10 @@ export class RealtimeBatcher {
             }
         }
 
-        // Log detailed flush info
-        const insertsLog = Array.from(inserts.values()).map(o => `${o.id}:${o.status}`).join(', ');
-        const updatesLog = Array.from(updates.values()).map(o => `${o.id}:${o.status}`).join(', ');
-        const deletesLog = Array.from(deletes).join(', ');
-
-        console.log(`[SYNC BATCHER] FLushing ${events.length} events: inserts=[${insertsLog}], updates=[${updatesLog}], deletes=[${deletesLog}]`);
 
         // Apply all changes in a single setQueryData call
         this.queryClient.setQueryData<Order[]>(this.queryKey, (old) => {
             if (!old) return old;
-
-            // Log what the realtime update will change vs current cache
-            for (const [id, incoming] of updates) {
-                const current = old.find(o => o.id === id);
-                if (current && current.status !== incoming.status) {
-                    console.log(`[SYNC BATCHER] ⚠️ STATUS CHANGE via realtime: ${id} cache=${current.status} → broadcast=${incoming.status}`);
-                }
-            }
-
-            console.log(`[SYNC BATCHER] Cache size before apply: ${old.length}`);
 
             const result = old
                 // Remove deleted orders
@@ -162,6 +142,12 @@ export class RealtimeBatcher {
                     if (updated) {
                         updates.delete(o.id); // Mark as applied
                         if (updated.is_archived) return null; // Remove archived from active list
+
+                        // Timestamp-aware: skip broadcasts whose updated_at is older
+                        // than or equal to what's already in cache (deterministic dedup)
+                        if (o.updated_at && updated.updated_at && updated.updated_at <= o.updated_at) {
+                            return o; // Keep current (newer) data
+                        }
 
                         // Version-aware: skip stale events (if version column exists)
                         const oVersion = (o as unknown as Record<string, unknown>).version;
