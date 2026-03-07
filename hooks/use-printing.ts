@@ -21,7 +21,7 @@ export interface PrintHistoryEntry {
 }
 
 export interface LabelSettings {
-    size: "4x6" | "3x2" | "a5" | "a6" | "compact";
+    size: "4x6" | "3x2" | "a5" | "a6" | "compact" | "80x120";
     showQrCode: boolean;
     showBarcode: boolean;
     showPrice: boolean;
@@ -68,7 +68,7 @@ export function usePrinting(orders: Order[]) {
         dateTo: getLocalDateString(),
     });
     const [labelSettings, setLabelSettings] = useState<LabelSettings>({
-        size: "4x6",
+        size: "80x120",
         showQrCode: true,
         showBarcode: true,
         showPrice: true,

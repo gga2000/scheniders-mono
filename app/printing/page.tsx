@@ -14,7 +14,7 @@ import { BatchDetailsModal } from "@/components/printing/batch-details-modal";
 import { ReprintWarningModal } from "@/components/printing/reprint-warning-modal";
 import { MarkAsShippedDialog, MarkAsDeliveredDialog } from "@/components/printing/confirmation-dialog";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
-import { EnhancedLabelOptions, printBulkEnhancedLabels, printBulkInvoices, generateBulkA6InvoicesHTML } from "@/lib/enhanced-label-generator";
+import { EnhancedLabelOptions, printBulkEnhancedLabels, printBulkInvoices, generateBulkA6InvoicesHTML, printBulkShippingLabels, generateShippingLabelHTML, SHIPPING_LABEL_CSS } from "@/lib/enhanced-label-generator";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
 import {
@@ -104,13 +104,67 @@ async function generatePdfFromHtml(html: string, filename: string): Promise<void
     }
 }
 
+async function generateLabelPdf(orders: Order[], options: EnhancedLabelOptions): Promise<void> {
+    const html2canvas = (await import("html2canvas")).default;
+    const { jsPDF } = await import("jspdf");
+
+    const LABEL_W_MM = 80;
+    const LABEL_H_MM = 120;
+    // 80mm at ~3.78 px/mm ≈ 302px, but use higher res for quality
+    const SCALE = 3;
+    const LABEL_W_PX = Math.round(LABEL_W_MM * 3.78);
+    const LABEL_H_PX = Math.round(LABEL_H_MM * 3.78);
+
+    const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: [LABEL_W_MM, LABEL_H_MM],
+    });
+
+    for (let i = 0; i < orders.length; i++) {
+        if (i > 0) pdf.addPage([LABEL_W_MM, LABEL_H_MM]);
+
+        const container = document.createElement("div");
+        container.style.cssText = `position:absolute;left:-9999px;top:-9999px;width:${LABEL_W_PX}px;`;
+        document.body.appendChild(container);
+
+        const style = document.createElement("style");
+        style.textContent = SHIPPING_LABEL_CSS;
+        container.appendChild(style);
+
+        const labelHtml = await generateShippingLabelHTML(orders[i], options);
+        const wrapper = document.createElement("div");
+        wrapper.innerHTML = labelHtml;
+        container.appendChild(wrapper);
+
+        // Wait for SVGs to render
+        await new Promise(r => setTimeout(r, 100));
+
+        const canvas = await html2canvas(container, {
+            scale: SCALE,
+            useCORS: true,
+            logging: false,
+            backgroundColor: "#ffffff",
+            width: LABEL_W_PX,
+            height: LABEL_H_PX,
+        });
+
+        const imgData = canvas.toDataURL("image/png");
+        pdf.addImage(imgData, "PNG", 0, 0, LABEL_W_MM, LABEL_H_MM);
+
+        document.body.removeChild(container);
+    }
+
+    pdf.save(`shipping-labels-${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
 export default function PrintingPage() {
     const { orders, loading, error, updateOrderStatus, bulkUpdateStatus } = useOrdersContext();
     const printing = usePrinting(orders);
 
     // Selection state
     const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
-    const [printType, setPrintType] = useState<"labels" | "invoices">("invoices");
+    const [printType, setPrintType] = useState<"labels" | "invoices">("labels");
     const [invoiceTemplate, setInvoiceTemplate] = useState<"classic" | "modern" | "prime">("prime");
 
     // UI state
@@ -232,7 +286,11 @@ export default function PrintingPage() {
         };
 
         if (printType === "labels") {
-            await printBulkEnhancedLabels(ordersToPrint, labelOptions, customerOrderCounts);
+            if (labelOptions.size === "80x120") {
+                await printBulkShippingLabels(ordersToPrint, labelOptions);
+            } else {
+                await printBulkEnhancedLabels(ordersToPrint, labelOptions, customerOrderCounts);
+            }
         } else {
             printBulkInvoices(ordersToPrint, labelOptions);
         }
@@ -305,9 +363,17 @@ export default function PrintingPage() {
             invoiceTemplate: invoiceTemplate,
         };
 
-        const html = await generateBulkA6InvoicesHTML(ordersToPrint, labelOptions);
         try {
-            await generatePdfFromHtml(html, `invoices-${new Date().toISOString().slice(0, 10)}.pdf`);
+            if (printType === "labels" && labelOptions.size === "80x120") {
+                await generateLabelPdf(ordersToPrint, labelOptions);
+            } else if (printType === "labels") {
+                const { generateBulkLabelsHTML } = await import("@/lib/enhanced-label-generator");
+                const html = await generateBulkLabelsHTML(ordersToPrint, labelOptions, customerOrderCounts);
+                await generatePdfFromHtml(html, `labels-${new Date().toISOString().slice(0, 10)}.pdf`);
+            } else {
+                const html = await generateBulkA6InvoicesHTML(ordersToPrint, labelOptions);
+                await generatePdfFromHtml(html, `invoices-${new Date().toISOString().slice(0, 10)}.pdf`);
+            }
         } catch {
             alert("Failed to generate PDF. Please try again.");
         }
@@ -541,9 +607,11 @@ export default function PrintingPage() {
                         {showFilters && (
                             <motion.div
                                 initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: "auto" }}
-                                exit={{ opacity: 0, height: 0 }}
-                                className="overflow-hidden space-y-4"
+                                animate={{ opacity: 1, height: "auto", overflow: "visible" }}
+                                exit={{ opacity: 0, height: 0, overflow: "hidden" }}
+                                transition={{ duration: 0.3 }}
+                                className="space-y-4"
+                                style={{ overflow: "hidden" }}
                             >
                                 {/* Search & Filters */}
                                 <div className="pastel-card p-4 space-y-4">

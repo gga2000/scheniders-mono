@@ -12,7 +12,7 @@ import QRCode from "qrcode";
 // TYPES
 // =============================================
 
-export type LabelSize = "4x6" | "3x2" | "a5" | "a6" | "compact";
+export type LabelSize = "4x6" | "3x2" | "a5" | "a6" | "compact" | "80x120";
 
 export type InvoiceTemplate = "classic" | "modern" | "prime";
 
@@ -37,7 +37,21 @@ const LABEL_SIZES: Record<LabelSize, { width: string; height: string; fontSize: 
     "a5": { width: "148mm", height: "210mm", fontSize: "11px", padding: "14px" },
     "a6": { width: "105mm", height: "148mm", fontSize: "10px", padding: "12px" },
     "compact": { width: "80mm", height: "60mm", fontSize: "8px", padding: "6px" },
+    "80x120": { width: "80mm", height: "120mm", fontSize: "9px", padding: "3mm" },
 };
+
+// =============================================
+// SCHNEIDERS LOGO (B&W for thermal printing)
+// =============================================
+
+const SCHNEIDERS_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="-300 -300 600 600">
+  <g fill="#000" transform="scale(0.9783764)">
+    <circle r="50"/>
+    <path d="M75,0A75,75 0 0,0 37.5-64.951905L125-216.50635A250,250 0 0,1 250,0Z"/>
+    <path d="M75,0A75,75 0 0,0 37.5-64.951905L125-216.50635A250,250 0 0,1 250,0Z" transform="rotate(120)"/>
+    <path d="M75,0A75,75 0 0,0 37.5-64.951905L125-216.50635A250,250 0 0,1 250,0Z" transform="rotate(240)"/>
+  </g>
+</svg>`;
 
 // =============================================
 // QR CODE GENERATION
@@ -82,6 +96,36 @@ function generateBarcodeHTML(orderId: string): string {
             <div style="font-family:monospace;font-size:10px;margin-top:2px;">${orderId}</div>
         </div>
     `;
+}
+
+// =============================================
+// REAL BARCODE GENERATION (JsBarcode)
+// =============================================
+
+async function generateRealBarcodeHTML(data: string): Promise<string> {
+    if (typeof window === 'undefined') {
+        return `<div style="text-align:center;font-family:monospace;font-size:12px;font-weight:bold;padding:4px 0;">${data}</div>`;
+    }
+    try {
+        const JsBarcode = (await import('jsbarcode')).default;
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        JsBarcode(svg, data, {
+            format: "CODE128",
+            width: 1.5,
+            height: 35,
+            displayValue: true,
+            fontSize: 10,
+            fontOptions: "bold",
+            textMargin: 2,
+            margin: 0,
+            background: "#ffffff",
+            lineColor: "#000000",
+        });
+        return `<div style="text-align:center;margin-top:auto;padding-top:4px;">${svg.outerHTML}</div>`;
+    } catch (err) {
+        console.error('Barcode generation failed:', err);
+        return `<div style="text-align:center;font-family:monospace;font-size:12px;font-weight:bold;padding:4px 0;">${data}</div>`;
+    }
 }
 
 // =============================================
@@ -859,6 +903,277 @@ export async function generateA6InvoicePrime(order: Order, options: EnhancedLabe
     `;
 }
 
+
+// =============================================
+// SHIPPING LABEL (80x120mm THERMAL)
+// =============================================
+
+export async function generateShippingLabelHTML(
+    order: Order,
+    options: EnhancedLabelOptions
+): Promise<string> {
+    const displayOrderId = getBaseOrderId(order.order_id);
+
+    // Generate QR code (SVG, black)
+    let qrCodeSvg = '';
+    try {
+        qrCodeSvg = await QRCode.toString(displayOrderId, {
+            type: 'svg',
+            width: 55,
+            margin: 0,
+            color: { dark: '#000000', light: '#ffffff' }
+        });
+    } catch (err) {
+        console.error('QR code generation failed:', err);
+    }
+
+    // Generate real barcode
+    const barcodeHtml = options.showBarcode
+        ? await generateRealBarcodeHTML(displayOrderId)
+        : '';
+
+    // Clean phone number (normalize to local format)
+    const cleanPhone = (phone: string): string => {
+        if (!phone) return '';
+        let cleaned = phone.replace(/[^\d]/g, '');
+        if (cleaned.startsWith('964')) cleaned = '0' + cleaned.slice(3);
+        // Ensure starts with 0
+        if (cleaned.length === 10 && !cleaned.startsWith('0')) cleaned = '0' + cleaned;
+        return cleaned;
+    };
+
+    // Calculate totals
+    const subtotal = Number(order.price) || 0;
+    const deliveryFee = Number(order.delivery_fee) || 0;
+    const discount = Number(order.discount_amount) || 0;
+    const total = subtotal + deliveryFee - discount;
+
+    // Format date/time
+    const orderDate = new Date(order.created_at);
+    const formattedDate = orderDate.toLocaleDateString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+    const formattedTime = orderDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+
+    // Product list
+    const productsText = order.items?.map(item => `${item.name}${item.quantity > 1 ? ` × ${item.quantity}` : ''}`).join(', ') || 'N/A';
+    const productCount = order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+
+    return `
+<div class="shipping-label" dir="rtl">
+    <div class="sl-header">
+        <div class="sl-logo">${SCHNEIDERS_LOGO_SVG}</div>
+        <div class="sl-brand">Schneiders Perfumes</div>
+        <div class="sl-qr">${qrCodeSvg}</div>
+    </div>
+
+    <div class="sl-shipment">
+        <span class="sl-shipment-label">رقم الشحنة:</span>
+        <span class="sl-shipment-value">${displayOrderId}</span>
+    </div>
+
+    <table class="sl-table">
+        <tr>
+            <td class="sl-td-label">اسم الزبون</td>
+            <td class="sl-td-value">${order.customer_name}</td>
+            <td class="sl-td-label">المتجر</td>
+            <td class="sl-td-value">شنايدر</td>
+        </tr>
+        <tr>
+            <td class="sl-td-label">هاتف الزبون</td>
+            <td class="sl-td-value" colspan="3" dir="ltr" style="text-align:right;">${cleanPhone(order.phone)}</td>
+        </tr>
+        ${order.secondary_phone ? `<tr>
+            <td class="sl-td-label">هاتف احتياط</td>
+            <td class="sl-td-value" colspan="3" dir="ltr" style="text-align:right;">${cleanPhone(order.secondary_phone)}</td>
+        </tr>` : ''}
+        <tr>
+            <td class="sl-td-label">عنوان الزبون</td>
+            <td class="sl-td-value" colspan="3">${order.city || ''}${order.address_details ? ' - ' + order.address_details : ''}</td>
+        </tr>
+    </table>
+
+    <div class="sl-section-title">تفاصيل الطلب</div>
+
+    <table class="sl-table">
+        <tr>
+            <td class="sl-td-label">نوع البضاعة</td>
+            <td class="sl-td-value">${productsText}</td>
+            <td class="sl-td-label">عدد</td>
+            <td class="sl-td-value" style="text-align:center;font-weight:700;">${productCount}</td>
+        </tr>
+        <tr>
+            <td class="sl-td-label">المبلغ الكلي للفاتورة</td>
+            <td class="sl-td-value sl-amount" colspan="3">${formatIQD(total)}</td>
+        </tr>
+        <tr>
+            <td class="sl-td-label">الملاحظات</td>
+            <td class="sl-td-value" colspan="3">${order.notes || '—'}</td>
+        </tr>
+        <tr>
+            <td class="sl-td-label">تاريخ وقت الحجز</td>
+            <td class="sl-td-value" colspan="3" dir="ltr" style="text-align:right;">${formattedTime} ${formattedDate}</td>
+        </tr>
+    </table>
+
+    ${barcodeHtml}
+</div>
+    `;
+}
+
+// CSS for shipping labels (used in bulk wrapper and preview)
+export const SHIPPING_LABEL_CSS = `
+    .shipping-label {
+        width: 80mm;
+        height: 120mm;
+        border: 1px solid #000;
+        padding: 3mm;
+        display: flex;
+        flex-direction: column;
+        background: white;
+        font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+        font-size: 9px;
+        color: #000;
+        direction: rtl;
+        overflow: hidden;
+        box-sizing: border-box;
+    }
+    .sl-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 4px;
+        border-bottom: 2px solid #000;
+        margin-bottom: 4px;
+    }
+    .sl-logo { flex-shrink: 0; width: 50px; height: 50px; }
+    .sl-logo svg { width: 50px; height: 50px; display: block; }
+    .sl-brand {
+        font-family: 'Arial Black', 'Segoe UI Black', 'Segoe UI', sans-serif;
+        font-size: 14px;
+        font-weight: 900;
+        color: #000;
+        letter-spacing: 0.5px;
+        text-align: center;
+        flex: 1;
+        padding: 0 6px;
+        line-height: 1.2;
+    }
+    .sl-qr { flex-shrink: 0; width: 55px; height: 55px; }
+    .sl-qr svg { width: 100%; height: 100%; display: block; }
+    .sl-shipment {
+        text-align: center;
+        padding: 3px 0;
+        border-bottom: 1px solid #000;
+        margin-bottom: 4px;
+    }
+    .sl-shipment-label { font-size: 9px; color: #333; margin-left: 6px; }
+    .sl-shipment-value { font-size: 14px; font-weight: 900; color: #000; }
+    .sl-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 3px;
+    }
+    .sl-table td {
+        border: 1px solid #999;
+        padding: 3px 4px;
+        font-size: 8px;
+        vertical-align: middle;
+    }
+    .sl-td-label {
+        background: #f0f0f0;
+        font-weight: 700;
+        color: #000;
+        width: 24%;
+        font-size: 8px;
+    }
+    .sl-td-value {
+        font-weight: 500;
+        color: #000;
+        font-size: 9px;
+    }
+    .sl-amount {
+        font-weight: 900;
+        font-size: 11px;
+    }
+    .sl-section-title {
+        font-size: 10px;
+        font-weight: 800;
+        color: #000;
+        padding: 3px 0 2px 0;
+        border-bottom: 1px solid #000;
+        margin-bottom: 2px;
+        text-align: center;
+    }
+`;
+
+// =============================================
+// BULK SHIPPING LABELS (one per page, 80x120mm)
+// =============================================
+
+export async function generateBulkShippingLabelsHTML(
+    orders: Order[],
+    options: EnhancedLabelOptions
+): Promise<string> {
+    const labelPromises = orders.map(order => generateShippingLabelHTML(order, options));
+    const labelContents = await Promise.all(labelPromises);
+
+    return `
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>ملصقات الشحن - ${orders.length} طلب</title>
+    <style>
+        @page { size: 80mm 120mm; margin: 0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+        }
+        .label-page {
+            page-break-after: always;
+            width: 80mm;
+            height: 120mm;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .label-page:last-child { page-break-after: avoid; }
+        ${SHIPPING_LABEL_CSS}
+        @media print {
+            body { background: white; padding: 0; }
+            .label-page { margin: 0; box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+    ${labelContents.map(label => `<div class="label-page">${label}</div>`).join('\n')}
+    <script>
+        window.onload = function() { window.print(); window.onafterprint = function() { window.close(); }; };
+    </script>
+</body>
+</html>
+    `;
+}
+
+export async function printBulkShippingLabels(
+    orders: Order[],
+    options: EnhancedLabelOptions
+): Promise<void> {
+    const html = await generateBulkShippingLabelsHTML(orders, options);
+    const printWindow = window.open("", "_blank", "width=400,height=600");
+    if (!printWindow) {
+        alert("Please allow popups to print labels");
+        return;
+    }
+    printWindow.document.write(html);
+    printWindow.document.close();
+}
+
+// =============================================
+// BULK A6 INVOICES (6-up on A4)
+// =============================================
 
 export async function generateBulkA6InvoicesHTML(orders: Order[], options: EnhancedLabelOptions): Promise<string> {
     // Select template based on option

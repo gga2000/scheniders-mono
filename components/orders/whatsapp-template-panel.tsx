@@ -33,7 +33,8 @@ import { motion, AnimatePresence } from "framer-motion";
 interface WhatsAppTemplatePanelProps {
     open: boolean;
     onClose: () => void;
-    order: Order;
+    order?: Order | null;
+    bulkOrders?: Order[];
     templates: MessageTemplate[];
     onContactSent?: (orderId: string, newCount: number) => void;
     onStatusUpdate?: (orderId: string, newStatus: Order["status"]) => void;
@@ -109,10 +110,15 @@ export function WhatsAppTemplatePanel({
     open,
     onClose,
     order,
+    bulkOrders,
     templates,
     onContactSent,
     onStatusUpdate,
 }: WhatsAppTemplatePanelProps) {
+    const isBulkMode = !!(bulkOrders && bulkOrders.length > 0);
+    const targetOrders = isBulkMode ? bulkOrders! : (order ? [order] : []);
+    const previewOrder = targetOrders[0] || null;
+
     const [selectedType, setSelectedType] = useState<'confirmation' | 'reminder' | 'discount'>('confirmation');
     const [showPreview, setShowPreview] = useState(false);
     const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -122,17 +128,18 @@ export function WhatsAppTemplatePanel({
     const [sendingTo, setSendingTo] = useState<string | null>(null);
     const [sendResult, setSendResult] = useState<{ success: boolean; message: string } | null>(null);
 
-    const contactCount = order.contact_count || 0;
-    const lastContactedAt = order.last_contacted_at;
+    const contactCount = previewOrder?.contact_count || 0;
+    const lastContactedAt = previewOrder?.last_contacted_at;
     const timeSinceContact = formatTimeSinceContact(lastContactedAt);
 
     // Compute effective discounted price
     const effectiveDiscountedPrice = useMemo(() => {
+        if (!previewOrder) return 0;
         if (useCustomPrice && customPrice) {
             return Number(customPrice);
         }
-        return Math.round(order.price * (1 - discountPercent / 100));
-    }, [useCustomPrice, customPrice, order.price, discountPercent]);
+        return Math.round((previewOrder.price || 0) * (1 - discountPercent / 100));
+    }, [useCustomPrice, customPrice, previewOrder, discountPercent]);
 
     // Get the template for the selected type
     const selectedTemplate = useMemo(() => {
@@ -141,9 +148,9 @@ export function WhatsAppTemplatePanel({
 
     // Process template with order data and emoji shortcodes
     const processTemplate = (content: string): string => {
-        if (!order) return content;
+        if (!previewOrder) return content;
 
-        const items = order.items || [];
+        const items = previewOrder.items || [];
         let productDisplay = "";
         if (items.length === 0) {
             productDisplay = "المنتج";
@@ -156,7 +163,7 @@ export function WhatsAppTemplatePanel({
         const itemsCount = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
 
         const firstItem = items[0];
-        const orderPrice = order.price || 0;
+        const orderPrice = previewOrder.price || 0;
 
         let calculatedDiscount = 0;
         let originalPrice = orderPrice;
@@ -178,8 +185,8 @@ export function WhatsAppTemplatePanel({
 
         const displayOriginalPrice = calculatedDiscount > 0 ? originalPrice : orderPrice;
 
-        const city = order.city || "";
-        const addressDetails = order.address_details || "";
+        const city = previewOrder.city || "";
+        const addressDetails = previewOrder.address_details || "";
         let fullAddress = "";
         if (city && addressDetails) {
             fullAddress = `${city} - ${addressDetails}`;
@@ -187,13 +194,13 @@ export function WhatsAppTemplatePanel({
             fullAddress = city || addressDetails || "";
         }
 
-        const formattedPhone = formatPhoneForDisplay(order.phone) || order.phone || "";
-        const formattedSecondaryPhone = formatPhoneForDisplay(order.secondary_phone) || "";
+        const formattedPhone = formatPhoneForDisplay(previewOrder.phone) || previewOrder.phone || "";
+        const formattedSecondaryPhone = formatPhoneForDisplay(previewOrder.secondary_phone) || "";
 
         let processed = content
-            .replace(/\{customer_name\}/g, order.customer_name || "")
-            .replace(/\{order_id\}/g, order.order_id || "")
-            .replace(/\{sequence_number\}/g, order.sequence_number?.toString() || getBaseOrderId(order.order_id))
+            .replace(/\{customer_name\}/g, previewOrder.customer_name || "")
+            .replace(/\{order_id\}/g, previewOrder.order_id || "")
+            .replace(/\{sequence_number\}/g, previewOrder.sequence_number?.toString() || getBaseOrderId(previewOrder.order_id))
             .replace(/\{product\}/g, productDisplay)
             .replace(/\{products\}/g, productDisplay)
             .replace(/\{items_count\}/g, itemsCount.toString())
@@ -205,7 +212,7 @@ export function WhatsAppTemplatePanel({
             .replace(/\{discounted_price\}/g, formatIQD(discountedPrice))
             .replace(/\{discount_percent\}/g, activeDiscount.toString())
             .replace(/\{city\}/g, city)
-            .replace(/\{status\}/g, order.status || "");
+            .replace(/\{status\}/g, previewOrder.status || "");
 
         processed = processEmojis(processed);
         return processed;
@@ -220,14 +227,14 @@ export function WhatsAppTemplatePanel({
     };
 
     const handleSendWhatsApp = (phone: string) => {
-        if (!selectedTemplate) return;
+        if (!selectedTemplate || !previewOrder) return;
         const processed = processTemplate(selectedTemplate.content_ar || selectedTemplate.content);
         const link = generateWhatsAppLink(phone, processed);
         window.open(link, "_blank");
 
-        const newCount = (order.contact_count || 0) + 1;
+        const newCount = (previewOrder.contact_count || 0) + 1;
         if (onContactSent) {
-            onContactSent(order.id, newCount);
+            onContactSent(previewOrder.id, newCount);
         }
         onClose();
     };
@@ -235,55 +242,85 @@ export function WhatsAppTemplatePanel({
     /**
      * Send template via Interakt API (works for all template types)
      */
-    const handleSendTemplate = async (phone: string) => {
-        setSendingTo(phone);
+    const handleSendTemplate = async (phoneToOverride?: string) => {
+        if (!previewOrder) return;
+        setSendingTo(isBulkMode ? "bulk" : (phoneToOverride || previewOrder.phone));
         setSendResult(null);
 
         try {
-            const res = await fetch("/api/webhooks/interakt/send", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    order,
-                    templateType: selectedType,
-                    overridePhone: phone !== order.phone ? phone : undefined,
-                    discountPercent: selectedType === 'discount' ? discountPercent : undefined,
-                    customPrice: selectedType === 'discount' && useCustomPrice && customPrice
-                        ? Number(customPrice)
-                        : undefined,
-                }),
-            });
+            let successCount = 0;
+            let failCount = 0;
+            let lastError = "";
 
-            const data = await res.json();
+            // Loop through all target orders (1 in single mode, N in bulk mode)
+            for (const target of targetOrders) {
+                // Determine override phone (only works in single mode)
+                const effectiveOverridePhone = !isBulkMode && phoneToOverride !== target.phone ? phoneToOverride : undefined;
 
-            if (data.success) {
-                const typeLabels = { confirmation: "التأكيد", reminder: "التذكير", discount: "العرض الخاص" };
-                setSendResult({ success: true, message: `تم إرسال قالب ${typeLabels[selectedType]} بنجاح` });
-
-                toast({
-                    title: "نجاح",
-                    description: `تم إرسال قالب ${typeLabels[selectedType]} بنجاح`,
+                const res = await fetch("/api/webhooks/interakt/send", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        order: target,
+                        templateType: selectedType,
+                        overridePhone: effectiveOverridePhone,
+                        discountPercent: selectedType === 'discount' ? discountPercent : undefined,
+                        customPrice: selectedType === 'discount' && useCustomPrice && customPrice
+                            ? Number(customPrice)
+                            : undefined,
+                    }),
                 });
 
-                const newCount = (order.contact_count || 0) + 1;
-                if (onContactSent) {
-                    onContactSent(order.id, newCount);
+                const data = await res.json();
+
+                if (data.success) {
+                    successCount++;
+                    const newCount = (target.contact_count || 0) + 1;
+                    if (onContactSent) {
+                        onContactSent(target.id, newCount);
+                    }
+                    if (onStatusUpdate) {
+                        onStatusUpdate(target.id, "contacted");
+                    }
+                } else {
+                    failCount++;
+                    lastError = data.error || "فشل الإرسال";
                 }
-                if (onStatusUpdate) {
-                    onStatusUpdate(order.id, "contacted");
+            }
+
+            const typeLabels = { confirmation: "التأكيد", reminder: "التذكير", discount: "العرض الخاص" };
+
+            if (isBulkMode) {
+                const total = targetOrders.length;
+                if (failCount === 0) {
+                    setSendResult({ success: true, message: `تم الإرسال لـ ${successCount} عميل بنجاح` });
+                    toast.success("نجاح التعميم", `تم إرسال قالب ${typeLabels[selectedType]} إلى ${successCount} عملاء`);
+                } else if (successCount === 0) {
+                    setSendResult({ success: false, message: `فشل الإرسال للجميع: ${lastError}` });
+                    toast.error("خطأ", `فشل الإرسال لجميع ${total} عملاء`);
+                } else {
+                    setSendResult({ success: false, message: `نجح ${successCount}، وفشل ${failCount}` });
+                    toast.warning("إرسال جزئي", `تم الإرسال لـ ${successCount} وفشل ${failCount}`);
                 }
 
                 setTimeout(() => {
                     onClose();
                     setSendResult(null);
-                }, 1500);
+                }, 2000);
             } else {
-                setSendResult({ success: false, message: data.error || "فشل الإرسال" });
-                toast.error(
-                    "خطأ في الإرسال",
-                    data.error || "فشل إرسال رسالة واتساب"
-                );
+                if (failCount === 0) {
+                    setSendResult({ success: true, message: `تم إرسال قالب ${typeLabels[selectedType]} بنجاح` });
+                    toast.success("نجاح", `تم إرسال قالب ${typeLabels[selectedType]} بنجاح`);
+                    setTimeout(() => {
+                        onClose();
+                        setSendResult(null);
+                    }, 1500);
+                } else {
+                    setSendResult({ success: false, message: lastError });
+                    toast.error("خطأ في الإرسال", lastError);
+                }
             }
+
         } catch (err) {
             console.error("Fetch error sending template:", err);
             setSendResult({ success: false, message: "خطأ في الاتصال" });
@@ -300,8 +337,8 @@ export function WhatsAppTemplatePanel({
         ? processTemplate(selectedTemplate.content_ar || selectedTemplate.content)
         : "";
 
-    const primaryDisplay = formatPhoneForDisplay(order.phone) || order.phone;
-    const secondaryDisplay = order.secondary_phone ? formatPhoneForDisplay(order.secondary_phone) : null;
+    const primaryDisplay = previewOrder ? (formatPhoneForDisplay(previewOrder.phone) || previewOrder.phone) : "";
+    const secondaryDisplay = previewOrder?.secondary_phone ? formatPhoneForDisplay(previewOrder.secondary_phone) : null;
     const currentConfig = templateConfig[selectedType];
 
     return (
@@ -315,7 +352,7 @@ export function WhatsAppTemplatePanel({
                         <div className="flex-1">
                             <span className="text-lg">Select WhatsApp Template</span>
                             <p className="text-sm text-muted font-normal">
-                                Sending to <strong>{order.customer_name}</strong>
+                                Sending to <strong>{previewOrder.customer_name}</strong>
                             </p>
                         </div>
                         {/* Contact info badges */}
@@ -401,9 +438,25 @@ export function WhatsAppTemplatePanel({
                             >
                                 <div className="bg-rose-50 rounded-xl p-4 border border-rose-200">
                                     <div className="flex items-center justify-between mb-3">
-                                        <div className="flex items-center gap-2">
-                                            <Percent className="w-4 h-4 text-rose-600" />
-                                            <span className="font-semibold text-rose-900">Discount Amount</span>
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="font-semibold text-gray-900 truncate" dir="rtl">
+                                                {isBulkMode ? `إرسال تعميم ${currentConfig.label}` : `رسالة ${currentConfig.label}`}
+                                            </h3>
+                                            {!isBulkMode ? (
+                                                <div className="flex items-center gap-1.5 mt-0.5" dir="rtl">
+                                                    <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                                    <p className="text-sm text-gray-500 font-medium truncate">
+                                                        {formatPhoneForDisplay(previewOrder?.phone || "")}
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-1.5 mt-0.5" dir="rtl">
+                                                    <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                                    <p className="text-sm text-gray-500 font-medium truncate">
+                                                        يرسل إلى {targetOrders.length} عملاء
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
                                         {!useCustomPrice && (
                                             <span className="text-2xl font-bold text-rose-600">{discountPercent}%</span>
@@ -466,17 +519,17 @@ export function WhatsAppTemplatePanel({
                                     <div className="mt-3 p-2 bg-white rounded-lg border border-rose-100">
                                         <div className="flex justify-between text-sm">
                                             <span className="text-muted">Original Price:</span>
-                                            <span className="font-mono">{formatIQD(order.price)}</span>
+                                            <span className="font-mono">{formatIQD(previewOrder?.price || 0)}</span>
                                         </div>
                                         <div className="flex justify-between text-sm font-bold text-rose-600">
                                             <span>After Discount:</span>
                                             <span className="font-mono">{formatIQD(effectiveDiscountedPrice)}</span>
                                         </div>
-                                        {effectiveDiscountedPrice < order.price && (
+                                        {previewOrder && effectiveDiscountedPrice < previewOrder.price && (
                                             <div className="flex justify-between text-xs text-muted mt-1">
                                                 <span>Savings:</span>
                                                 <span className="font-mono text-emerald-600">
-                                                    -{formatIQD(order.price - effectiveDiscountedPrice)} ({Math.round((1 - effectiveDiscountedPrice / order.price) * 100)}%)
+                                                    -{formatIQD(previewOrder.price - effectiveDiscountedPrice)} ({Math.round((1 - effectiveDiscountedPrice / previewOrder.price) * 100)}%)
                                                 </span>
                                             </div>
                                         )}
@@ -553,25 +606,25 @@ export function WhatsAppTemplatePanel({
                         {/* Row 1: Send Template via Interakt API (works for ALL template types) */}
                         <div className="flex items-center gap-2">
                             <button
-                                onClick={() => handleSendTemplate(order.phone)}
+                                onClick={() => handleSendTemplate()}
                                 disabled={!!sendingTo}
                                 className={cn(
                                     "flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-white font-semibold transition-all shadow-md hover:shadow-lg disabled:opacity-60 bg-gradient-to-r",
                                     currentConfig.gradient
                                 )}
                             >
-                                {sendingTo === order.phone ? (
+                                {sendingTo ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
                                 ) : (
                                     <Send className="w-4 h-4" />
                                 )}
-                                <span>{currentConfig.sendLabel}</span>
-                                <span className="text-xs opacity-75">({primaryDisplay})</span>
+                                <span>{isBulkMode ? `إرسال لـ ${targetOrders.length} عملاء` : currentConfig.sendLabel}</span>
+                                {!isBulkMode && <span className="text-xs opacity-75">({primaryDisplay})</span>}
                             </button>
 
-                            {order.secondary_phone && (
+                            {!isBulkMode && previewOrder?.secondary_phone && (
                                 <button
-                                    onClick={() => handleSendTemplate(order.secondary_phone!)}
+                                    onClick={() => handleSendTemplate(previewOrder.secondary_phone!)}
                                     disabled={!!sendingTo}
                                     className={cn(
                                         "flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-white font-semibold transition-all disabled:opacity-60 bg-gradient-to-r",
@@ -579,7 +632,7 @@ export function WhatsAppTemplatePanel({
                                     )}
                                     title={`إرسال إلى ${secondaryDisplay}`}
                                 >
-                                    {sendingTo === order.secondary_phone ? (
+                                    {sendingTo === previewOrder.secondary_phone ? (
                                         <Loader2 className="w-4 h-4 animate-spin" />
                                     ) : (
                                         <Send className="w-4 h-4" />
@@ -589,43 +642,45 @@ export function WhatsAppTemplatePanel({
                             )}
                         </div>
 
-                        {/* Row 2: Copy + WhatsApp Web */}
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={handleCopy}
-                                className={cn(
-                                    "flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all",
-                                    copiedId
-                                        ? "bg-emerald-100 text-emerald-700"
-                                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                                )}
-                            >
-                                {copiedId ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                                {copiedId ? "Copied!" : "Copy"}
-                            </button>
-
-                            <div className="flex-1 flex gap-2">
+                        {/* Row 2: Copy + WhatsApp Web (hidden in bulk mode) */}
+                        {!isBulkMode && (
+                            <div className="flex items-center gap-2">
                                 <button
-                                    onClick={() => handleSendWhatsApp(order.phone)}
-                                    className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold hover:from-green-600 hover:to-emerald-700 transition-all shadow-md hover:shadow-lg"
+                                    onClick={handleCopy}
+                                    className={cn(
+                                        "flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all",
+                                        copiedId
+                                            ? "bg-emerald-100 text-emerald-700"
+                                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                    )}
                                 >
-                                    <MessageCircle className="w-5 h-5" />
-                                    <span>Send WhatsApp</span>
-                                    <ArrowRight className="w-4 h-4" />
+                                    {copiedId ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                                    {copiedId ? "Copied!" : "Copy"}
                                 </button>
 
-                                {order.secondary_phone && (
+                                <div className="flex-1 flex gap-2">
                                     <button
-                                        onClick={() => handleSendWhatsApp(order.secondary_phone!)}
-                                        className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-emerald-500 text-white font-semibold hover:bg-emerald-600 transition-all"
-                                        title="Send to secondary phone"
+                                        onClick={() => handleSendWhatsApp(previewOrder!.phone)}
+                                        className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold hover:from-green-600 hover:to-emerald-700 transition-all shadow-md hover:shadow-lg"
                                     >
-                                        <Phone className="w-4 h-4" />
-                                        <span className="text-xs">2nd</span>
+                                        <MessageCircle className="w-5 h-5" />
+                                        <span>Send WhatsApp</span>
+                                        <ArrowRight className="w-4 h-4" />
                                     </button>
-                                )}
+
+                                    {previewOrder?.secondary_phone && (
+                                        <button
+                                            onClick={() => handleSendWhatsApp(previewOrder!.secondary_phone!)}
+                                            className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-emerald-500 text-white font-semibold hover:bg-emerald-600 transition-all"
+                                            title="Send to secondary phone"
+                                        >
+                                            <Phone className="w-4 h-4" />
+                                            <span className="text-xs">2nd</span>
+                                        </button>
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
                 </DialogFooter>
             </DialogContent>
