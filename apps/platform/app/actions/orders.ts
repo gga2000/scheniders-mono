@@ -95,7 +95,7 @@ export async function createOrderAction(
 
         // Trigger WhatsApp confirmation immediately in the background
         if (data && data.id) {
-            triggerImmediateConfirmation(data.id, data.phone);
+            await triggerImmediateConfirmation(data.id, data.phone);
         }
 
         return { success: true, data };
@@ -223,7 +223,7 @@ export async function splitOrderAction(
 
         // Trigger WhatsApp confirmation immediately in the background for the new return order
         if (createdReturnOrder && createdReturnOrder.id) {
-            triggerImmediateConfirmation(createdReturnOrder.id, createdReturnOrder.phone);
+            await triggerImmediateConfirmation(createdReturnOrder.id, createdReturnOrder.phone);
         }
 
         return { success: true, data: createdReturnOrder };

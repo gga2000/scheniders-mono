@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
 
         // Trigger WhatsApp confirmation immediately in the background
         if (result.order && result.order.id) {
-            triggerImmediateConfirmation(result.order.id, result.order.phone);
+            await triggerImmediateConfirmation(result.order.id, result.order.phone);
         }
 
         // 7. Success response
