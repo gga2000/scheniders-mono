@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Order } from "@/lib/supabase";
-import { EnhancedLabelOptions, generateLabelHTML, generateA6InvoiceHTML, generateA6InvoiceModern, generateA6InvoicePrime, generateBulkA6InvoicesHTML } from "@/lib/enhanced-label-generator";
+import { EnhancedLabelOptions, generateLabelHTML, generateA6InvoiceHTML, generateA6InvoiceModern, generateA6InvoicePrime, generateBulkA6InvoicesHTML, generateShippingLabelHTML, SHIPPING_LABEL_CSS } from "@/lib/enhanced-label-generator";
 import { X, Printer, ZoomIn, ZoomOut, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -45,7 +45,9 @@ export function PrintPreviewModal({
                 };
 
                 let html: string;
-                if (printType === "labels") {
+                if (printType === "labels" && options.size === "80x120") {
+                    html = await generateShippingLabelHTML(order, options);
+                } else if (printType === "labels") {
                     html = await generateLabelHTML(order, options);
                 } else if (options.invoiceTemplate === "prime") {
                     html = await generateA6InvoicePrime(order, options);
@@ -55,12 +57,11 @@ export function PrintPreviewModal({
                     html = await generateA6InvoiceHTML(order, options);
                 }
 
-                // For A6 invoices, the content is already the div, not wrapped in body
-                if (printType === "invoices") {
-                    // The A6 invoice returns just the div content
+                // For A6 invoices and shipping labels, the content is already the div
+                if (printType === "invoices" || (printType === "labels" && options.size === "80x120")) {
                     setPreviewHtml(html);
                 } else {
-                    // Extract body content for labels preview
+                    // Extract body content for old-style labels preview
                     const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<script>/i);
                     if (bodyMatch) {
                         setPreviewHtml(bodyMatch[1]);
@@ -156,9 +157,15 @@ export function PrintPreviewModal({
                                 style={{
                                     transform: `scale(${zoom / 100})`,
                                     transformOrigin: "top center",
-                                    maxWidth: printType === "invoices" ? "98mm" : "auto",
+                                    maxWidth: printType === "labels" && labelOptions.size === "80x120"
+                                        ? "80mm"
+                                        : printType === "invoices" ? "98mm" : "auto",
                                 }}
                             >
+                                {/* Shipping Label Styles */}
+                                {printType === "labels" && labelOptions.size === "80x120" && (
+                                    <style dangerouslySetInnerHTML={{ __html: SHIPPING_LABEL_CSS }} />
+                                )}
                                 {/* Compact Invoice Styles - matches print output */}
                                 {printType === "invoices" && (
                                     <style dangerouslySetInnerHTML={{

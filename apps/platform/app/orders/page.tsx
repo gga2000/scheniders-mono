@@ -126,7 +126,8 @@ import {
     CheckCircle2,
     Activity,
     AlertTriangle,
-    PanelRight
+    PanelRight,
+    MessageCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
@@ -1963,6 +1964,15 @@ export default function OrdersPage() {
                                                                             {t("orders.bulk.archive")}
                                                                         </button>
 
+                                                                        {/* WhatsApp Bulk Send */}
+                                                                        <button
+                                                                            onClick={() => setTemplatePanelOpen(true)}
+                                                                            className="px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 text-sm font-medium hover:bg-emerald-200 transition-all whitespace-nowrap flex items-center gap-1.5"
+                                                                        >
+                                                                            <MessageCircle className="w-4 h-4" />
+                                                                            {t("orders.bulk.sendTemplate") || "إرسال رسالة واتساب"}
+                                                                        </button>
+
                                                                         {/* Divider */}
                                                                         <div className="h-6 w-px bg-[var(--card-border)] flex-shrink-0" />
 
@@ -2424,14 +2434,15 @@ export default function OrdersPage() {
                     )}
 
                     {/* WhatsApp Template Panel */}
-                    {orderForTemplate && (
+                    {(orderForTemplate || (templatePanelOpen && selectedOrders.size > 0)) && (
                         <WhatsAppTemplatePanel
                             open={templatePanelOpen}
                             onClose={() => {
                                 setTemplatePanelOpen(false);
                                 setOrderForTemplate(null);
                             }}
-                            order={orderForTemplate}
+                            order={orderForTemplate || undefined}
+                            bulkOrders={!orderForTemplate ? displayedOrders.filter(o => selectedOrders.has(o.id)) : undefined}
                             templates={workflowTemplates}
                         />
                     )}

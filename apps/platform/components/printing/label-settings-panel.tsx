@@ -26,6 +26,7 @@ interface LabelSettingsPanelProps {
 }
 
 const LABEL_SIZES: Array<{ value: LabelSize; label: string; description: string }> = [
+    { value: "80x120", label: "80×120 mm", description: "Thermal shipping label" },
     { value: "4x6", label: "4×6 inch", description: "Standard shipping label" },
     { value: "3x2", label: "3×2 inch", description: "Small compact label" },
     { value: "a5", label: "A5", description: "148 × 210 mm" },

@@ -118,7 +118,8 @@ import {
     CheckCircle2,
     Activity,
     AlertTriangle,
-    PanelRight
+    PanelRight,
+    MessageCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
@@ -1384,6 +1385,15 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                                                                 className="px-3 py-1.5 rounded-lg bg-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-300 transition-all whitespace-nowrap"
                                                             >
                                                                 {t("orders.bulk.archive")}
+                                                            </button>
+
+                                                            {/* WhatsApp Bulk Send */}
+                                                            <button
+                                                                onClick={() => setTemplatePanelOpen(true)}
+                                                                className="px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 text-sm font-medium hover:bg-emerald-200 transition-all whitespace-nowrap flex items-center gap-1.5"
+                                                            >
+                                                                <MessageCircle className="w-4 h-4" />
+                                                                {t("orders.bulk.sendTemplate") || "إرسال رسالة واتساب"}
                                                             </button>
 
                                                             {/* Divider */}
