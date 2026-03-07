@@ -2,6 +2,7 @@
 
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { Order } from "@/lib/supabase";
+import { triggerImmediateConfirmation } from "@/lib/whatsapp-dispatcher";
 
 export async function createOrderAction(
     orderData: Omit<Order, "id" | "created_at" | "updated_at">,
@@ -90,6 +91,11 @@ export async function createOrderAction(
                 return createOrderAction(orderData, retryCount + 1);
             }
             throw insertError;
+        }
+
+        // Trigger WhatsApp confirmation immediately in the background
+        if (data && data.id) {
+            triggerImmediateConfirmation(data.id, data.phone);
         }
 
         return { success: true, data };
@@ -213,6 +219,11 @@ export async function splitOrderAction(
 
         if (!createSuccess) {
             throw new Error("Failed to create return order: " + createError);
+        }
+
+        // Trigger WhatsApp confirmation immediately in the background for the new return order
+        if (createdReturnOrder && createdReturnOrder.id) {
+            triggerImmediateConfirmation(createdReturnOrder.id, createdReturnOrder.phone);
         }
 
         return { success: true, data: createdReturnOrder };
