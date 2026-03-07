@@ -1,8 +1,7 @@
 "use server";
 
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
-import { Order } from "@/lib/supabase";
-import { triggerImmediateConfirmation } from "@/lib/whatsapp-dispatcher";
+import { Order, OrderItem } from "@/lib/supabase";
 
 export async function createOrderAction(
     orderData: Omit<Order, "id" | "created_at" | "updated_at">,
@@ -117,9 +116,9 @@ export async function createOrderAction(
 
 export async function splitOrderAction(
     originalOrderId: string,
-    keptItems: any[],
-    returnedItems: any[]
-): Promise<{ success: boolean; data?: any; error?: string }> {
+    keptItems: OrderItem[],
+    returnedItems: OrderItem[]
+): Promise<{ success: boolean; data?: Order; error?: string }> {
     const supabase = createSupabaseServiceClient();
 
     try {
@@ -136,7 +135,7 @@ export async function splitOrderAction(
         }
 
         // 3. Calculate financials
-        const calculateTotal = (items: any[]) => items.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
+        const calculateTotal = (items: OrderItem[]) => items.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
         const keptTotal = calculateTotal(keptItems);
         const returnedTotal = calculateTotal(returnedItems);
 
@@ -205,21 +204,13 @@ export async function splitOrderAction(
 
         // Pass to createOrderAction to handle ID generation and insertion
         // ignore ID types since we spread originalOrder which has them
-        const returnOrderDataAny = returnOrderData as any;
-        delete returnOrderDataAny.id;
-        delete returnOrderDataAny.created_at;
-        delete returnOrderDataAny.updated_at;
-
-        const { success: createSuccess, data: createdReturnOrder, error: createError } = await createOrderAction(returnOrderDataAny);
+        const { id, created_at, updated_at, ...cleanReturnOrderData } = returnOrderData;
+        const { success: createSuccess, data: createdReturnOrder, error: createError } = await createOrderAction(cleanReturnOrderData as Omit<Order, "id" | "created_at" | "updated_at">);
 
         if (!createSuccess) {
             throw new Error("Failed to create return order: " + createError);
         }
 
-        // Trigger WhatsApp confirmation immediately in the background for the new return order
-        if (createdReturnOrder && createdReturnOrder.id) {
-            await triggerImmediateConfirmation(createdReturnOrder.id, createdReturnOrder.phone);
-        }
 
         return { success: true, data: createdReturnOrder };
 
