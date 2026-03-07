@@ -16,6 +16,7 @@ import { HighlightedText } from "@/components/ui/highlighted-text";
 import { formatIQD, generateWhatsAppLink, getStatusLabel, copyOrderToClipboard, getGuaranteeDaysRemaining, cn } from "@/lib/utils";
 import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
 import { extractGovernorate } from "@/lib/address-validator";
+import { REMINDER_DELAY_HOURS, DISCOUNT_DELAY_HOURS } from "@/lib/qstash";
 import { formatShortDate, formatTime, getOrderAge, getAgeUrgency, getItemsDisplay, getFullAddress, cleanSystemNotes, getActualNotes, getOrderReasonInfo, getGovernorateCode, getStatusColor, getStatusBadgeStyle, getDropdownItemStyle, getDisplayOrderId } from "@/lib/order-format-utils";
 
 import {
@@ -50,6 +51,8 @@ import {
     ChevronDown,
     Scissors,
     ClipboardCopy,
+    Bell,
+    Gift
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -192,6 +195,21 @@ export const OrderCard = memo(function OrderCard({
 
     const orderAge = getOrderAge(order.created_at);
     const ageUrgency = getAgeUrgency(order.status, order.created_at);
+
+    // Time-based follow-up cue logic
+    const contactCount = order.contact_count || 0;
+    const lastContactedAt = order.last_contacted_at;
+    /* eslint-disable react-hooks/purity */
+    const hoursSinceContact = lastContactedAt
+        ? (Date.now() - new Date(lastContactedAt).getTime()) / 3600000
+        : 0;
+    /* eslint-enable react-hooks/purity */
+
+    // Determine which follow-up cue to show
+    const isContacted = order.status === "contacted";
+    const needsReminder = isContacted && contactCount === 1 && hoursSinceContact >= REMINDER_DELAY_HOURS;
+    const needsDiscount = isContacted && contactCount === 2 && hoursSinceContact >= (DISCOUNT_DELAY_HOURS - REMINDER_DELAY_HOURS);
+    const needsFollowUp = needsReminder || needsDiscount;
 
     // Externalized getItemsDisplay
     // Externalized getFullAddress, cleanSystemNotes, getActualNotes
@@ -1736,6 +1754,19 @@ export const OrderCard = memo(function OrderCard({
                             ? "bg-black/5 dark:bg-[#1A1A1A] p-1 gap-1 flex-row rounded-2xl border border-black/5 dark:border-white/5 shadow-inner"
                             : "gap-2"
                     )}>
+                        {/* Follow-up cue badge */}
+                        {needsFollowUp && (
+                            <div className={cn(
+                                "flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold animate-pulse border shadow-sm ml-1",
+                                needsDiscount
+                                    ? "bg-red-50 text-red-700 border-red-300 dark:bg-red-500/10 dark:text-rose-400 dark:border-red-500/30"
+                                    : "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30"
+                            )} dir="rtl">
+                                {needsDiscount ? <Gift className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
+                                <span>{needsDiscount ? "مرت 10 ساعات (خصم)" : "مرت 6 ساعات (تذكير)"}</span>
+                            </div>
+                        )}
+
                         {/* Chat Button - Primary with Contact Stage Indicator */}
                         {(() => {
                             const contactCount = order.contact_count || 0;
