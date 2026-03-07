@@ -93,11 +93,6 @@ export async function createOrderAction(
             throw insertError;
         }
 
-        // Trigger WhatsApp confirmation immediately in the background
-        if (data && data.id) {
-            await triggerImmediateConfirmation(data.id, data.phone);
-        }
-
         return { success: true, data };
     } catch (err: unknown) {
         // Extract more detailed error information
