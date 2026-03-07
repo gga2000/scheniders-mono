@@ -7,6 +7,7 @@ import {
 import { env } from "@/lib/env";
 import { createClient } from "@supabase/supabase-js";
 import { scheduleCheckoutProcessing } from "@/lib/qstash";
+import { triggerImmediateConfirmation } from "@/lib/whatsapp-dispatcher";
 
 // Service role client to bypass RLS when writing to checkout_queue
 const supabaseAdmin = createClient(
@@ -153,14 +154,20 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Trigger WhatsApp confirmation immediately in the background
+        if (result.order && result.order.id) {
+            triggerImmediateConfirmation(result.order.id, result.order.phone);
+        }
+
         // 7. Success response
         return NextResponse.json(
             {
                 success: true,
                 message: "Order created successfully",
                 order_id: result.order?.order_id,
+                order_data: result.order,
             },
-            { status: 200 }
+            { status: 201 }
         );
 
     } catch (error) {

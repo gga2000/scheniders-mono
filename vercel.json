@@ -4,10 +4,6 @@
         {
             "path": "/api/cron/backup",
             "schedule": "0 0 * * *"
-        },
-        {
-            "path": "/api/cron/auto-send-whatsapp",
-            "schedule": "0 9 * * *"
         }
     ]
 }
