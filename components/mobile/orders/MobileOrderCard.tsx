@@ -299,13 +299,15 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                         {/* Follow-up cue badge */}
                         {needsFollowUp && (
                             <div className={cn(
-                                "flex items-center gap-1 px-1.5 py-1 rounded-lg text-[9px] font-bold animate-pulse border shadow-sm",
+                                "flex items-center gap-1 px-1.5 py-1 rounded-lg text-xs font-bold animate-pulse border shadow-sm",
                                 needsDiscount
                                     ? "bg-red-50 text-red-700 border-red-300"
                                     : "bg-amber-50 text-amber-700 border-amber-300"
                             )}>
                                 {needsDiscount ? <Gift className="w-3 h-3" /> : <Bell className="w-3 h-3" />}
-                                {needsDiscount ? "عرض" : "تذكير"}
+                                {needsDiscount
+                                    ? `مرت 10 ساعات (خصم)`
+                                    : `مرت 6 ساعات (تذكير)`}
                             </div>
                         )}
 
