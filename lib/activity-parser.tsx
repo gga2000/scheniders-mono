@@ -11,7 +11,7 @@ export interface ParsedActivity {
 export function parseActivityLog(log: any): ParsedActivity | null {
     if (!log || !log.action) return null;
 
-    const actorName = log.user_email?.split('@')[0] || "A Team Member";
+    const actorName = log.user_email?.split('@')[0] || "Team Member";
 
     // Seeded avatar gradient based on string length to give uniqueness
     const hue = (actorName.length * 35) % 360;

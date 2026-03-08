@@ -3,9 +3,11 @@
 import { useState, useRef, useEffect } from "react";
 import { useOrderActivityNotifications } from "@/hooks/use-order-activity-notifications";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Check, CheckCheck, Trash2, Package, RefreshCw, Plus, Clock } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Bell, Check, CheckCheck, Trash2, Package, RefreshCw, Plus, Clock, Bot, Sparkles, ArrowRight } from "lucide-react";
+import { cn, getStatusLabel } from "@/lib/utils";
+import { getStatusBadgeStyle } from "@/lib/order-format-utils";
 import { formatDistanceToNow } from "date-fns";
+import { Order } from "@/lib/supabase";
 
 export function NotificationsDropdown() {
     const {
@@ -140,12 +142,12 @@ export function NotificationsDropdown() {
                                             }}
                                             className={cn(
                                                 "px-4 py-3 hover:bg-[var(--background)] transition-colors cursor-pointer relative",
-                                                !notification.isRead && "bg-primary/5"
+                                                !notification.is_read && "bg-primary/5"
                                             )}
                                             onClick={() => markAsRead(notification.id)}
                                         >
                                             {/* Unread Indicator */}
-                                            {!notification.isRead && (
+                                            {!notification.is_read && (
                                                 <div className="absolute left-2 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-primary" />
                                             )}
 
@@ -162,34 +164,58 @@ export function NotificationsDropdown() {
                                                     </p>
 
                                                     <div className="flex items-center gap-2 mt-1">
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {notification.userName}
+                                                        {/* User Avatar / Initials */}
+                                                        {notification.user_avatar === 'bot' ? (
+                                                            <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 shadow-sm shrink-0">
+                                                                <Bot className="w-3 h-3" />
+                                                            </div>
+                                                        ) : notification.user_avatar ? (
+                                                            <img
+                                                                src={notification.user_avatar}
+                                                                alt={notification.user_name}
+                                                                className="w-5 h-5 rounded-full border border-[var(--card-border)] bg-[var(--background)] object-cover shadow-sm shrink-0"
+                                                            />
+                                                        ) : (
+                                                            <div className="w-5 h-5 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 text-[10px] font-bold shadow-sm shrink-0">
+                                                                {(notification.user_name || 'U').charAt(0).toUpperCase()}
+                                                            </div>
+                                                        )}
+                                                        <span className="text-xs text-muted-foreground font-medium">
+                                                            {notification.user_name}
                                                         </span>
                                                         <span className="text-xs text-muted-foreground">•</span>
                                                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                                                             <Clock className="w-3 h-3" />
-                                                            {formatDistanceToNow(notification.timestamp, {
+                                                            {formatDistanceToNow(new Date(notification.created_at), {
                                                                 addSuffix: true,
                                                             })}
                                                         </div>
                                                     </div>
 
                                                     {/* Status Change Details */}
-                                                    {notification.metadata?.oldStatus && notification.metadata?.newStatus && (
+                                                    {notification.old_status && notification.new_status && (
                                                         <div className="flex items-center gap-2 mt-2">
-                                                            <span className="px-2 py-1 rounded-md bg-muted text-xs font-medium">
-                                                                {notification.metadata.oldStatus}
-                                                            </span>
-                                                            <RefreshCw className="w-3 h-3 text-muted-foreground" />
-                                                            <span className="px-2 py-1 rounded-md bg-primary/20 text-primary text-xs font-medium">
-                                                                {notification.metadata.newStatus}
-                                                            </span>
+                                                            <div className={cn(
+                                                                "px-2.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-sm",
+                                                                getStatusBadgeStyle(notification.old_status as Order["status"])
+                                                            )}>
+                                                                {notification.old_status === 'new' && <Sparkles className="w-2.5 h-2.5 opacity-70" />}
+                                                                {getStatusLabel(notification.old_status)}
+                                                            </div>
+                                                            <ArrowRight className="w-3 h-3 text-muted-foreground opacity-50" />
+                                                            <div className={cn(
+                                                                "px-2.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-sm",
+                                                                getStatusBadgeStyle(notification.new_status as Order["status"])
+                                                            )}>
+                                                                {notification.new_status === 'new' && <Sparkles className="w-2.5 h-2.5 opacity-70" />}
+                                                                {getStatusLabel(notification.new_status)}
+                                                            </div>
                                                         </div>
                                                     )}
                                                 </div>
 
                                                 {/* Mark as Read Button */}
-                                                {!notification.isRead && (
+                                                {!notification.is_read && (
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();

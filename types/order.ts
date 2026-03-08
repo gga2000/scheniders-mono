@@ -110,6 +110,9 @@ export interface Order {
         stats: Record<string, unknown>;
         last_updated: string;
     };
+    last_status_changed_by_name?: string;
+    last_status_changed_by_avatar?: string;
+    is_test?: boolean;
 }
 
 export interface Blacklist {

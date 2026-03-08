@@ -18,6 +18,7 @@ import { OrderCardSkeleton } from "@/components/dashboard/order-card-skeleton";
 import { OrderAssignment, mockAssignments } from "@/lib/team-types";
 import { useBatchRiskAssessment } from "@/hooks/use-risk-assessment";
 import { RiskBadge } from "@/components/orders/risk-badge";
+import { useOrderStore } from "@/store/use-order-store";
 const OrderDetailsModal = dynamic(
     () => import("@/components/orders/order-details-modal").then(mod => ({ default: mod.OrderDetailsModal })),
     { ssr: false }
@@ -700,28 +701,58 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                                                                 const todayStr = fmt(now);
                                                                 const df = filters.dateFrom;
                                                                 const dt = filters.dateTo || df;
-                                                                // Check presets: wider ranges first to avoid shadowing
-                                                                // Past Year
-                                                                const yearAgo = new Date(); yearAgo.setFullYear(now.getFullYear() - 1);
-                                                                if (df === fmt(yearAgo) && dt === todayStr) return "Past Year";
-                                                                // Last 30 Days
-                                                                const d30 = new Date(); d30.setDate(now.getDate() - 30);
-                                                                if (df === fmt(d30) && dt === todayStr) return "Last 30 Days";
-                                                                // Last 7 Days
-                                                                const d7 = new Date(); d7.setDate(now.getDate() - 7);
-                                                                if (df === fmt(d7) && dt === todayStr) return "Last 7 Days";
-                                                                // This Month
-                                                                const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-                                                                if (df === fmt(monthStart) && dt === todayStr) return "This Month";
-                                                                // This Week
-                                                                const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
-                                                                if (df === fmt(weekStart) && dt === todayStr) return "This Week";
+
+                                                                // A. Preset-First Logic (Definitive match)
+                                                                const datePreset = useOrderStore.getState().datePreset;
+                                                                if (datePreset) {
+                                                                    const presets: any = {
+                                                                        today: { label: "Today", range: () => ({ f: todayStr, t: todayStr }) },
+                                                                        yesterday: { label: "Yesterday", range: () => { const d = new Date(); d.setDate(d.getDate() - 1); const s = fmt(d); return { f: s, t: s }; } },
+                                                                        thisWeek: { label: "This Week", range: () => { const d = new Date(now); d.setDate(now.getDate() - now.getDay()); return { f: fmt(d), t: todayStr }; } },
+                                                                        thisMonth: { label: "This Month", range: () => { const d = new Date(now.getFullYear(), now.getMonth(), 1); return { f: fmt(d), t: todayStr }; } },
+                                                                        thisYear: { label: "This Year", range: () => { const d = new Date(now.getFullYear(), 0, 1); return { f: fmt(d), t: todayStr }; } },
+                                                                        last7: { label: "Last 7 Days", range: () => { const d = new Date(); d.setDate(now.getDate() - 6); return { f: fmt(d), t: todayStr }; } },
+                                                                        last30: { label: "Last 30 Days", range: () => { const d = new Date(); d.setDate(now.getDate() - 29); return { f: fmt(d), t: todayStr }; } },
+                                                                        pastYear: { label: "Past Year", range: () => { const d = new Date(); d.setFullYear(now.getFullYear() - 1); return { f: fmt(d), t: todayStr }; } },
+                                                                    };
+
+                                                                    if (presets[datePreset]) {
+                                                                        const { f, t } = presets[datePreset].range();
+                                                                        if (df === f && dt === t) return presets[datePreset].label;
+                                                                    }
+                                                                }
+
+                                                                // B. Fallback Guessing Logic (Manual selections)
+                                                                // 1. Specific Days (Highest Priority)
+                                                                // Today
+                                                                if (df === todayStr && dt === todayStr) return "Today";
                                                                 // Yesterday
                                                                 const yest = new Date(); yest.setDate(yest.getDate() - 1);
                                                                 const yesterdayStr = fmt(yest);
                                                                 if (df === yesterdayStr && dt === yesterdayStr) return "Yesterday";
-                                                                // Today
-                                                                if (df === todayStr && dt === todayStr) return "Today";
+
+                                                                // 2. Calendar Ranges
+                                                                // This Week
+                                                                const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
+                                                                if (df === fmt(weekStart) && dt === todayStr) return "This Week";
+                                                                // This Month
+                                                                const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                                                                if (df === fmt(monthStart) && dt === todayStr) return "This Month";
+                                                                // This Year
+                                                                const yearStart = new Date(now.getFullYear(), 0, 1);
+                                                                if (df === fmt(yearStart) && dt === todayStr) return "This Year";
+
+                                                                // 3. Rolling Ranges (Lower Priority)
+                                                                // Last 7 Days
+                                                                const d7 = new Date(); d7.setDate(now.getDate() - 6);
+                                                                if (df === fmt(d7) && dt === todayStr) return "Last 7 Days";
+                                                                // Last 30 Days
+                                                                const d30 = new Date(); d30.setDate(now.getDate() - 29);
+                                                                if (df === fmt(d30) && dt === todayStr) return "Last 30 Days";
+                                                                // Past Year
+                                                                const yearAgo = new Date(); yearAgo.setFullYear(now.getFullYear() - 1);
+                                                                if (df === fmt(yearAgo) && dt === todayStr) return "Past Year";
+
                                                                 // Custom range or single date
                                                                 const fmtDisplay = (s: string) => new Date(s + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                                                                 if (df === dt) return fmtDisplay(df);
@@ -739,8 +770,9 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                                                                 inline
                                                                 dateFrom={filters.dateFrom}
                                                                 dateTo={filters.dateTo}
-                                                                onDateChange={(from, to) => {
+                                                                onDateChange={(from, to, presetId) => {
                                                                     setFilters({ ...filters, dateFrom: from, dateTo: to });
+                                                                    useOrderStore.getState().setDatePreset(presetId || null);
                                                                     setShowDatePicker(false);
                                                                 }}
                                                             />

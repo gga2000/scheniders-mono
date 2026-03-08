@@ -40,7 +40,9 @@ interface FilterUISlice {
   columnFilters: Record<string, string>;
   openFilterColumn: string | null;
   activePresetId: string | null;
+  datePreset: string | null;
   localSearchQuery: string;
+  activeDateRange: { startDate: string | null; endDate: string | null };
 
   setShowFilters: (val: boolean) => void;
   setShowPresets: (val: boolean) => void;
@@ -51,7 +53,9 @@ interface FilterUISlice {
   setColumnFilters: (filters: Record<string, string>) => void;
   setOpenFilterColumn: (val: string | null) => void;
   setActivePresetId: (id: string | null) => void;
+  setDatePreset: (preset: string | null) => void;
   setLocalSearchQuery: (q: string) => void;
+  setActiveDateRange: (range: { startDate: string | null; endDate: string | null }) => void;
 }
 
 interface ModalsSlice {
@@ -185,7 +189,9 @@ export const useOrderStore = create<OrderStore>()(
       columnFilters: {},
       openFilterColumn: null,
       activePresetId: null,
+      datePreset: null,
       localSearchQuery: "",
+      activeDateRange: { startDate: null, endDate: null },
 
       setShowFilters: (val) => set({ showFilters: val }),
       setShowPresets: (val) => set({ showPresets: val }),
@@ -204,7 +210,9 @@ export const useOrderStore = create<OrderStore>()(
       setColumnFilters: (filters) => set({ columnFilters: filters }),
       setOpenFilterColumn: (val) => set({ openFilterColumn: val }),
       setActivePresetId: (id) => set({ activePresetId: id }),
+      setDatePreset: (preset) => set({ datePreset: preset }),
       setLocalSearchQuery: (q) => set({ localSearchQuery: q }),
+      setActiveDateRange: (range) => set({ activeDateRange: range }),
 
       // =====================================================================
       // Modals Slice
@@ -296,7 +304,7 @@ export const useOrderStore = create<OrderStore>()(
       // =====================================================================
       isFilterPanelAnimating: false,
       isHeaderAnimating: false,
-      notificationsEnabled: false,
+      notificationsEnabled: true,
 
       setIsFilterPanelAnimating: (val) => set({ isFilterPanelAnimating: val }),
       setIsHeaderAnimating: (val) => set({ isHeaderAnimating: val }),

@@ -318,6 +318,20 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 orderData.source || "manual"
             );
 
+            // Record initial status change to history table for correct actor attribution
+            supabase
+                .from("order_status_history")
+                .insert([{
+                    order_id: data.id,
+                    from_status: null,
+                    to_status: data.status || 'new',
+                    changed_at: new Date().toISOString(),
+                    notes: 'Order Created',
+                    changed_by: profile?.display_name || user?.email || 'System',
+                }]).then(({ error }) => {
+                    if (error) console.error("Failed to record initial status history:", error);
+                });
+
             return { success: true, data };
         } catch (err) {
             // Release idempotency key so the user can retry

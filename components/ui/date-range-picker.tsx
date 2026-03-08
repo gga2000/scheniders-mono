@@ -15,13 +15,13 @@ import { cn } from "@/lib/utils";
 interface DateRangePickerProps {
     dateFrom?: string;
     dateTo?: string;
-    onDateChange: (from: string | undefined, to: string | undefined) => void;
+    onDateChange: (from: string | undefined, to: string | undefined, presetId?: string) => void;
     className?: string;
     inline?: boolean; // When true, shows calendar directly without trigger button
     epochDate?: string; // Financial epoch date — adds "Since Day Zero" preset
 }
 
-type PresetType = "dayZero" | "today" | "yesterday" | "thisWeek" | "thisMonth" | "last7" | "last30" | "pastYear" | "custom";
+type PresetType = "dayZero" | "today" | "yesterday" | "thisWeek" | "thisMonth" | "thisYear" | "last7" | "last30" | "pastYear" | "custom";
 
 /**
  * Format a Date to YYYY-MM-DD string using LOCAL timezone (not UTC)
@@ -84,7 +84,7 @@ const basePresets: { id: PresetType; label: string; getRange: () => { from: stri
         getRange: () => {
             const now = new Date();
             const weekAgo = new Date();
-            weekAgo.setDate(now.getDate() - 7);
+            weekAgo.setDate(now.getDate() - 6);
             return {
                 from: formatLocalDate(weekAgo),
                 to: formatLocalDate(now),
@@ -97,9 +97,21 @@ const basePresets: { id: PresetType; label: string; getRange: () => { from: stri
         getRange: () => {
             const now = new Date();
             const monthAgo = new Date();
-            monthAgo.setDate(now.getDate() - 30);
+            monthAgo.setDate(now.getDate() - 29);
             return {
                 from: formatLocalDate(monthAgo),
+                to: formatLocalDate(now),
+            };
+        },
+    },
+    {
+        id: "thisYear" as PresetType,
+        label: "This Year",
+        getRange: () => {
+            const now = new Date();
+            const yearStart = new Date(now.getFullYear(), 0, 1);
+            return {
+                from: formatLocalDate(yearStart),
                 to: formatLocalDate(now),
             };
         },
@@ -199,7 +211,7 @@ export function DateRangePicker({
 
     const handlePresetClick = (preset: typeof presets[0]) => {
         const range = preset.getRange();
-        onDateChange(range.from, range.to);
+        onDateChange(range.from, range.to, preset.id);
         setTempFrom(range.from);
         setTempTo(range.to);
         setActivePreset(preset.id);
@@ -227,12 +239,12 @@ export function DateRangePicker({
     };
 
     const handleApply = () => {
-        onDateChange(tempFrom, tempTo || tempFrom);
+        onDateChange(tempFrom, tempTo || tempFrom, "custom");
         setIsOpen(false);
     };
 
     const handleClear = () => {
-        onDateChange(undefined, undefined);
+        onDateChange(undefined, undefined, undefined);
         setTempFrom(undefined);
         setTempTo(undefined);
         setActivePreset(null);

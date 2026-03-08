@@ -12,7 +12,6 @@ interface UseOrderDetailsStateProps {
     onStatusUpdate?: (orderId: string, status: Order["status"], reason?: string) => Promise<{ success: boolean; error?: string }>;
     onGetTimeline?: (orderId: string) => Promise<OrderStatusHistory[]>;
     onGetNotes?: (orderId: string) => Promise<OrderNote[]>;
-    onAddNote?: (orderId: string, note: string) => Promise<{ success: boolean; error?: string }>;
     onDelete?: (orderId: string) => Promise<{ success: boolean; error?: string }>;
     splitOrder?: (orderId: string, keptItems: any[], returnedItems: any[]) => Promise<{ success: boolean; error?: string }>;
     t: (key: string) => string;
@@ -26,7 +25,6 @@ export function useOrderDetailsState({
     onStatusUpdate,
     onGetTimeline,
     onGetNotes,
-    onAddNote,
     onDelete,
     splitOrder,
     t
@@ -38,9 +36,6 @@ export function useOrderDetailsState({
     const [notes, setNotes] = useState<OrderNote[]>([]);
     const [loadingTimeline, setLoadingTimeline] = useState(false);
 
-    // Notes State
-    const [newNote, setNewNote] = useState("");
-    const [isAddingNote, setIsAddingNote] = useState(false);
 
     // Status State
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
@@ -132,24 +127,6 @@ export function useOrderDetailsState({
         }
     };
 
-    const handleAddNote = async () => {
-        if (!newNote.trim() || !onAddNote || !order) return;
-
-        setIsAddingNote(true);
-        const result = await onAddNote(order.id, newNote);
-
-        if (result.success) {
-            setNewNote("");
-            if (onGetNotes) {
-                const updatedNotes = await onGetNotes(order.id);
-                setNotes(updatedNotes);
-            }
-            toast.success(t("toast.noteAdded"), t("toast.noteAddedDesc"));
-        } else {
-            toast.error(t("toast.noteFailed"), result.error || t("orderDetail.noteFailed"));
-        }
-        setIsAddingNote(false);
-    };
 
     const handleStatusChangeForm = async (
         newStatus: Order["status"],
@@ -192,7 +169,6 @@ export function useOrderDetailsState({
     return {
         activeTab, setActiveTab,
         timeline, notes, loadingTimeline,
-        newNote, setNewNote, isAddingNote, handleAddNote,
         isUpdatingStatus, handleStatusChangeForm,
         showDeleteConfirm, deleteCountdown, isDeleting,
         handleDeleteClick, handleDeleteConfirm, handleCancelDelete,

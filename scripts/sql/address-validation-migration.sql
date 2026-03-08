@@ -26,4 +26,4 @@ CREATE INDEX IF NOT EXISTS idx_address_corrections_gov ON address_corrections(co
 
 -- Comment explaining the address_status values
 COMMENT ON COLUMN orders.address_status IS 'valid = good address, incomplete = only governorate, invalid = unrecognized, needs_review = possible typo';
-COMMENT ON COLUMN orders.validated_governorate_code IS 'Our standardized code: BGD, NAS, DYL, KOT, KRB, DOH, BBL, NJF, BAS, ARB, KRK, SMH, SAH, ANB, SAM, MOS, DWN, AMA';
+COMMENT ON COLUMN orders.validated_governorate_code IS 'Our standardized code: BGD, NAS, DYL, KOT, KRB, DOH, BBL, NJF, BAS, ARB, KRK, SAM, SAH, ANB, SMH, MOS, DWN, AMA';

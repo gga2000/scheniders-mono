@@ -52,7 +52,8 @@ import {
     Scissors,
     ClipboardCopy,
     Bell,
-    Gift
+    Gift,
+    Bot
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -1056,8 +1057,38 @@ export const OrderCard = memo(function OrderCard({
                                         >
                                             #<HighlightedText text={getDisplayOrderId(baseId)} query={localSearchQuery} />
                                         </span>
+
+                                        {/* Last Status Actor Avatar */}
+                                        {order.last_status_changed_by_name && (
+                                            <div
+                                                className="flex items-center -ml-0.5 transition-transform hover:scale-110"
+                                                title={`Last updated by: ${order.last_status_changed_by_name}`}
+                                            >
+                                                {order.last_status_changed_by_avatar === 'bot' ? (
+                                                    <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 shadow-sm">
+                                                        <Bot className="w-3 h-3" />
+                                                    </div>
+                                                ) : order.last_status_changed_by_avatar ? (
+                                                    <img
+                                                        src={order.last_status_changed_by_avatar}
+                                                        alt={order.last_status_changed_by_name}
+                                                        className="w-5 h-5 rounded-full border border-[var(--card-border)] bg-[var(--background)] object-cover shadow-sm"
+                                                    />
+                                                ) : (
+                                                    <div className="w-5 h-5 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 text-[10px] font-bold shadow-sm">
+                                                        {order.last_status_changed_by_name.charAt(0).toUpperCase()}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                         {order.order_id?.startsWith('CHK-') && (
                                             <span className="bg-yellow-100 text-yellow-800 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ring-1 ring-yellow-200">CHK</span>
+                                        )}
+                                        {order.is_test && (
+                                            <span className="bg-purple-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold uppercase shadow-lg ring-2 ring-purple-300 animate-pulse flex items-center gap-1">
+                                                <Sparkles className="w-3 h-3" />
+                                                TEST
+                                            </span>
                                         )}
                                         {order.sequence_number && (
                                             <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] font-semibold">

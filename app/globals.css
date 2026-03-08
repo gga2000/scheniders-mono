@@ -2112,6 +2112,51 @@ body {
   --ring: var(--primary);
 }
 
+/* ============================================
+   Common Animations & Components
+   ============================================ */
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+@keyframes pulse-error {
+  0%, 100% { 
+    box-shadow: 0 0 0 1px #ef4444; 
+    border-color: #ef4444;
+    background-color: #fef2f2;
+  }
+  50% { 
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.3); 
+    border-color: #f87171;
+    background-color: #fee2e2;
+  }
+}
+
+.animate-shake {
+  animation: shake 0.4s ease-in-out 0s 2;
+}
+
+.field-error {
+  border-style: solid !important;
+  border-width: 1px !important;
+  animation: pulse-error 2s ease-in-out infinite;
+}
+
+/* Allow both animations to run if both classes are present */
+.field-error.animate-shake {
+  animation: shake 0.4s ease-in-out 2, pulse-error 2s ease-in-out infinite;
+}
+
+.field-error-text {
+  color: #ef4444 !important;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  font-weight: 500;
+}
+
 /* Touch-friendly tap targets */
 .touch-target {
   min-height: 44px;
