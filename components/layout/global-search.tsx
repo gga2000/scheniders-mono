@@ -375,7 +375,7 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
         <header className="sticky top-0 z-40">
             {/* Glassmorphism Background with Fade Edge */}
             <div
-                className="absolute top-0 inset-x-0 -bottom-8 bg-transparent backdrop-blur-md pointer-events-none"
+                className="absolute top-0 inset-x-0 -bottom-8 bg-background/80 backdrop-blur-md pointer-events-none"
                 style={{
                     maskImage: 'linear-gradient(to right, transparent 0px, black 24px), linear-gradient(to bottom, black 65%, transparent 100%)',
                     WebkitMaskImage: 'linear-gradient(to right, transparent 0px, black 24px), linear-gradient(to bottom, black 65%, transparent 100%)',

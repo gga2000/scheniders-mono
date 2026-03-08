@@ -11,6 +11,22 @@ import {
 } from "@/lib/order-filter-utils";
 import { useUserPreferences, PREFERENCE_KEYS } from "@/hooks/use-user-preferences";
 
+// Normalize Arabic text for fuzzy search:
+// - Remove diacritics (tashkeel)
+// - Normalize alef variants (أ إ آ) → ا
+// - Normalize teh marbuta (ة) → ه
+// - Normalize final yeh/alef maqsura (ى ى) → ي
+function normalizeArabicText(text: string): string {
+    if (!text) return "";
+    return text
+        .replace(/[\u064B-\u065F\u0670]/g, "") // strip tashkeel/diacritics
+        .replace(/[\u0622\u0623\u0625]/g, "\u0627") // normalize alef variants to plain alef
+        .replace(/\u0629/g, "\u0647") // teh marbuta → ha
+        .replace(/\u0649/g, "\u064A") // alef maqsura → ya
+        .toLowerCase()
+        .trim();
+}
+
 // =============================================
 // ORDER FILTERS HOOK
 // Manages filter state, presets, persistence,
@@ -154,30 +170,52 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
 
                 // Search query
                 if (activeFilters.searchQuery) {
-                    const query = activeFilters.searchQuery.toLowerCase();
-                    const matchesName = order.customer_name?.toLowerCase().includes(query) ?? false;
-                    const matchesPhone = order.phone ? normalizePhoneForSearch(order.phone).includes(normalizePhoneForSearch(activeFilters.searchQuery)) : false;
-                    const matchesSecondaryPhone = order.secondary_phone ? normalizePhoneForSearch(order.secondary_phone).includes(normalizePhoneForSearch(activeFilters.searchQuery)) : false;
-                    const matchesOrderId = order.order_id?.toLowerCase().includes(query) ?? false;
-                    const matchesDeliveryId = order.delivery_order_id?.toLowerCase().includes(query) ?? false;
-                    const matchesCity = order.city?.toLowerCase().includes(query) ?? false;
-                    const matchesAddress = order.address_details?.toLowerCase().includes(query) ?? false;
-                    const matchesNotes = order.notes?.toLowerCase().includes(query) ?? false;
-                    const matchesSequence = order.sequence_number ? String(order.sequence_number).includes(query) : false;
+                    const rawQuery = activeFilters.searchQuery;
+                    const query = normalizeArabicText(rawQuery);
+                    const queryLower = rawQuery.toLowerCase().trim();
+
+                    // If normalization results in empty string, don't match everything
+                    if (!query && !queryLower) return true;
+
+                    // Name: normalize Arabic for fuzzy matching
+                    const normalizedName = order.customer_name ? normalizeArabicText(order.customer_name) : "";
+                    const matchesName = query && normalizedName ? normalizedName.includes(query) : false;
+
+                    const normalizedPhoneQuery = normalizePhoneForSearch(rawQuery);
+                    const matchesPhone = order.phone && normalizedPhoneQuery ? normalizePhoneForSearch(order.phone).includes(normalizedPhoneQuery) : false;
+                    const matchesSecondaryPhone = order.secondary_phone && normalizedPhoneQuery ? normalizePhoneForSearch(order.secondary_phone).includes(normalizedPhoneQuery) : false;
+
+                    const matchesOrderId = order.order_id?.toLowerCase().includes(queryLower) ?? false;
+                    const matchesDeliveryId = order.delivery_order_id?.toLowerCase().includes(queryLower) ?? false;
+
+                    const normalizedCity = order.city ? normalizeArabicText(order.city) : "";
+                    const matchesCity = query && normalizedCity ? normalizedCity.includes(query) : false;
+
+                    const normalizedAddress = order.address_details ? normalizeArabicText(order.address_details) : "";
+                    const matchesAddress = query && normalizedAddress ? normalizedAddress.includes(query) : false;
+
+                    const normalizedNotes = order.notes ? normalizeArabicText(order.notes) : "";
+                    const matchesNotes = query && normalizedNotes ? normalizedNotes.includes(query) : false;
+
+                    const matchesSequence = order.sequence_number ? String(order.sequence_number).includes(queryLower) : false;
 
                     let matchesOriginalOrderId = false;
                     if (order.original_order_id) {
-                        if (order.original_order_id.toLowerCase().includes(query)) {
+                        if (order.original_order_id.toLowerCase().includes(queryLower)) {
                             matchesOriginalOrderId = true;
                         } else {
                             const parentOrder = ordersToFilter.find(o => o.id === order.original_order_id);
-                            if (parentOrder && parentOrder.order_id?.toLowerCase().includes(query)) {
+                            if (parentOrder && parentOrder.order_id?.toLowerCase().includes(queryLower)) {
                                 matchesOriginalOrderId = true;
                             }
                         }
                     }
 
-                    if (!matchesName && !matchesPhone && !matchesSecondaryPhone && !matchesOrderId && !matchesDeliveryId && !matchesCity && !matchesAddress && !matchesNotes && !matchesSequence && !matchesOriginalOrderId) return false;
+                    const isMatch = matchesName || matchesPhone || matchesSecondaryPhone || matchesOrderId ||
+                        matchesDeliveryId || matchesCity || matchesAddress || matchesNotes ||
+                        matchesSequence || matchesOriginalOrderId;
+
+                    return isMatch;
                 }
 
                 return true;
