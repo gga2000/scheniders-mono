@@ -871,26 +871,7 @@ export const OrderCard = memo(function OrderCard({
                 layout: { duration: 0.4, ease: [0.4, 0, 0.2, 1] }
             }}
         >
-            {/* Soft glow effect for new orders - hidden in semi-compact */}
-            {compact === 0 && isNew && (
-                <div className="absolute -inset-0.5 bg-orange-300 rounded-[22px] blur-md opacity-50 group-hover:opacity-70 transition-opacity animate-pulse -z-10" />
-            )}
-            {/* Glow effect for urgent orders */}
-            {compact === 0 && isUrgent && !isReturn && (
-                <div className="absolute -inset-0.5 bg-red-400 rounded-[22px] blur-md opacity-40 group-hover:opacity-60 transition-opacity animate-pulse -z-10" />
-            )}
-            {/* Glow effect for rejected and return orders */}
-            {compact === 0 && (isReturn || order.status === 'rejected') && (
-                <div className="absolute -inset-0.5 bg-red-400 rounded-[22px] blur-md opacity-40 group-hover:opacity-60 transition-opacity -z-10" />
-            )}
-            {/* Glow effect for pinned orders */}
-            {compact === 0 && isPinned && (
-                <div className="absolute -inset-0.5 bg-blue-400 rounded-[22px] blur-md opacity-40 group-hover:opacity-60 transition-opacity -z-10" />
-            )}
-            {/* Subtle glow effect for reviewed delivered orders */}
-            {compact === 0 && isReviewed && isDelivered && !isPinned && (
-                <div className="absolute -inset-0.5 bg-cyan-400 rounded-[22px] blur-md opacity-25 group-hover:opacity-40 transition-opacity -z-10" />
-            )}
+            {/* External glows removed to prevent visual artifacts when scrolling under backdrop-blur sidebars/headers */}
 
             {/* Dark mode vivid neon glow casted on the left side of the card */}
             {compact === 0 && (

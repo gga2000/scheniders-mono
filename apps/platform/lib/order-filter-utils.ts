@@ -25,6 +25,24 @@ export function normalizePhoneForSearch(phone: string): string {
         .replace(/^(\+964|964|00964|0)/, "");
 }
 
+/**
+ * Normalize Arabic text for fuzzy search:
+ * - Remove diacritics (tashkeel)
+ * - Normalize alef variants (أ إ آ) → ا
+ * - Normalize teh marbuta (ة) → ه
+ * - Normalize final yeh/alef maqsura (ى ى) → ي
+ */
+export function normalizeArabicText(text: string): string {
+    if (!text) return "";
+    return text
+        .replace(/[\u064B-\u065F\u0670]/g, "") // strip tashkeel/diacritics
+        .replace(/[\u0622\u0623\u0625]/g, "\u0627") // normalize alef variants to plain alef
+        .replace(/\u0629/g, "\u0647") // teh marbuta → ha
+        .replace(/\u0649/g, "\u064A") // alef maqsura → ya
+        .toLowerCase()
+        .trim();
+}
+
 // =============================================
 // ORDER FILTERING
 // =============================================
@@ -94,31 +112,51 @@ export function applyOrderFilters(
 
         // Search query
         if (filters.searchQuery) {
-            const query = filters.searchQuery.toLowerCase();
-            const matchesName = (order.customer_name || "").toLowerCase().includes(query);
-            const matchesPhone = normalizePhoneForSearch(order.phone).includes(
-                normalizePhoneForSearch(filters.searchQuery)
-            );
-            const matchesOrderId = order.order_id?.toLowerCase().includes(query);
-            const matchesDeliveryId = order.delivery_order_id?.toLowerCase().includes(query);
+            const rawQuery = filters.searchQuery;
+            const query = normalizeArabicText(rawQuery);
+            const queryLower = rawQuery.toLowerCase().trim();
+
+            // If normalization results in empty string, don't match everything
+            if (!query && !queryLower) return true;
+
+            const normalizedName = order.customer_name ? normalizeArabicText(order.customer_name) : "";
+            const matchesName = query && normalizedName ? normalizedName.includes(query) : false;
+
+            const normalizedPhoneQuery = normalizePhoneForSearch(rawQuery);
+            const matchesPhone = order.phone && normalizedPhoneQuery ? normalizePhoneForSearch(order.phone).includes(normalizedPhoneQuery) : false;
+            const matchesSecondaryPhone = order.secondary_phone && normalizedPhoneQuery ? normalizePhoneForSearch(order.secondary_phone).includes(normalizedPhoneQuery) : false;
+
+            const matchesOrderId = order.order_id?.toLowerCase().includes(queryLower) ?? false;
+            const matchesDeliveryId = order.delivery_order_id?.toLowerCase().includes(queryLower) ?? false;
+
+            const normalizedCity = order.city ? normalizeArabicText(order.city) : "";
+            const matchesCity = query && normalizedCity ? normalizedCity.includes(query) : false;
+
+            const normalizedAddress = order.address_details ? normalizeArabicText(order.address_details) : "";
+            const matchesAddress = query && normalizedAddress ? normalizedAddress.includes(query) : false;
+
+            const normalizedNotes = order.notes ? normalizeArabicText(order.notes) : "";
+            const matchesNotes = query && normalizedNotes ? normalizedNotes.includes(query) : false;
+
+            const matchesSequence = order.sequence_number ? String(order.sequence_number).includes(queryLower) : false;
 
             // Fix for matching return orders:
             // order.original_order_id is a UUID. We need to check if the UUID's corresponding order_id matches the query.
             let matchesOriginalOrderId = false;
             if (order.original_order_id) {
                 // Direct UUID match (unlikely but possible)
-                if (order.original_order_id.toLowerCase().includes(query)) {
+                if (order.original_order_id.toLowerCase().includes(queryLower)) {
                     matchesOriginalOrderId = true;
                 } else {
                     // Look up the parent order in the array to check its human-readable order_id
                     const parentOrder = orders.find(o => o.id === order.original_order_id);
-                    if (parentOrder && parentOrder.order_id?.toLowerCase().includes(query)) {
+                    if (parentOrder && parentOrder.order_id?.toLowerCase().includes(queryLower)) {
                         matchesOriginalOrderId = true;
                     }
                 }
             }
 
-            if (!matchesName && !matchesPhone && !matchesOrderId && !matchesDeliveryId && !matchesOriginalOrderId) {
+            if (!matchesName && !matchesPhone && !matchesSecondaryPhone && !matchesOrderId && !matchesDeliveryId && !matchesCity && !matchesAddress && !matchesNotes && !matchesSequence && !matchesOriginalOrderId) {
                 return false;
             }
         }

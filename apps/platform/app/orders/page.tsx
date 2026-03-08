@@ -145,10 +145,41 @@ const GlobalSearchField = React.memo(function GlobalSearchField({ filters, setFi
     const debouncedSearchQuery = useDebounce(localSearchQuery, 300);
     const { t } = useLanguage();
 
+    // Track the previous search state to know when user starts/clears a search
+    const prevSearchRef = React.useRef<string>("");
+
     useEffect(() => {
-        if (debouncedSearchQuery !== (filters.searchQuery || "")) {
-            setFilters((prev: any) => ({ ...prev, searchQuery: debouncedSearchQuery || undefined }));
+        const prevSearch = prevSearchRef.current;
+        const newSearch = debouncedSearchQuery;
+
+        if (newSearch === (filters.searchQuery || "")) return; // No change needed
+
+        if (newSearch && !prevSearch) {
+            // User STARTED searching — clear date range so all orders are searchable
+            setFilters((prev: any) => ({
+                ...prev,
+                searchQuery: newSearch,
+                dateFrom: undefined,
+                dateTo: undefined,
+            }));
+        } else if (!newSearch && prevSearch) {
+            // User CLEARED search — restore today's date range
+            const todayStr = (() => {
+                const d = new Date();
+                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+            })();
+            setFilters((prev: any) => ({
+                ...prev,
+                searchQuery: undefined,
+                dateFrom: todayStr,
+                dateTo: todayStr,
+            }));
+        } else {
+            // Search query changed but not starting/stopping — just update searchQuery
+            setFilters((prev: any) => ({ ...prev, searchQuery: newSearch || undefined }));
         }
+
+        prevSearchRef.current = newSearch;
     }, [debouncedSearchQuery, setFilters, filters.searchQuery]);
 
     return (

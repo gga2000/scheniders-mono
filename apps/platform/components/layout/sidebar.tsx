@@ -87,7 +87,7 @@ export function Sidebar({
         return (
             <aside
                 className={cn(
-                    "fixed left-4 top-4 bottom-4 bg-[#1E1E1E] rounded-[32px] flex flex-col py-6 text-white shadow-2xl z-50",
+                    "fixed left-4 top-4 bottom-4 bg-[#1E1E1E] rounded-[32px] flex flex-col py-6 text-white shadow-lg shadow-black/20 z-50 border border-white/5",
                     "transition-all duration-500 ease-in-out",
                     collapsed ? "w-[72px]" : "w-64 px-6"
                 )}
