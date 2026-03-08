@@ -10,6 +10,7 @@ import {
     createFilterPreset,
 } from "@/lib/order-filter-utils";
 import { useUserPreferences, PREFERENCE_KEYS } from "@/hooks/use-user-preferences";
+import { useOrderStore } from "@/store/use-order-store";
 
 // Normalize Arabic text for fuzzy search:
 // - Remove diacritics (tashkeel)
@@ -62,6 +63,16 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
         }
         return getDefaultFilters();
     });
+
+    const setActiveDateRange = useOrderStore(s => s.setActiveDateRange);
+
+    // Sync local date filters to global store for shared context (e.g. Activity Feed)
+    useEffect(() => {
+        setActiveDateRange({
+            startDate: filters.dateFrom || null,
+            endDate: filters.dateTo || null
+        });
+    }, [filters.dateFrom, filters.dateTo, setActiveDateRange]);
 
     const [filterPresets, setFilterPresets] = useState<FilterPreset[]>(() => {
         if (typeof window !== "undefined") {

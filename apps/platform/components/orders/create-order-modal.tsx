@@ -235,8 +235,27 @@ export function CreateOrderModal({
             newErrors.items = "أضف منتج واحد على الأقل";
         }
 
+        if (orderType === "delivery") {
+            if (!formData.city) {
+                newErrors.city = "المحافظة مطلوبة";
+            }
+            if (!formData.address_details?.trim()) {
+                newErrors.address_details = "العنوان مطلوب";
+            }
+        }
+
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors);
+
+            // Autoscroll to the first error
+            setTimeout(() => {
+                const firstErrorField = document.querySelector('.field-error, [data-error="true"]');
+                if (firstErrorField) {
+                    firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // Trigger shake animation by adding then removing a class if needed, 
+                    // or just rely on the class we already have.
+                }
+            }, 100);
             return;
         }
 
@@ -307,6 +326,7 @@ export function CreateOrderModal({
                                         city: "واسط",
                                         address_details: "العزيزية - الجمعية",
                                         source: "tiktok",
+                                        is_test: true,
                                         items: prev.items.length > 0 ? prev.items : [{ name: "Test Product", price: 15000, quantity: 1 }]
                                     }));
                                 }}
@@ -423,11 +443,12 @@ export function CreateOrderModal({
                                         inputMode="text"
                                         autoComplete="name"
                                         className={cn(
-                                            "h-10 rounded-lg border-[var(--card-border)] bg-[var(--background)]",
-                                            errors.customer_name && "border-red-300 bg-red-50"
+                                            "h-10 rounded-lg border-[var(--card-border)] bg-[var(--background)] transition-all",
+                                            errors.customer_name && "field-error animate-shake"
                                         )}
+                                        data-error={!!errors.customer_name}
                                     />
-                                    {errors.customer_name && <p className="text-xs text-red-500">{errors.customer_name}</p>}
+                                    {errors.customer_name && <p className="field-error-text">{errors.customer_name}</p>}
                                 </div>
 
                                 {/* Primary Phone */}
@@ -449,11 +470,12 @@ export function CreateOrderModal({
                                         inputMode="tel"
                                         autoComplete="tel"
                                         className={cn(
-                                            "h-10 rounded-lg border-[var(--card-border)] bg-[var(--background)] font-mono",
-                                            errors.phone && "border-red-300 bg-red-50"
+                                            "h-10 rounded-lg border-[var(--card-border)] bg-[var(--background)] font-mono transition-all",
+                                            errors.phone && "field-error animate-shake"
                                         )}
+                                        data-error={!!errors.phone}
                                     />
-                                    {errors.phone && <p className="text-xs text-red-500">{errors.phone}</p>}
+                                    {errors.phone && <p className="field-error-text">{errors.phone}</p>}
                                 </div>
 
                                 {/* Secondary Phone */}
@@ -491,8 +513,10 @@ export function CreateOrderModal({
                                                 }}
                                                 className={cn(
                                                     "h-10 w-full appearance-none rounded-lg border border-[var(--card-border)] bg-[var(--background)] px-3 pr-8 text-sm font-medium text-foreground outline-none transition-all focus:ring-2 focus:ring-[var(--card-border)]",
-                                                    !formData.city && "text-muted-foreground"
+                                                    !formData.city && "text-muted-foreground",
+                                                    errors.city && "field-error animate-shake"
                                                 )}
+                                                data-error={!!errors.city}
                                             >
                                                 <option value="" disabled>اختر المحافظة...</option>
                                                 {governorates.map((gov) => (
@@ -501,6 +525,7 @@ export function CreateOrderModal({
                                                     </option>
                                                 ))}
                                             </select>
+                                            {errors.city && <p className="field-error-text">{errors.city}</p>}
                                             <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-down"><path d="m6 9 6 6 6-6" /></svg>
                                             </div>
@@ -521,8 +546,13 @@ export function CreateOrderModal({
                                         onChange={(e) => updateField("address_details", e.target.value)}
                                         placeholder="أدخل العنوان التفصيلي..."
                                         rows={2}
-                                        className="rounded-lg border-[var(--card-border)] bg-[var(--background)] resize-none"
+                                        className={cn(
+                                            "rounded-lg border-[var(--card-border)] bg-[var(--background)] resize-none transition-all",
+                                            errors.address_details && "field-error animate-shake"
+                                        )}
+                                        data-error={!!errors.address_details}
                                     />
+                                    {errors.address_details && <p className="field-error-text">{errors.address_details}</p>}
                                 </div>
                             )}
 
@@ -577,7 +607,11 @@ export function CreateOrderModal({
                                     <button
                                         type="button"
                                         onClick={() => setShowProductPicker(true)}
-                                        className="mt-2 text-xs text-green-600 hover:underline"
+                                        className={cn(
+                                            "mt-2 text-xs text-green-600 hover:underline transition-all p-2 rounded-md",
+                                            errors.items && "bg-red-50 text-red-600 animate-shake"
+                                        )}
+                                        data-error={!!errors.items}
                                     >
                                         اضغط لإضافة منتج
                                     </button>

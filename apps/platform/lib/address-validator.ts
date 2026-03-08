@@ -144,7 +144,7 @@ export const GOVERNORATES: Governorate[] = [
         ]
     },
     {
-        code: 'SMH',
+        code: 'SAM',
         nameAr: 'المثنى',
         nameEn: 'Muthanna',
         aliases: [
@@ -172,13 +172,14 @@ export const GOVERNORATES: Governorate[] = [
         ]
     },
     {
-        code: 'SAM',
+        code: 'SMH',
         nameAr: 'السليمانية',
         nameEn: 'Sulaymaniyah',
         aliases: [
             'السليمانية', 'سليمانية', 'السليمانيه', 'سليمانيه',
             'سلێمانی', 'سليماني',
-            'sulaymaniyah', 'suleimaniya', 'slemani', 'slêmanî'
+            'sulaymaniyah', 'suleimaniya', 'slemani', 'slêmanî',
+            'حلبجة', 'حلبجه', 'halabja', 'halabjah'
         ]
     },
     {
@@ -206,15 +207,6 @@ export const GOVERNORATES: Governorate[] = [
         aliases: [
             'ميسان', 'عمارة', 'العمارة', 'العماره', 'عماره', 'عمارة ميسان',
             'maysan', 'amara', 'amarah', 'al-amarah'
-        ]
-    },
-    {
-        code: 'WST',
-        nameAr: 'واسط',
-        nameEn: 'Wasit',
-        aliases: [
-            'واسط', 'الكوت', 'كوت واسط',
-            'wasit', 'al-kut', 'kut'
         ]
     }
 ];

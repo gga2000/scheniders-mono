@@ -79,7 +79,6 @@ interface OrderDetailsModalProps {
     onStatusUpdate?: (orderId: string, status: Order["status"], reason?: string) => Promise<{ success: boolean; error?: string }>;
     onGetTimeline?: (orderId: string) => Promise<OrderStatusHistory[]>;
     onGetNotes?: (orderId: string) => Promise<OrderNote[]>;
-    onAddNote?: (orderId: string, note: string) => Promise<{ success: boolean; error?: string }>;
     onDelete?: (orderId: string) => Promise<{ success: boolean; error?: string }>;
     onCreateReturn?: (orderId: string, data: { return_amount: number; reason: string; deductDeliveryFee?: boolean }) => Promise<{ success: boolean; error?: string }>;
     checkOrderIdExists?: (orderId: string, excludeId?: string) => Promise<boolean>;
@@ -97,7 +96,6 @@ export function OrderDetailsModal({
     onStatusUpdate,
     onGetTimeline,
     onGetNotes,
-    onAddNote,
     onDelete,
     onCreateReturn,
     checkOrderIdExists,
@@ -167,7 +165,6 @@ export function OrderDetailsModal({
     const {
         activeTab, setActiveTab,
         timeline, notes, loadingTimeline,
-        newNote, setNewNote, isAddingNote, handleAddNote,
         isUpdatingStatus, handleStatusChangeForm,
         showDeleteConfirm, deleteCountdown, isDeleting,
         handleDeleteClick, handleDeleteConfirm, handleCancelDelete,
@@ -184,7 +181,6 @@ export function OrderDetailsModal({
         onStatusUpdate,
         onGetTimeline,
         onGetNotes,
-        onAddNote,
         onDelete,
         splitOrder,
         t
@@ -793,32 +789,8 @@ export function OrderDetailsModal({
                         </DialogDescription>
                     </DialogHeader>
 
-                    {/* Timeline View */}
                     {activeTab === "timeline" && (
-                        <div className="py-4 max-h-[50vh] overflow-y-auto">
-                            {/* Add Note Input */}
-                            <div className="mb-6 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                                <textarea
-                                    value={newNote}
-                                    onChange={(e) => setNewNote(e.target.value)}
-                                    placeholder={t("orderDetail.addNoteInternal")}
-                                    className="w-full text-sm bg-white border border-gray-200 rounded-lg p-3 min-h-[80px] focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none mb-2"
-                                />
-                                <div className="flex justify-end">
-                                    <button
-                                        onClick={handleAddNote}
-                                        disabled={!newNote.trim() || isAddingNote}
-                                        className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-foreground text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
-                                    >
-                                        {isAddingNote ? (
-                                            <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                        ) : (
-                                            <Save className="w-3 h-3" />
-                                        )}
-                                        {t("orderDetail.saveNote")}
-                                    </button>
-                                </div>
-                            </div>
+                        <div className="py-2">
 
                             {loadingTimeline ? (
                                 <div className="text-center py-8">

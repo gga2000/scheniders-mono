@@ -65,13 +65,14 @@ export const StickyFilterBar = memo(function StickyFilterBar({
         { id: "contacted", label: t("orders.status.contacted"), count: statusCounts.contacted || 0 },
         { id: "confirmed", label: t("orders.status.confirmed"), count: statusCounts.confirmed || 0 },
         { id: "in_transit", label: t("orders.status.inTransit"), count: statusCounts.in_transit || 0 },
+        { id: "pending_checkout", label: t("orders.status.pendingCheckout"), count: statusCounts.pending_checkout || 0 },
         { id: "delivered", label: t("orders.status.delivered"), count: statusCounts.delivered || 0 },
         { id: "completed", label: t("orders.status.completed"), count: statusCounts.completed || 0 },
+        { id: "cancelled", label: t("orders.status.cancelled"), count: statusCounts.cancelled || 0 },
         { id: "rejected", label: t("orders.status.rejected"), count: statusCounts.rejected || 0 },
         { id: "return_pending", label: t("orders.status.returnPending"), count: statusCounts.return_pending || 0 },
         { id: "suspended", label: "طلب معلق", count: statusCounts.suspended || 0 },
         { id: "no_response", label: t("orders.status.noResponse"), count: statusCounts.no_response || 0 },
-        { id: "pending_checkout", label: t("orders.status.pendingCheckout"), count: statusCounts.pending_checkout || 0 },
     ];
 
     return (
@@ -94,14 +95,14 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                         key={option.id}
                         onClick={() => setFilters({ ...filters, status: option.id === "all" ? undefined : option.id as Order["status"] })}
                         className={cn(
-                            "rounded-full whitespace-nowrap transition-all flex items-center gap-2 snap-start flex-shrink-0 border",
+                            "rounded-full whitespace-nowrap transition-all flex items-center gap-2 snap-start shrink-0 border",
                             // Mobile: Larger touch targets (48px min height for better accessibility)
                             isMobile
                                 ? "min-h-[48px] px-5 py-3 text-sm font-semibold"
                                 : "px-4 py-2 text-sm font-medium",
 
                             filters.status === option.id || (option.id === "all" && !filters.status)
-                                ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)] font-bold shadow-[0_0_15px_rgba(239,255,0,0.2)] scale-105"
+                                ? "bg-primary text-(--primary-fg) border-primary font-bold shadow-[0_0_15px_rgba(239,255,0,0.2)] scale-105"
                                 : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95 dark:bg-[#1E1E1E] dark:text-[#A1A1A1] dark:border-[#3F3F3F] dark:hover:border-[rgba(0,255,255,0.4)] dark:hover:text-white dark:hover:bg-[#242424]"
                         )}
                     >
@@ -118,13 +119,13 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                 ))}
 
                 {/* Vertical Divider */}
-                <div className="w-px h-8 bg-border flex-shrink-0 mx-1" />
+                <div className="w-px h-8 bg-border shrink-0 mx-1" />
 
                 {/* Filters Toggle */}
                 <button
                     onClick={() => setShowFilters(!showFilters)}
                     className={cn(
-                        "rounded-full whitespace-nowrap transition-all flex items-center gap-2 flex-shrink-0 border",
+                        "rounded-full whitespace-nowrap transition-all flex items-center gap-2 shrink-0 border",
                         isMobile ? "px-4 py-2.5 text-sm" : "px-4 py-2 text-sm font-medium",
                         showFilters || hasActiveFilters
                             ? "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-400/15 dark:text-blue-200 dark:border-blue-400/35"

@@ -20,6 +20,7 @@ import {
     Users,
     Wallet,
     ListChecks,
+    Truck,
 } from "lucide-react";
 
 // Hooks
@@ -111,6 +112,14 @@ const DataQualityBadge = dynamic(
     () => import("@/components/analytics/data-quality-badge").then(mod => ({ default: mod.DataQualityBadge })),
     { ssr: false }
 );
+const DeliveryImportModal = dynamic(
+    () => import("@/components/delivery-import/delivery-import-modal").then(mod => ({ default: mod.DeliveryImportModal })),
+    { ssr: false }
+);
+const DeliveryHistory = dynamic(
+    () => import("@/components/delivery-import/delivery-history").then(mod => ({ default: mod.DeliveryHistory })),
+    { loading: () => <div className="skeleton h-64 rounded-2xl" /> }
+);
 
 // Utils
 import { exportFinancesToCSV, exportFinancesToExcel, printFinancialReport } from "@/lib/finance-export";
@@ -118,7 +127,7 @@ import { Expense } from "@/types/expense";
 import { ExpenseFormData } from "@/components/finances/expense-form-modal";
 import { cn } from "@/lib/utils";
 
-type ActiveTab = "overview" | "profit" | "customers" | "expenses";
+type ActiveTab = "overview" | "profit" | "customers" | "expenses" | "deliveries";
 
 export default function AnalyticsPage() {
     // Date range state - default to all orders (empty = no filter)
@@ -133,6 +142,7 @@ export default function AnalyticsPage() {
     const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
     const [expenseModalMode, setExpenseModalMode] = useState<"add" | "edit">("add");
     const [exportMenuOpen, setExportMenuOpen] = useState(false);
+    const [isDeliveryImportOpen, setIsDeliveryImportOpen] = useState(false);
 
     // =============================================
     // FINANCIAL EPOCH
@@ -316,6 +326,7 @@ export default function AnalyticsPage() {
         { id: "customers" as const, label: "Customers", icon: Users },
         { id: "overview" as const, label: "Overview", icon: BarChart3 },
         { id: "expenses" as const, label: "Expenses", icon: PieChart },
+        { id: "deliveries" as const, label: "Deliveries", icon: Truck },
     ];
 
     const { t } = useLanguage();
@@ -342,6 +353,15 @@ export default function AnalyticsPage() {
                         onDateChange={(start, end) => setDateRange({ startDate: start || "", endDate: end || "" })}
                         epochDate={epochDate || undefined}
                     />
+
+                    {/* Import Delivery PDF Button */}
+                    <button
+                        onClick={() => setIsDeliveryImportOpen(true)}
+                        className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-xl font-medium hover:opacity-90 transition-all shadow-lg shadow-teal-500/20"
+                    >
+                        <Truck className="w-4 h-4" />
+                        <span className="hidden md:inline">Import Delivery</span>
+                    </button>
 
                     {/* Marketing Expense Button */}
                     <button
@@ -645,6 +665,23 @@ export default function AnalyticsPage() {
                         </div>
                     </div>
                 </div>
+            ) : activeTab === "deliveries" ? (
+                <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                            <Truck className="w-5 h-5 text-teal-600" />
+                            Delivery Import History
+                        </h2>
+                        <button
+                            onClick={() => setIsDeliveryImportOpen(true)}
+                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-xl font-medium text-sm hover:opacity-90 transition-all shadow-lg shadow-teal-500/20"
+                        >
+                            <Plus className="w-4 h-4" />
+                            New Import
+                        </button>
+                    </div>
+                    <DeliveryHistory />
+                </div>
             ) : (
                 <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
                     <ExpenseList
@@ -670,6 +707,12 @@ export default function AnalyticsPage() {
                 onClose={() => setIsMarketingModalOpen(false)}
                 onSubmit={handleAddMarketingExpense}
                 dateRange={dateRange}
+            />
+
+            {/* Delivery Import Modal */}
+            <DeliveryImportModal
+                open={isDeliveryImportOpen}
+                onClose={() => setIsDeliveryImportOpen(false)}
             />
             </div>
         </div>
