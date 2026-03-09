@@ -9,10 +9,11 @@ import {
     ChevronDown,
     ChevronRight,
     Search,
+    Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
-import type { MatchedRow, MatchCategory } from "@/types/delivery-import";
+import type { MatchedRow, MatchCategory, RowResolution, ResolutionAction } from "@/types/delivery-import";
 
 interface ImportReviewTableProps {
     matches: MatchedRow[];
@@ -20,6 +21,9 @@ interface ImportReviewTableProps {
     onToggleRow: (rowNumber: number) => void;
     onSelectAllClean: () => void;
     onDeselectAll: () => void;
+    resolutions: Map<number, RowResolution>;
+    onResolve: (resolution: RowResolution) => void;
+    onClearResolution: (rowNumber: number) => void;
 }
 
 type FilterMode = "all" | "clean" | "review" | "critical";
@@ -40,12 +44,212 @@ const CATEGORY_CONFIG: Record<
     reorder: { icon: Info, label: "Reorder", color: "text-blue-600", group: "clean" },
 };
 
+/** Inline resolution UI for a single issue row */
+function ResolveSection({
+    match,
+    resolution,
+    onResolve,
+    onClear,
+}: {
+    match: MatchedRow;
+    resolution?: RowResolution;
+    onResolve: (resolution: RowResolution) => void;
+    onClear: () => void;
+}) {
+    const options = getResolutionOptions(match);
+    const [selectedAction, setSelectedAction] = useState<ResolutionAction | null>(
+        resolution?.action ?? null
+    );
+    const [note, setNote] = useState(resolution?.note ?? "");
+
+    if (options.length === 0) return null;
+
+    const isResolved = !!resolution;
+
+    return (
+        <div className="border border-[var(--card-border)] rounded-xl p-3 bg-[var(--background)]">
+            <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                    <Wrench className="w-3.5 h-3.5 text-muted" />
+                    <span className="text-xs font-semibold text-foreground">
+                        Resolve This Row
+                    </span>
+                </div>
+                {isResolved && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedAction(null);
+                            setNote("");
+                            onClear();
+                        }}
+                        className="text-[10px] text-rose-600 hover:underline"
+                    >
+                        Clear Resolution
+                    </button>
+                )}
+            </div>
+
+            <div className="space-y-1.5">
+                {options.map((opt) => (
+                    <label
+                        key={opt.action}
+                        className={cn(
+                            "flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors",
+                            selectedAction === opt.action
+                                ? "bg-blue-50 dark:bg-blue-900/20"
+                                : "hover:bg-[var(--card-border)]/30"
+                        )}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <input
+                            type="radio"
+                            name={`resolve-${match.pdfRow.rowNumber}`}
+                            checked={selectedAction === opt.action}
+                            onChange={() => setSelectedAction(opt.action)}
+                            className="mt-0.5 accent-[var(--ink)]"
+                        />
+                        <div>
+                            <span className="text-xs font-medium text-foreground">
+                                {opt.label}
+                            </span>
+                            {opt.description && (
+                                <p className="text-[10px] text-muted mt-0.5">
+                                    {opt.description}
+                                </p>
+                            )}
+                        </div>
+                    </label>
+                ))}
+            </div>
+
+            <div className="mt-2 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                <input
+                    type="text"
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="Optional note..."
+                    className="flex-1 px-2 py-1 text-xs bg-white dark:bg-gray-800 border border-[var(--card-border)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--ink)]"
+                />
+                <button
+                    disabled={!selectedAction}
+                    onClick={() => {
+                        if (selectedAction) {
+                            onResolve({
+                                rowNumber: match.pdfRow.rowNumber,
+                                action: selectedAction,
+                                note: note || undefined,
+                            });
+                        }
+                    }}
+                    className={cn(
+                        "px-3 py-1 text-xs font-medium rounded-lg transition-colors",
+                        selectedAction
+                            ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                            : "bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700"
+                    )}
+                >
+                    {isResolved ? "Update" : "Apply"}
+                </button>
+            </div>
+        </div>
+    );
+}
+
+/** Get available resolution options for a given match category */
+function getResolutionOptions(
+    match: MatchedRow
+): Array<{ action: ResolutionAction; label: string; description?: string }> {
+    switch (match.category) {
+        case "amount_mismatch":
+            return [
+                {
+                    action: "process_with_pdf_price",
+                    label: `Process with PDF price (${match.pdfRow.shipmentAmount.toLocaleString()} IQD)`,
+                    description: "Update order price to match PDF, then mark as delivered",
+                },
+                {
+                    action: "process_with_system_price",
+                    label: `Process with system price (${match.order ? Math.round(match.order.price).toLocaleString() : "N/A"} IQD)`,
+                    description: "Mark as delivered without changing the price",
+                },
+                { action: "skip", label: "Skip this row" },
+            ];
+        case "price_changed":
+            return [
+                {
+                    action: "process_with_pdf_price",
+                    label: `Update to new price (${(match.pdfRow.newPrice ?? match.pdfRow.shipmentAmount).toLocaleString()} IQD)`,
+                    description: "Update order price to the new price, then mark as delivered",
+                },
+                {
+                    action: "process_with_system_price",
+                    label: "Process with original price",
+                    description: "Mark as delivered without changing the price",
+                },
+                { action: "skip", label: "Skip this row" },
+            ];
+        case "partial_delivery":
+            return [
+                {
+                    action: "process_with_system_price",
+                    label: "Mark as delivered",
+                    description: "Treat as full delivery",
+                },
+                { action: "skip", label: "Skip this row" },
+            ];
+        case "phone_mismatch":
+            return [
+                {
+                    action: "process_with_system_price",
+                    label: "Process anyway",
+                    description: "Order ID matched — phone mismatch is likely a typo",
+                },
+                { action: "skip", label: "Skip this row" },
+            ];
+        case "already_delivered":
+            return [
+                { action: "skip", label: "Skip (already handled)" },
+                {
+                    action: "force_deliver",
+                    label: "Re-confirm delivery",
+                    description: "Update delivered_at timestamp",
+                },
+            ];
+        case "wrong_status":
+            return [
+                {
+                    action: "force_deliver",
+                    label: "Force deliver",
+                    description: `Override current status (${match.order?.status})`,
+                },
+                { action: "skip", label: "Skip this row" },
+            ];
+        case "negative_refund":
+            return [
+                {
+                    action: "acknowledge_refund",
+                    label: "Acknowledge refund",
+                    description: "Record in audit trail, no order status change",
+                },
+                { action: "skip", label: "Skip this row" },
+            ];
+        case "not_found":
+            return [{ action: "skip", label: "Skip (no matching order)" }];
+        default:
+            return [];
+    }
+}
+
 export function ImportReviewTable({
     matches,
     selectedRows,
     onToggleRow,
     onSelectAllClean,
     onDeselectAll,
+    resolutions,
+    onResolve,
+    onClearResolution,
 }: ImportReviewTableProps) {
     const [filter, setFilter] = useState<FilterMode>("all");
     const [search, setSearch] = useState("");
@@ -222,6 +426,11 @@ export function ImportReviewTable({
                                                     >
                                                         {config.label}
                                                     </span>
+                                                    {resolutions.has(match.pdfRow.rowNumber) && (
+                                                        <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-700 rounded-full dark:bg-emerald-900/30 dark:text-emerald-400">
+                                                            Resolved
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </td>
                                             <td className="px-3 py-2 font-mono text-xs">
@@ -372,6 +581,18 @@ export function ImportReviewTable({
                                                                 <strong>Match Details:</strong> {match.matchDetails}
                                                             </p>
                                                         </div>
+
+                                                        {/* Resolution UI for issue rows */}
+                                                        {match.category !== "clean" && match.category !== "reorder" && (
+                                                            <div className="md:col-span-2 mt-2">
+                                                                <ResolveSection
+                                                                    match={match}
+                                                                    resolution={resolutions.get(match.pdfRow.rowNumber)}
+                                                                    onResolve={onResolve}
+                                                                    onClear={() => onClearResolution(match.pdfRow.rowNumber)}
+                                                                />
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>

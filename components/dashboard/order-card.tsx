@@ -1181,7 +1181,13 @@ export const OrderCard = memo(function OrderCard({
                                 </motion.span>
                             )}
 
-
+                            {/* Delivery Note - right after status badge for visibility */}
+                            {order.delivery_note && (
+                                <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-medium rounded-full bg-teal-100 text-teal-800 border border-teal-300">
+                                    <FileText className="w-3 h-3 flex-shrink-0" />
+                                    <span className="truncate max-w-[220px]">{order.delivery_note}</span>
+                                </span>
+                            )}
 
                             {/* Detailed Risk Warning - Only show in full view */}
                             {compact === 0 && (riskLevel === 'high' || riskLevel === 'blocked' || riskLevel === 'medium') &&
@@ -1426,6 +1432,20 @@ export const OrderCard = memo(function OrderCard({
                                                     Review Required
                                                 </span>
                                             )}
+                                        {/* Delivery Attention Flag - prominent, next to items like Review Required */}
+                                        {order.needs_attention && order.attention_reasons?.some(r => r.startsWith('delivery_')) && (
+                                            <span className="inline-flex h-7 items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-bold bg-amber-100 text-amber-700 animate-pulse border border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20">
+                                                <AlertTriangle className="w-3.5 h-3.5" />
+                                                {order.attention_reasons!.includes('delivery_price_changed') ? 'سعر معدّل' :
+                                                 order.attention_reasons!.includes('delivery_force_delivered') ? 'تسليم إجباري' :
+                                                 order.attention_reasons!.includes('delivery_amount_mismatch') ? 'فرق بالمبلغ' :
+                                                 order.attention_reasons!.includes('delivery_phone_mismatch') ? 'فرق بالرقم' :
+                                                 order.attention_reasons!.includes('delivery_already_delivered') ? 'مسلّم مسبقاً' :
+                                                 order.attention_reasons!.includes('delivery_wrong_status') ? 'حالة خاطئة' :
+                                                 order.attention_reasons!.includes('delivery_partial_delivery') ? 'تسليم جزئي' :
+                                                 'مراجعة توصيل'}
+                                            </span>
+                                        )}
                                     </div>
                                 ) : (
                                     <span className="text-sm text-muted">No products</span>

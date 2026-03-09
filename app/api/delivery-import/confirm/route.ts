@@ -10,12 +10,17 @@ interface ConfirmRequest {
         matchCategory: string;
         matchDetails: string;
         previousStatus: string;
+        resolutionAction?: string;
+        resolutionNote?: string;
+        pdfAmount?: number;
     }>;
     skippedItems: Array<{
         pdfRowNumber: number;
         orderId: string | null;
         matchCategory: string;
         matchDetails: string;
+        resolutionAction?: string;
+        resolutionNote?: string;
     }>;
     filename: string;
 }
@@ -103,21 +108,76 @@ export async function POST(request: NextRequest) {
 
             for (const item of batch) {
                 try {
-                    // Update order status to delivered
-                    const { error: updateError } = await supabaseAdmin
-                        .from("orders")
-                        .update({
-                            status: "delivered",
-                            delivered_at: now,
-                        })
-                        .eq("id", item.orderId);
+                    const pdfRow = parsedPDF.rows.find((r) => r.rowNumber === item.pdfRowNumber);
+                    const resAction = item.resolutionAction;
 
-                    if (updateError) {
-                        throw new Error(updateError.message);
+                    // Build the order update based on resolution action
+                    const orderUpdate: Record<string, unknown> = {
+                        delivered_at: now,
+                    };
+
+                    // Determine the delivery note for the order
+                    const deliveryNotes: string[] = [];
+                    const attentionReasons: string[] = [];
+                    let newStatus = "delivered";
+
+                    if (resAction === "acknowledge_refund") {
+                        // Don't change order status, just record the refund
+                        newStatus = item.previousStatus;
+                        delete orderUpdate.delivered_at;
+                        deliveryNotes.push(`Refund acknowledged: ${pdfRow?.netToMerchant?.toLocaleString()} IQD`);
+                    } else if (resAction === "process_with_pdf_price" && item.pdfAmount != null) {
+                        // Update price to PDF amount
+                        orderUpdate.price = item.pdfAmount;
+                        orderUpdate.status = "delivered";
+                        deliveryNotes.push(`Price updated from delivery PDF: ${item.pdfAmount.toLocaleString()} IQD`);
+                        attentionReasons.push(`delivery_price_changed`);
+                    } else if (resAction === "force_deliver") {
+                        orderUpdate.status = "delivered";
+                        deliveryNotes.push(`Force delivered (was: ${item.previousStatus})`);
+                        attentionReasons.push(`delivery_force_delivered`);
+                    } else {
+                        // Default: process_with_system_price or clean match
+                        orderUpdate.status = "delivered";
+                    }
+
+                    // Add resolution note if provided
+                    if (item.resolutionNote) {
+                        deliveryNotes.push(item.resolutionNote);
+                    }
+
+                    // Flag non-clean matches for attention
+                    if (item.matchCategory !== "clean" && item.matchCategory !== "reorder") {
+                        attentionReasons.push(`delivery_${item.matchCategory}`);
+                        if (!deliveryNotes.length) {
+                            deliveryNotes.push(item.matchDetails);
+                        }
+                    }
+
+                    // Set attention flags if there are reasons
+                    if (attentionReasons.length > 0) {
+                        orderUpdate.needs_attention = true;
+                        orderUpdate.attention_reasons = attentionReasons;
+                    }
+
+                    // Store delivery note on the order
+                    if (deliveryNotes.length > 0) {
+                        orderUpdate.delivery_note = deliveryNotes.join(" | ");
+                    }
+
+                    // Only update if not acknowledge_refund
+                    if (resAction !== "acknowledge_refund") {
+                        const { error: updateError } = await supabaseAdmin
+                            .from("orders")
+                            .update(orderUpdate)
+                            .eq("id", item.orderId);
+
+                        if (updateError) {
+                            throw new Error(updateError.message);
+                        }
                     }
 
                     // Create audit item record
-                    const pdfRow = parsedPDF.rows.find((r) => r.rowNumber === item.pdfRowNumber);
                     await supabaseAdmin.from("delivery_import_items").insert({
                         import_id: importRecord.id,
                         order_id: item.orderId,
@@ -131,10 +191,14 @@ export async function POST(request: NextRequest) {
                         pdf_item_count: pdfRow?.itemCount,
                         pdf_notes: pdfRow?.notes,
                         match_category: item.matchCategory,
-                        match_details: { details: item.matchDetails },
+                        match_details: {
+                            details: item.matchDetails,
+                            resolutionAction: resAction,
+                            resolutionNote: item.resolutionNote,
+                        },
                         action: "confirmed",
                         previous_status: item.previousStatus,
-                        new_status: "delivered",
+                        new_status: newStatus,
                     });
 
                     processedCount++;
@@ -161,7 +225,11 @@ export async function POST(request: NextRequest) {
                             pdf_item_count: pdfRow?.itemCount,
                             pdf_notes: pdfRow?.notes,
                             match_category: item.matchCategory,
-                            match_details: { details: item.matchDetails, error: msg },
+                            match_details: {
+                                details: item.matchDetails,
+                                resolutionAction: item.resolutionAction,
+                                error: msg,
+                            },
                             action: "failed",
                             previous_status: item.previousStatus,
                             new_status: null,

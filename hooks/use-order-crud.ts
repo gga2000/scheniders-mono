@@ -48,7 +48,13 @@ interface UseOrderCrudOptions {
 
 export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     const queryClient = useQueryClient();
-    const { user, profile, session } = useAuth();
+    const { user, profile, session, refreshProfile } = useAuth();
+
+    // Stable Auth Ref to prevent stale closures in stableAPI proxy
+    const authRef = useRef({ user, profile, session });
+    useLayoutEffect(() => {
+        authRef.current = { user, profile, session };
+    });
 
     // Helper: optimistically update the React Query orders cache
     const optimisticUpdate = (updater: (prev: Order[]) => Order[]) => {
@@ -181,6 +187,9 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
                     // Record status change to history table
                     if (previousOrder && previousOrder.status !== status) {
+                        const { profile: currentProfile, user: currentUser } = authRef.current;
+                        const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
+
                         supabase
                             .from("order_status_history")
                             .insert([{
@@ -189,7 +198,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                                 to_status: status,
                                 changed_at: new Date().toISOString(),
                                 notes: rejectionReason || null,
-                                changed_by: profile?.display_name || user?.email || 'System',
+                                changed_by: changedBy,
                             }]).then(({ error }) => {
                                 if (error) console.error("Failed to record status history:", error);
                             });
@@ -227,12 +236,66 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             const cleanUpdates = { ...updates };
             delete (cleanUpdates as Record<string, unknown>).customer;
 
-            // Use the React Query mutation directly
+            // --- Audit Trail Tracking ---
+            const currentCache = queryClient.getQueryData<Order[]>(orderKeys.lists());
+            const previousOrder = currentCache?.find(o => o.id === orderId) || orders.find(o => o.id === orderId);
 
-            // + .maybeSingle() to verify the write succeeded.
-            // NOTE: Conflict detection via updated_at was removed because stale
-            // cached timestamps caused massive false-positive "conflict" failures,
-            // which was the primary cause of mutations not persisting.
+            if (previousOrder) {
+                const changes: string[] = [];
+                const FieldsToTrack: (keyof Order)[] = [
+                    'customer_name', 'phone', 'secondary_phone', 'city',
+                    'address_details', 'price', 'notes', 'internal_notes',
+                    'priority', 'payment_status', 'scheduled_date'
+                ];
+
+                const fieldLabels: Record<string, string> = {
+                    customer_name: "Name",
+                    phone: "Phone",
+                    secondary_phone: "Secondary Phone",
+                    city: "City",
+                    address_details: "Address",
+                    price: "Price",
+                    notes: "Notes",
+                    internal_notes: "Internal Notes",
+                    priority: "Priority",
+                    payment_status: "Payment Status",
+                    scheduled_date: "Scheduled Date"
+                };
+
+                FieldsToTrack.forEach(field => {
+                    const newVal = updates[field];
+                    const oldVal = previousOrder[field];
+                    // Skip if newVal is undefined (not target of update)
+                    if (newVal !== undefined && newVal !== oldVal) {
+                        const label = fieldLabels[field] || field;
+                        changes.push(`${label}: ${oldVal || 'None'} → ${newVal || 'None'}`);
+                    }
+                });
+
+                // Items comparison
+                if (updates.items && JSON.stringify(updates.items) !== JSON.stringify(previousOrder.items)) {
+                    changes.push(`Items updated`);
+                }
+
+                if (changes.length > 0) {
+                    const { profile: currentProfile, user: currentUser } = authRef.current;
+                    const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
+
+                    supabase
+                        .from("order_status_history")
+                        .insert([{
+                            order_id: orderId,
+                            from_status: previousOrder.status,
+                            to_status: previousOrder.status,
+                            changed_at: new Date().toISOString(),
+                            notes: `Updated: ${changes.join(', ')}`,
+                            changed_by: changedBy,
+                        }]).then(({ error }) => {
+                            if (error) console.error("Failed to record detail history:", error);
+                        });
+                }
+            }
+
             await updateOrderMutation.mutateAsync({
                 orderId,
                 updates: cleanUpdates
@@ -318,19 +381,21 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 orderData.source || "manual"
             );
 
-            // Record initial status change to history table for correct actor attribution
-            supabase
+            // Record initial status change to history
+            const { profile: currentProfile, user: currentUser } = authRef.current;
+            const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
+
+            const { error: historyError } = await supabase
                 .from("order_status_history")
                 .insert([{
                     order_id: data.id,
+                    changed_by: changedBy,
                     from_status: null,
-                    to_status: data.status || 'new',
+                    to_status: orderData.status || "new",
                     changed_at: new Date().toISOString(),
                     notes: 'Order Created',
-                    changed_by: profile?.display_name || user?.email || 'System',
-                }]).then(({ error }) => {
-                    if (error) console.error("Failed to record initial status history:", error);
-                });
+                }]);
+            if (historyError) console.error("Failed to record initial status history:", historyError);
 
             return { success: true, data };
         } catch (err) {
@@ -609,6 +674,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     async function bulkUpdateStatus(orderIds: string[], status: Order["status"]) {
         try {
             const previousOrders = orders.filter(o => orderIds.includes(o.id));
+            const currentStatuses: { [key: string]: Order["status"] } = {};
+            previousOrders.forEach(o => currentStatuses[o.id] = o.status);
 
             const { data: updatedRows, error: updateError } = await supabase
                 .from("orders")
@@ -639,6 +706,26 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     }
                 });
             }).catch(console.error);
+
+            // Record status change to history table for each updated order
+            const { profile: currentProfile, user: currentUser } = authRef.current;
+            const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
+
+            // Insert history records
+            const historyEntries = orderIds.map(id => ({
+                order_id: id,
+                changed_by: changedBy,
+                from_status: currentStatuses[id] || 'unknown',
+                to_status: status,
+                changed_at: new Date().toISOString(),
+                notes: `Bulk update to ${status}`,
+            }));
+
+            const { error: historyError } = await supabase
+                .from("order_status_history")
+                .insert(historyEntries);
+
+            if (historyError) console.error("Failed to record bulk status history:", historyError);
 
             // Update React Query cache
             optimisticUpdate((prev) =>
@@ -958,6 +1045,29 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 .eq("id", archiveOrderId);
 
             if (archiveError) throw archiveError;
+
+            // Record history for both orders
+            const { profile: currentProfile, user: currentUser } = authRef.current;
+            const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
+
+            await supabase
+                .from("order_status_history")
+                .insert([
+                    {
+                        order_id: keepOrderId,
+                        changed_by: changedBy,
+                        from_status: keepOrder.status,
+                        to_status: keepOrder.status, // Still the same status, but data changed
+                        notes: `Merged with #${archiveOrder.order_id}`,
+                    },
+                    {
+                        order_id: archiveOrderId,
+                        changed_by: changedBy,
+                        from_status: archiveOrder.status,
+                        to_status: "rejected",
+                        notes: `Merged into #${keepOrder.order_id}`,
+                    }
+                ]);
 
             // Update React Query cache
             optimisticUpdate((prev) =>

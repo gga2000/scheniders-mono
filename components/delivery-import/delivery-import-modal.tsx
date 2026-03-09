@@ -24,6 +24,7 @@ import {
 import { useDeliveryImport, type ImportStep } from "@/hooks/use-delivery-import";
 import { ImportSummaryTab } from "./import-summary-tab";
 import { ImportReviewTable } from "./import-review-table";
+import type { RowResolution } from "@/types/delivery-import";
 
 interface DeliveryImportModalProps {
     open: boolean;
@@ -56,6 +57,7 @@ export function DeliveryImportModal({
     const [dragActive, setDragActive] = useState(false);
     const [reviewTab, setReviewTab] = useState<ReviewTab>("summary");
     const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+    const [resolutions, setResolutions] = useState<Map<number, RowResolution>>(new Map());
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Auto-select clean matches when matches arrive
@@ -80,9 +82,46 @@ export function DeliveryImportModal({
     }
     prevStepRef.current = step;
 
+    const handleResolve = useCallback((resolution: RowResolution) => {
+        setResolutions((prev) => {
+            const next = new Map(prev);
+            next.set(resolution.rowNumber, resolution);
+            return next;
+        });
+        // Auto-select the row when resolved (unless it's a "skip" action)
+        if (resolution.action !== "skip") {
+            setSelectedRows((prev) => {
+                const next = new Set(prev);
+                next.add(resolution.rowNumber);
+                return next;
+            });
+        } else {
+            // Deselect if skipping
+            setSelectedRows((prev) => {
+                const next = new Set(prev);
+                next.delete(resolution.rowNumber);
+                return next;
+            });
+        }
+    }, []);
+
+    const handleClearResolution = useCallback((rowNumber: number) => {
+        setResolutions((prev) => {
+            const next = new Map(prev);
+            next.delete(rowNumber);
+            return next;
+        });
+        setSelectedRows((prev) => {
+            const next = new Set(prev);
+            next.delete(rowNumber);
+            return next;
+        });
+    }, []);
+
     const handleClose = useCallback(() => {
         reset();
         setSelectedRows(new Set());
+        setResolutions(new Map());
         setReviewTab("summary");
         setDragActive(false);
         onClose();
@@ -143,8 +182,8 @@ export function DeliveryImportModal({
     }, []);
 
     const handleConfirm = useCallback(async () => {
-        await confirmImport(selectedRows);
-    }, [confirmImport, selectedRows]);
+        await confirmImport(selectedRows, resolutions);
+    }, [confirmImport, selectedRows, resolutions]);
 
     const handleDone = useCallback(() => {
         onComplete?.();
@@ -298,6 +337,9 @@ export function DeliveryImportModal({
                                     onToggleRow={handleToggleRow}
                                     onSelectAllClean={handleSelectAllClean}
                                     onDeselectAll={handleDeselectAll}
+                                    resolutions={resolutions}
+                                    onResolve={handleResolve}
+                                    onClearResolution={handleClearResolution}
                                 />
                             )}
                         </div>
@@ -386,6 +428,7 @@ export function DeliveryImportModal({
                                 onClick={() => {
                                     reset();
                                     setSelectedRows(new Set());
+                                    setResolutions(new Map());
                                     setReviewTab("summary");
                                 }}
                                 className="flex items-center gap-2 px-4 py-2 text-foreground bg-[var(--background)] border border-[var(--card-border)] hover:bg-[var(--card-border)] rounded-xl transition-colors"

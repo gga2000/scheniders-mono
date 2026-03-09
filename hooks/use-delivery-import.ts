@@ -5,6 +5,8 @@ import type {
     ParsedDeliveryPDF,
     MatchedRow,
     DeliveryImportSummary,
+    RowResolution,
+    ResolutionAction,
 } from "@/types/delivery-import";
 
 export type ImportStep = "upload" | "processing" | "review" | "confirming" | "done";
@@ -41,18 +43,14 @@ export function useDeliveryImport() {
     // Confirm results
     const [confirmResult, setConfirmResult] = useState<ConfirmResult | null>(null);
 
-    const getAuthHeaders = useCallback(() => {
-        if (!session?.access_token) {
-            throw new Error("Not authenticated");
-        }
-        return {
-            Authorization: `Bearer ${session.access_token}`,
-        };
-    }, [session]);
-
     /** Step 1: Upload and parse a PDF file */
     const uploadAndParse = useCallback(
         async (file: File) => {
+            if (!session?.access_token) {
+                setError("Not authenticated. Please log in and try again.");
+                return;
+            }
+
             setIsLoading(true);
             setError(null);
             setStep("processing");
@@ -63,7 +61,9 @@ export function useDeliveryImport() {
 
                 const response = await fetch("/api/delivery-import/parse", {
                     method: "POST",
-                    headers: getAuthHeaders(),
+                    headers: {
+                        Authorization: `Bearer ${session.access_token}`,
+                    },
                     body: formData,
                 });
 
@@ -101,19 +101,24 @@ export function useDeliveryImport() {
                 setIsLoading(false);
             }
         },
-        [getAuthHeaders, toast]
+        [session, toast]
     );
 
     /** Step 2: Match parsed PDF rows against database orders */
     const matchOrders = useCallback(
         async (parsed: ParsedDeliveryPDF) => {
+            if (!session?.access_token) {
+                setError("Not authenticated");
+                return;
+            }
+
             setIsLoading(true);
 
             try {
                 const response = await fetch("/api/delivery-import/match", {
                     method: "POST",
                     headers: {
-                        ...getAuthHeaders(),
+                        Authorization: `Bearer ${session.access_token}`,
                         "Content-Type": "application/json",
                     },
                     body: JSON.stringify({ parsedPDF: parsed }),
@@ -142,13 +147,18 @@ export function useDeliveryImport() {
                 setIsLoading(false);
             }
         },
-        [getAuthHeaders, toast]
+        [session, toast]
     );
 
     /** Step 3: Confirm import — update selected orders to "delivered" */
     const confirmImport = useCallback(
-        async (selectedRowNumbers: Set<number>) => {
+        async (selectedRowNumbers: Set<number>, resolutions?: Map<number, RowResolution>) => {
             if (!parsedPDF || matches.length === 0) return;
+
+            if (!session?.access_token) {
+                setError("Not authenticated");
+                return;
+            }
 
             setIsLoading(true);
             setError(null);
@@ -161,6 +171,9 @@ export function useDeliveryImport() {
                     matchCategory: string;
                     matchDetails: string;
                     previousStatus: string;
+                    resolutionAction?: ResolutionAction;
+                    resolutionNote?: string;
+                    pdfAmount?: number;
                 }> = [];
 
                 const skippedItems: Array<{
@@ -168,9 +181,13 @@ export function useDeliveryImport() {
                     orderId: string | null;
                     matchCategory: string;
                     matchDetails: string;
+                    resolutionAction?: ResolutionAction;
+                    resolutionNote?: string;
                 }> = [];
 
                 for (const match of matches) {
+                    const resolution = resolutions?.get(match.pdfRow.rowNumber);
+
                     if (
                         selectedRowNumbers.has(match.pdfRow.rowNumber) &&
                         match.order
@@ -181,6 +198,9 @@ export function useDeliveryImport() {
                             matchCategory: match.category,
                             matchDetails: match.matchDetails,
                             previousStatus: match.order.status,
+                            resolutionAction: resolution?.action,
+                            resolutionNote: resolution?.note,
+                            pdfAmount: match.pdfRow.shipmentAmount,
                         });
                     } else {
                         skippedItems.push({
@@ -188,6 +208,8 @@ export function useDeliveryImport() {
                             orderId: match.order?.id || null,
                             matchCategory: match.category,
                             matchDetails: match.matchDetails,
+                            resolutionAction: resolution?.action,
+                            resolutionNote: resolution?.note,
                         });
                     }
                 }
@@ -195,7 +217,7 @@ export function useDeliveryImport() {
                 const response = await fetch("/api/delivery-import/confirm", {
                     method: "POST",
                     headers: {
-                        ...getAuthHeaders(),
+                        Authorization: `Bearer ${session.access_token}`,
                         "Content-Type": "application/json",
                     },
                     body: JSON.stringify({
@@ -233,7 +255,7 @@ export function useDeliveryImport() {
                 setIsLoading(false);
             }
         },
-        [parsedPDF, matches, filename, getAuthHeaders, toast]
+        [parsedPDF, matches, filename, session, toast]
     );
 
     /** Reset all state */

@@ -95,6 +95,7 @@ export interface Order {
     delivery_cost?: number;
     tag_color?: OrderTagColor;
     delivery_order_id?: string;
+    delivery_note?: string;
     is_reviewed?: boolean;
     is_verified_customer?: boolean;
     contact_count?: number;

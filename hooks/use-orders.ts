@@ -232,16 +232,9 @@ export function useOrders() {
         archivedOrders,
         loading,
         error,
-        filterHook.statusCounts,
-        filterHook.filteredOrders,
-        filterHook.filters,
-        filterHook.filterPresets,
-        filterHook.availableCities,
-        filterHook.availableProducts,
-        auxiliaryHook.stats,
-        auxiliaryHook.rejectionReasons,
-        auxiliaryHook.messageTemplates,
-        crudHook.canUndo,
+        filterHook,
+        auxiliaryHook,
+        crudHook,
         // eslint-disable-next-line react-hooks/exhaustive-deps
     ]);
 

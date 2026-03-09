@@ -4,6 +4,7 @@ import type {
     ParsedPDFFinancials,
     ParsedPDFRow,
 } from "@/types/delivery-import";
+import { PDFParse } from "pdf-parse";
 
 /**
  * Parse a Prime delivery company merchant account statement PDF.
@@ -207,11 +208,9 @@ function parseOrderRow(row: string[]): ParsedPDFRow | null {
 
 /**
  * Main entry point: parse a Prime delivery PDF buffer into structured data.
- * Uses pdf-parse's table extraction (getTable) for accurate cell-by-cell parsing.
+ * Uses pdf-parse's PDFParse class with getText() and getTable() methods.
  */
 export async function parsePrimeDeliveryPDF(buffer: Buffer): Promise<ParsedDeliveryPDF> {
-    const { PDFParse } = await import("pdf-parse");
-
     const parser = new PDFParse({ data: new Uint8Array(buffer), verbosity: 0 });
 
     // Extract text for header metadata
@@ -248,13 +247,14 @@ export async function parsePrimeDeliveryPDF(buffer: Buffer): Promise<ParsedDeliv
                     // Check for footer row (مبلغ الوصولات بعد التوصيل)
                     if (
                         tableRow.some(
-                            (c) =>
+                            (c: string) =>
                                 c.includes("ﻣﺒﻠﻎ ﺍﻟﻮﺻﻮﻻﺕ") ||
                                 c.includes("مبلغ الوصولات")
                         )
                     ) {
-                        // Footer has the total in the second cell
-                        const totalCell = tableRow.find((c) => /[\d,]+/.test(c) && !c.includes("ﺍﻟ"));
+                        const totalCell = tableRow.find(
+                            (c: string) => /[\d,]+/.test(c) && !c.includes("ﺍﻟ")
+                        );
                         if (totalCell) footerTotal = parseAmount(totalCell);
                         continue;
                     }
@@ -269,12 +269,14 @@ export async function parsePrimeDeliveryPDF(buffer: Buffer): Promise<ParsedDeliv
                 for (const tableRow of table) {
                     if (
                         tableRow.some(
-                            (c) =>
+                            (c: string) =>
                                 c.includes("ﻣﺒﻠﻎ ﺍﻟﻮﺻﻮﻻﺕ") ||
                                 c.includes("مبلغ الوصولات")
                         )
                     ) {
-                        const totalCell = tableRow.find((c) => /^[\d,]+$/.test(c.trim()));
+                        const totalCell = tableRow.find((c: string) =>
+                            /^[\d,]+$/.test(c.trim())
+                        );
                         if (totalCell) footerTotal = parseAmount(totalCell);
                     }
                 }
