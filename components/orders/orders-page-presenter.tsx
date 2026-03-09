@@ -132,6 +132,7 @@ import { toast } from "@/hooks/use-toast";
 
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useLanguage } from "@/hooks/use-language";
+import { useSettings } from "@/hooks/use-settings";
 
 
 export interface OrdersPagePresenterProps {
@@ -328,6 +329,15 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
         toggleReviewed, getCustomerHistory, getCustomerOrderCount, getCustomerArchivedCount, isBlacklisted,
         hasDuplicates, getReturnOrderInfo, getOriginalOrderInfo, getCustomerOrders, modePrice, normalizePhoneForSearch
     } = props;
+
+    const { settings } = useSettings();
+
+    // Update notification service when settings change
+    useEffect(() => {
+        if (settings) {
+            notificationService.updateFromSettings(settings);
+        }
+    }, [settings]);
 
     const toggleToolbarCollapse = React.useCallback(() => {
         setToolbarCollapsed(!toolbarCollapsed);

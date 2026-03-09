@@ -27,4 +27,5 @@ export interface AuthContextType {
     resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
     updatePassword: (password: string) => Promise<{ error: AuthError | null }>;
     refreshProfile: () => Promise<void>;
+    retryAuth: () => Promise<{ error: any }>;
 }

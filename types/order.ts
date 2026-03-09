@@ -213,4 +213,10 @@ export interface PrintBatch {
     invoice_template?: string;
     print_type?: string;
     pdf_url?: string;
+    // Smart batching fields
+    sequence_order?: string[];    // Optimized order IDs sequence for printing
+    pick_list?: any;              // Consolidated pick list (PickListItem[])
+    efficiency_score?: number;    // 0-100 efficiency score
+    strategy?: string;            // Batching strategy: auto, sku-heavy, priority-first, single-item
+    context_switches?: number;    // Number of SKU transitions
 }

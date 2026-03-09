@@ -28,9 +28,6 @@ class NotificationService {
         if (typeof window !== "undefined") {
             this.permission = Notification.permission;
             this.initAudio();
-            // Load sound preference
-            const savedSound = localStorage.getItem("ordersSoundEnabled");
-            this._soundEnabled = savedSound !== "false";
         }
     }
 
@@ -45,14 +42,14 @@ class NotificationService {
         return this._soundEnabled;
     }
 
-    private initAudio() {
+    private initAudio(customUrl?: string) {
         // Pre-load notification sounds with error handling
         if (typeof Audio !== "undefined") {
             try {
                 this.notificationSound = new Audio();
                 this.notificationSound.volume = 0.5;
-                this.notificationSound.preload = "none"; // Don't preload to avoid range request issues
-                this.notificationSound.src = NOTIFICATION_SOUND_URL;
+                this.notificationSound.preload = "none";
+                this.notificationSound.src = customUrl || NOTIFICATION_SOUND_URL;
 
                 this.urgentSound = new Audio();
                 this.urgentSound.volume = 0.7;
@@ -60,6 +57,23 @@ class NotificationService {
                 this.urgentSound.src = URGENT_SOUND_URL;
             } catch (error) {
                 console.warn("Failed to initialize audio:", error);
+            }
+        }
+    }
+
+    /**
+     * Update service settings from global app settings
+     */
+    updateFromSettings(settings: any) {
+        if (!settings) return;
+
+        const notifySettings = settings.notification_settings;
+        if (notifySettings) {
+            this._soundEnabled = notifySettings.sound_enabled ?? true;
+            if (notifySettings.sound_url && this.notificationSound) {
+                if (this.notificationSound.src !== window.location.origin + notifySettings.sound_url) {
+                    this.notificationSound.src = notifySettings.sound_url;
+                }
             }
         }
     }
