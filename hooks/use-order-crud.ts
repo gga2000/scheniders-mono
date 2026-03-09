@@ -121,6 +121,9 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         status: Order["status"],
         rejectionReason?: string
     ) {
+        const _t0 = performance.now();
+        console.log(`[Diag:StatusUpdate] START orderId=${orderId} newStatus=${status} timestamp=${Date.now()}`);
+
         // ── INSTANT OPTIMISTIC UPDATE ──
         // Apply optimistic UI immediately (no debounce) so the user sees feedback.
         const currentCache = queryClient.getQueryData<Order[]>(orderKeys.lists());
@@ -145,6 +148,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         const debounceMap = statusDebounceRef.current;
         const existingTimer = debounceMap.get(orderId);
         if (existingTimer) clearTimeout(existingTimer);
+        console.log(`[Diag:StatusUpdate] DEBOUNCE orderId=${orderId} cancelledPrevious=${!!existingTimer}`);
 
         return new Promise<{ success: boolean; error?: string }>((resolve) => {
             debounceMap.set(orderId, setTimeout(async () => {
@@ -154,16 +158,21 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 const seqMap = statusMutationSeqRef.current;
                 const mySeq = (seqMap.get(orderId) ?? 0) + 1;
                 seqMap.set(orderId, mySeq);
+                console.log(`[Diag:StatusUpdate] DEBOUNCE_FIRE orderId=${orderId} seq=${mySeq} elapsed=${(performance.now() - _t0).toFixed(1)}ms`);
 
                 try {
+                    const _tMut = performance.now();
+                    console.log(`[Diag:StatusUpdate] MUTATION_START orderId=${orderId} seq=${mySeq}`);
                     await updateStatusMutation.mutateAsync({
                         orderId,
                         status,
                         rejectionReason
                     });
+                    console.log(`[Diag:StatusUpdate] MUTATION_OK orderId=${orderId} seq=${mySeq} took=${(performance.now() - _tMut).toFixed(1)}ms`);
 
                     // Handle Advanced Inventory & Supplies based on Status Changes
                     if (previousOrder && previousOrder.status !== status) {
+                        console.log(`[Diag:StatusUpdate] INVENTORY_START orderId=${orderId}`);
                         import("@/lib/inventory-engine").then(engine => {
                             const items = previousOrder.items || [];
                             const prevWasActive = !['completed', 'delivered', 'rejected', 'refund_delivered', 'refund_failed', 'cancelled'].includes(previousOrder.status);
@@ -182,7 +191,11 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                                 }
                                 engine.allocateOrder(items);
                             }
-                        }).catch(console.error);
+                            console.log(`[Diag:StatusUpdate] INVENTORY_OK orderId=${orderId}`);
+                        }).catch(err => {
+                            console.log(`[Diag:StatusUpdate] INVENTORY_ERR orderId=${orderId} err=${err}`);
+                            console.error(err);
+                        });
                     }
 
                     // Record status change to history table
@@ -190,6 +203,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                         const { profile: currentProfile, user: currentUser } = authRef.current;
                         const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
 
+                        console.log(`[Diag:StatusUpdate] HISTORY_INSERT orderId=${orderId}`);
                         supabase
                             .from("order_status_history")
                             .insert([{
@@ -200,7 +214,12 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                                 notes: rejectionReason || null,
                                 changed_by: changedBy,
                             }]).then(({ error }) => {
-                                if (error) console.error("Failed to record status history:", error);
+                                if (error) {
+                                    console.log(`[Diag:StatusUpdate] HISTORY_ERR orderId=${orderId} err=${error.message}`);
+                                    console.error("Failed to record status history:", error);
+                                } else {
+                                    console.log(`[Diag:StatusUpdate] HISTORY_OK orderId=${orderId}`);
+                                }
                             });
                     }
 
@@ -215,13 +234,16 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                         );
                     }
 
+                    console.log(`[Diag:StatusUpdate] RESOLVE orderId=${orderId} success=true totalTime=${(performance.now() - _t0).toFixed(1)}ms`);
                     resolve({ success: true });
                 } catch (err) {
                     // If we've been superseded, don't show error
                     if (seqMap.get(orderId) !== mySeq) {
+                        console.log(`[Diag:StatusUpdate] RESOLVE orderId=${orderId} superseded=true seq=${mySeq} currentSeq=${seqMap.get(orderId)}`);
                         resolve({ success: true });
                         return;
                     }
+                    console.log(`[Diag:StatusUpdate] MUTATION_ERR orderId=${orderId} seq=${mySeq} err=${err instanceof Error ? err.message : err} totalTime=${(performance.now() - _t0).toFixed(1)}ms`);
                     console.error("Error updating order status:", err);
                     const msg = err instanceof Error ? err.message : "Failed to update order status";
                     toast.error(msg);
@@ -232,6 +254,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     }
 
     async function updateOrder(orderId: string, updates: Partial<Order>): Promise<{ success: boolean; error?: string; data?: Order }> {
+        const _tUpdate = performance.now();
+        console.log(`[Diag:UpdateOrder] START orderId=${orderId} fields=${Object.keys(updates).join(',')}`);
         try {
             const cleanUpdates = { ...updates };
             delete (cleanUpdates as Record<string, unknown>).customer;
@@ -301,8 +325,10 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 updates: cleanUpdates
             });
 
+            console.log(`[Diag:UpdateOrder] MUTATION_OK orderId=${orderId} took=${(performance.now() - _tUpdate).toFixed(1)}ms`);
             return { success: true };
         } catch (err) {
+            console.log(`[Diag:UpdateOrder] MUTATION_ERR orderId=${orderId} err=${err instanceof Error ? err.message : err} took=${(performance.now() - _tUpdate).toFixed(1)}ms`);
             console.error("Error updating order:", err);
             toast.error(err instanceof Error ? err.message : "Failed to update order");
             return {
@@ -313,12 +339,15 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     }
 
     async function createOrder(orderData: Omit<Order, "id" | "created_at" | "updated_at">): Promise<{ success: boolean; data?: Order; error?: string }> {
+        const _tCreate = performance.now();
         // Idempotency guard: prevent double-click / duplicate submissions
         const fingerprint = `create_${orderData.order_id || ''}_${orderData.phone || ''}_${Date.now()}`;
+        console.log(`[Diag:CreateOrder] START fingerprint=${fingerprint}`);
         const idempotencyKey = generateIdempotencyKey(fingerprint);
         const guard = getIdempotencyGuard();
 
         if (!guard.tryExecute(idempotencyKey)) {
+            console.log(`[Diag:CreateOrder] IDEMPOTENCY_BLOCKED key=${idempotencyKey}`);
             return { success: false, error: "Duplicate request — this order is already being created." };
         }
 
@@ -330,24 +359,29 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             if (!validationResult.success) {
                 const errorMessage = validationResult.error.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+                console.log(`[Diag:CreateOrder] VALIDATION_FAIL errors=${errorMessage}`);
                 console.error("Validation failed:", errorMessage);
                 return { success: false, error: `Validation Error: ${errorMessage}` };
             }
 
             // Start order creation instantly for optimal perceived performance
+            console.log(`[Diag:CreateOrder] MUTATION_START`);
             const mutationPromise = createOrderMutation.mutateAsync(orderData);
 
             // Calculate risk assessment seamlessly in the background WITHOUT blocking the UI
             try {
                 if (orderData.phone) {
+                    console.log(`[Diag:CreateOrder] FRAUD_CHECK_START phone=${orderData.phone}`);
                     import("@/lib/fraud-detector").then(async ({ fraudDetector }) => {
                         try {
                             const riskAssessment = await fraudDetector.assessCustomerRisk(orderData.phone!);
                             const riskPayload = fraudDetector.getPersistencePayload(riskAssessment);
+                            console.log(`[Diag:CreateOrder] FRAUD_CHECK_RESULT level=${riskAssessment.level}`);
 
                             if (riskAssessment.level === 'high' || riskAssessment.level === 'blocked') {
                                 const data = await mutationPromise; // Wait for ID to exist
                                 if (data && data.id) {
+                                    console.log(`[Diag:CreateOrder] FRAUD_UPDATE_START orderId=${data.id}`);
                                     // Soft update the order with the background risk metadata
                                     await updateOrderMutation.mutateAsync({
                                         orderId: data.id,
@@ -360,6 +394,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                                 }
                             }
                         } catch (bgErr) {
+                            console.log(`[Diag:CreateOrder] FRAUD_UPDATE_ERR err=${bgErr instanceof Error ? bgErr.message : bgErr}`);
                             console.error("Error in background risk calculation:", bgErr);
                         }
                     });
@@ -369,6 +404,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             }
 
             const data = await mutationPromise;
+            console.log(`[Diag:CreateOrder] MUTATION_OK id=${data.id} took=${(performance.now() - _tCreate).toFixed(1)}ms`);
 
             // Handle Advanced Inventory
             import("@/lib/inventory-engine").then(engine => {
@@ -399,6 +435,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             return { success: true, data };
         } catch (err) {
+            console.log(`[Diag:CreateOrder] MUTATION_ERR err=${err instanceof Error ? err.message : err} took=${(performance.now() - _tCreate).toFixed(1)}ms`);
             // Release idempotency key so the user can retry
             guard.release(idempotencyKey);
             console.error("Error creating order:", err);

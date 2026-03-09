@@ -95,7 +95,7 @@ export function OrderTimeline({ statusHistory, notes = [] }: OrderTimelineProps)
                 animate={{ opacity: 1, y: 0 }}
                 className="text-center py-12"
             >
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center mx-auto mb-4 shadow-inner">
+                <div className="w-16 h-16 rounded-2xl bg-linear-to-br from-gray-100 to-gray-50 flex items-center justify-center mx-auto mb-4 shadow-inner">
                     <History className="w-8 h-8 text-gray-400" />
                 </div>
                 <p className="text-foreground font-semibold text-lg">No activity yet</p>
@@ -107,7 +107,7 @@ export function OrderTimeline({ statusHistory, notes = [] }: OrderTimelineProps)
     return (
         <div className="relative">
             {/* Vertical line */}
-            <div className="absolute left-4 top-4 bottom-4 w-0.5 bg-gradient-to-b from-gray-200 via-gray-100 to-transparent" />
+            <div className="absolute left-4 top-4 bottom-4 w-0.5 bg-linear-to-b from-gray-200 via-gray-100 to-transparent" />
 
             <AnimatePresence mode="popLayout">
                 {entries.map((entry, index) => {
@@ -166,8 +166,8 @@ export function OrderTimeline({ statusHistory, notes = [] }: OrderTimelineProps)
                                 className={cn(
                                     "flex-1 rounded-xl p-3 transition-all",
                                     entry.type === "status"
-                                        ? "bg-gradient-to-r from-gray-50 to-white border border-gray-100"
-                                        : "bg-gradient-to-r from-blue-50 to-white border border-blue-100"
+                                        ? "bg-linear-to-r from-gray-50 to-white border border-gray-100"
+                                        : "bg-linear-to-r from-blue-50 to-white border border-blue-100"
                                 )}
                             >
                                 <div className="flex items-start justify-between gap-3">

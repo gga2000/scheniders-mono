@@ -193,11 +193,11 @@ export function GlobalSearch() {
         <div ref={containerRef} className="relative w-full max-w-2xl">
             {/* Search Bar */}
             <div className={cn(
-                "flex items-center gap-3 bg-[var(--card-bg)] rounded-full border border-[var(--card-border)] px-4 py-2.5 transition-all",
-                isOpen && "ring-2 ring-[var(--pastel-yellow)] border-transparent shadow-lg"
+                "flex items-center gap-3 bg-(--card-bg) rounded-full border border-(--card-border) px-4 py-2.5 transition-all",
+                isOpen && "ring-2 ring-(--pastel-yellow) border-transparent shadow-lg"
             )}>
                 {/* Search Icon */}
-                <div className="w-8 h-8 rounded-full bg-[var(--ink)] flex items-center justify-center flex-shrink-0">
+                <div className="w-8 h-8 rounded-full bg-(--ink) flex items-center justify-center shrink-0">
                     <Search className="w-4 h-4 text-white" />
                 </div>
 
@@ -219,14 +219,14 @@ export function GlobalSearch() {
                             setQuery("");
                             inputRef.current?.focus();
                         }}
-                        className="p-1 hover:bg-[var(--background)] rounded-full transition-colors"
+                        className="p-1 hover:bg-background rounded-full transition-colors"
                     >
                         <X className="w-4 h-4 text-muted" />
                     </button>
                 )}
 
                 {/* Divider */}
-                <div className="w-px h-6 bg-[var(--card-border)]" />
+                <div className="w-px h-6 bg-(--card-border)" />
 
                 {/* Category Label */}
                 <span className="text-xs text-muted font-medium">In:</span>
@@ -240,8 +240,8 @@ export function GlobalSearch() {
                             className={cn(
                                 "px-3 py-1.5 rounded-full text-xs font-medium transition-all",
                                 category === cat.id
-                                    ? "bg-[var(--ink)] text-white"
-                                    : "bg-[var(--background)] text-muted hover:text-foreground border border-[var(--card-border)]"
+                                    ? "bg-(--ink) text-white"
+                                    : "bg-background text-muted hover:text-foreground border border-(--card-border)"
                             )}
                         >
                             {cat.label}
@@ -258,7 +258,7 @@ export function GlobalSearch() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute top-full left-0 right-0 mt-2 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)] shadow-xl overflow-hidden z-50"
+                        className="absolute top-full left-0 right-0 mt-2 bg-(--card-bg) rounded-2xl border border-(--card-border) shadow-xl overflow-hidden z-50"
                     >
                         {results.length > 0 ? (
                             <div className="py-2">
@@ -268,10 +268,10 @@ export function GlobalSearch() {
                                         <button
                                             key={`${result.type}-${result.id}`}
                                             onClick={() => handleResultClick(result)}
-                                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[var(--background)] transition-colors text-left group"
+                                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-background transition-colors text-left group"
                                         >
                                             <div className={cn(
-                                                "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
+                                                "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
                                                 getResultColor(result.type)
                                             )}>
                                                 <Icon className="w-5 h-5" />
@@ -303,9 +303,9 @@ export function GlobalSearch() {
                         ) : null}
 
                         {/* Keyboard Hint */}
-                        <div className="px-4 py-2 bg-[var(--background)] border-t border-[var(--card-border)] flex items-center justify-between text-xs text-muted">
-                            <span>Press <kbd className="px-1.5 py-0.5 bg-[var(--card-bg)] rounded border border-[var(--card-border)] font-mono">↵</kbd> to select</span>
-                            <span>Press <kbd className="px-1.5 py-0.5 bg-[var(--card-bg)] rounded border border-[var(--card-border)] font-mono">esc</kbd> to close</span>
+                        <div className="px-4 py-2 bg-background border-t border-(--card-border) flex items-center justify-between text-xs text-muted">
+                            <span>Press <kbd className="px-1.5 py-0.5 bg-(--card-bg) rounded border border-(--card-border) font-mono">↵</kbd> to select</span>
+                            <span>Press <kbd className="px-1.5 py-0.5 bg-(--card-bg) rounded border border-(--card-border) font-mono">esc</kbd> to close</span>
                         </div>
                     </motion.div>
                 )}
@@ -373,15 +373,9 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
 
     return (
         <header className="sticky top-0 z-40">
-            {/* Glassmorphism Background with Fade Edge */}
+            {/* Header Background - Removed blur to stop flashing/glitching issues */}
             <div
-                className="absolute top-0 inset-x-0 -bottom-8 bg-background/80 backdrop-blur-md pointer-events-none"
-                style={{
-                    maskImage: 'linear-gradient(to right, transparent 0px, black 24px), linear-gradient(to bottom, black 65%, transparent 100%)',
-                    WebkitMaskImage: 'linear-gradient(to right, transparent 0px, black 24px), linear-gradient(to bottom, black 65%, transparent 100%)',
-                    WebkitMaskComposite: 'source-in',
-                    maskComposite: 'intersect'
-                }}
+                className="absolute inset-0 bg-background border-b border-(--card-border)/80 pointer-events-none"
             />
             {/* Header Content */}
             <div className="relative flex items-center justify-between gap-3 md:gap-6 w-full px-4 md:px-6 py-3 md:py-4">
@@ -416,7 +410,7 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
                         {/* Settings */}
                         <Link
                             href="/settings"
-                            className="w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-muted hover:text-foreground hover:border-[var(--foreground-muted)] transition-all"
+                            className="w-10 h-10 rounded-full bg-(--card-bg) border border-(--card-border) flex items-center justify-center text-muted hover:text-foreground hover:border-(--foreground-muted) transition-all"
                             title="Settings"
                         >
                             <Settings className="w-5 h-5" />
@@ -425,7 +419,7 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
                         {/* User Avatar */}
                         <Link
                             href="/settings"
-                            className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FBE38E] to-[#F4C7CF] flex items-center justify-center text-[#1E1E1E] font-bold text-sm hover:scale-105 transition-transform overflow-hidden shadow-sm"
+                            className="w-10 h-10 rounded-full bg-linear-to-br from-[#FBE38E] to-[#F4C7CF] flex items-center justify-center text-[#1E1E1E] font-bold text-sm hover:scale-105 transition-transform overflow-hidden shadow-sm"
                             title="Profile"
                         >
                             {profile?.avatar_url ? (

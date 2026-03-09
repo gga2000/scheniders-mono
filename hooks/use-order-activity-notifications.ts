@@ -45,9 +45,20 @@ export function useOrderActivityNotifications() {
             }
 
             const { data, error } = await query.limit(50);
-            if (error) throw error;
 
-            return data || [];
+            // Handle table/column missing error gracefully if it happens during fetch
+            if (error) {
+                console.warn('Error fetching notifications:', error.message);
+                if (error.code === '42703' || error.message.includes('is_read')) {
+                    // If is_read is missing, try fetching without it if we were filtering (but we aren't filtering yet)
+                }
+                throw error;
+            }
+
+            return (data || []).map(n => ({
+                ...n,
+                is_read: n.is_read ?? false // Fallback if column missing but data returns
+            }));
         },
         staleTime: 30000,
     });
@@ -93,7 +104,12 @@ export function useOrderActivityNotifications() {
             .eq('id', id);
 
         if (error) {
-            queryClient.invalidateQueries({ queryKey: ['order_notifications'] });
+            console.error('Error marking notification as read:', error);
+            // If column is missing, we still want the optimistic UI to "stick" for the session
+            // Invalidate will revert it, so we only invalidate if it's NOT a missing column error
+            if (error.code !== '42703') {
+                queryClient.invalidateQueries({ queryKey: ['order_notifications'] });
+            }
         }
     }, [queryClient, activeDateRange]);
 
@@ -110,7 +126,10 @@ export function useOrderActivityNotifications() {
             .eq('is_read', false);
 
         if (error) {
-            queryClient.invalidateQueries({ queryKey: ['order_notifications'] });
+            console.error('Error marking all notifications as read:', error);
+            if (error.code !== '42703') {
+                queryClient.invalidateQueries({ queryKey: ['order_notifications'] });
+            }
         }
     }, [queryClient, activeDateRange]);
 

@@ -153,10 +153,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Initialize auth state
     useEffect(() => {
         let mounted = true;
+        const _tAuthInit = performance.now();
+        console.log(`[Diag:Auth] INIT`);
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, currentSession) => {
                 if (!mounted) return;
+                console.log(`[Diag:Auth] EVENT=${event} hasSession=${!!currentSession} elapsed=${(performance.now() - _tAuthInit).toFixed(1)}ms`);
 
                 if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
                     if (!currentSession?.user) {
@@ -170,37 +173,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         return;
                     }
 
+                    // ── CRITICAL FIX: Set session IMMEDIATELY ──
+                    // This unblocks useOrdersQuery (enabled: !!session) and
+                    // prevents the app from deadlocking if the profile DB fetch
+                    // hangs on a stale connection after device sleep.
+                    setUser(currentSession.user);
+                    setSession(currentSession);
+                    currentUserIdRef.current = currentSession.user.id;
+
+                    // Try cache for instant role/permissions hydration
+                    const cachedAuth = getCachedAuthState(currentSession.user.id);
+                    if (cachedAuth) {
+                        console.log(`[Diag:Auth] CACHE_HIT role=${cachedAuth.role} elapsed=${(performance.now() - _tAuthInit).toFixed(1)}ms`);
+                        setRole(cachedAuth.role);
+                        setPermissions(cachedAuth.permissions);
+                    } else {
+                        console.log(`[Diag:Auth] CACHE_MISS — fetching profile in background`);
+                    }
+
+                    // Unblock UI — session is ready, profile loads in background
+                    console.log(`[Diag:Auth] SESSION_READY elapsed=${(performance.now() - _tAuthInit).toFixed(1)}ms`);
+                    setIsLoading(false);
+
+                    // ── Background: fetch fresh profile with 10s timeout ──
+                    // If Supabase connection is stale (after sleep), this aborts
+                    // instead of hanging forever. Cached permissions are used as fallback.
+                    const profileController = new AbortController();
+                    const profileTimeoutId = setTimeout(() => profileController.abort(), 10_000);
+
                     try {
-                        const profileStartTime = performance.now();
-
-                        // 1. Try Cache for instant hydration
-                        const cachedAuth = getCachedAuthState(currentSession.user.id);
-                        let finalRole = cachedAuth?.role ?? null;
-                        let finalPermissions = cachedAuth?.permissions ?? [];
-                        let finalProfile: UserProfile | null = null;
-
-                        if (cachedAuth) {
-                            setRole(finalRole);
-                            setPermissions(finalPermissions);
-                            setUser(currentSession.user);
-                            setSession(currentSession);
-                            currentUserIdRef.current = currentSession.user.id;
-
-                            // Unblock UI immediately if cache hits
-                            setIsLoading(false);
-                        }
-
-                        // 2. Fetch fresh DB data (always do this in background)
                         const { data: profileData } = await supabase
                             .from('user_profiles')
                             .select('*')
                             .eq('id', currentSession.user.id)
+                            .abortSignal(profileController.signal)
                             .single();
 
-                        if (profileData) {
-                            finalProfile = profileData as UserProfile;
+                        clearTimeout(profileTimeoutId);
 
-                            // Re-fetch heavy permissions only if role changed or no cache existed
+                        if (profileData && mounted) {
+                            let finalRole = cachedAuth?.role ?? null;
+                            let finalPermissions = cachedAuth?.permissions ?? [];
+                            const finalProfile = profileData as UserProfile;
+
+                            // Re-fetch permissions if role changed or no cache existed
                             if (!cachedAuth || cachedAuth.role !== profileData.role) {
                                 finalRole = profileData.role;
                                 const [rolePermsResult, userOverridesResult] = await Promise.all([
@@ -217,38 +233,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                                 }
                                 finalPermissions = Array.from(permsSet);
                             }
+
                             cacheAuthState(currentSession.user, profileData.role, finalPermissions);
-                        }
 
-                        // 3. Sync state with fresh DB data
-                        if (mounted) {
-                            setRole(finalRole);
-                            setProfile(finalProfile);
-                            setPermissions(finalPermissions);
-                            setUser(currentSession.user);
-                            setSession(currentSession);
-                            currentUserIdRef.current = currentSession.user.id;
+                            if (mounted) {
+                                setRole(finalRole);
+                                setProfile(finalProfile);
+                                setPermissions(finalPermissions);
+                            }
+                            console.log(`[Diag:Auth] PROFILE_OK role=${finalRole} elapsed=${(performance.now() - _tAuthInit).toFixed(1)}ms`);
                         }
-
-                        // Background Activity Logging for sign-in
-                        if (event === 'SIGNED_IN') {
-                            supabase.from('user_profiles').update({
-                                last_login_at: new Date().toISOString()
-                            }).eq('id', currentSession.user.id).then();
-
-                            activityLogger.log({
-                                action: "user.login",
-                                entityType: "user",
-                                entityId: currentSession.user.id
-                            });
+                    } catch (profileErr) {
+                        clearTimeout(profileTimeoutId);
+                        if (profileErr instanceof Error && profileErr.name === 'AbortError') {
+                            console.warn('[Diag:Auth] PROFILE_TIMEOUT — using cached/default permissions');
+                        } else {
+                            console.error('[Diag:Auth] PROFILE_ERR:', profileErr);
                         }
+                    }
 
-                    } catch (error) {
-                        console.error('Error in auth state change:', error);
-                    } finally {
-                        if (mounted) {
-                            setIsLoading(false);
-                        }
+                    // Background Activity Logging for sign-in
+                    if (event === 'SIGNED_IN') {
+                        supabase.from('user_profiles').update({
+                            last_login_at: new Date().toISOString()
+                        }).eq('id', currentSession.user.id).then();
+
+                        activityLogger.log({
+                            action: "user.login",
+                            entityType: "user",
+                            entityId: currentSession.user.id
+                        });
                     }
                 } else if (event === 'SIGNED_OUT') {
                     currentUserIdRef.current = null;

@@ -159,7 +159,7 @@ export const getStatusColor = (status: Order["status"], isReturn: boolean = fals
         case "no_response": return "bg-slate-200 dark:bg-[#B800FF]"; // Neon Purple
         case "return_pending": return "bg-rose-400 dark:bg-[#FF007F]"; // Neon Pink
         case "cancelled": return "bg-red-300 dark:bg-[#FF3333]"; // Neon Red
-        case "pending_checkout": return "bg-[var(--pastel-yellow)] dark:bg-[#EFFF00]/70"; // Neon Yellow (primary)
+        case "pending_checkout": return "bg-[#E2725B] dark:bg-[#FF8C69]"; // Deep Terracotta
         default: return "bg-[var(--card-border)] dark:bg-[#555555]";
     }
 };
@@ -176,8 +176,8 @@ export const getStatusBadgeStyle = (status: Order["status"]) => {
         case "completed": return "bg-emerald-200 text-emerald-900 ring-2 ring-emerald-400/50 shadow-[0_0_10px_rgba(16,185,129,0.3)]";
         case "no_response": return "bg-slate-200 text-slate-600";
         case "return_pending": return "bg-rose-200 text-rose-900 ring-2 ring-rose-400/50";
-        // Abandoned checkout — uses primary neon-yellow accent to match design language
-        case "pending_checkout": return "bg-[var(--pastel-yellow)] text-amber-900 dark:bg-[#EFFF00]/20 dark:text-[#EFFF00] border border-[var(--primary)]/30 ring-1 ring-[var(--primary)]/20";
+        // Abandoned checkout — uses unique terracotta theme to distinguish from other statuses
+        case "pending_checkout": return "bg-[#FFEBEE] text-[#D84315] dark:bg-[#D84315]/25 dark:text-[#FFAB91]";
         default: return "bg-gray-100 text-gray-700";
     }
 };
@@ -194,6 +194,7 @@ export const getDropdownItemStyle = (status: Order["status"]) => {
         case "completed": return "bg-emerald-100 text-emerald-900 border border-transparent dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 data-[highlighted]:bg-emerald-200 dark:data-[highlighted]:bg-emerald-500/20";
         case "no_response": return "bg-slate-100 text-slate-700 border border-transparent dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20 data-[highlighted]:bg-slate-200 dark:data-[highlighted]:bg-slate-500/20";
         case "return_pending": return "bg-rose-100 text-rose-900 border border-transparent dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20 data-[highlighted]:bg-rose-200 dark:data-[highlighted]:bg-rose-500/20";
+        case "pending_checkout": return "bg-[#FFF5F2] text-[#B24C3D] border border-[#F4B4A6]/50 dark:bg-[#B24C3D]/10 dark:text-[#FF8C69] dark:border-[#B24C3D]/20 data-[highlighted]:bg-[#F4B4A6] dark:data-[highlighted]:bg-[#B24C3D]/30";
         default: return "bg-gray-100 text-gray-700 border border-transparent dark:bg-gray-500/10 dark:text-gray-400 dark:border-gray-500/20 data-[highlighted]:bg-gray-200 dark:data-[highlighted]:bg-gray-500/20";
     }
 };

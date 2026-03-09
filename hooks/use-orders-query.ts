@@ -93,7 +93,10 @@ export function setCachedOrders(orders: Order[]): void {
 
 // Fetch all active orders — auth gating is handled by the `enabled` flag in useOrdersQuery.
 async function fetchOrders(): Promise<Order[]> {
+    const _tFetch = performance.now();
+    console.log(`[Diag:RQ:Fetch] fetchOrders START`);
     const result = await orderRepository.findAll();
+    console.log(`[Diag:RQ:Fetch] fetchOrders OK count=${result.length} took=${(performance.now() - _tFetch).toFixed(1)}ms`);
 
     // Persist to sessionStorage for SWR on next refresh
     setCachedOrders(result);
@@ -125,6 +128,7 @@ export function useOrdersQuery(refetchTrigger?: string) {
     // Force refetch when trigger changes
     useEffect(() => {
         if (refetchTrigger) {
+            console.log(`[Diag:RQ:Query] refetchTrigger=${refetchTrigger}`);
             queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
         }
     }, [refetchTrigger, queryClient]);
@@ -183,6 +187,7 @@ export function useUpdateOrderMutation() {
         },
         // Optimistic update - update cache immediately
         onMutate: async ({ orderId, updates }) => {
+            console.log(`[Diag:RQ:UpdateMut] onMutate orderId=${orderId} fields=${Object.keys(updates).join(',')}`);
             getOrderBatcher()?.markMutated(orderId);
             await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
 
@@ -204,6 +209,7 @@ export function useUpdateOrderMutation() {
             return { previousOrders };
         },
         onSuccess: ({ orderId, data }) => {
+            console.log(`[Diag:RQ:UpdateMut] onSuccess orderId=${orderId}`);
             // Overwrite optimistic cache with actual server data to ensure consistency
             queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) => {
                 const updated = old?.map((order) =>
@@ -214,6 +220,7 @@ export function useUpdateOrderMutation() {
             });
         },
         onError: (err, variables, context) => {
+            console.log(`[Diag:RQ:UpdateMut] onError orderId=${variables.orderId} err=${err instanceof Error ? err.message : err} rollingBack=${!!context?.previousOrders}`);
             console.error(`[UpdateOrder] onError for ${variables.orderId}:`, err);
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
@@ -244,6 +251,7 @@ export function useUpdateStatusMutation() {
         },
         onMutate: async ({ orderId, status, rejectionReason }) => {
             const mutSeq = nextMutationSeq(orderId);
+            console.log(`[Diag:RQ:StatusMut] onMutate orderId=${orderId} status=${status} mutSeq=${mutSeq}`);
             const batcher = getOrderBatcher();
 
             // Mark as recently mutated so realtime batcher skips stale broadcasts
@@ -279,7 +287,11 @@ export function useUpdateStatusMutation() {
         onSuccess: ({ orderId, data }, variables, context) => {
             // LATEST-WINS: If a newer mutation has started for this order,
             // don't overwrite the cache — the newer mutation's optimistic state is correct.
-            if (context?.mutSeq != null && !isMutationCurrent(orderId, context.mutSeq)) return;
+            if (context?.mutSeq != null && !isMutationCurrent(orderId, context.mutSeq)) {
+                console.log(`[Diag:RQ:StatusMut] onSuccess SKIPPED (superseded) orderId=${orderId} mutSeq=${context.mutSeq}`);
+                return;
+            }
+            console.log(`[Diag:RQ:StatusMut] onSuccess orderId=${orderId} mutSeq=${context?.mutSeq}`);
 
             queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) => {
                 const updated = old?.map((order) =>
@@ -290,6 +302,7 @@ export function useUpdateStatusMutation() {
             });
         },
         onError: (err, variables, context) => {
+            console.log(`[Diag:RQ:StatusMut] onError orderId=${variables.orderId} err=${err instanceof Error ? err.message : err} mutSeq=${context?.mutSeq} rollingBack=${!!context?.previousOrders}`);
             // LATEST-WINS: If a newer mutation has started for this order,
             // don't rollback — the newer mutation's optimistic state is correct.
             if (context?.mutSeq != null && !isMutationCurrent(variables.orderId, context.mutSeq)) return;
@@ -302,7 +315,9 @@ export function useUpdateStatusMutation() {
         // Self-healing: re-sync cache from Supabase after every mutation settles.
         // This catches any subtle optimistic/realtime desync within 2 seconds.
         onSettled: () => {
+            console.log(`[Diag:RQ:StatusMut] onSettled — scheduling refetch in 2s`);
             setTimeout(() => {
+                console.log(`[Diag:RQ:StatusMut] onSettled REFETCH fired (2s delayed)`);
                 queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
             }, 2000);
         },
@@ -385,6 +400,7 @@ export function useCreateOrderMutation() {
 
             // Create a temporary optimistic order
             const tempId = `temp-${Date.now()}`;
+            console.log(`[Diag:RQ:CreateMut] onMutate tempId=${tempId}`);
             const optimisticOrder = {
                 ...newOrder,
                 id: tempId,
@@ -404,6 +420,7 @@ export function useCreateOrderMutation() {
             return { previousOrders, tempId };
         },
         onSuccess: (realOrder, _variables, context) => {
+            console.log(`[Diag:RQ:CreateMut] onSuccess realId=${realOrder.id} replacedTempId=${context?.tempId}`);
             // Replace the temporary optimistic order with the real server data
             if (context?.tempId) {
                 queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) =>
@@ -412,6 +429,7 @@ export function useCreateOrderMutation() {
             }
         },
         onError: (err, variables, context) => {
+            console.log(`[Diag:RQ:CreateMut] onError err=${err instanceof Error ? err.message : err} rollingBack=${!!context?.previousOrders}`);
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }

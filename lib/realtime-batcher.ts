@@ -60,6 +60,15 @@ export class RealtimeBatcher {
      * after `flushDelayMs` of inactivity (debounce).
      */
     push(event: RealtimeEvent): void {
+        const id = (event.new as Record<string, unknown>)?.id || (event.old as Record<string, unknown>)?.id || 'unknown';
+
+        // MUTATION GUARD check at push time (early skip)
+        if (event.eventType === "UPDATE" && typeof id === 'string' && this.recentMutations.has(id)) {
+            const elapsed = Date.now() - (this.recentMutations.get(id) || 0);
+            console.log(`[Diag:Batcher] PUSH_SKIPPED id=${id} reason=mutationGuard (mutated ${elapsed}ms ago)`);
+        }
+
+        console.log(`[Diag:Batcher] PUSH type=${event.eventType} id=${id} bufferSize=${this.buffer.length + 1}`);
         this.buffer.push(event);
 
         // Reset the flush timer (debounce)
@@ -126,6 +135,8 @@ export class RealtimeBatcher {
             }
         }
 
+
+        console.log(`[Diag:Batcher] FLUSH count=${events.length} inserts=${inserts.size} updates=${updates.size} deletes=${deletes.size}`);
 
         // Apply all changes in a single setQueryData call
         this.queryClient.setQueryData<Order[]>(this.queryKey, (old) => {
