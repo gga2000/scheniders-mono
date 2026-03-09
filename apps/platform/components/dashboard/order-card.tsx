@@ -445,12 +445,24 @@ export const OrderCard = memo(function OrderCard({
                         {/* Row 2: Order ID + Priority */}
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-mono text-muted flex items-center gap-1">
-                                {order.order_id?.startsWith('CHK-') && (
-                                    <span className="bg-yellow-100 text-yellow-800 text-[8px] px-1 py-0.5 rounded font-bold uppercase ring-1 ring-yellow-200">CHK</span>
-                                )}
-                                #<HighlightedText text={(() => {
-                                    return getDisplayOrderId(order.order_id);
-                                })()} query={localSearchQuery} />
+                                {(() => {
+                                    const id = getDisplayOrderId(order.order_id);
+                                    if (order.order_id?.startsWith('CHK-')) {
+                                        return (
+                                            <span className="flex items-center gap-1">
+                                                <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 uppercase font-bold text-[8px]">CHK</span>
+                                                <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                                                    <HighlightedText text={id} query={localSearchQuery} />
+                                                </span>
+                                            </span>
+                                        );
+                                    }
+                                    return (
+                                        <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                                            #<HighlightedText text={id} query={localSearchQuery} />
+                                        </span>
+                                    );
+                                })()}
                             </span>
                             {isUrgent && <Flame className="w-3 h-3 text-red-500 animate-pulse" />}
                             {isHighPriority && !isUrgent && <Flag className="w-2.5 h-2.5 text-amber-600" />}
@@ -537,12 +549,24 @@ export const OrderCard = memo(function OrderCard({
                         {/* Row 2: Order ID + Date */}
                         <div className="flex items-center gap-2 text-[11px]">
                             <span className="font-mono text-muted flex items-center gap-1">
-                                {order.order_id?.startsWith('CHK-') && (
-                                    <span className="bg-yellow-100 text-yellow-800 text-[8.5px] px-1 py-0.5 rounded font-bold uppercase ring-1 ring-yellow-200">CHK</span>
-                                )}
-                                #<HighlightedText text={(() => {
-                                    return getDisplayOrderId(order.order_id);
-                                })()} query={localSearchQuery} />
+                                {(() => {
+                                    const id = getDisplayOrderId(order.order_id);
+                                    if (order.order_id?.startsWith('CHK-')) {
+                                        return (
+                                            <span className="flex items-center gap-1">
+                                                <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 uppercase font-bold text-[8.5px]">CHK</span>
+                                                <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                                                    <HighlightedText text={id} query={localSearchQuery} />
+                                                </span>
+                                            </span>
+                                        );
+                                    }
+                                    return (
+                                        <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                                            #<HighlightedText text={id} query={localSearchQuery} />
+                                        </span>
+                                    );
+                                })()}
                             </span>
                             <span className="text-[var(--card-border)]">·</span>
                             <span className="text-subtle">{formatShortDate(order.created_at)}</span>
@@ -723,14 +747,25 @@ export const OrderCard = memo(function OrderCard({
                                 <HighlightedText text={order.customer_name} query={localSearchQuery} />
                             </span>
                             <span className="text-xs font-mono text-muted flex-shrink-0 flex items-center gap-1">
-                                {order.order_id?.startsWith('CHK-') && (
-                                    <span className="bg-yellow-100 text-yellow-800 text-[8.5px] px-1 py-0.5 rounded font-bold uppercase ring-1 ring-yellow-200">CHK</span>
-                                )}
-                                #<HighlightedText text={(() => {
+                                {(() => {
                                     const lfMatch = order.order_id.match(/LF-(\d+)-\d+$/);
-                                    if (lfMatch) return lfMatch[1];
-                                    return getDisplayOrderId(order.order_id);
-                                })()} query={localSearchQuery} />
+                                    const id = lfMatch ? lfMatch[1] : getDisplayOrderId(order.order_id);
+                                    if (order.order_id?.startsWith('CHK-')) {
+                                        return (
+                                            <span className="flex items-center gap-1">
+                                                <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 uppercase font-bold text-[8.5px]">CHK</span>
+                                                <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                                                    <HighlightedText text={id} query={localSearchQuery} />
+                                                </span>
+                                            </span>
+                                        );
+                                    }
+                                    return (
+                                        <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                                            #<HighlightedText text={id} query={localSearchQuery} />
+                                        </span>
+                                    );
+                                })()}
                             </span>
                         </div>
 
@@ -1041,22 +1076,30 @@ export const OrderCard = memo(function OrderCard({
 
                                 return (
                                     <>
-                                        <span
-                                            className="px-2 py-0.5 rounded-md bg-[var(--background)] border border-[var(--card-border)] text-sm font-bold text-foreground cursor-pointer hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:bg-black/20 dark:border-[#333] dark:text-[#00E5FF] dark:hover:bg-[#00E5FF]/10 dark:hover:text-[#00FFFF] dark:hover:border-[#00FFFF]/30 transition-colors"
-                                            onClick={async (e) => {
-                                                e.stopPropagation();
-                                                // Copy order ID to clipboard
-                                                try {
-                                                    await navigator.clipboard.writeText(order.order_id);
-                                                    // Visual feedback would be nice here
-                                                } catch (err) {
-                                                    console.error('Failed to copy:', err);
-                                                }
-                                            }}
-                                            title="انقر للنسخ"
-                                        >
-                                            #<HighlightedText text={getDisplayOrderId(baseId)} query={localSearchQuery} />
-                                        </span>
+                                        <div className="flex items-center gap-1.5">
+                                            {order.order_id?.startsWith('CHK-') && (
+                                                <span className="px-2 py-0.5 rounded-md bg-[var(--background)] border border-[var(--card-border)] text-sm font-bold text-foreground dark:bg-black/20 dark:border-[#333] dark:text-[#00E5FF]">
+                                                    CHK
+                                                </span>
+                                            )}
+                                            <span
+                                                className="px-2 py-0.5 rounded-md bg-[var(--background)] border border-[var(--card-border)] text-sm font-bold text-foreground cursor-pointer hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:bg-black/20 dark:border-[#333] dark:text-[#00E5FF] dark:hover:bg-[#00E5FF]/10 dark:hover:text-[#00FFFF] dark:hover:border-[#00FFFF]/30 transition-colors"
+                                                onClick={async (e) => {
+                                                    e.stopPropagation();
+                                                    // Copy order ID to clipboard
+                                                    try {
+                                                        await navigator.clipboard.writeText(order.order_id);
+                                                        // Visual feedback would be nice here
+                                                    } catch (err) {
+                                                        console.error('Failed to copy:', err);
+                                                    }
+                                                }}
+                                                title="انقر للنسخ"
+                                            >
+                                                {!order.order_id?.startsWith('CHK-') && "#"}
+                                                <HighlightedText text={getDisplayOrderId(baseId)} query={localSearchQuery} />
+                                            </span>
+                                        </div>
 
                                         {/* Last Status Actor Avatar */}
                                         {order.last_status_changed_by_name && (
@@ -1080,9 +1123,6 @@ export const OrderCard = memo(function OrderCard({
                                                     </div>
                                                 )}
                                             </div>
-                                        )}
-                                        {order.order_id?.startsWith('CHK-') && (
-                                            <span className="bg-yellow-100 text-yellow-800 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ring-1 ring-yellow-200">CHK</span>
                                         )}
                                         {order.is_test && (
                                             <span className="bg-purple-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold uppercase shadow-lg ring-2 ring-purple-300 animate-pulse flex items-center gap-1">
@@ -1437,13 +1477,13 @@ export const OrderCard = memo(function OrderCard({
                                             <span className="inline-flex h-7 items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-bold bg-amber-100 text-amber-700 animate-pulse border border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20">
                                                 <AlertTriangle className="w-3.5 h-3.5" />
                                                 {order.attention_reasons!.includes('delivery_price_changed') ? 'سعر معدّل' :
-                                                 order.attention_reasons!.includes('delivery_force_delivered') ? 'تسليم إجباري' :
-                                                 order.attention_reasons!.includes('delivery_amount_mismatch') ? 'فرق بالمبلغ' :
-                                                 order.attention_reasons!.includes('delivery_phone_mismatch') ? 'فرق بالرقم' :
-                                                 order.attention_reasons!.includes('delivery_already_delivered') ? 'مسلّم مسبقاً' :
-                                                 order.attention_reasons!.includes('delivery_wrong_status') ? 'حالة خاطئة' :
-                                                 order.attention_reasons!.includes('delivery_partial_delivery') ? 'تسليم جزئي' :
-                                                 'مراجعة توصيل'}
+                                                    order.attention_reasons!.includes('delivery_force_delivered') ? 'تسليم إجباري' :
+                                                        order.attention_reasons!.includes('delivery_amount_mismatch') ? 'فرق بالمبلغ' :
+                                                            order.attention_reasons!.includes('delivery_phone_mismatch') ? 'فرق بالرقم' :
+                                                                order.attention_reasons!.includes('delivery_already_delivered') ? 'مسلّم مسبقاً' :
+                                                                    order.attention_reasons!.includes('delivery_wrong_status') ? 'حالة خاطئة' :
+                                                                        order.attention_reasons!.includes('delivery_partial_delivery') ? 'تسليم جزئي' :
+                                                                            'مراجعة توصيل'}
                                             </span>
                                         )}
                                     </div>

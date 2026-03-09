@@ -95,6 +95,7 @@ export function useRealtimeQuery<T extends { id: string }>({
         if (!enabled) return;
 
         const subscriptionId = Math.random().toString(36).substring(7);
+        console.log(`[Diag:RT] SUBSCRIBE table=${table} id=${subscriptionId}`);
         let hasEverConnected = false;
         let wasDisconnected = false;
 
@@ -130,6 +131,8 @@ export function useRealtimeQuery<T extends { id: string }>({
         const channel = supabase
             .channel(`${table}_changes_${subscriptionId}`)
             .on("postgres_changes", subscriptionConfig, (payload) => {
+                const _rtId = (payload.new as Record<string, unknown>)?.id || (payload.old as Record<string, unknown>)?.id || 'unknown';
+                console.log(`[Diag:RT] EVENT table=${table} type=${payload.eventType} id=${_rtId}`);
                 // Push to batcher instead of updating cache directly
                 batcher.push({
                     eventType: payload.eventType as "INSERT" | "UPDATE" | "DELETE",
@@ -138,8 +141,10 @@ export function useRealtimeQuery<T extends { id: string }>({
                 });
             })
             .subscribe((status, err) => {
+                console.log(`[Diag:RT] STATUS table=${table} status=${status} hasEverConnected=${hasEverConnected} wasDisconnected=${wasDisconnected}${err ? ` err=${err}` : ''}`);
                 if (status === "SUBSCRIBED") {
                     if (hasEverConnected && wasDisconnected) {
+                        console.log(`[Diag:RT] RECONNECT table=${table} — triggering refetch`);
                         // True reconnection — flush any pending events and trigger refetch
                         batcher.flush();
                         onReconnectRef.current?.();
@@ -152,6 +157,7 @@ export function useRealtimeQuery<T extends { id: string }>({
             });
 
         return () => {
+            console.log(`[Diag:RT] CLEANUP table=${table} id=${subscriptionId}`);
             batcherRef.current = null;
             batcher.destroy();
             channel.unsubscribe();

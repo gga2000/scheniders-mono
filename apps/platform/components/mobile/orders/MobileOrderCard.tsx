@@ -92,7 +92,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
             );
         } else if (order.source === "lightfunnels") {
             return (
-                <span className="inline-flex h-5 items-center gap-1.5 px-1.5 text-[9px] font-semibold rounded-md bg-gradient-to-r from-pink-50 via-purple-50 to-blue-50 text-purple-700 border border-purple-200">
+                <span className="inline-flex h-5 items-center gap-1.5 px-1.5 text-[9px] font-semibold rounded-md bg-linear-to-r from-pink-50 via-purple-50 to-blue-50 text-purple-700 border border-purple-200">
                     <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none">
                         <path d="M3 21L9 3L15 15L21 3" stroke="url(#lf-gradient-mobile)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                         <defs>
@@ -137,12 +137,12 @@ export const MobileOrderCard = memo(function MobileOrderCard({
 
     return (
         <div
-            className="bg-[var(--card-bg)] border border-[var(--card-border)]/60 rounded-2xl p-3 pr-3 pl-4 shadow-sm transition-all relative overflow-hidden flex flex-col gap-2"
+            className="bg-(--card-bg) border border-(--card-border)/60 rounded-2xl p-3 pr-3 pl-4 shadow-sm transition-all relative overflow-hidden flex flex-col gap-2"
         >
             {/* Status Side Color Accent — pulses amber/red when follow-up needed */}
             <div
                 className={cn(
-                    "absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl flex-shrink-0",
+                    "absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl shrink-0",
                     needsDiscount
                         ? "bg-red-500 animate-pulse"
                         : needsReminder
@@ -167,12 +167,22 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                         <span className="font-bold text-[17px] text-foreground active:opacity-70 transition-opacity truncate shrink min-w-0">
                             {order.customer_name}
                         </span>
-                        <span className="text-[11.5px] font-bold text-muted-foreground/80 font-mono tracking-wider pt-0.5 shrink-0 flex items-center gap-1">
-                            {order.order_id?.startsWith('CHK-') && (
-                                <span className="bg-yellow-100 text-yellow-800 text-[9px] px-1 py-0.5 rounded font-bold uppercase ring-1 ring-yellow-200">CHK</span>
+                        <div className="flex items-center gap-1 font-mono shrink-0">
+                            {order.order_id?.startsWith('CHK-') ? (
+                                <>
+                                    <span className="text-[11px] font-bold text-muted-foreground/90 tracking-wider px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 uppercase">
+                                        CHK
+                                    </span>
+                                    <span className="text-[11px] font-bold text-muted-foreground/90 tracking-wider px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                                        {getDisplayOrderId(order.order_id)}
+                                    </span>
+                                </>
+                            ) : (
+                                <span className="text-[11px] font-bold text-muted-foreground/90 tracking-wider px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                                    #{getDisplayOrderId(order.order_id)}
+                                </span>
                             )}
-                            #{getDisplayOrderId(order.order_id)}
-                        </span>
+                        </div>
                         <div className="shrink-0">
                             {renderSourceBadge()}
                         </div>
@@ -182,10 +192,10 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                     <div className="flex flex-col gap-1 mt-0.5">
                         {fullAddress && (
                             <div className="flex items-start gap-1.5 text-[11px] text-muted-foreground leading-snug">
-                                <MapPin className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                                <span className="line-clamp-2 break-words">{fullAddress}</span>
+                                <MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                                <span className="line-clamp-2 wrap-break-word">{fullAddress}</span>
                                 {governorateCode && (
-                                    <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[9px] w-fit font-bold flex-shrink-0 ml-1">
+                                    <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[9px] w-fit font-bold shrink-0 ml-1">
                                         {governorateCode}
                                     </span>
                                 )}
@@ -194,13 +204,13 @@ export const MobileOrderCard = memo(function MobileOrderCard({
 
                         {order.phone && (
                             <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-                                <Phone className="w-3 h-3 flex-shrink-0" />
+                                <Phone className="w-3 h-3 shrink-0" />
                                 <span dir="ltr" className={cn(!isValidPhone && "line-through text-red-500/70")}>{formatPhoneForDisplay(order.phone)}</span>
 
                                 {phone2 && (
                                     <>
                                         <span className="text-muted-foreground/30 mx-0.5">|</span>
-                                        <Phone className="w-3 h-3 flex-shrink-0" />
+                                        <Phone className="w-3 h-3 shrink-0" />
                                         <span dir="ltr" className={cn(!isValidPhone2 && "line-through text-red-500/70")}>{formatPhoneForDisplay(phone2)}</span>
                                     </>
                                 )}
@@ -230,7 +240,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                 </div>
 
                 {/* Visual Left (DOM second): Status & Time Stack */}
-                <div className="flex flex-col items-end flex-shrink-0 gap-1.5 w-[fit-content] min-w-[110px]">
+                <div className="flex flex-col items-end shrink-0 gap-1.5 w-fit min-w-[110px]">
 
                     {/* Status & Date Row */}
                     <div className="flex items-center gap-2 justify-end w-full">
@@ -250,7 +260,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                         {getStatusLabel(order.status, order.is_return || false) || order.status.replace('_', ' ')}
                                     </div>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-[180px] p-2 space-y-1 rounded-xl bg-[var(--card-bg)] border-[var(--card-border)] shadow-xl z-50">
+                                <DropdownMenuContent align="end" className="w-[180px] p-2 space-y-1 rounded-xl bg-(--card-bg) border-(--card-border) shadow-xl z-50">
                                     <div className="text-xs font-semibold text-muted px-2 py-1 mb-1">تغيير حالة الطلب</div>
                                     {ORDER_STATUSES.map((status) => (
                                         <DropdownMenuItem
@@ -289,7 +299,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
             </div>
 
             {/* Bottom Row: WhatsApp, Items & Price */}
-            <div className="flex items-end justify-between gap-3 mt-1 pt-2 border-t border-[var(--card-border)]/40 w-full" dir="rtl">
+            <div className="flex items-end justify-between gap-3 mt-1 pt-2 border-t border-(--card-border)/40 w-full" dir="rtl">
 
                 {/* Right Side Group: WhatsApp then Items */}
                 <div className="flex flex-1 min-w-0 items-end justify-start gap-4 text-right">
@@ -385,11 +395,11 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                     </div>
 
                     {/* Items Description (Left of WhatsApp in RTL) */}
-                    <div className="flex flex-wrap justify-start gap-1.5 w-full pb-[1px]" dir="rtl">
+                    <div className="flex flex-wrap justify-start gap-1.5 w-full pb-px" dir="rtl">
                         {order.items?.map((item, index) => (
                             <div
                                 key={index}
-                                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--background)] rounded-lg text-[11px] font-medium border border-[var(--card-border)]/60 shadow-sm"
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-background rounded-lg text-[11px] font-medium border border-(--card-border)/60 shadow-sm"
                             >
                                 <span className="text-foreground line-clamp-1">{item.name}</span>
                                 {item.quantity > 1 && (
@@ -418,7 +428,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                         <DiscountBadge
                                             price={Number(order.price)}
                                             discountAmount={order.discount_amount}
-                                            className="scale-90 origin-left !text-[9px] !px-1.5 !py-0.5"
+                                            className="scale-90 origin-left text-[9px]! px-1.5! py-0.5!"
                                         />
                                         <span className={cn(
                                             "text-sm font-bold tabular-nums",

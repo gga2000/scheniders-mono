@@ -359,10 +359,18 @@ export function OrderDetailsModal({
                         <div className="flex items-center justify-between mb-3 mr-10">
                             <div className="flex items-center gap-3">
                                 <div className="relative group/id flex items-center gap-2">
-                                    {order.order_id?.startsWith('CHK-') && (
-                                        <span className="bg-yellow-100 text-yellow-800 text-[11px] px-1.5 py-0.5 rounded font-bold uppercase ring-1 ring-yellow-200 mt-1">CHK</span>
-                                    )}
-                                    <DialogTitle className="font-mono text-xl">#{getBaseOrderId(order.order_id)}</DialogTitle>
+                                    <DialogTitle className="font-mono text-xl flex items-center gap-1.5">
+                                        {order.order_id?.startsWith('CHK-') ? (
+                                            <>
+                                                <span className="px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm font-bold">CHK</span>
+                                                <span className="px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm font-bold">
+                                                    {getBaseOrderId(order.order_id)}
+                                                </span>
+                                            </>
+                                        ) : (
+                                            `#${getBaseOrderId(order.order_id)}`
+                                        )}
+                                    </DialogTitle>
                                     {!isEditingId && (
                                         <button
                                             onClick={startIdEdit}

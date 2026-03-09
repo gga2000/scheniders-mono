@@ -13,13 +13,19 @@ import { normalizeOrder } from "@/lib/order-normalize-utils";
 export const orderRepository = {
     /** Fetch all active (non-archived) orders, newest first. */
     async findAll(): Promise<Order[]> {
+        const _t = performance.now();
+        console.log(`[Diag:Repo] findAll START`);
         const { data, error } = await supabase
             .from("v_orders_with_risk")
             .select("*")
             .eq("is_archived", false)
             .order("created_at", { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+            console.log(`[Diag:Repo] findAll ERR err=${error.message} took=${(performance.now() - _t).toFixed(1)}ms`);
+            throw error;
+        }
+        console.log(`[Diag:Repo] findAll OK rows=${(data || []).length} took=${(performance.now() - _t).toFixed(1)}ms`);
         return (data || []).map(normalizeOrder);
     },
 
@@ -68,6 +74,8 @@ export const orderRepository = {
 
     /** Update an order by ID. Verifies the write actually affected a row. */
     async update(id: string, updates: Partial<Order>): Promise<Order> {
+        const _t = performance.now();
+        console.log(`[Diag:Repo] update START orderId=${id} fields=${Object.keys(updates).join(',')}`);
         const { data, error } = await supabase
             .from("orders")
             .update(updates)
@@ -75,8 +83,15 @@ export const orderRepository = {
             .select()
             .maybeSingle();
 
-        if (error) throw error;
-        if (!data) throw new Error("Update failed: row not found or write was rejected. Try refreshing.");
+        if (error) {
+            console.log(`[Diag:Repo] update ERR orderId=${id} err=${error.message} took=${(performance.now() - _t).toFixed(1)}ms`);
+            throw error;
+        }
+        if (!data) {
+            console.log(`[Diag:Repo] update NULL orderId=${id} (RLS reject?) took=${(performance.now() - _t).toFixed(1)}ms`);
+            throw new Error("Update failed: row not found or write was rejected. Try refreshing.");
+        }
+        console.log(`[Diag:Repo] update OK orderId=${id} took=${(performance.now() - _t).toFixed(1)}ms`);
         return normalizeOrder(data);
     },
 
@@ -102,6 +117,7 @@ export const orderRepository = {
         const MAX_RETRIES = 2;
         let lastError: unknown;
 
+        console.log(`[Diag:Repo] updateStatus START orderId=${id} status=${status}`);
         for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
             try {
                 const t0 = performance.now();

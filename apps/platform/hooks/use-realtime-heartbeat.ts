@@ -73,7 +73,9 @@ export function useRealtimeHeartbeat({
 
             // 3. If server is ahead by more than 5 seconds, we missed updates
             const drift = serverLatest - clientLatest;
+            console.log(`[Diag:Heartbeat] CHECK drift=${Math.round(drift / 1000)}s serverLatest=${new Date(serverLatest).toISOString()} clientLatest=${new Date(clientLatest).toISOString()}`);
             if (drift > 5_000) {
+                console.log(`[Diag:Heartbeat] RECONNECT_TRIGGER reason=cacheDrift drift=${Math.round(drift / 1000)}s`);
                 console.warn(
                     `[Heartbeat] Cache drift detected: ${Math.round(drift / 1000)}s behind server. Triggering refetch.`
                 );

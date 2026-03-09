@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Filter, Layers, ChevronDown, ShieldCheck, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Order, OrderStatus, OrderPriority } from "@/lib/supabase";
+import { getStatusBadgeStyle } from "@/lib/order-format-utils";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -40,7 +41,7 @@ interface StickyFilterBarProps {
     isMobile?: boolean;
 }
 
-import { memo } from "react";
+import { memo, useState } from "react";
 
 export const StickyFilterBar = memo(function StickyFilterBar({
     filters,
@@ -58,6 +59,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
     isMobile = false
 }: StickyFilterBarProps) {
     const { t } = useLanguage();
+    const [useStatusColors, setUseStatusColors] = useState(true);
 
     const filterOptions = [
         { id: "all", label: t("orders.status.all"), fullLabel: t("orders.status.all"), count: statusCounts.all },
@@ -103,15 +105,23 @@ export const StickyFilterBar = memo(function StickyFilterBar({
 
                             filters.status === option.id || (option.id === "all" && !filters.status)
                                 ? "bg-primary text-(--primary-fg) border-primary font-bold shadow-[0_0_15px_rgba(239,255,0,0.2)] scale-105"
-                                : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95 dark:bg-[#1E1E1E] dark:text-[#A1A1A1] dark:border-[#3F3F3F] dark:hover:border-[rgba(0,255,255,0.4)] dark:hover:text-white dark:hover:bg-[#242424]"
+                                : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95 dark:bg-[#1E1E1E] dark:text-[#A1A1A1] dark:border-[#3F3F3F] dark:hover:border-[rgba(0,255,255,0.4)] dark:hover:text-white dark:hover:bg-[#242424]",
+
+                            // Status specific colors when enabled
+                            useStatusColors && option.id !== "all" && [
+                                getStatusBadgeStyle(option.id as OrderStatus),
+                                filters.status === option.id
+                                    ? "ring-2 ring-current ring-offset-2 border-current! scale-105 font-bold shadow-lg"
+                                    : "opacity-85 hover:opacity-100"
+                            ]
                         )}
                     >
                         <span>{isMobile ? option.label : (option.fullLabel || option.label)}</span>
                         <span className={cn(
-                            "px-2 py-0.5 rounded-full text-[11px] font-bold min-w-[24px] text-center",
+                            "px-2 py-0.5 rounded-full text-[12px] font-black min-w-[24px] text-center",
                             filters.status === option.id || (option.id === "all" && !filters.status)
                                 ? "bg-background/20 text-current"
-                                : "bg-muted-foreground/10 text-muted-foreground group-hover/filters:bg-muted-foreground/20"
+                                : "bg-muted-foreground/20 text-muted-foreground group-hover/filters:bg-muted-foreground/30"
                         )}>
                             {option.count}
                         </span>
@@ -249,6 +259,41 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                             {totalRiskCount}
                         </span>
                     )}
+                </button>
+
+                {/* Color Scheme Toggle */}
+                <button
+                    onClick={() => setUseStatusColors(!useStatusColors)}
+                    title={useStatusColors ? "Disable Status Colors" : "Enable Status Colors"}
+                    className={cn(
+                        "p-2 rounded-full transition-all border shrink-0",
+                        useStatusColors
+                            ? "bg-linear-to-br from-indigo-500 via-purple-500 to-pink-500 text-white border-transparent shadow-md scale-110 active:scale-95"
+                            : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:text-foreground active:scale-90"
+                    )}
+                >
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                    >
+                        <path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" />
+                        <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+                        <path d="M12 2v2" />
+                        <path d="M12 20v2" />
+                        <path d="m4.93 4.93 1.41 1.41" />
+                        <path d="m17.66 17.66 1.41 1.41" />
+                        <path d="M2 12h2" />
+                        <path d="M20 12h2" />
+                        <path d="m6.34 17.66-1.41 1.41" />
+                        <path d="m19.07 4.93-1.41 1.41" />
+                    </svg>
                 </button>
             </div>
         </div>

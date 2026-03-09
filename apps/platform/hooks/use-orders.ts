@@ -44,13 +44,16 @@ export function useOrders() {
     // Track refetch triggers for app reopen and realtime reconnection
     const [refetchTrigger, setRefetchTrigger] = useState<string | undefined>();
 
-    // Detect app reopen and trigger refetch
+    // Detect app reopen and trigger refetch (only if we already have data —
+    // if not, the query will fetch automatically when session becomes available)
     useAppLifecycle(() => {
-        console.log("[useOrders] App reopened - triggering order refetch");
-        setRefetchTrigger(orderRefetchTriggers.appReopen + Date.now());
+        if (queryClient.getQueryData(orderKeys.lists())) {
+            console.log("[Diag:Orders] REFETCH_TRIGGER source=appReopen");
+            setRefetchTrigger(orderRefetchTriggers.appReopen + Date.now());
+        }
     });
 
-    const { data: cachedOrders, isLoading: queryLoading, error: queryError, isFetching } = useOrdersQuery(refetchTrigger);
+    const { data: cachedOrders, isLoading: queryLoading, error: queryError } = useOrdersQuery(refetchTrigger);
 
     // Single source of truth: React Query cache
     const orders = cachedOrders ?? [];
@@ -70,7 +73,7 @@ export function useOrders() {
     // 2. Realtime — Supabase channel subscription (updates RQ cache directly)
     const { batcherRef } = useOrderRealtime({
         onReconnect: () => {
-            console.log("[useOrders] Realtime reconnected - triggering refetch");
+            console.log("[Diag:Orders] REFETCH_TRIGGER source=realtimeReconnect");
             setRefetchTrigger(orderRefetchTriggers.realtimeReconnect + Date.now());
         }
     });
@@ -121,7 +124,7 @@ export function useOrders() {
             .map(o => o.id);
 
         if (expiredIds.length > 0) {
-            console.log(`[useOrders] Auto-updating ${expiredIds.length} contacted orders to no_response`);
+            console.log(`[Diag:Orders] AUTO_UPDATE contacted→no_response count=${expiredIds.length}`);
             crudHook.bulkUpdateStatus(expiredIds, "no_response").then(res => {
                 if (res?.success || res === undefined) {
                     toast.success(
@@ -131,6 +134,9 @@ export function useOrders() {
             });
         }
 
+        // Set this to true regardless of whether we found expired IDs, 
+        // to prevent re-running this check unnecessarily in this session.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setHasRunAutoUpdate(true);
     }, [orders, hasRunAutoUpdate, crudHook]);
 
