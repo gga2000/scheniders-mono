@@ -3,6 +3,7 @@ import { formatPhoneToStandard } from "./order-utils";
 import { generateWhatsAppLink } from "./utils";
 import { validateAddress, getAddressStatus, extractAndSeparateGovernorate } from "./address-validator";
 import { fetchCheckoutById, getSavedAccessToken } from "./lightfunnels-api";
+import { fraudDetector } from "./fraud-detector";
 import type { OrderItem } from "./supabase";
 
 /**
@@ -508,6 +509,47 @@ export async function checkBlacklist(phone: string): Promise<{ isBlacklisted: bo
 }
 
 /**
+ * Check if customer has previously rejected orders
+ */
+export async function checkRejectionHistory(phone: string): Promise<{
+    hasRejections: boolean;
+    rejectionCount: number;
+    lastRejectionReason?: string;
+    lastRejectionDate?: string;
+}> {
+    try {
+        const formattedPhone = formatPhoneToStandard(phone);
+
+        const { data, error } = await supabase
+            .from("orders")
+            .select("rejection_reason, created_at")
+            .eq("phone", formattedPhone)
+            .eq("status", "rejected")
+            .order("created_at", { ascending: false })
+            .limit(5); // Get last 5 rejections to understand pattern
+
+        if (error) {
+            console.error("Error checking rejection history:", error);
+            return { hasRejections: false, rejectionCount: 0 };
+        }
+
+        if (!data || data.length === 0) {
+            return { hasRejections: false, rejectionCount: 0 };
+        }
+
+        return {
+            hasRejections: true,
+            rejectionCount: data.length,
+            lastRejectionReason: data[0]?.rejection_reason,
+            lastRejectionDate: data[0]?.created_at,
+        };
+    } catch (error) {
+        console.error("Error in rejection history check:", error);
+        return { hasRejections: false, rejectionCount: 0 };
+    }
+}
+
+/**
  * Normalize Arabic text for fuzzy matching
  * Handles common spelling variations in Arabic product names
  */
@@ -739,6 +781,15 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
             attentionReasons.push('address_issue');
         }
 
+        // Assess customer risk (fraud detection) before creating order
+        // This checks for previous rejections and adds attention flags
+        const riskAssessment = await fraudDetector.assessCustomerRisk(formattedPhone);
+
+        // Add attention flags for high-risk customers with previous rejections
+        if (riskAssessment.historicalData.rejectedCount > 0) {
+            attentionReasons.push('previous_rejection');
+        }
+
         // For checkouts (abandoned), use CHK- prefix and pending_checkout status
         // When confirmed by employee, the app will assign a unique order number
         const orderId = webhook.is_checkout
@@ -779,6 +830,8 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
             notes: webhook.is_checkout
                 ? `[سلة متروكة] ${webhook.notes?.trim() || ''}`.trim()
                 : webhook.notes?.trim() || null,
+            needs_attention: attentionReasons.length > 0,
+            attention_reasons: attentionReasons.length > 0 ? attentionReasons : null,
         };
 
         // Insert into database

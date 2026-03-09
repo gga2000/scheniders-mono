@@ -96,6 +96,21 @@ export interface DeliveryImportResult {
     summary: DeliveryImportSummary;
 }
 
+// --- Resolution Types ---
+
+export type ResolutionAction =
+    | "process_with_pdf_price"     // Amount Mismatch / Price Changed: use PDF amount
+    | "process_with_system_price"  // Amount Mismatch / Price Changed: keep system price
+    | "force_deliver"              // Already Delivered / Wrong Status: force update
+    | "acknowledge_refund"         // Negative/Refund: record refund, no status change
+    | "skip";                      // Any: explicitly skip
+
+export interface RowResolution {
+    rowNumber: number;
+    action: ResolutionAction;
+    note?: string;
+}
+
 // --- Audit Trail Types (database records) ---
 
 export interface DeliveryImport {

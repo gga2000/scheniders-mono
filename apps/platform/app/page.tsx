@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { StatsGrid } from "@/components/dashboard/stats-grid";
 import { OrdersTable } from "@/components/dashboard/orders-table";
@@ -37,11 +37,16 @@ export default function Home() {
   const { isMobile } = useViewport();
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Feature flag for mobile dashboard
   const ENABLE_MOBILE = true;
 
-  if (loading || !dashboardMetrics) {
+  if (!isMounted || loading || !dashboardMetrics) {
     return (
       <div className="min-h-screen bg-[var(--background)]">
         <PageSkeleton />

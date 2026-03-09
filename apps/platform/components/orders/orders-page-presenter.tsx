@@ -521,7 +521,7 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
 
 
                                         {/* View Group */}
-                                        <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0 min-w-min">
+                                        <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0 min-w-min relative z-40">
                                             <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.view")}</span>
                                             <div className="flex items-center gap-2">
                                                 {/* Saved Views Dropdown */}

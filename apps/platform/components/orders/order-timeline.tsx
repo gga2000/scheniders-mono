@@ -15,6 +15,7 @@ import {
     Package,
     Sparkles,
     History,
+    Edit2,
 } from "lucide-react";
 
 interface TimelineEntry {
@@ -26,6 +27,7 @@ interface TimelineEntry {
     status?: string;
     from_status?: string;
     to_status?: string;
+    is_detail_update?: boolean;
 }
 
 interface OrderTimelineProps {
@@ -69,10 +71,13 @@ export function OrderTimeline({ statusHistory, notes = [] }: OrderTimelineProps)
             id: h.id,
             type: "status" as const,
             timestamp: h.changed_at,
-            content: `Status changed from ${h.from_status || "none"} to ${h.to_status}`,
+            content: h.from_status === h.to_status && h.notes
+                ? h.notes
+                : `Status changed from ${h.from_status || "none"} to ${h.to_status}`,
             from_status: h.from_status || undefined,
             to_status: h.to_status,
             actor: h.changed_by || undefined,
+            is_detail_update: h.from_status === h.to_status
         })),
         ...notes.map((n) => ({
             id: n.id,
@@ -107,9 +112,21 @@ export function OrderTimeline({ statusHistory, notes = [] }: OrderTimelineProps)
             <AnimatePresence mode="popLayout">
                 {entries.map((entry, index) => {
                     const isFirst = index === 0;
-                    const StatusIcon = entry.to_status ? statusConfig[entry.to_status]?.icon || Circle : MessageSquare;
-                    const statusColor = entry.to_status ? statusConfig[entry.to_status]?.color || "text-gray-400" : "text-blue-500";
-                    const statusBg = entry.to_status ? statusConfig[entry.to_status]?.bgColor || "bg-gray-100" : "bg-blue-50";
+                    const StatusIcon = entry.is_detail_update
+                        ? Edit2
+                        : entry.to_status
+                            ? statusConfig[entry.to_status]?.icon || Circle
+                            : MessageSquare;
+                    const statusColor = entry.is_detail_update
+                        ? "text-blue-600"
+                        : entry.to_status
+                            ? statusConfig[entry.to_status]?.color || "text-gray-400"
+                            : "text-blue-500";
+                    const statusBg = entry.is_detail_update
+                        ? "bg-blue-100/50"
+                        : entry.to_status
+                            ? statusConfig[entry.to_status]?.bgColor || "bg-gray-100"
+                            : "bg-blue-50";
 
                     return (
                         <motion.div
@@ -156,22 +173,36 @@ export function OrderTimeline({ statusHistory, notes = [] }: OrderTimelineProps)
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="flex-1 min-w-0">
                                         {entry.type === "status" ? (
-                                            <div className="flex items-center flex-wrap gap-2">
-                                                {entry.to_status && (
-                                                    <span className={cn(
-                                                        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold",
-                                                        statusBg, statusColor
-                                                    )}>
-                                                        <Sparkles className="w-3 h-3" />
-                                                        {statusConfig[entry.to_status]?.labelAr || entry.to_status}
-                                                    </span>
+                                            <>
+                                                <div className="flex items-center flex-wrap gap-2">
+                                                    {entry.is_detail_update ? (
+                                                        <span className={cn(
+                                                            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100"
+                                                        )}>
+                                                            <Edit2 className="w-3 h-3" />
+                                                            تعديل تفاصيل الطلب
+                                                        </span>
+                                                    ) : entry.to_status && (
+                                                        <span className={cn(
+                                                            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold",
+                                                            statusBg, statusColor
+                                                        )}>
+                                                            <Sparkles className="w-3 h-3" />
+                                                            {statusConfig[entry.to_status]?.labelAr || entry.to_status}
+                                                        </span>
+                                                    )}
+                                                    {!entry.is_detail_update && entry.from_status && (
+                                                        <span className="text-xs text-muted">
+                                                            ← من {statusConfig[entry.from_status]?.labelAr || entry.from_status}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {entry.is_detail_update && entry.content && (
+                                                    <p className="text-[13px] text-foreground/80 mt-1.5 leading-relaxed bg-white/50 p-2 rounded-lg border border-blue-50/50 font-medium">
+                                                        {entry.content}
+                                                    </p>
                                                 )}
-                                                {entry.from_status && (
-                                                    <span className="text-xs text-muted">
-                                                        ← من {statusConfig[entry.from_status]?.labelAr || entry.from_status}
-                                                    </span>
-                                                )}
-                                            </div>
+                                            </>
                                         ) : (
                                             <p className="text-sm text-foreground leading-relaxed">{entry.content}</p>
                                         )}

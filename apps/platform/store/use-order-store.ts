@@ -323,6 +323,8 @@ export const useOrderStore = create<OrderStore>()(
         toolbarCollapsed: state.toolbarCollapsed,
         workflowMode: state.workflowMode,
         soundEnabled: state.soundEnabled,
+        activeDateRange: state.activeDateRange,
+        notificationsEnabled: state.notificationsEnabled,
       }),
     }
   )

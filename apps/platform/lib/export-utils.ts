@@ -63,8 +63,19 @@ export async function exportOrdersToPrimeCSV(orderIds: string[], ordersData: Ord
             govCode = governorate?.code || '';
         }
 
-        // Get product type from first item
-        const productType = order.items?.[0]?.name || 'ملابس';
+        // Clean Order ID:
+        // 1. Remove CHK- prefix if present
+        // 2. For RTN-669-1 style, extract only the middle number (669)
+        let cleanOrderId = (order.order_id || '').replace(/^CHK-/, '');
+        if (cleanOrderId.startsWith('RTN-')) {
+            const parts = cleanOrderId.split('-');
+            if (parts.length >= 2) {
+                cleanOrderId = parts[1]; // Get the middle number
+            }
+        }
+
+        // Get product type: Join all item names with ' + ' as requested
+        const productType = order.items?.map(item => item.name).filter(Boolean).join(' + ') || 'ملابس';
 
         return {
             'ملاحظات': order.notes || '',
@@ -75,7 +86,7 @@ export async function exportOrdersToPrimeCSV(orderIds: string[], ordersData: Ord
             'شفرة المحافظة': govCode,
             'أسم المستلم': order.customer_name || '',
             'المبلغ عراقي': order.price || 0,
-            'رقم الوصل': order.order_id || '',
+            'رقم الوصل': cleanOrderId,
             'كود الشحنة': '',
             'هاتف المستلم 2': secondaryPhone,
             'نوع البضاعة': productType,

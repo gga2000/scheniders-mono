@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAccessToken } from "@/lib/supabase-server";
 import { parsePrimeDeliveryPDF } from "@/lib/delivery-import/pdf-parser";
 
+export const runtime = "nodejs";
+
 /**
  * POST /api/delivery-import/parse
  *

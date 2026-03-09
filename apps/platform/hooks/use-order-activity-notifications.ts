@@ -25,12 +25,11 @@ export interface OrderActivityNotification {
  */
 export function useOrderActivityNotifications() {
     const queryClient = useQueryClient();
-    const { activeDateRange, notificationsEnabled } = useOrderStore();
-    const [unreadCount, setUnreadCount] = useState(0);
+    const { activeDateRange } = useOrderStore();
 
     // Fetch notifications from the database based on the active date range
     const { data: notifications = [], isLoading } = useQuery({
-        queryKey: ['order_notifications', activeDateRange.startDate, activeDateRange.endDate],
+        queryKey: ['order_notifications', activeDateRange?.startDate, activeDateRange?.endDate],
         queryFn: async () => {
             let query = supabase
                 .from('order_notifications')
@@ -38,22 +37,25 @@ export function useOrderActivityNotifications() {
                 .order('created_at', { ascending: false });
 
             // Apply date filters if available
-            if (activeDateRange.startDate) {
+            if (activeDateRange?.startDate) {
                 query = query.gte('created_at', `${activeDateRange.startDate}T00:00:00Z`);
             }
-            if (activeDateRange.endDate) {
+            if (activeDateRange?.endDate) {
                 query = query.lte('created_at', `${activeDateRange.endDate}T23:59:59Z`);
             }
 
             const { data, error } = await query.limit(50);
             if (error) throw error;
 
-            // For now, we track read status locally in the session. 
-            // In a future update, we could add a `notification_reads` table for persistent per-user read status.
-            return (data || []).map(n => ({ ...n, is_read: false }));
+            return data || [];
         },
         staleTime: 30000,
     });
+
+    // Derive unread count from data
+    const unreadCount = useMemo(() =>
+        notifications.filter(n => !n.is_read).length,
+        [notifications]);
 
     // Real-time updates via Supabase
     useEffect(() => {
@@ -62,19 +64,13 @@ export function useOrderActivityNotifications() {
             .on(
                 'postgres_changes',
                 {
-                    event: 'INSERT',
+                    event: '*', // Listen for all events (INSERT, UPDATE)
                     schema: 'public',
                     table: 'order_notifications'
                 },
-                (payload) => {
-                    const newNotification = payload.new as OrderActivityNotification;
-
+                () => {
                     // Invalidate query to trigger a refetch and update the UI
                     queryClient.invalidateQueries({ queryKey: ['order_notifications'] });
-
-                    if (notificationsEnabled) {
-                        setUnreadCount(prev => prev + 1);
-                    }
                 }
             )
             .subscribe();
@@ -82,19 +78,52 @@ export function useOrderActivityNotifications() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [queryClient, notificationsEnabled]);
+    }, [queryClient]);
 
-    const markAsRead = useCallback((_id: string) => {
-        setUnreadCount(prev => Math.max(0, prev - 1));
-    }, []);
+    const markAsRead = useCallback(async (id: string) => {
+        // Optimistically update the cache
+        queryClient.setQueryData(['order_notifications', activeDateRange?.startDate, activeDateRange?.endDate], (old: any) => {
+            if (!old) return old;
+            return old.map((n: any) => n.id === id ? { ...n, is_read: true } : n);
+        });
 
-    const markAllAsRead = useCallback(() => {
-        setUnreadCount(0);
-    }, []);
+        const { error } = await supabase
+            .from('order_notifications')
+            .update({ is_read: true })
+            .eq('id', id);
 
-    const clearAll = useCallback(() => {
-        // Optionally implement clearing logic (e.g. archiving notifications)
-    }, []);
+        if (error) {
+            queryClient.invalidateQueries({ queryKey: ['order_notifications'] });
+        }
+    }, [queryClient, activeDateRange]);
+
+    const markAllAsRead = useCallback(async () => {
+        // Optimistically update the cache
+        queryClient.setQueryData(['order_notifications', activeDateRange?.startDate, activeDateRange?.endDate], (old: any) => {
+            if (!old) return old;
+            return old.map((n: any) => ({ ...n, is_read: true }));
+        });
+
+        const { error } = await supabase
+            .from('order_notifications')
+            .update({ is_read: true })
+            .eq('is_read', false);
+
+        if (error) {
+            queryClient.invalidateQueries({ queryKey: ['order_notifications'] });
+        }
+    }, [queryClient, activeDateRange]);
+
+    const clearAll = useCallback(async () => {
+        const { error } = await supabase
+            .from('order_notifications')
+            .delete()
+            .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete everything
+
+        if (!error) {
+            queryClient.invalidateQueries({ queryKey: ['order_notifications'] });
+        }
+    }, [queryClient]);
 
     const isOrderRecentlyChanged = useCallback(
         (_orderId: string) => false, // Simplified for now
