@@ -115,16 +115,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
     }, [session]);
 
-    // Session Storage Keys for instant Auth hydration
+    // localStorage (NOT sessionStorage) for cross-tab auth synchronization
     const AUTH_CACHE_KEY = 'auth_session_cache';
 
-    // Helper to cache auth state
+    // Helper to cache auth state (uses localStorage for cross-tab sync)
     const cacheAuthState = (user: User | null, role: string | null, permissions: string[]) => {
         if (!user) {
-            sessionStorage.removeItem(AUTH_CACHE_KEY);
+            localStorage.removeItem(AUTH_CACHE_KEY);
             return;
         }
-        sessionStorage.setItem(AUTH_CACHE_KEY, JSON.stringify({
+        localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify({
             userId: user.id,
             role,
             permissions,
@@ -132,16 +132,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }));
     };
 
-    // Helper to load auth state from cache
+    // Helper to load auth state from cache (uses localStorage)
     const getCachedAuthState = (currentUserId: string): { role: string | null, permissions: string[] } | null => {
         try {
-            const cached = sessionStorage.getItem(AUTH_CACHE_KEY);
+            const cached = localStorage.getItem(AUTH_CACHE_KEY);
             if (!cached) return null;
             const parsed = JSON.parse(cached);
 
             // Only use cache if it belongs to the current user and is less than 1 hour old
             if (parsed.userId !== currentUserId || (Date.now() - parsed.timestamp) > 60 * 60 * 1000) {
-                sessionStorage.removeItem(AUTH_CACHE_KEY);
+                localStorage.removeItem(AUTH_CACHE_KEY);
                 return null;
             }
             return { role: parsed.role, permissions: parsed.permissions };
@@ -277,9 +277,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
         );
 
+        // Listen for auth changes in other tabs (cross-tab synchronization)
+        const handleStorageChange = (e: StorageEvent) => {
+            // Only respond to our auth cache key
+            if (e.key !== AUTH_CACHE_KEY) return;
+
+            console.log('[Diag:Auth] Cross-tab auth change detected');
+
+            // Another tab logged out
+            if (e.newValue === null) {
+                console.log('[Diag:Auth] Other tab logged out - refreshing session');
+                supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+                    if (!currentSession) {
+                        // Session is gone, trigger sign out
+                        setUser(null);
+                        setSession(null);
+                        setRole(null);
+                        setProfile(null);
+                        setPermissions([]);
+                        setIsLoading(false);
+                    }
+                });
+            }
+            // Another tab logged in - refresh our local state
+            else {
+                console.log('[Diag:Auth] Other tab logged in - refreshing session');
+                supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+                    if (currentSession?.user) {
+                        const cached = getCachedAuthState(currentSession.user.id);
+                        if (cached) {
+                            setUser(currentSession.user);
+                            setSession(currentSession);
+                            setRole(cached.role);
+                            setPermissions(cached.permissions);
+                            setIsLoading(false);
+                        }
+                    }
+                });
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+
         return () => {
             mounted = false;
             subscription.unsubscribe();
+            window.removeEventListener('storage', handleStorageChange);
         };
     }, []);
 
@@ -331,6 +374,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error };
     }, []);
 
+    // Manual auth refresh/retry - useful when auth gets stuck
+    const retryAuth = useCallback(async () => {
+        console.log('[Diag:Auth] MANUAL_RETRY triggered');
+        setIsLoading(true);
+        try {
+            const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+
+            if (error) {
+                console.error('[Diag:Auth] RETRY_ERROR:', error);
+                setIsLoading(false);
+                return { error };
+            }
+
+            if (currentSession?.user) {
+                setUser(currentSession.user);
+                setSession(currentSession);
+                await fetchRoleAndPermissions(currentSession.user.id);
+                console.log('[Diag:Auth] RETRY_SUCCESS');
+            } else {
+                console.log('[Diag:Auth] RETRY_NO_SESSION');
+            }
+
+            setIsLoading(false);
+            return { error: null };
+        } catch (err) {
+            console.error('[Diag:Auth] RETRY_EXCEPTION:', err);
+            setIsLoading(false);
+            return { error: err };
+        }
+    }, []);
+
     return (
         <AuthContext.Provider
             value={{
@@ -346,6 +420,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 resetPassword,
                 updatePassword,
                 refreshProfile,
+                retryAuth,
             }}
         >
             {children}

@@ -14,6 +14,7 @@ import { BatchDetailsModal } from "@/components/printing/batch-details-modal";
 import { ReprintWarningModal } from "@/components/printing/reprint-warning-modal";
 import { MarkAsShippedDialog, MarkAsDeliveredDialog } from "@/components/printing/confirmation-dialog";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { SmartBatchPanel } from "@/components/printing/smart-batch-panel";
 import { EnhancedLabelOptions, printBulkEnhancedLabels, printBulkInvoices, generateBulkA6InvoicesHTML, printBulkShippingLabels, generateShippingLabelHTML, SHIPPING_LABEL_CSS } from "@/lib/enhanced-label-generator";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
@@ -42,6 +43,7 @@ import {
     SlidersHorizontal,
     GripVertical,
     Download,
+    Sparkles,
 } from "lucide-react";
 import { formatIQD, formatDate, getBaseOrderId } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -184,6 +186,9 @@ export default function PrintingPage() {
 
     // Automation state
     const [autoShipAfterPrint, setAutoShipAfterPrint] = useState(true);
+
+    // Smart batching state
+    const [smartBatchingEnabled, setSmartBatchingEnabled] = useState(false);
 
     // Customer order counts for labels
     const [customerOrderCounts, setCustomerOrderCounts] = useState<Record<string, number>>({});
@@ -782,6 +787,80 @@ export default function PrintingPage() {
                                     onSettingsChange={printing.setLabelSettings}
                                     isExpanded={false}
                                 />
+
+                                {/* Smart Batching Toggle */}
+                                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                                    <div className="flex items-center gap-3">
+                                        <Sparkles className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                                        <div>
+                                            <div className="font-semibold text-gray-900 dark:text-white">
+                                                Smart Batching (NEW)
+                                            </div>
+                                            <div className="text-xs text-gray-600 dark:text-gray-400">
+                                                Group orders by SKU to minimize context switching
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => setSmartBatchingEnabled(!smartBatchingEnabled)}
+                                        className={cn(
+                                            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                                            smartBatchingEnabled ? "bg-purple-600" : "bg-gray-300 dark:bg-gray-600"
+                                        )}
+                                    >
+                                        <span
+                                            className={cn(
+                                                "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                                                smartBatchingEnabled ? "translate-x-6" : "translate-x-1"
+                                            )}
+                                        />
+                                    </button>
+                                </div>
+
+                                {/* Auto-Ship After Print Toggle */}
+                                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                    <div className="flex items-center gap-3">
+                                        <Truck className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                                        <div>
+                                            <div className="font-semibold text-gray-900 dark:text-white">
+                                                Auto-Ship After Print
+                                            </div>
+                                            <div className="text-xs text-gray-600 dark:text-gray-400">
+                                                Automatically mark orders as "In Transit" after printing
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => setAutoShipAfterPrint(!autoShipAfterPrint)}
+                                        className={cn(
+                                            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                                            autoShipAfterPrint ? "bg-blue-600" : "bg-gray-300 dark:bg-gray-600"
+                                        )}
+                                    >
+                                        <span
+                                            className={cn(
+                                                "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                                                autoShipAfterPrint ? "translate-x-6" : "translate-x-1"
+                                            )}
+                                        />
+                                    </button>
+                                </div>
+
+                                {/* Smart Batch Panel */}
+                                {smartBatchingEnabled && (
+                                    <SmartBatchPanel
+                                        orders={sortedOrders}
+                                        labelSettings={printing.labelSettings}
+                                        onBatchSelect={(batchIndex) => {
+                                            // When a smart batch is selected, you could auto-select those orders
+                                            // For now, we'll just log it
+                                            console.log("Selected smart batch:", batchIndex);
+                                        }}
+                                        onBatchGenerated={(batchCount) => {
+                                            console.log(`Generated ${batchCount} smart batches`);
+                                        }}
+                                    />
+                                )}
 
                                 {/* Batch Manager */}
                                 <BatchManager

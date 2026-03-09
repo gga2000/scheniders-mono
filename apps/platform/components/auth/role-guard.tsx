@@ -65,10 +65,12 @@ export function PageGuard({
     allowedRoles?: UserRole[];
     requiredPermission?: PermissionKey
 }) {
-    const { user, role: contextRole, permissions, isLoading } = useAuth();
+    const { user, role: contextRole, permissions, isLoading, retryAuth } = useAuth();
     const router = useRouter();
+    const [roleCheckDelay, setRoleCheckDelay] = useState(true);
+    const [isRetrying, setIsRetrying] = useState(false);
 
-    console.log(`[PageGuard] render: isLoading=${isLoading}, user=${!!user}`);
+    console.log(`[PageGuard] render: isLoading=${isLoading}, user=${!!user}, role=${contextRole}`);
 
     // Use effect to handle redirect if needed (for auth)
     useEffect(() => {
@@ -76,6 +78,19 @@ export function PageGuard({
             router.push("/login");
         }
     }, [user, isLoading, router]);
+
+    // Give role 2 seconds to load after user is authenticated
+    // This prevents "Access Denied" flash when role is loading from background
+    useEffect(() => {
+        if (user && !contextRole && !isLoading) {
+            const timeout = setTimeout(() => {
+                setRoleCheckDelay(false);
+            }, 2000);
+            return () => clearTimeout(timeout);
+        } else if (contextRole) {
+            setRoleCheckDelay(false);
+        }
+    }, [user, contextRole, isLoading]);
 
     const role = contextRole as UserRole;
 
@@ -85,6 +100,20 @@ export function PageGuard({
     if (isLoading || !user) {
         return <>{children}</>;
     }
+
+    // If user is authenticated but role hasn't loaded yet, wait briefly
+    if (user && !role && roleCheckDelay) {
+        return <>{children}</>;
+    }
+
+    // Handle retry for auth failures
+    const handleRetry = async () => {
+        setIsRetrying(true);
+        await retryAuth();
+        setIsRetrying(false);
+        // Reset delay to give role time to load
+        setRoleCheckDelay(true);
+    };
 
     let allowed = true;
 
@@ -103,7 +132,28 @@ export function PageGuard({
     }
 
     if (!allowed) {
-        return <AccessDenied message="You do not have the required permissions to view this page." />;
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
+                <div className="max-w-md w-full">
+                    <AccessDenied message="You do not have the required permissions to view this page." />
+                    {/* Show retry button if user exists but no role (auth might have failed) */}
+                    {user && !role && (
+                        <div className="mt-6 text-center">
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                                Authentication may have failed to complete. Try refreshing your session.
+                            </p>
+                            <button
+                                onClick={handleRetry}
+                                disabled={isRetrying}
+                                className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg font-medium transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isRetrying ? 'Retrying...' : 'Retry Authentication'}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
     }
 
     return <>{children}</>;
