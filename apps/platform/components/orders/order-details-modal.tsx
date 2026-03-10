@@ -81,6 +81,7 @@ interface OrderDetailsModalProps {
     onGetNotes?: (orderId: string) => Promise<OrderNote[]>;
     onDelete?: (orderId: string) => Promise<{ success: boolean; error?: string }>;
     onCreateReturn?: (orderId: string, data: { return_amount: number; reason: string; deductDeliveryFee?: boolean }) => Promise<{ success: boolean; error?: string }>;
+    onCreateReplacement?: (orderId: string, data: { old_items: OrderItem[]; new_items: OrderItem[]; deductDeliveryFee?: boolean; notes?: string }) => Promise<{ success: boolean; error?: string }>;
     checkOrderIdExists?: (orderId: string, excludeId?: string) => Promise<boolean>;
     assignments?: OrderAssignment[];
     onAssignDuty?: (orderId: string, duty: OrderDuty, employeeId: string) => void;
@@ -98,6 +99,7 @@ export function OrderDetailsModal({
     onGetNotes,
     onDelete,
     onCreateReturn,
+    onCreateReplacement,
     checkOrderIdExists,
     assignments = [],
     onAssignDuty,
@@ -172,6 +174,10 @@ export function OrderDetailsModal({
         returnReason, setReturnReason,
         deductDeliveryFee, setDeductDeliveryFee,
         isCreatingReturn, setIsCreatingReturn,
+        showReplacementModal, setShowReplacementModal,
+        replacementDeductDeliveryFee, setReplacementDeductDeliveryFee,
+        replacementNotes, setReplacementNotes,
+        isCreatingReplacement, setIsCreatingReplacement,
         showSplitDialog, setShowSplitDialog, handleSplitOrder,
     } = useOrderDetailsState({
         order,
@@ -523,13 +529,23 @@ export function OrderDetailsModal({
                                     </button>
                                 )}
                                 {/* Return Button - Only for delivered/completed orders */}
-                                {(order.status === "delivered" || order.status === "completed") && onCreateReturn && !order.is_return && (
+                                {(order.status === "delivered" || order.status === "completed") && onCreateReturn && !order.is_return && !order.is_replacement && (
                                     <button
                                         onClick={() => setShowReturnModal(true)}
                                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 transition-all text-xs font-medium"
                                     >
                                         <RotateCcw className="h-3.5 w-3.5" />
                                         {t("orderDetail.return")}
+                                    </button>
+                                )}
+                                {/* Replace Button - Only for delivered/completed orders */}
+                                {(order.status === "delivered" || order.status === "completed") && onCreateReplacement && !order.is_return && !order.is_replacement && (
+                                    <button
+                                        onClick={() => setShowReplacementModal(true)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-all text-xs font-medium dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800 dark:hover:bg-blue-900/40"
+                                    >
+                                        <Package className="h-3.5 w-3.5" />
+                                        استبدال
                                     </button>
                                 )}
                                 {/* Refund Status Buttons - Moved to Customer Card */}
@@ -786,6 +802,117 @@ export function OrderDetailsModal({
                                                 <RotateCcw className="w-4 h-4" />
                                             )}
                                             {t("orderDetail.confirmReturn")}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Replacement Order Creation Modal */}
+                        {showReplacementModal && (
+                            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                                <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
+                                    <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                                        <Package className="w-5 h-5 text-blue-600" />
+                                        إنشاء طلب استبدال
+                                    </h3>
+
+                                    <div className="space-y-4">
+                                        {/* Order Info */}
+                                        <div className="bg-gray-50 p-3 rounded-xl text-sm">
+                                            <p className="text-muted">الطلب الأصلي</p>
+                                            <p className="font-bold">#{getBaseOrderId(order.order_id)} - {order.customer_name}</p>
+                                            <p className="text-muted">المبلغ: {formatIQD(order.price)}</p>
+                                        </div>
+
+                                        {/* Info Message */}
+                                        <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
+                                            <p className="text-sm text-blue-700">
+                                                سيتم حساب فرق السعر بين المنتج القديم والجديد تلقائياً عند إنشاء الطلب
+                                            </p>
+                                        </div>
+
+                                        {/* Notes Input - Editable */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-foreground mb-1.5">
+                                                ملاحظات الاستبدال
+                                            </label>
+                                            <textarea
+                                                value={replacementNotes}
+                                                onChange={(e) => setReplacementNotes(e.target.value)}
+                                                rows={5}
+                                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white"
+                                                placeholder="أدخل ملاحظات الاستبدال..."
+                                            />
+                                        </div>
+
+                                        {/* Deduct Delivery Fee Checkbox */}
+                                        <label className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl cursor-pointer hover:bg-amber-100 transition-all">
+                                            <input
+                                                type="checkbox"
+                                                checked={replacementDeductDeliveryFee}
+                                                onChange={(e) => setReplacementDeductDeliveryFee(e.target.checked)}
+                                                className="w-5 h-5 rounded border-amber-300 text-amber-600 focus:ring-amber-200"
+                                            />
+                                            <div>
+                                                <p className="font-medium text-amber-800">خصم رسوم التوصيل (5,000 د.ع)</p>
+                                                <p className="text-xs text-amber-600">سيتم خصم رسوم التوصيل من مبلغ الاستبدال</p>
+                                            </div>
+                                        </label>
+                                    </div>
+
+                                    {/* Actions */}
+                                    <div className="flex gap-3 mt-6">
+                                        <button
+                                            onClick={() => {
+                                                setShowReplacementModal(false);
+                                                setReplacementDeductDeliveryFee(false);
+                                                setReplacementNotes("استبدال المنتج القديم بعد التأكد من سلامته وعدم تضرر زجاجة العطر او نقصانها خلافه يمنع الاستبدال قطعاً, ثم إعطاء الزبون المنتج الجديد . 5000 دينار توصيل مقطوعة من الحساب");
+                                            }}
+                                            className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-all"
+                                        >
+                                            إلغاء
+                                        </button>
+                                        <button
+                                            onClick={async () => {
+                                                if (!onCreateReplacement) {
+                                                    toast.error("خطأ", "لا يمكن إنشاء طلب استبدال");
+                                                    return;
+                                                }
+                                                setIsCreatingReplacement(true);
+                                                try {
+                                                    // For now, pass the original items as both old and new
+                                                    // This is a simplified version - you can enhance this later with item selection
+                                                    const result = await onCreateReplacement(order.id, {
+                                                        old_items: order.items || [],
+                                                        new_items: order.items || [],
+                                                        deductDeliveryFee: replacementDeductDeliveryFee,
+                                                        notes: replacementNotes,
+                                                    });
+                                                    setIsCreatingReplacement(false);
+                                                    if (result.success) {
+                                                        setShowReplacementModal(false);
+                                                        setReplacementDeductDeliveryFee(false);
+                                                        setReplacementNotes("استبدال المنتج القديم بعد التأكد من سلامته وعدم تضرر زجاجة العطر او نقصانها خلافه يمنع الاستبدال قطعاً, ثم إعطاء الزبون المنتج الجديد . 5000 دينار توصيل مقطوعة من الحساب");
+                                                        onClose();
+                                                        toast.success("تم الإنشاء", "تم إنشاء طلب الاستبدال بنجاح");
+                                                    } else {
+                                                        toast.error("فشل الإنشاء", result.error || "فشل في إنشاء طلب الاستبدال");
+                                                    }
+                                                } catch (err) {
+                                                    setIsCreatingReplacement(false);
+                                                    toast.error("خطأ", `فشل في إنشاء طلب الاستبدال: ${err instanceof Error ? err.message : "Unknown error"}`);
+                                                }
+                                            }}
+                                            disabled={isCreatingReplacement}
+                                            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                                        >
+                                            {isCreatingReplacement ? (
+                                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                            ) : (
+                                                <Package className="w-4 h-4" />
+                                            )}
+                                            إنشاء طلب استبدال
                                         </button>
                                     </div>
                                 </div>

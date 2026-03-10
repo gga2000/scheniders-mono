@@ -197,6 +197,7 @@ export function useOrders() {
 
         // Return orders
         createReturnOrder: crudHook.createReturnOrder,
+        createReplacementOrder: crudHook.createReplacementOrder,
 
         // Detection & history
         checkDuplicateOrder: auxiliaryHook.checkDuplicateOrder,

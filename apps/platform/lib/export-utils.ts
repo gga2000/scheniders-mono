@@ -65,9 +65,9 @@ export async function exportOrdersToPrimeCSV(orderIds: string[], ordersData: Ord
 
         // Clean Order ID:
         // 1. Remove CHK- prefix if present
-        // 2. For RTN-669-1 style, extract only the middle number (669)
+        // 2. For RTN-669-1 or RPL-669-1 style, extract only the middle number (669)
         let cleanOrderId = (order.order_id || '').replace(/^CHK-/, '');
-        if (cleanOrderId.startsWith('RTN-')) {
+        if (cleanOrderId.startsWith('RTN-') || cleanOrderId.startsWith('RPL-')) {
             const parts = cleanOrderId.split('-');
             if (parts.length >= 2) {
                 cleanOrderId = parts[1]; // Get the middle number
@@ -80,7 +80,7 @@ export async function exportOrdersToPrimeCSV(orderIds: string[], ordersData: Ord
         return {
             'ملاحظات': order.notes || '',
             'عدد القطع': totalQuantity,
-            'يحتوي على ارجاع بضاعة؟': order.is_return ? 'Y' : 'N',
+            'يحتوي على ارجاع بضاعة؟': (order.is_return || order.is_replacement) ? 'Y' : 'N',
             'هاتف المستلم': phone,
             'تفاصيل العنوان': order.address_details || order.city || '',
             'شفرة المحافظة': govCode,

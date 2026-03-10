@@ -243,6 +243,7 @@ export default function OrdersPage() {
         updateOrder,
         createOrder,
         createReturnOrder,
+        createReplacementOrder,
         isBlacklisted,
         stats,
         availableCities,
@@ -2421,6 +2422,7 @@ export default function OrdersPage() {
                         onAddNote={addOrderNote}
                         onDelete={deleteOrder}
                         onCreateReturn={createReturnOrder}
+                        onCreateReplacement={createReplacementOrder}
                         checkOrderIdExists={checkOrderIdExists}
                         assignments={selectedOrder ? assignments.filter(a => a.order_id === selectedOrder.id) : []}
                         onAssignDuty={handleAssignDuty}

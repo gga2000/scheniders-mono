@@ -76,6 +76,7 @@ export interface Order {
     delivery_fee?: number;
     discount_amount?: number;
     is_return: boolean;
+    is_replacement: boolean;
     original_order_id?: string;
     original_created_at?: string;
     is_archived: boolean;

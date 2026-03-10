@@ -1034,6 +1034,9 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         const deliveryFeeDeduction = returnData.deductDeliveryFee ? 5000 : 0;
         const finalReturnAmount = returnData.return_amount - deliveryFeeDeduction;
 
+        // Default return note template with the actual refund amount
+        const defaultReturnNote = `استرجاع المنتج من الزبون والتأكد من سلامته وعدم تضرر زجاجة العطر او نقصانها , ووجود كارت الضمان , مع إعطاء الزبون مبلغ قدره ${finalReturnAmount.toLocaleString()} دينار , خلافه يمنع الاسترجاع من الزبون.`;
+
         const returnOrder: Omit<Order, "id" | "created_at" | "updated_at"> = {
             order_id: returnOrderId,
             customer_name: originalOrder.customer_name,
@@ -1044,8 +1047,9 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             items: returnData.items || originalOrder.items,
             price: -finalReturnAmount,
             status: "return_pending",
-            notes: returnData.notes || undefined,
+            notes: returnData.notes || defaultReturnNote,
             is_return: true,
+            is_replacement: false,
             original_order_id: originalOrderId,
             priority: "high",
             payment_status: "pending",
@@ -1056,6 +1060,63 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         };
 
         return createOrder(returnOrder);
+    }
+
+    async function createReplacementOrder(originalOrderId: string, replacementData: {
+        old_items: OrderItem[];
+        new_items: OrderItem[];
+        deductDeliveryFee?: boolean;
+        notes?: string;
+    }) {
+        const originalOrder = orders.find((o) => o.id === originalOrderId);
+        if (!originalOrder) {
+            return { success: false, error: "Original order not found" };
+        }
+
+        if (!originalOrder.items || originalOrder.items.length === 0) {
+            return { success: false, error: "الطلب الأصلي لا يحتوي على منتجات" };
+        }
+
+        const existingReplacements = orders.filter(o =>
+            o.is_replacement && o.original_order_id === originalOrderId
+        );
+        const replacementCount = existingReplacements.length + 1;
+
+        const sequenceNum = originalOrder.sequence_number || originalOrder.order_id;
+        const replacementOrderId = `RPL-${sequenceNum}-${replacementCount}`;
+
+        // Calculate price difference between old and new items
+        const oldTotal = replacementData.old_items.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
+        const newTotal = replacementData.new_items.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
+        const priceDifference = newTotal - oldTotal;
+
+        const deliveryFeeDeduction = replacementData.deductDeliveryFee ? 5000 : 0;
+
+        // Default replacement note template
+        const defaultNote = replacementData.notes || "استبدال المنتج القديم بعد التأكد من سلامته وعدم تضرر زجاجة العطر او نقصانها خلافه يمنع الاستبدال قطعاً, ثم إعطاء الزبون المنتج الجديد . 5000 دينار توصيل مقطوعة من الحساب";
+
+        const replacementOrder: Omit<Order, "id" | "created_at" | "updated_at"> = {
+            order_id: replacementOrderId,
+            customer_name: originalOrder.customer_name,
+            phone: originalOrder.phone,
+            city: originalOrder.city,
+            governorate_code: originalOrder.governorate_code,
+            address_details: originalOrder.address_details,
+            items: replacementData.new_items,
+            price: priceDifference,
+            status: "confirmed",
+            notes: defaultNote,
+            is_replacement: true,
+            is_return: false,
+            original_order_id: originalOrderId,
+            priority: "high",
+            payment_status: priceDifference > 0 ? "pending" : "cod",
+            is_archived: false,
+            delivery_fee: deliveryFeeDeduction,
+            source: originalOrder.source || "other",
+        };
+
+        return createOrder(replacementOrder);
     }
 
     // =============================================
@@ -1423,6 +1484,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
         // Return orders
         createReturnOrder,
+        createReplacementOrder,
 
         // Merge
         mergeOrders,
