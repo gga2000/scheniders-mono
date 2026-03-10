@@ -38,9 +38,16 @@ import {
     Truck,
     MoreHorizontal,
     Pencil,
+    Upload,
+    Image as ImageIcon,
+    Loader2,
+    Sparkles,
+    RefreshCw,
+    XCircle,
 } from "lucide-react";
 import { ProductPicker } from "./product-picker";
 import { DiscountPresetSelector } from "./discount-preset-selector";
+import { BulkUploadModal } from "./bulk-upload-modal";
 
 // TikTok icon component
 const TikTokIcon = ({ className }: { className?: string }) => (
@@ -99,6 +106,9 @@ export function CreateOrderModal({
     const [deliveryFee, setDeliveryFee] = useState(5000);
     const [includeDeliveryFee, setIncludeDeliveryFee] = useState(false);
     const [editingPriceIndex, setEditingPriceIndex] = useState<number | null>(null);
+    const [isAnalyzingImage, setIsAnalyzingImage] = useState(false);
+    const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+    const [showBulkUpload, setShowBulkUpload] = useState(false);
 
     // Sync formData with initialData only when modal first opens
     useEffect(() => {
@@ -208,6 +218,98 @@ export function CreateOrderModal({
         }));
     };
 
+    const handleClearFields = () => {
+        setFormData({
+            customer_name: "",
+            phone: "",
+            secondary_phone: "",
+            city: "",
+            address_details: "",
+            items: [],
+            notes: "",
+            internal_notes: "",
+            delivery_slot: undefined,
+            payment_status: "cod",
+            source: orderType === "shop" ? "shop" : "whatsapp",
+            order_id: "",
+        });
+        setUploadedImage(null);
+        setDiscount(0);
+        setDeliveryFee(5000);
+        setIncludeDeliveryFee(false);
+    };
+
+    const handleRemoveImage = () => {
+        setUploadedImage(null);
+        // Reset the file input
+        const fileInput = document.getElementById('chat-image-upload') as HTMLInputElement;
+        if (fileInput) {
+            fileInput.value = '';
+        }
+    };
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            alert('الرجاء اختيار صورة');
+            return;
+        }
+
+        // Show preview
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setUploadedImage(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+
+        // Analyze with Gemini
+        setIsAnalyzingImage(true);
+        try {
+            const formData = new FormData();
+            formData.append("image", file);
+
+            const response = await fetch("/api/orders/analyze-image", {
+                method: "POST",
+                body: formData,
+            });
+
+            const result = await response.json();
+
+            if (result.success && result.data) {
+                // Auto-fill the form with extracted data
+                const hasData = result.data.customer_name || result.data.phone || result.data.city || result.data.address;
+
+                if (hasData) {
+                    setFormData((prev) => ({
+                        ...prev,
+                        customer_name: result.data.customer_name || prev.customer_name,
+                        phone: result.data.phone || prev.phone,
+                        secondary_phone: result.data.secondary_phone || prev.secondary_phone,
+                        city: result.data.city || prev.city,
+                        address_details: result.data.address || prev.address_details,
+                    }));
+
+                    // Show success message
+                    console.log('✅ تم استخراج البيانات بنجاح:', result.data);
+                } else {
+                    console.warn('⚠️ لم يتم العثور على بيانات في الصورة');
+                    alert('لم يتم العثور على بيانات في الصورة. الرجاء التحقق من الصورة والمحاولة مرة أخرى.');
+                }
+            } else {
+                console.error("Failed to analyze image:", result.error, result.details);
+                alert(`حدث خطأ أثناء تحليل الصورة: ${result.error || 'خطأ غير معروف'}`);
+            }
+        } catch (error) {
+            console.error("Error uploading image:", error);
+            alert('حدث خطأ أثناء رفع الصورة. الرجاء المحاولة مرة أخرى.');
+        } finally {
+            setIsAnalyzingImage(false);
+        }
+    };
+
     const handleCreate = async () => {
         // Normalize phones before validation
         const normalizedPhone = normalizeIraqiPhone(formData.phone);
@@ -314,27 +416,38 @@ export function CreateOrderModal({
                                     <p className="text-xs font-normal text-muted mt-0.5">أضف تفاصيل الطلب والمنتجات</p>
                                 </div>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setOrderType("delivery");
-                                    setFormData(prev => ({
-                                        ...prev,
-                                        customer_name: "علي-تيست",
-                                        phone: "07802301677",
-                                        secondary_phone: "07811262261",
-                                        city: "واسط",
-                                        address_details: "العزيزية - الجمعية",
-                                        source: "tiktok",
-                                        is_test: true,
-                                        items: prev.items.length > 0 ? prev.items : [{ name: "Test Product", price: 15000, quantity: 1 }]
-                                    }));
-                                }}
-                                className="px-2 py-1 flex items-center gap-1 text-[10px] font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-md hover:bg-purple-100 transition-all opacity-50 hover:opacity-100 shadow-sm"
-                                title="تعبئة بيانات تجريبية"
-                            >
-                                Test
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={handleClearFields}
+                                    className="px-2 py-1 flex items-center gap-1 text-[10px] font-medium text-gray-600 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 transition-all opacity-70 hover:opacity-100"
+                                    title="مسح جميع الحقول"
+                                >
+                                    <RefreshCw className="h-3 w-3" />
+                                    مسح
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setOrderType("delivery");
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            customer_name: "علي-تيست",
+                                            phone: "07802301677",
+                                            secondary_phone: "07811262261",
+                                            city: "واسط",
+                                            address_details: "العزيزية - الجمعية",
+                                            source: "tiktok",
+                                            is_test: true,
+                                            items: prev.items.length > 0 ? prev.items : [{ name: "Test Product", price: 15000, quantity: 1 }]
+                                        }));
+                                    }}
+                                    className="px-2 py-1 flex items-center gap-1 text-[10px] font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-md hover:bg-purple-100 transition-all opacity-50 hover:opacity-100 shadow-sm"
+                                    title="تعبئة بيانات تجريبية"
+                                >
+                                    Test
+                                </button>
+                            </div>
                         </DialogTitle>
                     </DialogHeader>
 
@@ -375,6 +488,94 @@ export function CreateOrderModal({
                                     ✨ طلب المحل: رقم الهاتف اختياري، بدون رسوم توصيل
                                 </p>
                             )}
+                        </div>
+
+                        {/* AI Image Upload - Smart Order Entry */}
+                        <div className="space-y-2">
+                            <Label className="text-xs text-muted flex items-center gap-1">
+                                <Sparkles className="h-3 w-3 text-purple-600" />
+                                رفع صورة المحادثة (اختياري)
+                            </Label>
+                            <div className="relative">
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleImageUpload}
+                                    className="hidden"
+                                    id="chat-image-upload"
+                                    disabled={isAnalyzingImage}
+                                />
+                                <label
+                                    htmlFor="chat-image-upload"
+                                    className={cn(
+                                        "flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-dashed cursor-pointer transition-all",
+                                        isAnalyzingImage
+                                            ? "border-purple-300 bg-purple-50/50 cursor-wait"
+                                            : uploadedImage
+                                                ? "border-purple-400 bg-purple-50"
+                                                : "border-gray-300 bg-gray-50/50 hover:border-purple-400 hover:bg-purple-50/50"
+                                    )}
+                                >
+                                    {isAnalyzingImage ? (
+                                        <>
+                                            <Loader2 className="h-8 w-8 text-purple-600 animate-spin" />
+                                            <div className="text-center">
+                                                <p className="text-sm font-semibold text-purple-700">جاري تحليل الصورة...</p>
+                                                <p className="text-xs text-purple-600 mt-1">الذكاء الاصطناعي يستخرج البيانات</p>
+                                            </div>
+                                        </>
+                                    ) : uploadedImage ? (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    handleRemoveImage();
+                                                }}
+                                                className="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center transition-all shadow-md z-10"
+                                                title="إزالة الصورة"
+                                            >
+                                                <XCircle className="h-4 w-4" />
+                                            </button>
+                                            <div className="w-16 h-16 rounded-lg overflow-hidden border-2 border-purple-300">
+                                                <img src={uploadedImage} alt="Uploaded" className="w-full h-full object-cover" />
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-sm font-semibold text-purple-700 flex items-center gap-1.5 justify-center">
+                                                    <Check className="h-4 w-4" />
+                                                    تم التحليل بنجاح
+                                                </p>
+                                                <p className="text-xs text-purple-600 mt-1">اضغط لرفع صورة أخرى</p>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div className="w-12 h-12 rounded-xl bg-linear-to-br from-purple-100 to-pink-100 flex items-center justify-center">
+                                                <ImageIcon className="h-6 w-6 text-purple-600" />
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-sm font-semibold text-gray-700 flex items-center gap-1.5 justify-center">
+                                                    <Upload className="h-4 w-4" />
+                                                    ارفع صورة المحادثة
+                                                </p>
+                                                <p className="text-xs text-gray-500 mt-1">من Instagram أو TikTok - سيتم استخراج الرقم والعنوان تلقائياً</p>
+                                            </div>
+                                        </>
+                                    )}
+                                </label>
+                            </div>
+                            <p className="text-xs text-muted bg-purple-50/50 px-3 py-2 rounded-lg flex items-center gap-1.5">
+                                <Sparkles className="h-3 w-3 text-purple-600 shrink-0" />
+                                <span>الذكاء الاصطناعي سيستخرج رقم الهاتف والعنوان من الصورة تلقائياً</span>
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => setShowBulkUpload(true)}
+                                className="text-xs text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1 hover:underline transition-all"
+                            >
+                                <Package className="h-3 w-3" />
+                                رفع طلبات متعددة دفعة واحدة
+                            </button>
                         </div>
 
                         {/* Optional Order ID */}
@@ -848,6 +1049,34 @@ export function CreateOrderModal({
                 open={showProductPicker}
                 onClose={() => setShowProductPicker(false)}
                 onSelect={handleProductSelect}
+            />
+
+            {/* Bulk Upload Modal */}
+            <BulkUploadModal
+                open={showBulkUpload}
+                onClose={() => setShowBulkUpload(false)}
+                onCreate={async (orders) => {
+                    // Create all orders
+                    for (const orderData of orders) {
+                        await onCreate({
+                            customer_name: orderData.customer_name,
+                            phone: orderData.phone,
+                            secondary_phone: orderData.secondary_phone || undefined,
+                            city: orderData.city,
+                            address_details: orderData.address,
+                            items: [],
+                            notes: '',
+                            internal_notes: `[AI رفع مجمع] تم استخراج البيانات تلقائياً`,
+                            price: 0,
+                            discount_amount: 0,
+                            delivery_fee: 0,
+                            is_shop_order: false,
+                            status: 'pending',
+                            source: 'whatsapp',
+                        });
+                    }
+                    alert(`✅ تم إنشاء ${orders.length} طلب بنجاح!`);
+                }}
             />
         </>
     );
