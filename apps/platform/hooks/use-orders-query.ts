@@ -241,15 +241,25 @@ export function useUpdateStatusMutation() {
             orderId,
             status,
             rejectionReason,
+            last_status_changed_by_name,
+            last_status_changed_by_avatar,
         }: {
             orderId: string;
             status: Order["status"];
             rejectionReason?: string;
+            last_status_changed_by_name?: string;
+            last_status_changed_by_avatar?: string;
         }) => {
-            const data = await orderRepository.updateStatus(orderId, status, rejectionReason);
+            const data = await orderRepository.updateStatus(
+                orderId,
+                status,
+                rejectionReason,
+                last_status_changed_by_name,
+                last_status_changed_by_avatar
+            );
             return { orderId, status, data };
         },
-        onMutate: async ({ orderId, status, rejectionReason }) => {
+        onMutate: async ({ orderId, status, rejectionReason, last_status_changed_by_name, last_status_changed_by_avatar }) => {
             const mutSeq = nextMutationSeq(orderId);
             console.log(`[Diag:RQ:StatusMut] onMutate orderId=${orderId} status=${status} mutSeq=${mutSeq}`);
             const batcher = getOrderBatcher();
@@ -274,6 +284,8 @@ export function useUpdateStatusMutation() {
                                     : undefined,
                             delivered_at: status === "delivered" ? new Date().toISOString() : order.delivered_at,
                             updated_at: new Date().toISOString(),
+                            last_status_changed_by_name,
+                            last_status_changed_by_avatar,
                         } as Order)
                         : order
                 );
