@@ -10,13 +10,11 @@ import {
 import { Input } from "@/components/ui/input";
 import {
     Upload,
-    X,
     Check,
     Loader2,
     Sparkles,
     AlertCircle,
     Trash2,
-    Download,
     Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -36,7 +34,7 @@ interface ExtractedData {
 interface BulkUploadModalProps {
     open: boolean;
     onClose: () => void;
-    onCreate: (orders: any[]) => Promise<void>;
+    onCreate: (orders: ExtractedData[]) => Promise<void>;
 }
 
 export function BulkUploadModal({ open, onClose, onCreate }: BulkUploadModalProps) {
@@ -103,7 +101,7 @@ export function BulkUploadModal({ open, onClose, onCreate }: BulkUploadModalProp
                             : item
                     ));
                 }
-            } catch (error) {
+            } catch {
                 setExtractedData(prev => prev.map(item =>
                     item.id === dataId
                         ? { ...item, status: 'error' as const, error: 'خطأ في الاتصال' }
