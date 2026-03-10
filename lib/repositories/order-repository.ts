@@ -102,7 +102,9 @@ export const orderRepository = {
     async updateStatus(
         id: string,
         status: Order["status"],
-        rejectionReason?: string
+        rejectionReason?: string,
+        last_status_changed_by_name?: string,
+        last_status_changed_by_avatar?: string
     ): Promise<Order> {
         const updateData: Partial<Order> = { status };
         if (rejectionReason) {
@@ -112,6 +114,14 @@ export const orderRepository = {
         }
         if (status === "delivered") updateData.delivered_at = new Date().toISOString();
         if (status === "cancelled") updateData.cancelled_at = new Date().toISOString();
+
+        // Include user attribution for notifications
+        if (last_status_changed_by_name) {
+            updateData.last_status_changed_by_name = last_status_changed_by_name;
+        }
+        if (last_status_changed_by_avatar) {
+            updateData.last_status_changed_by_avatar = last_status_changed_by_avatar;
+        }
 
         // Retry with backoff: 2 attempts, 1s delay between
         const MAX_RETRIES = 2;

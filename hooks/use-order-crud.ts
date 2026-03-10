@@ -163,10 +163,18 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 try {
                     const _tMut = performance.now();
                     console.log(`[Diag:StatusUpdate] MUTATION_START orderId=${orderId} seq=${mySeq}`);
+
+                    // Get current user information for attribution
+                    const { profile: currentProfile, user: currentUser } = authRef.current;
+                    const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
+                    const changedByAvatar = currentProfile?.avatar_url;
+
                     await updateStatusMutation.mutateAsync({
                         orderId,
                         status,
-                        rejectionReason
+                        rejectionReason,
+                        last_status_changed_by_name: changedBy,
+                        last_status_changed_by_avatar: changedByAvatar,
                     });
                     console.log(`[Diag:StatusUpdate] MUTATION_OK orderId=${orderId} seq=${mySeq} took=${(performance.now() - _tMut).toFixed(1)}ms`);
 
@@ -364,9 +372,21 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 return { success: false, error: `Validation Error: ${errorMessage}` };
             }
 
+            // Get current user information for attribution
+            const { profile: currentProfile, user: currentUser } = authRef.current;
+            const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
+            const changedByAvatar = currentProfile?.avatar_url;
+
+            // Include user attribution in the order data so notifications show the correct creator
+            const orderDataWithAttribution = {
+                ...orderData,
+                last_status_changed_by_name: changedBy,
+                last_status_changed_by_avatar: changedByAvatar,
+            };
+
             // Start order creation instantly for optimal perceived performance
             console.log(`[Diag:CreateOrder] MUTATION_START`);
-            const mutationPromise = createOrderMutation.mutateAsync(orderData);
+            const mutationPromise = createOrderMutation.mutateAsync(orderDataWithAttribution);
 
             // Calculate risk assessment seamlessly in the background WITHOUT blocking the UI
             try {
@@ -714,9 +734,18 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             const currentStatuses: { [key: string]: Order["status"] } = {};
             previousOrders.forEach(o => currentStatuses[o.id] = o.status);
 
+            // Get current user information for attribution
+            const { profile: currentProfile, user: currentUser } = authRef.current;
+            const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
+            const changedByAvatar = currentProfile?.avatar_url;
+
             const { data: updatedRows, error: updateError } = await supabase
                 .from("orders")
-                .update({ status })
+                .update({
+                    status,
+                    last_status_changed_by_name: changedBy,
+                    last_status_changed_by_avatar: changedByAvatar,
+                })
                 .in("id", orderIds)
                 .select("id");
 
@@ -745,9 +774,6 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             }).catch(console.error);
 
             // Record status change to history table for each updated order
-            const { profile: currentProfile, user: currentUser } = authRef.current;
-            const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
-
             // Insert history records
             const historyEntries = orderIds.map(id => ({
                 order_id: id,
