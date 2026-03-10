@@ -87,8 +87,9 @@ If you cannot find certain information, use empty strings for those fields.
 
         console.log(`✓ Model ${modelName} succeeded`);
         break; // Success! Exit the loop
-      } catch (error: any) {
-        console.log(`✗ Model ${modelName} failed:`, error.message);
+      } catch (error) {
+        const err = error as Error;
+        console.log(`✗ Model ${modelName} failed:`, err.message);
         lastError = error;
 
         // If this is the last model, throw the error
@@ -129,11 +130,12 @@ If you cannot find certain information, use empty strings for those fields.
       success: true,
       data: extractedData,
     });
-  } catch (error: any) {
+  } catch (error) {
+    const err = error as Error;
     console.error("Error analyzing image:", error);
-    console.error("Error details:", error.message, error.stack);
+    console.error("Error details:", err.message, err.stack);
     return NextResponse.json(
-      { error: "Failed to analyze image", details: error.message },
+      { error: "Failed to analyze image", details: err.message },
       { status: 500 }
     );
   }

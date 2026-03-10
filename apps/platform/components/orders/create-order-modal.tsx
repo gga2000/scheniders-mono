@@ -59,7 +59,7 @@ const TikTokIcon = ({ className }: { className?: string }) => (
 interface CreateOrderModalProps {
     open: boolean;
     onClose: () => void;
-    onCreate: (orderData: any) => Promise<{ success: boolean; error?: string }>;
+    onCreate: (orderData: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
     checkOrderIdExists?: (orderId: string) => Promise<boolean>;
     initialData?: Partial<OrderFormData & { secondary_phone?: string; source?: string; order_id?: string }>;
 }
@@ -189,14 +189,14 @@ export function CreateOrderModal({
         }
     };
 
-    const updateField = (field: string, value: any) => {
+    const updateField = (field: string, value: string | number | boolean | undefined | string[]) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
         if (errors[field]) {
             setErrors((prev) => ({ ...prev, [field]: undefined }));
         }
     };
 
-    const updateItem = (index: number, field: keyof OrderItem, value: any) => {
+    const updateItem = (index: number, field: keyof OrderItem, value: string | number) => {
         setFormData((prev) => {
             const newItems = [...prev.items];
             newItems[index] = { ...newItems[index], [field]: value };
