@@ -54,23 +54,23 @@ export const OrderSchema = z.object({
     order_id: z.string().optional(), // Auto-generated if not provided
     customer_name: z.string().min(1, "Customer name is required"),
     phone: z.string().refine((val) => val === '' || val.length >= 10, { message: "Phone number must be valid" }),
-    secondary_phone: z.string().optional(),
+    secondary_phone: z.string().nullable().optional(),
 
-    city: z.string().optional(),
-    governorate_code: z.string().optional(),
-    address_details: z.string().optional(),
+    city: z.string().nullable().optional(),
+    governorate_code: z.string().nullable().optional(),
+    address_details: z.string().nullable().optional(),
 
     items: z.array(OrderItemSchema).min(1, "Order must have at least one item"),
 
     price: z.number(), // Can be negative for return orders
     status: OrderStatusEnum.default('new'),
 
-    whatsapp_link: z.string().optional(),
-    notes: z.string().optional(),
-    internal_notes: z.string().optional(),
-    rejection_reason: z.string().optional(),
+    whatsapp_link: z.string().nullable().optional(),
+    notes: z.string().nullable().optional(),
+    internal_notes: z.string().nullable().optional(),
+    rejection_reason: z.string().nullable().optional(),
 
-    scheduled_date: z.string().optional(),
+    scheduled_date: z.string().nullable().optional(),
     priority: OrderPriorityEnum.default('normal'),
     payment_status: PaymentStatusEnum.default('pending'),
 
