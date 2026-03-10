@@ -438,9 +438,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             );
 
             // Record initial status change to history
-            const { profile: currentProfile, user: currentUser } = authRef.current;
-            const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
-
+            // (changedBy already defined earlier in this function)
             const { error: historyError } = await supabase
                 .from("order_status_history")
                 .insert([{
