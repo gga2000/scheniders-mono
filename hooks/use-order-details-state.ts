@@ -51,6 +51,12 @@ export function useOrderDetailsState({
     const [deductDeliveryFee, setDeductDeliveryFee] = useState(false);
     const [isCreatingReturn, setIsCreatingReturn] = useState(false);
 
+    // Replacement State
+    const [showReplacementModal, setShowReplacementModal] = useState(false);
+    const [replacementDeductDeliveryFee, setReplacementDeductDeliveryFee] = useState(false);
+    const [replacementNotes, setReplacementNotes] = useState("استبدال المنتج القديم بعد التأكد من سلامته وعدم تضرر زجاجة العطر او نقصانها خلافه يمنع الاستبدال قطعاً, ثم إعطاء الزبون المنتج الجديد . 5000 دينار توصيل مقطوعة من الحساب");
+    const [isCreatingReplacement, setIsCreatingReplacement] = useState(false);
+
     // Split Order State
     const [showSplitDialog, setShowSplitDialog] = useState(false);
 
@@ -78,6 +84,7 @@ export function useOrderDetailsState({
             setShowDeleteConfirm(false);
             setDeleteCountdown(5);
             setShowReturnModal(false);
+            setShowReplacementModal(false);
             setShowSplitDialog(false);
         }
     }, [open]);
@@ -176,6 +183,10 @@ export function useOrderDetailsState({
         returnReason, setReturnReason,
         deductDeliveryFee, setDeductDeliveryFee,
         isCreatingReturn, setIsCreatingReturn,
+        showReplacementModal, setShowReplacementModal,
+        replacementDeductDeliveryFee, setReplacementDeductDeliveryFee,
+        replacementNotes, setReplacementNotes,
+        isCreatingReplacement, setIsCreatingReplacement,
         showSplitDialog, setShowSplitDialog, handleSplitOrder,
     };
 }

@@ -822,11 +822,9 @@ export async function generateA6InvoicePrime(order: Order, options: EnhancedLabe
         return cleaned;
     };
 
-    // Calculate totals
-    const subtotal = Number(order.price) || 0;
-    const deliveryFee = Number(order.delivery_fee) || 0;
-    const discount = Number(order.discount_amount) || 0;
-    const total = subtotal + deliveryFee - discount;
+    // Use order.price as final total (already includes discounts, delivery, etc.)
+    // For refunded orders, this will be negative
+    const total = Number(order.price) || 0;
 
     // Format date and time
     const orderDate = new Date(order.created_at);
@@ -942,11 +940,9 @@ export async function generateShippingLabelHTML(
         return cleaned;
     };
 
-    // Calculate totals
-    const subtotal = Number(order.price) || 0;
-    const deliveryFee = Number(order.delivery_fee) || 0;
-    const discount = Number(order.discount_amount) || 0;
-    const total = subtotal + deliveryFee - discount;
+    // Use order.price as final total (already includes discounts, delivery, etc.)
+    // For refunded orders, this will be negative
+    const total = Number(order.price) || 0;
 
     // Format date/time
     const orderDate = new Date(order.created_at);

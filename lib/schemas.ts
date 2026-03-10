@@ -78,6 +78,7 @@ export const OrderSchema = z.object({
     discount_amount: z.number().optional(),
 
     is_return: z.boolean().default(false),
+    is_replacement: z.boolean().default(false),
     original_order_id: z.string().optional(),
     is_archived: z.boolean().default(false),
     is_pinned: z.boolean().optional(),

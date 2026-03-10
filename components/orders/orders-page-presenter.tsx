@@ -284,6 +284,7 @@ export interface OrdersPagePresenterProps {
     checkOrderIdExists: (orderId: string) => Promise<boolean>;
     handleSplitOrder: (keptItems: any[], returnedItems: any[]) => Promise<void>;
     createReturnOrder: (orderId: string, data: { return_amount: number; reason: string; deductDeliveryFee?: boolean }) => Promise<{ success: boolean; error?: string }>;
+    createReplacementOrder: (orderId: string, data: { old_items: any[]; new_items: any[]; deductDeliveryFee?: boolean; notes?: string }) => Promise<{ success: boolean; error?: string }>;
     mergeOrders: (targetId: string, sourceId: string) => Promise<{ success: boolean; error?: any; }>;
     markAsVerifiedCustomer: (orderId: string) => Promise<{ success: boolean; error?: any; }>;
     dismissDuplicate: (phone: string, notes?: string) => Promise<{ success: boolean; error?: any; }>;
@@ -325,7 +326,7 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
         handleBulkReject, handleBulkArchive, handleBulkDelete, handleBulkNew, handleBulkContacted, handleBulkInTransit, handleBulkCompleted,
         handleBulkNoResponse, handlePrimeExport, handleManualSync, handleStatusUpdate, undoLastAction, canUndo, isSyncing, fetchArchivedOrders,
         updateOrderStatus, updateOrder, createOrder, deleteOrder, cloneOrder, togglePin, getOrderTimeline, getOrderNotes, addOrderNote,
-        checkOrderIdExists, handleSplitOrder, createReturnOrder, mergeOrders, markAsVerifiedCustomer, dismissDuplicate, handleAssignDuty,
+        checkOrderIdExists, handleSplitOrder, createReturnOrder, createReplacementOrder, mergeOrders, markAsVerifiedCustomer, dismissDuplicate, handleAssignDuty,
         toggleReviewed, getCustomerHistory, getCustomerOrderCount, getCustomerArchivedCount, isBlacklisted,
         hasDuplicates, getReturnOrderInfo, getOriginalOrderInfo, getCustomerOrders, modePrice, normalizePhoneForSearch
     } = props;
@@ -1859,6 +1860,7 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                     onAddNote={addOrderNote}
                     onDelete={deleteOrder}
                     onCreateReturn={createReturnOrder}
+                    onCreateReplacement={createReplacementOrder}
                     checkOrderIdExists={checkOrderIdExists}
                     assignments={selectedOrder ? assignments.filter(a => a.order_id === selectedOrder.id) : []}
                     onAssignDuty={handleAssignDuty}
