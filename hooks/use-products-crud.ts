@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase, type Product, type ProductVariant, type ProductPriceHistory, getStockStatus } from "@/lib/supabase";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import {
@@ -41,6 +42,7 @@ interface VariantFormData {
 }
 
 export function useProductsCrud() {
+    const queryClient = useQueryClient();
     const { data: rawProducts, isLoading: loading, error: queryError } = useProductsQuery();
     const { orders } = useOrdersContext();
 
@@ -294,6 +296,6 @@ export function useProductsCrud() {
         getPriceHistory,
         uploadProductImage,
         getLowStockProducts,
-        refetch: () => { }, // No-op mostly, or queryClient.invalidate
+        refetch: () => { queryClient.invalidateQueries({ queryKey: ['products'] }); },
     };
 }

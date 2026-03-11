@@ -1,10 +1,23 @@
-import { supabase } from "./supabase";
+import { createSupabaseServiceClient } from "./supabase-server";
 import { formatPhoneToStandard } from "./order-utils";
 import { generateWhatsAppLink } from "./utils";
 import { validateAddress, getAddressStatus, extractAndSeparateGovernorate } from "./address-validator";
 import { fetchCheckoutById, getSavedAccessToken } from "./lightfunnels-api";
 import { fraudDetector } from "./fraud-detector";
 import type { OrderItem } from "./supabase";
+
+// Use service role client — this file is server-only (called from webhook routes)
+// Lazy init so env vars are available at call time, not import time
+let _supabase: ReturnType<typeof createSupabaseServiceClient> | null = null;
+function getSupabase() {
+    if (!_supabase) _supabase = createSupabaseServiceClient();
+    return _supabase;
+}
+const supabase = new Proxy({} as ReturnType<typeof createSupabaseServiceClient>, {
+    get(_, prop) {
+        return (getSupabase() as any)[prop];
+    }
+});
 
 /**
  * LightFunnels webhook payload structure (actual format from Lightfunnels)

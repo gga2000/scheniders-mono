@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { env } from "@/lib/env";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
 
-const supabaseAdmin = createClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+const supabaseAdmin = createSupabaseServiceClient();
 
 const SETTINGS_KEY = "whatsapp_auto_send";
 
