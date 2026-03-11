@@ -28,16 +28,21 @@ BEGIN
     _date_str := to_char(current_date, 'YYMMDD');
     _prefix := _source_code || _date_str;
     
-    -- 3. Acquire a transaction-level advisory lock based on the prefix to serialize order creation for this day+source
-    -- We hash the prefix to get a bigint for the lock ID
-    _advisory_lock_id := hashtext(_prefix)::bigint;
+    -- 3. Acquire a transaction-level advisory lock to serialize order creation
+    -- We use a single global lock ID (e.g., hash of 'create_order_lock')
+    -- because sequence_number is a global sequence.
+    _advisory_lock_id := hashtext('create_order_lock')::bigint;
     PERFORM pg_advisory_xact_lock(_advisory_lock_id);
 
     -- 4. Calculate generated order ID (if not provided)
     _generated_order_id := _order_data->>'order_id';
     IF _generated_order_id IS NULL OR _generated_order_id = '' THEN
-        -- Count how many orders exist today with this prefix
-        SELECT COUNT(*) INTO _count 
+        -- Find the maximum assigned suffix for today's prefix instead of COUNT(*)
+        SELECT COALESCE(
+            MAX(
+                NULLIF(regexp_replace(SUBSTRING(order_id FROM length(_prefix) + 1), '\D', '', 'g'), '')::int
+            ), 0
+        ) INTO _count 
         FROM public.orders 
         WHERE order_id LIKE (_prefix || '%') AND created_at >= current_date;
         

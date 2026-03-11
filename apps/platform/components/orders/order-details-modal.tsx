@@ -320,7 +320,7 @@ export function OrderDetailsModal({
     const quickActions = [
         {
             status: "new" as Order["status"],
-            label: t("orderDetail.new"),
+            label: getStatusLabel("new"),
             icon: Clock,
             bgColor: "bg-orange-100",
             textColor: "text-orange-900",
@@ -329,7 +329,7 @@ export function OrderDetailsModal({
         },
         {
             status: "pending_checkout" as Order["status"],
-            label: t("orderDetail.pendingCheckout"),
+            label: getStatusLabel("pending_checkout"),
             icon: ShoppingCart,
             bgColor: "bg-pink-100",
             textColor: "text-pink-900",
@@ -338,7 +338,7 @@ export function OrderDetailsModal({
         },
         {
             status: "contacted" as Order["status"],
-            label: t("orderDetail.contacted"),
+            label: getStatusLabel("contacted"),
             icon: PhoneCall,
             bgColor: "bg-[var(--pastel-yellow)]",
             textColor: "text-amber-900",
@@ -347,7 +347,7 @@ export function OrderDetailsModal({
         },
         {
             status: "confirmed" as Order["status"],
-            label: t("orderDetail.confirmed"),
+            label: getStatusLabel("confirmed"),
             icon: CheckCircle,
             bgColor: "bg-[var(--pastel-green)]",
             textColor: "text-green-900",
@@ -356,7 +356,7 @@ export function OrderDetailsModal({
         },
         {
             status: "in_transit" as Order["status"],
-            label: t("orderDetail.inTransit"),
+            label: getStatusLabel("in_transit"),
             icon: Truck,
             bgColor: "bg-blue-100",
             textColor: "text-blue-900",
@@ -365,7 +365,7 @@ export function OrderDetailsModal({
         },
         {
             status: "delivered" as Order["status"],
-            label: t("orderDetail.delivered"),
+            label: getStatusLabel("delivered"),
             icon: CheckCheck,
             bgColor: "bg-[var(--pastel-mint)]",
             textColor: "text-teal-900",
@@ -374,7 +374,7 @@ export function OrderDetailsModal({
         },
         {
             status: "completed" as Order["status"],
-            label: t("orderDetail.completed"),
+            label: getStatusLabel("completed"),
             icon: CheckCircle,
             bgColor: "bg-green-100",
             textColor: "text-green-900",
@@ -383,7 +383,7 @@ export function OrderDetailsModal({
         },
         {
             status: "cancelled" as Order["status"],
-            label: t("orderDetail.cancel"),
+            label: getStatusLabel("cancelled"),
             icon: XCircle,
             bgColor: "bg-gray-100",
             textColor: "text-gray-700",
@@ -392,7 +392,7 @@ export function OrderDetailsModal({
         },
         {
             status: "rejected" as Order["status"],
-            label: t("orderDetail.rejected"),
+            label: getStatusLabel("rejected"),
             icon: XCircle,
             bgColor: "bg-[var(--pastel-pink)]",
             textColor: "text-rose-900",
@@ -401,7 +401,7 @@ export function OrderDetailsModal({
         },
         {
             status: "no_response" as Order["status"],
-            label: t("orderDetail.noResponse"),
+            label: getStatusLabel("no_response"),
             icon: PhoneOff,
             bgColor: "bg-gray-100",
             textColor: "text-gray-700",
@@ -410,7 +410,7 @@ export function OrderDetailsModal({
         },
         {
             status: "return_pending" as Order["status"],
-            label: t("orderDetail.returnPending"),
+            label: getStatusLabel("return_pending"),
             icon: RotateCcw,
             bgColor: "bg-orange-100",
             textColor: "text-orange-900",
@@ -419,7 +419,7 @@ export function OrderDetailsModal({
         },
         {
             status: "suspended" as Order["status"],
-            label: t("orderDetail.suspended"),
+            label: getStatusLabel("suspended"),
             icon: Pause,
             bgColor: "bg-purple-100",
             textColor: "text-purple-900",
