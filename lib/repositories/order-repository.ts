@@ -72,14 +72,21 @@ export const orderRepository = {
         return data ? normalizeOrder(data) : null;
     },
 
-    /** Update an order by ID. Verifies the write actually affected a row. */
-    async update(id: string, updates: Partial<Order>): Promise<Order> {
+    /** Update an order by ID. Verifies the write actually affected a row. Supports conflict detection via expectedUpdatedAt. */
+    async update(id: string, updates: Partial<Order>, expectedUpdatedAt?: string): Promise<Order> {
         const _t = performance.now();
-        console.log(`[Diag:Repo] update START orderId=${id} fields=${Object.keys(updates).join(',')}`);
-        const { data, error } = await supabase
+        console.log(`[Diag:Repo] update START orderId=${id} fields=${Object.keys(updates).join(',')} expectedUpdatedAt=${expectedUpdatedAt}`);
+        
+        let query = supabase
             .from("orders")
             .update(updates)
-            .eq("id", id)
+            .eq("id", id);
+            
+        if (expectedUpdatedAt) {
+            query = query.eq("updated_at", expectedUpdatedAt);
+        }
+
+        const { data, error } = await query
             .select()
             .maybeSingle();
 
@@ -87,10 +94,16 @@ export const orderRepository = {
             console.log(`[Diag:Repo] update ERR orderId=${id} err=${error.message} took=${(performance.now() - _t).toFixed(1)}ms`);
             throw error;
         }
+        
         if (!data) {
+            if (expectedUpdatedAt) {
+                console.log(`[Diag:Repo] update CONFLICT orderId=${id} took=${(performance.now() - _t).toFixed(1)}ms`);
+                throw new Error("CONFLICT_DETECTED");
+            }
             console.log(`[Diag:Repo] update NULL orderId=${id} (RLS reject?) took=${(performance.now() - _t).toFixed(1)}ms`);
             throw new Error("Update failed: row not found or write was rejected. Try refreshing.");
         }
+        
         console.log(`[Diag:Repo] update OK orderId=${id} took=${(performance.now() - _t).toFixed(1)}ms`);
         return normalizeOrder(data);
     },
@@ -104,7 +117,8 @@ export const orderRepository = {
         status: Order["status"],
         rejectionReason?: string,
         last_status_changed_by_name?: string,
-        last_status_changed_by_avatar?: string
+        last_status_changed_by_avatar?: string,
+        expectedUpdatedAt?: string
     ): Promise<Order> {
         const updateData: Partial<Order> = { status };
         if (rejectionReason) {
@@ -127,16 +141,22 @@ export const orderRepository = {
         const MAX_RETRIES = 2;
         let lastError: unknown;
 
-        console.log(`[Diag:Repo] updateStatus START orderId=${id} status=${status}`);
+        console.log(`[Diag:Repo] updateStatus START orderId=${id} status=${status} expectedUpdatedAt=${expectedUpdatedAt}`);
         for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
             try {
                 const t0 = performance.now();
                 // Wrap the Supabase call with a timeout to prevent infinite hangs
                 const timeoutMs = 30_000;
-                const supabasePromise = supabase
+                let query = supabase
                     .from("orders")
                     .update(updateData)
-                    .eq("id", id)
+                    .eq("id", id);
+                    
+                if (expectedUpdatedAt) {
+                    query = query.eq("updated_at", expectedUpdatedAt);
+                }
+                
+                const supabasePromise = query
                     .select()
                     .maybeSingle();
 
@@ -152,6 +172,10 @@ export const orderRepository = {
                     throw error;
                 }
                 if (!data) {
+                    if (expectedUpdatedAt) {
+                        console.error(`[updateStatus] attempt ${attempt + 1} CONFLICT for ${id} in ${elapsed}ms`);
+                        throw new Error("CONFLICT_DETECTED");
+                    }
                     console.error(`[updateStatus] attempt ${attempt + 1} returned NULL for ${id} in ${elapsed}ms (RLS reject?)`);
                     throw new Error("Status update failed: row not found or write was rejected. Try refreshing.");
                 }

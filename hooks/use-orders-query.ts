@@ -181,8 +181,8 @@ export function useUpdateOrderMutation() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ orderId, updates, user_id }: { orderId: string; updates: Partial<Order>; user_id?: string }) => {
-            const data = await orderRepository.update(orderId, updates);
+        mutationFn: async ({ orderId, updates, expectedUpdatedAt, user_id }: { orderId: string; updates: Partial<Order>; expectedUpdatedAt?: string; user_id?: string }) => {
+            const data = await orderRepository.update(orderId, updates, expectedUpdatedAt);
             return { orderId, updates, data };
         },
         // Optimistic update - update cache immediately
@@ -222,10 +222,18 @@ export function useUpdateOrderMutation() {
         onError: (err, variables, context) => {
             console.log(`[Diag:RQ:UpdateMut] onError orderId=${variables.orderId} err=${err instanceof Error ? err.message : err} rollingBack=${!!context?.previousOrders}`);
             console.error(`[UpdateOrder] onError for ${variables.orderId}:`, err);
+            
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
-            toast.error(err instanceof Error ? err.message : "Failed to update order.");
+            
+            if (err instanceof Error && err.message === "CONFLICT_DETECTED") {
+                toast.error("Data changed by another user. Please refresh to see the latest changes.", { duration: 5000 });
+                // Force a fresh refetch immediately to get the latest state
+                queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+            } else {
+                toast.error(err instanceof Error ? err.message : "Failed to update order.");
+            }
         },
     });
 }
@@ -243,19 +251,22 @@ export function useUpdateStatusMutation() {
             rejectionReason,
             last_status_changed_by_name,
             last_status_changed_by_avatar,
+            expectedUpdatedAt,
         }: {
             orderId: string;
             status: Order["status"];
             rejectionReason?: string;
             last_status_changed_by_name?: string;
             last_status_changed_by_avatar?: string;
+            expectedUpdatedAt?: string;
         }) => {
             const data = await orderRepository.updateStatus(
                 orderId,
                 status,
                 rejectionReason,
                 last_status_changed_by_name,
-                last_status_changed_by_avatar
+                last_status_changed_by_avatar,
+                expectedUpdatedAt
             );
             return { orderId, status, data };
         },
@@ -322,7 +333,14 @@ export function useUpdateStatusMutation() {
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
-            toast.error(err instanceof Error ? err.message : "Failed to update order status.");
+            
+            if (err instanceof Error && err.message === "CONFLICT_DETECTED") {
+                toast.error("Data changed by another user. Please refresh and try again.", { duration: 5000 });
+                // Force a fresh refetch immediately
+                queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+            } else {
+                toast.error(err instanceof Error ? err.message : "Failed to update order status.");
+            }
         },
         // Self-healing: re-sync cache from Supabase after every mutation settles.
         // This catches any subtle optimistic/realtime desync within 2 seconds.

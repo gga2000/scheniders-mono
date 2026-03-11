@@ -27,10 +27,14 @@ const DialogOverlay = forwardRef<
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 // Standard dialog content (existing behavior)
+interface DialogContentProps extends ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
+    hideCloseButton?: boolean;
+}
+
 const DialogContent = forwardRef<
     ElementRef<typeof DialogPrimitive.Content>,
-    ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+    DialogContentProps
+>(({ className, children, hideCloseButton = false, ...props }, ref) => (
     <DialogPortal>
         <DialogOverlay />
         <DialogPrimitive.Content
@@ -74,10 +78,12 @@ const DialogContent = forwardRef<
             {...props}
         >
             {children}
-            <DialogPrimitive.Close className="absolute right-3 top-3 md:right-4 md:top-4 rounded-xl p-2.5 md:p-2 text-[var(--foreground-muted)] transition-all hover:text-foreground hover:bg-[var(--background)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] disabled:pointer-events-none touch-target">
-                <X className="h-5 w-5 md:h-5 md:w-5" />
-                <span className="sr-only">Close</span>
-            </DialogPrimitive.Close>
+            {!hideCloseButton && (
+                <DialogPrimitive.Close className="absolute right-3 top-3 md:right-4 md:top-4 rounded-xl p-2.5 md:p-2 text-[var(--foreground-muted)] transition-all hover:text-foreground hover:bg-[var(--background)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] disabled:pointer-events-none touch-target">
+                    <X className="h-5 w-5 md:h-5 md:w-5" />
+                    <span className="sr-only">Close</span>
+                </DialogPrimitive.Close>
+            )}
         </DialogPrimitive.Content>
     </DialogPortal>
 ));
@@ -86,12 +92,13 @@ DialogContent.displayName = DialogPrimitive.Content.displayName;
 // Bottom Sheet Content - Mobile-First with Swipe Gestures
 interface BottomSheetContentProps extends ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
     onClose?: () => void;
+    hideCloseButton?: boolean;
 }
 
 const BottomSheetContent = forwardRef<
     ElementRef<typeof DialogPrimitive.Content>,
     BottomSheetContentProps
->(({ className, children, onClose, ...props }, ref) => {
+>(({ className, children, onClose, hideCloseButton = false, ...props }, ref) => {
     const y = useMotionValue(0);
     const [isDragging, setIsDragging] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -187,10 +194,12 @@ const BottomSheetContent = forwardRef<
                     </div>
 
                     {/* Close button - positioned absolutely */}
-                    <DialogPrimitive.Close className="absolute right-3 top-3 rounded-xl p-2.5 text-[var(--foreground-muted)] transition-all hover:text-foreground hover:bg-[var(--background)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] disabled:pointer-events-none z-10">
-                        <X className="h-5 w-5" />
-                        <span className="sr-only">Close</span>
-                    </DialogPrimitive.Close>
+                    {!hideCloseButton && (
+                        <DialogPrimitive.Close className="absolute right-3 top-3 rounded-xl p-2.5 text-[var(--foreground-muted)] transition-all hover:text-foreground hover:bg-[var(--background)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] disabled:pointer-events-none z-10">
+                            <X className="h-5 w-5" />
+                            <span className="sr-only">Close</span>
+                        </DialogPrimitive.Close>
+                    )}
 
                     {/* Scrollable content */}
                     <div

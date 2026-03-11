@@ -9,11 +9,12 @@ interface UseOrderDetailsStateProps {
     open: boolean;
     onClose: () => void;
     onUpdate: (orderId: string, updates: Partial<Order>) => Promise<{ success: boolean; error?: string }>;
-    onStatusUpdate?: (orderId: string, status: Order["status"], reason?: string) => Promise<{ success: boolean; error?: string }>;
+    onStatusUpdate?: (orderId: string, status: Order["status"], reason?: string) => Promise<{ success: boolean; error?: string; superseded?: boolean }>;
     onGetTimeline?: (orderId: string) => Promise<OrderStatusHistory[]>;
     onGetNotes?: (orderId: string) => Promise<OrderNote[]>;
     onDelete?: (orderId: string) => Promise<{ success: boolean; error?: string }>;
     splitOrder?: (orderId: string, keptItems: any[], returnedItems: any[]) => Promise<{ success: boolean; error?: string }>;
+    promptUser: (options: { title: string; description?: string; placeholder?: string }) => Promise<string | null>;
     t: (key: string) => string;
 }
 
@@ -27,6 +28,7 @@ export function useOrderDetailsState({
     onGetNotes,
     onDelete,
     splitOrder,
+    promptUser,
     t
 }: UseOrderDetailsStateProps) {
 
@@ -151,7 +153,11 @@ export function useOrderDetailsState({
 
         let rejectionReason: string | undefined;
         if (newStatus === "cancelled") {
-            const promptResult = prompt(t("orderDetail.cancelReason"));
+            const promptResult = await promptUser({
+                title: t("orderDetail.cancelTitle") || "تأكيد الإلغاء",
+                description: t("orderDetail.cancelReason") || "سبب الإلغاء (اختياري)",
+                placeholder: "سبب الإلغاء..."
+            });
             if (promptResult === null) {
                 // User cancelled, revert
                 setOrderLocal(prev => prev ? { ...prev, status: previousStatus } : null);
@@ -164,9 +170,11 @@ export function useOrderDetailsState({
         const result = await onStatusUpdate(order.id, newStatus, rejectionReason);
 
         if (!result.success) {
-            toast.error(t("toast.statusFailed"), result.error || t("orderDetail.statusFailed"));
-            // Revert on failure
-            setOrderLocal(prev => prev ? { ...prev, status: previousStatus } : null);
+            if (!result.superseded) {
+                toast.error(t("toast.statusFailed"), result.error || t("orderDetail.statusFailed"));
+                // Revert on failure
+                setOrderLocal(prev => prev ? { ...prev, status: previousStatus } : null);
+            }
         } else {
             toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDesc").replace("{status}", String(newStatus)));
         }

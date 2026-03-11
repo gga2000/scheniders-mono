@@ -150,7 +150,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         if (existingTimer) clearTimeout(existingTimer);
         console.log(`[Diag:StatusUpdate] DEBOUNCE orderId=${orderId} cancelledPrevious=${!!existingTimer}`);
 
-        return new Promise<{ success: boolean; error?: string }>((resolve) => {
+        return new Promise<{ success: boolean; error?: string; superseded?: boolean }>((resolve) => {
             debounceMap.set(orderId, setTimeout(async () => {
                 debounceMap.delete(orderId);
 
@@ -174,7 +174,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                         status,
                         rejectionReason,
                         last_status_changed_by_name: changedBy,
-                        last_status_changed_by_avatar: changedByAvatar,
+                        last_status_changed_by_avatar: changedByAvatar || undefined,
+                        expectedUpdatedAt: previousOrder?.updated_at,
                     });
                     console.log(`[Diag:StatusUpdate] MUTATION_OK orderId=${orderId} seq=${mySeq} took=${(performance.now() - _tMut).toFixed(1)}ms`);
 
@@ -248,7 +249,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     // If we've been superseded, don't show error
                     if (seqMap.get(orderId) !== mySeq) {
                         console.log(`[Diag:StatusUpdate] RESOLVE orderId=${orderId} superseded=true seq=${mySeq} currentSeq=${seqMap.get(orderId)}`);
-                        resolve({ success: true });
+                        resolve({ success: false, superseded: true });
                         return;
                     }
                     console.log(`[Diag:StatusUpdate] MUTATION_ERR orderId=${orderId} seq=${mySeq} err=${err instanceof Error ? err.message : err} totalTime=${(performance.now() - _t0).toFixed(1)}ms`);
@@ -330,7 +331,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             await updateOrderMutation.mutateAsync({
                 orderId,
-                updates: cleanUpdates
+                updates: cleanUpdates,
+                expectedUpdatedAt: previousOrder?.updated_at
             });
 
             console.log(`[Diag:UpdateOrder] MUTATION_OK orderId=${orderId} took=${(performance.now() - _tUpdate).toFixed(1)}ms`);
@@ -381,7 +383,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             const orderDataWithAttribution = {
                 ...orderData,
                 last_status_changed_by_name: changedBy,
-                last_status_changed_by_avatar: changedByAvatar,
+                last_status_changed_by_avatar: changedByAvatar || undefined,
             };
 
             // Start order creation instantly for optimal perceived performance
@@ -488,6 +490,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 priority: "normal" as const,
                 payment_status: originalOrder.payment_status || "cod",
                 is_return: false,
+                is_replacement: false,
                 is_archived: false,
             };
 
