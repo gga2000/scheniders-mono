@@ -59,7 +59,7 @@ BEGIN
 
     INSERT INTO public.orders (
         order_id, sequence_number, customer_name, phone, secondary_phone, city, address_details,
-        items, price, delivery_fee, discount_amount, total_price, priority, status,
+        items, price, delivery_fee, discount_amount, priority, status,
         payment_status, is_return, source, governorate_code, validated_governorate_code,
         notes, risk_metadata, needs_attention, attention_reasons, schedule_verified
     )
@@ -75,7 +75,6 @@ BEGIN
         (_order_data->>'price')::numeric,
         (_order_data->>'delivery_fee')::numeric,
         COALESCE(_order_data->>'discount_amount', '0')::numeric,
-        (_order_data->>'total_price')::numeric,
         COALESCE(_order_data->>'priority', 'normal'),
         COALESCE(_order_data->>'status', 'confirmed'),
         COALESCE(_order_data->>'payment_status', 'cod'),
