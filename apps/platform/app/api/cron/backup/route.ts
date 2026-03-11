@@ -4,7 +4,10 @@ import { env } from '@/lib/env';
 
 // We need to bypass RLS for a background cron job using the Service Role Key
 const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
-const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY;
+if (!serviceRoleKey) {
+    console.error('[Cron:Backup] SUPABASE_SERVICE_ROLE_KEY is not configured — backup cron will not function');
+}
 
 const BATCH_CHUNK_SIZE = 1000;
 const MAX_RETRY_ATTEMPTS = 3;
@@ -75,6 +78,9 @@ export async function GET(request: Request) {
     }
 
     try {
+        if (!serviceRoleKey) {
+            return NextResponse.json({ error: 'SUPABASE_SERVICE_ROLE_KEY not configured' }, { status: 500 });
+        }
         const supabase = createClient(supabaseUrl, serviceRoleKey);
 
         // Fetch all data using chunked pagination with retry

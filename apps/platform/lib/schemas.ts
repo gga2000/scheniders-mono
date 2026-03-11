@@ -17,7 +17,8 @@ export const OrderStatusEnum = z.enum([
     'return_pending',
     'refund_delivered',
     'refund_failed',
-    'pending_checkout'
+    'pending_checkout',
+    'suspended'
 ]);
 
 export const OrderPriorityEnum = z.enum(['normal', 'high', 'urgent']);

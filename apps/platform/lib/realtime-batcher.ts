@@ -66,6 +66,7 @@ export class RealtimeBatcher {
         if (event.eventType === "UPDATE" && typeof id === 'string' && this.recentMutations.has(id)) {
             const elapsed = Date.now() - (this.recentMutations.get(id) || 0);
             console.log(`[Diag:Batcher] PUSH_SKIPPED id=${id} reason=mutationGuard (mutated ${elapsed}ms ago)`);
+            return; // Actually skip — don't push stale realtime data into the buffer
         }
 
         console.log(`[Diag:Batcher] PUSH type=${event.eventType} id=${id} bufferSize=${this.buffer.length + 1}`);

@@ -291,7 +291,7 @@ export async function POST(request: NextRequest) {
                 request.headers.get("x-webhook-secret") ||
                 request.headers.get("x-interakt-secret");
 
-            if (providedSecret && providedSecret !== webhookSecret) {
+            if (!providedSecret || providedSecret !== webhookSecret) {
                 console.error("[Interakt Webhook] Secret mismatch");
                 return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
             }

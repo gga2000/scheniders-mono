@@ -5,10 +5,23 @@
  * API Docs: https://developers.lightfunnels.com
  */
 
-import { supabase } from './supabase';
+import { createSupabaseServiceClient } from './supabase-server';
 import { formatPhoneToStandard } from './order-utils';
 import { generateWhatsAppLink } from './utils';
 import type { Order, OrderItem } from './supabase';
+
+// Use service role client — this file is server-only (called from webhook/cron/sync routes)
+// Lazy init so env vars are available at call time, not import time
+let _supabase: ReturnType<typeof createSupabaseServiceClient> | null = null;
+function getSupabase() {
+    if (!_supabase) _supabase = createSupabaseServiceClient();
+    return _supabase;
+}
+const supabase = new Proxy({} as ReturnType<typeof createSupabaseServiceClient>, {
+    get(_, prop) {
+        return (getSupabase() as any)[prop];
+    }
+});
 
 // API Configuration
 const LIGHTFUNNELS_API_URL = 'https://services.lightfunnels.com/api/v2';

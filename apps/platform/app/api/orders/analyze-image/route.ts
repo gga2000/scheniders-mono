@@ -1,8 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { verifyAccessToken } from "@/lib/supabase-server";
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth
+    const authHeader = request.headers.get("Authorization");
+    const token = authHeader?.replace("Bearer ", "");
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const { user, error: authError } = await verifyAccessToken(token);
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     // Check if API key is configured
     if (!process.env.GEMINI_API_KEY) {
       console.error("GEMINI_API_KEY is not configured");
