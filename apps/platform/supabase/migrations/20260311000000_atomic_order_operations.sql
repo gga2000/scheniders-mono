@@ -85,7 +85,7 @@ BEGIN
         _order_data->>'notes',
         _order_data->'risk_metadata',
         COALESCE((_order_data->>'needs_attention')::boolean, false),
-        COALESCE(_order_data->'attention_reasons', '[]'::jsonb)
+        ARRAY(SELECT jsonb_array_elements_text(COALESCE(_order_data->'attention_reasons', '[]'::jsonb)))
     RETURNING to_jsonb(orders.*) INTO _result;
 
     RETURN _result;

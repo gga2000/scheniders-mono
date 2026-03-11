@@ -152,18 +152,22 @@ export function matchParsedRows(
     // Build lookup maps
     const orderIdMap = new Map<string, Order>();
     const phoneMap = new Map<string, Order[]>();
-    // Map original_order_id → return/refund orders (for matching negative PDF rows)
-    const returnByOriginalIdMap = new Map<string, Order[]>();
+    // Map sequence_number/order_id extracted from RTN-{num}-X → return orders
+    const returnByRefNumMap = new Map<string, Order[]>();
 
     for (const order of orders) {
         if (order.order_id) {
             orderIdMap.set(order.order_id, order);
         }
-        // Index return orders by their original_order_id for refund matching
-        if (order.is_return && order.original_order_id) {
-            const existing = returnByOriginalIdMap.get(order.original_order_id) || [];
-            existing.push(order);
-            returnByOriginalIdMap.set(order.original_order_id, existing);
+        // Index return orders by the number in RTN-{num}-X for refund matching
+        if (order.is_return && order.order_id) {
+            const rtnMatch = order.order_id.match(/^RTN-(.+?)-\d+$/);
+            if (rtnMatch) {
+                const refNum = rtnMatch[1]; // e.g. "666" from "RTN-666-1"
+                const existing = returnByRefNumMap.get(refNum) || [];
+                existing.push(order);
+                returnByRefNumMap.set(refNum, existing);
+            }
         }
         const normalizedPhone = normalizePhone(order.phone);
         if (normalizedPhone) {
@@ -192,8 +196,8 @@ export function matchParsedRows(
             let refundOrder: Order | null = null;
             let refundMatchedBy: "order_id" | "phone" | "none" = "none";
 
-            // Check if shipment number matches any return order's original_order_id
-            const returnOrders = returnByOriginalIdMap.get(pdfRow.shipmentNumber) || [];
+            // Check if shipment number matches any return order's RTN-{num} reference
+            const returnOrders = returnByRefNumMap.get(pdfRow.shipmentNumber) || [];
             // Also try the orderIdMap directly (in case the return order_id somehow matches)
             const directMatch = findOrderByShipmentNumber(pdfRow.shipmentNumber, orderIdMap);
 
@@ -208,12 +212,12 @@ export function matchParsedRows(
                 if (sorted.length > 0) {
                     refundOrder = sorted[0];
                     refundMatchedBy = "order_id";
-                    matchedOrderIds.add(refundOrder.id);
+                    matchedOrderIds.add(sorted[0].id);
                 }
             } else if (directMatch && directMatch.is_return && !matchedOrderIds.has(directMatch.id)) {
                 refundOrder = directMatch;
                 refundMatchedBy = "order_id";
-                matchedOrderIds.add(refundOrder.id);
+                matchedOrderIds.add(directMatch.id);
             }
 
             // Fallback: match by phone against return orders
