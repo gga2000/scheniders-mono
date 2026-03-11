@@ -92,8 +92,8 @@ export function usePrinting(orders: Order[]) {
     const applyFilters = useCallback(
         (ordersToFilter: Order[]): Order[] => {
             return ordersToFilter.filter((order) => {
-                // Include confirmed orders AND refunded/return orders (for smart batching)
-                if (order.status !== "confirmed" && !order.is_return) return false;
+                // Only confirmed orders (includes regular orders and refunds that are still confirmed)
+                if (order.status !== "confirmed") return false;
 
                 // Search query
                 if (filters.searchQuery) {

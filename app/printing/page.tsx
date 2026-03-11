@@ -44,6 +44,8 @@ import {
     GripVertical,
     Download,
     Sparkles,
+    Flame,
+    Flag,
 } from "lucide-react";
 import { formatIQD, formatDate, getBaseOrderId } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -923,151 +925,150 @@ export default function PrintingPage() {
                             ) : (
                                 sortedOrders.map((order) => (
                                     <StaggerItem key={order.id}>
-                                        <motion.div
-                                            className={cn(
-                                                "bg-[var(--card-bg)] rounded-[20px] shadow-[var(--card-shadow)] overflow-hidden transition-all cursor-pointer",
-                                                selectedOrders.has(order.id)
-                                                    ? "ring-2 ring-[var(--foreground)] shadow-lg"
-                                                    : "hover:shadow-[var(--card-shadow-hover)]"
-                                            )}
-                                            onClick={() => toggleOrderSelection(order.id)}
-                                        >
-                                            <div className="flex items-center p-4 gap-4">
-                                                {/* Checkbox */}
+                                        <div className="group relative w-full">
+                                            <div
+                                                className={cn(
+                                                    "bg-[var(--card-bg)] rounded-xl shadow-sm hover:shadow-md transition-all duration-200",
+                                                    "flex items-center",
+                                                    "border border-[var(--card-border)]/50",
+                                                    "hover:border-[var(--secondary)] transition-colors duration-300",
+                                                    selectedOrders.has(order.id) && "ring-2 ring-[var(--foreground)]"
+                                                )}
+                                            >
+                                                {/* Thin Left Accent Bar */}
                                                 <div
                                                     className={cn(
-                                                        "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all flex-shrink-0",
-                                                        selectedOrders.has(order.id)
-                                                            ? "bg-[var(--ink)] border-[var(--ink)] text-white"
-                                                            : "border-[var(--card-border)]"
+                                                        "w-1 self-stretch rounded-l-xl flex-shrink-0",
+                                                        order.priority === "urgent"
+                                                            ? "bg-red-500"
+                                                            : order.priority === "high"
+                                                                ? "bg-orange-400"
+                                                                : order.is_return
+                                                                    ? "bg-purple-500"
+                                                                    : "bg-emerald-400"
                                                     )}
-                                                >
-                                                    {selectedOrders.has(order.id) ? (
-                                                        <CheckSquare className="w-4 h-4" />
-                                                    ) : (
-                                                        <Square className="w-4 h-4 text-transparent" />
-                                                    )}
-                                                </div>
+                                                />
 
-                                                {/* Priority Indicator */}
-                                                {order.priority !== "normal" && (
-                                                    <div
-                                                        className={cn(
-                                                            "w-2 h-12 rounded-full flex-shrink-0",
-                                                            order.priority === "urgent"
-                                                                ? "bg-red-500"
-                                                                : "bg-orange-400"
-                                                        )}
+                                                {/* Selection Checkbox */}
+                                                <div className="pl-2 flex items-center justify-center flex-shrink-0">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedOrders.has(order.id)}
+                                                        onChange={(e) => {
+                                                            e.stopPropagation();
+                                                            toggleOrderSelection(order.id);
+                                                        }}
+                                                        className="w-3.5 h-3.5 rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--pastel-yellow)] cursor-pointer"
                                                     />
-                                                )}
-
-                                                {/* Order ID Badge */}
-                                                <div
-                                                    className={cn(
-                                                        "w-20 h-12 rounded-xl flex items-center justify-center flex-shrink-0",
-                                                        printing.isReprintOrder(order.id)
-                                                            ? "bg-amber-100"
-                                                            : "bg-[var(--pastel-green)]"
-                                                    )}
-                                                >
-                                                    <span
-                                                        className={cn(
-                                                            "font-mono font-bold text-sm",
-                                                            printing.isReprintOrder(order.id)
-                                                                ? "text-amber-800"
-                                                                : "text-green-900"
-                                                        )}
-                                                    >
-                                                        #{getBaseOrderId(order.order_id)}
-                                                    </span>
                                                 </div>
 
-                                                {/* Reprint indicator */}
-                                                {printing.isReprintOrder(order.id) && (
-                                                    <div className="flex items-center gap-1 px-2 py-1 bg-amber-50 rounded-lg">
-                                                        <RefreshCw className="w-3 h-3 text-amber-600" />
-                                                        <span className="text-xs text-amber-700 font-medium">
-                                                            ×{printing.getOrderPrintCount(order.id)}
-                                                        </span>
-                                                    </div>
-                                                )}
-
-                                                {/* Customer Info */}
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2">
-                                                        <p className="font-bold text-foreground truncate">
+                                                {/* Main Content - Single Row */}
+                                                <div className="flex-1 flex items-center gap-3 py-2 px-3 min-w-0">
+                                                    {/* Customer Name + Order ID */}
+                                                    <div className="flex items-center gap-2 min-w-[130px] max-w-[180px] flex-shrink-0">
+                                                        <span className="font-semibold text-sm truncate text-foreground">
                                                             {order.customer_name}
-                                                        </p>
-                                                        {customerOrderCounts[order.phone] > 1 && (
-                                                            <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
-                                                                #{customerOrderCounts[order.phone]} order
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <div className="flex items-center gap-3 text-sm text-muted mt-1">
-                                                        <span className="flex items-center gap-1 font-mono">
-                                                            <Phone className="w-3 h-3" />
-                                                            {order.phone}
                                                         </span>
-                                                        {order.city && (
-                                                            <span className="flex items-center gap-1">
-                                                                <MapPin className="w-3 h-3" />
-                                                                {order.city}
+                                                        <span className="text-xs font-mono text-muted flex-shrink-0">
+                                                            <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                                                                #{getBaseOrderId(order.order_id)}
+                                                            </span>
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Thin Divider */}
+                                                    <div className="w-px h-5 bg-[var(--card-border)] flex-shrink-0 hidden md:block" />
+
+                                                    {/* Badges */}
+                                                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                        {printing.isReprintOrder(order.id) && (
+                                                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-amber-100 text-amber-700">
+                                                                <RefreshCw className="w-2.5 h-2.5" />
+                                                                ×{printing.getOrderPrintCount(order.id)}
+                                                            </span>
+                                                        )}
+                                                        {order.is_return && (
+                                                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-purple-100 text-purple-700">
+                                                                <AlertTriangle className="w-2.5 h-2.5" />
+                                                                REFUND
+                                                            </span>
+                                                        )}
+                                                        {order.priority === "urgent" && (
+                                                            <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-red-100 text-red-700 animate-pulse">
+                                                                <Flame className="w-2.5 h-2.5" />
+                                                            </span>
+                                                        )}
+                                                        {order.priority === "high" && order.priority !== "urgent" && (
+                                                            <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-amber-100 text-amber-700">
+                                                                <Flag className="w-2.5 h-2.5" />
+                                                            </span>
+                                                        )}
+                                                        {customerOrderCounts[order.phone] > 1 && (
+                                                            <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-full text-[9px] font-bold">
+                                                                #{customerOrderCounts[order.phone]}
                                                             </span>
                                                         )}
                                                     </div>
-                                                </div>
 
-                                                {/* Items Preview */}
-                                                <div className="hidden md:block flex-1">
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {order.items?.map((item, idx) => (
-                                                            <span
-                                                                key={idx}
-                                                                className="px-2 py-1 bg-[var(--background)] rounded-lg text-sm"
-                                                            >
-                                                                {item.name} ×{item.quantity}
-                                                            </span>
-                                                        ))}
+                                                    {/* Thin Divider */}
+                                                    <div className="w-px h-5 bg-[var(--card-border)] flex-shrink-0 hidden md:block" />
+
+                                                    {/* Items as Text */}
+                                                    <div className="flex-1 min-w-0 hidden md:flex items-center gap-2">
+                                                        <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-purple-500 text-white font-bold text-[10px]">
+                                                            {order.items?.length || 0}
+                                                        </span>
+                                                        <span className="text-sm text-foreground/70 truncate">
+                                                            {order.items?.map(item => `${item.name} ×${item.quantity}`).join(', ')}
+                                                        </span>
                                                     </div>
-                                                </div>
 
-                                                {/* Payment Badge */}
-                                                <div className="flex-shrink-0">
-                                                    <span
-                                                        className={cn(
-                                                            "px-3 py-1.5 rounded-xl text-xs font-bold",
-                                                            order.payment_status === "prepaid"
-                                                                ? "bg-green-100 text-green-700"
+                                                    {/* Thin Divider */}
+                                                    <div className="w-px h-5 bg-[var(--card-border)] flex-shrink-0 hidden lg:block" />
+
+                                                    {/* City */}
+                                                    {order.city && (
+                                                        <div className="hidden lg:flex items-center gap-1 text-xs text-muted flex-shrink-0 max-w-[120px]">
+                                                            <MapPin className="w-3 h-3 flex-shrink-0" />
+                                                            <span className="truncate">{order.city}</span>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Payment + Price */}
+                                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                                        <span
+                                                            className={cn(
+                                                                "px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase",
+                                                                order.payment_status === "prepaid"
+                                                                    ? "bg-green-100 text-green-700"
+                                                                    : order.payment_status === "partial"
+                                                                        ? "bg-blue-100 text-blue-700"
+                                                                        : "bg-amber-100 text-amber-700"
+                                                            )}
+                                                        >
+                                                            {order.payment_status === "prepaid"
+                                                                ? "PAID"
                                                                 : order.payment_status === "partial"
-                                                                    ? "bg-blue-100 text-blue-700"
-                                                                    : "bg-amber-100 text-amber-700"
-                                                        )}
-                                                    >
-                                                        {order.payment_status === "prepaid"
-                                                            ? "PAID"
-                                                            : order.payment_status === "partial"
-                                                                ? "PARTIAL"
-                                                                : "COD"}
-                                                    </span>
-                                                </div>
-
-                                                {/* Price */}
-                                                <div className="text-right min-w-[100px]">
-                                                    <p className="text-lg font-bold text-foreground">
-                                                        {formatIQD(Number(order.price))}
-                                                    </p>
-                                                    <p className="text-xs text-muted">{formatDate(order.created_at)}</p>
-                                                </div>
-
-                                                {/* Notes indicator */}
-                                                {order.notes && (
-                                                    <div className="flex-shrink-0" title={order.notes}>
-                                                        <AlertTriangle className="w-4 h-4 text-amber-500" />
+                                                                    ? "PARTIAL"
+                                                                    : "COD"}
+                                                        </span>
+                                                        <div className="text-right min-w-[90px]">
+                                                            <p className="text-sm font-bold text-foreground tabular-nums">
+                                                                {formatIQD(Number(order.price))}
+                                                            </p>
+                                                            <p className="text-[10px] text-muted">{formatDate(order.created_at)}</p>
+                                                        </div>
                                                     </div>
-                                                )}
+
+                                                    {/* Notes indicator */}
+                                                    {order.notes && (
+                                                        <div className="flex-shrink-0" title={order.notes}>
+                                                            <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </motion.div>
+                                        </div>
                                     </StaggerItem>
                                 ))
                             )}

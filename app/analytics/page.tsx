@@ -163,6 +163,7 @@ export default function AnalyticsPage() {
         getEraDateRange,
         setEpochDate,
         isUpdating: isEpochUpdating,
+        loading: isEpochLoading,
     } = useFinancialEpoch();
 
     const { getPreference, setPreference } = useUserPreferences();
@@ -438,18 +439,22 @@ export default function AnalyticsPage() {
                 </div>
 
                 {/* Financial Epoch Banner */}
-                <EpochBanner
-                    isEpochSet={isEpochSet}
-                    epochDate={epochDate}
-                    streakDays={streakDays}
-                    currentMilestone={currentMilestone}
-                    nextMilestone={nextMilestone}
-                    milestoneProgress={milestoneProgress}
-                    eraMode={eraMode}
-                    onEraModeChange={handleEraModeChange}
-                    onSetEpoch={handleSetEpoch}
-                    isUpdating={isEpochUpdating}
-                />
+                {isEpochLoading ? (
+                    <div className="skeleton h-24 rounded-2xl mb-6 border border-[var(--card-border)]" />
+                ) : (
+                    <EpochBanner
+                        isEpochSet={isEpochSet}
+                        epochDate={epochDate}
+                        streakDays={streakDays}
+                        currentMilestone={currentMilestone}
+                        nextMilestone={nextMilestone}
+                        milestoneProgress={milestoneProgress}
+                        eraMode={eraMode}
+                        onEraModeChange={handleEraModeChange}
+                        onSetEpoch={handleSetEpoch}
+                        isUpdating={isEpochUpdating}
+                    />
+                )}
 
                 {/* Tabs */}
                 <div className="flex bg-[var(--card-bg)] rounded-xl p-1 mb-6 w-fit border border-[var(--card-border)] overflow-x-auto mt-6">

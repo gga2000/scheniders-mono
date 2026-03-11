@@ -200,9 +200,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     // instead of hanging forever. Cached permissions are used as fallback.
                     const profileController = new AbortController();
                     const profileTimeoutId = setTimeout(() => profileController.abort(), 10_000);
+                    console.log(`[Diag:Auth] PROFILE_FETCH_START mounted=${mounted} userId=${currentSession.user.id}`);
 
                     try {
-                        const { data: profileData } = await supabase
+                        const { data: profileData, error: profileQueryError } = await supabase
                             .from('user_profiles')
                             .select('*')
                             .eq('id', currentSession.user.id)
@@ -210,6 +211,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                             .single();
 
                         clearTimeout(profileTimeoutId);
+                        console.log(`[Diag:Auth] PROFILE_FETCH_DONE mounted=${mounted} hasData=${!!profileData} error=${profileQueryError?.message ?? 'none'} elapsed=${(performance.now() - _tAuthInit).toFixed(1)}ms`);
+
+                        if (!profileData && mounted) {
+                            console.error(`[Diag:Auth] PROFILE_NULL — no row returned for userId=${currentSession.user.id}. RLS blocking or missing row? role will stay null!`);
+                        }
+                        if (profileData && !mounted) {
+                            console.warn(`[Diag:Auth] PROFILE_STALE — data arrived but mounted=false (HMR/unmount race). role=${profileData.role} DISCARDED`);
+                        }
 
                         if (profileData && mounted) {
                             let finalRole = cachedAuth?.role ?? null;
@@ -246,9 +255,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     } catch (profileErr) {
                         clearTimeout(profileTimeoutId);
                         if (profileErr instanceof Error && profileErr.name === 'AbortError') {
-                            console.warn('[Diag:Auth] PROFILE_TIMEOUT — using cached/default permissions');
+                            console.warn(`[Diag:Auth] PROFILE_TIMEOUT — aborted after 10s. mounted=${mounted} elapsed=${(performance.now() - _tAuthInit).toFixed(1)}ms`);
                         } else {
-                            console.error('[Diag:Auth] PROFILE_ERR:', profileErr);
+                            console.error(`[Diag:Auth] PROFILE_ERR mounted=${mounted} elapsed=${(performance.now() - _tAuthInit).toFixed(1)}ms:`, profileErr);
                         }
                     }
 

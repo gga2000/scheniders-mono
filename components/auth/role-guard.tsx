@@ -83,11 +83,14 @@ export function PageGuard({
     // This prevents "Access Denied" flash when role is loading from background
     useEffect(() => {
         if (user && !contextRole && !isLoading) {
+            console.log(`[Diag:PageGuard] GRACE_PERIOD_START — role is null, waiting 2s`);
             const timeout = setTimeout(() => {
+                console.error(`[Diag:PageGuard] GRACE_PERIOD_EXPIRED — role still null after 2s, will show AccessDenied`);
                 setRoleCheckDelay(false);
             }, 2000);
             return () => clearTimeout(timeout);
         } else if (contextRole) {
+            console.log(`[Diag:PageGuard] ROLE_ARRIVED role=${contextRole} — clearing delay`);
             setRoleCheckDelay(false);
         }
     }, [user, contextRole, isLoading]);
