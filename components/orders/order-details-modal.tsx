@@ -205,6 +205,118 @@ export function OrderDetailsModal({
         handleStatusChangeForm(newStatus, setOrder);
     };
 
+    // Quick action buttons config - Complete status list
+    const quickActions = [
+        {
+            status: "new" as Order["status"],
+            label: getStatusLabel("new"),
+            icon: Clock,
+            bgColor: "bg-orange-100",
+            textColor: "text-orange-900",
+            hoverColor: "hover:bg-orange-200",
+            borderColor: "border-orange-200",
+        },
+        {
+            status: "pending_checkout" as Order["status"],
+            label: getStatusLabel("pending_checkout"),
+            icon: ShoppingCart,
+            bgColor: "bg-pink-100",
+            textColor: "text-pink-900",
+            hoverColor: "hover:bg-pink-200",
+            borderColor: "border-pink-200",
+        },
+        {
+            status: "contacted" as Order["status"],
+            label: getStatusLabel("contacted"),
+            icon: PhoneCall,
+            bgColor: "bg-[var(--pastel-yellow)]",
+            textColor: "text-amber-900",
+            hoverColor: "hover:bg-[var(--pastel-yellow-dark)]",
+            borderColor: "border-transparent",
+        },
+        {
+            status: "confirmed" as Order["status"],
+            label: getStatusLabel("confirmed"),
+            icon: CheckCircle,
+            bgColor: "bg-[var(--pastel-green)]",
+            textColor: "text-green-900",
+            hoverColor: "hover:bg-[var(--pastel-green-dark)]",
+            borderColor: "border-transparent",
+        },
+        {
+            status: "in_transit" as Order["status"],
+            label: getStatusLabel("in_transit"),
+            icon: Truck,
+            bgColor: "bg-blue-100",
+            textColor: "text-blue-900",
+            hoverColor: "hover:bg-blue-200",
+            borderColor: "border-blue-200",
+        },
+        {
+            status: "delivered" as Order["status"],
+            label: getStatusLabel("delivered"),
+            icon: CheckCheck,
+            bgColor: "bg-[var(--pastel-mint)]",
+            textColor: "text-teal-900",
+            hoverColor: "hover:bg-[var(--pastel-mint-dark)]",
+            borderColor: "border-transparent",
+        },
+        {
+            status: "completed" as Order["status"],
+            label: getStatusLabel("completed"),
+            icon: CheckCircle,
+            bgColor: "bg-green-100",
+            textColor: "text-green-900",
+            hoverColor: "hover:bg-green-200",
+            borderColor: "border-green-200",
+        },
+        {
+            status: "cancelled" as Order["status"],
+            label: getStatusLabel("cancelled"),
+            icon: XCircle,
+            bgColor: "bg-gray-100",
+            textColor: "text-gray-700",
+            hoverColor: "hover:bg-gray-200",
+            borderColor: "border-gray-200",
+        },
+        {
+            status: "rejected" as Order["status"],
+            label: getStatusLabel("rejected"),
+            icon: XCircle,
+            bgColor: "bg-[var(--pastel-pink)]",
+            textColor: "text-rose-900",
+            hoverColor: "hover:bg-[var(--pastel-pink-dark)]",
+            borderColor: "border-transparent",
+        },
+        {
+            status: "no_response" as Order["status"],
+            label: getStatusLabel("no_response"),
+            icon: PhoneOff,
+            bgColor: "bg-gray-100",
+            textColor: "text-gray-700",
+            hoverColor: "hover:bg-gray-200",
+            borderColor: "border-gray-200",
+        },
+        {
+            status: "return_pending" as Order["status"],
+            label: getStatusLabel("return_pending"),
+            icon: RotateCcw,
+            bgColor: "bg-orange-100",
+            textColor: "text-orange-900",
+            hoverColor: "hover:bg-orange-200",
+            borderColor: "border-orange-200",
+        },
+        {
+            status: "suspended" as Order["status"],
+            label: getStatusLabel("suspended"),
+            icon: Pause,
+            bgColor: "bg-purple-100",
+            textColor: "text-purple-900",
+            hoverColor: "hover:bg-purple-200",
+            borderColor: "border-purple-200",
+        },
+    ];
+
     // Handle product selection - add to replacement items if in replacement mode
     const handleProductSelectWrapper = (product: { name: string; price: number; quantity: number; image_url?: string; tag_color?: string }) => {
         if (showReplacementModal) {
@@ -316,117 +428,115 @@ export function OrderDetailsModal({
         }
     };
 
-    // Quick action buttons config - Complete status list
-    const quickActions = [
-        {
-            status: "new" as Order["status"],
-            label: getStatusLabel("new"),
-            icon: Clock,
-            bgColor: "bg-orange-100",
-            textColor: "text-orange-900",
-            hoverColor: "hover:bg-orange-200",
-            borderColor: "border-orange-200",
-        },
-        {
-            status: "pending_checkout" as Order["status"],
-            label: getStatusLabel("pending_checkout"),
-            icon: ShoppingCart,
-            bgColor: "bg-pink-100",
-            textColor: "text-pink-900",
-            hoverColor: "hover:bg-pink-200",
-            borderColor: "border-transparent",
-        },
-        {
-            status: "contacted" as Order["status"],
-            label: getStatusLabel("contacted"),
-            icon: PhoneCall,
-            bgColor: "bg-[var(--pastel-yellow)]",
-            textColor: "text-amber-900",
-            hoverColor: "hover:bg-[var(--pastel-yellow-dark)]",
-            borderColor: "border-transparent",
-        },
-        {
-            status: "confirmed" as Order["status"],
-            label: getStatusLabel("confirmed"),
-            icon: CheckCircle,
-            bgColor: "bg-[var(--pastel-green)]",
-            textColor: "text-green-900",
-            hoverColor: "hover:bg-[var(--pastel-green-dark)]",
-            borderColor: "border-transparent",
-        },
-        {
-            status: "in_transit" as Order["status"],
-            label: getStatusLabel("in_transit"),
-            icon: Truck,
-            bgColor: "bg-blue-100",
-            textColor: "text-blue-900",
-            hoverColor: "hover:bg-blue-200",
-            borderColor: "border-transparent",
-        },
-        {
-            status: "delivered" as Order["status"],
-            label: getStatusLabel("delivered"),
-            icon: CheckCheck,
-            bgColor: "bg-[var(--pastel-mint)]",
-            textColor: "text-teal-900",
-            hoverColor: "hover:bg-[var(--pastel-mint-dark)]",
-            borderColor: "border-transparent",
-        },
-        {
-            status: "completed" as Order["status"],
-            label: getStatusLabel("completed"),
-            icon: CheckCircle,
-            bgColor: "bg-green-100",
-            textColor: "text-green-900",
-            hoverColor: "hover:bg-green-200",
-            borderColor: "border-transparent",
-        },
-        {
-            status: "cancelled" as Order["status"],
-            label: getStatusLabel("cancelled"),
-            icon: XCircle,
-            bgColor: "bg-gray-100",
-            textColor: "text-gray-700",
-            hoverColor: "hover:bg-gray-200",
-            borderColor: "border-transparent",
-        },
-        {
-            status: "rejected" as Order["status"],
-            label: getStatusLabel("rejected"),
-            icon: XCircle,
-            bgColor: "bg-[var(--pastel-pink)]",
-            textColor: "text-rose-900",
-            hoverColor: "hover:bg-[var(--pastel-pink-dark)]",
-            borderColor: "border-transparent",
-        },
-        {
-            status: "no_response" as Order["status"],
-            label: getStatusLabel("no_response"),
-            icon: PhoneOff,
-            bgColor: "bg-gray-100",
-            textColor: "text-gray-700",
-            hoverColor: "hover:bg-gray-200",
-            borderColor: "border-transparent",
-        },
-        {
-            status: "return_pending" as Order["status"],
-            label: getStatusLabel("return_pending"),
-            icon: RotateCcw,
-            bgColor: "bg-orange-100",
-            textColor: "text-orange-900",
-            hoverColor: "hover:bg-orange-200",
-            borderColor: "border-transparent",
-        },
-        {
-            status: "suspended" as Order["status"],
-            label: getStatusLabel("suspended"),
-            icon: Pause,
-            bgColor: "bg-purple-100",
-            textColor: "text-purple-900",
-            hoverColor: "hover:bg-purple-200",
-            borderColor: "border-transparent",
-        },
-    ];
+    // Quick action buttons config - Grouped by workflow stage
+    const statusGroups = {
+        initial: [
+            {
+                status: "new" as Order["status"],
+                label: getStatusLabel("new"),
+                icon: Clock,
+                bgColor: "bg-orange-100",
+                textColor: "text-orange-900",
+                hoverColor: "hover:bg-orange-200",
+            },
+            {
+                status: "pending_checkout" as Order["status"],
+                label: getStatusLabel("pending_checkout"),
+                icon: ShoppingCart,
+                bgColor: "bg-pink-100",
+                textColor: "text-pink-900",
+                hoverColor: "hover:bg-pink-200",
+            },
+            {
+                status: "contacted" as Order["status"],
+                label: getStatusLabel("contacted"),
+                icon: PhoneCall,
+                bgColor: "bg-[var(--pastel-yellow)]",
+                textColor: "text-amber-900",
+                hoverColor: "hover:bg-[var(--pastel-yellow-dark)]",
+            },
+        ],
+        processing: [
+            {
+                status: "confirmed" as Order["status"],
+                label: getStatusLabel("confirmed"),
+                icon: CheckCircle,
+                bgColor: "bg-[var(--pastel-green)]",
+                textColor: "text-green-900",
+                hoverColor: "hover:bg-[var(--pastel-green-dark)]",
+            },
+            {
+                status: "in_transit" as Order["status"],
+                label: getStatusLabel("in_transit"),
+                icon: Truck,
+                bgColor: "bg-blue-100",
+                textColor: "text-blue-900",
+                hoverColor: "hover:bg-blue-200",
+            },
+        ],
+        completed: [
+            {
+                status: "delivered" as Order["status"],
+                label: getStatusLabel("delivered"),
+                icon: CheckCheck,
+                bgColor: "bg-[var(--pastel-mint)]",
+                textColor: "text-teal-900",
+                hoverColor: "hover:bg-[var(--pastel-mint-dark)]",
+            },
+            {
+                status: "completed" as Order["status"],
+                label: getStatusLabel("completed"),
+                icon: CheckCircle,
+                bgColor: "bg-green-100",
+                textColor: "text-green-900",
+                hoverColor: "hover:bg-green-200",
+            },
+        ],
+        issues: [
+            {
+                status: "cancelled" as Order["status"],
+                label: getStatusLabel("cancelled"),
+                icon: XCircle,
+                bgColor: "bg-gray-100",
+                textColor: "text-gray-700",
+                hoverColor: "hover:bg-gray-200",
+            },
+            {
+                status: "rejected" as Order["status"],
+                label: getStatusLabel("rejected"),
+                icon: XCircle,
+                bgColor: "bg-[var(--pastel-pink)]",
+                textColor: "text-rose-900",
+                hoverColor: "hover:bg-[var(--pastel-pink-dark)]",
+            },
+            {
+                status: "no_response" as Order["status"],
+                label: getStatusLabel("no_response"),
+                icon: PhoneOff,
+                bgColor: "bg-gray-100",
+                textColor: "text-gray-700",
+                hoverColor: "hover:bg-gray-200",
+            },
+        ],
+        onHold: [
+            {
+                status: "return_pending" as Order["status"],
+                label: getStatusLabel("return_pending"),
+                icon: RotateCcw,
+                bgColor: "bg-orange-100",
+                textColor: "text-orange-900",
+                hoverColor: "hover:bg-orange-200",
+            },
+            {
+                status: "suspended" as Order["status"],
+                label: getStatusLabel("suspended"),
+                icon: Pause,
+                bgColor: "bg-purple-100",
+                textColor: "text-purple-900",
+                hoverColor: "hover:bg-purple-200",
+            },
+        ],
+    };
 
     // Choose content wrapper based on device
     const ContentWrapper = isMobile ? BottomSheetContent : DialogContent;
@@ -483,7 +593,7 @@ export function OrderDetailsModal({
                                         {/* Status Dropdown Menu */}
                                         {showStatusDropdown && onStatusUpdate && (
                                             <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-200 py-2 z-50 min-w-[200px]">
-                                                {quickActions.map((action) => {
+                                                {Object.values(statusGroups).flat().map((action) => {
                                                     const Icon = action.icon;
                                                     const isCurrentStatus = order.status === action.status;
                                                     return (
@@ -681,35 +791,149 @@ export function OrderDetailsModal({
                             </div>
                         </div>
 
-                        {/* Quick Actions Row - Mobile Optimized */}
-                        {/* Quick Actions Row - Mobile Optimized */}
+                        {/* Quick Actions Row - Grouped by Workflow */}
                         {!isEditing && (
-                            <div className="py-3 border-y border-[var(--card-border)] flex flex-wrap items-center gap-2">
-                                {/* Status Actions */}
+                            <div className="py-3 border-y border-[var(--card-border)] flex flex-wrap items-center gap-3">
+                                {/* Status Actions - Grouped */}
                                 {onStatusUpdate && (
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        {quickActions.map((action) => {
-                                            const Icon = action.icon;
-                                            const isCurrentStatus = order.status === action.status;
-                                            return (
-                                                <button
-                                                    key={action.status}
-                                                    onClick={() => handleStatusChange(action.status)}
-                                                    disabled={isUpdatingStatus || isCurrentStatus}
-                                                    className={cn(
-                                                        "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                                                        isCurrentStatus
-                                                            ? "bg-[var(--ink)] text-white ring-2 ring-offset-1 ring-[var(--foreground)] shadow-sm"
-                                                            : cn(action.bgColor, action.textColor, action.hoverColor, "active:scale-95 border border-transparent hover:border-black/5"),
-                                                        isUpdatingStatus && "opacity-50 cursor-wait"
-                                                    )}
-                                                >
-                                                    <Icon className="w-3.5 h-3.5" />
-                                                    <span>{action.label}</span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
+                                    <>
+                                        {/* Initial Stage */}
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            {statusGroups.initial.map((action) => {
+                                                const Icon = action.icon;
+                                                const isCurrentStatus = order.status === action.status;
+                                                return (
+                                                    <button
+                                                        key={action.status}
+                                                        onClick={() => handleStatusChange(action.status)}
+                                                        disabled={isUpdatingStatus || isCurrentStatus}
+                                                        className={cn(
+                                                            "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                                                            isCurrentStatus
+                                                                ? "bg-[var(--ink)] text-white ring-2 ring-offset-1 ring-[var(--foreground)] shadow-sm"
+                                                                : cn(action.bgColor, action.textColor, action.hoverColor, "active:scale-95 border border-transparent hover:border-black/5"),
+                                                            isUpdatingStatus && "opacity-50 cursor-wait"
+                                                        )}
+                                                    >
+                                                        <Icon className="w-3.5 h-3.5" />
+                                                        <span>{action.label}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* Separator */}
+                                        <div className="h-6 w-px bg-[var(--card-border)]" />
+
+                                        {/* Processing Stage */}
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            {statusGroups.processing.map((action) => {
+                                                const Icon = action.icon;
+                                                const isCurrentStatus = order.status === action.status;
+                                                return (
+                                                    <button
+                                                        key={action.status}
+                                                        onClick={() => handleStatusChange(action.status)}
+                                                        disabled={isUpdatingStatus || isCurrentStatus}
+                                                        className={cn(
+                                                            "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                                                            isCurrentStatus
+                                                                ? "bg-[var(--ink)] text-white ring-2 ring-offset-1 ring-[var(--foreground)] shadow-sm"
+                                                                : cn(action.bgColor, action.textColor, action.hoverColor, "active:scale-95 border border-transparent hover:border-black/5"),
+                                                            isUpdatingStatus && "opacity-50 cursor-wait"
+                                                        )}
+                                                    >
+                                                        <Icon className="w-3.5 h-3.5" />
+                                                        <span>{action.label}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* Separator */}
+                                        <div className="h-6 w-px bg-[var(--card-border)]" />
+
+                                        {/* Completed Stage */}
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            {statusGroups.completed.map((action) => {
+                                                const Icon = action.icon;
+                                                const isCurrentStatus = order.status === action.status;
+                                                return (
+                                                    <button
+                                                        key={action.status}
+                                                        onClick={() => handleStatusChange(action.status)}
+                                                        disabled={isUpdatingStatus || isCurrentStatus}
+                                                        className={cn(
+                                                            "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                                                            isCurrentStatus
+                                                                ? "bg-[var(--ink)] text-white ring-2 ring-offset-1 ring-[var(--foreground)] shadow-sm"
+                                                                : cn(action.bgColor, action.textColor, action.hoverColor, "active:scale-95 border border-transparent hover:border-black/5"),
+                                                            isUpdatingStatus && "opacity-50 cursor-wait"
+                                                        )}
+                                                    >
+                                                        <Icon className="w-3.5 h-3.5" />
+                                                        <span>{action.label}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* Separator */}
+                                        <div className="h-6 w-px bg-[var(--card-border)]" />
+
+                                        {/* Issues */}
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            {statusGroups.issues.map((action) => {
+                                                const Icon = action.icon;
+                                                const isCurrentStatus = order.status === action.status;
+                                                return (
+                                                    <button
+                                                        key={action.status}
+                                                        onClick={() => handleStatusChange(action.status)}
+                                                        disabled={isUpdatingStatus || isCurrentStatus}
+                                                        className={cn(
+                                                            "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                                                            isCurrentStatus
+                                                                ? "bg-[var(--ink)] text-white ring-2 ring-offset-1 ring-[var(--foreground)] shadow-sm"
+                                                                : cn(action.bgColor, action.textColor, action.hoverColor, "active:scale-95 border border-transparent hover:border-black/5"),
+                                                            isUpdatingStatus && "opacity-50 cursor-wait"
+                                                        )}
+                                                    >
+                                                        <Icon className="w-3.5 h-3.5" />
+                                                        <span>{action.label}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* Separator */}
+                                        <div className="h-6 w-px bg-[var(--card-border)]" />
+
+                                        {/* On-Hold */}
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            {statusGroups.onHold.map((action) => {
+                                                const Icon = action.icon;
+                                                const isCurrentStatus = order.status === action.status;
+                                                return (
+                                                    <button
+                                                        key={action.status}
+                                                        onClick={() => handleStatusChange(action.status)}
+                                                        disabled={isUpdatingStatus || isCurrentStatus}
+                                                        className={cn(
+                                                            "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                                                            isCurrentStatus
+                                                                ? "bg-[var(--ink)] text-white ring-2 ring-offset-1 ring-[var(--foreground)] shadow-sm"
+                                                                : cn(action.bgColor, action.textColor, action.hoverColor, "active:scale-95 border border-transparent hover:border-black/5"),
+                                                            isUpdatingStatus && "opacity-50 cursor-wait"
+                                                        )}
+                                                    >
+                                                        <Icon className="w-3.5 h-3.5" />
+                                                        <span>{action.label}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </>
                                 )}
 
                                 {/* Priority & Schedule Icons (Right Side) */}
