@@ -65,11 +65,17 @@ export function useSettings() {
     // =============================================
 
     const updateSetting = useCallback(async (key: string, newValue: any) => {
+        // Capture previous value securely for potential rollback
+        let previousValue: any;
+
         // Optimistic update
-        setSettings((prev) => ({
-            ...prev,
-            [key]: newValue,
-        }));
+        setSettings((prev) => {
+            previousValue = prev[key];
+            return {
+                ...prev,
+                [key]: newValue,
+            };
+        });
 
         try {
             const { error: updateError } = await supabase
@@ -87,8 +93,13 @@ export function useSettings() {
         } catch (err) {
             console.error(`Error updating setting ${key}:`, err);
 
-            // Revert optimism if needed (requires tracking previous state, skipping for simplicity unless critical)
-            // Ideally we'd fetch fresh to revert or use a rollback mechanism
+            // Revert optimism on failure
+            if (previousValue !== undefined) {
+                setSettings((prev) => ({
+                    ...prev,
+                    [key]: previousValue,
+                }));
+            }
 
             return {
                 success: false,

@@ -7,6 +7,7 @@ import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card"
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { Search, Filter } from "lucide-react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
+import { usePrompt } from "@/components/ui/prompt-dialog";
 
 interface OrdersTableProps {
     orders: Order[];
@@ -20,6 +21,7 @@ export function OrdersTable({ orders, onUpdateStatus, onUpdateOrder }: OrdersTab
     const [loading, setLoading] = useState<string | null>(null);
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const { promptUser, PromptComponent } = usePrompt();
 
     const filteredOrders = orders.filter((order) => {
         const matchesFilter = filter === "all" || order.status === filter;
@@ -38,8 +40,19 @@ export function OrdersTable({ orders, onUpdateStatus, onUpdateOrder }: OrdersTab
         let rejectionReason: string | undefined;
 
         if (status === "rejected") {
-            const promptResult = prompt("سبب الرفض (اختياري):");
-            rejectionReason = promptResult !== null ? promptResult : undefined;
+            const promptResult = await promptUser({
+                title: "تأكيد الرفض",
+                description: "يرجى كتابة سبب الرفض (اختياري)",
+                placeholder: "سبب الرفض..."
+            });
+            
+            if (promptResult === null) {
+                // User cancelled the prompt
+                setLoading(null);
+                return;
+            }
+            
+            rejectionReason = promptResult || undefined;
         }
 
         const result = await onUpdateStatus(orderId, status, rejectionReason);
@@ -176,6 +189,8 @@ export function OrdersTable({ orders, onUpdateStatus, onUpdateOrder }: OrdersTab
                 onUpdate={onUpdateOrder}
                 onStatusUpdate={onUpdateStatus}
             />
+            
+            <PromptComponent />
         </>
     );
 }

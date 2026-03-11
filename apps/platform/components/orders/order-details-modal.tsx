@@ -16,8 +16,9 @@ import { formatIQD, formatDate, generateWhatsAppLink, getStatusLabel, getBaseOrd
 import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
 import { getAllGovernorateCodes, extractGovernorate } from "@/lib/address-validator";
 import { cn } from "@/lib/utils";
-import type { Order, OrderStatusHistory, OrderNote, MessageTemplate } from "@/lib/supabase";
+import type { Order, OrderStatusHistory, OrderNote, MessageTemplate, OrderItem } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
+import { usePrompt } from "@/components/ui/prompt-dialog";
 import { OrderTimeline } from "./order-timeline";
 import { PresenceAvatarGroup } from "./presence-avatar-group";
 import { ProductPicker } from "./product-picker";
@@ -69,6 +70,10 @@ import {
     Sun,
     PackagePlus,
     Send,
+    ShoppingCart,
+    PhoneOff,
+    Pause,
+    CheckCheck,
 } from "lucide-react";
 
 interface OrderDetailsModalProps {
@@ -112,6 +117,7 @@ export function OrderDetailsModal({
     const governorates = getAllGovernorateCodes();
     const isMobile = useIsMobile();
     const { t } = useLanguage();
+    const { promptUser, PromptComponent } = usePrompt();
 
     // Sync local state with prop updates
     useEffect(() => {
@@ -191,6 +197,7 @@ export function OrderDetailsModal({
         onGetNotes,
         onDelete,
         splitOrder,
+        promptUser,
         t
     });
 
@@ -309,21 +316,26 @@ export function OrderDetailsModal({
         }
     };
 
-    // Quick action buttons config - Soft pastel colors
-    // Show "Return to New" for contacted orders that were marked by mistake
-    const showReturnToNew = order.status === "contacted";
-
+    // Quick action buttons config - Complete status list
     const quickActions = [
-        // Return to New option (only for contacted orders)
-        ...(showReturnToNew ? [{
+        {
             status: "new" as Order["status"],
-            label: t("orderDetail.newReturn"),
+            label: t("orderDetail.new"),
             icon: Clock,
             bgColor: "bg-orange-100",
             textColor: "text-orange-900",
             hoverColor: "hover:bg-orange-200",
             borderColor: "border-orange-200",
-        }] : []),
+        },
+        {
+            status: "pending_checkout" as Order["status"],
+            label: t("orderDetail.pendingCheckout"),
+            icon: ShoppingCart,
+            bgColor: "bg-pink-100",
+            textColor: "text-pink-900",
+            hoverColor: "hover:bg-pink-200",
+            borderColor: "border-transparent",
+        },
         {
             status: "contacted" as Order["status"],
             label: t("orderDetail.contacted"),
@@ -343,21 +355,75 @@ export function OrderDetailsModal({
             borderColor: "border-transparent",
         },
         {
+            status: "in_transit" as Order["status"],
+            label: t("orderDetail.inTransit"),
+            icon: Truck,
+            bgColor: "bg-blue-100",
+            textColor: "text-blue-900",
+            hoverColor: "hover:bg-blue-200",
+            borderColor: "border-transparent",
+        },
+        {
             status: "delivered" as Order["status"],
             label: t("orderDetail.delivered"),
-            icon: Truck,
+            icon: CheckCheck,
             bgColor: "bg-[var(--pastel-mint)]",
             textColor: "text-teal-900",
             hoverColor: "hover:bg-[var(--pastel-mint-dark)]",
             borderColor: "border-transparent",
         },
         {
+            status: "completed" as Order["status"],
+            label: t("orderDetail.completed"),
+            icon: CheckCircle,
+            bgColor: "bg-green-100",
+            textColor: "text-green-900",
+            hoverColor: "hover:bg-green-200",
+            borderColor: "border-transparent",
+        },
+        {
             status: "cancelled" as Order["status"],
             label: t("orderDetail.cancel"),
+            icon: XCircle,
+            bgColor: "bg-gray-100",
+            textColor: "text-gray-700",
+            hoverColor: "hover:bg-gray-200",
+            borderColor: "border-transparent",
+        },
+        {
+            status: "rejected" as Order["status"],
+            label: t("orderDetail.rejected"),
             icon: XCircle,
             bgColor: "bg-[var(--pastel-pink)]",
             textColor: "text-rose-900",
             hoverColor: "hover:bg-[var(--pastel-pink-dark)]",
+            borderColor: "border-transparent",
+        },
+        {
+            status: "no_response" as Order["status"],
+            label: t("orderDetail.noResponse"),
+            icon: PhoneOff,
+            bgColor: "bg-gray-100",
+            textColor: "text-gray-700",
+            hoverColor: "hover:bg-gray-200",
+            borderColor: "border-transparent",
+        },
+        {
+            status: "return_pending" as Order["status"],
+            label: t("orderDetail.returnPending"),
+            icon: RotateCcw,
+            bgColor: "bg-orange-100",
+            textColor: "text-orange-900",
+            hoverColor: "hover:bg-orange-200",
+            borderColor: "border-transparent",
+        },
+        {
+            status: "suspended" as Order["status"],
+            label: t("orderDetail.suspended"),
+            icon: Pause,
+            bgColor: "bg-purple-100",
+            textColor: "text-purple-900",
+            hoverColor: "hover:bg-purple-200",
             borderColor: "border-transparent",
         },
     ];
@@ -370,6 +436,7 @@ export function OrderDetailsModal({
             <Dialog open={open && !showCreateOrderModal} onOpenChange={(isOpen) => { if (!showProductPicker) onClose(); }} modal={!showProductPicker}>
                 <ContentWrapper
                     className={isMobile ? "" : "max-w-4xl"}
+                    hideCloseButton={true}
                     {...(isMobile ? { onClose } : {})}
                 >
                     {/* Header Area */}
@@ -873,7 +940,7 @@ export function OrderDetailsModal({
                         {/* Replacement Order Creation Modal */}
                         {showReplacementModal && (
                             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                                <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col">
+                                <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
                                     <div className="p-6 border-b border-gray-100">
                                         <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                                             <Package className="w-5 h-5 text-blue-600" />
@@ -1266,12 +1333,16 @@ export function OrderDetailsModal({
                         setShowCreateOrderModal(false);
                         setOrderInitialData(null);
                     }}
-                    onCreate={createOrder}
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    onCreate={createOrder as any}
                     checkOrderIdExists={checkOrderIdExists}
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     initialData={orderInitialData as any}
                 />
             )}
+
+            {/* Dynamic async prompt dialog */}
+            <PromptComponent />
         </>
     );
 }
