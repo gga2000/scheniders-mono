@@ -108,6 +108,7 @@ export function OrderDetailsModal({
 }: OrderDetailsModalProps) {
     const [order, setOrder] = useState<Order | null>(propOrder);
     const [isSendingTemplate, setIsSendingTemplate] = useState(false);
+    const [showStatusDropdown, setShowStatusDropdown] = useState(false);
     const governorates = getAllGovernorateCodes();
     const isMobile = useIsMobile();
     const { t } = useLanguage();
@@ -177,6 +178,7 @@ export function OrderDetailsModal({
         showReplacementModal, setShowReplacementModal,
         replacementDeductDeliveryFee, setReplacementDeductDeliveryFee,
         replacementNotes, setReplacementNotes,
+        replacementNewItems, setReplacementNewItems,
         isCreatingReplacement, setIsCreatingReplacement,
         showSplitDialog, setShowSplitDialog, handleSplitOrder,
     } = useOrderDetailsState({
@@ -194,6 +196,17 @@ export function OrderDetailsModal({
 
     const handleStatusChange = (newStatus: Order["status"]) => {
         handleStatusChangeForm(newStatus, setOrder);
+    };
+
+    // Handle product selection - add to replacement items if in replacement mode
+    const handleProductSelectWrapper = (product: { name: string; price: number; quantity: number; image_url?: string; tag_color?: string }) => {
+        if (showReplacementModal) {
+            // Add to replacement new items
+            setReplacementNewItems(prev => [...prev, product]);
+        } else {
+            // Normal product selection for editing
+            handleProductSelect(product);
+        }
     };
 
     // Reorder functionality
@@ -361,42 +374,113 @@ export function OrderDetailsModal({
                 >
                     {/* Header Area */}
                     <DialogHeader className="space-y-0 pb-0 group relative">
-                        {/* Top Row: Order ID, Status, Timeline + Edit Buttons */}
-                        <div className="flex items-center justify-between mb-3 mr-10">
-                            <div className="flex items-center gap-3">
-                                <div className="relative group/id flex items-center gap-2">
-                                    <DialogTitle className="font-mono text-xl flex items-center gap-1.5">
-                                        {order.order_id?.startsWith('CHK-') ? (
-                                            <>
-                                                <span className="px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm font-bold">CHK</span>
-                                                <span className="px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm font-bold">
-                                                    {getBaseOrderId(order.order_id)}
-                                                </span>
-                                            </>
-                                        ) : (
-                                            `#${getBaseOrderId(order.order_id)}`
+                        {/* Top Row: Order ID and Control Buttons */}
+                        <div className="flex items-center justify-between mb-1 mr-10">
+                            <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-3">
+                                    <div className="relative group/id flex items-center gap-2">
+                                        <DialogTitle className="font-mono text-xl flex items-center gap-1.5">
+                                            {order.order_id?.startsWith('CHK-') ? (
+                                                <>
+                                                    <span className="px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm font-bold">CHK</span>
+                                                    <span className="px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm font-bold">
+                                                        {getBaseOrderId(order.order_id)}
+                                                    </span>
+                                                </>
+                                            ) : (
+                                                `#${getBaseOrderId(order.order_id)}`
+                                            )}
+                                        </DialogTitle>
+                                        {!isEditingId && (
+                                            <button
+                                                onClick={startIdEdit}
+                                                className="absolute -top-1 -right-3 p-1 text-muted hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all opacity-0 group-hover/id:opacity-100 bg-white shadow-sm border border-gray-100"
+                                                title="Edit Order ID"
+                                            >
+                                                <Edit2 className="w-2.5 h-2.5" />
+                                            </button>
                                         )}
-                                    </DialogTitle>
-                                    {!isEditingId && (
+                                    </div>
+                                    {/* Status Badge with Dropdown */}
+                                    <div className="relative">
                                         <button
-                                            onClick={startIdEdit}
-                                            className="absolute -top-1 -right-3 p-1 text-muted hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all opacity-0 group-hover/id:opacity-100 bg-white shadow-sm border border-gray-100"
-                                            title="Edit Order ID"
+                                            onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                                            className={cn(
+                                                "inline-flex items-center gap-1 px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider transition-all cursor-pointer hover:opacity-80",
+                                                getStatusBadgeStyle()
+                                            )}
                                         >
-                                            <Edit2 className="w-2.5 h-2.5" />
+                                            {getStatusLabel(order.status)}
                                         </button>
-                                    )}
+
+                                        {/* Status Dropdown Menu */}
+                                        {showStatusDropdown && onStatusUpdate && (
+                                            <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-200 py-2 z-50 min-w-[200px]">
+                                                {quickActions.map((action) => {
+                                                    const Icon = action.icon;
+                                                    const isCurrentStatus = order.status === action.status;
+                                                    return (
+                                                        <button
+                                                            key={action.status}
+                                                            onClick={() => {
+                                                                handleStatusChange(action.status);
+                                                                setShowStatusDropdown(false);
+                                                            }}
+                                                            disabled={isCurrentStatus}
+                                                            className={cn(
+                                                                "w-full flex items-center gap-2 px-4 py-2 text-sm transition-all",
+                                                                isCurrentStatus
+                                                                    ? "bg-gray-100 cursor-default"
+                                                                    : "hover:bg-gray-50 cursor-pointer"
+                                                            )}
+                                                        >
+                                                            <Icon className="w-4 h-4" />
+                                                            <span>{action.label}</span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                                <span className={cn(
-                                    "inline-block px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider",
-                                    getStatusBadgeStyle()
-                                )}>
-                                    {getStatusLabel(order.status)}
-                                </span>
+                                {/* Date in English format (YYYY-MM-DD) */}
                                 <span className="flex items-center gap-1.5 text-xs text-muted">
                                     <Calendar className="h-3 w-3" />
-                                    {formatDate(order.created_at)}
+                                    {new Date(order.created_at).toISOString().split('T')[0]}
                                 </span>
+                                {/* Action Buttons - Reorder, Return, Replace */}
+                                {!isEditing && (
+                                    <div className="flex items-center gap-2 mt-1">
+                                        {/* Reorder Button - Always show */}
+                                        <button
+                                            onClick={handleReorder}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 text-green-600 border border-green-200 hover:bg-green-100 transition-all text-xs font-medium dark:bg-green-950/30 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/40"
+                                        >
+                                            <PackagePlus className="h-3.5 w-3.5" />
+                                            اعادة طلب
+                                        </button>
+                                        {/* Return Button - Only for delivered/completed orders */}
+                                        {(order.status === "delivered" || order.status === "completed") && onCreateReturn && !order.is_return && !order.is_replacement && (
+                                            <button
+                                                onClick={() => setShowReturnModal(true)}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 transition-all text-xs font-medium"
+                                            >
+                                                <RotateCcw className="h-3.5 w-3.5" />
+                                                استرجاع
+                                            </button>
+                                        )}
+                                        {/* Replace Button - Only for delivered/completed orders */}
+                                        {(order.status === "delivered" || order.status === "completed") && onCreateReplacement && !order.is_return && !order.is_replacement && (
+                                            <button
+                                                onClick={() => setShowReplacementModal(true)}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-all text-xs font-medium dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800 dark:hover:bg-blue-900/40"
+                                            >
+                                                <Package className="h-3.5 w-3.5" />
+                                                استبدال
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                             <div className="flex items-center gap-2">
                                 {/* Presence Indicators */}
@@ -495,14 +579,15 @@ export function OrderDetailsModal({
                                     </div>
                                 )}
 
-                                {/* Timeline Button */}
+                                {/* Control Buttons - History, Edit, Close */}
+                                {/* Timeline/History Button */}
                                 <button
                                     onClick={() => setActiveTab(activeTab === "timeline" ? "details" : "timeline")}
                                     className={cn(
                                         "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border",
                                         activeTab === "timeline"
-                                            ? "bg-[var(--ink)] text-white border-transparent"
-                                            : "bg-white border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
+                                            ? "bg-[var(--ink)] text-white border-[var(--ink)]"
+                                            : "bg-white border-[var(--card-border)] text-foreground hover:bg-gray-50"
                                     )}
                                 >
                                     <History className="h-3.5 w-3.5" />
@@ -512,43 +597,20 @@ export function OrderDetailsModal({
                                 {!isEditing && (
                                     <button
                                         onClick={handleEdit}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--background)] border border-[var(--card-border)] text-foreground hover:bg-[var(--card-border)] transition-all text-xs font-medium"
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-[var(--card-border)] text-foreground hover:bg-gray-50 transition-all text-xs font-medium"
                                     >
                                         <Edit2 className="h-3.5 w-3.5" />
                                         {t("orderDetail.edit")}
                                     </button>
                                 )}
-                                {/* Reorder Button */}
-                                {!isEditing && (
-                                    <button
-                                        onClick={handleReorder}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 text-green-600 border border-green-200 hover:bg-green-100 transition-all text-xs font-medium dark:bg-green-950/30 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/40"
-                                    >
-                                        <PackagePlus className="h-3.5 w-3.5" />
-                                        {t("orderDetail.reorder") || "Reorder"}
-                                    </button>
-                                )}
-                                {/* Return Button - Only for delivered/completed orders */}
-                                {(order.status === "delivered" || order.status === "completed") && onCreateReturn && !order.is_return && !order.is_replacement && (
-                                    <button
-                                        onClick={() => setShowReturnModal(true)}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 transition-all text-xs font-medium"
-                                    >
-                                        <RotateCcw className="h-3.5 w-3.5" />
-                                        {t("orderDetail.return")}
-                                    </button>
-                                )}
-                                {/* Replace Button - Only for delivered/completed orders */}
-                                {(order.status === "delivered" || order.status === "completed") && onCreateReplacement && !order.is_return && !order.is_replacement && (
-                                    <button
-                                        onClick={() => setShowReplacementModal(true)}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-all text-xs font-medium dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800 dark:hover:bg-blue-900/40"
-                                    >
-                                        <Package className="h-3.5 w-3.5" />
-                                        استبدال
-                                    </button>
-                                )}
-                                {/* Refund Status Buttons - Moved to Customer Card */}
+                                {/* Close Button */}
+                                <button
+                                    onClick={onClose}
+                                    className="flex items-center justify-center w-8 h-8 rounded-lg bg-white border border-[var(--card-border)] text-foreground hover:bg-gray-50 transition-all"
+                                    aria-label="Close"
+                                >
+                                    <X className="h-3.5 w-3.5" />
+                                </button>
                             </div>
                         </div>
 
@@ -811,13 +873,15 @@ export function OrderDetailsModal({
                         {/* Replacement Order Creation Modal */}
                         {showReplacementModal && (
                             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                                <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
-                                    <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-                                        <Package className="w-5 h-5 text-blue-600" />
-                                        إنشاء طلب استبدال
-                                    </h3>
+                                <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col">
+                                    <div className="p-6 border-b border-gray-100">
+                                        <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                                            <Package className="w-5 h-5 text-blue-600" />
+                                            إنشاء طلب استبدال
+                                        </h3>
+                                    </div>
 
-                                    <div className="space-y-4">
+                                    <div className="space-y-4 p-6 overflow-y-auto flex-1">
                                         {/* Order Info */}
                                         <div className="bg-gray-50 p-3 rounded-xl text-sm">
                                             <p className="text-muted">الطلب الأصلي</p>
@@ -825,12 +889,71 @@ export function OrderDetailsModal({
                                             <p className="text-muted">المبلغ: {formatIQD(order.price)}</p>
                                         </div>
 
-                                        {/* Info Message */}
-                                        <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
-                                            <p className="text-sm text-blue-700">
-                                                سيتم حساب فرق السعر بين المنتج القديم والجديد تلقائياً عند إنشاء الطلب
-                                            </p>
+                                        {/* Old Items */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-foreground mb-1.5">
+                                                المنتجات القديمة
+                                            </label>
+                                            <div className="space-y-2">
+                                                {order.items?.map((item, index) => (
+                                                    <div key={index} className="bg-gray-50 p-3 rounded-lg flex justify-between items-center text-sm">
+                                                        <span className="font-medium">{item.name}</span>
+                                                        <span className="text-muted">x{item.quantity} - {formatIQD(item.price * item.quantity)}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
+
+                                        {/* New Items Selection */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-foreground mb-1.5">
+                                                المنتجات الجديدة
+                                            </label>
+                                            {replacementNewItems.length > 0 ? (
+                                                <div className="space-y-2 mb-2">
+                                                    {replacementNewItems.map((item, index) => (
+                                                        <div key={index} className="bg-blue-50 p-3 rounded-lg flex justify-between items-center text-sm">
+                                                            <span className="font-medium text-blue-900">{item.name}</span>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-blue-700">x{item.quantity} - {formatIQD(item.price * item.quantity)}</span>
+                                                                <button
+                                                                    onClick={() => setReplacementNewItems(prev => prev.filter((_, i) => i !== index))}
+                                                                    className="text-red-600 hover:text-red-800"
+                                                                >
+                                                                    <X className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="bg-gray-50 p-4 rounded-lg text-center text-sm text-muted mb-2">
+                                                    لم يتم اختيار منتجات جديدة بعد
+                                                </div>
+                                            )}
+                                            <button
+                                                onClick={() => setShowProductPicker(true)}
+                                                className="w-full px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-all flex items-center justify-center gap-2"
+                                            >
+                                                <PackagePlus className="w-4 h-4" />
+                                                إضافة منتج جديد
+                                            </button>
+                                        </div>
+
+                                        {/* Price Difference */}
+                                        {replacementNewItems.length > 0 && (
+                                            <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
+                                                <p className="text-sm text-blue-700 mb-1">فرق السعر</p>
+                                                <p className="text-xl font-bold text-blue-900">
+                                                    {(() => {
+                                                        const oldTotal = order.items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || 0;
+                                                        const newTotal = replacementNewItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                                                        const diff = newTotal - oldTotal;
+                                                        return diff >= 0 ? `+${formatIQD(diff)}` : formatIQD(diff);
+                                                    })()}
+                                                </p>
+                                            </div>
+                                        )}
 
                                         {/* Notes Input - Editable */}
                                         <div>
@@ -862,12 +985,13 @@ export function OrderDetailsModal({
                                     </div>
 
                                     {/* Actions */}
-                                    <div className="flex gap-3 mt-6">
+                                    <div className="p-6 border-t border-gray-100 flex gap-3">
                                         <button
                                             onClick={() => {
                                                 setShowReplacementModal(false);
                                                 setReplacementDeductDeliveryFee(false);
                                                 setReplacementNotes("استبدال المنتج القديم بعد التأكد من سلامته وعدم تضرر زجاجة العطر او نقصانها خلافه يمنع الاستبدال قطعاً, ثم إعطاء الزبون المنتج الجديد . 5000 دينار توصيل مقطوعة من الحساب");
+                                                setReplacementNewItems([]);
                                             }}
                                             className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-all"
                                         >
@@ -879,13 +1003,15 @@ export function OrderDetailsModal({
                                                     toast.error("خطأ", "لا يمكن إنشاء طلب استبدال");
                                                     return;
                                                 }
+                                                if (replacementNewItems.length === 0) {
+                                                    toast.error("خطأ", "الرجاء اختيار المنتجات الجديدة للاستبدال");
+                                                    return;
+                                                }
                                                 setIsCreatingReplacement(true);
                                                 try {
-                                                    // For now, pass the original items as both old and new
-                                                    // This is a simplified version - you can enhance this later with item selection
                                                     const result = await onCreateReplacement(order.id, {
                                                         old_items: order.items || [],
-                                                        new_items: order.items || [],
+                                                        new_items: replacementNewItems,
                                                         deductDeliveryFee: replacementDeductDeliveryFee,
                                                         notes: replacementNotes,
                                                     });
@@ -894,6 +1020,7 @@ export function OrderDetailsModal({
                                                         setShowReplacementModal(false);
                                                         setReplacementDeductDeliveryFee(false);
                                                         setReplacementNotes("استبدال المنتج القديم بعد التأكد من سلامته وعدم تضرر زجاجة العطر او نقصانها خلافه يمنع الاستبدال قطعاً, ثم إعطاء الزبون المنتج الجديد . 5000 دينار توصيل مقطوعة من الحساب");
+                                                        setReplacementNewItems([]);
                                                         onClose();
                                                         toast.success("تم الإنشاء", "تم إنشاء طلب الاستبدال بنجاح");
                                                     } else {
@@ -1128,7 +1255,7 @@ export function OrderDetailsModal({
                 open={showProductPicker}
                 onClose={() => setShowProductPicker(false)
                 }
-                onSelect={handleProductSelect}
+                onSelect={handleProductSelectWrapper}
             />
 
             {/* Create Order Modal for Reorder */}

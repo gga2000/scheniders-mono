@@ -11,6 +11,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { Order, PaymentStatus } from "@/lib/supabase";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { isOrderFlagged } from "@/lib/data-quality-utils";
+import { getBaseOrderId } from "@/lib/utils";
 import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
 import { OrderCardSkeleton } from "@/components/dashboard/order-card-skeleton";
 import { OrderAssignment, mockAssignments } from "@/lib/team-types";
@@ -670,11 +671,19 @@ export default function OrdersPage() {
 
     // Delete confirmation dialog state
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-    const [deleteConfirmText, setDeleteConfirmText] = useState("");
+    const [deleteCountdown, setDeleteCountdown] = useState(5);
     const [isDeleting, setIsDeleting] = useState(false);
 
+    useEffect(() => {
+        let timer: NodeJS.Timeout;
+        if (deleteConfirmOpen && deleteCountdown > 0) {
+            timer = setTimeout(() => setDeleteCountdown(prev => prev - 1), 1000);
+        }
+        return () => clearTimeout(timer);
+    }, [deleteConfirmOpen, deleteCountdown]);
+
     const handleBulkDelete = async () => {
-        setDeleteConfirmText("");
+        setDeleteCountdown(5);
         setDeleteConfirmOpen(true);
     };
 
@@ -684,7 +693,7 @@ export default function OrdersPage() {
         const result = await bulkDelete(ids);
         setIsDeleting(false);
         setDeleteConfirmOpen(false);
-        setDeleteConfirmText("");
+        setDeleteCountdown(5);
 
         if (!result.success && (!result.count || result.count === 0)) {
             toast.error(t("toast.deleteFailed"), result.error || t("toast.deleteFailedDesc"));
@@ -2585,7 +2594,7 @@ export default function OrdersPage() {
                     <Dialog open={deleteConfirmOpen} onOpenChange={(open) => {
                         if (!isDeleting) {
                             setDeleteConfirmOpen(open);
-                            if (!open) setDeleteConfirmText("");
+                            if (!open) setDeleteCountdown(5);
                         }
                     }}>
                         <DialogContent className="md:max-w-md" aria-describedby="delete-confirm-desc">
@@ -2597,25 +2606,26 @@ export default function OrdersPage() {
                                     {t("orders.deleteConfirm.description").replace("{count}", String(selectedOrders.size))}
                                 </DialogDescription>
                             </DialogHeader>
-                            <div className="py-4">
-                                <label className="block text-sm font-medium text-foreground mb-2">
-                                    {t("orders.deleteConfirm.label")}
-                                </label>
-                                <input
-                                    type="text"
-                                    value={deleteConfirmText}
-                                    onChange={(e) => setDeleteConfirmText(e.target.value)}
-                                    placeholder="DELETE"
-                                    className="w-full px-3 py-2 border border-[var(--card-border)] rounded-xl bg-[var(--background)] text-foreground focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                                    autoFocus
-                                    disabled={isDeleting}
-                                />
+                            <div className="py-2">
+                                <div className="max-h-48 overflow-y-auto p-3 bg-rose-50 rounded-xl border border-rose-100">
+                                    <ul className="space-y-2">
+                                        {Array.from(selectedOrders).map(id => {
+                                            const order = orders.find(o => o.id === id);
+                                            return order ? (
+                                                <li key={id} className="text-sm text-rose-900 flex justify-between items-center bg-white/50 p-2 rounded-lg border border-rose-100/50">
+                                                    <span className="font-medium truncate max-w-[200px]">{order.customer_name}</span>
+                                                    <span className="text-rose-600 font-mono text-xs font-bold px-2 py-0.5 bg-rose-100 rounded-md">#{getBaseOrderId(order.order_id)}</span>
+                                                </li>
+                                            ) : null;
+                                        })}
+                                    </ul>
+                                </div>
                             </div>
                             <DialogFooter>
                                 <button
                                     onClick={() => {
                                         setDeleteConfirmOpen(false);
-                                        setDeleteConfirmText("");
+                                        setDeleteCountdown(5);
                                     }}
                                     disabled={isDeleting}
                                     className="px-4 py-2 rounded-xl text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all"
@@ -2624,15 +2634,15 @@ export default function OrdersPage() {
                                 </button>
                                 <button
                                     onClick={executeDelete}
-                                    disabled={deleteConfirmText !== "DELETE" || isDeleting}
+                                    disabled={deleteCountdown > 0 || isDeleting}
                                     className={cn(
-                                        "px-4 py-2 rounded-xl text-sm font-medium transition-all",
-                                        deleteConfirmText === "DELETE" && !isDeleting
-                                            ? "bg-red-600 text-white hover:bg-red-700"
-                                            : "bg-red-200 text-red-400 cursor-not-allowed"
+                                        "px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2",
+                                        deleteCountdown > 0
+                                            ? "bg-red-200 text-red-400 cursor-not-allowed"
+                                            : "bg-red-600 text-white hover:bg-red-700"
                                     )}
                                 >
-                                    {isDeleting ? t("common.deleting") : t("orders.deleteConfirm.button").replace("{count}", String(selectedOrders.size))}
+                                    {deleteCountdown > 0 ? t("orderDetail.waitDelete").replace("{n}", String(deleteCountdown)) : isDeleting ? t("common.deleting") : t("orders.deleteConfirm.button").replace("{count}", String(selectedOrders.size))}
                                 </button>
                             </DialogFooter>
                         </DialogContent>
