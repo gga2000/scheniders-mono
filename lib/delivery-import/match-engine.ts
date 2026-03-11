@@ -152,10 +152,18 @@ export function matchParsedRows(
     // Build lookup maps
     const orderIdMap = new Map<string, Order>();
     const phoneMap = new Map<string, Order[]>();
+    // Map original_order_id → return/refund orders (for matching negative PDF rows)
+    const returnByOriginalIdMap = new Map<string, Order[]>();
 
     for (const order of orders) {
         if (order.order_id) {
             orderIdMap.set(order.order_id, order);
+        }
+        // Index return orders by their original_order_id for refund matching
+        if (order.is_return && order.original_order_id) {
+            const existing = returnByOriginalIdMap.get(order.original_order_id) || [];
+            existing.push(order);
+            returnByOriginalIdMap.set(order.original_order_id, existing);
         }
         const normalizedPhone = normalizePhone(order.phone);
         if (normalizedPhone) {
@@ -178,15 +186,67 @@ export function matchParsedRows(
     const results: MatchedRow[] = [];
 
     for (const pdfRow of pdfRows) {
-        // 1. Negative/refund rows — flag immediately, skip matching
+        // 1. Negative/refund rows — try to match against return orders
         if (pdfRow.isNegative) {
-            results.push({
-                pdfRow,
-                order: null,
-                category: "negative_refund",
-                matchDetails: `Negative amount: ${pdfRow.netToMerchant.toLocaleString()} IQD net`,
-                matchedBy: "none",
-            });
+            // Try to find a return order by original_order_id matching the PDF shipment number
+            let refundOrder: Order | null = null;
+            let refundMatchedBy: "order_id" | "phone" | "none" = "none";
+
+            // Check if shipment number matches any return order's original_order_id
+            const returnOrders = returnByOriginalIdMap.get(pdfRow.shipmentNumber) || [];
+            // Also try the orderIdMap directly (in case the return order_id somehow matches)
+            const directMatch = findOrderByShipmentNumber(pdfRow.shipmentNumber, orderIdMap);
+
+            if (returnOrders.length > 0) {
+                // Pick the best return order (prefer refund_delivered > return_pending)
+                const sorted = [...returnOrders]
+                    .filter(o => !matchedOrderIds.has(o.id))
+                    .sort((a, b) => {
+                        const priority: Record<string, number> = { refund_delivered: 1, return_pending: 2, refund_failed: 3 };
+                        return (priority[a.status] || 99) - (priority[b.status] || 99);
+                    });
+                if (sorted.length > 0) {
+                    refundOrder = sorted[0];
+                    refundMatchedBy = "order_id";
+                    matchedOrderIds.add(refundOrder.id);
+                }
+            } else if (directMatch && directMatch.is_return && !matchedOrderIds.has(directMatch.id)) {
+                refundOrder = directMatch;
+                refundMatchedBy = "order_id";
+                matchedOrderIds.add(refundOrder.id);
+            }
+
+            // Fallback: match by phone against return orders
+            if (!refundOrder) {
+                const phoneMatches = findOrdersByPhone(pdfRow.phone, phoneMap)
+                    .filter(o => !matchedOrderIds.has(o.id) && o.is_return);
+                if (phoneMatches.length > 0) {
+                    refundOrder = phoneMatches[0];
+                    refundMatchedBy = "phone";
+                    matchedOrderIds.add(refundOrder.id);
+                }
+            }
+
+            if (refundOrder) {
+                // Matched to a return order — classify as informational
+                const statusLabel = refundOrder.status === "refund_delivered" ? "already processed" : refundOrder.status;
+                results.push({
+                    pdfRow,
+                    order: refundOrder,
+                    category: "negative_refund",
+                    matchDetails: `Refund matched to return order ${refundOrder.order_id} (${statusLabel}). Amount: ${pdfRow.netToMerchant.toLocaleString()} IQD`,
+                    matchedBy: refundMatchedBy,
+                });
+            } else {
+                // No matching return order found
+                results.push({
+                    pdfRow,
+                    order: null,
+                    category: "negative_refund",
+                    matchDetails: `Negative amount: ${pdfRow.netToMerchant.toLocaleString()} IQD net — no matching return order found`,
+                    matchedBy: "none",
+                });
+            }
             continue;
         }
 
