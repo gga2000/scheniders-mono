@@ -168,7 +168,7 @@ BEGIN
     WHERE id = _original_order_id;
 
     -- 4. Prepare data for the return order
-    _return_order_data := to_jsonb(_original_order) 
+    _return_order_data := (to_jsonb(_original_order) 
         || jsonb_build_object(
             'items', _returned_items,
             'price', _return_price,
@@ -177,7 +177,7 @@ BEGIN
             'is_return', true,
             'original_order_id', _original_order.id,
             'rejection_reason', 'Partial Return'
-        )
+        ))
         -- Remove DB-generated and unique constraint columns
         - 'id' - 'created_at' - 'updated_at' - 'order_id' 
         - 'last_batch_id' - 'delivery_order_id' - 'sequence_number'
