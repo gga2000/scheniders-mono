@@ -45,6 +45,8 @@ import {
     PERMISSIONS as ALL_PERMISSIONS
 } from "@/lib/permissions";
 import { activityLogger, ActivityLogEntry } from "@/lib/activity-logger";
+import { toast } from "sonner";
+import { toggleRolePermissionAction, toggleUserOverrideAction } from "@/app/actions/permissions";
 
 // Types
 interface UserProfile {
@@ -302,35 +304,41 @@ function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
     };
 
     const toggleOverride = async (permission: string, currentRoleHasAccess: boolean) => {
-        // Logic:
-        // If no override exists:
-        //   - If role=true, we want to revoke -> create override is_granted=false
-        //   - If role=false, we want to grant -> create override is_granted=true
-        // If override exists:
-        //   - Remove override (return to role default)
-
         const existing = overrides.find(o => o.permission === permission);
+        const newValue = !currentRoleHasAccess;
+        
+        // Optimistic UI update
+        if (existing) {
+            setOverrides(prev => prev.filter(o => o.permission !== permission));
+        } else {
+            setOverrides(prev => [...prev, { permission, is_granted: newValue }]);
+        }
 
         try {
-            if (existing) {
-                // Remove override
-                await supabase.from('user_permissions').delete()
-                    .match({ user_id: user.id, permission });
-
-                setOverrides(prev => prev.filter(o => o.permission !== permission));
-            } else {
-                // Create override
-                const newValue = !currentRoleHasAccess;
-                await supabase.from('user_permissions').insert({
-                    user_id: user.id,
-                    permission,
-                    is_granted: newValue
-                });
-
-                setOverrides(prev => [...prev, { permission, is_granted: newValue }]);
+            const { success, error } = await toggleUserOverrideAction(
+                user.id, 
+                permission, 
+                existing ? null : newValue
+            );
+            
+            if (!success) {
+                toast.error(error || "Failed to update user override");
+                // Rollback optimistic update
+                if (existing) {
+                    setOverrides(prev => [...prev, existing]);
+                } else {
+                    setOverrides(prev => prev.filter(o => o.permission !== permission));
+                }
             }
         } catch (err) {
             console.error("Error toggling override:", err);
+            toast.error("Failed to communicate with server");
+            // Rollback optimistic update
+            if (existing) {
+                setOverrides(prev => [...prev, existing]);
+            } else {
+                setOverrides(prev => prev.filter(o => o.permission !== permission));
+            }
         }
     };
 
@@ -660,17 +668,22 @@ export function TeamSettings() {
 
     // Toggle Permission (Global Role Matrix)
     const togglePermission = async (role: string, permission: string, checked: boolean) => {
+        // Optimistic Update
+        if (checked) {
+            setDbPermissions(prev => [...prev, { role, permission }]);
+        } else {
+            setDbPermissions(prev => prev.filter(p => !(p.role === role && p.permission === permission)));
+        }
+
         try {
-            // Optimistic Update
-            if (checked) {
-                setDbPermissions(prev => [...prev, { role, permission }]);
-                await supabase.from('role_permissions').insert({ role, permission });
-            } else {
-                setDbPermissions(prev => prev.filter(p => !(p.role === role && p.permission === permission)));
-                await supabase.from('role_permissions').delete().match({ role, permission });
+            const { success, error } = await toggleRolePermissionAction(role, permission, checked);
+            if (!success) {
+                toast.error(error || "Failed to update role permission");
+                fetchDbPermissions(); // Sync back on error
             }
         } catch (err) {
             console.error("Error toggling permission:", err);
+            toast.error("Failed to communicate with server");
             fetchDbPermissions(); // Sync back
         }
     };

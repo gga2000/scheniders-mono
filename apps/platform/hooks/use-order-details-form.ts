@@ -203,7 +203,7 @@ export function useOrderIdEdit({ order, setOrder, onUpdate, checkOrderIdExists, 
         setIdError(null);
     };
 
-    const handleIdChange = async (val: string) => {
+    const handleIdChange = (val: string) => {
         setTempOrderId(val);
         setIdError(null);
 
@@ -211,16 +211,24 @@ export function useOrderIdEdit({ order, setOrder, onUpdate, checkOrderIdExists, 
             setIdError(t("orderDetail.idEmpty"));
             return;
         }
+    };
 
-        if (checkOrderIdExists) {
+    useEffect(() => {
+        if (!tempOrderId.trim() || !checkOrderIdExists || tempOrderId === order?.order_id) {
+            return;
+        }
+
+        const timer = setTimeout(async () => {
             setIsCheckingId(true);
-            const exists = await checkOrderIdExists(val, order?.id);
+            const exists = await checkOrderIdExists(tempOrderId, order?.id);
             setIsCheckingId(false);
             if (exists) {
                 setIdError(t("orderDetail.idExists"));
             }
-        }
-    };
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [tempOrderId, checkOrderIdExists, order?.id, order?.order_id, t]);
 
     const initiateIdSave = () => {
         if (idError || !tempOrderId.trim()) return;

@@ -40,20 +40,57 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Fetch all non-archived orders from DB for matching
-        const supabaseAdmin = createSupabaseServiceClient();
-        const { data: orders, error: dbError } = await supabaseAdmin
-            .from("orders")
-            .select("*")
-            .eq("is_archived", false)
-            .order("created_at", { ascending: false });
+        // Extract unique shipment numbers and phones to query specifically
+        const shipmentSet = new Set<string>();
+        const phoneSet = new Set<string>();
 
-        if (dbError) {
+        for (const row of parsedPDF.rows) {
+            if (row.shipmentNumber) {
+                shipmentSet.add(row.shipmentNumber);
+                shipmentSet.add(row.shipmentNumber.replace(/(\d{8})(\d{2})$/, "$1-$2"));
+            }
+            if (row.phone) {
+                const digits = row.phone.replace(/\D/g, "");
+                const local = digits.length >= 10 ? digits.slice(-10) : digits;
+                phoneSet.add(`0${local}`);
+                phoneSet.add(`964${local}`);
+                phoneSet.add(`+964${local}`);
+                phoneSet.add(row.phone);
+            }
+        }
+
+        const snArr = Array.from(shipmentSet);
+        const phArr = Array.from(phoneSet);
+
+        const supabaseAdmin = createSupabaseServiceClient();
+        
+        // Fetch matched orders by ID or Phone in parallel to avoid transferring all orders
+        const [idRes, phRes, returnRes] = await Promise.all([
+            snArr.length > 0 
+                ? supabaseAdmin.from("orders").select("*").in("order_id", snArr).eq("is_archived", false)
+                : { data: [] as Order[], error: null },
+            phArr.length > 0 
+                ? supabaseAdmin.from("orders").select("*").in("phone", phArr).eq("is_archived", false)
+                : { data: [] as Order[], error: null },
+            // Fetch non-archived returns to match RTN-* prefixes safely
+            supabaseAdmin.from("orders").select("*").eq("is_archived", false).eq("is_return", true)
+        ]);
+
+        if (idRes.error || phRes.error || returnRes.error) {
+            const err = idRes.error || phRes.error || returnRes.error;
             return NextResponse.json(
-                { success: false, error: `Database error: ${dbError.message}` },
+                { success: false, error: `Database error: ${err?.message}` },
                 { status: 500 }
             );
         }
+
+        // Combine uniquely by ID
+        const orderMap = new Map<string, Order>();
+        for (const o of [...(idRes.data || []), ...(phRes.data || []), ...(returnRes.data || [])]) {
+            orderMap.set(o.id, o as Order);
+        }
+        
+        const orders = Array.from(orderMap.values());
 
         // Run matching engine
         const matches = matchParsedRows(parsedPDF.rows, (orders || []) as Order[]);

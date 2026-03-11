@@ -73,10 +73,14 @@ export function useOrderDetailsState({
             ]).then(([timelineData, notesData]) => {
                 setTimeline(timelineData);
                 setNotes(notesData);
+            }).catch(error => {
+                console.error("Failed to load timeline or notes", error);
+                toast.error(t("toast.fetchFailed") || "Failed to load timeline", error instanceof Error ? error.message : "");
+            }).finally(() => {
                 setLoadingTimeline(false);
             });
         }
-    }, [open, activeTab, order?.id, onGetTimeline, onGetNotes]);
+    }, [open, activeTab, order?.id, onGetTimeline, onGetNotes, t]);
 
     // Reset when closed
     useEffect(() => {

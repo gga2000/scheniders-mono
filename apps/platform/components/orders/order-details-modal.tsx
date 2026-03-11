@@ -430,15 +430,7 @@ export function OrderDetailsModal({
 
     // Quick action buttons config - Grouped by workflow stage
     const statusGroups = {
-        initial: [
-            {
-                status: "new" as Order["status"],
-                label: getStatusLabel("new"),
-                icon: Clock,
-                bgColor: "bg-orange-100",
-                textColor: "text-orange-900",
-                hoverColor: "hover:bg-orange-200",
-            },
+        earlyStage: [
             {
                 status: "pending_checkout" as Order["status"],
                 label: getStatusLabel("pending_checkout"),
@@ -446,6 +438,14 @@ export function OrderDetailsModal({
                 bgColor: "bg-pink-100",
                 textColor: "text-pink-900",
                 hoverColor: "hover:bg-pink-200",
+            },
+            {
+                status: "new" as Order["status"],
+                label: getStatusLabel("new"),
+                icon: Clock,
+                bgColor: "bg-orange-100",
+                textColor: "text-orange-900",
+                hoverColor: "hover:bg-orange-200",
             },
             {
                 status: "contacted" as Order["status"],
@@ -456,43 +456,7 @@ export function OrderDetailsModal({
                 hoverColor: "hover:bg-[var(--pastel-yellow-dark)]",
             },
         ],
-        processing: [
-            {
-                status: "confirmed" as Order["status"],
-                label: getStatusLabel("confirmed"),
-                icon: CheckCircle,
-                bgColor: "bg-[var(--pastel-green)]",
-                textColor: "text-green-900",
-                hoverColor: "hover:bg-[var(--pastel-green-dark)]",
-            },
-            {
-                status: "in_transit" as Order["status"],
-                label: getStatusLabel("in_transit"),
-                icon: Truck,
-                bgColor: "bg-blue-100",
-                textColor: "text-blue-900",
-                hoverColor: "hover:bg-blue-200",
-            },
-        ],
-        completed: [
-            {
-                status: "delivered" as Order["status"],
-                label: getStatusLabel("delivered"),
-                icon: CheckCheck,
-                bgColor: "bg-[var(--pastel-mint)]",
-                textColor: "text-teal-900",
-                hoverColor: "hover:bg-[var(--pastel-mint-dark)]",
-            },
-            {
-                status: "completed" as Order["status"],
-                label: getStatusLabel("completed"),
-                icon: CheckCircle,
-                bgColor: "bg-green-100",
-                textColor: "text-green-900",
-                hoverColor: "hover:bg-green-200",
-            },
-        ],
-        issues: [
+        earlyIssues: [
             {
                 status: "cancelled" as Order["status"],
                 label: getStatusLabel("cancelled"),
@@ -516,6 +480,42 @@ export function OrderDetailsModal({
                 bgColor: "bg-gray-100",
                 textColor: "text-gray-700",
                 hoverColor: "hover:bg-gray-200",
+            },
+        ],
+        processingRow1: [
+            {
+                status: "confirmed" as Order["status"],
+                label: getStatusLabel("confirmed"),
+                icon: CheckCircle,
+                bgColor: "bg-[var(--pastel-green)]",
+                textColor: "text-green-900",
+                hoverColor: "hover:bg-[var(--pastel-green-dark)]",
+            },
+            {
+                status: "in_transit" as Order["status"],
+                label: getStatusLabel("in_transit"),
+                icon: Truck,
+                bgColor: "bg-blue-100",
+                textColor: "text-blue-900",
+                hoverColor: "hover:bg-blue-200",
+            },
+        ],
+        processingRow2: [
+            {
+                status: "delivered" as Order["status"],
+                label: getStatusLabel("delivered"),
+                icon: CheckCheck,
+                bgColor: "bg-[var(--pastel-mint)]",
+                textColor: "text-teal-900",
+                hoverColor: "hover:bg-[var(--pastel-mint-dark)]",
+            },
+            {
+                status: "completed" as Order["status"],
+                label: getStatusLabel("completed"),
+                icon: CheckCircle,
+                bgColor: "bg-green-100",
+                textColor: "text-green-900",
+                hoverColor: "hover:bg-green-200",
             },
         ],
         onHold: [
@@ -552,8 +552,8 @@ export function OrderDetailsModal({
                     {/* Header Area */}
                     <DialogHeader className="space-y-0 pb-0 group relative">
                         {/* Top Row: Order ID and Control Buttons */}
-                        <div className="flex items-center justify-between mb-1 mr-10">
-                            <div className="flex flex-col gap-1">
+                        <div className="flex items-start justify-between mb-1">
+                            <div className="flex flex-col gap-2">
                                 <div className="flex items-center gap-3">
                                     <div className="relative group/id flex items-center gap-2">
                                         <DialogTitle className="font-mono text-xl flex items-center gap-1.5">
@@ -592,30 +592,35 @@ export function OrderDetailsModal({
 
                                         {/* Status Dropdown Menu */}
                                         {showStatusDropdown && onStatusUpdate && (
-                                            <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-200 py-2 z-50 min-w-[200px]">
-                                                {Object.values(statusGroups).flat().map((action) => {
-                                                    const Icon = action.icon;
-                                                    const isCurrentStatus = order.status === action.status;
-                                                    return (
-                                                        <button
-                                                            key={action.status}
-                                                            onClick={() => {
-                                                                handleStatusChange(action.status);
-                                                                setShowStatusDropdown(false);
-                                                            }}
-                                                            disabled={isCurrentStatus}
-                                                            className={cn(
-                                                                "w-full flex items-center gap-2 px-4 py-2 text-sm transition-all",
-                                                                isCurrentStatus
-                                                                    ? "bg-gray-100 cursor-default"
-                                                                    : "hover:bg-gray-50 cursor-pointer"
-                                                            )}
-                                                        >
-                                                            <Icon className="w-4 h-4" />
-                                                            <span>{action.label}</span>
-                                                        </button>
-                                                    );
-                                                })}
+                                            <div className="absolute top-full left-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-200 p-3 z-50 min-w-[240px] max-h-[500px] overflow-y-auto">
+                                                <div className="space-y-1.5">
+                                                    {Object.values(statusGroups).flat().map((action) => {
+                                                        const Icon = action.icon;
+                                                        const isCurrentStatus = order.status === action.status;
+                                                        return (
+                                                            <button
+                                                                key={action.status}
+                                                                onClick={() => {
+                                                                    handleStatusChange(action.status);
+                                                                    setShowStatusDropdown(false);
+                                                                }}
+                                                                disabled={isCurrentStatus}
+                                                                className={cn(
+                                                                    "w-full flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium transition-all rounded-lg",
+                                                                    action.bgColor,
+                                                                    action.textColor,
+                                                                    isCurrentStatus
+                                                                        ? "ring-2 ring-offset-2 shadow-sm cursor-default font-bold"
+                                                                        : cn(action.hoverColor, "cursor-pointer hover:shadow-sm")
+                                                                )}
+                                                            >
+                                                                <Icon className="w-4 h-4 flex-shrink-0" />
+                                                                <span className="flex-1 text-left">{action.label}</span>
+                                                                {isCurrentStatus && <CheckCircle className="w-4 h-4 flex-shrink-0" />}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
                                         )}
                                     </div>
@@ -625,7 +630,7 @@ export function OrderDetailsModal({
                                     <Calendar className="h-3 w-3" />
                                     {new Date(order.created_at).toISOString().split('T')[0]}
                                 </span>
-                                {/* Action Buttons - Reorder, Return, Replace */}
+                                {/* Action Buttons Row - Reorder, Return, Replace */}
                                 {!isEditing && (
                                     <div className="flex items-center gap-2 mt-1">
                                         {/* Reorder Button - Always show */}
@@ -650,7 +655,7 @@ export function OrderDetailsModal({
                                         {(order.status === "delivered" || order.status === "completed") && onCreateReplacement && !order.is_return && !order.is_replacement && (
                                             <button
                                                 onClick={() => setShowReplacementModal(true)}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-all text-xs font-medium dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800 dark:hover:bg-blue-900/40"
+                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-yellow-50 text-yellow-700 border border-yellow-200 hover:bg-yellow-100 transition-all text-xs font-medium dark:bg-yellow-950/30 dark:text-yellow-400 dark:border-yellow-800 dark:hover:bg-yellow-900/40"
                                             >
                                                 <Package className="h-3.5 w-3.5" />
                                                 استبدال
@@ -659,9 +664,11 @@ export function OrderDetailsModal({
                                     </div>
                                 )}
                             </div>
-                            <div className="flex items-center gap-2">
-                                {/* Presence Indicators */}
-                                <PresenceAvatarGroup orderId={order.id} className="mr-2 hidden sm:flex" />
+                            <div className="flex flex-col gap-2">
+                                {/* Control Buttons Row */}
+                                <div className="flex items-center gap-2">
+                                    {/* Presence Indicators */}
+                                    <PresenceAvatarGroup orderId={order.id} className="mr-2 hidden sm:flex" />
 
                                 {/* Edit ID Warning Modal */}
                                 {showIdWarning && (
@@ -783,161 +790,15 @@ export function OrderDetailsModal({
                                 {/* Close Button */}
                                 <button
                                     onClick={onClose}
-                                    className="flex items-center justify-center w-8 h-8 rounded-lg bg-white border border-[var(--card-border)] text-foreground hover:bg-gray-50 transition-all"
+                                    className="flex items-center justify-center w-8 h-8 rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-all"
                                     aria-label="Close"
                                 >
                                     <X className="h-3.5 w-3.5" />
                                 </button>
-                            </div>
-                        </div>
+                                </div>
 
-                        {/* Quick Actions Row - Grouped by Workflow */}
-                        {!isEditing && (
-                            <div className="py-3 border-y border-[var(--card-border)] flex flex-wrap items-center gap-3">
-                                {/* Status Actions - Grouped */}
-                                {onStatusUpdate && (
-                                    <>
-                                        {/* Initial Stage */}
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            {statusGroups.initial.map((action) => {
-                                                const Icon = action.icon;
-                                                const isCurrentStatus = order.status === action.status;
-                                                return (
-                                                    <button
-                                                        key={action.status}
-                                                        onClick={() => handleStatusChange(action.status)}
-                                                        disabled={isUpdatingStatus || isCurrentStatus}
-                                                        className={cn(
-                                                            "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                                                            isCurrentStatus
-                                                                ? "bg-[var(--ink)] text-white ring-2 ring-offset-1 ring-[var(--foreground)] shadow-sm"
-                                                                : cn(action.bgColor, action.textColor, action.hoverColor, "active:scale-95 border border-transparent hover:border-black/5"),
-                                                            isUpdatingStatus && "opacity-50 cursor-wait"
-                                                        )}
-                                                    >
-                                                        <Icon className="w-3.5 h-3.5" />
-                                                        <span>{action.label}</span>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-
-                                        {/* Separator */}
-                                        <div className="h-6 w-px bg-[var(--card-border)]" />
-
-                                        {/* Processing Stage */}
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            {statusGroups.processing.map((action) => {
-                                                const Icon = action.icon;
-                                                const isCurrentStatus = order.status === action.status;
-                                                return (
-                                                    <button
-                                                        key={action.status}
-                                                        onClick={() => handleStatusChange(action.status)}
-                                                        disabled={isUpdatingStatus || isCurrentStatus}
-                                                        className={cn(
-                                                            "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                                                            isCurrentStatus
-                                                                ? "bg-[var(--ink)] text-white ring-2 ring-offset-1 ring-[var(--foreground)] shadow-sm"
-                                                                : cn(action.bgColor, action.textColor, action.hoverColor, "active:scale-95 border border-transparent hover:border-black/5"),
-                                                            isUpdatingStatus && "opacity-50 cursor-wait"
-                                                        )}
-                                                    >
-                                                        <Icon className="w-3.5 h-3.5" />
-                                                        <span>{action.label}</span>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-
-                                        {/* Separator */}
-                                        <div className="h-6 w-px bg-[var(--card-border)]" />
-
-                                        {/* Completed Stage */}
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            {statusGroups.completed.map((action) => {
-                                                const Icon = action.icon;
-                                                const isCurrentStatus = order.status === action.status;
-                                                return (
-                                                    <button
-                                                        key={action.status}
-                                                        onClick={() => handleStatusChange(action.status)}
-                                                        disabled={isUpdatingStatus || isCurrentStatus}
-                                                        className={cn(
-                                                            "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                                                            isCurrentStatus
-                                                                ? "bg-[var(--ink)] text-white ring-2 ring-offset-1 ring-[var(--foreground)] shadow-sm"
-                                                                : cn(action.bgColor, action.textColor, action.hoverColor, "active:scale-95 border border-transparent hover:border-black/5"),
-                                                            isUpdatingStatus && "opacity-50 cursor-wait"
-                                                        )}
-                                                    >
-                                                        <Icon className="w-3.5 h-3.5" />
-                                                        <span>{action.label}</span>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-
-                                        {/* Separator */}
-                                        <div className="h-6 w-px bg-[var(--card-border)]" />
-
-                                        {/* Issues */}
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            {statusGroups.issues.map((action) => {
-                                                const Icon = action.icon;
-                                                const isCurrentStatus = order.status === action.status;
-                                                return (
-                                                    <button
-                                                        key={action.status}
-                                                        onClick={() => handleStatusChange(action.status)}
-                                                        disabled={isUpdatingStatus || isCurrentStatus}
-                                                        className={cn(
-                                                            "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                                                            isCurrentStatus
-                                                                ? "bg-[var(--ink)] text-white ring-2 ring-offset-1 ring-[var(--foreground)] shadow-sm"
-                                                                : cn(action.bgColor, action.textColor, action.hoverColor, "active:scale-95 border border-transparent hover:border-black/5"),
-                                                            isUpdatingStatus && "opacity-50 cursor-wait"
-                                                        )}
-                                                    >
-                                                        <Icon className="w-3.5 h-3.5" />
-                                                        <span>{action.label}</span>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-
-                                        {/* Separator */}
-                                        <div className="h-6 w-px bg-[var(--card-border)]" />
-
-                                        {/* On-Hold */}
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            {statusGroups.onHold.map((action) => {
-                                                const Icon = action.icon;
-                                                const isCurrentStatus = order.status === action.status;
-                                                return (
-                                                    <button
-                                                        key={action.status}
-                                                        onClick={() => handleStatusChange(action.status)}
-                                                        disabled={isUpdatingStatus || isCurrentStatus}
-                                                        className={cn(
-                                                            "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                                                            isCurrentStatus
-                                                                ? "bg-[var(--ink)] text-white ring-2 ring-offset-1 ring-[var(--foreground)] shadow-sm"
-                                                                : cn(action.bgColor, action.textColor, action.hoverColor, "active:scale-95 border border-transparent hover:border-black/5"),
-                                                            isUpdatingStatus && "opacity-50 cursor-wait"
-                                                        )}
-                                                    >
-                                                        <Icon className="w-3.5 h-3.5" />
-                                                        <span>{action.label}</span>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </>
-                                )}
-
-                                {/* Priority & Schedule Icons (Right Side) */}
-                                <div className="flex items-center gap-1.5 ml-auto border-l border-[var(--card-border)] pl-2">
+                                {/* Urgency Buttons Container */}
+                                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white border border-[var(--card-border)]">
                                     {/* Priority Icons */}
                                     {[
                                         { value: 'normal', label: t("orderDetail.priority.normal"), icon: Minus, color: "text-gray-500 hover:bg-gray-100" },
@@ -961,14 +822,14 @@ export function OrderDetailsModal({
                                                     }
                                                 }}
                                                 className={cn(
-                                                    "w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95",
+                                                    "w-7 h-7 rounded-lg flex items-center justify-center transition-all active:scale-95",
                                                     isActive
                                                         ? "bg-[var(--ink)] text-white shadow-sm"
                                                         : p.color
                                                 )}
                                                 title={p.label}
                                             >
-                                                <Icon className="w-4 h-4" />
+                                                <Icon className="w-3.5 h-3.5" />
                                             </button>
                                         );
                                     })}
@@ -990,55 +851,164 @@ export function OrderDetailsModal({
                                             }
                                         }}
                                         className={cn(
-                                            "w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-blue-600 hover:bg-blue-50",
+                                            "w-7 h-7 rounded-lg flex items-center justify-center transition-all active:scale-95 text-blue-600 hover:bg-blue-50",
                                             order.scheduled_date === new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0] && "bg-blue-100 ring-1 ring-blue-200"
                                         )}
                                         title={t("orderDetail.tomorrow")}
                                     >
-                                        <Sun className="w-4 h-4" />
+                                        <Sun className="w-3.5 h-3.5" />
                                     </button>
                                 </div>
                             </div>
-                        )}
+                        </div>
 
-                        {/* Assignments Section (Right Below Quick Actions) */}
+                        {/* Quick Actions Row - Grouped by Workflow */}
                         {!isEditing && (
-                            <div className="py-2 border-b border-[var(--card-border)] flex flex-wrap items-center gap-2">
-                                <span className="text-xs font-semibold text-gray-500 mr-2">التعيين:</span>
+                            <div className="py-3 border-y border-[var(--card-border)] flex flex-wrap items-center gap-4">
+                                {/* Status Actions - Grouped */}
+                                {onStatusUpdate && (
+                                    <>
+                                        {/* Early Stage (abandoned, new, contacted) */}
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            {statusGroups.earlyStage.map((action) => {
+                                                const Icon = action.icon;
+                                                const isCurrentStatus = order.status === action.status;
+                                                return (
+                                                    <button
+                                                        key={action.status}
+                                                        onClick={() => handleStatusChange(action.status)}
+                                                        disabled={isUpdatingStatus || isCurrentStatus}
+                                                        className={cn(
+                                                            "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                                                            isCurrentStatus
+                                                                ? cn(action.bgColor, action.textColor, "ring-2 ring-offset-1 shadow-md font-bold border-2 border-current")
+                                                                : cn(action.bgColor, action.textColor, action.hoverColor, "active:scale-95 border border-transparent hover:border-black/5"),
+                                                            isUpdatingStatus && "opacity-50 cursor-wait"
+                                                        )}
+                                                    >
+                                                        <Icon className="w-3.5 h-3.5" />
+                                                        <span>{action.label}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
 
-                                {assignments.map((assignment) => {
-                                    const employee = mockEmployees.find(e => e.id === assignment.employee_id);
-                                    if (!employee) return null;
-                                    return (
-                                        <AvatarPill
-                                            key={assignment.id}
-                                            employee={employee}
-                                            duty={assignment.duty}
-                                            size="sm"
-                                            interactive={true}
-                                            className="h-7 gap-1.5 px-2.5"
-                                        />
-                                    );
-                                })}
+                                        {/* Separator */}
+                                        <div className="h-6 w-px bg-[var(--card-border)]" />
 
-                                {/* Empty Assignment Slots */}
-                                {onAssignDuty && ['new', 'contacted'].includes(order.status) && !assignments.some(a => a.duty === 'confirmation') && (
-                                    <AssignmentPopover
-                                        orderId={order.id}
-                                        duty="confirmation"
-                                        onAssign={onAssignDuty}
-                                    />
-                                )}
+                                        {/* Early Issues (cancelled, rejected, didn't respond) */}
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            {statusGroups.earlyIssues.map((action) => {
+                                                const Icon = action.icon;
+                                                const isCurrentStatus = order.status === action.status;
+                                                return (
+                                                    <button
+                                                        key={action.status}
+                                                        onClick={() => handleStatusChange(action.status)}
+                                                        disabled={isUpdatingStatus || isCurrentStatus}
+                                                        className={cn(
+                                                            "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                                                            isCurrentStatus
+                                                                ? cn(action.bgColor, action.textColor, "ring-2 ring-offset-1 shadow-md font-bold border-2 border-current")
+                                                                : cn(action.bgColor, action.textColor, action.hoverColor, "active:scale-95 border border-transparent hover:border-black/5"),
+                                                            isUpdatingStatus && "opacity-50 cursor-wait"
+                                                        )}
+                                                    >
+                                                        <Icon className="w-3.5 h-3.5" />
+                                                        <span>{action.label}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
 
-                                {onAssignDuty && order.status === 'confirmed' && !assignments.some(a => a.duty === 'fulfillment') && (
-                                    <AssignmentPopover
-                                        orderId={order.id}
-                                        duty="fulfillment"
-                                        onAssign={onAssignDuty}
-                                    />
+                                        {/* Separator */}
+                                        <div className="h-6 w-px bg-[var(--card-border)]" />
+
+                                        {/* Processing Row 1 (confirmed, in_transit) */}
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            {statusGroups.processingRow1.map((action) => {
+                                                const Icon = action.icon;
+                                                const isCurrentStatus = order.status === action.status;
+                                                return (
+                                                    <button
+                                                        key={action.status}
+                                                        onClick={() => handleStatusChange(action.status)}
+                                                        disabled={isUpdatingStatus || isCurrentStatus}
+                                                        className={cn(
+                                                            "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                                                            isCurrentStatus
+                                                                ? cn(action.bgColor, action.textColor, "ring-2 ring-offset-1 shadow-md font-bold border-2 border-current")
+                                                                : cn(action.bgColor, action.textColor, action.hoverColor, "active:scale-95 border border-transparent hover:border-black/5"),
+                                                            isUpdatingStatus && "opacity-50 cursor-wait"
+                                                        )}
+                                                    >
+                                                        <Icon className="w-3.5 h-3.5" />
+                                                        <span>{action.label}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* Separator */}
+                                        <div className="h-6 w-px bg-[var(--card-border)]" />
+
+                                        {/* Processing Row 2 (delivered, completed) */}
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            {statusGroups.processingRow2.map((action) => {
+                                                const Icon = action.icon;
+                                                const isCurrentStatus = order.status === action.status;
+                                                return (
+                                                    <button
+                                                        key={action.status}
+                                                        onClick={() => handleStatusChange(action.status)}
+                                                        disabled={isUpdatingStatus || isCurrentStatus}
+                                                        className={cn(
+                                                            "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                                                            isCurrentStatus
+                                                                ? cn(action.bgColor, action.textColor, "ring-2 ring-offset-1 shadow-md font-bold border-2 border-current")
+                                                                : cn(action.bgColor, action.textColor, action.hoverColor, "active:scale-95 border border-transparent hover:border-black/5"),
+                                                            isUpdatingStatus && "opacity-50 cursor-wait"
+                                                        )}
+                                                    >
+                                                        <Icon className="w-3.5 h-3.5" />
+                                                        <span>{action.label}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* Separator */}
+                                        <div className="h-6 w-px bg-[var(--card-border)]" />
+
+                                        {/* On-Hold Buttons - Stacked Vertically */}
+                                        <div className="flex flex-col gap-1.5">
+                                            {statusGroups.onHold.map((action) => {
+                                                const Icon = action.icon;
+                                                const isCurrentStatus = order.status === action.status;
+                                                return (
+                                                    <button
+                                                        key={action.status}
+                                                        onClick={() => handleStatusChange(action.status)}
+                                                        disabled={isUpdatingStatus || isCurrentStatus}
+                                                        className={cn(
+                                                            "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                                                            isCurrentStatus
+                                                                ? cn(action.bgColor, action.textColor, "ring-2 ring-offset-1 shadow-md font-bold border-2 border-current")
+                                                                : cn(action.bgColor, action.textColor, action.hoverColor, "active:scale-95 border border-transparent hover:border-black/5"),
+                                                            isUpdatingStatus && "opacity-50 cursor-wait"
+                                                        )}
+                                                    >
+                                                        <Icon className="w-3.5 h-3.5" />
+                                                        <span>{action.label}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </>
                                 )}
                             </div>
                         )}
+
 
                         {/* Return Order Creation Modal */}
                         {showReturnModal && (
@@ -1358,7 +1328,7 @@ export function OrderDetailsModal({
 
                     {/* Details Content (default) */}
                     {activeTab === "details" && (
-                        <div className="space-y-3 max-h-[50vh] overflow-y-auto -mr-2 pr-4">
+                        <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2">
 
                             {/* Customer Info Card - Compact & Organized */}
                             <OrderCustomerCard

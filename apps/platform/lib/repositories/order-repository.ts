@@ -194,6 +194,56 @@ export const orderRepository = {
         throw lastError;
     },
 
+    /**
+     * Update order status in bulk. Includes retry mechanism per-order
+     * and conflict detection if expectedUpdatedAts is provided.
+     * Keeps track of successful and failed operations.
+     */
+    async bulkUpdateStatus(
+        orderIds: string[],
+        status: Order["status"],
+        rejectionReason?: string,
+        last_status_changed_by_name?: string,
+        last_status_changed_by_avatar?: string,
+        expectedUpdatedAts?: Record<string, string>
+    ): Promise<{
+        successfulOperations: { id: string, order: Order }[],
+        failedOperations: { id: string, error: unknown }[]
+    }> {
+        console.log(`[Diag:Repo] bulkUpdateStatus START count=${orderIds.length} status=${status}`);
+        
+        const results = await Promise.allSettled(
+            orderIds.map(async id => {
+                const expectedAt = expectedUpdatedAts ? expectedUpdatedAts[id] : undefined;
+                const order = await this.updateStatus(
+                    id, 
+                    status, 
+                    rejectionReason, 
+                    last_status_changed_by_name, 
+                    last_status_changed_by_avatar, 
+                    expectedAt
+                );
+                return { id, order };
+            })
+        );
+        
+        const successfulOperations: { id: string, order: Order }[] = [];
+        const failedOperations: { id: string, error: unknown }[] = [];
+        
+        results.forEach((result, index) => {
+            const id = orderIds[index];
+            if (result.status === 'fulfilled') {
+                successfulOperations.push(result.value);
+            } else {
+                failedOperations.push({ id, error: result.reason });
+            }
+        });
+        
+        console.log(`[Diag:Repo] bulkUpdateStatus DONE success=${successfulOperations.length} failed=${failedOperations.length}`);
+        
+        return { successfulOperations, failedOperations };
+    },
+
     /** Hard-delete an order by ID. */
     async delete(id: string): Promise<void> {
         const { error } = await supabase

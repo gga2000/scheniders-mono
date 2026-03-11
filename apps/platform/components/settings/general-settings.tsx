@@ -4,6 +4,7 @@ import { useSettings } from "@/hooks/use-settings";
 import { useEffect, useState } from "react";
 import { Save, Store, Bell, Boxes, Play, Volume2 } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
+import { toast } from "@/hooks/use-toast";
 
 
 export function GeneralSettings() {
@@ -22,9 +23,18 @@ export function GeneralSettings() {
 
     const handleSave = async () => {
         setIsSaving(true);
-        await updateSetting("store_profile", profile);
-        await updateSetting("inventory_rules", inventory);
-        await updateSetting("notification_settings", notifications);
+        const results = await Promise.all([
+            updateSetting("store_profile", profile),
+            updateSetting("inventory_rules", inventory),
+            updateSetting("notification_settings", notifications)
+        ]);
+        
+        const failed = results.filter(r => !r.success);
+        if (failed.length > 0) {
+            toast.error(t("toast.saveFailed") || "Failed to save settings", failed.map(r => r.error).join(", "));
+        } else {
+            toast.success(t("toast.settingsSaved") || "Settings saved successfully");
+        }
         setIsSaving(false);
     };
 

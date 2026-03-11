@@ -92,7 +92,31 @@ export async function POST(request: Request) {
         return NextResponse.json({ skipped: true, reason: "already_sent" });
     }
 
-    // Send the template
+    // 1. Claim the follow-up by incrementing contact_count atomically
+    const newContactCount = contactCount + 1;
+    const { data: updatedOrds, error: updateErr } = await supabaseAdmin
+        .from("orders")
+        .update({
+            contact_count: newContactCount,
+            last_contacted_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        })
+        .eq("id", orderUuid)
+        // Ensure another invocation hasn't already done this
+        .eq("contact_count", contactCount)
+        .select("id");
+
+    if (updateErr) {
+        console.error("[Auto Follow-up] Failed to claim follow-up for order:", updateErr);
+        return NextResponse.json({ success: false, error: updateErr }, { status: 500 });
+    }
+
+    if (!updatedOrds || updatedOrds.length === 0) {
+        console.log(`[Auto Follow-up] Order ${order.order_id} contact_count changed. Another process may have already sent the follow-up.`);
+        return NextResponse.json({ skipped: true, reason: "already_claimed" });
+    }
+
+    // 2. Send the template
     const defaultDiscount = settings.value.default_discount_percent || 10;
     const result = await sendTemplateMessage(
         order,
@@ -103,19 +127,15 @@ export async function POST(request: Request) {
 
     if (!result.success) {
         console.error(`[Auto Follow-up] Failed to send ${templateType} for ${order.order_id}:`, result.error);
+        
+        // 3. Rollback the claim on failure
+        await supabaseAdmin
+            .from("orders")
+            .update({ contact_count: contactCount })
+            .eq("id", orderUuid);
+
         return NextResponse.json({ success: false, error: result.error }, { status: 500 });
     }
-
-    // Update contact_count and last_contacted_at
-    const newContactCount = contactCount + 1;
-    await supabaseAdmin
-        .from("orders")
-        .update({
-            contact_count: newContactCount,
-            last_contacted_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-        })
-        .eq("id", orderUuid);
 
     // Log to whatsapp_logs
     await supabaseAdmin.from("whatsapp_logs").insert({

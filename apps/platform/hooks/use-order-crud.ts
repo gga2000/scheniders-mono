@@ -27,6 +27,7 @@ import {
     useCreateOrderMutation,
     orderKeys
 } from "@/hooks/use-orders-query";
+import { orderRepository } from "@/lib/repositories/order-repository";
 
 // =============================================
 // ORDER CRUD HOOK
@@ -213,23 +214,29 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                         const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
 
                         console.log(`[Diag:StatusUpdate] HISTORY_INSERT orderId=${orderId}`);
-                        supabase
-                            .from("order_status_history")
-                            .insert([{
-                                order_id: orderId,
-                                from_status: previousOrder.status,
-                                to_status: status,
-                                changed_at: new Date().toISOString(),
-                                notes: rejectionReason || null,
-                                changed_by: changedBy,
-                            }]).then(({ error }) => {
-                                if (error) {
-                                    console.log(`[Diag:StatusUpdate] HISTORY_ERR orderId=${orderId} err=${error.message}`);
-                                    console.error("Failed to record status history:", error);
-                                } else {
-                                    console.log(`[Diag:StatusUpdate] HISTORY_OK orderId=${orderId}`);
-                                }
-                            });
+                        try {
+                            const { error: historyError } = await supabase
+                                .from("order_status_history")
+                                .insert([{
+                                    order_id: orderId,
+                                    from_status: previousOrder.status,
+                                    to_status: status,
+                                    changed_at: new Date().toISOString(),
+                                    notes: rejectionReason || null,
+                                    changed_by: changedBy,
+                                }]);
+                            
+                            if (historyError) {
+                                console.log(`[Diag:StatusUpdate] HISTORY_ERR orderId=${orderId} err=${historyError.message}`);
+                                console.error("Failed to record status history:", historyError);
+                                toast.error("Status updated, but failed to log history record");
+                            } else {
+                                console.log(`[Diag:StatusUpdate] HISTORY_OK orderId=${orderId}`);
+                            }
+                        } catch (historyErr) {
+                            console.log(`[Diag:StatusUpdate] HISTORY_CATCH_ERR orderId=${orderId} err=${historyErr}`);
+                            console.error("Exception recording status history:", historyErr);
+                        }
                     }
 
                     // Log activity
@@ -733,31 +740,45 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         try {
             const previousOrders = orders.filter(o => orderIds.includes(o.id));
             const currentStatuses: { [key: string]: Order["status"] } = {};
-            previousOrders.forEach(o => currentStatuses[o.id] = o.status);
+            const expectedUpdatedAts: { [key: string]: string } = {};
+            previousOrders.forEach(o => {
+                currentStatuses[o.id] = o.status;
+                if (o.updated_at) expectedUpdatedAts[o.id] = o.updated_at;
+            });
 
             // Get current user information for attribution
             const { profile: currentProfile, user: currentUser } = authRef.current;
             const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
             const changedByAvatar = currentProfile?.avatar_url;
 
-            const { data: updatedRows, error: updateError } = await supabase
-                .from("orders")
-                .update({
-                    status,
-                    last_status_changed_by_name: changedBy,
-                    last_status_changed_by_avatar: changedByAvatar,
-                })
-                .in("id", orderIds)
-                .select("id");
+            // Use central repository for bulk updates
+            const { successfulOperations, failedOperations } = await orderRepository.bulkUpdateStatus(
+                orderIds,
+                status,
+                undefined, // rejectionReason
+                changedBy,
+                changedByAvatar || undefined,
+                expectedUpdatedAts
+            );
 
-            if (updateError) throw updateError;
-            if (!updatedRows || updatedRows.length === 0) throw new Error("Bulk status update failed: no rows were written");
+            if (successfulOperations.length === 0 && failedOperations.length > 0) {
+                // If everything failed, throw the first error to be caught by the outer catch block
+                throw failedOperations[0].error || new Error("Bulk status update failed completely");
+            } else if (failedOperations.length > 0) {
+                console.warn(`[bulkUpdateStatus] ${failedOperations.length} orders failed to update, possibly due to conflicts:`, failedOperations);
+                toast.warning(`${failedOperations.length} orders could not be updated (they may have been modified by someone else)`);
+            }
 
-            // Handle Advanced Inventory & Supplies for each order
+            const successfulIds = successfulOperations.map((op: { id: string }) => op.id);
+
+            // Handle Advanced Inventory & Supplies for each SUCCESSFUL order
             import("@/lib/inventory-engine").then(engine => {
                 const nowIsActive = !['completed', 'delivered', 'rejected', 'refund_delivered', 'refund_failed', 'cancelled'].includes(status);
 
-                previousOrders.forEach(previousOrder => {
+                successfulOperations.forEach(({ id }: { id: string }) => {
+                    const previousOrder = previousOrders.find(o => o.id === id);
+                    if (!previousOrder) return;
+                    
                     const items = previousOrder.items || [];
                     const prevWasActive = !['completed', 'delivered', 'rejected', 'refund_delivered', 'refund_failed', 'cancelled'].includes(previousOrder.status);
 
@@ -765,18 +786,20 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                         engine.fulfillOrder(items);
                         engine.deductSupplies(items.length);
                     } else if (status === 'rejected' || status === 'refund_delivered') {
-                        engine.quarantineOrder(previousOrder.id, items, `Bulk changed to ${status}`);
+                        engine.quarantineOrder(id, items, `Bulk changed to ${status}`);
                     } else if (status === 'cancelled' && prevWasActive) {
                         engine.releaseAllocation(items);
                     } else if (nowIsActive && !prevWasActive) {
+                        if (['rejected', 'refund_delivered', 'cancelled'].includes(previousOrder.status)) {
+                            engine.removeFromQuarantine(id);
+                        }
                         engine.allocateOrder(items);
                     }
                 });
             }).catch(console.error);
 
             // Record status change to history table for each updated order
-            // Insert history records
-            const historyEntries = orderIds.map(id => ({
+            const historyEntries = successfulIds.map(id => ({
                 order_id: id,
                 changed_by: changedBy,
                 from_status: currentStatuses[id] || 'unknown',
@@ -785,11 +808,16 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 notes: `Bulk update to ${status}`,
             }));
 
-            const { error: historyError } = await supabase
-                .from("order_status_history")
-                .insert(historyEntries);
+            if (historyEntries.length > 0) {
+                const { error: historyError } = await supabase
+                    .from("order_status_history")
+                    .insert(historyEntries);
 
-            if (historyError) console.error("Failed to record bulk status history:", historyError);
+                if (historyError) {
+                    console.error("Failed to record bulk status history (but status was updated):", historyError);
+                    toast.error("Status updated, but failed to log history records.");
+                }
+            }
 
             // Update React Query cache
             optimisticUpdate((prev) =>

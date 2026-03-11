@@ -1,6 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import type { Order } from "@/lib/supabase";
-import { setCachedOrders } from "@/hooks/use-orders-query";
+
 
 // =============================================
 // REALTIME EVENT BATCHER
@@ -190,10 +190,6 @@ export class RealtimeBatcher {
             }
 
             const finalOrders = [...newOrders, ...result];
-
-            // Keep sessionStorage in sync so a hard refresh shows
-            // realtime-updated data instead of the last fetchOrders result
-            setCachedOrders(finalOrders);
 
             return finalOrders;
         });

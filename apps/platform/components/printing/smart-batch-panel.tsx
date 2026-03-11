@@ -133,7 +133,7 @@ export function SmartBatchPanel({ orders, labelSettings, onBatchSelect, onBatchG
         showCompanyLogo: true,
       };
 
-      await printSingleBatch(batch, labelOpts as any, "80x120", false);
+      await printSingleBatch(batch, labelOpts as any);
     } catch (error) {
       console.error("Print error:", error);
       alert("Failed to print batch. Please try again.");
@@ -166,7 +166,7 @@ export function SmartBatchPanel({ orders, labelSettings, onBatchSelect, onBatchG
         showCompanyLogo: true,
       };
 
-      await printBatchesWithSeparators(suggestedBatches, labelOpts as any, "80x120");
+      await printBatchesWithSeparators(suggestedBatches, labelOpts as any);
     } catch (error) {
       console.error("Print error:", error);
       alert("Failed to print batches. Please try again.");
@@ -533,7 +533,7 @@ export function SmartBatchPanel({ orders, labelSettings, onBatchSelect, onBatchG
 
       {/* Pick List Modal */}
       <AnimatePresence>
-        {showPickListModal && selectedBatch && (
+        {showPickListModal && selectedBatchIndex !== null && suggestedBatches[selectedBatchIndex] && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -549,7 +549,7 @@ export function SmartBatchPanel({ orders, labelSettings, onBatchSelect, onBatchG
               className="w-full max-w-4xl"
             >
               <PickListView
-                batch={selectedBatch}
+                batch={suggestedBatches[selectedBatchIndex!]}
                 onClose={() => setShowPickListModal(false)}
               />
             </motion.div>

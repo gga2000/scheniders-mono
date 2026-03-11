@@ -97,153 +97,144 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // 2. Process confirmed items in batches
+        // 2. Process all confirmed items concurrently
         let processedCount = 0;
         let failedCount = 0;
         const errors: string[] = [];
         const now = new Date().toISOString();
+        const auditItemsToInsert: any[] = [];
 
-        for (let i = 0; i < confirmedItems.length; i += BATCH_SIZE) {
-            const batch = confirmedItems.slice(i, i + BATCH_SIZE);
+        const updatePromises = confirmedItems.map(async (item) => {
+            const pdfRow = parsedPDF.rows.find((r) => r.rowNumber === item.pdfRowNumber);
+            const resAction = item.resolutionAction;
 
-            for (const item of batch) {
-                try {
-                    const pdfRow = parsedPDF.rows.find((r) => r.rowNumber === item.pdfRowNumber);
-                    const resAction = item.resolutionAction;
+            const orderUpdate: Record<string, unknown> = {
+                delivered_at: now,
+            };
 
-                    // Build the order update based on resolution action
-                    const orderUpdate: Record<string, unknown> = {
-                        delivered_at: now,
-                    };
+            const deliveryNotes: string[] = [];
+            const attentionReasons: string[] = [];
+            let newStatus = "delivered";
 
-                    // Determine the delivery note for the order
-                    const deliveryNotes: string[] = [];
-                    const attentionReasons: string[] = [];
-                    let newStatus = "delivered";
+            if (resAction === "acknowledge_refund") {
+                newStatus = item.previousStatus;
+                delete orderUpdate.delivered_at;
+                deliveryNotes.push(`Refund acknowledged: ${pdfRow?.netToMerchant?.toLocaleString()} IQD`);
+            } else if (resAction === "process_with_pdf_price" && item.pdfAmount != null) {
+                orderUpdate.price = item.pdfAmount;
+                orderUpdate.status = "delivered";
+                deliveryNotes.push(`Price updated from delivery PDF: ${item.pdfAmount.toLocaleString()} IQD`);
+                attentionReasons.push(`delivery_price_changed`);
+            } else if (resAction === "force_deliver") {
+                orderUpdate.status = "delivered";
+                deliveryNotes.push(`Force delivered (was: ${item.previousStatus})`);
+                attentionReasons.push(`delivery_force_delivered`);
+            } else {
+                orderUpdate.status = "delivered";
+            }
 
-                    if (resAction === "acknowledge_refund") {
-                        // Don't change order status, just record the refund
-                        newStatus = item.previousStatus;
-                        delete orderUpdate.delivered_at;
-                        deliveryNotes.push(`Refund acknowledged: ${pdfRow?.netToMerchant?.toLocaleString()} IQD`);
-                    } else if (resAction === "process_with_pdf_price" && item.pdfAmount != null) {
-                        // Update price to PDF amount
-                        orderUpdate.price = item.pdfAmount;
-                        orderUpdate.status = "delivered";
-                        deliveryNotes.push(`Price updated from delivery PDF: ${item.pdfAmount.toLocaleString()} IQD`);
-                        attentionReasons.push(`delivery_price_changed`);
-                    } else if (resAction === "force_deliver") {
-                        orderUpdate.status = "delivered";
-                        deliveryNotes.push(`Force delivered (was: ${item.previousStatus})`);
-                        attentionReasons.push(`delivery_force_delivered`);
-                    } else {
-                        // Default: process_with_system_price or clean match
-                        orderUpdate.status = "delivered";
-                    }
+            if (item.resolutionNote) {
+                deliveryNotes.push(item.resolutionNote);
+            }
 
-                    // Add resolution note if provided
-                    if (item.resolutionNote) {
-                        deliveryNotes.push(item.resolutionNote);
-                    }
-
-                    // Flag non-clean matches for attention
-                    if (item.matchCategory !== "clean" && item.matchCategory !== "reorder") {
-                        attentionReasons.push(`delivery_${item.matchCategory}`);
-                        if (!deliveryNotes.length) {
-                            deliveryNotes.push(item.matchDetails);
-                        }
-                    }
-
-                    // Set attention flags if there are reasons
-                    if (attentionReasons.length > 0) {
-                        orderUpdate.needs_attention = true;
-                        orderUpdate.attention_reasons = attentionReasons;
-                    }
-
-                    // Store delivery note on the order
-                    if (deliveryNotes.length > 0) {
-                        orderUpdate.delivery_note = deliveryNotes.join(" | ");
-                    }
-
-                    // Only update if not acknowledge_refund
-                    if (resAction !== "acknowledge_refund") {
-                        const { error: updateError } = await supabaseAdmin
-                            .from("orders")
-                            .update(orderUpdate)
-                            .eq("id", item.orderId);
-
-                        if (updateError) {
-                            throw new Error(updateError.message);
-                        }
-                    }
-
-                    // Create audit item record
-                    await supabaseAdmin.from("delivery_import_items").insert({
-                        import_id: importRecord.id,
-                        order_id: item.orderId,
-                        pdf_row_number: item.pdfRowNumber,
-                        pdf_shipment_number: pdfRow?.shipmentNumber,
-                        pdf_phone: pdfRow?.phone,
-                        pdf_amount: pdfRow?.shipmentAmount,
-                        pdf_delivery_fee: pdfRow?.deliveryFee,
-                        pdf_net_amount: pdfRow?.netToMerchant,
-                        pdf_status: pdfRow?.status,
-                        pdf_item_count: pdfRow?.itemCount,
-                        pdf_notes: pdfRow?.notes,
-                        match_category: item.matchCategory,
-                        match_details: {
-                            details: item.matchDetails,
-                            resolutionAction: resAction,
-                            resolutionNote: item.resolutionNote,
-                        },
-                        action: "confirmed",
-                        previous_status: item.previousStatus,
-                        new_status: newStatus,
-                    });
-
-                    processedCount++;
-                } catch (err) {
-                    failedCount++;
-                    const msg = err instanceof Error ? err.message : "Unknown error";
-                    errors.push(`Row #${item.pdfRowNumber}: ${msg}`);
-                    console.error(`[DeliveryImport] Failed to update order for row #${item.pdfRowNumber}:`, msg);
-
-                    // Still create audit item but mark as failed
-                    const pdfRow = parsedPDF.rows.find((r) => r.rowNumber === item.pdfRowNumber);
-                    await supabaseAdmin
-                        .from("delivery_import_items")
-                        .insert({
-                            import_id: importRecord.id,
-                            order_id: item.orderId,
-                            pdf_row_number: item.pdfRowNumber,
-                            pdf_shipment_number: pdfRow?.shipmentNumber,
-                            pdf_phone: pdfRow?.phone,
-                            pdf_amount: pdfRow?.shipmentAmount,
-                            pdf_delivery_fee: pdfRow?.deliveryFee,
-                            pdf_net_amount: pdfRow?.netToMerchant,
-                            pdf_status: pdfRow?.status,
-                            pdf_item_count: pdfRow?.itemCount,
-                            pdf_notes: pdfRow?.notes,
-                            match_category: item.matchCategory,
-                            match_details: {
-                                details: item.matchDetails,
-                                resolutionAction: item.resolutionAction,
-                                error: msg,
-                            },
-                            action: "failed",
-                            previous_status: item.previousStatus,
-                            new_status: null,
-                        })
-                        .catch(() => {}); // Best effort
+            if (item.matchCategory !== "clean" && item.matchCategory !== "reorder") {
+                attentionReasons.push(`delivery_${item.matchCategory}`);
+                if (!deliveryNotes.length) {
+                    deliveryNotes.push(item.matchDetails);
                 }
+            }
+
+            if (attentionReasons.length > 0) {
+                orderUpdate.needs_attention = true;
+                orderUpdate.attention_reasons = attentionReasons;
+            }
+
+            if (deliveryNotes.length > 0) {
+                orderUpdate.delivery_note = deliveryNotes.join(" | ");
+            }
+
+            if (resAction !== "acknowledge_refund") {
+                const { error: updateError } = await supabaseAdmin
+                    .from("orders")
+                    .update(orderUpdate)
+                    .eq("id", item.orderId);
+
+                if (updateError) {
+                    throw new Error(updateError.message);
+                }
+            }
+
+            return { item, newStatus, pdfRow, resAction };
+        });
+
+        const updateResults = await Promise.allSettled(updatePromises);
+
+        for (let i = 0; i < updateResults.length; i++) {
+            const result = updateResults[i];
+            const item = confirmedItems[i];
+
+            if (result.status === "fulfilled") {
+                processedCount++;
+                const { newStatus, pdfRow, resAction } = result.value;
+                auditItemsToInsert.push({
+                    import_id: importRecord.id,
+                    order_id: item.orderId,
+                    pdf_row_number: item.pdfRowNumber,
+                    pdf_shipment_number: pdfRow?.shipmentNumber,
+                    pdf_phone: pdfRow?.phone,
+                    pdf_amount: pdfRow?.shipmentAmount,
+                    pdf_delivery_fee: pdfRow?.deliveryFee,
+                    pdf_net_amount: pdfRow?.netToMerchant,
+                    pdf_status: pdfRow?.status,
+                    pdf_item_count: pdfRow?.itemCount,
+                    pdf_notes: pdfRow?.notes,
+                    match_category: item.matchCategory,
+                    match_details: {
+                        details: item.matchDetails,
+                        resolutionAction: resAction,
+                        resolutionNote: item.resolutionNote,
+                    },
+                    action: "confirmed",
+                    previous_status: item.previousStatus,
+                    new_status: newStatus,
+                });
+            } else {
+                failedCount++;
+                const msg = result.reason instanceof Error ? result.reason.message : "Unknown error";
+                errors.push(`Row #${item.pdfRowNumber}: ${msg}`);
+                console.error(`[DeliveryImport] Failed to update order for row #${item.pdfRowNumber}:`, msg);
+
+                const pdfRow = parsedPDF.rows.find((r) => r.rowNumber === item.pdfRowNumber);
+                auditItemsToInsert.push({
+                    import_id: importRecord.id,
+                    order_id: item.orderId,
+                    pdf_row_number: item.pdfRowNumber,
+                    pdf_shipment_number: pdfRow?.shipmentNumber,
+                    pdf_phone: pdfRow?.phone,
+                    pdf_amount: pdfRow?.shipmentAmount,
+                    pdf_delivery_fee: pdfRow?.deliveryFee,
+                    pdf_net_amount: pdfRow?.netToMerchant,
+                    pdf_status: pdfRow?.status,
+                    pdf_item_count: pdfRow?.itemCount,
+                    pdf_notes: pdfRow?.notes,
+                    match_category: item.matchCategory,
+                    match_details: {
+                        details: item.matchDetails,
+                        resolutionAction: item.resolutionAction,
+                        error: msg,
+                    },
+                    action: "failed",
+                    previous_status: item.previousStatus,
+                    new_status: null,
+                });
             }
         }
 
-        // 3. Create audit records for skipped items
+        // 3. Add skipped items to the audit insert array
         if (skippedItems?.length) {
-            const skippedRecords = skippedItems.map((item) => {
+            for (const item of skippedItems) {
                 const pdfRow = parsedPDF.rows.find((r) => r.rowNumber === item.pdfRowNumber);
-                return {
+                auditItemsToInsert.push({
                     import_id: importRecord.id,
                     order_id: item.orderId || null,
                     pdf_row_number: item.pdfRowNumber,
@@ -257,18 +248,24 @@ export async function POST(request: NextRequest) {
                     pdf_notes: pdfRow?.notes,
                     match_category: item.matchCategory,
                     match_details: { details: item.matchDetails },
-                    action: "skipped" as const,
+                    action: "skipped",
                     previous_status: null,
                     new_status: null,
-                };
-            });
-
-            await supabaseAdmin
-                .from("delivery_import_items")
-                .insert(skippedRecords)
-                .catch((err) => {
-                    console.error("[DeliveryImport] Failed to insert skipped items:", err);
                 });
+            }
+        }
+
+        // Insert all audit items in bulk
+        if (auditItemsToInsert.length > 0) {
+            for (let i = 0; i < auditItemsToInsert.length; i += 500) {
+                const { error: insertError } = await supabaseAdmin
+                    .from("delivery_import_items")
+                    .insert(auditItemsToInsert.slice(i, i + 500));
+                    
+                if (insertError) {
+                    console.error("[DeliveryImport] Failed to insert audit items batch:", insertError);
+                }
+            }
         }
 
         // 4. Update import record with final counts

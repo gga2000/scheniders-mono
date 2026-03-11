@@ -70,31 +70,3 @@ export async function updateWithConflictCheck<T extends Record<string, unknown>>
     }
 }
 
-/**
- * Perform a bulk update with conflict detection.
- * Uses a different approach: update all and check affected count.
- */
-export async function bulkUpdateWithConflictCheck<T extends Record<string, unknown>>(
-    table: string,
-    ids: string[],
-    updates: Partial<T>
-): Promise<ConflictResult> {
-    try {
-        const { error } = await supabase
-            .from(table)
-            .update(updates as Record<string, unknown>)
-            .in("id", ids);
-
-        if (error) {
-            return { success: false, conflict: false, error: error.message };
-        }
-
-        return { success: true, conflict: false };
-    } catch (err) {
-        return {
-            success: false,
-            conflict: false,
-            error: err instanceof Error ? err.message : "Bulk update failed",
-        };
-    }
-}

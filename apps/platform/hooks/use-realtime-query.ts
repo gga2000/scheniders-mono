@@ -103,7 +103,7 @@ export function useRealtimeQuery<T extends { id: string }>({
         const batcher = new RealtimeBatcher({
             queryClient,
             queryKey: stableQueryKey,
-            normalizer: normalizerRef.current,
+            normalizer: (raw: any) => normalizerRef.current(raw),
             flushDelayMs: batchDelayMs,
             onNewOrder: (order) => onInsertRef.current?.(order as unknown as T),
         });

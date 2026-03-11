@@ -166,6 +166,23 @@ export function useCreateTagMutation() {
         mutationFn: async ({ name, color }: { name: string; color: string }) => {
             return customerRepository.createTag(name, color);
         },
+        onMutate: async ({ name, color }) => {
+            await queryClient.cancelQueries({ queryKey: customerKeys.tags() });
+            const previousTags = queryClient.getQueryData<CustomerTag[]>(customerKeys.tags());
+            
+            const tempId = `temp-${Date.now()}`;
+            queryClient.setQueryData<CustomerTag[]>(customerKeys.tags(), (old) => [
+                ...(old || []),
+                { id: tempId, name, color: color as any, created_at: new Date().toISOString() }
+            ]);
+            
+            return { previousTags };
+        },
+        onError: (_err, _vars, context) => {
+            if (context?.previousTags) {
+                queryClient.setQueryData(customerKeys.tags(), context.previousTags);
+            }
+        },
         onSettled: () => queryClient.invalidateQueries({ queryKey: customerKeys.tags() })
     });
 }
@@ -176,6 +193,21 @@ export function useDeleteTagMutation() {
         mutationFn: async (id: string) => {
             await customerRepository.deleteTag(id);
             return id;
+        },
+        onMutate: async (id) => {
+            await queryClient.cancelQueries({ queryKey: customerKeys.tags() });
+            const previousTags = queryClient.getQueryData<CustomerTag[]>(customerKeys.tags());
+            
+            queryClient.setQueryData<CustomerTag[]>(customerKeys.tags(), (old) => 
+                old?.filter(tag => tag.id !== id) || []
+            );
+            
+            return { previousTags };
+        },
+        onError: (_err, _vars, context) => {
+            if (context?.previousTags) {
+                queryClient.setQueryData(customerKeys.tags(), context.previousTags);
+            }
         },
         onSettled: () => queryClient.invalidateQueries({ queryKey: customerKeys.tags() })
     });
@@ -188,6 +220,39 @@ export function useAssignTagMutation() {
         mutationFn: async ({ phone, tagId }: { phone: string; tagId: string }) => {
             await customerRepository.assignTag(phone, tagId);
             return { phone, tagId };
+        },
+        onMutate: async ({ phone, tagId }) => {
+            await queryClient.cancelQueries({ queryKey: customerKeys.assignments.byPhone(phone) });
+            await queryClient.cancelQueries({ queryKey: customerKeys.assignments.all() });
+            
+            const previousPhoneAssignments = queryClient.getQueryData<CustomerTagAssignment[]>(customerKeys.assignments.byPhone(phone));
+            const previousAllAssignments = queryClient.getQueryData<CustomerTagAssignment[]>(customerKeys.assignments.all());
+            
+            const tags = queryClient.getQueryData<CustomerTag[]>(customerKeys.tags()) || [];
+            const tag = tags.find(t => t.id === tagId);
+            
+            if (tag) {
+                const newAssignment: CustomerTagAssignment = {
+                    id: `temp-${Date.now()}`,
+                    customer_phone: phone,
+                    tag_id: tagId,
+                    created_at: new Date().toISOString(),
+                    tag
+                };
+                
+                queryClient.setQueryData<CustomerTagAssignment[]>(customerKeys.assignments.byPhone(phone), (old) => [...(old || []), newAssignment]);
+                queryClient.setQueryData<CustomerTagAssignment[]>(customerKeys.assignments.all(), (old) => [...(old || []), newAssignment]);
+            }
+            
+            return { previousPhoneAssignments, previousAllAssignments, phone };
+        },
+        onError: (_err, _vars, context) => {
+            if (context?.previousPhoneAssignments) {
+                queryClient.setQueryData(customerKeys.assignments.byPhone(context.phone), context.previousPhoneAssignments);
+            }
+            if (context?.previousAllAssignments) {
+                queryClient.setQueryData(customerKeys.assignments.all(), context.previousAllAssignments);
+            }
         },
         onSettled: (_data, _error, vars) => {
             queryClient.invalidateQueries({ queryKey: customerKeys.assignments.byPhone(vars.phone) });
@@ -202,6 +267,30 @@ export function useRemoveTagMutation() {
         mutationFn: async ({ phone, tagId }: { phone: string; tagId: string }) => {
             await customerRepository.removeTag(phone, tagId);
             return { phone, tagId };
+        },
+        onMutate: async ({ phone, tagId }) => {
+            await queryClient.cancelQueries({ queryKey: customerKeys.assignments.byPhone(phone) });
+            await queryClient.cancelQueries({ queryKey: customerKeys.assignments.all() });
+            
+            const previousPhoneAssignments = queryClient.getQueryData<CustomerTagAssignment[]>(customerKeys.assignments.byPhone(phone));
+            const previousAllAssignments = queryClient.getQueryData<CustomerTagAssignment[]>(customerKeys.assignments.all());
+            
+            queryClient.setQueryData<CustomerTagAssignment[]>(customerKeys.assignments.byPhone(phone), (old) => 
+                old?.filter(a => a.tag_id !== tagId) || []
+            );
+            queryClient.setQueryData<CustomerTagAssignment[]>(customerKeys.assignments.all(), (old) => 
+                old?.filter(a => !(a.customer_phone === phone && a.tag_id === tagId)) || []
+            );
+            
+            return { previousPhoneAssignments, previousAllAssignments, phone };
+        },
+        onError: (_err, _vars, context) => {
+            if (context?.previousPhoneAssignments) {
+                queryClient.setQueryData(customerKeys.assignments.byPhone(context.phone), context.previousPhoneAssignments);
+            }
+            if (context?.previousAllAssignments) {
+                queryClient.setQueryData(customerKeys.assignments.all(), context.previousAllAssignments);
+            }
         },
         onSettled: (_data, _error, vars) => {
             queryClient.invalidateQueries({ queryKey: customerKeys.assignments.byPhone(vars.phone) });
@@ -218,6 +307,42 @@ export function useUpdateMetadataMutation() {
             await customerRepository.upsertMetadata(phone, updates);
             return { phone, updates };
         },
+        onMutate: async ({ phone, updates }) => {
+            await queryClient.cancelQueries({ queryKey: customerKeys.metadata.byPhone(phone) });
+            await queryClient.cancelQueries({ queryKey: customerKeys.metadata.all() });
+            
+            const previousPhoneMetadata = queryClient.getQueryData<CustomerMetadata>(customerKeys.metadata.byPhone(phone));
+            const previousAllMetadata = queryClient.getQueryData<CustomerMetadata[]>(customerKeys.metadata.all());
+            
+            const newMetadata: CustomerMetadata = {
+                ...previousPhoneMetadata,
+                customer_phone: phone,
+                ...updates,
+                updated_at: new Date().toISOString(),
+                // Fill required fields if they don't exist
+                created_at: previousPhoneMetadata?.created_at || new Date().toISOString()
+            };
+            
+            queryClient.setQueryData<CustomerMetadata>(customerKeys.metadata.byPhone(phone), newMetadata);
+            queryClient.setQueryData<CustomerMetadata[]>(customerKeys.metadata.all(), (old) => {
+                if (!old) return [newMetadata];
+                const index = old.findIndex(m => m.customer_phone === phone);
+                if (index === -1) return [...old, newMetadata];
+                const copy = [...old];
+                copy[index] = newMetadata;
+                return copy;
+            });
+            
+            return { previousPhoneMetadata, previousAllMetadata, phone };
+        },
+        onError: (_err, _vars, context) => {
+            if (context?.previousPhoneMetadata) {
+                queryClient.setQueryData(customerKeys.metadata.byPhone(context.phone), context.previousPhoneMetadata);
+            }
+            if (context?.previousAllMetadata) {
+                queryClient.setQueryData(customerKeys.metadata.all(), context.previousAllMetadata);
+            }
+        },
         onSettled: (_data, _error, vars) => {
             queryClient.invalidateQueries({ queryKey: customerKeys.metadata.byPhone(vars.phone) });
             queryClient.invalidateQueries({ queryKey: customerKeys.metadata.all() });
@@ -232,6 +357,29 @@ export function useAddNoteMutation() {
         mutationFn: async ({ phone, note }: { phone: string; note: string }) => {
             return customerRepository.createNote(phone, note);
         },
+        onMutate: async ({ phone, note }) => {
+            await queryClient.cancelQueries({ queryKey: customerKeys.notes(phone) });
+            const previousNotes = queryClient.getQueryData<CustomerNote[]>(customerKeys.notes(phone));
+            
+            const tempNote: CustomerNote = {
+                id: `temp-${Date.now()}`,
+                customer_phone: phone,
+                note,
+                created_at: new Date().toISOString()
+            };
+            
+            queryClient.setQueryData<CustomerNote[]>(customerKeys.notes(phone), (old) => [
+                tempNote,
+                ...(old || [])
+            ]);
+            
+            return { previousNotes, phone };
+        },
+        onError: (_err, _vars, context) => {
+            if (context?.previousNotes) {
+                queryClient.setQueryData(customerKeys.notes(context.phone), context.previousNotes);
+            }
+        },
         onSettled: (_data, _error, vars) => {
             queryClient.invalidateQueries({ queryKey: customerKeys.notes(vars.phone) });
         }
@@ -245,6 +393,21 @@ export function useUpdateNoteMutation() {
             await customerRepository.updateNote(id, note);
             return id;
         },
+        onMutate: async ({ id, note, phone }) => {
+            await queryClient.cancelQueries({ queryKey: customerKeys.notes(phone) });
+            const previousNotes = queryClient.getQueryData<CustomerNote[]>(customerKeys.notes(phone));
+            
+            queryClient.setQueryData<CustomerNote[]>(customerKeys.notes(phone), (old) => 
+                old?.map(n => n.id === id ? { ...n, note } : n) || []
+            );
+            
+            return { previousNotes, phone };
+        },
+        onError: (_err, _vars, context) => {
+            if (context?.previousNotes) {
+                queryClient.setQueryData(customerKeys.notes(context.phone), context.previousNotes);
+            }
+        },
         onSettled: (_data, _error, vars) => {
             queryClient.invalidateQueries({ queryKey: customerKeys.notes(vars.phone) });
         }
@@ -257,6 +420,21 @@ export function useDeleteNoteMutation() {
         mutationFn: async ({ id, phone }: { id: string; phone: string }) => {
             await customerRepository.deleteNote(id);
             return id;
+        },
+        onMutate: async ({ id, phone }) => {
+            await queryClient.cancelQueries({ queryKey: customerKeys.notes(phone) });
+            const previousNotes = queryClient.getQueryData<CustomerNote[]>(customerKeys.notes(phone));
+            
+            queryClient.setQueryData<CustomerNote[]>(customerKeys.notes(phone), (old) => 
+                old?.filter(n => n.id !== id) || []
+            );
+            
+            return { previousNotes, phone };
+        },
+        onError: (_err, _vars, context) => {
+            if (context?.previousNotes) {
+                queryClient.setQueryData(customerKeys.notes(context.phone), context.previousNotes);
+            }
         },
         onSettled: (_data, _error, vars) => {
             queryClient.invalidateQueries({ queryKey: customerKeys.notes(vars.phone) });

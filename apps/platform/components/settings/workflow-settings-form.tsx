@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
 
 export function WorkflowSettingsForm() {
     const { settings, updateSetting, loading } = useSettings();
@@ -21,9 +22,17 @@ export function WorkflowSettingsForm() {
 
     const handleSave = async () => {
         setIsSaving(true);
-        // Batch update? sequential for now
-        await updateSetting("auto_archive", autoArchive);
-        await updateSetting("quick_actions", quickActions);
+        const results = await Promise.all([
+            updateSetting("auto_archive", autoArchive),
+            updateSetting("quick_actions", quickActions)
+        ]);
+        
+        const failed = results.filter(r => !r.success);
+        if (failed.length > 0) {
+            toast.error("Failed to save workflow settings", failed.map(r => r.error).join(", "));
+        } else {
+            toast.success("Workflow settings saved successfully");
+        }
         setIsSaving(false);
     };
 

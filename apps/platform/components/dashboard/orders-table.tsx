@@ -19,9 +19,12 @@ export function OrdersTable({ orders, onUpdateStatus, onUpdateOrder }: OrdersTab
     const [filter, setFilter] = useState<Order["status"] | "all">("all");
     const [searchQuery, setSearchQuery] = useState("");
     const [loading, setLoading] = useState<string | null>(null);
-    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+    const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const { promptUser, PromptComponent } = usePrompt();
+
+    // Derive the freshest order object from the live orders array
+    const selectedOrder = orders.find(o => o.id === selectedOrderId) || null;
 
     const filteredOrders = orders.filter((order) => {
         const matchesFilter = filter === "all" || order.status === filter;
@@ -166,7 +169,7 @@ export function OrdersTable({ orders, onUpdateStatus, onUpdateOrder }: OrdersTab
                                             loadingId={loading}
                                             onStatusUpdate={handleStatusUpdate}
                                             onViewDetails={(o) => {
-                                                setSelectedOrder(o);
+                                                setSelectedOrderId(o.id);
                                                 setIsModalOpen(true);
                                             }}
                                         />
@@ -184,7 +187,7 @@ export function OrdersTable({ orders, onUpdateStatus, onUpdateOrder }: OrdersTab
                 open={isModalOpen}
                 onClose={() => {
                     setIsModalOpen(false);
-                    setSelectedOrder(null);
+                    setSelectedOrderId(null);
                 }}
                 onUpdate={onUpdateOrder}
                 onStatusUpdate={onUpdateStatus}
