@@ -61,7 +61,7 @@ BEGIN
         order_id, sequence_number, customer_name, phone, secondary_phone, city, address_details,
         items, price, delivery_fee, discount_amount, priority, status,
         payment_status, is_return, source, governorate_code, validated_governorate_code,
-        notes, risk_metadata, needs_attention, attention_reasons, schedule_verified
+        notes, risk_metadata, needs_attention, attention_reasons
     )
     SELECT
         _order_data->>'order_id',
@@ -85,8 +85,7 @@ BEGIN
         _order_data->>'notes',
         _order_data->'risk_metadata',
         COALESCE((_order_data->>'needs_attention')::boolean, false),
-        COALESCE(_order_data->'attention_reasons', '[]'::jsonb),
-        COALESCE((_order_data->>'schedule_verified')::boolean, false)
+        COALESCE(_order_data->'attention_reasons', '[]'::jsonb)
     RETURNING to_jsonb(orders.*) INTO _result;
 
     RETURN _result;

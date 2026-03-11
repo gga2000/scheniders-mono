@@ -284,8 +284,8 @@ export function matchParsedRows(
             continue;
         }
 
-        // 5. Classify the match
-        const { category, details } = classifyMatch(pdfRow, order, matchedBy);
+        // 5. Classify the match (matchedBy is guaranteed to be "order_id" or "phone" here since order was found)
+        const { category, details } = classifyMatch(pdfRow, order, matchedBy as "order_id" | "phone");
 
         // 6. Check for reorder (informational overlay, doesn't change category)
         let finalDetails = details;
