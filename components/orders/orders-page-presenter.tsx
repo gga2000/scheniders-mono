@@ -1847,7 +1847,7 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                 {/* Modals */}
 
                 <OrderDetailsModal
-                    order={selectedOrder}
+                    order={selectedOrder ? (orders.find((o: Order) => o.id === selectedOrder.id) ?? selectedOrder) : null}
                     open={isModalOpen}
                     onClose={() => {
                         setIsModalOpen(false);
@@ -1857,7 +1857,6 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                     onStatusUpdate={updateOrderStatus}
                     onGetTimeline={getOrderTimeline}
                     onGetNotes={getOrderNotes}
-                    onAddNote={addOrderNote}
                     onDelete={deleteOrder}
                     onCreateReturn={createReturnOrder}
                     onCreateReplacement={createReplacementOrder}

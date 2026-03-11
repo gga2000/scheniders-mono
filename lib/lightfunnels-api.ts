@@ -626,6 +626,7 @@ async function mapToLocalOrder(lfOrder: LightfunnelsOrder): Promise<Omit<Order, 
         priority: 'normal',
         payment_status: lfOrder.financial_status === 'paid' ? 'paid' : 'pending',
         is_return: false,
+        is_replacement: false,
         is_archived: false,
         source: 'lightfunnels',
     };
@@ -684,6 +685,7 @@ async function mapCheckoutToLocalOrder(lfCheckout: LightfunnelsCheckout): Promis
         priority: 'normal',
         payment_status: 'pending',
         is_return: false,
+        is_replacement: false,
         is_archived: false,
         source: 'lightfunnels',
     };

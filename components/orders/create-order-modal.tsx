@@ -20,6 +20,7 @@ import {
     type ValidationErrors,
 } from "@/lib/order-utils";
 import type { OrderItem } from "@/lib/supabase";
+import { toast } from "sonner";
 import {
     User,
     Phone,
@@ -59,7 +60,7 @@ const TikTokIcon = ({ className }: { className?: string }) => (
 interface CreateOrderModalProps {
     open: boolean;
     onClose: () => void;
-    onCreate: (orderData: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
+    onCreate: (orderData: any) => Promise<any>;
     checkOrderIdExists?: (orderId: string) => Promise<boolean>;
     initialData?: Partial<OrderFormData & { secondary_phone?: string; source?: string; order_id?: string }>;
 }
@@ -175,19 +176,28 @@ export function CreateOrderModal({
         onClose();
     };
 
-    const handleOrderIdChange = async (value: string) => {
+    const handleOrderIdChange = (value: string) => {
         updateField("order_id", value);
-        setOrderIdStatus("idle");
+    };
 
-        // Only check if user entered something
-        if (value.trim() && checkOrderIdExists) {
-            setIsCheckingId(true);
-            setOrderIdStatus("checking");
-            const exists = await checkOrderIdExists(value.trim());
+    useEffect(() => {
+        const id = formData.order_id?.trim();
+        if (!checkOrderIdExists || !id) {
+            setOrderIdStatus("idle");
+            return;
+        }
+
+        setOrderIdStatus("checking");
+        setIsCheckingId(true);
+
+        const timer = setTimeout(async () => {
+            const exists = await checkOrderIdExists(id);
             setOrderIdStatus(exists ? "exists" : "available");
             setIsCheckingId(false);
-        }
-    };
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [formData.order_id, checkOrderIdExists]);
 
     const updateField = (field: string, value: string | number | boolean | undefined | string[]) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
@@ -319,6 +329,12 @@ export function CreateOrderModal({
 
         const newErrors: ValidationErrors = {};
 
+        if (orderIdStatus === "exists") {
+            newErrors.order_id = "رقم الطلب هذا موجود مسبقاً";
+        } else if (orderIdStatus === "checking") {
+            newErrors.order_id = "جاري التحقق من رقم الطلب...";
+        }
+
         if (!formData.customer_name.trim()) {
             newErrors.customer_name = "اسم العميل مطلوب";
         }
@@ -426,27 +442,29 @@ export function CreateOrderModal({
                                     <RefreshCw className="h-3 w-3" />
                                     مسح
                                 </button>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setOrderType("delivery");
-                                        setFormData(prev => ({
-                                            ...prev,
-                                            customer_name: "علي-تيست",
-                                            phone: "07802301677",
-                                            secondary_phone: "07811262261",
-                                            city: "واسط",
-                                            address_details: "العزيزية - الجمعية",
-                                            source: "tiktok",
-                                            is_test: true,
-                                            items: prev.items.length > 0 ? prev.items : [{ name: "Test Product", price: 15000, quantity: 1 }]
-                                        }));
-                                    }}
-                                    className="px-2 py-1 flex items-center gap-1 text-[10px] font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-md hover:bg-purple-100 transition-all opacity-50 hover:opacity-100 shadow-sm"
-                                    title="تعبئة بيانات تجريبية"
-                                >
-                                    Test
-                                </button>
+                                {process.env.NODE_ENV === "development" && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setOrderType("delivery");
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                customer_name: "علي-تيست",
+                                                phone: "07802301677",
+                                                secondary_phone: "07811262261",
+                                                city: "واسط",
+                                                address_details: "العزيزية - الجمعية",
+                                                source: "tiktok",
+                                                is_test: true,
+                                                items: prev.items.length > 0 ? prev.items : [{ name: "Test Product", price: 15000, quantity: 1 }]
+                                            }));
+                                        }}
+                                        className="px-2 py-1 flex items-center gap-1 text-[10px] font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-md hover:bg-purple-100 transition-all opacity-50 hover:opacity-100 shadow-sm"
+                                        title="تعبئة بيانات تجريبية"
+                                    >
+                                        Test
+                                    </button>
+                                )}
                             </div>
                         </DialogTitle>
                     </DialogHeader>
@@ -1056,26 +1074,48 @@ export function CreateOrderModal({
                 open={showBulkUpload}
                 onClose={() => setShowBulkUpload(false)}
                 onCreate={async (orders) => {
-                    // Create all orders
+                    let successCount = 0;
+                    let failCount = 0;
+
+                    // Create all orders with per-order error handling
                     for (const orderData of orders) {
-                        await onCreate({
-                            customer_name: orderData.customer_name,
-                            phone: orderData.phone,
-                            secondary_phone: orderData.secondary_phone || undefined,
-                            city: orderData.city,
-                            address_details: orderData.address,
-                            items: [],
-                            notes: '',
-                            internal_notes: `[AI رفع مجمع] تم استخراج البيانات تلقائياً`,
-                            price: 0,
-                            discount_amount: 0,
-                            delivery_fee: 0,
-                            is_shop_order: false,
-                            status: 'pending',
-                            source: 'whatsapp',
-                        });
+                        try {
+                            const result = await onCreate({
+                                customer_name: orderData.customer_name,
+                                phone: orderData.phone,
+                                secondary_phone: orderData.secondary_phone || undefined,
+                                city: orderData.city,
+                                address_details: orderData.address,
+                                items: [],
+                                notes: '',
+                                internal_notes: `[AI رفع مجمع] تم استخراج البيانات تلقائياً`,
+                                price: 0,
+                                discount_amount: 0,
+                                delivery_fee: 0,
+                                is_shop_order: false,
+                                status: 'pending',
+                                source: 'whatsapp',
+                            });
+                            
+                            if (result?.success) {
+                                successCount++;
+                            } else {
+                                failCount++;
+                                console.error(`Failed to create order for ${orderData.customer_name}:`, result?.error);
+                            }
+                        } catch (err) {
+                            failCount++;
+                            console.error(`Error creating order for ${orderData.customer_name}:`, err);
+                        }
                     }
-                    alert(`✅ تم إنشاء ${orders.length} طلب بنجاح!`);
+                    
+                    if (failCount === 0) {
+                        toast.success(`✅ تم إنشاء ${successCount} طلب بنجاح!`);
+                    } else if (successCount > 0) {
+                        toast.warning(`تم إنشاء ${successCount} طلب بنجاح، وفشل ${failCount} طلب.`);
+                    } else {
+                        toast.error(`❌ فشل إنشاء جميع الطلبات (${failCount}).`);
+                    }
                 }}
             />
         </>

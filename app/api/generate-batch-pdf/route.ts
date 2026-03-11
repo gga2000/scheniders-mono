@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Wait for images, QR codes, barcodes to load
-    await page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Generate PDF optimized for thermal printing
     const pdf = await page.pdf({
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
     await browser.close();
 
     // Return PDF
-    return new NextResponse(pdf, {
+    return new NextResponse(pdf as any, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',

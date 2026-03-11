@@ -104,41 +104,7 @@ export function useOrders() {
         }
     }, [cachedArchivedOrders]);
 
-    // =============================================
-    // AUTO-UPDATE CONTACTED -> NO_RESPONSE
-    // =============================================
-    const [hasRunAutoUpdate, setHasRunAutoUpdate] = useState(false);
 
-    useEffect(() => {
-        if (!orders || orders.length === 0 || hasRunAutoUpdate) return;
-
-        const now = Date.now();
-        const FORTY_EIGHT_HOURS = 48 * 60 * 60 * 1000;
-
-        const expiredIds = orders
-            .filter(o => {
-                if (o.status !== "contacted") return false;
-                const refDate = new Date(o.updated_at || o.created_at).getTime();
-                return (now - refDate) > FORTY_EIGHT_HOURS;
-            })
-            .map(o => o.id);
-
-        if (expiredIds.length > 0) {
-            console.log(`[Diag:Orders] AUTO_UPDATE contacted→no_response count=${expiredIds.length}`);
-            crudHook.bulkUpdateStatus(expiredIds, "no_response").then(res => {
-                if (res?.success || res === undefined) {
-                    toast.success(
-                        `${expiredIds.length} orders safely auto-updated to "No Response"`
-                    );
-                }
-            });
-        }
-
-        // Set this to true regardless of whether we found expired IDs, 
-        // to prevent re-running this check unnecessarily in this session.
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setHasRunAutoUpdate(true);
-    }, [orders, hasRunAutoUpdate, crudHook]);
 
     // =============================================
     // RETURN OBJECT (same shape for backward compat)

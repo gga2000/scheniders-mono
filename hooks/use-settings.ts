@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export interface AppSetting {
     key: string;
@@ -22,103 +23,88 @@ const DEFAULT_SETTINGS = {
     notification_settings: { sound_enabled: true, sound_url: "/sounds/notification.mp3", toast_enabled: true },
 };
 
+export const SETTINGS_QUERY_KEY = ["app-settings"];
+
 export function useSettings() {
-    const [settings, setSettings] = useState<Record<string, any>>(DEFAULT_SETTINGS);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const queryClient = useQueryClient();
 
-    // =============================================
-    // INITIAL LOAD
-    // =============================================
-
-    useEffect(() => {
-        fetchSettings();
-    }, []);
-
-    async function fetchSettings() {
-        try {
-            setLoading(true);
+    const { data: settings = DEFAULT_SETTINGS, isLoading: loading, error, refetch } = useQuery({
+        queryKey: SETTINGS_QUERY_KEY,
+        queryFn: async () => {
             const { data, error: fetchError } = await supabase
                 .from("app_settings")
                 .select("*");
 
             if (fetchError) throw fetchError;
 
+            const settingsMap: Record<string, any> = { ...DEFAULT_SETTINGS };
             if (data) {
-                // Convert array of rows to kv object
-                const settingsMap: Record<string, any> = { ...DEFAULT_SETTINGS };
                 data.forEach((row: AppSetting) => {
                     settingsMap[row.key] = row.value;
                 });
-                setSettings(settingsMap);
             }
-        } catch (err) {
-            console.error("Error fetching settings:", err);
-            // Don't set global error to avoid blocking UI, just log it and use defaults
-        } finally {
-            setLoading(false);
-        }
-    }
+            return settingsMap;
+        },
+        staleTime: 1000 * 60 * 60, // 1 hour (settings rarely change without user interaction)
+    });
 
-    // =============================================
-    // UPDATE FUNCTION
-    // =============================================
-
-    const updateSetting = useCallback(async (key: string, newValue: any) => {
-        // Capture previous value securely for potential rollback
-        let previousValue: any;
-
-        // Optimistic update
-        setSettings((prev) => {
-            previousValue = prev[key];
-            return {
-                ...prev,
-                [key]: newValue,
-            };
-        });
-
-        try {
+    const updateMutation = useMutation({
+        mutationFn: async ({ key, newValue }: { key: string; newValue: any }) => {
             const { error: updateError } = await supabase
                 .from("app_settings")
                 .upsert({
                     key,
                     value: newValue,
                     updated_at: new Date().toISOString()
-                })
-                .select();
+                });
 
             if (updateError) throw updateError;
+            return { key, newValue };
+        },
+        onMutate: async ({ key, newValue }) => {
+            await queryClient.cancelQueries({ queryKey: SETTINGS_QUERY_KEY });
+            const previousSettings = queryClient.getQueryData<Record<string, any>>(SETTINGS_QUERY_KEY);
 
+            queryClient.setQueryData<Record<string, any>>(SETTINGS_QUERY_KEY, (old) => ({
+                ...(old || DEFAULT_SETTINGS),
+                [key]: newValue,
+            }));
+
+            return { previousSettings };
+        },
+        onError: (_err, _vars, context) => {
+            if (context?.previousSettings) {
+                queryClient.setQueryData(SETTINGS_QUERY_KEY, context.previousSettings);
+            }
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: SETTINGS_QUERY_KEY });
+        }
+    });
+
+    const updateSetting = useCallback(async (key: string, newValue: any) => {
+        try {
+            await updateMutation.mutateAsync({ key, newValue });
             return { success: true };
         } catch (err) {
             console.error(`Error updating setting ${key}:`, err);
-
-            // Revert optimism on failure
-            if (previousValue !== undefined) {
-                setSettings((prev) => ({
-                    ...prev,
-                    [key]: previousValue,
-                }));
-            }
-
             return {
                 success: false,
                 error: err instanceof Error ? err.message : "Failed to update setting"
             };
         }
-    }, []);
+    }, [updateMutation]);
 
-    // Shortcut getter
     const get = useCallback((key: string) => {
-        return settings[key] || DEFAULT_SETTINGS[key as keyof typeof DEFAULT_SETTINGS];
+        return (settings as Record<string, any>)[key] || DEFAULT_SETTINGS[key as keyof typeof DEFAULT_SETTINGS];
     }, [settings]);
 
     return {
         settings,
         loading,
-        error,
+        error: error ? (error instanceof Error ? error.message : "Failed to fetch") : null,
         updateSetting,
         get,
-        refresh: fetchSettings
+        refresh: refetch
     };
 }

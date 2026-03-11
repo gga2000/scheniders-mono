@@ -54,11 +54,22 @@ async function processCheckoutQueue(): Promise<NextResponse> {
 
         for (const item of pending) {
             try {
-                // Increment attempt count first
-                await supabase
+                // Increment attempt count first and claim atomically
+                const { data: claimed, error: claimErr } = await supabase
                     .from('checkout_queue')
                     .update({ attempts: item.attempts + 1 })
-                    .eq('id', item.id);
+                    .eq('id', item.id)
+                    .eq('attempts', item.attempts)
+                    .select('id');
+
+                if (claimErr) {
+                    throw new Error(`Failed to claim checkout: ${claimErr.message}`);
+                }
+
+                if (!claimed || claimed.length === 0) {
+                    console.log(`[Cron] Checkout ${item.checkout_id} already claimed by another process. Skipping.`);
+                    continue; // Skip this one, it's being handled by another invocation
+                }
 
                 // Fetch full checkout data from Lightfunnels
                 const checkout = await fetchCheckoutById(item.checkout_id, accessToken);

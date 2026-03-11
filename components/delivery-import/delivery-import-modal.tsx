@@ -66,8 +66,7 @@ export function DeliveryImportModal({
         for (const match of matches) {
             if (
                 match.order &&
-                (match.category === "clean" || match.category === "reorder") &&
-                match.category !== "negative_refund"
+                (match.category === "clean" || match.category === "reorder")
             ) {
                 cleanRows.add(match.pdfRow.rowNumber);
             }

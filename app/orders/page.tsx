@@ -623,32 +623,41 @@ export default function OrdersPage() {
     const handleBulkConfirm = async () => {
         const ids = Array.from(selectedOrders);
         const result = await bulkUpdateStatus(ids, "confirmed");
-        setSelectedOrders(new Set());
-        if (result?.success || result === undefined) toast.success(t("toast.ordersConfirmed"), t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)));
-        else if (result?.error) toast.error(t("toast.updateFailed"), result.error);
+        if (result?.success || result === undefined) {
+            toast.success(t("toast.ordersConfirmed"), t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)));
+            setSelectedOrders(new Set());
+        } else if (result?.error) {
+            toast.error(t("toast.updateFailed"), result.error);
+        }
     };
 
     const handleBulkDeliver = async () => {
         const ids = Array.from(selectedOrders);
         const result = await bulkUpdateStatus(ids, "delivered");
-        setSelectedOrders(new Set());
-        if (result?.success || result === undefined) toast.success(t("toast.ordersDelivered"), t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)));
-        else if (result?.error) toast.error(t("toast.updateFailed"), result.error);
+        if (result?.success || result === undefined) {
+            toast.success(t("toast.ordersDelivered"), t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)));
+            setSelectedOrders(new Set());
+        } else if (result?.error) {
+            toast.error(t("toast.updateFailed"), result.error);
+        }
     };
 
     const handleBulkReject = async () => {
         const ids = Array.from(selectedOrders);
         const result = await bulkUpdateStatus(ids, "rejected");
-        setSelectedOrders(new Set());
-        if (result?.success || result === undefined) toast.success(t("toast.ordersRejected"), t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)));
-        else if (result?.error) toast.error(t("toast.updateFailed"), result.error);
+        if (result?.success || result === undefined) {
+            toast.success(t("toast.ordersRejected"), t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)));
+            setSelectedOrders(new Set());
+        } else if (result?.error) {
+            toast.error(t("toast.updateFailed"), result.error);
+        }
     };
 
     const handleBulkArchive = async () => {
         const ids = Array.from(selectedOrders);
         const result = await bulkArchive(ids);
-        setSelectedOrders(new Set());
         if (result?.success || result === undefined) {
+            setSelectedOrders(new Set());
             toast({
                 title: t("toast.ordersArchived"),
                 description: t("toast.ordersArchivedDesc").replace("{count}", String(ids.length)),
@@ -720,41 +729,56 @@ export default function OrdersPage() {
     const handleBulkNew = async () => {
         const ids = Array.from(selectedOrders);
         const result = await bulkUpdateStatus(ids, "new");
-        setSelectedOrders(new Set());
-        if (result?.success || result === undefined) toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "New"));
-        else if (result?.error) toast.error(t("toast.updateFailed"), result.error);
+        if (result?.success || result === undefined) {
+            toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "New"));
+            setSelectedOrders(new Set());
+        } else if (result?.error) {
+            toast.error(t("toast.updateFailed"), result.error);
+        }
     };
 
     const handleBulkContacted = async () => {
         const ids = Array.from(selectedOrders);
         const result = await bulkUpdateStatus(ids, "contacted");
-        setSelectedOrders(new Set());
-        if (result?.success || result === undefined) toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "Contacted"));
-        else if (result?.error) toast.error(t("toast.updateFailed"), result.error);
+        if (result?.success || result === undefined) {
+            toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "Contacted"));
+            setSelectedOrders(new Set());
+        } else if (result?.error) {
+            toast.error(t("toast.updateFailed"), result.error);
+        }
     };
 
     const handleBulkInTransit = async () => {
         const ids = Array.from(selectedOrders);
         const result = await bulkUpdateStatus(ids, "in_transit");
-        setSelectedOrders(new Set());
-        if (result?.success || result === undefined) toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "In Transit"));
-        else if (result?.error) toast.error(t("toast.updateFailed"), result.error);
+        if (result?.success || result === undefined) {
+            toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "In Transit"));
+            setSelectedOrders(new Set());
+        } else if (result?.error) {
+            toast.error(t("toast.updateFailed"), result.error);
+        }
     };
 
     const handleBulkCompleted = async () => {
         const ids = Array.from(selectedOrders);
         const result = await bulkUpdateStatus(ids, "completed");
-        setSelectedOrders(new Set());
-        if (result?.success || result === undefined) toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "Completed"));
-        else if (result?.error) toast.error(t("toast.updateFailed"), result.error);
+        if (result?.success || result === undefined) {
+            toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "Completed"));
+            setSelectedOrders(new Set());
+        } else if (result?.error) {
+            toast.error(t("toast.updateFailed"), result.error);
+        }
     };
 
     const handleBulkNoResponse = async () => {
         const ids = Array.from(selectedOrders);
         const result = await bulkUpdateStatus(ids, "no_response");
-        setSelectedOrders(new Set());
-        if (result?.success || result === undefined) toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "No Response"));
-        else if (result?.error) toast.error(t("toast.updateFailed"), result.error);
+        if (result?.success || result === undefined) {
+            toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "No Response"));
+            setSelectedOrders(new Set());
+        } else if (result?.error) {
+            toast.error(t("toast.updateFailed"), result.error);
+        }
     };
 
     const handleExport = () => {
@@ -2418,7 +2442,7 @@ export default function OrdersPage() {
 
                     {/* Modals */}
                     <OrderDetailsModal
-                        order={selectedOrder}
+                        order={selectedOrder ? (orders.find((o: Order) => o.id === selectedOrder.id) ?? selectedOrder) : null}
                         open={isModalOpen}
                         onClose={() => {
                             setIsModalOpen(false);
@@ -2428,7 +2452,6 @@ export default function OrdersPage() {
                         onStatusUpdate={updateOrderStatus}
                         onGetTimeline={getOrderTimeline}
                         onGetNotes={getOrderNotes}
-                        onAddNote={addOrderNote}
                         onDelete={deleteOrder}
                         onCreateReturn={createReturnOrder}
                         onCreateReplacement={createReplacementOrder}

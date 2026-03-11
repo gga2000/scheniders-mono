@@ -9,10 +9,6 @@ export type { ActivityAction, ActivityLogEntry, LogActivityParams };
 // =============================================
 
 class ActivityLogger {
-    // Cache session to avoid repeated getSession() calls
-    private cachedSession: { userId: string; userEmail: string; expiresAt: number } | null = null;
-    private sessionCacheDuration = 5 * 60 * 1000; // 5 minutes
-
     private getUserAgent(): string | null {
         if (typeof window !== "undefined") {
             return window.navigator.userAgent;
@@ -21,27 +17,10 @@ class ActivityLogger {
     }
 
     private async getCachedSession(): Promise<{ userId: string | null; userEmail: string | null }> {
-        // console.log(`[ActivityLogger] Getting session...`);
-        // Return cached session if still valid
-        if (this.cachedSession && Date.now() < this.cachedSession.expiresAt) {
-            return {
-                userId: this.cachedSession.userId,
-                userEmail: this.cachedSession.userEmail
-            };
-        }
-
         try {
             const { data: session } = await supabase.auth.getSession();
             const userId = session?.session?.user?.id;
             const userEmail = session?.session?.user?.email;
-
-            if (userId && userEmail) {
-                this.cachedSession = {
-                    userId,
-                    userEmail,
-                    expiresAt: Date.now() + this.sessionCacheDuration
-                };
-            }
 
             return { userId: userId || null, userEmail: userEmail || null };
         } catch {

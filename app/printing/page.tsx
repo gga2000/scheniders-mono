@@ -998,7 +998,7 @@ export default function PrintingPage() {
                                                                 <Flame className="w-2.5 h-2.5" />
                                                             </span>
                                                         )}
-                                                        {order.priority === "high" && order.priority !== "urgent" && (
+                                                        {order.priority === "high" && (
                                                             <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-amber-100 text-amber-700">
                                                                 <Flag className="w-2.5 h-2.5" />
                                                             </span>

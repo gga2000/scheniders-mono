@@ -69,29 +69,9 @@ export async function POST(request: NextRequest) {
         const t6 = performance.now();
         console.log(`[Perf] Snapshot fetch took: ${(t6 - t5).toFixed(2)}ms`);
 
-        // Log deletion audit to deletion_log table (best-effort, don't block on failure)
         if (orderSnapshots && orderSnapshots.length > 0) {
-            const t7 = performance.now();
-            await supabaseAdmin
-                .from('deletion_log')
-                .insert({
-                    deleted_by: user.id,
-                    deleted_at: new Date().toISOString(),
-                    order_count: orderSnapshots.length,
-                    order_ids: ids,
-                    order_snapshots: orderSnapshots,
-                })
-                .then(({ error: logError }) => {
-                    const t8 = performance.now();
-                    console.log(`[Perf] Audit log insert took: ${(t8 - t7).toFixed(2)}ms`);
-                    if (logError) {
-                        // Table may not exist yet - fall back to console logging
-                        console.warn('[Deletion Audit] Could not write to deletion_log table:', logError.message);
-                    }
-                });
-
-            // Always log to console (captured by Vercel)
-            console.warn(`[Deletion Audit] User ${user.email || user.id} deleting ${orderSnapshots.length} orders:`,
+            // Always log to console (captured by Vercel) before attempting so we have a trace if it crashes
+            console.warn(`[Deletion Audit] User ${user.email || user.id} attempting to delete ${orderSnapshots.length} orders:`,
                 orderSnapshots.map(o => `${o.order_id} (${o.status})`).join(', '));
         }
 
@@ -114,19 +94,46 @@ export async function POST(request: NextRequest) {
         const t12 = performance.now();
         console.log(`[Perf] Actual delete took: ${(t12 - t11).toFixed(2)}ms`);
 
-        console.log(`[Perf] Total backend deletion process took: ${(performance.now() - startTime).toFixed(2)}ms`);
-
         if (deleteError) {
+            console.error('[Deletion] Error deleting orders:', deleteError.message);
             return NextResponse.json(
                 { success: false, error: deleteError.message },
                 { status: 500 }
             );
         }
 
+        const deletedIds = (deletedRows || []).map(r => r.id);
+        
+        // Log deletion audit to deletion_log table ONLY for successfully deleted orders
+        if (orderSnapshots && deletedIds.length > 0) {
+            const successfullyDeletedSnapshots = orderSnapshots.filter(s => deletedIds.includes(s.id));
+            if (successfullyDeletedSnapshots.length > 0) {
+                const t7 = performance.now();
+                const { error: logError } = await supabaseAdmin
+                    .from('deletion_log')
+                    .insert({
+                        deleted_by: user.id,
+                        deleted_at: new Date().toISOString(),
+                        order_count: successfullyDeletedSnapshots.length,
+                        order_ids: successfullyDeletedSnapshots.map(s => s.id),
+                        order_snapshots: successfullyDeletedSnapshots,
+                    });
+                    
+                const t8 = performance.now();
+                console.log(`[Perf] Audit log insert took: ${(t8 - t7).toFixed(2)}ms`);
+                if (logError) {
+                    // Table may not exist yet - fall back to console logging
+                    console.warn('[Deletion Audit] Could not write to deletion_log table:', logError.message);
+                }
+            }
+        }
+
+        console.log(`[Perf] Total backend deletion process took: ${(performance.now() - startTime).toFixed(2)}ms`);
+
         return NextResponse.json({
             success: true,
-            count: deletedRows?.length || 0,
-            deletedIds: (deletedRows || []).map(r => r.id),
+            count: deletedIds.length,
+            deletedIds,
         });
     } catch (error) {
         console.error('Delete orders error:', error);

@@ -244,14 +244,13 @@ export function MobileOrdersPage() {
             {/* Detail View Modal */}
             {selectedOrder && (
                 <OrderDetailsModal
-                    order={selectedOrder}
+                    order={selectedOrder ? (hookFilteredOrders.find(o => o.id === selectedOrder.id) ?? selectedOrder) : null}
                     open={!!selectedOrder}
                     onClose={() => setSelectedOrder(null)}
                     onUpdate={updateOrder}
                     onStatusUpdate={updateOrderStatus}
                     onGetTimeline={getOrderTimeline}
                     onGetNotes={getOrderNotes}
-                    onAddNote={addOrderNote}
                     onDelete={deleteOrder}
                     onCreateReturn={createReturnOrder}
                     checkOrderIdExists={checkOrderIdExists}

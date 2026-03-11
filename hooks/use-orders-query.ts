@@ -58,38 +58,7 @@ if (typeof window !== 'undefined') {
     }, SEQ_CLEANUP_INTERVAL_MS);
 }
 
-// =============================================
-// SESSION STORAGE SWR CACHE (Stale-While-Revalidate)
-// Shows cached data instantly on refresh while
-// fetching fresh data in the background.
-// Uses sessionStorage (not IndexedDB) to avoid
-// cross-tab staleness / conflict-detection issues.
-// =============================================
-const SS_KEY = "orders_cache_v1";
 
-function getCachedOrders(): Order[] | undefined {
-    if (typeof window === "undefined") return undefined;
-    try {
-        const raw = sessionStorage.getItem(SS_KEY);
-        if (!raw) return undefined;
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed;
-        }
-    } catch {
-        // Corrupt or unavailable — ignore
-    }
-    return undefined;
-}
-
-export function setCachedOrders(orders: Order[]): void {
-    if (typeof window === "undefined") return;
-    try {
-        sessionStorage.setItem(SS_KEY, JSON.stringify(orders));
-    } catch {
-        // QuotaExceeded — ignore, cache is best-effort
-    }
-}
 
 // Fetch all active orders — auth gating is handled by the `enabled` flag in useOrdersQuery.
 async function fetchOrders(): Promise<Order[]> {
@@ -98,8 +67,7 @@ async function fetchOrders(): Promise<Order[]> {
     const result = await orderRepository.findAll();
     console.log(`[Diag:RQ:Fetch] fetchOrders OK count=${result.length} took=${(performance.now() - _tFetch).toFixed(1)}ms`);
 
-    // Persist to sessionStorage for SWR on next refresh
-    setCachedOrders(result);
+    return result;
 
     return result;
 }
@@ -122,8 +90,6 @@ async function fetchArchivedOrders(): Promise<Order[]> {
 export function useOrdersQuery(refetchTrigger?: string) {
     const queryClient = useQueryClient();
     const { session } = useAuth();
-    // Read cached data once via useState lazy initializer (avoids ref-during-render lint)
-    const [cachedInitialData] = useState(() => getCachedOrders());
 
     // Force refetch when trigger changes
     useEffect(() => {
@@ -139,11 +105,6 @@ export function useOrdersQuery(refetchTrigger?: string) {
         // Auth-gated: don't fetch until we have a session
         // This eliminates the "No auth session" throw → retry cycle
         enabled: !!session,
-        // Serve cached data instantly while refetching in background
-        initialData: cachedInitialData,
-        // If we have initialData, mark it as potentially stale so
-        // React Query refetches immediately in the background
-        initialDataUpdatedAt: cachedInitialData ? 0 : undefined,
         // Short staleTime — realtime patches keep cache fresh between refetches
         staleTime: 30 * 1000, // 30 seconds
         gcTime: CACHE_PRESETS.FREQUENT.gcTime, // 10 mins
@@ -201,8 +162,6 @@ export function useUpdateOrderMutation() {
                         ? { ...order, ...updates } as Order
                         : order
                 );
-                // Keep SWR session storage perfectly in sync to avoid stale flash on refresh
-                if (updated) setCachedOrders(updated);
                 return updated;
             });
 
@@ -215,7 +174,6 @@ export function useUpdateOrderMutation() {
                 const updated = old?.map((order) =>
                     order.id === orderId ? { ...order, ...data } : order
                 );
-                if (updated) setCachedOrders(updated);
                 return updated;
             });
         },
@@ -300,8 +258,6 @@ export function useUpdateStatusMutation() {
                         } as Order)
                         : order
                 );
-                // Keep SWR session storage perfectly in sync to avoid stale flash on refresh
-                if (updated) setCachedOrders(updated);
                 return updated;
             });
 
@@ -320,7 +276,6 @@ export function useUpdateStatusMutation() {
                 const updated = old?.map((order) =>
                     order.id === orderId ? { ...order, ...data } : order
                 );
-                if (updated) setCachedOrders(updated);
                 return updated;
             });
         },
@@ -390,8 +345,6 @@ export function useDeleteOrderMutation() {
             // Optimistic update
             queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) => {
                 const updated = old?.filter((order) => order.id !== orderId) || [];
-                // Keep SWR session storage perfectly in sync to avoid stale flash on refresh
-                setCachedOrders(updated);
                 return updated;
             });
 
