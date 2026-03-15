@@ -99,7 +99,7 @@ export function useBatchAnalytics(dateRange: DateRange): UseBatchAnalyticsResult
             // Calculate delivery/rejection rates from order statuses
             let delivered = 0;
             let rejected = 0;
-            let total = orderIds.length;
+            const total = orderIds.length;
 
             orderIds.forEach(id => {
                 const status = orderStatuses.get(id);

@@ -1,9 +1,11 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { type Product, type ProductVariant, type ProductPriceHistory } from "@/lib/supabase";
 import { productRepository } from "@/lib/repositories/product-repository";
 import { CACHE_PRESETS } from '@/lib/query-config';
+import { useAuth } from "@/components/auth/auth-provider";
 
 // Query keys
 export const productKeys = {
@@ -21,9 +23,24 @@ async function fetchProducts(): Promise<Product[]> {
 
 // Hook
 export function useProductsQuery() {
+    const { session } = useAuth();
+    const [fetchStartTime] = useState(() => performance.now());
+
     return useQuery({
         queryKey: productKeys.lists(),
-        queryFn: fetchProducts,
+        queryFn: async () => {
+            const hasSession = !!session;
+            const elapsed = performance.now() - fetchStartTime;
+            console.log(`[Diag:Products] FETCH_START hasSession=${hasSession} elapsedSinceMount=${elapsed.toFixed(1)}ms`);
+
+            const result = await fetchProducts();
+
+            const fetchMs = performance.now() - fetchStartTime;
+            console.log(`[Diag:Products] FETCH_DONE count=${result.length} fetchMs=${fetchMs.toFixed(1)}ms hasSession=${!!session}`);
+
+            return result;
+        },
+        enabled: !!session, // CRITICAL FIX: Don't fetch until session is ready
         staleTime: CACHE_PRESETS.STANDARD.staleTime * 2, // 10 mins
         gcTime: CACHE_PRESETS.STANDARD.gcTime * 2, // 30 mins
         refetchOnWindowFocus: true,

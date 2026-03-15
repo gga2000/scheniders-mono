@@ -26,7 +26,7 @@ export function PurchaseHeatmap({ orders }: PurchaseHeatmapProps) {
         });
 
         const weeks = [];
-        let currentDay = new Date(startDate.getTime());
+        const currentDay = new Date(startDate.getTime());
 
         // Adjust currentDay to the start of its week (Sunday)
         const dayOfWeek = currentDay.getDay();

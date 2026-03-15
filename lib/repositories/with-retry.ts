@@ -14,27 +14,48 @@ export async function withRetry<T>(
     options: RetryOptions = {}
 ): Promise<T> {
     const { maxRetries = 2, delayMs = 1000, timeoutMs = 15000 } = options;
+    const _tStart = performance.now();
     let lastError: unknown;
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        try {
-            const timeoutPromise = new Promise<never>((_, reject) =>
-                setTimeout(() => reject(new Error(`Operation '${operationName}' timed out after ${timeoutMs}ms`)), timeoutMs)
-            );
+        const _tAttempt = performance.now();
+        console.log(`[Diag:Retry] ATTEMPT op=${operationName} attempt=${attempt + 1}/${maxRetries + 1} elapsedSinceStart=${(performance.now() - _tStart).toFixed(1)}ms`);
 
-            // Race the actual operation against the timeout
-            const result = await Promise.race([operation(), timeoutPromise]);
-            return result;
+        try {
+            let timeoutId: NodeJS.Timeout;
+            const timeoutPromise = new Promise<never>((_, reject) => {
+                timeoutId = setTimeout(() => {
+                    console.error(`[Diag:Retry] TIMEOUT op=${operationName} attempt=${attempt + 1} timeoutMs=${timeoutMs}`);
+                    reject(new Error(`Operation '${operationName}' timed out after ${timeoutMs}ms`));
+                }, timeoutMs);
+            });
+
+            try {
+                // Race the actual operation against the timeout
+                const result = await Promise.race([operation(), timeoutPromise]);
+                clearTimeout(timeoutId!);
+
+                const attemptMs = performance.now() - _tAttempt;
+                console.log(`[Diag:Retry] SUCCESS op=${operationName} attempt=${attempt + 1} attemptMs=${attemptMs.toFixed(1)}ms totalMs=${(performance.now() - _tStart).toFixed(1)}ms`);
+
+                return result;
+            } catch (err) {
+                clearTimeout(timeoutId!);
+                throw err;
+            }
         } catch (err) {
+            const attemptMs = performance.now() - _tAttempt;
             lastError = err;
-            console.warn(`[withRetry] ${operationName} attempt ${attempt + 1}/${maxRetries + 1} failed:`, err instanceof Error ? err.message : err);
-            
+            console.warn(`[Diag:Retry] FAILED op=${operationName} attempt=${attempt + 1}/${maxRetries + 1} attemptMs=${attemptMs.toFixed(1)}ms err=${err instanceof Error ? err.message : err}`);
+
             if (attempt < maxRetries) {
+                console.log(`[Diag:Retry] BACKOFF op=${operationName} delayMs=${delayMs}`);
                 await new Promise((resolve) => setTimeout(resolve, delayMs));
             }
         }
     }
 
-    console.error(`[withRetry] ${operationName} failed after ${maxRetries + 1} attempts`);
+    const totalMs = performance.now() - _tStart;
+    console.error(`[Diag:Retry] EXHAUSTED op=${operationName} attempts=${maxRetries + 1} totalMs=${totalMs.toFixed(1)}ms`);
     throw lastError;
 }

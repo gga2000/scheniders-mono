@@ -93,7 +93,7 @@ function reducer(state: ToastState, action: ToastAction): ToastState {
 // Global listeners for cross-component usage
 const listeners: Array<(state: ToastState) => void> = [];
 let memoryState: ToastState = { toasts: [], inbox: [] };
-let globalDispatch: React.Dispatch<ToastAction> | null = null;
+const globalDispatch: React.Dispatch<ToastAction> | null = null;
 
 function dispatch(action: ToastAction) {
     memoryState = reducer(memoryState, action);

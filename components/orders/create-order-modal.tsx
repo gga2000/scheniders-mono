@@ -442,29 +442,28 @@ export function CreateOrderModal({
                                     <RefreshCw className="h-3 w-3" />
                                     مسح
                                 </button>
-                                {process.env.NODE_ENV === "development" && (
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setOrderType("delivery");
-                                            setFormData(prev => ({
-                                                ...prev,
-                                                customer_name: "علي-تيست",
-                                                phone: "07802301677",
-                                                secondary_phone: "07811262261",
-                                                city: "واسط",
-                                                address_details: "العزيزية - الجمعية",
-                                                source: "tiktok",
-                                                is_test: true,
-                                                items: prev.items.length > 0 ? prev.items : [{ name: "Test Product", price: 15000, quantity: 1 }]
-                                            }));
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setOrderType("delivery");
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            customer_name: "علي-تيست",
+                                            phone: "07802301677",
+                                            secondary_phone: "07811262261",
+                                            city: "واسط",
+                                            address_details: "العزيزية - الجمعية",
+                                            source: "tiktok",
+                                            is_test: true,
+                                            items: prev.items.length > 0 ? prev.items : [{ name: "Test Product", price: 15000, quantity: 1 }]
+                                        }));
+
                                         }}
                                         className="px-2 py-1 flex items-center gap-1 text-[10px] font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-md hover:bg-purple-100 transition-all opacity-50 hover:opacity-100 shadow-sm"
                                         title="تعبئة بيانات تجريبية"
                                     >
                                         Test
                                     </button>
-                                )}
                             </div>
                         </DialogTitle>
                     </DialogHeader>

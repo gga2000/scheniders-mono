@@ -8,7 +8,7 @@ export function cleanImportedPhone(phone: any): { clean: string; isValid: boolea
     if (!phone) return { clean: '', isValid: false };
 
     // Convert to string and ensure we trim whitespace
-    let strPhone = String(phone).trim();
+    const strPhone = String(phone).trim();
 
     // Remove all non-digit characters
     let cleaned = strPhone.replace(/\D/g, '');

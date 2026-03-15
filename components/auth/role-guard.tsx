@@ -70,7 +70,10 @@ export function PageGuard({
     const [roleCheckDelay, setRoleCheckDelay] = useState(true);
     const [isRetrying, setIsRetrying] = useState(false);
 
-    console.log(`[PageGuard] render: isLoading=${isLoading}, user=${!!user}, role=${contextRole}`);
+    if (process.env.NODE_ENV === 'development') {
+        // eslint-disable-next-line no-console
+        console.log(`[PageGuard] render: isLoading=${isLoading}, user=${!!user}, role=${contextRole}`);
+    }
 
     // Use effect to handle redirect if needed (for auth)
     useEffect(() => {
@@ -79,18 +82,31 @@ export function PageGuard({
         }
     }, [user, isLoading, router]);
 
-    // Give role 2 seconds to load after user is authenticated
-    // This prevents "Access Denied" flash when role is loading from background
+    // Give role time to load after user is authenticated.
+    // Grace period is 5s to account for token refresh (INITIAL_SESSION empty → SIGNED_IN).
+    // This prevents "Access Denied" flash when role is loading from background.
     useEffect(() => {
         if (user && !contextRole && !isLoading) {
-            console.log(`[Diag:PageGuard] GRACE_PERIOD_START — role is null, waiting 2s`);
+            const GRACE_MS = 5000;
+            let cacheAge: number | null = null;
+            try {
+                const cacheState = localStorage.getItem('auth_session_cache');
+                if (cacheState) {
+                    cacheAge = Date.now() - JSON.parse(cacheState).timestamp;
+                }
+            } catch {
+                // Corrupted cache — ignore
+            }
+
+            console.log(`[Diag:PageGuard] GRACE_PERIOD_START role=null cacheAge=${cacheAge ? (cacheAge / 1000).toFixed(1) : 'none'}s waiting=${GRACE_MS}ms`);
+
             const timeout = setTimeout(() => {
-                console.error(`[Diag:PageGuard] GRACE_PERIOD_EXPIRED — role still null after 2s, will show AccessDenied`);
+                console.error(`[Diag:PageGuard] GRACE_PERIOD_EXPIRED role=null afterWait=${GRACE_MS}ms will_show=AccessDenied`);
                 setRoleCheckDelay(false);
-            }, 2000);
+            }, GRACE_MS);
             return () => clearTimeout(timeout);
         } else if (contextRole) {
-            console.log(`[Diag:PageGuard] ROLE_ARRIVED role=${contextRole} — clearing delay`);
+            console.log(`[Diag:PageGuard] ROLE_ARRIVED role=${contextRole} clearing_delay=true`);
             setRoleCheckDelay(false);
         }
     }, [user, contextRole, isLoading]);
