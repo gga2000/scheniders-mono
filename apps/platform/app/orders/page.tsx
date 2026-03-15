@@ -354,7 +354,7 @@ export default function OrdersPage() {
         if (!filters.searchQuery) {
             useOrderStore.getState().setLocalSearchQuery("");
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [filters.searchQuery]);
 
     const debouncedColumnFilters = useDebounce(columnFilters, 300);

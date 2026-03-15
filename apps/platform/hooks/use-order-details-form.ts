@@ -57,11 +57,7 @@ export function useOrderDetailsForm({ order, setOrder, onUpdate, t }: UseOrderDe
 
         try {
             const dataToSave = { ...formData };
-            const dateActuallyChanged = dataToSave.created_at &&
-                new Date(dataToSave.created_at).getTime() !== new Date(order.created_at).getTime();
-            if (dateActuallyChanged && !order.original_created_at) {
-                dataToSave.original_created_at = order.created_at;
-            }
+            // Note: Date change tracking is done purely in the UI, original_created_at does not exist in DB
 
             const result = await onUpdate(order.id, dataToSave);
 

@@ -208,7 +208,7 @@ export function useOrders() {
         filterHook,
         auxiliaryHook,
         crudHook,
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     ]);
 
     return contextValue;

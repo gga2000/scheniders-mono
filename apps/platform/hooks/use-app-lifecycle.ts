@@ -71,7 +71,7 @@ export function useAppLifecycle(onAppReopen?: () => void) {
       if (now2 - lastFiredRef.current > FIRE_GUARD_MS) {
         lastFiredRef.current = now2;
         console.log(
-          `[AppLifecycle] App reopened after ${Math.round(timeSinceLastVisible! / 1000)}s`
+          `[Diag:AppLifecycle] APP_REOPEN timeSinceHidden=${Math.round(timeSinceLastVisible! / 1000)}s lastVisible=${new Date(lastVisibleAt!).toISOString()} now=${new Date().toISOString()}`
         );
         onAppReopenRef.current();
       }
@@ -106,7 +106,7 @@ export function useAppLifecycle(onAppReopen?: () => void) {
           if (now2 - lastFiredRef.current > FIRE_GUARD_MS) {
             lastFiredRef.current = now2;
             console.log(
-              `[AppLifecycle] App reopened after ${Math.round(timeSinceLastVisible! / 1000)}s`
+              `[Diag:AppLifecycle] VISIBILITY_REOPEN timeSinceHidden=${Math.round(timeSinceLastVisible! / 1000)}s lastVisible=${new Date(lastVisibleAt!).toISOString()} now=${new Date().toISOString()}`
             );
             onAppReopenRef.current();
           }
@@ -139,7 +139,7 @@ export function useAppLifecycle(onAppReopen?: () => void) {
         if (now2 - lastFiredRef.current > FIRE_GUARD_MS) {
           lastFiredRef.current = now2;
           console.log(
-            `[AppLifecycle] App focused after ${Math.round(timeSinceLastVisible! / 1000)}s`
+            `[Diag:AppLifecycle] FOCUS_REOPEN timeSinceHidden=${Math.round(timeSinceLastVisible! / 1000)}s lastVisible=${new Date(lastVisibleAt!).toISOString()} now=${new Date().toISOString()}`
           );
           onAppReopenRef.current();
         }

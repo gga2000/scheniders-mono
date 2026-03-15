@@ -269,7 +269,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         });
     }
 
-    async function updateOrder(orderId: string, updates: Partial<Order>): Promise<{ success: boolean; error?: string; data?: Order }> {
+    async function updateOrder(orderId: string, updates: Partial<Order>, expectedUpdatedAt?: string): Promise<{ success: boolean; error?: string; data?: Order }> {
         const _tUpdate = performance.now();
         console.log(`[Diag:UpdateOrder] START orderId=${orderId} fields=${Object.keys(updates).join(',')}`);
         try {
@@ -336,10 +336,13 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 }
             }
 
+            // Use passed expectedUpdatedAt or fallback to cache if not provided
+            const conflictCheckTimestamp = expectedUpdatedAt || previousOrder?.updated_at;
+
             await updateOrderMutation.mutateAsync({
                 orderId,
                 updates: cleanUpdates,
-                expectedUpdatedAt: previousOrder?.updated_at
+                expectedUpdatedAt: conflictCheckTimestamp
             });
 
             console.log(`[Diag:UpdateOrder] MUTATION_OK orderId=${orderId} took=${(performance.now() - _tUpdate).toFixed(1)}ms`);
@@ -920,7 +923,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             const t5 = performance.now();
             // Invalidate React Query cache so stale data doesn't reappear
-            await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+            queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
             const t6 = performance.now();
             console.log(`[Perf] Frontend query invalidation took: ${(t6 - t5).toFixed(2)}ms`);
             console.log(`[Perf] Total frontend bulkDelete time: ${(performance.now() - t1).toFixed(2)}ms`);

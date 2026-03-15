@@ -91,6 +91,10 @@ export const orderRepository = {
             .maybeSingle();
 
         if (error) {
+            if (expectedUpdatedAt && error.code === 'PGRST116') {
+                console.log(`[Diag:Repo] update CONFLICT orderId=${id} (PGRST116) took=${(performance.now() - _t).toFixed(1)}ms`);
+                throw new Error("CONFLICT_DETECTED");
+            }
             console.log(`[Diag:Repo] update ERR orderId=${id} err=${error.message} took=${(performance.now() - _t).toFixed(1)}ms`);
             throw error;
         }
@@ -168,6 +172,10 @@ export const orderRepository = {
                 const elapsed = Math.round(performance.now() - t0);
 
                 if (error) {
+                    if (expectedUpdatedAt && error.code === 'PGRST116') {
+                        console.error(`[updateStatus] attempt ${attempt + 1} CONFLICT for ${id} in ${elapsed}ms (PGRST116)`);
+                        throw new Error("CONFLICT_DETECTED");
+                    }
                     console.error(`[updateStatus] attempt ${attempt + 1} FAILED for ${id} in ${elapsed}ms:`, error.message);
                     throw error;
                 }
@@ -184,6 +192,12 @@ export const orderRepository = {
             } catch (err) {
                 lastError = err;
                 console.warn(`[updateStatus] attempt ${attempt + 1} error for ${id}:`, err instanceof Error ? err.message : err);
+                
+                // Do not retry on intentional application errors or data conflicts
+                if (err instanceof Error && (err.message === "CONFLICT_DETECTED" || err.message.includes("row not found"))) {
+                    throw err;
+                }
+                
                 // Don't retry on the last attempt
                 if (attempt < MAX_RETRIES - 1) {
                     await new Promise(r => setTimeout(r, 1000));

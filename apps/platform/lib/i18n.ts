@@ -530,7 +530,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "orders.status.cancelled": "ملغي",
         "orders.status.noResponse": "لم يرد",
         "orders.status.returnPending": "قيد الاسترجاع",
-        "orders.status.pendingCheckout": "سلة متروكة",
+        "orders.status.pendingCheckout": "متروكة",
         // Toolbar sections
         "orders.toolbar.view": "عرض",
         "orders.toolbar.filter": "فلتر",

@@ -49,7 +49,7 @@ async function consolidateOrderIds() {
 
     // Find duplicates (same base ID, multiple entries)
     let duplicateGroups = 0;
-    let ordersToDelete: string[] = [];
+    const ordersToDelete: string[] = [];
 
     for (const [baseId, groupOrders] of ordersByBaseId.entries()) {
         if (groupOrders.length > 1) {
