@@ -65,14 +65,13 @@ export function PageGuard({
     allowedRoles?: UserRole[];
     requiredPermission?: PermissionKey
 }) {
-    const { user, role: contextRole, permissions, isLoading, retryAuth } = useAuth();
+    const { user, role: contextRole, permissions, isLoading, profileLoaded, retryAuth } = useAuth();
     const router = useRouter();
-    const [roleCheckDelay, setRoleCheckDelay] = useState(true);
     const [isRetrying, setIsRetrying] = useState(false);
 
     if (process.env.NODE_ENV === 'development') {
         // eslint-disable-next-line no-console
-        console.log(`[PageGuard] render: isLoading=${isLoading}, user=${!!user}, role=${contextRole}`);
+        console.log(`[PageGuard] render: isLoading=${isLoading}, user=${!!user}, role=${contextRole}, profileLoaded=${profileLoaded}`);
     }
 
     // Use effect to handle redirect if needed (for auth)
@@ -81,35 +80,6 @@ export function PageGuard({
             router.push("/login");
         }
     }, [user, isLoading, router]);
-
-    // Give role time to load after user is authenticated.
-    // Grace period is 5s to account for token refresh (INITIAL_SESSION empty → SIGNED_IN).
-    // This prevents "Access Denied" flash when role is loading from background.
-    useEffect(() => {
-        if (user && !contextRole && !isLoading) {
-            const GRACE_MS = 5000;
-            let cacheAge: number | null = null;
-            try {
-                const cacheState = localStorage.getItem('auth_session_cache');
-                if (cacheState) {
-                    cacheAge = Date.now() - JSON.parse(cacheState).timestamp;
-                }
-            } catch {
-                // Corrupted cache — ignore
-            }
-
-            console.log(`[Diag:PageGuard] GRACE_PERIOD_START role=null cacheAge=${cacheAge ? (cacheAge / 1000).toFixed(1) : 'none'}s waiting=${GRACE_MS}ms`);
-
-            const timeout = setTimeout(() => {
-                console.error(`[Diag:PageGuard] GRACE_PERIOD_EXPIRED role=null afterWait=${GRACE_MS}ms will_show=AccessDenied`);
-                setRoleCheckDelay(false);
-            }, GRACE_MS);
-            return () => clearTimeout(timeout);
-        } else if (contextRole) {
-            console.log(`[Diag:PageGuard] ROLE_ARRIVED role=${contextRole} clearing_delay=true`);
-            setRoleCheckDelay(false);
-        }
-    }, [user, contextRole, isLoading]);
 
     const role = contextRole as UserRole;
 
@@ -120,8 +90,10 @@ export function PageGuard({
         return <>{children}</>;
     }
 
-    // If user is authenticated but role hasn't loaded yet, wait briefly
-    if (user && !role && roleCheckDelay) {
+    // If user is authenticated but profile hasn't loaded yet, keep showing children.
+    // This replaces the old timer-based grace period — we now wait for the actual
+    // profile fetch to complete (or fail) instead of using a fixed timeout.
+    if (user && !role && !profileLoaded) {
         return <>{children}</>;
     }
 
@@ -130,8 +102,6 @@ export function PageGuard({
         setIsRetrying(true);
         await retryAuth();
         setIsRetrying(false);
-        // Reset delay to give role time to load
-        setRoleCheckDelay(true);
     };
 
     let allowed = true;
