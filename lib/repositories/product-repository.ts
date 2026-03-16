@@ -9,11 +9,15 @@ export const productRepository = {
     /** Fetch all products with variants, newest first. */
     async findAll(): Promise<Product[]> {
         return withRetry('productRepository.findAll', async () => {
+            const _t = performance.now();
+            console.log(`[Diag:ProductRepo] findAll query START`);
+
             const { data, error } = await supabase
                 .from("products")
                 .select(`*, variants:product_variants(*)`)
                 .order("created_at", { ascending: false });
 
+            console.log(`[Diag:ProductRepo] findAll query DONE took=${(performance.now() - _t).toFixed(1)}ms rows=${data?.length ?? 0} error=${error?.message ?? 'none'}`);
             if (error) throw error;
             return data || [];
         });

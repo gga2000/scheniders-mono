@@ -218,6 +218,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.log(`[Diag:Auth] BOOTSTRAP_NONE — no stored session in localStorage`);
         }
 
+        // Diagnostic: Check if Supabase client's internal session is ready
+        // This reveals whether _initialize() has completed and if queries will have auth
+        supabase.auth.getSession().then(({ data: { session: internalSession }, error }) => {
+            console.log(`[Diag:Auth] INTERNAL_SESSION_CHECK hasSession=${!!internalSession} hasUser=${!!internalSession?.user} error=${error?.message ?? 'none'} elapsed=${(performance.now() - _tAuthInit).toFixed(1)}ms`);
+            if (internalSession?.user && !internalSession.expires_at) {
+                console.warn(`[Diag:Auth] INTERNAL_SESSION_NO_EXPIRY`);
+            }
+            if (internalSession?.expires_at) {
+                const expiresAt = new Date(internalSession.expires_at * 1000);
+                const isExpired = expiresAt < new Date();
+                console.log(`[Diag:Auth] INTERNAL_SESSION_EXPIRY expiresAt=${expiresAt.toISOString()} isExpired=${isExpired}`);
+            }
+        }).catch(err => {
+            console.error(`[Diag:Auth] INTERNAL_SESSION_CHECK_FAILED err=${err instanceof Error ? err.message : err} elapsed=${(performance.now() - _tAuthInit).toFixed(1)}ms — _initialize() likely still hung`);
+        });
+
         // ── PHASE 2: Safety timeout ──
         // If we didn't bootstrap AND onAuthStateChange never fires (stale connection),
         // ensure the app doesn't stay stuck on a loading screen forever.
