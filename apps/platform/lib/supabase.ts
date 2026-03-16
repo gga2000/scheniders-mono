@@ -31,8 +31,12 @@ export const supabase = createClient(
         global: {
             fetch: (url, options) => {
                 const controller = new AbortController();
+                const _t = performance.now();
+                const urlStr = typeof url === 'string' ? url.split('?')[0] : 'unknown';
+                const shortUrl = urlStr.replace(/https?:\/\/[^/]+/, '');
+
                 const timeoutId = setTimeout(() => {
-                    console.warn(`[Supabase:Fetch] TIMEOUT after ${SUPABASE_FETCH_TIMEOUT_MS}ms url=${typeof url === 'string' ? url.split('?')[0] : 'unknown'}`);
+                    console.warn(`[Supabase:Fetch] TIMEOUT after ${SUPABASE_FETCH_TIMEOUT_MS}ms url=${shortUrl}`);
                     controller.abort();
                 }, SUPABASE_FETCH_TIMEOUT_MS);
 
@@ -46,10 +50,18 @@ export const supabase = createClient(
                     }
                 }
 
+                console.log(`[Supabase:Fetch] START url=${shortUrl} method=${options?.method ?? 'GET'}`);
+
                 return fetch(url, {
                     ...options,
                     signal: controller.signal,
                     cache: "no-store"
+                }).then(response => {
+                    console.log(`[Supabase:Fetch] DONE url=${shortUrl} status=${response.status} took=${(performance.now() - _t).toFixed(1)}ms`);
+                    return response;
+                }).catch(err => {
+                    console.error(`[Supabase:Fetch] FAILED url=${shortUrl} err=${err instanceof Error ? err.message : err} took=${(performance.now() - _t).toFixed(1)}ms`);
+                    throw err;
                 }).finally(() => clearTimeout(timeoutId));
             }
         }
