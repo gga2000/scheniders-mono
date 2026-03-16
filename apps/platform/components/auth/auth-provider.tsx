@@ -15,6 +15,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [permissions, setPermissions] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [profileLoaded, setProfileLoaded] = useState(false);
 
     // Track the current user ID to avoid redundant state updates on TOKEN_REFRESHED
     const currentUserIdRef = useRef<string | null>(null);
@@ -195,10 +196,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                             // a few seconds later. If we clear state now, the app shows "not logged in"
                             // during the refresh window.
                             //
-                            // Instead, keep isLoading=true and set a deferred timeout.
-                            // If SIGNED_IN arrives before the timeout, we cancel and proceed normally.
-                            const DEFERRED_LOGOUT_MS = 10_000; // 10s grace for token refresh
-                            console.warn(`[Diag:Auth] INITIAL_SESSION_EMPTY — deferring logout for ${DEFERRED_LOGOUT_MS}ms to allow token refresh`);
+                            // ACTIVE RECOVERY: Instead of passively waiting for SIGNED_IN,
+                            // we proactively call refreshSession(). This forces a fresh HTTP
+                            // request to GoTrue, bypassing any stale TCP connections.
+                            // If it succeeds, onAuthStateChange will fire SIGNED_IN/TOKEN_REFRESHED.
+                            // If it fails, we clear state after the timeout.
+                            const DEFERRED_LOGOUT_MS = 10_000;
+                            console.warn(`[Diag:Auth] INITIAL_SESSION_EMPTY — actively attempting refresh + deferring logout for ${DEFERRED_LOGOUT_MS}ms`);
+
+                            // Proactively try to refresh the session (non-blocking)
+                            supabase.auth.refreshSession().then(({ data, error: refreshErr }) => {
+                                if (!mounted) return;
+                                if (refreshErr || !data.session) {
+                                    console.error(`[Diag:Auth] ACTIVE_REFRESH_FAILED err=${refreshErr?.message ?? 'no session returned'}`);
+                                    // Don't clear yet — let the deferred timeout handle it
+                                } else {
+                                    console.log(`[Diag:Auth] ACTIVE_REFRESH_OK userId=${data.session.user.id} — onAuthStateChange will fire`);
+                                    // onAuthStateChange will fire SIGNED_IN or TOKEN_REFRESHED,
+                                    // which cancels the deferred logout automatically
+                                }
+                            });
 
                             deferredLogoutRef.current = setTimeout(() => {
                                 if (!mounted) return;
@@ -208,6 +225,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                                 setRole(null);
                                 setProfile(null);
                                 setPermissions([]);
+                                setProfileLoaded(false);
                                 cacheAuthState(null, null, []);
                                 setIsLoading(false);
                             }, DEFERRED_LOGOUT_MS);
@@ -220,6 +238,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         setRole(null);
                         setProfile(null);
                         setPermissions([]);
+                        setProfileLoaded(false);
                         cacheAuthState(null, null, []);
                         setIsLoading(false);
                         return;
@@ -245,6 +264,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     if (cachedAuth) {
                         setRole(cachedAuth.role);
                         setPermissions(cachedAuth.permissions);
+                        setProfileLoaded(true); // Cache hit = role is known
                     }
 
                     // Unblock UI — session is ready, profile loads in background
@@ -260,7 +280,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         return;
                     }
 
-                    // ── Background: fetch fresh profile with 10s timeout ──
+                    // ── Background: fetch fresh profile with timeout + retry ──
                     // Abort any in-flight profile fetch from a previous event (deduplication)
                     if (profileAbortRef.current) {
                         profileAbortRef.current.abort();
@@ -269,7 +289,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                     const profileController = new AbortController();
                     profileAbortRef.current = profileController;
-                    const profileTimeoutId = setTimeout(() => profileController.abort(), 10_000);
                     console.log(`[Diag:Auth] PROFILE_FETCH_START mounted=${mounted} userId=${currentSession.user.id}`);
 
                     // Fire connection health check in background (non-blocking diagnostic)
@@ -277,18 +296,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         .then(h => console.log(`[Diag:Auth] CONN_HEALTH healthy=${h.isHealthy} latency=${h.latency.toFixed(1)}ms`))
                         .catch(e => console.error(`[Diag:Auth] CONN_HEALTH_FAILED err=${e instanceof Error ? e.message : e}`));
 
-                    const _tProfileQuery = performance.now();
-                    try {
-                        const { data: profileData, error: profileQueryError } = await supabase
+                    // Helper: fetch profile with Promise.race timeout
+                    // AbortSignal alone doesn't reliably abort on stale TCP connections after device sleep
+                    const PROFILE_TIMEOUT_MS = 7_000;
+                    const fetchProfileWithTimeout = async (attempt: number) => {
+                        const _tStart = performance.now();
+                        const timeoutPromise = new Promise<never>((_, reject) => {
+                            setTimeout(() => reject(new Error(`Profile fetch timed out after ${PROFILE_TIMEOUT_MS}ms`)), PROFILE_TIMEOUT_MS);
+                        });
+
+                        const queryPromise = supabase
                             .from('user_profiles')
                             .select('*')
                             .eq('id', currentSession.user.id)
-                            .abortSignal(profileController.signal)
                             .single();
 
-                        clearTimeout(profileTimeoutId);
-                        const profileQueryMs = performance.now() - _tProfileQuery;
-                        console.log(`[Diag:Auth] PROFILE_FETCH_DONE mounted=${mounted} hasData=${!!profileData} error=${profileQueryError?.message ?? 'none'} queryMs=${profileQueryMs.toFixed(1)}ms totalElapsed=${(performance.now() - _tAuthInit).toFixed(1)}ms`);
+                        const result = await Promise.race([queryPromise, timeoutPromise]);
+                        const queryMs = performance.now() - _tStart;
+                        console.log(`[Diag:Auth] PROFILE_FETCH_DONE attempt=${attempt} mounted=${mounted} hasData=${!!result.data} error=${result.error?.message ?? 'none'} queryMs=${queryMs.toFixed(1)}ms`);
+                        return result;
+                    };
+
+                    try {
+                        let profileResult: { data: any; error: any };
+
+                        try {
+                            profileResult = await fetchProfileWithTimeout(1);
+                        } catch (firstErr) {
+                            // First attempt timed out — connection likely stale after sleep.
+                            // Force a fresh connection by calling refreshSession (GoTrue uses separate endpoint),
+                            // then retry the profile fetch once.
+                            console.warn(`[Diag:Auth] PROFILE_ATTEMPT_1_FAILED err=${firstErr instanceof Error ? firstErr.message : firstErr} — retrying with fresh connection`);
+
+                            // refreshSession forces a new HTTP request to GoTrue, which can
+                            // wake up the browser's network stack for subsequent PostgREST calls
+                            await supabase.auth.refreshSession();
+                            console.log(`[Diag:Auth] PROFILE_RETRY — refreshed session, retrying profile fetch`);
+
+                            profileResult = await fetchProfileWithTimeout(2);
+                        }
+
+                        if (profileController.signal.aborted) {
+                            // This fetch was superseded by a newer auth event — discard
+                            return;
+                        }
+
+                        const profileData = profileResult.data;
 
                         if (!profileData && mounted) {
                             console.error(`[Diag:Auth] PROFILE_NULL — no row returned for userId=${currentSession.user.id}. RLS blocking or missing row? role will stay null!`);
@@ -331,19 +384,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                                 setRole(finalRole);
                                 setProfile(finalProfile);
                                 setPermissions(finalPermissions);
+                                setProfileLoaded(true);
                             }
                             console.log(`[Diag:Auth] PROFILE_OK role=${finalRole} elapsed=${(performance.now() - _tAuthInit).toFixed(1)}ms`);
+                        } else if (mounted) {
+                            setProfileLoaded(true); // Mark as loaded even if no data (genuine issue)
                         }
                     } catch (profileErr) {
-                        clearTimeout(profileTimeoutId);
-                        if (profileErr instanceof Error && profileErr.name === 'AbortError') {
-                            // Only log as warning if this was a timeout, not a deduplication abort
-                            if (profileAbortRef.current === profileController) {
-                                console.warn(`[Diag:Auth] PROFILE_TIMEOUT aborted=true mounted=${mounted} elapsed=${(performance.now() - _tAuthInit).toFixed(1)}ms`);
-                            }
-                            // else: silently ignore — this fetch was superseded by a newer one
+                        if (profileController.signal.aborted) {
+                            // Superseded by newer auth event — silently ignore
                         } else {
                             console.error(`[Diag:Auth] PROFILE_ERR mounted=${mounted} elapsed=${(performance.now() - _tAuthInit).toFixed(1)}ms:`, profileErr);
+                            if (mounted) {
+                                setProfileLoaded(true); // Mark loaded so PageGuard can show retry
+                            }
                         }
                     } finally {
                         // Clear the ref if this controller is still the active one
@@ -371,6 +425,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setRole(null);
                     setProfile(null);
                     setPermissions([]);
+                    setProfileLoaded(false);
                     cacheAuthState(null, null, []);
                     setIsLoading(false);
                 }
@@ -533,6 +588,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 profile,
                 permissions,
                 isLoading,
+                profileLoaded,
                 signIn,
                 signUp,
                 signOut,

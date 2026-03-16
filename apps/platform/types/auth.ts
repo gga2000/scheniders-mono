@@ -21,6 +21,7 @@ export interface AuthContextType {
     profile: UserProfile | null;
     permissions: string[];
     isLoading: boolean;
+    profileLoaded: boolean;
     signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
     signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
     signOut: () => Promise<void>;
