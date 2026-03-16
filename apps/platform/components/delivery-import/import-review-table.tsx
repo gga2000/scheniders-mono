@@ -12,7 +12,6 @@ import {
     Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatIQD } from "@/lib/utils";
 import type { MatchedRow, MatchCategory, RowResolution, ResolutionAction } from "@/types/delivery-import";
 
 interface ImportReviewTableProps {
@@ -44,7 +43,7 @@ const CATEGORY_CONFIG: Record<
     reorder: { icon: Info, label: "Reorder", color: "text-blue-600", group: "clean" },
 };
 
-/** Inline resolution UI for a single issue row */
+/** Inline resolution UI for a single issue row — action buttons instead of radio */
 function ResolveSection({
     match,
     resolution,
@@ -57,101 +56,118 @@ function ResolveSection({
     onClear: () => void;
 }) {
     const options = getResolutionOptions(match);
-    const [selectedAction, setSelectedAction] = useState<ResolutionAction | null>(
-        resolution?.action ?? null
-    );
     const [note, setNote] = useState(resolution?.note ?? "");
+    const [showNote, setShowNote] = useState(!!resolution?.note);
 
     if (options.length === 0) return null;
 
-    const isResolved = !!resolution;
+    const currentAction = resolution?.action ?? null;
+
+    const handleAction = (action: ResolutionAction) => {
+        if (action === currentAction) return;
+        onResolve({
+            rowNumber: match.pdfRow.rowNumber,
+            action,
+            note: note || undefined,
+        });
+    };
+
+    const ACTION_STYLES: Partial<Record<ResolutionAction, { base: string; active: string }>> = {
+        mark_refund_delivered: {
+            base: "border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-900/20",
+            active: "bg-emerald-600 border-emerald-600 text-white dark:bg-emerald-600 dark:border-emerald-600 dark:text-white",
+        },
+        mark_refund_failed: {
+            base: "border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-400 dark:hover:bg-rose-900/20",
+            active: "bg-rose-600 border-rose-600 text-white dark:bg-rose-600 dark:border-rose-600 dark:text-white",
+        },
+        process_with_pdf_price: {
+            base: "border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-400 dark:hover:bg-blue-900/20",
+            active: "bg-blue-600 border-blue-600 text-white dark:bg-blue-600 dark:border-blue-600 dark:text-white",
+        },
+        force_deliver: {
+            base: "border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/20",
+            active: "bg-amber-600 border-amber-600 text-white dark:bg-amber-600 dark:border-amber-600 dark:text-white",
+        },
+    };
+
+    const defaultStyle = {
+        base: "border-[var(--card-border)] text-foreground hover:bg-[var(--card-border)]/30",
+        active: "bg-[var(--ink)] border-[var(--ink)] text-white",
+    };
 
     return (
-        <div className="border border-[var(--card-border)] rounded-xl p-3 bg-[var(--background)]">
-            <div className="flex items-center justify-between mb-2">
+        <div className="border border-[var(--card-border)] rounded-xl p-3 bg-[var(--background)]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2.5">
                 <div className="flex items-center gap-1.5">
                     <Wrench className="w-3.5 h-3.5 text-muted" />
                     <span className="text-xs font-semibold text-foreground">
                         Resolve This Row
                     </span>
                 </div>
-                {isResolved && (
+                {currentAction && (
                     <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedAction(null);
+                        onClick={() => {
                             setNote("");
+                            setShowNote(false);
                             onClear();
                         }}
                         className="text-[10px] text-rose-600 hover:underline"
                     >
-                        Clear Resolution
+                        Clear
                     </button>
                 )}
             </div>
 
-            <div className="space-y-1.5">
-                {options.map((opt) => (
-                    <label
-                        key={opt.action}
-                        className={cn(
-                            "flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors",
-                            selectedAction === opt.action
-                                ? "bg-blue-50 dark:bg-blue-900/20"
-                                : "hover:bg-[var(--card-border)]/30"
-                        )}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <input
-                            type="radio"
-                            name={`resolve-${match.pdfRow.rowNumber}`}
-                            checked={selectedAction === opt.action}
-                            onChange={() => setSelectedAction(opt.action)}
-                            className="mt-0.5 accent-[var(--ink)]"
-                        />
-                        <div>
-                            <span className="text-xs font-medium text-foreground">
-                                {opt.label}
-                            </span>
-                            {opt.description && (
-                                <p className="text-[10px] text-muted mt-0.5">
-                                    {opt.description}
-                                </p>
+            <div className="flex flex-wrap gap-2">
+                {options.map((opt) => {
+                    const isActive = currentAction === opt.action;
+                    const style = ACTION_STYLES[opt.action] || defaultStyle;
+
+                    return (
+                        <button
+                            key={opt.action}
+                            onClick={() => handleAction(opt.action)}
+                            title={opt.description}
+                            className={cn(
+                                "px-3 py-1.5 text-xs font-medium rounded-lg border transition-all",
+                                isActive ? style.active : style.base
                             )}
-                        </div>
-                    </label>
-                ))}
+                        >
+                            {opt.label}
+                        </button>
+                    );
+                })}
             </div>
 
-            <div className="mt-2 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                <input
-                    type="text"
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    placeholder="Optional note..."
-                    className="flex-1 px-2 py-1 text-xs bg-white dark:bg-gray-800 border border-[var(--card-border)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--ink)]"
-                />
-                <button
-                    disabled={!selectedAction}
-                    onClick={() => {
-                        if (selectedAction) {
-                            onResolve({
-                                rowNumber: match.pdfRow.rowNumber,
-                                action: selectedAction,
-                                note: note || undefined,
-                            });
-                        }
-                    }}
-                    className={cn(
-                        "px-3 py-1 text-xs font-medium rounded-lg transition-colors",
-                        selectedAction
-                            ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                            : "bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700"
+            {currentAction && (
+                <div className="mt-2">
+                    {!showNote ? (
+                        <button
+                            onClick={() => setShowNote(true)}
+                            className="text-[10px] text-muted hover:text-foreground hover:underline"
+                        >
+                            + Add note
+                        </button>
+                    ) : (
+                        <input
+                            type="text"
+                            value={note}
+                            onChange={(e) => {
+                                setNote(e.target.value);
+                                onResolve({
+                                    rowNumber: match.pdfRow.rowNumber,
+                                    action: currentAction,
+                                    note: e.target.value || undefined,
+                                });
+                            }}
+                            placeholder="Optional note..."
+                            autoFocus
+                            className="w-full px-2 py-1 text-xs bg-white dark:bg-gray-800 border border-[var(--card-border)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--ink)]"
+                        />
                     )}
-                >
-                    {isResolved ? "Update" : "Apply"}
-                </button>
-            </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -226,14 +242,27 @@ function getResolutionOptions(
                 { action: "skip", label: "Skip this row" },
             ];
         case "negative_refund":
-            return [
-                {
-                    action: "acknowledge_refund",
-                    label: "Acknowledge refund",
-                    description: "Record in audit trail, no order status change",
-                },
-                { action: "skip", label: "Skip this row" },
-            ];
+            if (match.order) {
+                return [
+                    {
+                        action: "mark_refund_delivered",
+                        label: "Refund Delivered",
+                        description: "Mark return order as refund_delivered",
+                    },
+                    {
+                        action: "mark_refund_failed",
+                        label: "Refund Failed",
+                        description: "Mark return order as refund_failed",
+                    },
+                    {
+                        action: "acknowledge_refund",
+                        label: "Acknowledge Only",
+                        description: "Record in audit trail, no status change",
+                    },
+                    { action: "skip", label: "Skip" },
+                ];
+            }
+            return [{ action: "skip", label: "Skip" }];
         case "not_found":
             return [{ action: "skip", label: "Skip (no matching order)" }];
         default:
@@ -295,8 +324,14 @@ export function ImportReviewTable({
     }, [matches, filter, search]);
 
     const selectedCount = selectedRows.size;
-    const canSelect = (match: MatchedRow) =>
-        match.order != null && match.category !== "negative_refund";
+    const canSelect = (match: MatchedRow) => {
+        if (match.order == null) return false;
+        if (match.category === "negative_refund") {
+            const res = resolutions.get(match.pdfRow.rowNumber);
+            return !!res && res.action !== "skip";
+        }
+        return true;
+    };
 
     return (
         <div className="space-y-4">

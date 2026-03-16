@@ -100,6 +100,8 @@ export interface ProfitSummary {
     grossProfitMargin: number;
     netProfitMargin: number;
     orderCount: number;
+    deliveredCount: number;
+    completedCount: number;
     avgProfitPerOrder: number;
 }
 

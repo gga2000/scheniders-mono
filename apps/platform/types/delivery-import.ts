@@ -103,6 +103,8 @@ export type ResolutionAction =
     | "process_with_system_price"  // Amount Mismatch / Price Changed: keep system price
     | "force_deliver"              // Already Delivered / Wrong Status: force update
     | "acknowledge_refund"         // Negative/Refund: record refund, no status change
+    | "mark_refund_delivered"      // Negative/Refund: mark return order as refund_delivered
+    | "mark_refund_failed"         // Negative/Refund: mark return order as refund_failed
     | "skip";                      // Any: explicitly skip
 
 export interface RowResolution {

@@ -1,6 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
     TrendingUp,
     Package,
@@ -8,6 +9,7 @@ import {
     DollarSign,
     Target,
     ArrowRight,
+    ChevronDown,
 } from "lucide-react";
 import { PipelineSummary } from "@/types/expense";
 import { cn } from "@/lib/utils";
@@ -21,6 +23,7 @@ function formatIQD(value: number): string {
 }
 
 export function PipelineSummaryCard({ pipeline }: PipelineSummaryCardProps) {
+    const [isExpanded, setIsExpanded] = useState(false);
     const {
         orderCount,
         confirmedCount,
@@ -31,6 +34,8 @@ export function PipelineSummaryCard({ pipeline }: PipelineSummaryCardProps) {
         estimatedCosts,
         avgOrderValue,
     } = pipeline;
+
+    const avgEstimatedCost = orderCount > 0 ? estimatedCosts / orderCount : 0;
 
     return (
         <div className="h-full p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
@@ -78,8 +83,8 @@ export function PipelineSummaryCard({ pipeline }: PipelineSummaryCardProps) {
                 </motion.div>
             </div>
 
-            {/* Financial Projections */}
-            <div className="space-y-2 mb-5">
+            {/* Financial Projections (always visible) */}
+            <div className="space-y-2 mb-3">
                 {/* Potential Revenue */}
                 <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800/30">
                     <div className="flex items-center gap-3">
@@ -102,6 +107,48 @@ export function PipelineSummaryCard({ pipeline }: PipelineSummaryCardProps) {
                     </span>
                 </div>
             </div>
+
+            {/* Expand Toggle */}
+            <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="flex items-center gap-2 w-full justify-center py-2 text-sm text-muted hover:text-foreground transition-colors"
+            >
+                <ChevronDown className={cn("w-4 h-4 transition-transform", isExpanded && "rotate-180")} />
+                {isExpanded ? "Hide" : "Show"} Details
+            </button>
+
+            {/* Collapsible Details */}
+            <AnimatePresence>
+                {isExpanded && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                    >
+                        <div className="space-y-2 py-2">
+                            <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--background)] border border-[var(--card-border)]">
+                                <span className="text-sm font-medium text-foreground">Avg Order Value</span>
+                                <span className="font-semibold text-foreground">IQD {formatIQD(avgOrderValue)}</span>
+                            </div>
+                            <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--background)] border border-[var(--card-border)]">
+                                <span className="text-sm font-medium text-foreground">Avg Est. Cost/Order</span>
+                                <span className="font-semibold text-foreground">IQD {formatIQD(avgEstimatedCost)}</span>
+                            </div>
+                            <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--background)] border border-[var(--card-border)]">
+                                <span className="text-sm font-medium text-foreground">Projected Margin</span>
+                                <span className={cn(
+                                    "font-semibold",
+                                    projectedProfitMargin >= 0 ? "text-emerald-600" : "text-rose-600"
+                                )}>
+                                    {projectedProfitMargin.toFixed(1)}%
+                                </span>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Divider with Arrow */}
             <div className="flex items-center justify-center py-2">
@@ -144,14 +191,6 @@ export function PipelineSummaryCard({ pipeline }: PipelineSummaryCardProps) {
                     </div>
                 </div>
             </motion.div>
-
-            {/* Footer Stats */}
-            <div className="mt-4 pt-4 border-t border-[var(--card-border)]">
-                <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted">Avg Order Value</span>
-                    <span className="font-medium text-foreground">IQD {formatIQD(avgOrderValue)}</span>
-                </div>
-            </div>
         </div>
     );
 }

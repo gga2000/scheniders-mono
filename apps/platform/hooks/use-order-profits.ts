@@ -183,6 +183,8 @@ export function useOrderProfits(
             : 0;
 
         const orderCount = orderCostBreakdowns.length;
+        const deliveredCount = orders.filter(o => o.status === "delivered").length;
+        const completedCount = orders.filter(o => o.status === "completed").length;
         const avgProfitPerOrder = orderCount > 0 ? grossProfit / orderCount : 0;
 
         return {
@@ -195,9 +197,11 @@ export function useOrderProfits(
             grossProfitMargin,
             netProfitMargin,
             orderCount,
+            deliveredCount,
+            completedCount,
             avgProfitPerOrder,
         };
-    }, [orderCostBreakdowns, marketingCost]);
+    }, [orderCostBreakdowns, marketingCost, orders]);
 
     /**
      * Customer analytics: single vs repeat customers

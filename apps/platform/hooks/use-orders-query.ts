@@ -1,10 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { type Order } from "@/types";
 import { CACHE_PRESETS } from '@/lib/query-config';
 import { orderRepository } from "@/lib/repositories/order-repository";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "sonner";
+import { createOrderAction } from "@/app/actions/orders";
 import type { RealtimeBatcher } from "@/lib/realtime-batcher";
 // Refetch trigger constants
 export const orderRefetchTriggers = {
@@ -142,7 +143,7 @@ export function useUpdateOrderMutation() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ orderId, updates, expectedUpdatedAt, user_id }: { orderId: string; updates: Partial<Order>; expectedUpdatedAt?: string; user_id?: string }) => {
+        mutationFn: async ({ orderId, updates, expectedUpdatedAt }: { orderId: string; updates: Partial<Order>; expectedUpdatedAt?: string }) => {
             const data = await orderRepository.update(orderId, updates, expectedUpdatedAt);
             return { orderId, updates, data };
         },
@@ -367,11 +368,9 @@ export function useCreateOrderMutation() {
 
     return useMutation({
         mutationFn: async (orderData: Omit<Order, "id" | "created_at" | "updated_at">) => {
-            const { createOrderAction } = await import("@/app/actions/orders");
             const result = await createOrderAction(orderData);
             if (!result.success || !result.data) {
                 console.error("[createOrderMutation] Server action failed:", result.error);
-                console.error("[createOrderMutation] Order data:", JSON.stringify(orderData, null, 2));
                 throw new Error(result.error || "Failed to create order");
             }
             return result.data;
@@ -383,7 +382,6 @@ export function useCreateOrderMutation() {
 
             // Create a temporary optimistic order
             const tempId = `temp-${Date.now()}`;
-            console.log(`[Diag:RQ:CreateMut] onMutate tempId=${tempId}`);
             const optimisticOrder = {
                 ...newOrder,
                 id: tempId,
@@ -403,7 +401,6 @@ export function useCreateOrderMutation() {
             return { previousOrders, tempId };
         },
         onSuccess: (realOrder, _variables, context) => {
-            console.log(`[Diag:RQ:CreateMut] onSuccess realId=${realOrder.id} replacedTempId=${context?.tempId}`);
             // Replace the temporary optimistic order with the real server data
             if (context?.tempId) {
                 queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) =>
@@ -411,8 +408,7 @@ export function useCreateOrderMutation() {
                 );
             }
         },
-        onError: (err, variables, context) => {
-            console.log(`[Diag:RQ:CreateMut] onError err=${err instanceof Error ? err.message : err} rollingBack=${!!context?.previousOrders}`);
+        onError: (err, _variables, context) => {
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
