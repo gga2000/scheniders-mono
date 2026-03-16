@@ -179,12 +179,76 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Initialize auth state
     useEffect(() => {
         let mounted = true;
+        let authEventReceived = false;
         const _tAuthInit = performance.now();
         console.log(`[Diag:Auth] INIT`);
+
+        // ── SAFETY NET: If onAuthStateChange never fires ──
+        // Supabase's internal auth initialization can hang when it tries to
+        // verify/refresh a stored token over a stale TCP connection (e.g., after
+        // device sleep). If no auth event arrives within 10s, we manually call
+        // getSession() + refreshSession() to break out of the stuck state.
+        const AUTH_INIT_TIMEOUT_MS = 10_000;
+        const authInitTimeout = setTimeout(async () => {
+            if (authEventReceived || !mounted) return;
+            console.error(`[Diag:Auth] INIT_TIMEOUT — no auth event received within ${AUTH_INIT_TIMEOUT_MS}ms, attempting manual recovery`);
+
+            try {
+                // Try getSession first (reads from localStorage, fast)
+                const { data: { session: localSession } } = await supabase.auth.getSession();
+                if (!mounted) return;
+
+                if (localSession?.user) {
+                    console.log(`[Diag:Auth] INIT_RECOVERY — found session via getSession, userId=${localSession.user.id}`);
+                    setUser(localSession.user);
+                    setSession(localSession);
+                    currentUserIdRef.current = localSession.user.id;
+
+                    const cachedAuth = getCachedAuthState(localSession.user.id);
+                    if (cachedAuth) {
+                        setRole(cachedAuth.role);
+                        setPermissions(cachedAuth.permissions);
+                        setProfileLoaded(true);
+                    }
+                    setIsLoading(false);
+
+                    // Fetch fresh profile in background
+                    fetchRoleAndPermissions(localSession.user.id).then(() => {
+                        if (mounted) setProfileLoaded(true);
+                    });
+                } else {
+                    // No local session — try refreshSession as last resort
+                    console.warn(`[Diag:Auth] INIT_RECOVERY — no local session, trying refreshSession`);
+                    const { data: refreshData, error: refreshErr } = await supabase.auth.refreshSession();
+                    if (!mounted) return;
+
+                    if (refreshData?.session?.user) {
+                        console.log(`[Diag:Auth] INIT_RECOVERY_REFRESH_OK userId=${refreshData.session.user.id}`);
+                        setUser(refreshData.session.user);
+                        setSession(refreshData.session);
+                        currentUserIdRef.current = refreshData.session.user.id;
+                        setIsLoading(false);
+
+                        fetchRoleAndPermissions(refreshData.session.user.id).then(() => {
+                            if (mounted) setProfileLoaded(true);
+                        });
+                    } else {
+                        console.error(`[Diag:Auth] INIT_RECOVERY_FAILED — no session available, redirecting to login. err=${refreshErr?.message ?? 'none'}`);
+                        setIsLoading(false);
+                        // User will be redirected to login by PageGuard
+                    }
+                }
+            } catch (err) {
+                console.error(`[Diag:Auth] INIT_RECOVERY_ERR:`, err);
+                if (mounted) setIsLoading(false);
+            }
+        }, AUTH_INIT_TIMEOUT_MS);
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, currentSession) => {
                 if (!mounted) return;
+                authEventReceived = true;
+                clearTimeout(authInitTimeout);
                 console.log(`[Diag:Auth] EVENT=${event} hasSession=${!!currentSession} hasUser=${!!currentSession?.user} elapsed=${(performance.now() - _tAuthInit).toFixed(1)}ms`);
 
                 if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
@@ -484,6 +548,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         return () => {
             mounted = false;
+            clearTimeout(authInitTimeout);
             subscription.unsubscribe();
             window.removeEventListener('storage', handleStorageChange);
             if (deferredLogoutRef.current) {
