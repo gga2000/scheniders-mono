@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { User, Session } from "@supabase/supabase-js";
-import { supabase, SupabaseConnectionMonitor } from "@/lib/supabase";
+import { supabase, SupabaseConnectionMonitor, getStoredSupabaseSession } from "@/lib/supabase";
 import { activityLogger } from "@/lib/activity-logger";
 import type { UserProfile, AuthContextType } from "@/types/auth";
 
@@ -179,76 +179,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Initialize auth state
     useEffect(() => {
         let mounted = true;
-        let authEventReceived = false;
+        let bootstrappedFromStorage = false;
         const _tAuthInit = performance.now();
         console.log(`[Diag:Auth] INIT`);
 
-        // ── SAFETY NET: If onAuthStateChange never fires ──
-        // Supabase's internal auth initialization can hang when it tries to
-        // verify/refresh a stored token over a stale TCP connection (e.g., after
-        // device sleep). If no auth event arrives within 10s, we manually call
-        // getSession() + refreshSession() to break out of the stuck state.
-        const AUTH_INIT_TIMEOUT_MS = 10_000;
-        const authInitTimeout = setTimeout(async () => {
-            if (authEventReceived || !mounted) return;
-            console.error(`[Diag:Auth] INIT_TIMEOUT — no auth event received within ${AUTH_INIT_TIMEOUT_MS}ms, attempting manual recovery`);
-
-            try {
-                // Try getSession first (reads from localStorage, fast)
-                const { data: { session: localSession } } = await supabase.auth.getSession();
-                if (!mounted) return;
-
-                if (localSession?.user) {
-                    console.log(`[Diag:Auth] INIT_RECOVERY — found session via getSession, userId=${localSession.user.id}`);
-                    setUser(localSession.user);
-                    setSession(localSession);
-                    currentUserIdRef.current = localSession.user.id;
-
-                    const cachedAuth = getCachedAuthState(localSession.user.id);
-                    if (cachedAuth) {
-                        setRole(cachedAuth.role);
-                        setPermissions(cachedAuth.permissions);
-                        setProfileLoaded(true);
-                    }
-                    setIsLoading(false);
-
-                    // Fetch fresh profile in background
-                    fetchRoleAndPermissions(localSession.user.id).then(() => {
-                        if (mounted) setProfileLoaded(true);
-                    });
-                } else {
-                    // No local session — try refreshSession as last resort
-                    console.warn(`[Diag:Auth] INIT_RECOVERY — no local session, trying refreshSession`);
-                    const { data: refreshData, error: refreshErr } = await supabase.auth.refreshSession();
-                    if (!mounted) return;
-
-                    if (refreshData?.session?.user) {
-                        console.log(`[Diag:Auth] INIT_RECOVERY_REFRESH_OK userId=${refreshData.session.user.id}`);
-                        setUser(refreshData.session.user);
-                        setSession(refreshData.session);
-                        currentUserIdRef.current = refreshData.session.user.id;
-                        setIsLoading(false);
-
-                        fetchRoleAndPermissions(refreshData.session.user.id).then(() => {
-                            if (mounted) setProfileLoaded(true);
-                        });
-                    } else {
-                        console.error(`[Diag:Auth] INIT_RECOVERY_FAILED — no session available, redirecting to login. err=${refreshErr?.message ?? 'none'}`);
-                        setIsLoading(false);
-                        // User will be redirected to login by PageGuard
-                    }
-                }
-            } catch (err) {
-                console.error(`[Diag:Auth] INIT_RECOVERY_ERR:`, err);
-                if (mounted) setIsLoading(false);
+        // ── PHASE 1: Immediate bootstrap from localStorage (~0ms) ──
+        // Read the Supabase session directly from localStorage to bypass the
+        // client's potentially-hung initialization. Combined with our auth cache,
+        // this makes the app usable immediately (role, permissions from cache).
+        //
+        // The global fetch timeout in lib/supabase.ts ensures that even if the
+        // connection is stale, Supabase's internal _initialize() will fail after
+        // 10s (instead of hanging forever), allowing onAuthStateChange to fire.
+        const storedSession = getStoredSupabaseSession();
+        if (storedSession?.user?.id) {
+            const cachedAuth = getCachedAuthState(storedSession.user.id);
+            if (cachedAuth) {
+                console.log(`[Diag:Auth] BOOTSTRAP — loaded from localStorage+cache userId=${storedSession.user.id} role=${cachedAuth.role}`);
+                setUser(storedSession.user as any);
+                setSession(storedSession as any);
+                currentUserIdRef.current = storedSession.user.id;
+                setRole(cachedAuth.role);
+                setPermissions(cachedAuth.permissions);
+                setProfileLoaded(true);
+                setIsLoading(false);
+                bootstrappedFromStorage = true;
+            } else {
+                // Have session but no cache — set user/session to unblock data queries,
+                // but profile needs to be fetched from DB
+                console.log(`[Diag:Auth] BOOTSTRAP_PARTIAL — session from localStorage, no cache. userId=${storedSession.user.id}`);
+                setUser(storedSession.user as any);
+                setSession(storedSession as any);
+                currentUserIdRef.current = storedSession.user.id;
+                setIsLoading(false);
+                bootstrappedFromStorage = true;
             }
-        }, AUTH_INIT_TIMEOUT_MS);
+        } else {
+            console.log(`[Diag:Auth] BOOTSTRAP_NONE — no stored session in localStorage`);
+        }
 
+        // ── PHASE 2: Safety timeout ──
+        // If we didn't bootstrap AND onAuthStateChange never fires (stale connection),
+        // ensure the app doesn't stay stuck on a loading screen forever.
+        // With the global fetch timeout (10s in supabase.ts), initialization should
+        // fail and fire INITIAL_SESSION within ~10s. This 15s timeout is a last resort.
+        const safetyTimeout = !bootstrappedFromStorage ? setTimeout(() => {
+            if (!mounted) return;
+            console.error(`[Diag:Auth] SAFETY_TIMEOUT — 15s elapsed with no bootstrap and no auth event, setting isLoading=false`);
+            setIsLoading(false);
+            // PageGuard will redirect to login since user is null
+        }, 15_000) : null;
+
+        // ── PHASE 3: onAuthStateChange for ongoing auth events ──
+        // This handles: INITIAL_SESSION (when it eventually fires), SIGNED_IN,
+        // TOKEN_REFRESHED, SIGNED_OUT. When it fires with a valid session,
+        // it replaces the bootstrapped state with a properly-authenticated session.
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, currentSession) => {
                 if (!mounted) return;
-                authEventReceived = true;
-                clearTimeout(authInitTimeout);
+                if (safetyTimeout) clearTimeout(safetyTimeout);
                 console.log(`[Diag:Auth] EVENT=${event} hasSession=${!!currentSession} hasUser=${!!currentSession?.user} elapsed=${(performance.now() - _tAuthInit).toFixed(1)}ms`);
 
                 if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
@@ -548,7 +537,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         return () => {
             mounted = false;
-            clearTimeout(authInitTimeout);
+            if (safetyTimeout) clearTimeout(safetyTimeout);
             subscription.unsubscribe();
             window.removeEventListener('storage', handleStorageChange);
             if (deferredLogoutRef.current) {

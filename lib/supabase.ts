@@ -13,6 +13,12 @@ import { env } from '@/lib/env';
 //
 // `createClient` uses localStorage for auth persistence (the default) and
 // has no locking mechanism, so concurrent requests work correctly.
+// Global fetch timeout to prevent Supabase requests from hanging forever
+// on stale TCP connections after device sleep. Without this, Supabase's
+// internal _initialize() can hang indefinitely trying to refresh a token
+// over a dead connection, causing onAuthStateChange to never fire.
+const SUPABASE_FETCH_TIMEOUT_MS = 10_000;
+
 export const supabase = createClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -24,11 +30,55 @@ export const supabase = createClient(
         },
         global: {
             fetch: (url, options) => {
-                return fetch(url, { ...options, cache: "no-store" });
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => {
+                    console.warn(`[Supabase:Fetch] TIMEOUT after ${SUPABASE_FETCH_TIMEOUT_MS}ms url=${typeof url === 'string' ? url.split('?')[0] : 'unknown'}`);
+                    controller.abort();
+                }, SUPABASE_FETCH_TIMEOUT_MS);
+
+                // If the caller provided an abort signal, forward its abort to our controller
+                const callerSignal = options?.signal;
+                if (callerSignal) {
+                    if (callerSignal.aborted) {
+                        controller.abort();
+                    } else {
+                        callerSignal.addEventListener('abort', () => controller.abort(), { once: true });
+                    }
+                }
+
+                return fetch(url, {
+                    ...options,
+                    signal: controller.signal,
+                    cache: "no-store"
+                }).finally(() => clearTimeout(timeoutId));
             }
         }
     }
 );
+
+/**
+ * Read the Supabase session directly from localStorage, bypassing the
+ * client's potentially-hung initialization. This is used to bootstrap
+ * the auth state immediately on app load.
+ *
+ * The Supabase client stores the session under `sb-<projectRef>-auth-token`.
+ */
+export function getStoredSupabaseSession(): { user: { id: string; email?: string }; access_token: string; refresh_token: string } | null {
+    try {
+        const url = new URL(env.NEXT_PUBLIC_SUPABASE_URL);
+        const projectRef = url.hostname.split('.')[0];
+        const storageKey = `sb-${projectRef}-auth-token`;
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (parsed?.user?.id && parsed?.access_token) {
+            return parsed;
+        }
+        return null;
+    } catch {
+        return null;
+    }
+}
 
 // =============================================
 // CONNECTION HEALTH MONITORING
