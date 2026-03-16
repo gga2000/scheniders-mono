@@ -30,7 +30,7 @@ import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useOrderProfits } from "@/hooks/use-order-profits";
 import { useFinancialEpoch, EraMode } from "@/hooks/use-financial-epoch";
-import { useUserPreferences, PREFERENCE_KEYS } from "@/hooks/use-user-preferences";
+import { useUserPreferences } from "@/hooks/use-user-preferences";
 
 // Core components (always needed)
 import { DateRangePicker } from "@/components/ui/date-range-picker";
@@ -84,6 +84,10 @@ const CostCompositionChart = dynamic(
 const CustomerAnalyticsCard = dynamic(
     () => import("@/components/analytics/customer-analytics-card").then(mod => ({ default: mod.CustomerAnalyticsCard })),
     { loading: () => <div className="skeleton h-64 rounded-2xl" /> }
+);
+const BalanceSummaryCard = dynamic(
+    () => import("@/components/analytics/balance-summary-card").then(mod => ({ default: mod.BalanceSummaryCard })),
+    { loading: () => <div className="skeleton h-48 rounded-2xl" /> }
 );
 const ProfitSummaryCards = dynamic(
     () => import("@/components/analytics/profit-summary-cards").then(mod => ({ default: mod.ProfitSummaryCards })),
@@ -147,6 +151,7 @@ export default function AnalyticsPage() {
     const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsMounted(true);
     }, []);
 
@@ -222,7 +227,6 @@ export default function AnalyticsPage() {
         expensesByCategory,
         comparePeriods,
         rejectionStats,
-        filteredOrders,
     } = useFinances(orders, products, effectiveDateRange);
 
     const {
@@ -702,12 +706,18 @@ export default function AnalyticsPage() {
                         <DeliveryHistory />
                     </div>
                 ) : (
-                    <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
-                        <ExpenseList
+                    <div className="space-y-6">
+                        <BalanceSummaryCard
+                            profitSummary={profitSummary}
                             expenses={expenses}
-                            onEdit={handleEditExpense}
-                            onDelete={handleDeleteExpense}
                         />
+                        <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
+                            <ExpenseList
+                                expenses={expenses}
+                                onEdit={handleEditExpense}
+                                onDelete={handleDeleteExpense}
+                            />
+                        </div>
                     </div>
                 )}
 

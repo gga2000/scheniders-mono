@@ -23,7 +23,6 @@ import { toast } from "sonner";
 import {
     useUpdateStatusMutation,
     useUpdateOrderMutation,
-    useDeleteOrderMutation,
     useCreateOrderMutation,
     orderKeys
 } from "@/hooks/use-orders-query";
@@ -49,7 +48,7 @@ interface UseOrderCrudOptions {
 
 export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     const queryClient = useQueryClient();
-    const { user, profile, session, refreshProfile } = useAuth();
+    const { user, profile, session } = useAuth();
 
     // Stable Auth Ref to prevent stale closures in stableAPI proxy
     const authRef = useRef({ user, profile, session });
@@ -359,10 +358,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     }
 
     async function createOrder(orderData: Omit<Order, "id" | "created_at" | "updated_at">): Promise<{ success: boolean; data?: Order; error?: string }> {
-        const _tCreate = performance.now();
         // Idempotency guard: prevent double-click / duplicate submissions
         const fingerprint = `create_${orderData.order_id || ''}_${orderData.phone || ''}_${Date.now()}`;
-        console.log(`[Diag:CreateOrder] START fingerprint=${fingerprint}`);
         const idempotencyKey = generateIdempotencyKey(fingerprint);
         const guard = getIdempotencyGuard();
 
@@ -436,7 +433,6 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             }
 
             const data = await mutationPromise;
-            console.log(`[Diag:CreateOrder] MUTATION_OK id=${data.id} took=${(performance.now() - _tCreate).toFixed(1)}ms`);
 
             // Handle Advanced Inventory
             import("@/lib/inventory-engine").then(engine => {
@@ -449,9 +445,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 orderData.source || "manual"
             );
 
-            // Record initial status change to history
-            // (changedBy already defined earlier in this function)
-            const { error: historyError } = await supabase
+            // Record initial status change to history (fire-and-forget — don't block the modal)
+            supabase
                 .from("order_status_history")
                 .insert([{
                     order_id: data.id,
@@ -460,12 +455,13 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     to_status: orderData.status || "new",
                     changed_at: new Date().toISOString(),
                     notes: 'Order Created',
-                }]);
-            if (historyError) console.error("Failed to record initial status history:", historyError);
+                }])
+                .then(({ error: historyError }) => {
+                    if (historyError) console.error("Failed to record initial status history:", historyError);
+                });
 
             return { success: true, data };
         } catch (err) {
-            console.log(`[Diag:CreateOrder] MUTATION_ERR err=${err instanceof Error ? err.message : err} took=${(performance.now() - _tCreate).toFixed(1)}ms`);
             // Release idempotency key so the user can retry
             guard.release(idempotencyKey);
             console.error("Error creating order:", err);

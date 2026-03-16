@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAccessToken, createSupabaseServiceClient } from "@/lib/supabase-server";
-import type { ParsedDeliveryPDF, MatchedRow } from "@/types/delivery-import";
+import type { ParsedDeliveryPDF } from "@/types/delivery-import";
 
 interface ConfirmRequest {
     parsedPDF: ParsedDeliveryPDF;
@@ -25,7 +25,7 @@ interface ConfirmRequest {
     filename: string;
 }
 
-const BATCH_SIZE = 15;
+
 
 /**
  * POST /api/delivery-import/confirm
@@ -102,7 +102,24 @@ export async function POST(request: NextRequest) {
         let failedCount = 0;
         const errors: string[] = [];
         const now = new Date().toISOString();
-        const auditItemsToInsert: any[] = [];
+        const auditItemsToInsert: Array<{
+            import_id: string;
+            order_id: string | null;
+            pdf_row_number: number;
+            pdf_shipment_number?: string;
+            pdf_phone?: string;
+            pdf_amount?: number;
+            pdf_delivery_fee?: number;
+            pdf_net_amount?: number;
+            pdf_status?: string;
+            pdf_item_count?: number;
+            pdf_notes?: string;
+            match_category: string;
+            match_details: Record<string, unknown>;
+            action: string;
+            previous_status: string | null;
+            new_status: string | null;
+        }> = [];
 
         const updatePromises = confirmedItems.map(async (item) => {
             const pdfRow = parsedPDF.rows.find((r) => r.rowNumber === item.pdfRowNumber);
@@ -116,7 +133,17 @@ export async function POST(request: NextRequest) {
             const attentionReasons: string[] = [];
             let newStatus = "delivered";
 
-            if (resAction === "acknowledge_refund") {
+            if (resAction === "mark_refund_delivered") {
+                newStatus = "refund_delivered";
+                orderUpdate.status = "refund_delivered";
+                deliveryNotes.push(`Refund delivered via delivery import: ${pdfRow?.netToMerchant?.toLocaleString()} IQD`);
+            } else if (resAction === "mark_refund_failed") {
+                newStatus = "refund_failed";
+                orderUpdate.status = "refund_failed";
+                delete orderUpdate.delivered_at;
+                deliveryNotes.push(`Refund failed via delivery import: ${pdfRow?.netToMerchant?.toLocaleString()} IQD`);
+                attentionReasons.push("refund_failed");
+            } else if (resAction === "acknowledge_refund") {
                 newStatus = item.previousStatus;
                 delete orderUpdate.delivered_at;
                 deliveryNotes.push(`Refund acknowledged: ${pdfRow?.netToMerchant?.toLocaleString()} IQD`);

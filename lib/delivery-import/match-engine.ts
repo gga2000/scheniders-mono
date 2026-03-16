@@ -186,6 +186,15 @@ export function matchParsedRows(
 
     // Track which orders have already been matched (prevent double-matching)
     const matchedOrderIds = new Set<string>();
+    // Track shipment numbers that belong to negative/refund rows
+    const refundShipmentNumbers = new Set<string>();
+
+    // Pre-scan: collect all shipment numbers from negative rows
+    for (const row of pdfRows) {
+        if (row.isNegative && row.shipmentNumber) {
+            refundShipmentNumbers.add(row.shipmentNumber);
+        }
+    }
 
     const results: MatchedRow[] = [];
 
@@ -276,15 +285,25 @@ export function matchParsedRows(
             }
         }
 
-        // 4. Not found
+        // 4. Not found — but check if this is a companion row for a refund
         if (!order) {
-            results.push({
-                pdfRow,
-                order: null,
-                category: "not_found",
-                matchDetails: `No matching order found for shipment "${pdfRow.shipmentNumber}" or phone "${pdfRow.phone}"`,
-                matchedBy: "none",
-            });
+            if (!pdfRow.isNegative && refundShipmentNumbers.has(pdfRow.shipmentNumber)) {
+                results.push({
+                    pdfRow,
+                    order: null,
+                    category: "negative_refund",
+                    matchDetails: `Companion record for refund shipment ${pdfRow.shipmentNumber} — no action needed`,
+                    matchedBy: "none",
+                });
+            } else {
+                results.push({
+                    pdfRow,
+                    order: null,
+                    category: "not_found",
+                    matchDetails: `No matching order found for shipment "${pdfRow.shipmentNumber}" or phone "${pdfRow.phone}"`,
+                    matchedBy: "none",
+                });
+            }
             continue;
         }
 

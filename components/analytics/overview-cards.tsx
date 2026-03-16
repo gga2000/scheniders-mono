@@ -53,8 +53,10 @@ export function OverviewCards({ profitSummary, pipelineSummary }: OverviewCardsP
                     <Wallet className="w-4 h-4 opacity-80" />
                     <span className="text-xs font-medium opacity-80">Total Costs</span>
                 </div>
-                <p className="text-lg font-bold">{formatIQD(profitSummary.totalOperationalCost)}</p>
-                <p className="text-xs opacity-70">All operational</p>
+                <p className="text-lg font-bold">{formatIQD(profitSummary.totalCost)}</p>
+                <p className="text-xs opacity-70">
+                    {profitSummary.marketingCost > 0 ? "Incl. marketing" : "All operational"}
+                </p>
             </motion.div>
 
             {/* Product Cost */}
