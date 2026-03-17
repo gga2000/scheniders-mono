@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { type Order } from "@/types";
 import { CACHE_PRESETS } from '@/lib/query-config';
+import { diag } from "@/lib/diag";
 import { orderRepository } from "@/lib/repositories/order-repository";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "sonner";
@@ -64,9 +65,9 @@ if (typeof window !== 'undefined') {
 // Fetch all active orders — auth gating is handled by the `enabled` flag in useOrdersQuery.
 async function fetchOrders(): Promise<Order[]> {
     const _tFetch = performance.now();
-    console.log(`[Diag:RQ:Fetch] fetchOrders START`);
+    diag.log(`[Diag:RQ:Fetch] fetchOrders START`);
     const result = await orderRepository.findAll();
-    console.log(`[Diag:RQ:Fetch] fetchOrders OK count=${result.length} took=${(performance.now() - _tFetch).toFixed(1)}ms`);
+    diag.log(`[Diag:RQ:Fetch] fetchOrders OK count=${result.length} took=${(performance.now() - _tFetch).toFixed(1)}ms`);
 
     return result;
 
@@ -90,12 +91,12 @@ async function fetchArchivedOrders(): Promise<Order[]> {
  */
 export function useOrdersQuery(refetchTrigger?: string) {
     const queryClient = useQueryClient();
-    const { session } = useAuth();
+    const { session, clientReady } = useAuth();
 
     // Force refetch when trigger changes
     useEffect(() => {
         if (refetchTrigger) {
-            console.log(`[Diag:RQ:Query] refetchTrigger=${refetchTrigger}`);
+            diag.log(`[Diag:RQ:Query] refetchTrigger=${refetchTrigger}`);
             queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
         }
     }, [refetchTrigger, queryClient]);
@@ -103,9 +104,9 @@ export function useOrdersQuery(refetchTrigger?: string) {
     return useQuery({
         queryKey: orderKeys.lists(),
         queryFn: fetchOrders,
-        // Auth-gated: don't fetch until we have a session
-        // This eliminates the "No auth session" throw → retry cycle
-        enabled: !!session,
+        // CRITICAL: Wait for Supabase client's internal session to be ready
+        // Not just React state - the client must have completed _initialize()
+        enabled: !!session && clientReady,
         // Short staleTime — realtime patches keep cache fresh between refetches
         staleTime: 30 * 1000, // 30 seconds
         gcTime: CACHE_PRESETS.FREQUENT.gcTime, // 10 mins
@@ -149,7 +150,7 @@ export function useUpdateOrderMutation() {
         },
         // Optimistic update - update cache immediately
         onMutate: async ({ orderId, updates }) => {
-            console.log(`[Diag:RQ:UpdateMut] onMutate orderId=${orderId} fields=${Object.keys(updates).join(',')}`);
+            diag.log(`[Diag:RQ:UpdateMut] onMutate orderId=${orderId} fields=${Object.keys(updates).join(',')}`);
             getOrderBatcher()?.markMutated(orderId);
             await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
 
@@ -169,7 +170,7 @@ export function useUpdateOrderMutation() {
             return { previousOrders };
         },
         onSuccess: ({ orderId, data }) => {
-            console.log(`[Diag:RQ:UpdateMut] onSuccess orderId=${orderId}`);
+            diag.log(`[Diag:RQ:UpdateMut] onSuccess orderId=${orderId}`);
             // Overwrite optimistic cache with actual server data to ensure consistency
             queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) => {
                 const updated = old?.map((order) =>
@@ -179,7 +180,7 @@ export function useUpdateOrderMutation() {
             });
         },
         onError: (err, variables, context) => {
-            console.log(`[Diag:RQ:UpdateMut] onError orderId=${variables.orderId} err=${err instanceof Error ? err.message : err} rollingBack=${!!context?.previousOrders}`);
+            diag.log(`[Diag:RQ:UpdateMut] onError orderId=${variables.orderId} err=${err instanceof Error ? err.message : err} rollingBack=${!!context?.previousOrders}`);
             console.error(`[UpdateOrder] onError for ${variables.orderId}:`, err);
             
             if (context?.previousOrders) {
@@ -231,7 +232,7 @@ export function useUpdateStatusMutation() {
         },
         onMutate: async ({ orderId, status, rejectionReason, last_status_changed_by_name, last_status_changed_by_avatar }) => {
             const mutSeq = nextMutationSeq(orderId);
-            console.log(`[Diag:RQ:StatusMut] onMutate orderId=${orderId} status=${status} mutSeq=${mutSeq}`);
+            diag.log(`[Diag:RQ:StatusMut] onMutate orderId=${orderId} status=${status} mutSeq=${mutSeq}`);
             const batcher = getOrderBatcher();
 
             // Mark as recently mutated so realtime batcher skips stale broadcasts
@@ -268,10 +269,10 @@ export function useUpdateStatusMutation() {
             // LATEST-WINS: If a newer mutation has started for this order,
             // don't overwrite the cache — the newer mutation's optimistic state is correct.
             if (context?.mutSeq != null && !isMutationCurrent(orderId, context.mutSeq)) {
-                console.log(`[Diag:RQ:StatusMut] onSuccess SKIPPED (superseded) orderId=${orderId} mutSeq=${context.mutSeq}`);
+                diag.log(`[Diag:RQ:StatusMut] onSuccess SKIPPED (superseded) orderId=${orderId} mutSeq=${context.mutSeq}`);
                 return;
             }
-            console.log(`[Diag:RQ:StatusMut] onSuccess orderId=${orderId} mutSeq=${context?.mutSeq}`);
+            diag.log(`[Diag:RQ:StatusMut] onSuccess orderId=${orderId} mutSeq=${context?.mutSeq}`);
 
             queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) => {
                 const updated = old?.map((order) =>
@@ -281,7 +282,7 @@ export function useUpdateStatusMutation() {
             });
         },
         onError: (err, variables, context) => {
-            console.log(`[Diag:RQ:StatusMut] onError orderId=${variables.orderId} err=${err instanceof Error ? err.message : err} mutSeq=${context?.mutSeq} rollingBack=${!!context?.previousOrders}`);
+            diag.log(`[Diag:RQ:StatusMut] onError orderId=${variables.orderId} err=${err instanceof Error ? err.message : err} mutSeq=${context?.mutSeq} rollingBack=${!!context?.previousOrders}`);
             // LATEST-WINS: If a newer mutation has started for this order,
             // don't rollback — the newer mutation's optimistic state is correct.
             if (context?.mutSeq != null && !isMutationCurrent(variables.orderId, context.mutSeq)) return;
@@ -301,9 +302,9 @@ export function useUpdateStatusMutation() {
         // Self-healing: re-sync cache from Supabase after every mutation settles.
         // This catches any subtle optimistic/realtime desync within 2 seconds.
         onSettled: () => {
-            console.log(`[Diag:RQ:StatusMut] onSettled — scheduling refetch in 2s`);
+            diag.log(`[Diag:RQ:StatusMut] onSettled — scheduling refetch in 2s`);
             setTimeout(() => {
-                console.log(`[Diag:RQ:StatusMut] onSettled REFETCH fired (2s delayed)`);
+                diag.log(`[Diag:RQ:StatusMut] onSettled REFETCH fired (2s delayed)`);
                 queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
             }, 2000);
         },

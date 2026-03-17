@@ -6,6 +6,7 @@ import { type Product, type ProductVariant, type ProductPriceHistory } from "@/l
 import { productRepository } from "@/lib/repositories/product-repository";
 import { CACHE_PRESETS } from '@/lib/query-config';
 import { useAuth } from "@/components/auth/auth-provider";
+import { diag } from "@/lib/diag";
 
 // Query keys
 export const productKeys = {
@@ -23,7 +24,7 @@ async function fetchProducts(): Promise<Product[]> {
 
 // Hook
 export function useProductsQuery() {
-    const { session } = useAuth();
+    const { session, clientReady } = useAuth();
     const [fetchStartTime] = useState(() => performance.now());
 
     return useQuery({
@@ -31,16 +32,18 @@ export function useProductsQuery() {
         queryFn: async () => {
             const hasSession = !!session;
             const elapsed = performance.now() - fetchStartTime;
-            console.log(`[Diag:Products] FETCH_START hasSession=${hasSession} elapsedSinceMount=${elapsed.toFixed(1)}ms`);
+            diag.log(`[Diag:Products] FETCH_START hasSession=${hasSession} clientReady=${clientReady} elapsedSinceMount=${elapsed.toFixed(1)}ms`);
 
             const result = await fetchProducts();
 
             const fetchMs = performance.now() - fetchStartTime;
-            console.log(`[Diag:Products] FETCH_DONE count=${result.length} fetchMs=${fetchMs.toFixed(1)}ms hasSession=${!!session}`);
+            diag.log(`[Diag:Products] FETCH_DONE count=${result.length} fetchMs=${fetchMs.toFixed(1)}ms hasSession=${!!session}`);
 
             return result;
         },
-        enabled: !!session, // CRITICAL FIX: Don't fetch until session is ready
+        // CRITICAL: Wait for Supabase client's internal session to be ready
+        // Not just React state - the client must have completed _initialize()
+        enabled: !!session && clientReady,
         staleTime: CACHE_PRESETS.STANDARD.staleTime * 2, // 10 mins
         gcTime: CACHE_PRESETS.STANDARD.gcTime * 2, // 30 mins
         refetchOnWindowFocus: true,

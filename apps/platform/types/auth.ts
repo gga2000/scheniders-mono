@@ -22,6 +22,7 @@ export interface AuthContextType {
     permissions: string[];
     isLoading: boolean;
     profileLoaded: boolean;
+    clientReady: boolean; // Supabase client's internal session ready (not just React state)
     signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
     signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
     signOut: () => Promise<void>;
