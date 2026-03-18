@@ -1,5 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import type { Order } from "@/lib/supabase";
+import { diag } from "@/lib/diag";
 
 
 // =============================================
@@ -65,11 +66,11 @@ export class RealtimeBatcher {
         // MUTATION GUARD check at push time (early skip)
         if (event.eventType === "UPDATE" && typeof id === 'string' && this.recentMutations.has(id)) {
             const elapsed = Date.now() - (this.recentMutations.get(id) || 0);
-            console.log(`[Diag:Batcher] PUSH_SKIPPED id=${id} reason=mutationGuard (mutated ${elapsed}ms ago)`);
+            diag.log(`[Diag:Batcher] PUSH_SKIPPED id=${id} reason=mutationGuard (mutated ${elapsed}ms ago)`);
             return; // Actually skip — don't push stale realtime data into the buffer
         }
 
-        console.log(`[Diag:Batcher] PUSH type=${event.eventType} id=${id} bufferSize=${this.buffer.length + 1}`);
+        diag.log(`[Diag:Batcher] PUSH type=${event.eventType} id=${id} bufferSize=${this.buffer.length + 1}`);
         this.buffer.push(event);
 
         // Reset the flush timer (debounce)
@@ -137,7 +138,7 @@ export class RealtimeBatcher {
         }
 
 
-        console.log(`[Diag:Batcher] FLUSH count=${events.length} inserts=${inserts.size} updates=${updates.size} deletes=${deletes.size}`);
+        diag.log(`[Diag:Batcher] FLUSH count=${events.length} inserts=${inserts.size} updates=${updates.size} deletes=${deletes.size}`);
 
         // Apply all changes in a single setQueryData call
         this.queryClient.setQueryData<Order[]>(this.queryKey, (old) => {

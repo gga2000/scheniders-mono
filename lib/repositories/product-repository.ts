@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { withRetry } from "./with-retry";
 import type { Product, ProductVariant, ProductPriceHistory } from "@/types/product";
+import { diag } from "@/lib/diag";
 
 /**
  * ProductRepository — Centralized data access for products.
@@ -10,14 +11,14 @@ export const productRepository = {
     async findAll(): Promise<Product[]> {
         return withRetry('productRepository.findAll', async () => {
             const _t = performance.now();
-            console.log(`[Diag:ProductRepo] findAll query START`);
+            diag.log(`[Diag:ProductRepo] findAll query START`);
 
             const { data, error } = await supabase
                 .from("products")
                 .select(`*, variants:product_variants(*)`)
                 .order("created_at", { ascending: false });
 
-            console.log(`[Diag:ProductRepo] findAll query DONE took=${(performance.now() - _t).toFixed(1)}ms rows=${data?.length ?? 0} error=${error?.message ?? 'none'}`);
+            diag.log(`[Diag:ProductRepo] findAll query DONE took=${(performance.now() - _t).toFixed(1)}ms rows=${data?.length ?? 0} error=${error?.message ?? 'none'}`);
             if (error) throw error;
             return data || [];
         });
@@ -26,7 +27,7 @@ export const productRepository = {
     /** Insert a new product. Returns the created product. */
     async create(productData: Omit<Product, "id" | "created_at" | "updated_at" | "variants">): Promise<Product> {
         return withRetry('productRepository.create', async () => {
-            const { sku, ...data } = productData as any;
+            const { sku: _sku, ...data } = productData as Omit<Product, "id" | "created_at" | "updated_at" | "variants"> & { sku?: string };
             const { data: newProduct, error } = await supabase
                 .from("products")
                 .insert([{ ...data, is_archived: false }])
@@ -41,7 +42,7 @@ export const productRepository = {
     /** Update a product by ID. */
     async update(id: string, data: Partial<Product>): Promise<void> {
         return withRetry('productRepository.update', async () => {
-            const { sku, ...updateData } = data as any;
+            const { sku: _sku, ...updateData } = data as Partial<Product> & { sku?: string };
             const { error } = await supabase
                 .from("products")
                 .update(updateData)

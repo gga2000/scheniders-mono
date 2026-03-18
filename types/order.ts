@@ -157,7 +157,7 @@ export interface OrderStatusHistory {
 }
 
 export interface OrderFilters {
-    status?: Order['status'] | 'all';
+    status?: Order['status'] | 'all' | 'refunds';
     dateFrom?: string;
     dateTo?: string;
     city?: string;
@@ -216,7 +216,7 @@ export interface PrintBatch {
     pdf_url?: string;
     // Smart batching fields
     sequence_order?: string[];    // Optimized order IDs sequence for printing
-    pick_list?: any;              // Consolidated pick list (PickListItem[])
+    pick_list?: unknown;          // Consolidated pick list (PickListItem[])
     efficiency_score?: number;    // 0-100 efficiency score
     strategy?: string;            // Batching strategy: auto, sku-heavy, priority-first, single-item
     context_switches?: number;    // Number of SKU transitions

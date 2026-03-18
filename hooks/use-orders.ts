@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Order } from "@/lib/supabase";
+import { diag } from "@/lib/diag";
 
 // Decomposed hooks
 import { useOrderFilters } from "@/hooks/use-order-filters";
@@ -22,7 +23,6 @@ import {
 } from "@/hooks/use-orders-query";
 
 import { useState, useEffect } from "react";
-import { toast } from "sonner";
 
 // =============================================
 // ENHANCED ORDERS HOOK (Composition Root)
@@ -48,7 +48,7 @@ export function useOrders() {
     // if not, the query will fetch automatically when session becomes available)
     useAppLifecycle(() => {
         if (queryClient.getQueryData(orderKeys.lists())) {
-            console.log("[Diag:Orders] REFETCH_TRIGGER source=appReopen");
+            diag.log("[Diag:Orders] REFETCH_TRIGGER source=appReopen");
             setRefetchTrigger(orderRefetchTriggers.appReopen + Date.now());
         }
     });
@@ -64,8 +64,9 @@ export function useOrders() {
     // COMPOSE SUB-HOOKS
     // =============================================
 
-    // Archived orders
-    const [archivedOrders, setArchivedOrders] = useState<Order[]>([]);
+    // Sync archived orders from React Query (must be before filterHook)
+    const { data: cachedArchivedOrders } = useArchivedOrdersQuery(false);
+    const archivedOrders = cachedArchivedOrders ?? [];
 
     // 1. Filters — filter state, presets, persistence, derived lists
     const filterHook = useOrderFilters({ orders, archivedOrders });
@@ -73,7 +74,7 @@ export function useOrders() {
     // 2. Realtime — Supabase channel subscription (updates RQ cache directly)
     const { batcherRef } = useOrderRealtime({
         onReconnect: () => {
-            console.log("[Diag:Orders] REFETCH_TRIGGER source=realtimeReconnect");
+            diag.log("[Diag:Orders] REFETCH_TRIGGER source=realtimeReconnect");
             setRefetchTrigger(orderRefetchTriggers.realtimeReconnect + Date.now());
         }
     });
@@ -92,17 +93,6 @@ export function useOrders() {
 
     // 5. Heartbeat — lightweight 30s check for silent realtime disconnections
     useRealtimeHeartbeat({ enabled: !loading });
-
-    // Sync archived orders from React Query
-    const { data: cachedArchivedOrders } = useArchivedOrdersQuery(
-        !!filterHook.filters.searchQuery && !!filterHook.filters.searchIncludesArchive
-    );
-
-    useEffect(() => {
-        if (cachedArchivedOrders) {
-            setArchivedOrders(cachedArchivedOrders);
-        }
-    }, [cachedArchivedOrders]);
 
 
 

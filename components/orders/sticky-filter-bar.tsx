@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { Filter, Layers, ChevronDown, ShieldCheck, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Order, OrderStatus, OrderPriority } from "@/lib/supabase";
@@ -14,7 +13,7 @@ import {
 import { useLanguage } from "@/hooks/use-language";
 
 interface FilterState {
-    status?: OrderStatus | "all";
+    status?: OrderStatus | "all" | "refunds";
     searchQuery?: string;
     dateFrom?: string;
     dateTo?: string;
@@ -72,7 +71,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
         { id: "completed", label: t("orders.status.completed"), count: statusCounts.completed || 0 },
         { id: "cancelled", label: t("orders.status.cancelled"), count: statusCounts.cancelled || 0 },
         { id: "rejected", label: t("orders.status.rejected"), count: statusCounts.rejected || 0 },
-        { id: "return_pending", label: t("orders.status.returnPending"), count: statusCounts.return_pending || 0 },
+        { id: "refunds", label: "المرتجعات", count: statusCounts.refunds || 0 },
         { id: "suspended", label: "طلب معلق", count: statusCounts.suspended || 0 },
         { id: "no_response", label: t("orders.status.noResponse"), count: statusCounts.no_response || 0 },
     ];

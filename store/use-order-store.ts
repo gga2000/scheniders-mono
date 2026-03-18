@@ -1,6 +1,24 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
 import { Order } from "@/types/order";
+
+// ---------------------------------------------------------------------------
+// Debounced Storage Adapter
+// Batches localStorage writes to avoid blocking the main thread on rapid
+// state changes (search keystrokes, filter toggles, modal opens).
+// Reads are instant; writes are coalesced with a 1s trailing debounce.
+// ---------------------------------------------------------------------------
+const debouncedLocalStorage: StateStorage = {
+  getItem: (name) => localStorage.getItem(name),
+  setItem: (() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    return (name: string, value: string) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => localStorage.setItem(name, value), 1000);
+    };
+  })(),
+  removeItem: (name) => localStorage.removeItem(name),
+};
 
 // ---------------------------------------------------------------------------
 // Slice Types
@@ -149,7 +167,7 @@ export type OrderStore = ViewPreferencesSlice &
 
 export const useOrderStore = create<OrderStore>()(
   persist(
-    (set, get) => ({
+    (set, _get) => ({
       // =====================================================================
       // View Preferences Slice
       // =====================================================================
@@ -312,6 +330,7 @@ export const useOrderStore = create<OrderStore>()(
     }),
     {
       name: "orders-ui-store",
+      storage: createJSONStorage(() => debouncedLocalStorage),
       // Only persist view preferences — everything else is transient
       partialize: (state) => ({
         viewMode: state.viewMode,
