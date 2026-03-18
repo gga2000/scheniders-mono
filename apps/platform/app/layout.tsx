@@ -31,7 +31,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Schenider | Order Management System",
+  title: "شنايدر",
   description: "نظام إدارة الطلبات - Advanced order management dashboard for Schenider team",
   manifest: "/manifest.json",
   appleWebApp: {

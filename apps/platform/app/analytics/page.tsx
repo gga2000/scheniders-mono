@@ -493,18 +493,8 @@ export default function AnalyticsPage() {
                             <DataQualityBadge eraMode={eraMode} epochDate={epochDate} />
                         )}
 
-                        {/* Two Column Grid: Cost Breakdown + Pipeline */}
+                        {/* Two Column Grid: Pipeline + Realized Profit */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            {/* Realized Profit Breakdown */}
-                            <div className="flex flex-col">
-                                <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                                    <TrendingUp className="w-5 h-5 text-green-600" />
-                                    Realized Profit
-                                    <span className="text-xs font-normal text-muted">(Delivered + Completed)</span>
-                                </h2>
-                                <ProfitSummaryCards summary={profitSummary} />
-                            </div>
-
                             {/* Pipeline Summary */}
                             <div className="flex flex-col">
                                 <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -513,6 +503,16 @@ export default function AnalyticsPage() {
                                     <span className="text-xs font-normal text-muted">(Confirmed + In Transit)</span>
                                 </h2>
                                 <PipelineSummaryCard pipeline={pipelineSummary} />
+                            </div>
+
+                            {/* Realized Profit Breakdown */}
+                            <div className="flex flex-col">
+                                <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                                    <TrendingUp className="w-5 h-5 text-green-600" />
+                                    Realized Profit
+                                    <span className="text-xs font-normal text-muted">(Delivered + Completed)</span>
+                                </h2>
+                                <ProfitSummaryCards summary={profitSummary} />
                             </div>
                         </div>
 

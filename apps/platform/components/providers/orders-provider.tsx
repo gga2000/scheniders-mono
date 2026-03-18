@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, ReactNode, useEffect, useState } from "react";
+import { createContext, useContext, ReactNode } from "react";
 import { useOrders } from "@/hooks/use-orders";
 /**
  * OrdersContext - Provides shared orders state to prevent duplicate subscriptions
@@ -35,17 +35,7 @@ interface OrdersProviderProps {
  * </OrdersProvider>
  */
 export function OrdersProvider({ children }: OrdersProviderProps) {
-    const [mountTime] = useState(() => performance.now());
     const ordersData = useOrders();
-
-    // 🔍 DIAGNOSTIC: Log mount time and loading state transitions
-    useEffect(() => {
-        console.log(`[OrdersProvider] mounted at ${Math.round(mountTime)}ms`);
-    }, [mountTime]);
-
-    useEffect(() => {
-        const elapsed = Math.round(performance.now() - mountTime);
-    }, [ordersData.loading, ordersData.orders?.length, mountTime]);
 
     return (
         <OrdersContext.Provider value={ordersData}>

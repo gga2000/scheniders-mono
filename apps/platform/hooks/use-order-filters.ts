@@ -57,7 +57,7 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
                     delete parsed.riskLevel;
                     return parsed;
                 }
-            } catch (e) {
+            } catch {
                 // Fall through to default
             }
         }
@@ -100,7 +100,7 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
         setFiltersState(prev => {
             const updated = typeof newFilters === 'function' ? newFilters(prev) : newFilters;
             // Strip riskLevel from persistence
-            const { riskLevel, ...persistableFilters } = updated;
+            const { riskLevel: _riskLevel, ...persistableFilters } = updated;
             setPreference(PREFERENCE_KEYS.ORDER_FILTERS, persistableFilters);
             return updated;
         });
@@ -130,8 +130,10 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
                         } else {
                             return false;
                         }
-                    } else if (statusFilter === "confirmed" && order.status === "return_pending") {
-                        // Allow return_pending to appear in the confirmed tab
+                    } else if (statusFilter === "refunds") {
+                        if (!["return_pending", "refund_delivered", "refund_failed"].includes(order.status)) {
+                            return false;
+                        }
                     } else if (order.status !== statusFilter) {
                         return false;
                     }
@@ -277,6 +279,7 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
             return_pending: 0,
             refund_delivered: 0,
             refund_failed: 0,
+            refunds: 0,
             pending_checkout: 0,
             suspended: 0,
         };
@@ -285,9 +288,9 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
             if (order.status in counts) {
                 counts[order.status]++;
             }
-            // Also count return_pending in the confirmed tab to reflect the combined tab logic
-            if (order.status === "return_pending") {
-                counts.confirmed++;
+            // Unified refunds count: return_pending + refund_delivered + refund_failed
+            if (["return_pending", "refund_delivered", "refund_failed"].includes(order.status)) {
+                counts.refunds++;
             }
         });
 

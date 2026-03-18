@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/lib/env';
+import { diag } from '@/lib/diag';
 
 // Create a single supabase client for the entire app.
 //
@@ -126,7 +127,7 @@ export class SupabaseConnectionMonitor {
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => {
           const latency = performance.now() - startTime;
-          console.error(`[Diag:ConnHealth] PING_TIMEOUT latency=${latency.toFixed(1)}ms timeout=${HEALTH_CHECK_TIMEOUT}ms`);
+          diag.error(`[Diag:ConnHealth] PING_TIMEOUT latency=${latency.toFixed(1)}ms timeout=${HEALTH_CHECK_TIMEOUT}ms`);
           reject(new Error(`Health check timed out after ${HEALTH_CHECK_TIMEOUT}ms`));
         }, HEALTH_CHECK_TIMEOUT);
       });
@@ -136,12 +137,12 @@ export class SupabaseConnectionMonitor {
       const latency = performance.now() - startTime;
       const timeSinceLastCheck = Date.now() - this.lastHealthCheck;
 
-      console.log(`[Diag:ConnHealth] PING latency=${latency.toFixed(1)}ms success=${!error} timeSinceLastCheck=${timeSinceLastCheck}ms`);
+      diag.log(`[Diag:ConnHealth] PING latency=${latency.toFixed(1)}ms success=${!error} timeSinceLastCheck=${timeSinceLastCheck}ms`);
 
       this.lastHealthCheck = Date.now();
 
       if (latency > 1000 && !error) {
-        console.warn(`[Diag:ConnHealth] SLOW_CONNECTION latency=${latency.toFixed(1)}ms threshold=1000ms`);
+        diag.warn(`[Diag:ConnHealth] SLOW_CONNECTION latency=${latency.toFixed(1)}ms threshold=1000ms`);
       }
 
       return {
@@ -152,7 +153,7 @@ export class SupabaseConnectionMonitor {
       };
     } catch (err) {
       const latency = performance.now() - startTime;
-      console.error(`[Diag:ConnHealth] PING_FAILED latency=${latency.toFixed(1)}ms err=${err instanceof Error ? err.message : err}`);
+      diag.error(`[Diag:ConnHealth] PING_FAILED latency=${latency.toFixed(1)}ms err=${err instanceof Error ? err.message : err}`);
 
       return {
         isHealthy: false,

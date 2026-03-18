@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, Order } from "@/lib/supabase";
 import { orderKeys } from "@/hooks/use-orders-query";
+import { diag } from "@/lib/diag";
 
 // =============================================
 // REALTIME HEARTBEAT
@@ -61,7 +62,7 @@ export function useRealtimeHeartbeat({
             const serverLatest = new Date(data.updated_at).getTime();
 
             // 2. Get the latest updated_at from the client cache
-            const cachedOrders = queryClient.getQueryData<any[]>(orderKeys.lists());
+            const cachedOrders = queryClient.getQueryData<Order[]>(orderKeys.lists());
             if (!cachedOrders || cachedOrders.length === 0) {
                 isCheckingRef.current = false;
                 return;
@@ -73,9 +74,9 @@ export function useRealtimeHeartbeat({
 
             // 3. If server is ahead by more than 5 seconds, we missed updates
             const drift = serverLatest - clientLatest;
-            console.log(`[Diag:Heartbeat] CHECK drift=${Math.round(drift / 1000)}s serverLatest=${new Date(serverLatest).toISOString()} clientLatest=${new Date(clientLatest).toISOString()}`);
+            diag.log(`[Diag:Heartbeat] CHECK drift=${Math.round(drift / 1000)}s serverLatest=${new Date(serverLatest).toISOString()} clientLatest=${new Date(clientLatest).toISOString()}`);
             if (drift > 5_000) {
-                console.log(`[Diag:Heartbeat] RECONNECT_TRIGGER reason=cacheDrift drift=${Math.round(drift / 1000)}s`);
+                diag.log(`[Diag:Heartbeat] RECONNECT_TRIGGER reason=cacheDrift drift=${Math.round(drift / 1000)}s`);
                 console.warn(
                     `[Heartbeat] Cache drift detected: ${Math.round(drift / 1000)}s behind server. Triggering refetch.`
                 );
