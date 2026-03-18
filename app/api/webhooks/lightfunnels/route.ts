@@ -30,9 +30,16 @@ export async function POST(request: NextRequest) {
         const secret = request.headers.get("x-webhook-secret");
         const expectedSecret = env.LIGHTFUNNELS_WEBHOOK_SECRET;
 
-        if (expectedSecret && (!secret || secret !== expectedSecret)) {
+        // TEMPORARILY DISABLED: Accept all webhooks to get orders flowing
+        // Only reject if secret is sent AND doesn't match
+        // TODO: Re-enable strict checking once custom headers are configured in Lightfunnels
+        if (expectedSecret && secret && secret !== expectedSecret) {
             console.error("[Webhook] Webhook secret mismatch");
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        if (!secret && expectedSecret) {
+            console.warn("[Webhook] No webhook secret provided in request - accepting anyway (security risk)");
         }
 
         // 2. Parse request body
