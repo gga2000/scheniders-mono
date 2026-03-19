@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
 import { scheduleFollowUp, REMINDER_DELAY_HOURS, DISCOUNT_DELAY_HOURS } from "@/lib/qstash";
 import type { Order } from "@/types/order";
+import { flagOrderForWhatsAppFailure } from "@/lib/whatsapp-error-handler";
 
 // Service role client to bypass RLS for logging
 const supabaseAdmin = createClient(
@@ -55,6 +56,9 @@ export async function POST(request: NextRequest) {
         }
 
         if (!result.success) {
+            // Flag order for manual review
+            await flagOrderForWhatsAppFailure(order.id, result, order.order_id, overridePhone || order.phone);
+
             return NextResponse.json(
                 { success: false, error: result.error || "Failed to send template" },
                 { status: 500 }

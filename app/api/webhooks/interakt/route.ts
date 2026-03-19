@@ -380,7 +380,10 @@ export async function POST(request: NextRequest) {
 
         // 4. Extract response text
         const responseText = extractResponseText(payload.data);
+        console.log(`[Interakt Webhook] 🔍 Step 4 - Extracted response text: "${responseText}"`);
+
         if (!responseText) {
+            console.log(`[Interakt Webhook] ⚠️ No response text found in payload`);
             return NextResponse.json(
                 { success: true, message: "No actionable text in message" },
                 { status: 200 }
@@ -389,11 +392,13 @@ export async function POST(request: NextRequest) {
 
         // 5. Match response to action
         const action = matchResponse(responseText);
+        console.log(`[Interakt Webhook] 🔍 Step 5 - Matched action: ${action || 'none'} (from text: "${responseText}")`);
+
         if (!action) {
             // Customer sent something other than confirm/cancel
             // Leave for team to handle manually
             console.log(
-                `[Interakt Webhook] Unmatched response: "${responseText}" from ${payload.data?.customer?.phone_number}`
+                `[Interakt Webhook] ⚠️ Unmatched response: "${responseText}" from ${payload.data?.customer?.phone_number}`
             );
             return NextResponse.json(
                 { success: true, message: "Response does not match confirm/cancel — manual handling required" },
@@ -404,17 +409,21 @@ export async function POST(request: NextRequest) {
         // 6. Find the order
         const callbackData = extractCallbackData(payload.data);
         const phone = extractPhone(payload.data);
+        console.log(`[Interakt Webhook] 🔍 Step 6 - Looking for order with callback_data: "${callbackData}", phone: "${phone}"`);
+
         const order = await findOrder(callbackData, phone);
 
         if (!order) {
             console.warn(
-                `[Interakt Webhook] No matching order found. callback_data: ${callbackData}, phone: ${phone}`
+                `[Interakt Webhook] ❌ No matching order found. callback_data: ${callbackData}, phone: ${phone}`
             );
             return NextResponse.json(
                 { success: false, error: "No matching order found" },
                 { status: 404 }
             );
         }
+
+        console.log(`[Interakt Webhook] ✅ Found order: ${order.order_id} (UUID: ${order.id}, current status: ${order.status})`);
 
         // 7. Only update if order is in "contacted" status
         if (order.status !== "contacted") {

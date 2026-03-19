@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { sendTemplateMessage, type TemplateType } from "@/lib/interakt";
 import { env } from "@/lib/env";
 import { scheduleFollowUp, DISCOUNT_DELAY_HOURS, REMINDER_DELAY_HOURS } from "@/lib/qstash";
+import { flagOrderForWhatsAppFailure } from "@/lib/whatsapp-error-handler";
 
 const supabaseAdmin = createClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
@@ -127,12 +128,15 @@ export async function POST(request: Request) {
 
     if (!result.success) {
         console.error(`[Auto Follow-up] Failed to send ${templateType} for ${order.order_id}:`, result.error);
-        
+
         // 3. Rollback the claim on failure
         await supabaseAdmin
             .from("orders")
             .update({ contact_count: contactCount })
             .eq("id", orderUuid);
+
+        // 4. Flag order for manual review
+        await flagOrderForWhatsAppFailure(orderUuid, result, order.order_id, order.phone);
 
         return NextResponse.json({ success: false, error: result.error }, { status: 500 });
     }
