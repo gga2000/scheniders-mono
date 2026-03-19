@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendTemplateMessage, TEMPLATE_NAMES } from "@/lib/interakt";
 import { Order } from "@/types/order";
+import { flagOrderForWhatsAppFailure } from "@/lib/whatsapp-error-handler";
 
 // This endpoint receives an order ID, fetches it from the DB,
 // and sends a WhatsApp template. It allows the dispatcher to be decoupled
@@ -80,6 +81,10 @@ export async function POST(request: NextRequest) {
 
         if (!result.success) {
             console.error(`[WhatsApp Dispatcher] Failed to send Interakt msg for order ${orderId}:`, result.error);
+
+            // Flag order for manual review
+            await flagOrderForWhatsAppFailure(order.id, result, order.order_id, overridePhone || order.phone);
+
             return NextResponse.json({ success: false, error: result.error }, { status: 500 });
         }
 
@@ -111,8 +116,8 @@ export async function POST(request: NextRequest) {
         console.log(`[WhatsApp Dispatcher] Successfully processed order ${orderId}.`);
         return NextResponse.json({ success: true });
 
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error("[WhatsApp Dispatcher] Critical error:", err);
-        return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+        return NextResponse.json({ success: false, error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 });
     }
 }

@@ -143,12 +143,13 @@ export function OrderCustomerCard({
                                             updateFormData("governorate_code", selectedGov.code);
                                         }
                                     }}
-                                    className="w-full h-[38px] px-3 pr-8 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
+                                    className="w-full h-[38px] px-3 pr-8 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--card-border)] text-right"
+                                    dir="rtl"
                                 >
                                     <option value="" disabled>{t("orderDetail.selectProvince")}</option>
-                                    {governorates.map((gov) => (
+                                    {governorates.map((gov, index) => (
                                         <option key={gov.code} value={gov.nameAr}>
-                                            {gov.nameAr}
+                                            {index + 1}. {gov.nameAr}{gov.alternativeName ? ` (${gov.alternativeName})` : ''}
                                         </option>
                                     ))}
                                 </select>

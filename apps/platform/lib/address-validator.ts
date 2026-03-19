@@ -16,6 +16,7 @@ export interface Governorate {
     code: string;       // Our standardized code (BGD, NAS, etc.)
     nameAr: string;     // Primary Arabic name
     nameEn: string;     // English name
+    alternativeName?: string; // Well-known alternative Arabic name (e.g., الناصرية for ذي قار)
     aliases: string[];  // All variants: Arabic, English, Kurdish, common misspellings
 }
 
@@ -57,6 +58,7 @@ export const GOVERNORATES: Governorate[] = [
         code: 'NAS',
         nameAr: 'ذي قار',
         nameEn: 'Dhi Qar',
+        alternativeName: 'الناصرية',
         aliases: [
             'ذي قار', 'ذيقار', 'الناصرية', 'ناصرية', 'الناصريه', 'ناصريه',
             'nasiriyah', 'nasiriya', 'dhi qar', 'dhiqar', 'thi qar'
@@ -66,6 +68,7 @@ export const GOVERNORATES: Governorate[] = [
         code: 'DYL',
         nameAr: 'ديالى',
         nameEn: 'Diyala',
+        alternativeName: 'بعقوبة',
         aliases: [
             'ديالى', 'ديالا', 'دياله', 'بعقوبة', 'بعقوبه',
             'diyala', 'diyalah', 'baqubah', 'baquba'
@@ -75,6 +78,7 @@ export const GOVERNORATES: Governorate[] = [
         code: 'KOT',
         nameAr: 'واسط',
         nameEn: 'Wasit',
+        alternativeName: 'الكوت',
         aliases: [
             'واسط', 'كوت', 'الكوت', 'الكوت واسط',
             'wasit', 'kut', 'koot', 'al-kut'
@@ -102,6 +106,7 @@ export const GOVERNORATES: Governorate[] = [
         code: 'BBL',
         nameAr: 'بابل',
         nameEn: 'Babylon',
+        alternativeName: 'الحلة',
         aliases: [
             'بابل', 'الحلة', 'حلة', 'الحله', 'حله', 'بابل الحلة',
             'babylon', 'babel', 'hilla', 'hillah', 'al-hilla'
@@ -147,6 +152,7 @@ export const GOVERNORATES: Governorate[] = [
         code: 'SAM',
         nameAr: 'المثنى',
         nameEn: 'Muthanna',
+        alternativeName: 'السماوة',
         aliases: [
             'المثنى', 'مثنى', 'السماوة', 'سماوة', 'السماوه', 'سماوه',
             'muthanna', 'al-muthanna', 'samawah', 'samawa'
@@ -156,6 +162,7 @@ export const GOVERNORATES: Governorate[] = [
         code: 'SAH',
         nameAr: 'صلاح الدين',
         nameEn: 'Saladin',
+        alternativeName: 'تكريت',
         aliases: [
             'صلاح الدين', 'صلاحالدين', 'تكريت', 'تكريت صلاح الدين',
             'saladin', 'salahaddin', 'salah al-din', 'tikrit', 'tikreet'
@@ -165,6 +172,7 @@ export const GOVERNORATES: Governorate[] = [
         code: 'ANB',
         nameAr: 'الأنبار',
         nameEn: 'Anbar',
+        alternativeName: 'الرمادي',
         aliases: [
             'الأنبار', 'الانبار', 'أنبار', 'انبار', 'الرمادي', 'رمادي', 'الرماديه',
             'الفلوجة', 'فلوجة', 'الفلوجه',
@@ -186,6 +194,7 @@ export const GOVERNORATES: Governorate[] = [
         code: 'MOS',
         nameAr: 'نينوى',
         nameEn: 'Nineveh',
+        alternativeName: 'الموصل',
         aliases: [
             'نينوى', 'نينوا', 'موصل', 'الموصل', 'الموصول',
             'nineveh', 'ninawa', 'mosul', 'al-mosul', 'mûsil'
@@ -195,6 +204,7 @@ export const GOVERNORATES: Governorate[] = [
         code: 'DWN',
         nameAr: 'القادسية',
         nameEn: 'Qadisiyah',
+        alternativeName: 'الديوانية',
         aliases: [
             'القادسية', 'قادسية', 'الديوانية', 'ديوانية', 'الديوانيه', 'ديوانيه',
             'qadisiyah', 'qadisiyyah', 'diwaniyah', 'diwaniya', 'al-diwaniyah'
@@ -204,6 +214,7 @@ export const GOVERNORATES: Governorate[] = [
         code: 'AMA',
         nameAr: 'ميسان',
         nameEn: 'Maysan',
+        alternativeName: 'العمارة',
         aliases: [
             'ميسان', 'عمارة', 'العمارة', 'العماره', 'عماره', 'عمارة ميسان',
             'maysan', 'amara', 'amarah', 'al-amarah'
@@ -613,7 +624,7 @@ export function getAddressStatus(validation: AddressValidation): AddressStatus {
 /**
  * Get all governorate codes for dropdown
  */
-export function getAllGovernorateCodes(): Array<{ code: string; nameAr: string; nameEn: string }> {
+export function getAllGovernorateCodes(): Array<{ code: string; nameAr: string; nameEn: string; alternativeName?: string }> {
     // Deduplicate by code
     const seen = new Set<string>();
     return GOVERNORATES
@@ -625,7 +636,8 @@ export function getAllGovernorateCodes(): Array<{ code: string; nameAr: string; 
         .map(g => ({
             code: g.code,
             nameAr: g.nameAr,
-            nameEn: g.nameEn
+            nameEn: g.nameEn,
+            alternativeName: g.alternativeName
         }));
 }
 
