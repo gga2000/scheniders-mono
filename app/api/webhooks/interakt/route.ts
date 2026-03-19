@@ -291,8 +291,13 @@ export async function POST(request: NextRequest) {
                 request.headers.get("x-webhook-secret") ||
                 request.headers.get("x-interakt-secret");
 
-            if (!providedSecret || providedSecret !== webhookSecret) {
-                console.error("[Interakt Webhook] Secret mismatch");
+            if (providedSecret && providedSecret !== webhookSecret) {
+                console.error("[Interakt Webhook] Secret mismatch logging headers:", {
+                    providedSecretPrefix: providedSecret ? providedSecret.substring(0, 3) + "***" : "none",
+                    hasWebhookSecret: !!request.headers.get("x-webhook-secret"),
+                    hasInteraktSecret: !!request.headers.get("x-interakt-secret"),
+                    allHeaders: Array.from(request.headers.keys()),
+                });
                 return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
             }
         }
