@@ -208,8 +208,8 @@ export const OrderCard = memo(function OrderCard({
 
     // Determine which follow-up cue to show
     const isContacted = order.status === "contacted";
-    const needsReminder = isContacted && contactCount === 1 && hoursSinceContact >= REMINDER_DELAY_HOURS;
-    const needsDiscount = isContacted && contactCount === 2 && hoursSinceContact >= (DISCOUNT_DELAY_HOURS - REMINDER_DELAY_HOURS);
+    const needsDiscount = isContacted && hoursSinceContact >= DISCOUNT_DELAY_HOURS;
+    const needsReminder = isContacted && !needsDiscount && hoursSinceContact >= REMINDER_DELAY_HOURS;
     const needsFollowUp = needsReminder || needsDiscount;
 
     // Externalized getItemsDisplay
@@ -1846,7 +1846,7 @@ export const OrderCard = memo(function OrderCard({
                                     : "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30"
                             )} dir="rtl">
                                 {needsDiscount ? <Gift className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
-                                <span>{needsDiscount ? "مرت 10 ساعات (خصم)" : "مرت 6 ساعات (تذكير)"}</span>
+                                <span>{needsDiscount ? `مرت ${Math.floor(hoursSinceContact)} ساعة (خصم)` : `مرت ${Math.floor(hoursSinceContact)} ساعة (تذكير)`}</span>
                             </div>
                         )}
 

@@ -394,14 +394,20 @@ export default function OrdersPage() {
      * List queries only fetch ~45 core columns; detail modal needs all 60+ fields.
      */
     const handleViewDetails = useCallback(async (order: Order) => {
-        // Fetch full order data (all columns) from v_orders_with_risk
-        const fullOrder = await orderRepository.findById(order.id);
-        if (fullOrder) {
-            setSelectedOrder(fullOrder);
+        try {
+            // Fetch full order data (all columns) from v_orders_with_risk
+            const fullOrder = await orderRepository.findById(order.id);
+            if (fullOrder) {
+                setSelectedOrder(fullOrder);
+                setIsModalOpen(true);
+            } else {
+                // Order was deleted or doesn't exist
+                toast.error("Order not found", "This order may have been deleted.");
+            }
+        } catch {
+            // Network or DB error — open modal with the data we already have
+            setSelectedOrder(order);
             setIsModalOpen(true);
-        } else {
-            // Order was deleted or doesn't exist
-            toast.error("Order not found", "This order may have been deleted.");
         }
     }, [setSelectedOrder, setIsModalOpen]);
 
@@ -410,9 +416,15 @@ export default function OrdersPage() {
      * Used by VirtualizedOrderTable which calls setSelectedOrder directly.
      */
     const setSelectedOrderWithFetch = useCallback(async (order: Order) => {
-        const fullOrder = await orderRepository.findById(order.id);
-        if (fullOrder) {
-            setSelectedOrder(fullOrder);
+        try {
+            const fullOrder = await orderRepository.findById(order.id);
+            if (fullOrder) {
+                setSelectedOrder(fullOrder);
+            } else {
+                setSelectedOrder(order);
+            }
+        } catch {
+            setSelectedOrder(order);
         }
     }, [setSelectedOrder]);
 

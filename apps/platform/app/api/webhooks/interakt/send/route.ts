@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { sendTemplateMessage, TEMPLATE_NAMES, type TemplateType } from "@/lib/interakt";
 import { createClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
-import { scheduleFollowUp, REMINDER_DELAY_HOURS, DISCOUNT_DELAY_HOURS } from "@/lib/qstash";
 import type { Order } from "@/types/order";
 import { flagOrderForWhatsAppFailure } from "@/lib/whatsapp-error-handler";
 
@@ -95,7 +94,6 @@ export async function POST(request: NextRequest) {
             }
 
             console.log(`[Interakt Send API] Order ${order.order_id}: contact_count → ${newContactCount}${shouldUpdateStatus ? `, status: ${previousStatus} → contacted` : ''}`);
-
 
         } catch (statusErr) {
             console.error("[Interakt Send API] Failed to update order status:", statusErr);

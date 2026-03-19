@@ -366,7 +366,17 @@ export function OrderDetailsModal({
 
 
 
-    if (!order) return null;
+    // IMPORTANT: Do NOT return null here — the <Dialog> must always render
+    // so Radix can see `open` go from true → false and properly clean up
+    // inert attributes / scroll locks on the body.  Otherwise, clicks on the
+    // underlying page stop working until a full refresh.
+    if (!order) {
+        return (
+            <Dialog open={false} onOpenChange={() => onClose()}>
+                {null}
+            </Dialog>
+        );
+    }
 
 
 

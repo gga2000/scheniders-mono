@@ -43,7 +43,9 @@ const LIST_VIEW_COLUMNS = `
   tag_color,
   notes,
   internal_notes,
-  risk_data
+  risk_data,
+  contact_count,
+  last_contacted_at
 `.trim();
 
 export const orderRepository = {
