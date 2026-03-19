@@ -306,11 +306,20 @@ export async function POST(request: NextRequest) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const payload = (await request.json()) as any;
 
-        // Log ALL webhook payloads for debugging (we can disable this later)
-        console.log(
-            "[Interakt Webhook] Received:",
-            JSON.stringify(payload, null, 2)
-        );
+        // Log ALL webhook payloads for debugging to DB
+        try {
+            await supabaseAdmin.from("whatsapp_logs").insert({
+                order_id: "debug_all_raw",
+                phone: payload.data?.customer?.phone_number || "unknown",
+                template_name: "cod_order_confirm",
+                direction: "inbound",
+                status: "received",
+                payload: payload as unknown as Record<string, unknown>,
+            });
+            console.error("[Interakt Webhook] Inserted raw payload to whatsapp_logs DB");
+        } catch (e) {
+            console.error("[Interakt Webhook] Failed to insert raw payload", e);
+        }
 
         // 3. Handle delivery status webhooks
         const webhookType = payload.type || payload.eventType || "";
@@ -385,10 +394,10 @@ export async function POST(request: NextRequest) {
 
         // 4. Extract response text
         const responseText = extractResponseText(payload.data);
-        console.log(`[Interakt Webhook] 🔍 Step 4 - Extracted response text: "${responseText}"`);
+        console.error(`[Interakt Webhook] 🔍 Step 4 - Extracted response text: "${responseText}"`);
 
         if (!responseText) {
-            console.log(`[Interakt Webhook] ⚠️ No response text found in payload`);
+            console.error(`[Interakt Webhook] ⚠️ No response text found in payload`);
             return NextResponse.json(
                 { success: true, message: "No actionable text in message" },
                 { status: 200 }
@@ -397,12 +406,12 @@ export async function POST(request: NextRequest) {
 
         // 5. Match response to action
         const action = matchResponse(responseText);
-        console.log(`[Interakt Webhook] 🔍 Step 5 - Matched action: ${action || 'none'} (from text: "${responseText}")`);
+        console.error(`[Interakt Webhook] 🔍 Step 5 - Matched action: ${action || 'none'} (from text: "${responseText}")`);
 
         if (!action) {
             // Customer sent something other than confirm/cancel
             // Leave for team to handle manually
-            console.log(
+            console.error(
                 `[Interakt Webhook] ⚠️ Unmatched response: "${responseText}" from ${payload.data?.customer?.phone_number}`
             );
             return NextResponse.json(
@@ -414,7 +423,7 @@ export async function POST(request: NextRequest) {
         // 6. Find the order
         const callbackData = extractCallbackData(payload.data);
         const phone = extractPhone(payload.data);
-        console.log(`[Interakt Webhook] 🔍 Step 6 - Looking for order with callback_data: "${callbackData}", phone: "${phone}"`);
+        console.error(`[Interakt Webhook] 🔍 Step 6 - Looking for order with callback_data: "${callbackData}", phone: "${phone}"`);
 
         const order = await findOrder(callbackData, phone);
 
