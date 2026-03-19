@@ -45,13 +45,24 @@ export async function POST(request: NextRequest) {
         // 2. Parse request body
         const payload = await request.json();
 
-        // Log raw payload for debugging (only when logging is enabled)
-        if (env.WEBHOOK_LOGGING_ENABLED === "true") {
-            console.log("[Webhook] Raw payload keys:", Object.keys(payload).join(', '));
-            if (payload.node) {
-                console.log("[Webhook] Node type:", typeof payload.node, "Node keys:", typeof payload.node === 'object' ? Object.keys(payload.node).join(', ') : String(payload.node));
+        // DIAGNOSTIC LOGGING - Always log to debug order import issues
+        console.log("=========== WEBHOOK RECEIVED ===========");
+        console.log("[Webhook] Payload keys:", Object.keys(payload).join(', '));
+        if (payload.node) {
+            console.log("[Webhook] Node type:", typeof payload.node);
+            if (typeof payload.node === 'object') {
+                console.log("[Webhook] Node.__typename:", payload.node.__typename);
+                console.log("[Webhook] Node.id:", payload.node.id);
+                console.log("[Webhook] Node._id:", payload.node._id);
+                console.log("[Webhook] Node keys:", Object.keys(payload.node).slice(0, 20).join(', '));
+                console.log("[Webhook] Has items:", !!payload.node.items);
+                console.log("[Webhook] Has variants:", !!payload.node.variants);
+                console.log("[Webhook] Has customer:", !!payload.node.customer);
+            } else {
+                console.log("[Webhook] Node value:", String(payload.node));
             }
         }
+        console.log("========================================");
 
         // 3. Validate payload structure
         let webhookData;
