@@ -59,6 +59,12 @@ interface InteraktWebhookPayload {
                 callback_data?: string;
                 [key: string]: unknown;
             };
+            meta_data?: {
+                source_data?: {
+                    callback_data?: string;
+                };
+                [key: string]: unknown;
+            };
             [key: string]: unknown;
         };
     };
@@ -134,7 +140,11 @@ function extractResponseText(data: any): string | null {
  * Extract callback_data (order UUID) from the webhook payload
  */
 function extractCallbackData(message: InteraktWebhookPayload["data"]): string | null {
-    return message?.message?.context?.callback_data || null;
+    const msg = message?.message;
+    if (!msg) return null;
+    return msg.context?.callback_data || 
+           msg.meta_data?.source_data?.callback_data || 
+           null;
 }
 
 /**
@@ -306,20 +316,11 @@ export async function POST(request: NextRequest) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const payload = (await request.json()) as any;
 
-        // Log ALL webhook payloads for debugging to DB
-        try {
-            await supabaseAdmin.from("whatsapp_logs").insert({
-                order_id: "debug_all_raw",
-                phone: payload.data?.customer?.phone_number || "unknown",
-                template_name: "cod_order_confirm",
-                direction: "inbound",
-                status: "received",
-                payload: payload as unknown as Record<string, unknown>,
-            });
-            console.error("[Interakt Webhook] Inserted raw payload to whatsapp_logs DB");
-        } catch (e) {
-            console.error("[Interakt Webhook] Failed to insert raw payload", e);
-        }
+        // Log ALL webhook payloads for debugging (we can disable this later)
+        console.log(
+            "[Interakt Webhook] Received:",
+            JSON.stringify(payload, null, 2)
+        );
 
         // 3. Handle delivery status webhooks
         const webhookType = payload.type || payload.eventType || "";
