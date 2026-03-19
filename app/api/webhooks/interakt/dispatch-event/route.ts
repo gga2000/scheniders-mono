@@ -88,6 +88,36 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ success: false, error: result.error }, { status: 500 });
         }
 
+        // 4b. Also send to secondary phone if present and different from primary
+        if (order.secondary_phone && order.secondary_phone !== order.phone) {
+            try {
+                console.log(`[WhatsApp Dispatcher] Sending ${templateType} to secondary phone for order ${orderId}...`);
+                const secondaryResult = await sendTemplateMessage(order, templateType, order.secondary_phone);
+
+                await supabaseAdmin.from("whatsapp_logs").insert({
+                    order_id: order.order_id,
+                    order_uuid: order.id,
+                    phone: order.secondary_phone,
+                    template_name: templateName,
+                    direction: "outbound",
+                    status: secondaryResult.success ? "sent" : "failed",
+                    interakt_message_id: secondaryResult.messageId || null,
+                    payload: {
+                        templateType,
+                        error: secondaryResult.error,
+                        statusCode: secondaryResult.statusCode,
+                        source: "dispatch-event-secondary",
+                    },
+                });
+
+                if (!secondaryResult.success) {
+                    console.warn(`[WhatsApp Dispatcher] Failed to send to secondary phone for order ${orderId}:`, secondaryResult.error);
+                }
+            } catch (secErr) {
+                console.error("[WhatsApp Dispatcher] Error sending to secondary phone:", secErr);
+            }
+        }
+
         // 5. Auto-update order status + increment contact_count
         const previousStatus = order.status || "new";
         const newContactCount = (order.contact_count || 0) + 1;

@@ -34,7 +34,8 @@ export function PipelineSummaryCard({ pipeline }: PipelineSummaryCardProps) {
 
     const estimatedDeliveryFees = orderCount * 5000;
     const revenueAfterDelivery = potentialRevenue - estimatedDeliveryFees;
-    const estimatedGrossProfit = revenueAfterDelivery - estimatedCosts;
+    // estimatedCosts already includes delivery, so gross profit = revenue - all costs
+    const estimatedGrossProfit = potentialRevenue - estimatedCosts;
     const isProjectedProfitable = projectedProfit >= 0;
 
     // Estimated cost breakdown

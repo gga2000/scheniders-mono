@@ -34,7 +34,6 @@ import { EmployeeComparison } from "@/components/team/employee-comparison";
 import { GoalTracking } from "@/components/team/goal-tracking";
 import { PastelCard } from "@/components/team/shared-pastel-components";
 import { TeamMemberCard } from "@/components/team/team-member-card";
-import { MyActiveDesk } from "@/components/team/my-active-desk";
 import { AssignmentRulesTab } from "@/components/team/assignment-rules-tab";
 import { toast } from "@/hooks/use-toast";
 import { EmployeeStats } from "@/lib/team-types";
@@ -121,82 +120,74 @@ function LiveActivityTicker({ notifications }: { notifications: TickerNotificati
     );
 }
 
-// Top Performer Podium (Pastel Style)
+// Top Performer Podium (Compact Style)
 function TopPerformerPodium({ performers }: { performers: EmployeeStats[] }) {
     const top3 = performers.slice(0, 3);
     if (top3.length === 0) return null;
 
     const podiumConfig = [
-        { order: 1, height: "h-32", y: 0, color: "from-[#FBE38E] to-[#FDF5D4] dark:from-amber-500/30 dark:to-amber-500/10", ring: "ring-[#FBE38E] dark:ring-amber-500/40", icon: Crown },
-        { order: 0, height: "h-24", y: 32, color: "from-[#E5E7EB] to-[#F3F4F6] dark:from-gray-600/30 dark:to-gray-600/10", ring: "ring-gray-300 dark:ring-gray-500/40", icon: Medal },
-        { order: 2, height: "h-20", y: 48, color: "from-[#F4C7CF] to-[#FCEEF1] dark:from-rose-500/30 dark:to-rose-500/10", ring: "ring-[#F4C7CF] dark:ring-rose-500/40", icon: Award },
+        { color: "from-[#FBE38E] to-[#FDF5D4] dark:from-amber-500/30 dark:to-amber-500/10", ring: "ring-[#FBE38E] dark:ring-amber-500/40", icon: Crown },
+        { color: "from-[#E5E7EB] to-[#F3F4F6] dark:from-gray-600/30 dark:to-gray-600/10", ring: "ring-gray-300 dark:ring-gray-500/40", icon: Medal },
+        { color: "from-[#F4C7CF] to-[#FCEEF1] dark:from-rose-500/30 dark:to-rose-500/10", ring: "ring-[#F4C7CF] dark:ring-rose-500/40", icon: Award },
     ];
 
-    return (
-        <div className="relative py-8">
-            <motion.div
-                animate={{ y: [0, -5, 0] }}
-                transition={{ duration: 2, repeat: Infinity }}
-                className="absolute top-2 left-1/2 -translate-x-1/2"
-            >
-                <div className="w-14 h-14 rounded-2xl bg-[#FBE38E] dark:bg-amber-500/20 flex items-center justify-center shadow-lg">
-                    <Trophy className="w-7 h-7 text-amber-700 dark:text-amber-400" />
-                </div>
-            </motion.div>
+    const displayOrder = [top3[1], top3[0], top3[2]].filter(Boolean); // 2nd, 1st, 3rd
 
-            <div className="relative flex items-end justify-center gap-4 pt-16">
-                {top3.map((emp, index) => {
-                    const config = podiumConfig[index];
+    return (
+        <div className="relative py-4">
+            <div className="flex items-stretch justify-center gap-4">
+                {displayOrder.map((emp) => {
+                    const originalIndex = top3.findIndex(p => p.user_id === emp.user_id);
+                    const config = podiumConfig[originalIndex];
 
                     return (
                         <motion.div
                             key={emp.user_id}
-                            initial={{ opacity: 0, y: 50 }}
-                            animate={{ opacity: 1, y: config.y }}
-                            transition={{ delay: 0.2 + index * 0.1, type: "spring" }}
-                            className="relative"
-                            style={{ order: config.order }}
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ type: "spring" }}
+                            className="relative flex-1 max-w-[200px]"
                         >
                             <div className={cn(
-                                "relative p-5 rounded-3xl",
+                                "relative p-4 rounded-3xl h-full flex flex-col items-center",
                                 "bg-gradient-to-br",
                                 config.color,
                                 "ring-2",
                                 config.ring,
-                                "shadow-lg dark:shadow-xl"
+                                "shadow-md dark:shadow-xl"
                             )}>
                                 <div className={cn(
-                                    "absolute -top-3 left-1/2 -translate-x-1/2",
-                                    "w-10 h-10 rounded-full bg-white dark:bg-[#1A1A1A] flex items-center justify-center",
-                                    "shadow-md border-2 border-white dark:border-[#1A1A1A]"
+                                    "absolute -top-3",
+                                    "w-8 h-8 rounded-full bg-white dark:bg-[#1A1A1A] flex items-center justify-center",
+                                    "shadow-sm border border-white dark:border-[#1A1A1A]"
                                 )}>
                                     <config.icon className={cn(
-                                        "w-5 h-5",
-                                        index === 0 ? "text-amber-600" : index === 1 ? "text-gray-500" : "text-rose-500"
+                                        "w-4 h-4",
+                                        originalIndex === 0 ? "text-amber-600" : originalIndex === 1 ? "text-gray-500" : "text-rose-500"
                                     )} />
                                 </div>
 
-                                <div className="w-20 h-20 mx-auto mt-2 rounded-2xl overflow-hidden bg-white dark:bg-[#1A1A1A] flex items-center justify-center border-2 border-white dark:border-[#1A1A1A] shadow-md">
+                                <div className="w-16 h-16 mt-3 rounded-2xl overflow-hidden bg-white dark:bg-[#1A1A1A] flex items-center justify-center border-2 border-white dark:border-[#1A1A1A] shadow-sm">
                                     {emp.avatar_url ? (
                                         <img src={emp.avatar_url} alt="" className="w-full h-full object-cover" />
                                     ) : (
-                                        <span className="text-2xl font-bold text-[#1E1E1E] dark:text-white">
+                                        <span className="text-xl font-bold text-[#1E1E1E] dark:text-white">
                                             {(emp.display_name || emp.user_email)?.[0]?.toUpperCase()}
                                         </span>
                                     )}
                                 </div>
 
-                                <div className="mt-4 text-center">
-                                    <p className="font-bold text-[#1E1E1E] dark:text-white truncate max-w-[100px]">
+                                <div className="mt-3 text-center">
+                                    <p className="font-bold text-[#1E1E1E] dark:text-white truncate max-w-[120px] text-sm">
                                         {emp.display_name || emp.user_email?.split("@")[0]}
                                     </p>
                                     <p className={cn(
-                                        "text-2xl font-bold mt-1",
-                                        index === 0 ? "text-amber-700 dark:text-amber-400" : index === 1 ? "text-gray-600 dark:text-gray-300" : "text-rose-600 dark:text-rose-400"
+                                        "text-xl font-bold",
+                                        originalIndex === 0 ? "text-amber-700 dark:text-amber-400" : originalIndex === 1 ? "text-gray-600 dark:text-gray-300" : "text-rose-600 dark:text-rose-400"
                                     )}>
                                         {emp.total_actions}
                                     </p>
-                                    <p className="text-xs text-[#6B6B6B] dark:text-gray-400">نشاط</p>
+                                    <p className="text-[10px] text-[#6B6B6B] dark:text-gray-400">نشاط</p>
                                 </div>
                             </div>
                         </motion.div>
@@ -317,23 +308,39 @@ export default function TeamPage() {
     const fetchLeaderboard = useCallback(async () => {
         const dateFilter = getDateFilter(timeRange);
 
-        let query = supabase
-            .from("activity_logs")
-            .select("user_id, user_email, action")
-            .not("user_id", "is", null);
+        let allLogs: any[] = [];
+        let hasMore = true;
+        let offset = 0;
+        const limit = 1000;
 
-        if (dateFilter) query = query.gte("created_at", dateFilter);
+        while (hasMore) {
+            let query = supabase
+                .from("activity_logs")
+                .select("user_id, user_email, action")
+                .not("user_id", "is", null)
+                .range(offset, offset + limit - 1);
 
-        const { data, error } = await query;
-        if (error) {
-            toast({ title: "خطأ في تحميل البيانات", description: "تعذر تحميل بيانات الفريق. حاول مرة أخرى.", variant: "error" });
-            setLeaderboard([]);
-            return;
+            if (dateFilter) query = query.gte("created_at", dateFilter);
+
+            const { data, error } = await query;
+            if (error) {
+                toast({ title: "خطأ في تحميل البيانات", description: "تعذر تحميل بيانات الفريق. حاول مرة أخرى.", variant: "error" });
+                setLeaderboard([]);
+                return;
+            }
+
+            if (data && data.length > 0) {
+                allLogs = [...allLogs, ...data];
+                offset += limit;
+                if (data.length < limit) hasMore = false;
+            } else {
+                hasMore = false;
+            }
         }
 
         const statsMap = new Map<string, EmployeeStats>();
 
-        data?.forEach((log) => {
+        allLogs.forEach((log) => {
             const userId = log.user_id;
             if (!userId) return;
 
@@ -595,9 +602,6 @@ export default function TeamPage() {
 
             {/* Live Activity Ticker (Step 7) */}
             <LiveActivityTicker notifications={tickerNotifications} />
-
-            {/* My Active Desk (Personalized Task List) */}
-            <MyActiveDesk profile={profile} />
 
             {/* View Tabs */}
             <div className="flex justify-center">
