@@ -749,12 +749,21 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
         }
         // ----------------------------------------------------
 
-        // Check for duplicate using the same ID format that will be created
-        const duplicateCheckId = webhook.is_checkout
-            ? `CHK-${webhook.order_id}`
-            : webhook.order_number;
-        const isDuplicate = await checkDuplicateOrder(duplicateCheckId);
-        if (isDuplicate) {
+        // Store LightFunnels reference for duplicate checking and tracking
+        const lfReference = webhook.is_checkout
+            ? `[LF Checkout #${webhook.order_id}]`
+            : `[LF Order #${webhook.order_number}]`;
+
+        // Check for duplicate by looking for LightFunnels reference in notes
+        // Since we now generate local IDs, we need to check if we've already imported this LF order
+        const { data: existingOrder } = await supabase
+            .from("orders")
+            .select("id")
+            .eq("source", "lightfunnels")
+            .ilike("notes", `%${lfReference}%`)
+            .limit(1);
+
+        if (existingOrder && existingOrder.length > 0) {
             return {
                 success: false,
                 error: "Order already exists",
@@ -766,15 +775,30 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
         const items: OrderItem[] = await Promise.all(
             webhook.items.map(async (item) => {
                 const product = await findProductBySku(item.sku, item.name);
+
+                // CRITICAL FIX: Use local product data when matched
+                // This ensures we use our app's short names and images, not LightFunnels' full titles
+                if (product) {
+                    return {
+                        name: product.name, // Use our short name (e.g., "برسيفيرون" instead of "عطر برسيفيرون الفاخر من باريس كورنر للرجال")
+                        quantity: item.quantity,
+                        price: item.price,
+                        sku: item.sku || undefined,
+                        product_id: product.id,
+                        image_url: product.image_url, // Use our local image
+                        tag_color: product.tag_color,
+                    };
+                }
+
+                // Fallback to LightFunnels data only if no product match found
                 return {
-                    // Use local product name if found, otherwise use Lightfunnels name
-                    name: product?.name || item.name,
+                    name: item.name,
                     quantity: item.quantity,
                     price: item.price,
                     sku: item.sku || undefined,
-                    product_id: product?.id,
-                    image_url: product?.image_url || item.image_url,
-                    tag_color: product?.tag_color,
+                    product_id: undefined,
+                    image_url: item.image_url,
+                    tag_color: undefined,
                 };
             })
         );
@@ -803,18 +827,14 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
             attentionReasons.push('previous_rejection');
         }
 
-        // For checkouts (abandoned), use CHK- prefix and pending_checkout status
-        // When confirmed by employee, the app will assign a unique order number
-        const orderId = webhook.is_checkout
-            ? `CHK-${webhook.order_id}`
-            : webhook.order_number;
-
+        // Determine order status based on type
         const orderStatus = webhook.is_checkout ? 'pending_checkout' : 'new';
 
         // Build WhatsApp message based on type
+        // Note: We'll use the generated order_id in the message after creation
         const whatsappMessage = webhook.is_checkout
             ? `مرحباً ${webhook.customer.name}، لاحظنا أنك لم تكمل طلبك. هل تحتاج مساعدة؟`
-            : `مرحباً ${webhook.customer.name}، شكراً لطلبك رقم ${webhook.order_number}`;
+            : `مرحباً ${webhook.customer.name}، شكراً لطلبك`;
 
         // Prepare order data (only include fields that exist in the database)
         // Format secondary phone if present (skip if same as primary)
@@ -822,8 +842,13 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
             ? formatPhoneToStandard(webhook.customer.secondary_phone)
             : null;
 
+        // Build notes with LightFunnels reference for tracking
+        const notesWithReference = webhook.is_checkout
+            ? `${lfReference} [سلة متروكة] ${webhook.notes?.trim() || ''}`.trim()
+            : [lfReference, webhook.notes?.trim()].filter(Boolean).join(' ').trim() || null;
+
         const orderData = {
-            order_id: orderId,
+            // DO NOT set order_id - let create_order_atomic RPC generate it
             customer_name: webhook.customer.name.trim(),
             phone: formattedPhone,
             secondary_phone: formattedSecondaryPhone !== formattedPhone ? formattedSecondaryPhone : null,
@@ -840,19 +865,15 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
             is_archived: false,
             source: 'lightfunnels' as const,
             whatsapp_link: generateWhatsAppLink(formattedPhone, whatsappMessage),
-            notes: webhook.is_checkout
-                ? `[سلة متروكة] ${webhook.notes?.trim() || ''}`.trim()
-                : webhook.notes?.trim() || null,
+            notes: notesWithReference,
             needs_attention: attentionReasons.length > 0,
             attention_reasons: attentionReasons.length > 0 ? attentionReasons : null,
         };
 
-        // Insert into database
+        // Use atomic RPC to create order with proper ID generation
+        // This ensures we use the local ID system (e.g., 4260319001) instead of LightFunnels IDs
         const { data, error } = await supabase
-            .from("orders")
-            .insert([orderData])
-            .select()
-            .single();
+            .rpc('create_order_atomic', { _order_data: orderData });
 
         if (error) {
             console.error("Error creating order:", error);
@@ -872,20 +893,20 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
                 let abandonedCheckouts: Array<{ id: string; order_id: string }> = [];
                 let cleanupMethod = 'unknown';
 
-                // Priority 1: Try exact checkout ID match first
+                // Priority 1: Try exact checkout ID match first by searching notes
                 if (webhook.checkout_id) {
-                    const exactCheckoutOrderId = `CHK-${webhook.checkout_id}`;
+                    const checkoutReference = `[LF Checkout #${webhook.checkout_id}]`;
                     const { data: exactMatch, error: exactErr } = await supabase
                         .from('orders')
                         .select('id, order_id')
-                        .eq('order_id', exactCheckoutOrderId)
+                        .ilike('notes', `%${checkoutReference}%`)
                         .eq('status', 'pending_checkout')
                         .eq('source', 'lightfunnels');
 
                     if (!exactErr && exactMatch && exactMatch.length > 0) {
                         abandonedCheckouts = exactMatch;
                         cleanupMethod = 'exact_checkout_id';
-                        console.log(`[Cleanup] Found exact checkout match: ${exactCheckoutOrderId}`);
+                        console.log(`[Cleanup] Found exact checkout match via notes: ${checkoutReference}`);
                     }
                 }
 

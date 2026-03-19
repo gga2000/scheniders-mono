@@ -274,17 +274,18 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         });
     }
 
-    async function updateOrder(orderId: string, updates: Partial<Order>, expectedUpdatedAt?: string): Promise<{ success: boolean; error?: string; data?: Order }> {
+    async function updateOrder(orderId: string, updates: Partial<Order>, expectedUpdatedAt?: string, retryCount = 0): Promise<{ success: boolean; error?: string; data?: Order }> {
         const _tUpdate = performance.now();
-        diag.log(`[Diag:UpdateOrder] START orderId=${orderId} fields=${Object.keys(updates).join(',')}`);
+        diag.log(`[Diag:UpdateOrder] START orderId=${orderId} fields=${Object.keys(updates).join(',')} retry=${retryCount}`);
         try {
             const cleanUpdates = { ...updates };
             delete (cleanUpdates as Record<string, unknown>).customer;
 
-            // --- Audit Trail Tracking ---
+            // --- Audit Trail Tracking (prepare changes list) ---
             const currentCache = queryClient.getQueryData<Order[]>(orderKeys.lists());
             const previousOrder = currentCache?.find(o => o.id === orderId) || orders.find(o => o.id === orderId);
 
+            let auditChanges: string[] = [];
             if (previousOrder) {
                 const changes: string[] = [];
                 const FieldsToTrack: (keyof Order)[] = [
@@ -322,23 +323,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     changes.push(`Items updated`);
                 }
 
-                if (changes.length > 0) {
-                    const { profile: currentProfile, user: currentUser } = authRef.current;
-                    const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
-
-                    supabase
-                        .from("order_status_history")
-                        .insert([{
-                            order_id: orderId,
-                            from_status: previousOrder.status,
-                            to_status: previousOrder.status,
-                            changed_at: new Date().toISOString(),
-                            notes: `Updated: ${changes.join(', ')}`,
-                            changed_by: changedBy,
-                        }]).then(({ error }) => {
-                            if (error) console.error("Failed to record detail history:", error);
-                        });
-                }
+                auditChanges = changes;
             }
 
             // Use passed expectedUpdatedAt or fallback to cache if not provided
@@ -350,12 +335,48 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 expectedUpdatedAt: conflictCheckTimestamp
             });
 
+            // Record audit trail AFTER successful update (not before!)
+            if (auditChanges.length > 0 && previousOrder) {
+                const { profile: currentProfile, user: currentUser } = authRef.current;
+                const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
+
+                supabase
+                    .from("order_status_history")
+                    .insert([{
+                        order_id: orderId,
+                        from_status: previousOrder.status,
+                        to_status: previousOrder.status,
+                        changed_at: new Date().toISOString(),
+                        notes: `Updated: ${auditChanges.join(', ')}`,
+                        changed_by: changedBy,
+                    }]).then(({ error }) => {
+                        if (error) console.error("Failed to record detail history:", error);
+                    });
+            }
+
             diag.log(`[Diag:UpdateOrder] MUTATION_OK orderId=${orderId} took=${(performance.now() - _tUpdate).toFixed(1)}ms`);
             return { success: true };
         } catch (err) {
+            // Auto-retry on conflict (up to 2 times)
+            if (err instanceof Error && err.message === "CONFLICT_DETECTED" && retryCount < 2) {
+                diag.log(`[Diag:UpdateOrder] CONFLICT_RETRY orderId=${orderId} attempt=${retryCount + 1}`);
+
+                // Fetch the latest version from the server
+                await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+                await new Promise(resolve => setTimeout(resolve, 300)); // Brief delay for cache to update
+
+                // Retry with fresh data
+                return updateOrder(orderId, updates, undefined, retryCount + 1);
+            }
+
             diag.log(`[Diag:UpdateOrder] MUTATION_ERR orderId=${orderId} err=${err instanceof Error ? err.message : err} took=${(performance.now() - _tUpdate).toFixed(1)}ms`);
             console.error("Error updating order:", err);
-            toast.error(err instanceof Error ? err.message : "Failed to update order");
+
+            // Only show toast on final failure
+            if (!(err instanceof Error && err.message === "CONFLICT_DETECTED") || retryCount >= 2) {
+                toast.error(err instanceof Error ? err.message : "Failed to update order");
+            }
+
             return {
                 success: false,
                 error: err instanceof Error ? err.message : "Failed to update order",
