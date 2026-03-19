@@ -6,13 +6,14 @@ import { env } from '@/lib/env';
  *
  * Send a test webhook to your own endpoint to verify it's working
  */
-export async function GET() {
-    const siteUrl = env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL;
+export async function GET(request: Request) {
+    // Get site URL from env or fall back to request headers for local dev
+    let siteUrl = env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL;
 
     if (!siteUrl) {
-        return NextResponse.json({
-            error: 'NEXT_PUBLIC_SITE_URL not set - cannot test webhook',
-        }, { status: 400 });
+        // In development, use the request origin
+        const url = new URL(request.url);
+        siteUrl = url.origin;
     }
 
     const webhookUrl = siteUrl.startsWith('http')
@@ -132,12 +133,13 @@ export async function GET() {
  * Test with custom payload
  */
 export async function POST(request: Request) {
-    const siteUrl = env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL;
+    // Get site URL from env or fall back to request headers for local dev
+    let siteUrl = env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL;
 
     if (!siteUrl) {
-        return NextResponse.json({
-            error: 'NEXT_PUBLIC_SITE_URL not set',
-        }, { status: 400 });
+        // In development, use the request origin
+        const url = new URL(request.url);
+        siteUrl = url.origin;
     }
 
     const webhookUrl = siteUrl.startsWith('http')

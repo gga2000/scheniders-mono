@@ -12,7 +12,7 @@ const supabase = createClient(
  *
  * Comprehensive diagnostic endpoint for Lightfunnels integration
  */
-export async function GET() {
+export async function GET(request: Request) {
     const report: any = {
         timestamp: new Date().toISOString(),
         status: 'checking',
@@ -177,7 +177,14 @@ export async function GET() {
     }
 
     // 5. Webhook Endpoint Test
-    const siteUrl = env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL;
+    let siteUrl = env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL;
+
+    // In development, use the request origin
+    if (!siteUrl) {
+        const url = new URL(request.url);
+        siteUrl = url.origin;
+    }
+
     if (siteUrl) {
         const webhookUrl = siteUrl.startsWith('http')
             ? `${siteUrl}/api/webhooks/lightfunnels`
