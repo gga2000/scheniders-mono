@@ -182,13 +182,13 @@ export function useUpdateOrderMutation() {
         onError: (err, variables, context) => {
             diag.log(`[Diag:RQ:UpdateMut] onError orderId=${variables.orderId} err=${err instanceof Error ? err.message : err} rollingBack=${!!context?.previousOrders}`);
             console.error(`[UpdateOrder] onError for ${variables.orderId}:`, err);
-            
+
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
-            
+
             if (err instanceof Error && err.message === "CONFLICT_DETECTED") {
-                toast.error("Data changed by another user. Please refresh to see the latest changes.", { duration: 5000 });
+                toast.error("Order was modified elsewhere. Refreshing data...", { duration: 3000 });
                 // Force a fresh refetch immediately to get the latest state
                 queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
             } else {
@@ -290,9 +290,9 @@ export function useUpdateStatusMutation() {
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
-            
+
             if (err instanceof Error && err.message === "CONFLICT_DETECTED") {
-                toast.error("Data changed by another user. Please refresh and try again.", { duration: 5000 });
+                toast.error("Order was modified elsewhere. Refreshing data...", { duration: 3000 });
                 // Force a fresh refetch immediately
                 queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
             } else {

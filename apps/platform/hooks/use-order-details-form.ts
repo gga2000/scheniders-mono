@@ -41,7 +41,7 @@ export function useOrderDetailsForm({ order, setOrder, onUpdate, t }: UseOrderDe
             delivery_slot: order.delivery_slot || undefined,
             delivery_order_id: order.delivery_order_id || "",
             items: order.items ? [...order.items] : [],
-            created_at: order.created_at,
+            // created_at should never be updated - it's read-only
         });
         setIsEditing(true);
     };
@@ -58,6 +58,11 @@ export function useOrderDetailsForm({ order, setOrder, onUpdate, t }: UseOrderDe
         try {
             const dataToSave = { ...formData };
             // Note: Date change tracking is done purely in the UI, original_created_at does not exist in DB
+
+            // Remove read-only fields that should never be updated
+            delete (dataToSave as Record<string, unknown>).created_at;
+            delete (dataToSave as Record<string, unknown>).updated_at;
+            delete (dataToSave as Record<string, unknown>).id;
 
             const result = await onUpdate(order.id, dataToSave);
 
