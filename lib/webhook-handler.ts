@@ -2,6 +2,7 @@ import { createSupabaseServiceClient } from "./supabase-server";
 import { formatPhoneToStandard } from "./order-utils";
 import { generateWhatsAppLink } from "./utils";
 import { validateAddress, getAddressStatus, extractAndSeparateGovernorate } from "./address-validator";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { fetchCheckoutById, getSavedAccessToken } from "./lightfunnels-api";
 import { fraudDetector } from "./fraud-detector";
 import type { OrderItem } from "./supabase";
@@ -13,8 +14,10 @@ function getSupabase() {
     if (!_supabase) _supabase = createSupabaseServiceClient();
     return _supabase;
 }
+ 
 const supabase = new Proxy({} as ReturnType<typeof createSupabaseServiceClient>, {
     get(_, prop) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return (getSupabase() as any)[prop];
     }
 });
@@ -176,6 +179,7 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
         const isCheckoutFormat = !payload.node && (node.first_name !== undefined || node.step_id !== undefined || isCheckoutId);
 
         console.log("Webhook type:", isCheckoutFormat ? "Checkout" : "Order", "ID:", checkoutId, "Node keys:", nodeKeys.join(', '));
+        console.log("[parseWebhook] node.name:", node.name, "node._id:", node._id, "node.id:", node.id);
 
         // Validate required fields
         if (checkoutId == null) {
@@ -749,18 +753,15 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
         }
         // ----------------------------------------------------
 
-        // Store LightFunnels reference for duplicate checking and tracking
-        const lfReference = webhook.is_checkout
-            ? `[LF Checkout #${webhook.order_id}]`
-            : `[LF Order #${webhook.order_number}]`;
+        // Use Lightfunnels order ID directly
+        const lightfunnelsOrderId = webhook.order_number;
+        console.log('[createOrderFromWebhook] order_id being sent to RPC:', lightfunnelsOrderId, '(webhook.order_id:', webhook.order_id, ', webhook.order_number:', webhook.order_number, ')');
 
-        // Check for duplicate by looking for LightFunnels reference in notes
-        // Since we now generate local IDs, we need to check if we've already imported this LF order
+        // Check for duplicate by order_id
         const { data: existingOrder } = await supabase
             .from("orders")
             .select("id")
-            .eq("source", "lightfunnels")
-            .ilike("notes", `%${lfReference}%`)
+            .eq("order_id", lightfunnelsOrderId)
             .limit(1);
 
         if (existingOrder && existingOrder.length > 0) {
@@ -809,6 +810,7 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
             undefined, // Lightfunnels doesn't provide governorate code
             webhook.customer.address
         );
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const addressStatus = getAddressStatus(addressValidation);
 
         // Determine if order needs attention due to address issues
@@ -842,13 +844,14 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
             ? formatPhoneToStandard(webhook.customer.secondary_phone)
             : null;
 
-        // Build notes with LightFunnels reference for tracking
-        const notesWithReference = webhook.is_checkout
-            ? `${lfReference} [سلة متروكة] ${webhook.notes?.trim() || ''}`.trim()
-            : [lfReference, webhook.notes?.trim()].filter(Boolean).join(' ').trim() || null;
+        // Build notes (add checkout indicator if needed)
+        const notesText = webhook.is_checkout
+            ? `[سلة متروكة] ${webhook.notes?.trim() || ''}`.trim()
+            : webhook.notes?.trim() || null;
 
         const orderData = {
-            // DO NOT set order_id - let create_order_atomic RPC generate it
+            // Use Lightfunnels order ID directly
+            order_id: lightfunnelsOrderId,
             customer_name: webhook.customer.name.trim(),
             phone: formattedPhone,
             secondary_phone: formattedSecondaryPhone !== formattedPhone ? formattedSecondaryPhone : null,
@@ -865,13 +868,12 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
             is_archived: false,
             source: 'lightfunnels' as const,
             whatsapp_link: generateWhatsAppLink(formattedPhone, whatsappMessage),
-            notes: notesWithReference,
+            notes: notesText,
             needs_attention: attentionReasons.length > 0,
             attention_reasons: attentionReasons.length > 0 ? attentionReasons : null,
         };
 
-        // Use atomic RPC to create order with proper ID generation
-        // This ensures we use the local ID system (e.g., 4260319001) instead of LightFunnels IDs
+        // Use atomic RPC to create order with Lightfunnels order ID
         const { data, error } = await supabase
             .rpc('create_order_atomic', { _order_data: orderData });
 
@@ -893,20 +895,19 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
                 let abandonedCheckouts: Array<{ id: string; order_id: string }> = [];
                 let cleanupMethod = 'unknown';
 
-                // Priority 1: Try exact checkout ID match first by searching notes
+                // Priority 1: Try exact checkout ID match by order_id
                 if (webhook.checkout_id) {
-                    const checkoutReference = `[LF Checkout #${webhook.checkout_id}]`;
                     const { data: exactMatch, error: exactErr } = await supabase
                         .from('orders')
                         .select('id, order_id')
-                        .ilike('notes', `%${checkoutReference}%`)
+                        .eq('order_id', webhook.checkout_id)
                         .eq('status', 'pending_checkout')
                         .eq('source', 'lightfunnels');
 
                     if (!exactErr && exactMatch && exactMatch.length > 0) {
                         abandonedCheckouts = exactMatch;
                         cleanupMethod = 'exact_checkout_id';
-                        console.log(`[Cleanup] Found exact checkout match via notes: ${checkoutReference}`);
+                        console.log(`[Cleanup] Found exact checkout match by order_id: ${webhook.checkout_id}`);
                     }
                 }
 
