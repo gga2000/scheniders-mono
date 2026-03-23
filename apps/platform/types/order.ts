@@ -115,6 +115,17 @@ export interface Order {
     last_status_changed_by_name?: string;
     last_status_changed_by_avatar?: string;
     is_test?: boolean;
+    // Delivery company tracking
+    delivery_company?: 'prime' | 'waseet' | null;
+    // Al-Waseet specific fields
+    waseet_qr_id?: string;
+    waseet_qr_link?: string;
+    waseet_status_id?: number;
+    waseet_status_text?: string;
+    waseet_merchant_price?: number;
+    waseet_company_price?: number;
+    waseet_submitted_at?: string;
+    waseet_invoice_id?: string;
 }
 
 export interface Blacklist {

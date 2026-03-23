@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { usePrinting, LabelSettings } from "@/hooks/use-printing";
+import { WaseetSubmitDialog } from "@/components/printing/waseet-submit-dialog";
 import { PrintBatch } from "@/lib/supabase";
 import { Order } from "@/lib/supabase";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layout/page-transition";
@@ -15,7 +16,9 @@ import { ReprintWarningModal } from "@/components/printing/reprint-warning-modal
 import { MarkAsShippedDialog, MarkAsDeliveredDialog } from "@/components/printing/confirmation-dialog";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { SmartBatchPanel } from "@/components/printing/smart-batch-panel";
-import { EnhancedLabelOptions, printBulkEnhancedLabels, printBulkInvoices, generateBulkA6InvoicesHTML, printBulkShippingLabels, generateShippingLabelHTML, SHIPPING_LABEL_CSS } from "@/lib/enhanced-label-generator";
+import { EnhancedLabelOptions, printBulkEnhancedLabels, printBulkInvoices, generateBulkA6InvoicesHTML, printBulkShippingLabels, generateBulkShippingLabelsHTML } from "@/lib/enhanced-label-generator";
+import { downloadLabelPdf } from "@/lib/pdf-download";
+import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
 import {
@@ -50,121 +53,10 @@ import {
 import { formatIQD, formatDate, getBaseOrderId } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
-// PDF generation constants
-const A4_WIDTH_PX = 794;
-const A4_HEIGHT_PX = 1123;
-const A4_WIDTH_MM = 210;
-const A4_HEIGHT_MM = 297;
-const IFRAME_LOAD_TIMEOUT_MS = 2000;
-const POST_RENDER_DELAY_MS = 500;
-
-async function generatePdfFromHtml(html: string, filename: string): Promise<void> {
-    const iframe = document.createElement("iframe");
-    iframe.style.cssText = `position:absolute;left:-99999px;top:-99999px;width:${A4_WIDTH_PX}px;height:${A4_HEIGHT_PX}px;border:none;`;
-    iframe.srcdoc = html;
-    document.body.appendChild(iframe);
-
-    await new Promise<void>((resolve) => {
-        iframe.onload = () => resolve();
-        setTimeout(resolve, IFRAME_LOAD_TIMEOUT_MS);
-    });
-    await new Promise((resolve) => setTimeout(resolve, POST_RENDER_DELAY_MS));
-
-    try {
-        const html2canvas = (await import("html2canvas")).default;
-        const { jsPDF } = await import("jspdf");
-
-        const iframeDoc = iframe.contentDocument;
-        if (!iframeDoc) throw new Error("Could not access iframe document");
-
-        const canvas = await html2canvas(iframeDoc.body, {
-            scale: 1.5,
-            useCORS: true,
-            logging: false,
-            backgroundColor: "#ffffff",
-            allowTaint: true,
-        });
-
-        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-        const imgWidth = A4_WIDTH_MM;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        const imgData = canvas.toDataURL("image/png");
-
-        let yPos = 0;
-        let remainingHeight = imgHeight;
-        pdf.addImage(imgData, "PNG", 0, yPos, imgWidth, imgHeight);
-        remainingHeight -= A4_HEIGHT_MM;
-
-        while (remainingHeight > 0) {
-            pdf.addPage();
-            yPos = -(imgHeight - remainingHeight);
-            pdf.addImage(imgData, "PNG", 0, yPos, imgWidth, imgHeight);
-            remainingHeight -= A4_HEIGHT_MM;
-        }
-
-        pdf.save(filename);
-    } finally {
-        document.body.removeChild(iframe);
-    }
-}
-
-async function generateLabelPdf(orders: Order[], options: EnhancedLabelOptions): Promise<void> {
-    const html2canvas = (await import("html2canvas")).default;
-    const { jsPDF } = await import("jspdf");
-
-    const LABEL_W_MM = 80;
-    const LABEL_H_MM = 120;
-    // 80mm at ~3.78 px/mm ≈ 302px, but use higher res for quality
-    const SCALE = 3;
-    const LABEL_W_PX = Math.round(LABEL_W_MM * 3.78);
-    const LABEL_H_PX = Math.round(LABEL_H_MM * 3.78);
-
-    const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: [LABEL_W_MM, LABEL_H_MM],
-    });
-
-    for (let i = 0; i < orders.length; i++) {
-        if (i > 0) pdf.addPage([LABEL_W_MM, LABEL_H_MM]);
-
-        const container = document.createElement("div");
-        container.style.cssText = `position:absolute;left:-9999px;top:-9999px;width:${LABEL_W_PX}px;`;
-        document.body.appendChild(container);
-
-        const style = document.createElement("style");
-        style.textContent = SHIPPING_LABEL_CSS;
-        container.appendChild(style);
-
-        const labelHtml = await generateShippingLabelHTML(orders[i], options);
-        const wrapper = document.createElement("div");
-        wrapper.innerHTML = labelHtml;
-        container.appendChild(wrapper);
-
-        // Wait for SVGs to render
-        await new Promise(r => setTimeout(r, 100));
-
-        const canvas = await html2canvas(container, {
-            scale: SCALE,
-            useCORS: true,
-            logging: false,
-            backgroundColor: "#ffffff",
-            width: LABEL_W_PX,
-            height: LABEL_H_PX,
-        });
-
-        const imgData = canvas.toDataURL("image/png");
-        pdf.addImage(imgData, "PNG", 0, 0, LABEL_W_MM, LABEL_H_MM);
-
-        document.body.removeChild(container);
-    }
-
-    pdf.save(`shipping-labels-${new Date().toISOString().slice(0, 10)}.pdf`);
-}
-
 export default function PrintingPage() {
     const { orders, loading, error, updateOrderStatus, bulkUpdateStatus } = useOrdersContext();
     const printing = usePrinting(orders);
+    const { t } = useLanguage();
 
     // Selection state
     const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
@@ -181,6 +73,7 @@ export default function PrintingPage() {
     // Modal state
     const [showPreview, setShowPreview] = useState(false);
     const [showReprintWarning, setShowReprintWarning] = useState(false);
+    const [pdfLoading, setPdfLoading] = useState(false);
     const [showShipDialog, setShowShipDialog] = useState(false);
     const [showDeliverDialog, setShowDeliverDialog] = useState(false);
     const [selectedBatch, setSelectedBatch] = useState<PrintBatch | null>(null);
@@ -189,8 +82,14 @@ export default function PrintingPage() {
     // Automation state
     const [autoShipAfterPrint, setAutoShipAfterPrint] = useState(true);
 
+    // Export menu state
+    const [showExportMenu, setShowExportMenu] = useState(false);
+
     // Smart batching state
     const [smartBatchingEnabled, setSmartBatchingEnabled] = useState(false);
+
+    // Al-Waseet submit state
+    const [showWaseetSubmitDialog, setShowWaseetSubmitDialog] = useState(false);
 
     // Customer order counts for labels
     const [customerOrderCounts, setCustomerOrderCounts] = useState<Record<string, number>>({});
@@ -360,7 +259,7 @@ export default function PrintingPage() {
         setSelectedOrders(new Set());
     };
 
-    // Handle download PDF
+    // Handle download PDF (server-side Puppeteer for vector-quality output)
     const handleDownloadPDF = async () => {
         if (selectedOrders.size === 0) return;
 
@@ -370,19 +269,41 @@ export default function PrintingPage() {
             invoiceTemplate: invoiceTemplate,
         };
 
+        setPdfLoading(true);
         try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) {
+                alert("Please log in to download PDFs.");
+                return;
+            }
+
+            let html: string;
+            let filename: string;
+            let pageWidth = '80mm';
+            let pageHeight = '120mm';
+
             if (printType === "labels" && labelOptions.size === "80x120") {
-                await generateLabelPdf(ordersToPrint, labelOptions);
+                html = await generateBulkShippingLabelsHTML(ordersToPrint, labelOptions);
+                filename = `shipping-labels-${new Date().toISOString().slice(0, 10)}.pdf`;
             } else if (printType === "labels") {
                 const { generateBulkLabelsHTML } = await import("@/lib/enhanced-label-generator");
-                const html = await generateBulkLabelsHTML(ordersToPrint, labelOptions, customerOrderCounts);
-                await generatePdfFromHtml(html, `labels-${new Date().toISOString().slice(0, 10)}.pdf`);
+                html = await generateBulkLabelsHTML(ordersToPrint, labelOptions, customerOrderCounts);
+                filename = `labels-${new Date().toISOString().slice(0, 10)}.pdf`;
+                pageWidth = '210mm';
+                pageHeight = '297mm';
             } else {
-                const html = await generateBulkA6InvoicesHTML(ordersToPrint, labelOptions);
-                await generatePdfFromHtml(html, `invoices-${new Date().toISOString().slice(0, 10)}.pdf`);
+                html = await generateBulkA6InvoicesHTML(ordersToPrint, labelOptions);
+                filename = `invoices-${new Date().toISOString().slice(0, 10)}.pdf`;
+                pageWidth = '210mm';
+                pageHeight = '297mm';
             }
-        } catch {
+
+            await downloadLabelPdf(html, filename, session.access_token, pageWidth, pageHeight);
+        } catch (err) {
+            console.error("PDF generation error:", err);
             alert("Failed to generate PDF. Please try again.");
+        } finally {
+            setPdfLoading(false);
         }
     };
 
@@ -396,8 +317,6 @@ export default function PrintingPage() {
             </div>
         );
     }
-
-    const { t } = useLanguage();
 
     if (error) {
         return (
@@ -465,22 +384,66 @@ export default function PrintingPage() {
                                             {/* Download PDF Button */}
                                             <button
                                                 onClick={handleDownloadPDF}
-                                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--pastel-purple)] text-purple-900 hover:shadow-md transition-all font-medium text-sm"
+                                                disabled={pdfLoading}
+                                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--pastel-purple)] text-purple-900 hover:shadow-md transition-all font-medium text-sm disabled:opacity-50"
                                             >
-                                                <Download className="h-4 w-4" />
-                                                PDF
+                                                {pdfLoading ? (
+                                                    <RefreshCw className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <Download className="h-4 w-4" />
+                                                )}
+                                                {pdfLoading ? "Generating..." : "PDF"}
                                             </button>
 
-                                            {/* Prime CSV Export Button */}
+                                            {/* Shipping Export Dropdown */}
+                                            <div className="relative">
+                                                <button
+                                                    onClick={() => setShowExportMenu(!showExportMenu)}
+                                                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-slate-700 to-slate-900 text-white hover:shadow-md transition-all font-medium text-sm"
+                                                    title="Export for Delivery"
+                                                >
+                                                    <FileText className="h-4 w-4" />
+                                                    تصدير للشحن
+                                                    <ChevronDown className="h-3.5 w-3.5" />
+                                                </button>
+                                                {showExportMenu && (
+                                                    <>
+                                                        <div className="fixed inset-0 z-40" onClick={() => setShowExportMenu(false)} />
+                                                        <div className="absolute top-full mt-1 right-0 z-50 bg-white rounded-xl shadow-lg border border-gray-200 py-1 min-w-[180px]">
+                                                            <button
+                                                                onClick={() => {
+                                                                    printing.exportToPrimeCSV(Array.from(selectedOrders), sortedOrders);
+                                                                    setShowExportMenu(false);
+                                                                }}
+                                                                className="w-full text-right px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                                            >
+                                                                <FileText className="h-4 w-4 text-slate-600" />
+                                                                Prime
+                                                            </button>
+                                                            <button
+                                                                onClick={() => {
+                                                                    printing.exportToWaseetCSV(Array.from(selectedOrders), sortedOrders);
+                                                                    setShowExportMenu(false);
+                                                                }}
+                                                                className="w-full text-right px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                                            >
+                                                                <FileText className="h-4 w-4 text-slate-600" />
+                                                                الوسيط (Al-Waseet)
+                                                            </button>
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
+
+                                            {/* Al-Waseet API Submit Button */}
                                             <button
-                                                onClick={() => {
-                                                    printing.exportToPrimeCSV(Array.from(selectedOrders), sortedOrders);
-                                                }}
-                                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-slate-700 to-slate-900 text-white hover:shadow-md transition-all font-medium text-sm"
-                                                title="Export for Prime Delivery"
+                                                onClick={() => setShowWaseetSubmitDialog(true)}
+                                                disabled={selectedOrders.size === 0}
+                                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-linear-to-r from-teal-500 to-cyan-600 text-white hover:shadow-md transition-all font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                                title="إرسال الطلبات المحددة إلى الوسيط عبر API"
                                             >
-                                                <FileText className="h-4 w-4" />
-                                                تصدير للشحن
+                                                <Truck className="h-4 w-4" />
+                                                الوسيط API ({selectedOrders.size})
                                             </button>
 
                                             {/* Ship Button */}
@@ -743,7 +706,7 @@ export default function PrintingPage() {
                                                 onClick={() =>
                                                     printing.setFilters({
                                                         ...printing.filters,
-                                                        priority: priority === "all" ? undefined : (priority as any),
+                                                        priority: priority === "all" ? undefined : (priority as Order["priority"]),
                                                     })
                                                 }
                                                 className={cn(
@@ -828,7 +791,7 @@ export default function PrintingPage() {
                                                 Auto-Ship After Print
                                             </div>
                                             <div className="text-xs text-gray-600 dark:text-gray-400">
-                                                Automatically mark orders as "In Transit" after printing
+                                                Automatically mark orders as &ldquo;In Transit&rdquo; after printing
                                             </div>
                                         </div>
                                     </div>
@@ -1095,6 +1058,15 @@ export default function PrintingPage() {
                     onPrintNewOnly={handlePrintNewOnly}
                 />
 
+                <WaseetSubmitDialog
+                    open={showWaseetSubmitDialog}
+                    onOpenChange={setShowWaseetSubmitDialog}
+                    orders={sortedOrders.filter(o => selectedOrders.has(o.id))}
+                    onComplete={() => {
+                        setSelectedOrders(new Set());
+                    }}
+                />
+
                 <MarkAsShippedDialog
                     isOpen={showShipDialog}
                     onClose={() => setShowShipDialog(false)}
@@ -1131,8 +1103,13 @@ export default function PrintingPage() {
                             ...printing.labelSettings,
                             invoiceTemplate: template as "classic" | "modern" | "prime",
                         };
+                        const { data: { session } } = await supabase.auth.getSession();
+                        if (!session?.access_token) {
+                            alert("Please log in to download PDFs.");
+                            return;
+                        }
                         const html = await generateBulkA6InvoicesHTML(batchOrdersForPdf, labelOptions);
-                        await generatePdfFromHtml(html, `batch-${selectedBatch?.name || "orders"}.pdf`);
+                        await downloadLabelPdf(html, `batch-${selectedBatch?.name || "orders"}.pdf`, session.access_token, '210mm', '297mm');
                     }}
                     onDeleteBatch={printing.deleteBatch}
                     onUpdateName={printing.updateBatchName}

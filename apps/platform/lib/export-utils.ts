@@ -132,6 +132,96 @@ export async function exportOrdersToPrimeCSV(orderIds: string[], ordersData: Ord
 }
 
 /**
+ * Export orders to Al-Waseet delivery company XLSX format
+ */
+export async function exportOrdersToWaseetXLSX(orderIds: string[], ordersData: Order[]) {
+    const selectedOrders = ordersData.filter((o) => orderIds.includes(o.id));
+
+    const xlsxModule = await import('xlsx');
+    const XLSX = xlsxModule.default || xlsxModule;
+
+    const headers = [
+        'اسم الزبون',
+        'رقم الهاتف الاساسي',
+        'رقم الهاتف الثانوي',
+        'المحافظة',
+        'المنطقة',
+        'نوع البضاعه',
+        'عدد القطع',
+        'السعر مع التوصيل',
+        'حجم الطلب',
+        'الملاحظات',
+        'نوع الطلب',
+    ];
+
+    const rows = selectedOrders.map((order) => {
+        const totalQuantity = order.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 1;
+        const phone = cleanPhoneForExport(order.phone);
+        const secondaryPhone = cleanPhoneForExport(order.secondary_phone || '');
+
+        // Get governorate Arabic name
+        let govName = '';
+        const govCode = order.validated_governorate_code || order.governorate_code || '';
+        if (govCode) {
+            const { governorate } = extractGovernorate(govCode, undefined, undefined);
+            govName = governorate?.nameAr || '';
+        }
+        if (!govName && order.city) {
+            const { governorate } = extractGovernorate(order.city, undefined, order.address_details);
+            govName = governorate?.nameAr || '';
+        }
+
+        const productType = order.items?.map(item => item.name).filter(Boolean).join(' + ') || 'ملابس';
+
+        return {
+            'اسم الزبون': order.customer_name || '',
+            'رقم الهاتف الاساسي': phone,
+            'رقم الهاتف الثانوي': secondaryPhone,
+            'المحافظة': govName,
+            'المنطقة': order.address_details || '',
+            'نوع البضاعه': productType,
+            'عدد القطع': totalQuantity,
+            'السعر مع التوصيل': order.price || 0,
+            'حجم الطلب': 'عادي',
+            'الملاحظات': order.notes || '',
+            'نوع الطلب': 'طلب جديد',
+        };
+    });
+
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(rows, { header: headers });
+
+    worksheet['!cols'] = [
+        { wch: 20 },  // اسم الزبون
+        { wch: 15 },  // رقم الهاتف الاساسي
+        { wch: 15 },  // رقم الهاتف الثانوي
+        { wch: 15 },  // المحافظة
+        { wch: 20 },  // المنطقة
+        { wch: 20 },  // نوع البضاعه
+        { wch: 10 },  // عدد القطع
+        { wch: 15 },  // السعر مع التوصيل
+        { wch: 12 },  // حجم الطلب
+        { wch: 20 },  // الملاحظات
+        { wch: 12 },  // نوع الطلب
+    ];
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'الطلبات');
+
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `waseet_shipment_${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    return { success: true, count: selectedOrders.length };
+}
+
+/**
  * Export products to CSV format
  */
 export function exportToCSV(products: Product[], filename: string = "products"): void {

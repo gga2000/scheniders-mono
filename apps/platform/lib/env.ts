@@ -44,6 +44,8 @@ const serverSchema = z.object({
     QSTASH_NEXT_SIGNING_KEY: z.string().min(1).optional(),
     INTERAKT_API_KEY: z.string().min(1).optional(),
     INTERAKT_WEBHOOK_SECRET: z.string().min(1).optional(),
+    WASEET_USERNAME: z.string().min(1).optional(),
+    WASEET_PASSWORD: z.string().min(1).optional(),
 });
 
 // =============================================
@@ -80,6 +82,8 @@ function validateEnv() {
             QSTASH_NEXT_SIGNING_KEY: process.env.QSTASH_NEXT_SIGNING_KEY,
             INTERAKT_API_KEY: process.env.INTERAKT_API_KEY,
             INTERAKT_WEBHOOK_SECRET: process.env.INTERAKT_WEBHOOK_SECRET,
+            WASEET_USERNAME: process.env.WASEET_USERNAME,
+            WASEET_PASSWORD: process.env.WASEET_PASSWORD,
         });
 
         if (!serverResult.success) {

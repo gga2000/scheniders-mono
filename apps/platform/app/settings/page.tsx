@@ -9,6 +9,7 @@ import {
     Database,
     LayoutDashboard,
     Cloud,
+    Truck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GeneralSettings } from "@/components/settings/general-settings";
@@ -18,6 +19,7 @@ import { TeamSettings } from "@/components/settings/team-settings";
 import { DataSettings } from "@/components/settings/data-settings";
 import { LightfunnelsSettings } from "@/components/settings/lightfunnels-settings";
 import { PageSettings } from "@/components/settings/pages-settings";
+import { WaseetSettingsPanel } from "@/components/settings/waseet-settings";
 import { UsersRound } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 
@@ -51,6 +53,12 @@ const SECTIONS = [
         key: "settings.section.lightfunnels",
         icon: Cloud,
         component: LightfunnelsSettings,
+    },
+    {
+        id: "waseet",
+        key: "settings.section.waseet",
+        icon: Truck,
+        component: WaseetSettingsPanel,
     },
     {
         id: "pages",

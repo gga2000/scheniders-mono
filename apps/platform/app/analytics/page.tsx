@@ -125,6 +125,10 @@ const DeliveryHistory = dynamic(
     () => import("@/components/delivery-import/delivery-history").then(mod => ({ default: mod.DeliveryHistory })),
     { loading: () => <div className="skeleton h-64 rounded-2xl" />, ssr: false }
 );
+const IraqMap = dynamic(
+    () => import("@/components/shared/iraq-map").then(mod => ({ default: mod.IraqMap })),
+    { loading: () => <div className="skeleton h-64 rounded-2xl" />, ssr: false }
+);
 
 // Utils
 import { exportFinancesToCSV, exportFinancesToExcel, printFinancialReport } from "@/lib/finance-export";
@@ -639,6 +643,11 @@ export default function AnalyticsPage() {
                                     <PeriodComparisonCard comparison={periodComparison} />
                                 </div>
                             )}
+                        </div>
+
+                        {/* Governorate Map */}
+                        <div className="h-[420px]">
+                            <IraqMap orders={ordersInRange} />
                         </div>
 
                         {/* Bottom Row */}

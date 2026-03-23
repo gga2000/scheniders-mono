@@ -87,6 +87,10 @@ const BackupPrompt = dynamic(
     () => import("@/components/vault/backup-prompt").then(mod => ({ default: mod.BackupPrompt })),
     { ssr: false, loading: () => <div className="hidden" /> }
 );
+const IraqMap = dynamic(
+    () => import("@/components/shared/iraq-map").then(mod => ({ default: mod.IraqMap })),
+    { ssr: false, loading: () => <div className="w-full h-[350px] animate-pulse bg-muted/20 rounded-2xl" /> }
+);
 import { useIsMobile } from "@/hooks/use-mobile";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -133,7 +137,7 @@ import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
 import { notificationService } from "@/lib/notification-service";
 import { mockAssignmentRules } from "@/lib/team-types";
-import { exportOrdersToPrimeCSV } from "@/lib/export-utils";
+import { exportOrdersToPrimeCSV, exportOrdersToWaseetXLSX } from "@/lib/export-utils";
 import { toast } from "@/hooks/use-toast";
 
 import { ErrorBoundary } from "@/components/ui/error-boundary";
@@ -594,7 +598,7 @@ export default function OrdersPage() {
             return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         });
         return result;
-    }, [defHookFilteredOrders, defSortConfig, defColumnFilters, defFilterDuplicatesOnly, getCustomerOrderCount, defRiskLevel, riskLoading]);
+    }, [defHookFilteredOrders, defSortConfig, defColumnFilters, defFilterDuplicatesOnly, getCustomerOrderCount, defRiskLevel]);  
 
     const defOrders = React.useDeferredValue(orders);
 
@@ -706,6 +710,8 @@ export default function OrdersPage() {
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [deleteCountdown, setDeleteCountdown] = useState(5);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [showShipMenu, setShowShipMenu] = useState(false);
+    const [showMapPanel, setShowMapPanel] = useState(false);
 
     useEffect(() => {
         let timer: NodeJS.Timeout;
@@ -805,7 +811,7 @@ export default function OrdersPage() {
         }
     };
 
-    const handlePrimeExport = async () => {
+    const handleShipExport = async (company: 'prime' | 'waseet') => {
         const ids = selectedOrders.size > 0
             ? Array.from(selectedOrders)
             : filteredOrders.map(o => o.id);
@@ -815,39 +821,37 @@ export default function OrdersPage() {
             return;
         }
 
-        // We need the full order objects for the export
         let ordersToExport: Order[] = [];
         if (selectedOrders.size > 0) {
-            // Find selected orders in the full list
             ordersToExport = orders.filter(o => selectedOrders.has(o.id));
         } else {
-            // Use current filtered view
             ordersToExport = filteredOrders;
         }
 
+        const companyLabel = company === 'prime' ? 'Prime' : 'Al-Waseet';
+
         try {
-            // 1. Create a batch for history
-            const batchName = `Prime Export ${new Date().toLocaleDateString('en-GB')}`;
+            const batchName = `${companyLabel} Export ${new Date().toLocaleDateString('en-GB')}`;
             const { success: batchSuccess, error: batchError } = await createBatch(
                 batchName,
                 ids,
-                "prime",
-                "invoice" // Prime is essentially an invoice export
+                company,
+                "invoice"
             );
 
             if (batchSuccess) {
-                // 2. Download the file
-                await exportOrdersToPrimeCSV(ids, ordersToExport);
+                if (company === 'prime') {
+                    await exportOrdersToPrimeCSV(ids, ordersToExport);
+                } else {
+                    await exportOrdersToWaseetXLSX(ids, ordersToExport);
+                }
 
-                // 3. Update status to In Transit
                 await bulkUpdateStatus(ids, "in_transit");
-
-                // Clear selection
                 setSelectedOrders(new Set());
 
                 toast.success(
                     "Export successful",
-                    `${ids.length} orders exported → In Transit`
+                    `${ids.length} orders exported via ${companyLabel} → In Transit`
                 );
             } else {
                 throw new Error(batchError || "Failed to create export batch");
@@ -1008,7 +1012,7 @@ export default function OrdersPage() {
                         },
                     }}
                 >
-                    <div className="min-h-screen p-4 md:p-6 lg:p-8 orders-page">
+                    <div className="min-h-screen p-4 md:p-6 lg:p-8 orders-page relative">
                         <div className="space-y-4 md:space-y-6">
                             {/* Section 1: Toolbar — stagger child */}
                             <motion.div
@@ -1538,6 +1542,20 @@ export default function OrdersPage() {
                                                                 <BarChart3 className="w-4 h-4" />
                                                             </button>
 
+                                                            {/* Map Toggle */}
+                                                            <button
+                                                                onClick={() => setShowMapPanel(prev => !prev)}
+                                                                className={cn(
+                                                                    "p-2.5 rounded-xl transition-all duration-300",
+                                                                    showMapPanel
+                                                                        ? "bg-rose-100 text-rose-600 shadow-sm dark:bg-[var(--primary)] dark:text-black"
+                                                                        : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground dark:hover:bg-white/5"
+                                                                )}
+                                                                title={t("map.title")}
+                                                            >
+                                                                <MapPin className="w-4 h-4" />
+                                                            </button>
+
                                                             {/* Undo Button */}
                                                             <AnimatePresence>
                                                                 {canUndo && (
@@ -1574,13 +1592,43 @@ export default function OrdersPage() {
                                                             >
                                                                 <Download className="w-4 h-4" />
                                                             </button>
-                                                            <button
-                                                                onClick={handlePrimeExport}
-                                                                className="p-2.5 rounded-xl bg-slate-800 text-white text-sm font-medium hover:bg-slate-700 shadow-lg shadow-slate-900/20 transition-all duration-300 flex items-center gap-2"
-                                                                title="Ship"
-                                                            >
-                                                                <Truck className="w-4 h-4" />
-                                                            </button>
+                                                            <div className="relative">
+                                                                <button
+                                                                    onClick={() => setShowShipMenu(!showShipMenu)}
+                                                                    className="p-2.5 rounded-xl bg-slate-800 text-white text-sm font-medium hover:bg-slate-700 shadow-lg shadow-slate-900/20 transition-all duration-300 flex items-center gap-1.5"
+                                                                    title="Ship via delivery company"
+                                                                >
+                                                                    <Truck className="w-4 h-4" />
+                                                                    <ChevronDown className="w-3 h-3" />
+                                                                </button>
+                                                                {showShipMenu && (
+                                                                    <>
+                                                                        <div className="fixed inset-0 z-40" onClick={() => setShowShipMenu(false)} />
+                                                                        <div className="absolute top-full mt-1 right-0 z-50 bg-white rounded-xl shadow-lg border border-gray-200 py-1 min-w-[180px]">
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    handleShipExport('prime');
+                                                                                    setShowShipMenu(false);
+                                                                                }}
+                                                                                className="w-full text-right px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                                                            >
+                                                                                <Truck className="h-4 w-4 text-slate-600" />
+                                                                                Prime
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    handleShipExport('waseet');
+                                                                                    setShowShipMenu(false);
+                                                                                }}
+                                                                                className="w-full text-right px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                                                            >
+                                                                                <Truck className="h-4 w-4 text-slate-600" />
+                                                                                الوسيط (Al-Waseet)
+                                                                            </button>
+                                                                        </div>
+                                                                    </>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
 
@@ -1605,6 +1653,7 @@ export default function OrdersPage() {
                                                             </button>
                                                         </div>
                                                     </div>
+
                                                 </div>
                                             </motion.div>
 
@@ -2434,6 +2483,23 @@ export default function OrdersPage() {
                                 </div>
                             </motion.div>
                         </div>
+
+                        {/* Governorate Map Side Panel - Floating */}
+                        <AnimatePresence initial={false}>
+                            {showMapPanel && (
+                                <motion.div
+                                    initial={{ opacity: 0, x: 40 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: 40 }}
+                                    transition={{ duration: 0.3, ease: EASE_PANEL }}
+                                    className="hidden lg:block fixed top-20 right-6 z-40"
+                                >
+                                    <div className="w-[340px] h-[420px] shadow-xl rounded-3xl overflow-hidden">
+                                        <IraqMap orders={filteredOrders} />
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
 
                     {/* Modals */}
