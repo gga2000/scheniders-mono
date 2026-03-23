@@ -59,6 +59,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "orders.status.cancelled": "Canceled",
         "orders.status.noResponse": "No Response",
         "orders.status.returnPending": "Return Pending",
+        "orders.status.suspended": "Suspended",
         "orders.status.pendingCheckout": "Abandoned",
         // Toolbar sections
         "orders.toolbar.view": "View",
@@ -378,6 +379,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "settings.section.orders": "Order Workflow",
         "settings.section.printing": "Printing",
         "settings.section.lightfunnels": "Lightfunnels",
+        "settings.section.waseet": "Al-Waseet",
         "settings.section.pages": "Pages Access",
         "settings.section.data": "Data & Backup",
 
@@ -473,6 +475,22 @@ export const translations: Record<Locale, Record<string, string>> = {
         "toast.exportFailedDesc": "There was an error generating the Excel file",
         "toast.comingSoon": "Coming Soon",
         "toast.reorderFeature": "Reorder for {customer} - Feature coming soon!",
+
+        // ── Map ──
+        "map.title": "Governorate Map",
+        "map.description": "Order distribution across Iraqi governorates",
+        "map.orders": "orders",
+        "map.less": "Less",
+        "map.more": "More",
+        "map.governorate": "Governorate",
+        "map.revenue": "Revenue",
+        "map.noData": "No order data available",
+        "map.filter.total": "Total",
+        "map.topGov": "Top",
+        "map.emptyGovs": "with no orders",
+        "map.ofTotal": "of total",
+        "map.deliveryRate": "Delivery Success Rate",
+        "map.unknown": "Unknown / Unassigned",
     },
 
     ar: {
@@ -530,6 +548,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "orders.status.cancelled": "ملغي",
         "orders.status.noResponse": "لم يرد",
         "orders.status.returnPending": "قيد الاسترجاع",
+        "orders.status.suspended": "معلق",
         "orders.status.pendingCheckout": "متروكة",
         // Toolbar sections
         "orders.toolbar.view": "عرض",
@@ -849,6 +868,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "settings.section.orders": "سير الطلبات",
         "settings.section.printing": "الطباعة",
         "settings.section.lightfunnels": "Lightfunnels",
+        "settings.section.waseet": "الوسيط",
         "settings.section.pages": "الوصول للصفحات",
         "settings.section.data": "البيانات والنسخ الاحتياطي",
 
@@ -944,5 +964,21 @@ export const translations: Record<Locale, Record<string, string>> = {
         "toast.exportFailedDesc": "حدث خطأ أثناء إنشاء ملف Excel",
         "toast.comingSoon": "قريباً",
         "toast.reorderFeature": "طلب جديد للعميل {customer} - هذه الميزة ستتوفر قريباً!",
+
+        // ── Map ──
+        "map.title": "خريطة المحافظات",
+        "map.description": "توزيع الطلبات على المحافظات العراقية",
+        "map.orders": "طلبات",
+        "map.less": "أقل",
+        "map.more": "أكثر",
+        "map.governorate": "المحافظة",
+        "map.revenue": "الإيرادات",
+        "map.noData": "لا توجد بيانات طلبات",
+        "map.filter.total": "الإجمالي",
+        "map.topGov": "الأعلى",
+        "map.emptyGovs": "بدون طلبات",
+        "map.ofTotal": "من الإجمالي",
+        "map.deliveryRate": "نسبة نجاح التوصيل",
+        "map.unknown": "غير محدد",
     },
 };

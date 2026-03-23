@@ -20,6 +20,7 @@ const LIST_VIEW_COLUMNS = `
   id,
   created_at,
   updated_at,
+  original_created_at,
   order_id,
   customer_name,
   phone,

@@ -99,7 +99,7 @@ function generateBarcodeHTML(orderId: string): string {
 }
 
 // =============================================
-// REAL BARCODE GENERATION (JsBarcode)
+// REAL BARCODE GENERATION (JsBarcode → PNG data URL for thermal printer compatibility)
 // =============================================
 
 async function generateRealBarcodeHTML(data: string): Promise<string> {
@@ -108,24 +108,77 @@ async function generateRealBarcodeHTML(data: string): Promise<string> {
     }
     try {
         const JsBarcode = (await import('jsbarcode')).default;
-        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        JsBarcode(svg, data, {
+        // Render to canvas for PNG output (thermal printers handle bitmaps better than SVGs)
+        const canvas = document.createElement('canvas');
+        JsBarcode(canvas, data, {
             format: "CODE128",
-            width: 1.5,
-            height: 35,
+            width: 2,
+            height: 50,
             displayValue: true,
-            fontSize: 10,
+            fontSize: 14,
             fontOptions: "bold",
-            textMargin: 2,
-            margin: 0,
+            textMargin: 3,
+            margin: 4,
             background: "#ffffff",
             lineColor: "#000000",
         });
-        return `<div style="text-align:center;margin-top:auto;padding-top:4px;">${svg.outerHTML}</div>`;
+        const pngDataUrl = canvas.toDataURL('image/png');
+        return `<div style="text-align:center;margin-top:auto;padding-top:4px;"><img src="${pngDataUrl}" style="width:100%;max-width:250px;height:auto;image-rendering:pixelated;" /></div>`;
     } catch (err) {
         console.error('Barcode generation failed:', err);
         return `<div style="text-align:center;font-family:monospace;font-size:12px;font-weight:bold;padding:4px 0;">${data}</div>`;
     }
+}
+
+// =============================================
+// QR CODE → PNG DATA URL (for thermal printer compatibility)
+// =============================================
+
+async function generateQRCodePngDataUrl(data: string, width = 150): Promise<string> {
+    try {
+        return await QRCode.toDataURL(data, {
+            width,
+            margin: 1,
+            color: { dark: '#000000', light: '#ffffff' },
+            errorCorrectionLevel: 'M',
+        });
+    } catch (err) {
+        console.error('QR code PNG generation failed:', err);
+        return '';
+    }
+}
+
+// =============================================
+// LOGO SVG → PNG DATA URL (for thermal printer compatibility)
+// =============================================
+
+function generateLogoPngDataUrl(): Promise<string> {
+    return new Promise((resolve) => {
+        if (typeof window === 'undefined') {
+            resolve('');
+            return;
+        }
+        const canvas = document.createElement('canvas');
+        const size = 100; // High res for crisp thermal printing
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { resolve(''); return; }
+
+        const img = new Image();
+        const svgBlob = new Blob([SCHNEIDERS_LOGO_SVG], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(svgBlob);
+        img.onload = () => {
+            ctx.drawImage(img, 0, 0, size, size);
+            URL.revokeObjectURL(url);
+            resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            resolve('');
+        };
+        img.src = url;
+    });
 }
 
 // =============================================
@@ -912,20 +965,13 @@ export async function generateShippingLabelHTML(
 ): Promise<string> {
     const displayOrderId = getBaseOrderId(order.order_id);
 
-    // Generate QR code (SVG, black)
-    let qrCodeSvg = '';
-    try {
-        qrCodeSvg = await QRCode.toString(displayOrderId, {
-            type: 'svg',
-            width: 55,
-            margin: 0,
-            color: { dark: '#000000', light: '#ffffff' }
-        });
-    } catch (err) {
-        console.error('QR code generation failed:', err);
-    }
+    // Generate QR code as PNG data URL (thermal printers handle bitmaps better than SVGs)
+    const qrCodePng = await generateQRCodePngDataUrl(displayOrderId, 150);
 
-    // Generate real barcode
+    // Generate logo as PNG data URL
+    const logoPng = await generateLogoPngDataUrl();
+
+    // Generate real barcode (already outputs PNG via canvas)
     const barcodeHtml = options.showBarcode
         ? await generateRealBarcodeHTML(displayOrderId)
         : '';
@@ -956,9 +1002,9 @@ export async function generateShippingLabelHTML(
     return `
 <div class="shipping-label" dir="rtl">
     <div class="sl-header">
-        <div class="sl-logo">${SCHNEIDERS_LOGO_SVG}</div>
+        <div class="sl-logo">${logoPng ? `<img src="${logoPng}" width="50" height="50" style="display:block;" />` : SCHNEIDERS_LOGO_SVG}</div>
         <div class="sl-brand">Schneiders Perfumes</div>
-        <div class="sl-qr">${qrCodeSvg}</div>
+        <div class="sl-qr">${qrCodePng ? `<img src="${qrCodePng}" width="55" height="55" style="display:block;" />` : ''}</div>
     </div>
 
     <div class="sl-shipment">
@@ -1042,6 +1088,7 @@ export const SHIPPING_LABEL_CSS = `
     }
     .sl-logo { flex-shrink: 0; width: 50px; height: 50px; }
     .sl-logo svg { width: 50px; height: 50px; display: block; }
+    .sl-logo img { width: 50px; height: 50px; display: block; }
     .sl-brand {
         font-family: 'Arial Black', 'Segoe UI Black', 'Segoe UI', sans-serif;
         font-size: 14px;
@@ -1055,6 +1102,7 @@ export const SHIPPING_LABEL_CSS = `
     }
     .sl-qr { flex-shrink: 0; width: 55px; height: 55px; }
     .sl-qr svg { width: 100%; height: 100%; display: block; }
+    .sl-qr img { width: 100%; height: 100%; display: block; }
     .sl-shipment {
         text-align: center;
         padding: 3px 0;
@@ -1138,7 +1186,7 @@ export async function generateBulkShippingLabelsHTML(
         .label-page:last-child { page-break-after: avoid; }
         ${SHIPPING_LABEL_CSS}
         @media print {
-            body { background: white; padding: 0; }
+            body { background: white; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .label-page { margin: 0; box-shadow: none; }
         }
     </style>

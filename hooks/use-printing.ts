@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { supabase, Order, OrderFilters, PrintBatch } from "@/lib/supabase";
-import { exportOrdersToPrimeCSV, cleanPhoneForExport } from "@/lib/export-utils";
+import { exportOrdersToPrimeCSV, exportOrdersToWaseetXLSX, cleanPhoneForExport } from "@/lib/export-utils";
 
 // =============================================
 // TYPES
@@ -617,6 +617,10 @@ export function usePrinting(orders: Order[]) {
         return exportOrdersToPrimeCSV(orderIds, ordersData);
     }
 
+    async function exportToWaseetCSV(orderIds: string[], ordersData: Order[]) {
+        return exportOrdersToWaseetXLSX(orderIds, ordersData);
+    }
+
     // =============================================
     // RETURN
     // =============================================
@@ -662,6 +666,7 @@ export function usePrinting(orders: Order[]) {
         exportToCSV,
         exportToExcel,
         exportToPrimeCSV,
+        exportToWaseetCSV,
 
         // State
         loading,

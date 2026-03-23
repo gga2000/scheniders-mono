@@ -15,7 +15,7 @@ const nextConfig: NextConfig = {
 
   // Externalize pdf-parse and pdfjs-dist from the server bundle
   // so Node.js resolves them natively (avoids Turbopack worker issues)
-  serverExternalPackages: ["pdf-parse", "pdfjs-dist"],
+  serverExternalPackages: ["pdf-parse", "pdfjs-dist", "puppeteer-core", "@sparticuz/chromium"],
 
 
   typescript: {
@@ -59,6 +59,7 @@ const nextConfig: NextConfig = {
   // Note: This only runs when ANALYZE=true, otherwise Turbopack handles the build
   webpack: (config, { isServer }) => {
     if (process.env.ANALYZE === "true") {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { BundleAnalyzerPlugin } = require("webpack-bundle-analyzer");
       config.plugins.push(
         new BundleAnalyzerPlugin({

@@ -3,10 +3,6 @@
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { StatsGrid } from "@/components/dashboard/stats-grid";
-import { OrdersTable } from "@/components/dashboard/orders-table";
-import { LiveFeed } from "@/components/dashboard/live-feed";
-// New Dashboard Widgets
-
 import { CreateOrderModal } from "@/components/orders/create-order-modal";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useStats } from "@/hooks/use-stats";
@@ -23,12 +19,12 @@ const CohortGrid = dynamic(() => import("@/components/dashboard/widgets/cohort-g
 const TargetRings = dynamic(() => import("@/components/dashboard/widgets/target-rings").then(mod => ({ default: mod.TargetRings })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
 const ProfitPulse = dynamic(() => import("@/components/dashboard/widgets/profit-pulse").then(mod => ({ default: mod.ProfitPulse })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
 const Leaderboard = dynamic(() => import("@/components/dashboard/widgets/leaderboard").then(mod => ({ default: mod.Leaderboard })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
-const GeoMap = dynamic(() => import("@/components/dashboard/widgets/geo-map").then(mod => ({ default: mod.GeoMap })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+const IraqMap = dynamic(() => import("@/components/shared/iraq-map").then(mod => ({ default: mod.IraqMap })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
 import { PageSkeleton } from "@/components/ui/skeletons";
 import { useLanguage } from "@/hooks/use-language";
 
 export default function Home() {
-  const { orders, loading, error, updateOrderStatus, createOrder } = useOrdersContext();
+  const { orders, loading, error, createOrder } = useOrdersContext();
   const { products } = useProductsCrud();
   const stats = useStats(orders);
   const dashboardMetrics = useDashboardMetrics(orders, products || []);
@@ -40,7 +36,7 @@ export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    setIsMounted(true);
+    setIsMounted(true); // eslint-disable-line react-hooks/set-state-in-effect -- hydration guard
   }, []);
 
   // Feature flag for mobile dashboard
@@ -155,9 +151,9 @@ export default function Home() {
           {/* Right Column: Geo & Products (4 cols) */}
           <div className="xl:col-span-4 flex flex-col gap-6">
 
-            {/* Geo Map */}
+            {/* Governorate Map */}
             <div className="h-[400px]">
-              <GeoMap data={dashboardMetrics.urgency} />
+              <IraqMap orders={orders} />
             </div>
 
             {/* Leaderboards */}

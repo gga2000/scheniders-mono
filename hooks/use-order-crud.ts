@@ -291,7 +291,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 const FieldsToTrack: (keyof Order)[] = [
                     'customer_name', 'phone', 'secondary_phone', 'city',
                     'address_details', 'price', 'notes', 'internal_notes',
-                    'priority', 'payment_status', 'scheduled_date'
+                    'priority', 'payment_status', 'scheduled_date', 'created_at'
                 ];
 
                 const fieldLabels: Record<string, string> = {
@@ -305,7 +305,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     internal_notes: "Internal Notes",
                     priority: "Priority",
                     payment_status: "Payment Status",
-                    scheduled_date: "Scheduled Date"
+                    scheduled_date: "Scheduled Date",
+                    created_at: "Order Date"
                 };
 
                 FieldsToTrack.forEach(field => {

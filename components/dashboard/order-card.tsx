@@ -53,7 +53,8 @@ import {
     ClipboardCopy,
     Bell,
     Gift,
-    Bot
+    Bot,
+    ExternalLink
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -197,19 +198,17 @@ export const OrderCard = memo(function OrderCard({
     const orderAge = getOrderAge(order.created_at);
     const ageUrgency = getAgeUrgency(order.status, order.created_at);
 
-    // Time-based follow-up cue logic
-    const contactCount = order.contact_count || 0;
-    const lastContactedAt = order.last_contacted_at;
+    // Time-based follow-up cue — based on order creation time (how long customer has been waiting)
     /* eslint-disable react-hooks/purity */
-    const hoursSinceContact = lastContactedAt
-        ? (Date.now() - new Date(lastContactedAt).getTime()) / 3600000
+    const hoursSinceCreated = order.created_at
+        ? (Date.now() - new Date(order.created_at).getTime()) / 3600000
         : 0;
     /* eslint-enable react-hooks/purity */
 
     // Determine which follow-up cue to show
     const isContacted = order.status === "contacted";
-    const needsDiscount = isContacted && hoursSinceContact >= DISCOUNT_DELAY_HOURS;
-    const needsReminder = isContacted && !needsDiscount && hoursSinceContact >= REMINDER_DELAY_HOURS;
+    const needsDiscount = isContacted && hoursSinceCreated >= DISCOUNT_DELAY_HOURS;
+    const needsReminder = isContacted && !needsDiscount && hoursSinceCreated >= REMINDER_DELAY_HOURS;
     const needsFollowUp = needsReminder || needsDiscount;
 
     // Externalized getItemsDisplay
@@ -1221,6 +1220,31 @@ export const OrderCard = memo(function OrderCard({
                                 </motion.span>
                             )}
 
+                            {/* Delivery Company Badge */}
+                            {order.delivery_company === 'waseet' && (
+                                <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-semibold rounded-full bg-cyan-100 text-cyan-800 border border-cyan-300">
+                                    <Truck className="w-3 h-3 flex-shrink-0" />
+                                    الوسيط
+                                    {order.waseet_status_text && (
+                                        <span className="text-cyan-600">• {order.waseet_status_text}</span>
+                                    )}
+                                </span>
+                            )}
+
+                            {/* Al-Waseet QR Link */}
+                            {order.waseet_qr_link && (
+                                <a
+                                    href={order.waseet_qr_link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-medium rounded-full bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 transition-colors"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                                    وصل الوسيط
+                                </a>
+                            )}
+
                             {/* Delivery Note - right after status badge for visibility */}
                             {order.delivery_note && (
                                 <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-medium rounded-full bg-teal-100 text-teal-800 border border-teal-300">
@@ -1846,7 +1870,7 @@ export const OrderCard = memo(function OrderCard({
                                     : "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30"
                             )} dir="rtl">
                                 {needsDiscount ? <Gift className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
-                                <span>{needsDiscount ? `مرت ${Math.floor(hoursSinceContact)} ساعة (خصم)` : `مرت ${Math.floor(hoursSinceContact)} ساعة (تذكير)`}</span>
+                                <span>{needsDiscount ? `مرت ${Math.floor(hoursSinceCreated)} ساعة (خصم)` : `مرت ${Math.floor(hoursSinceCreated)} ساعة (تذكير)`}</span>
                             </div>
                         )}
 

@@ -2,14 +2,14 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { User, Session } from "@supabase/supabase-js";
-import { supabase, SupabaseConnectionMonitor, getStoredSupabaseSession } from "@/lib/supabase";
+import { supabase, getStoredSupabaseSession, getJwtExpiry } from "@/lib/supabase";
 import { activityLogger } from "@/lib/activity-logger";
 import type { UserProfile, AuthContextType } from "@/types/auth";
 import { diag } from "@/lib/diag";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode}) {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<Session | null>(null);
     const [role, setRole] = useState<string | null>(null);
@@ -19,103 +19,80 @@ export function AuthProvider({ children }: { children: React.ReactNode}) {
     const [profileLoaded, setProfileLoaded] = useState(false);
     const [clientReady, setClientReady] = useState(false);
 
-    // Track the current user ID to avoid redundant state updates on TOKEN_REFRESHED
     const currentUserIdRef = useRef<string | null>(null);
-
-    // Track deferred logout timeout — when INITIAL_SESSION fires with no session,
-    // Supabase may still be refreshing the token. We wait before clearing state.
+    const profileLoadedRef = useRef(false);
     const deferredLogoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Abort in-flight profile fetches when a new auth event arrives (deduplication)
-    const profileAbortRef = useRef<AbortController | null>(null);
+    // Keep ref in sync with state (ref is readable inside useEffect closures)
+    const markProfileLoaded = useCallback((loaded: boolean) => {
+        profileLoadedRef.current = loaded;
+        setProfileLoaded(loaded);
+    }, []);
 
-    const fetchRoleAndPermissions = async (userId: string) => {
+    // ── Fetch profile, role, and permissions ──
+    const fetchProfile = useCallback(async (userId: string) => {
         try {
-            // 1. Fetch Full Profile first (needed to get role)
-            const { data: profileData, error: profileError } = await supabase
+            const { data: profileData } = await supabase
                 .from('user_profiles')
                 .select('*')
                 .eq('id', userId)
                 .single();
 
-            if (profileData) {
-                setRole(profileData.role);
-                setProfile(profileData as UserProfile);
-
-                // 2. Fetch Role Permissions AND User Overrides in PARALLEL
-                // These don't depend on each other, only on profile/userId
-                const [rolePermsResult, userOverridesResult] = await Promise.all([
-                    supabase
-                        .from('role_permissions')
-                        .select('permission')
-                        .eq('role', profileData.role),
-                    supabase
-                        .from('user_permissions')
-                        .select('permission, is_granted')
-                        .eq('user_id', userId)
-                ]);
-
-                const finalPermissions = new Set(rolePermsResult.data?.map(p => p.permission) || []);
-
-                // Apply user overrides
-                if (userOverridesResult.data) {
-                    userOverridesResult.data.forEach(override => {
-                        if (override.is_granted) {
-                            finalPermissions.add(override.permission);
-                        } else {
-                            finalPermissions.delete(override.permission);
-                        }
-                    });
-                }
-
-                setPermissions(Array.from(finalPermissions));
-
-            } else {
-                console.error(`[Auth] NO PROFILE FOUND for user ${userId} — this user CANNOT write to orders (RLS will block all writes)`);
+            if (!profileData) {
+                diag.error(`[Auth] NO PROFILE for userId=${userId} — RLS will block writes`);
                 setRole(null);
                 setProfile(null);
                 setPermissions([]);
+                markProfileLoaded(true);
+                return;
             }
-        } catch (error) {
-            console.error("Error fetching user role/permissions:", error);
-            setRole(null);
-            setProfile(null);
-            setPermissions([]);
+
+            setRole(profileData.role);
+            setProfile(profileData as UserProfile);
+
+            // Fetch role permissions + user overrides in parallel
+            const [rolePermsResult, userOverridesResult] = await Promise.all([
+                supabase.from('role_permissions').select('permission').eq('role', profileData.role),
+                supabase.from('user_permissions').select('permission, is_granted').eq('user_id', userId),
+            ]);
+
+            const perms = new Set(rolePermsResult.data?.map(p => p.permission) || []);
+            userOverridesResult.data?.forEach(override => {
+                if (override.is_granted) perms.add(override.permission);
+                else perms.delete(override.permission);
+            });
+            setPermissions(Array.from(perms));
+            markProfileLoaded(true);
+            diag.log(`[Auth] PROFILE_OK userId=${userId} role=${profileData.role} perms=${perms.size}`);
+        } catch (err) {
+            diag.error(`[Auth] PROFILE_ERR userId=${userId}:`, err);
+            markProfileLoaded(true);
         }
-    };
+    }, []);
 
     const refreshProfile = useCallback(async () => {
-        if (user) {
-            await fetchRoleAndPermissions(user.id);
-        }
-    }, [user]);
+        if (user) await fetchProfile(user.id);
+    }, [user, fetchProfile]);
 
-    // Session health check: detect expired/invalid sessions
-    // that would cause silent RLS write failures
+    // ── Session health check on visibility change ──
     useEffect(() => {
         if (!session) return;
 
         const checkSession = async () => {
-            const { data: { session: currentSession }, error } = await supabase.auth.getSession();
-            if (error || !currentSession) {
-                console.error("[Auth] Session expired or invalid — attempting refresh");
-                const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-                if (refreshError || !refreshData.session) {
-                    console.error("[Auth] Session refresh FAILED — user must re-login", refreshError?.message);
-                    // Force sign out so they get redirected to login
+            const { data: { session: current }, error } = await supabase.auth.getSession();
+            if (error || !current) {
+                diag.error("[Auth] Session expired — attempting refresh");
+                const { error: refreshErr } = await supabase.auth.refreshSession();
+                if (refreshErr) {
+                    diag.error("[Auth] Refresh FAILED — signing out");
                     await supabase.auth.signOut();
                 }
             }
         };
 
-        // Check session health every 5 minutes
         const interval = setInterval(checkSession, 5 * 60 * 1000);
-
-        // Also check when app regains focus (user switches back to tab)
         const handleVisibility = () => {
-            if (document.visibilityState === "visible") {
-                checkSession();
-            }
+            if (document.visibilityState === "visible") checkSession();
         };
         document.addEventListener("visibilitychange", handleVisibility);
 
@@ -125,363 +102,111 @@ export function AuthProvider({ children }: { children: React.ReactNode}) {
         };
     }, [session]);
 
-    // localStorage (NOT sessionStorage) for cross-tab auth synchronization
-    const AUTH_CACHE_KEY = 'auth_session_cache';
-
-    // Helper to cache auth state (uses localStorage for cross-tab sync)
-    const cacheAuthState = (user: User | null, role: string | null, permissions: string[]) => {
-        if (!user) {
-            diag.log(`[Diag:Cache] CLEAR reason=noUser`);
-            localStorage.removeItem(AUTH_CACHE_KEY);
-            return;
-        }
-        localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify({
-            userId: user.id,
-            role,
-            permissions,
-            timestamp: Date.now()
-        }));
-        diag.log(`[Diag:Cache] WRITE userId=${user.id} role=${role} permsCount=${permissions.length}`);
-    };
-
-    // Helper to load auth state from cache (uses localStorage)
-    const getCachedAuthState = (currentUserId: string): { role: string | null, permissions: string[] } | null => {
-        try {
-            const cached = localStorage.getItem(AUTH_CACHE_KEY);
-            if (!cached) {
-                diag.log(`[Diag:Cache] MISS reason=notFound userId=${currentUserId}`);
-                return null;
-            }
-            const parsed = JSON.parse(cached);
-            const age = Date.now() - parsed.timestamp;
-            const ttl = 8 * 60 * 60 * 1000; // 8 hours (increased from 1 hour to reduce expiry on long-lived sessions)
-
-            // User mismatch
-            if (parsed.userId !== currentUserId) {
-                diag.log(`[Diag:Cache] MISS reason=userMismatch cachedUser=${parsed.userId} currentUser=${currentUserId}`);
-                localStorage.removeItem(AUTH_CACHE_KEY);
-                return null;
-            }
-
-            // Expired (>8 hours old)
-            if (age > ttl) {
-                diag.log(`[Diag:Cache] MISS reason=expired age=${(age / 1000).toFixed(1)}s ttl=${(ttl / 1000).toFixed(1)}s userId=${currentUserId}`);
-                localStorage.removeItem(AUTH_CACHE_KEY);
-                return null;
-            }
-
-            diag.log(`[Diag:Cache] HIT age=${(age / 1000).toFixed(1)}s role=${parsed.role} userId=${currentUserId}`);
-            return { role: parsed.role, permissions: parsed.permissions };
-        } catch (e) {
-            diag.error(`[Diag:Cache] ERROR parsing cache userId=${currentUserId} err=${e instanceof Error ? e.message : e}`);
-            return null;
-        }
-    };
-
-    // Initialize auth state
+    // ── Initialize auth state ──
     useEffect(() => {
         let mounted = true;
-        let bootstrappedFromStorage = false;
-        const _tAuthInit = performance.now();
-        diag.log(`[Diag:Auth] INIT`);
+        const _tInit = performance.now();
+        diag.log(`[Auth] INIT`);
 
-        // ── PHASE 1: Immediate bootstrap from localStorage (~0ms) ──
-        // Read the Supabase session directly from localStorage to bypass the
-        // client's potentially-hung initialization. Combined with our auth cache,
-        // this makes the app usable immediately (role, permissions from cache).
-        //
-        // The global fetch timeout in lib/supabase.ts ensures that even if the
-        // connection is stale, Supabase's internal _initialize() will fail after
-        // 10s (instead of hanging forever), allowing onAuthStateChange to fire.
+        // ── PHASE 1: Instant bootstrap from localStorage ──
         const storedSession = getStoredSupabaseSession();
-        if (storedSession?.user?.id) {
-            const cachedAuth = getCachedAuthState(storedSession.user.id);
-            if (cachedAuth) {
-                diag.log(`[Diag:Auth] BOOTSTRAP — loaded from localStorage+cache userId=${storedSession.user.id} role=${cachedAuth.role}`);
-                setUser(storedSession.user as any);
-                setSession(storedSession as any);
-                currentUserIdRef.current = storedSession.user.id;
-                setRole(cachedAuth.role);
-                setPermissions(cachedAuth.permissions);
-                setProfileLoaded(true);
-                setIsLoading(false);
-                bootstrappedFromStorage = true;
+        let bootstrapped = false;
+
+        if (storedSession?.user?.id && storedSession.access_token) {
+            const expiry = getJwtExpiry(storedSession.access_token);
+            const nowSec = Math.floor(Date.now() / 1000);
+            const tokenValid = expiry !== null && (expiry - nowSec) > 60;
+
+            setUser(storedSession.user as unknown as User);
+            setSession(storedSession as unknown as Session);
+            currentUserIdRef.current = storedSession.user.id;
+            setIsLoading(false);
+            bootstrapped = true;
+
+            if (tokenValid) {
+                // Token is valid — queries can start immediately.
+                // The fetch wrapper injects auth headers from localStorage.
+                // For valid tokens, _initialize() completes in <10ms (no network call).
+                setClientReady(true);
+                diag.log(`[Auth] BOOTSTRAP — clientReady=true (token valid, expires in ${expiry! - nowSec}s)`);
+
+                // Eagerly fetch profile so role/permissions are available ASAP.
+                // The fetch wrapper injects the stored token, so this works pre-init.
+                fetchProfile(storedSession.user.id);
             } else {
-                // Have session but no cache — set user/session to unblock data queries,
-                // but profile needs to be fetched from DB
-                diag.log(`[Diag:Auth] BOOTSTRAP_PARTIAL — session from localStorage, no cache. userId=${storedSession.user.id}`);
-                setUser(storedSession.user as any);
-                setSession(storedSession as any);
-                currentUserIdRef.current = storedSession.user.id;
-                setIsLoading(false);
-                bootstrappedFromStorage = true;
+                diag.log(`[Auth] BOOTSTRAP — token expired, waiting for refresh`);
             }
         } else {
-            diag.log(`[Diag:Auth] BOOTSTRAP_NONE — no stored session in localStorage`);
+            diag.log(`[Auth] BOOTSTRAP_NONE — no stored session`);
         }
 
-        // Diagnostic: Check if Supabase client's internal session is ready
-        // This reveals whether _initialize() has completed and if queries will have auth
-        supabase.auth.getSession().then(({ data: { session: internalSession }, error }) => {
-            diag.log(`[Diag:Auth] INTERNAL_SESSION_CHECK hasSession=${!!internalSession} hasUser=${!!internalSession?.user} error=${error?.message ?? 'none'} elapsed=${(performance.now() - _tAuthInit).toFixed(1)}ms`);
-            if (internalSession?.user && !internalSession.expires_at) {
-                diag.warn(`[Diag:Auth] INTERNAL_SESSION_NO_EXPIRY`);
-            }
-            if (internalSession?.expires_at) {
-                const expiresAt = new Date(internalSession.expires_at * 1000);
-                const isExpired = expiresAt < new Date();
-                diag.log(`[Diag:Auth] INTERNAL_SESSION_EXPIRY expiresAt=${expiresAt.toISOString()} isExpired=${isExpired}`);
-            }
-        }).catch(err => {
-            diag.error(`[Diag:Auth] INTERNAL_SESSION_CHECK_FAILED err=${err instanceof Error ? err.message : err} elapsed=${(performance.now() - _tAuthInit).toFixed(1)}ms — _initialize() likely still hung`);
-        });
-
-        // ── PHASE 2: Safety timeout ──
-        // If we didn't bootstrap AND onAuthStateChange never fires (stale connection),
-        // ensure the app doesn't stay stuck on a loading screen forever.
-        // With the global fetch timeout (10s in supabase.ts), initialization should
-        // fail and fire INITIAL_SESSION within ~10s. This 15s timeout is a last resort.
-        const safetyTimeout = !bootstrappedFromStorage ? setTimeout(() => {
-            if (!mounted) return;
-            diag.error(`[Diag:Auth] SAFETY_TIMEOUT — 15s elapsed with no bootstrap and no auth event, setting isLoading=false`);
-            setIsLoading(false);
-            // PageGuard will redirect to login since user is null
-        }, 15_000) : null;
-
-        // ── PHASE 3: onAuthStateChange for ongoing auth events ──
-        // This handles: INITIAL_SESSION (when it eventually fires), SIGNED_IN,
-        // TOKEN_REFRESHED, SIGNED_OUT. When it fires with a valid session,
-        // it replaces the bootstrapped state with a properly-authenticated session.
+        // ── PHASE 2: Subscribe to auth events ──
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, currentSession) => {
                 if (!mounted) return;
-                if (safetyTimeout) clearTimeout(safetyTimeout);
-                diag.log(`[Diag:Auth] EVENT=${event} hasSession=${!!currentSession} hasUser=${!!currentSession?.user} elapsed=${(performance.now() - _tAuthInit).toFixed(1)}ms`);
+                diag.log(`[Auth] EVENT=${event} hasSession=${!!currentSession} elapsed=${(performance.now() - _tInit).toFixed(1)}ms`);
 
                 if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-                    // Mark client as ready - the Supabase client's internal session is now initialized
-                    // This allows data queries to proceed (they were blocked waiting for this)
-                    setClientReady(true);
-
                     if (!currentSession?.user) {
                         if (event === 'INITIAL_SESSION') {
-                            // ── CRITICAL: Don't immediately clear state! ──
-                            // When the stored token is expired, Supabase fires INITIAL_SESSION
-                            // with NO session, then auto-refreshes the token and fires SIGNED_IN
-                            // a few seconds later. If we clear state now, the app shows "not logged in"
-                            // during the refresh window.
-                            //
-                            // ACTIVE RECOVERY: Instead of passively waiting for SIGNED_IN,
-                            // we proactively call refreshSession(). This forces a fresh HTTP
-                            // request to GoTrue, bypassing any stale TCP connections.
-                            // If it succeeds, onAuthStateChange will fire SIGNED_IN/TOKEN_REFRESHED.
-                            // If it fails, we clear state after the timeout.
-                            const DEFERRED_LOGOUT_MS = 10_000;
-                            diag.warn(`[Diag:Auth] INITIAL_SESSION_EMPTY — actively attempting refresh + deferring logout for ${DEFERRED_LOGOUT_MS}ms`);
+                            // Token may be expired — Supabase will auto-refresh and fire SIGNED_IN.
+                            // Also proactively attempt refresh to speed things up.
+                            diag.warn(`[Auth] INITIAL_SESSION_EMPTY — attempting refresh`);
+                            supabase.auth.refreshSession().catch(() => {});
 
-                            // Proactively try to refresh the session (non-blocking)
-                            supabase.auth.refreshSession().then(({ data, error: refreshErr }) => {
-                                if (!mounted) return;
-                                if (refreshErr || !data.session) {
-                                    diag.error(`[Diag:Auth] ACTIVE_REFRESH_FAILED err=${refreshErr?.message ?? 'no session returned'}`);
-                                    // Don't clear yet — let the deferred timeout handle it
-                                } else {
-                                    diag.log(`[Diag:Auth] ACTIVE_REFRESH_OK userId=${data.session.user.id} — onAuthStateChange will fire`);
-                                    // onAuthStateChange will fire SIGNED_IN or TOKEN_REFRESHED,
-                                    // which cancels the deferred logout automatically
-                                }
-                            });
-
+                            // If no valid session arrives within 10s, clear state
+                            if (deferredLogoutRef.current) clearTimeout(deferredLogoutRef.current);
                             deferredLogoutRef.current = setTimeout(() => {
                                 if (!mounted) return;
-                                diag.error(`[Diag:Auth] DEFERRED_LOGOUT — no valid session arrived within ${DEFERRED_LOGOUT_MS}ms, clearing auth state`);
+                                diag.error(`[Auth] DEFERRED_LOGOUT — no session after 10s`);
                                 setSession(null);
                                 setUser(null);
                                 setRole(null);
                                 setProfile(null);
                                 setPermissions([]);
-                                setProfileLoaded(false);
-                                cacheAuthState(null, null, []);
+                                markProfileLoaded(false);
+                                setClientReady(false);
                                 setIsLoading(false);
-                            }, DEFERRED_LOGOUT_MS);
+                                deferredLogoutRef.current = null;
+                            }, 10_000);
                             return;
                         }
-
-                        // For SIGNED_IN/TOKEN_REFRESHED with no session: clear immediately
+                        // SIGNED_IN/TOKEN_REFRESHED with no session — clear immediately
                         setSession(null);
                         setUser(null);
                         setRole(null);
                         setProfile(null);
                         setPermissions([]);
-                        setProfileLoaded(false);
-                        cacheAuthState(null, null, []);
+                        markProfileLoaded(false);
                         setIsLoading(false);
                         return;
                     }
 
-                    // We got a valid session — cancel any deferred logout
+                    // Valid session arrived — cancel any deferred logout
                     if (deferredLogoutRef.current) {
                         clearTimeout(deferredLogoutRef.current);
                         deferredLogoutRef.current = null;
-                        diag.log(`[Diag:Auth] DEFERRED_LOGOUT_CANCELLED — valid session arrived via ${event}`);
                     }
 
-                    // ── Set session IMMEDIATELY ──
-                    // This unblocks useOrdersQuery (enabled: !!session) and
-                    // prevents the app from deadlocking if the profile DB fetch
-                    // hangs on a stale connection after device sleep.
+                    // Skip redundant profile fetch on token refresh for same user
+                    const isSameUser = currentSession.user.id === currentUserIdRef.current;
+
+                    // Update state
                     setUser(currentSession.user);
                     setSession(currentSession);
+                    setClientReady(true);
                     currentUserIdRef.current = currentSession.user.id;
-
-                    // Try cache for instant role/permissions hydration (getCachedAuthState logs internally)
-                    const cachedAuth = getCachedAuthState(currentSession.user.id);
-                    if (cachedAuth) {
-                        setRole(cachedAuth.role);
-                        setPermissions(cachedAuth.permissions);
-                        setProfileLoaded(true); // Cache hit = role is known
-                    }
-
-                    // Unblock UI — session is ready, profile loads in background
-                    diag.log(`[Diag:Auth] SESSION_READY elapsed=${(performance.now() - _tAuthInit).toFixed(1)}ms`);
                     setIsLoading(false);
 
-                    // ── Skip redundant profile fetch on TOKEN_REFRESHED ──
-                    // If same user and cache is fresh (<5 min old), no need to re-fetch
-                    if (event === 'TOKEN_REFRESHED' && cachedAuth) {
-                        diag.log(`[Diag:Auth] TOKEN_REFRESHED_SKIP — same user, cache fresh, skipping profile fetch`);
-                        // Still update session object (token changed) but skip profile re-fetch
-                        // Background Activity Logging not needed for token refresh
+                    if (event === 'TOKEN_REFRESHED' && isSameUser && profileLoadedRef.current) {
+                        diag.log(`[Auth] TOKEN_REFRESHED — same user, skipping profile fetch`);
                         return;
                     }
 
-                    // ── Background: fetch fresh profile with timeout + retry ──
-                    // Abort any in-flight profile fetch from a previous event (deduplication)
-                    if (profileAbortRef.current) {
-                        profileAbortRef.current.abort();
-                        diag.log(`[Diag:Auth] PROFILE_FETCH_DEDUP — aborted previous in-flight fetch`);
-                    }
+                    // Fetch profile in background
+                    fetchProfile(currentSession.user.id);
 
-                    const profileController = new AbortController();
-                    profileAbortRef.current = profileController;
-                    diag.log(`[Diag:Auth] PROFILE_FETCH_START mounted=${mounted} userId=${currentSession.user.id}`);
-
-                    // Fire connection health check in background (non-blocking diagnostic)
-                    SupabaseConnectionMonitor.checkConnectionHealth()
-                        .then(h => diag.log(`[Diag:Auth] CONN_HEALTH healthy=${h.isHealthy} latency=${h.latency.toFixed(1)}ms`))
-                        .catch(e => diag.error(`[Diag:Auth] CONN_HEALTH_FAILED err=${e instanceof Error ? e.message : e}`));
-
-                    // Helper: fetch profile with Promise.race timeout
-                    // AbortSignal alone doesn't reliably abort on stale TCP connections after device sleep
-                    const PROFILE_TIMEOUT_MS = 7_000;
-                    const fetchProfileWithTimeout = async (attempt: number) => {
-                        const _tStart = performance.now();
-                        const timeoutPromise = new Promise<never>((_, reject) => {
-                            setTimeout(() => reject(new Error(`Profile fetch timed out after ${PROFILE_TIMEOUT_MS}ms`)), PROFILE_TIMEOUT_MS);
-                        });
-
-                        const queryPromise = supabase
-                            .from('user_profiles')
-                            .select('*')
-                            .eq('id', currentSession.user.id)
-                            .single();
-
-                        const result = await Promise.race([queryPromise, timeoutPromise]);
-                        const queryMs = performance.now() - _tStart;
-                        diag.log(`[Diag:Auth] PROFILE_FETCH_DONE attempt=${attempt} mounted=${mounted} hasData=${!!result.data} error=${result.error?.message ?? 'none'} queryMs=${queryMs.toFixed(1)}ms`);
-                        return result;
-                    };
-
-                    try {
-                        let profileResult: { data: any; error: any };
-
-                        try {
-                            profileResult = await fetchProfileWithTimeout(1);
-                        } catch (firstErr) {
-                            // First attempt timed out — connection likely stale after sleep.
-                            // Force a fresh connection by calling refreshSession (GoTrue uses separate endpoint),
-                            // then retry the profile fetch once.
-                            diag.warn(`[Diag:Auth] PROFILE_ATTEMPT_1_FAILED err=${firstErr instanceof Error ? firstErr.message : firstErr} — retrying with fresh connection`);
-
-                            // refreshSession forces a new HTTP request to GoTrue, which can
-                            // wake up the browser's network stack for subsequent PostgREST calls
-                            await supabase.auth.refreshSession();
-                            diag.log(`[Diag:Auth] PROFILE_RETRY — refreshed session, retrying profile fetch`);
-
-                            profileResult = await fetchProfileWithTimeout(2);
-                        }
-
-                        if (profileController.signal.aborted) {
-                            // This fetch was superseded by a newer auth event — discard
-                            return;
-                        }
-
-                        const profileData = profileResult.data;
-
-                        if (!profileData && mounted) {
-                            diag.error(`[Diag:Auth] PROFILE_NULL — no row returned for userId=${currentSession.user.id}. RLS blocking or missing row? role will stay null!`);
-                        }
-                        if (profileData && !mounted) {
-                            diag.warn(`[Diag:Auth] PROFILE_STALE — data arrived but mounted=false (HMR/unmount race). role=${profileData.role} DISCARDED`);
-                        }
-
-                        if (profileData && mounted) {
-                            let finalRole = profileData.role;
-                            let finalPermissions = cachedAuth?.permissions ?? [];
-                            const finalProfile = profileData as UserProfile;
-
-                            // Re-fetch permissions if role changed or no cache existed
-                            if (!cachedAuth || cachedAuth.role !== profileData.role) {
-                                try {
-                                    const [rolePermsResult, userOverridesResult] = await Promise.all([
-                                        supabase.from('role_permissions').select('permission').eq('role', profileData.role),
-                                        supabase.from('user_permissions').select('permission, is_granted').eq('user_id', currentSession.user.id)
-                                    ]);
-
-                                    const permsSet = new Set(rolePermsResult.data?.map(p => p.permission) || []);
-                                    if (userOverridesResult.data) {
-                                        userOverridesResult.data.forEach(override => {
-                                            if (override.is_granted) permsSet.add(override.permission);
-                                            else permsSet.delete(override.permission);
-                                        });
-                                    }
-                                    finalPermissions = Array.from(permsSet);
-                                } catch (permErr) {
-                                    // Permissions fetch failed — use cached permissions as fallback
-                                    diag.error(`[Diag:Auth] PERMS_FETCH_FAILED — using ${cachedAuth ? 'cached' : 'empty'} permissions:`, permErr);
-                                    finalPermissions = cachedAuth?.permissions ?? [];
-                                }
-                            }
-
-                            cacheAuthState(currentSession.user, profileData.role, finalPermissions);
-
-                            if (mounted) {
-                                setRole(finalRole);
-                                setProfile(finalProfile);
-                                setPermissions(finalPermissions);
-                                setProfileLoaded(true);
-                            }
-                            diag.log(`[Diag:Auth] PROFILE_OK role=${finalRole} elapsed=${(performance.now() - _tAuthInit).toFixed(1)}ms`);
-                        } else if (mounted) {
-                            setProfileLoaded(true); // Mark as loaded even if no data (genuine issue)
-                        }
-                    } catch (profileErr) {
-                        if (profileController.signal.aborted) {
-                            // Superseded by newer auth event — silently ignore
-                        } else {
-                            diag.error(`[Diag:Auth] PROFILE_ERR mounted=${mounted} elapsed=${(performance.now() - _tAuthInit).toFixed(1)}ms:`, profileErr);
-                            if (mounted) {
-                                setProfileLoaded(true); // Mark loaded so PageGuard can show retry
-                            }
-                        }
-                    } finally {
-                        // Clear the ref if this controller is still the active one
-                        if (profileAbortRef.current === profileController) {
-                            profileAbortRef.current = null;
-                        }
-                    }
-
-                    // Background Activity Logging for sign-in
+                    // Activity logging on sign-in
                     if (event === 'SIGNED_IN') {
                         supabase.from('user_profiles').update({
                             last_login_at: new Date().toISOString()
@@ -490,7 +215,7 @@ export function AuthProvider({ children }: { children: React.ReactNode}) {
                         activityLogger.log({
                             action: "user.login",
                             entityType: "user",
-                            entityId: currentSession.user.id
+                            entityId: currentSession.user.id,
                         });
                     }
                 } else if (event === 'SIGNED_OUT') {
@@ -500,91 +225,34 @@ export function AuthProvider({ children }: { children: React.ReactNode}) {
                     setRole(null);
                     setProfile(null);
                     setPermissions([]);
-                    setProfileLoaded(false);
+                    markProfileLoaded(false);
                     setClientReady(false);
-                    cacheAuthState(null, null, []);
                     setIsLoading(false);
                 }
             }
         );
 
-        // Listen for auth changes in other tabs (cross-tab synchronization)
-        let crossTabDebounce: ReturnType<typeof setTimeout> | null = null;
-        const handleStorageChange = (e: StorageEvent) => {
-            if (e.key !== AUTH_CACHE_KEY || !mounted) return;
-
-            // Debounce rapid storage events (e.g., multiple tabs syncing)
-            if (crossTabDebounce) clearTimeout(crossTabDebounce);
-            crossTabDebounce = setTimeout(() => {
-                if (!mounted) return;
-                diag.log('[Diag:Auth] Cross-tab auth change detected');
-
-                if (e.newValue === null) {
-                    // Another tab logged out — verify session is actually gone
-                    diag.log('[Diag:Auth] Other tab logged out — verifying session');
-                    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-                        if (!mounted) return;
-                        if (!currentSession) {
-                            setUser(null);
-                            setSession(null);
-                            setRole(null);
-                            setProfile(null);
-                            setPermissions([]);
-                            setIsLoading(false);
-                        }
-                    });
-                } else {
-                    // Another tab logged in — apply cached state
-                    try {
-                        const parsed = JSON.parse(e.newValue);
-                        if (parsed?.role && mounted) {
-                            supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-                                if (!mounted || !currentSession?.user) return;
-                                if (currentSession.user.id === parsed.userId) {
-                                    setUser(currentSession.user);
-                                    setSession(currentSession);
-                                    setRole(parsed.role);
-                                    setPermissions(parsed.permissions || []);
-                                    setIsLoading(false);
-                                }
-                            });
-                        }
-                    } catch {
-                        // Malformed cache data from other tab — ignore
-                    }
-                }
-            }, 300); // 300ms debounce
-        };
-
-        window.addEventListener('storage', handleStorageChange);
+        // Safety: if no bootstrap AND no auth event within 15s, stop loading
+        const safetyTimeout = !bootstrapped ? setTimeout(() => {
+            if (mounted) {
+                diag.error(`[Auth] SAFETY_TIMEOUT — 15s with no auth, setting isLoading=false`);
+                setIsLoading(false);
+            }
+        }, 15_000) : null;
 
         return () => {
             mounted = false;
             if (safetyTimeout) clearTimeout(safetyTimeout);
+            if (deferredLogoutRef.current) clearTimeout(deferredLogoutRef.current);
             subscription.unsubscribe();
-            window.removeEventListener('storage', handleStorageChange);
-            if (deferredLogoutRef.current) {
-                clearTimeout(deferredLogoutRef.current);
-                deferredLogoutRef.current = null;
-            }
-            if (crossTabDebounce) {
-                clearTimeout(crossTabDebounce);
-            }
-            if (profileAbortRef.current) {
-                profileAbortRef.current.abort();
-                profileAbortRef.current = null;
-            }
         };
     }, []);
 
+    // ── Auth actions ──
     const signIn = useCallback(async (email: string, password: string) => {
         setIsLoading(true);
         try {
-            const { error } = await supabase.auth.signInWithPassword({
-                email,
-                password,
-            });
-            // Role fetch will be handled by onAuthStateChange
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
             return { error };
         } finally {
             setIsLoading(false);
@@ -594,10 +262,7 @@ export function AuthProvider({ children }: { children: React.ReactNode}) {
     const signUp = useCallback(async (email: string, password: string) => {
         setIsLoading(true);
         try {
-            const { error } = await supabase.auth.signUp({
-                email,
-                password,
-            });
+            const { error } = await supabase.auth.signUp({ email, password });
             return { error };
         } finally {
             setIsLoading(false);
@@ -625,36 +290,28 @@ export function AuthProvider({ children }: { children: React.ReactNode}) {
         return { error };
     }, []);
 
-    // Manual auth refresh/retry - useful when auth gets stuck
     const retryAuth = useCallback(async () => {
-        diag.log('[Diag:Auth] MANUAL_RETRY triggered');
+        diag.log('[Auth] MANUAL_RETRY');
         setIsLoading(true);
         try {
-            const { data: { session: currentSession }, error } = await supabase.auth.getSession();
-
+            const { data: { session: current }, error } = await supabase.auth.getSession();
             if (error) {
-                diag.error('[Diag:Auth] RETRY_ERROR:', error);
                 setIsLoading(false);
                 return { error };
             }
-
-            if (currentSession?.user) {
-                setUser(currentSession.user);
-                setSession(currentSession);
-                await fetchRoleAndPermissions(currentSession.user.id);
-                diag.log('[Diag:Auth] RETRY_SUCCESS');
-            } else {
-                diag.log('[Diag:Auth] RETRY_NO_SESSION');
+            if (current?.user) {
+                setUser(current.user);
+                setSession(current);
+                setClientReady(true);
+                await fetchProfile(current.user.id);
             }
-
             setIsLoading(false);
             return { error: null };
         } catch (err) {
-            diag.error('[Diag:Auth] RETRY_EXCEPTION:', err);
             setIsLoading(false);
             return { error: err };
         }
-    }, []);
+    }, [fetchProfile]);
 
     return (
         <AuthContext.Provider

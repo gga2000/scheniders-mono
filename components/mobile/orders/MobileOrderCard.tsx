@@ -65,17 +65,16 @@ export const MobileOrderCard = memo(function MobileOrderCard({
 
     // Time-based follow-up cue logic
     const contactCount = order.contact_count || 0;
-    const lastContactedAt = order.last_contacted_at;
     /* eslint-disable react-hooks/purity */
-    const hoursSinceContact = lastContactedAt
-        ? (Date.now() - new Date(lastContactedAt).getTime()) / 3600000
+    const hoursSinceCreated = order.created_at
+        ? (Date.now() - new Date(order.created_at).getTime()) / 3600000
         : 0;
     /* eslint-enable react-hooks/purity */
 
     // Determine which follow-up cue to show
     const isContacted = order.status === "contacted";
-    const needsReminder = isContacted && contactCount === 1 && hoursSinceContact >= REMINDER_DELAY_HOURS;
-    const needsDiscount = isContacted && contactCount === 2 && hoursSinceContact >= (DISCOUNT_DELAY_HOURS - REMINDER_DELAY_HOURS);
+    const needsDiscount = isContacted && hoursSinceCreated >= DISCOUNT_DELAY_HOURS;
+    const needsReminder = isContacted && !needsDiscount && hoursSinceCreated >= REMINDER_DELAY_HOURS;
     const needsFollowUp = needsReminder || needsDiscount;
 
     // Source badge
@@ -285,6 +284,14 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                         </div>
                     </div>
 
+                    {/* Delivery Company Badge */}
+                    {order.delivery_company === 'waseet' && (
+                        <span className="inline-flex h-5 items-center gap-1 px-1.5 text-[9px] font-bold rounded-md bg-cyan-100 text-cyan-700 border border-cyan-200 self-end">
+                            <Truck className="w-2.5 h-2.5" />
+                            الوسيط
+                        </span>
+                    )}
+
                     {/* Time Stack (Time above Time Ago) */}
                     <div className="flex flex-col items-end gap-1 opacity-80 mt-1 pr-1">
                         <span className="text-[10px] font-mono font-bold text-muted-foreground mr-1">
@@ -316,8 +323,8 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                             )}>
                                 {needsDiscount ? <Gift className="w-3 h-3" /> : <Bell className="w-3 h-3" />}
                                 {needsDiscount
-                                    ? `مرت 10 ساعات (خصم)`
-                                    : `مرت 6 ساعات (تذكير)`}
+                                    ? `مرت ${Math.floor(hoursSinceCreated)} ساعة (خصم)`
+                                    : `مرت ${Math.floor(hoursSinceCreated)} ساعة (تذكير)`}
                             </div>
                         )}
 
