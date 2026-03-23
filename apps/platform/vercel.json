@@ -7,7 +7,7 @@
         },
         {
             "path": "/api/cron/waseet-sync",
-            "schedule": "*/15 * * * *"
+            "schedule": "0 */6 * * *"
         }
     ]
 }
