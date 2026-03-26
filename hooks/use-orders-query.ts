@@ -60,7 +60,35 @@ if (typeof window !== 'undefined') {
     }, SEQ_CLEANUP_INTERVAL_MS);
 }
 
+// =============================================
+// SESSION STORAGE SWR CACHE
+// Shows stale data instantly on refresh while
+// fresh data loads in the background (~2.5s).
+// =============================================
+const SWR_CACHE_KEY = 'schneiders_orders_swr';
+const SWR_TS_KEY = 'schneiders_orders_swr_ts';
+const SWR_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes — discard if older
 
+function writeSwrCache(orders: Order[]): void {
+    try {
+        sessionStorage.setItem(SWR_CACHE_KEY, JSON.stringify(orders));
+        sessionStorage.setItem(SWR_TS_KEY, String(Date.now()));
+    } catch {
+        // sessionStorage full or unavailable — non-critical
+    }
+}
+
+function readSwrCache(): Order[] | null {
+    try {
+        const ts = sessionStorage.getItem(SWR_TS_KEY);
+        if (!ts || Date.now() - Number(ts) > SWR_MAX_AGE_MS) return null;
+        const raw = sessionStorage.getItem(SWR_CACHE_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw) as Order[];
+    } catch {
+        return null;
+    }
+}
 
 // Fetch all active orders — auth gating is handled by the `enabled` flag in useOrdersQuery.
 async function fetchOrders(): Promise<Order[]> {
@@ -69,7 +97,8 @@ async function fetchOrders(): Promise<Order[]> {
     const result = await orderRepository.findAll();
     diag.log(`[Diag:RQ:Fetch] fetchOrders OK count=${result.length} took=${(performance.now() - _tFetch).toFixed(1)}ms`);
 
-    return result;
+    // Persist to sessionStorage for SWR on next refresh
+    writeSwrCache(result);
 
     return result;
 }
@@ -107,12 +136,30 @@ export function useOrdersQuery(refetchTrigger?: string) {
         // CRITICAL: Wait for Supabase client's internal session to be ready
         // Not just React state - the client must have completed _initialize()
         enabled: !!session && clientReady,
+        // SWR: Hydrate from sessionStorage immediately (shows data in <5ms).
+        // React Query knows the real age via initialDataUpdatedAt, so it will
+        // refetch in the background if the cached data is stale (>30s old).
+        initialData: () => {
+            const cached = readSwrCache();
+            if (cached) {
+                diag.log(`[Diag:RQ:SWR] Hydrated ${cached.length} orders from sessionStorage`);
+            }
+            return cached ?? undefined;
+        },
+        initialDataUpdatedAt: () => {
+            try {
+                const ts = sessionStorage.getItem(SWR_TS_KEY);
+                return ts ? Number(ts) : undefined;
+            } catch {
+                return undefined;
+            }
+        },
         // Short staleTime — realtime patches keep cache fresh between refetches
         staleTime: 30 * 1000, // 30 seconds
         gcTime: CACHE_PRESETS.FREQUENT.gcTime, // 10 mins
         // Refetch when window regains focus to catch missed updates
         refetchOnWindowFocus: true, // respects staleTime (30s)
-        // Refetch on mount to ensure fresh data
+        // Refetch on mount if data is stale
         refetchOnMount: true,
         // Lighter retry since we no longer throw for missing auth
         retry: 2,

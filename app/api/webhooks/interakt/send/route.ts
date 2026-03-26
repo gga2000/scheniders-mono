@@ -3,7 +3,7 @@ import { sendTemplateMessage, TEMPLATE_NAMES, type TemplateType } from "@/lib/in
 import { createClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
 import type { Order } from "@/types/order";
-import { flagOrderForWhatsAppFailure } from "@/lib/whatsapp-error-handler";
+import { flagOrderForWhatsAppFailure, clearWhatsAppFailureFlags } from "@/lib/whatsapp-error-handler";
 
 // Service role client to bypass RLS for logging
 const supabaseAdmin = createClient(
@@ -63,6 +63,9 @@ export async function POST(request: NextRequest) {
                 { status: 500 }
             );
         }
+
+        // Clear any previous WhatsApp failure flags since this send succeeded
+        await clearWhatsAppFailureFlags(order.id);
 
         // Auto-update order status + increment contact_count atomically
         try {

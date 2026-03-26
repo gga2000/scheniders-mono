@@ -134,6 +134,11 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
                         if (!["return_pending", "refund_delivered", "refund_failed"].includes(order.status)) {
                             return false;
                         }
+                    } else if (statusFilter === "confirmed") {
+                        // Include both confirmed orders AND return_pending orders (refund/replacement orders)
+                        if (order.status !== "confirmed" && order.status !== "return_pending") {
+                            return false;
+                        }
                     } else if (order.status !== statusFilter) {
                         return false;
                     }
@@ -242,26 +247,18 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
     // =============================================
 
     const filteredOrders = useMemo(() => {
-
         const ordersToFilter = (deferredFilters.searchQuery && deferredFilters.searchIncludesArchive)
             ? [...deferredOrders, ...deferredArchivedOrders]
             : deferredOrders;
 
-        const result = applyFilters(ordersToFilter, deferredFilters).sort((a, b) => {
+        return applyFilters(ordersToFilter, deferredFilters).sort((a, b) => {
             if (a.is_pinned && !b.is_pinned) return -1;
             if (!a.is_pinned && b.is_pinned) return 1;
             return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         });
-
-        if (deferredFilters.searchQuery) {
-            console.log(`[Search Filter] query="${deferredFilters.searchQuery}" → ${result.length}/${ordersToFilter.length} orders`);
-        }
-
-        return result;
     }, [deferredOrders, deferredArchivedOrders, deferredFilters, applyFilters]);
 
     const statusCounts = useMemo(() => {
-
         const filtersWithoutStatus = { ...deferredFilters, status: 'all' as const };
         const matchingOrders = applyFilters(deferredOrders, filtersWithoutStatus);
 
@@ -291,6 +288,10 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
             // Unified refunds count: return_pending + refund_delivered + refund_failed
             if (["return_pending", "refund_delivered", "refund_failed"].includes(order.status)) {
                 counts.refunds++;
+            }
+            // Include return_pending orders in confirmed count (refund/replacement orders)
+            if (order.status === "return_pending") {
+                counts.confirmed++;
             }
         });
 

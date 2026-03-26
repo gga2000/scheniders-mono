@@ -46,26 +46,72 @@ const LIST_VIEW_COLUMNS = `
   internal_notes,
   risk_data,
   contact_count,
-  last_contacted_at
+  last_contacted_at,
+  rejection_reason,
+  needs_attention,
+  attention_reasons,
+  last_status_changed_by_name,
+  last_status_changed_by_avatar
 `.trim();
 
 export const orderRepository = {
-    /** Fetch all active (non-archived) orders, newest first. */
+    /** Fetch all active (non-archived) orders, newest first.
+     *  Uses a count query + parallel page fetches to cut latency in half. */
     async findAll(): Promise<Order[]> {
         const _t = performance.now();
         diag.log(`[Diag:Repo] findAll START`);
-        const { data, error } = await supabase
-            .from("v_orders_with_risk")
-            .select(LIST_VIEW_COLUMNS)
-            .eq("is_archived", false)
-            .order("created_at", { ascending: false });
 
-        if (error) {
-            diag.log(`[Diag:Repo] findAll ERR err=${error.message} took=${(performance.now() - _t).toFixed(1)}ms`);
-            throw error;
+        const step = 1000;
+
+        // 1. Get exact count so we know how many pages to fetch in parallel.
+        //    The count query uses the same view/filter but returns only the count header,
+        //    not actual rows — it's very fast (~50-100ms).
+        const { count, error: countErr } = await supabase
+            .from("v_orders_with_risk")
+            .select("id", { count: "exact", head: true })
+            .eq("is_archived", false);
+
+        if (countErr) {
+            diag.log(`[Diag:Repo] findAll COUNT ERR err=${countErr.message} took=${(performance.now() - _t).toFixed(1)}ms`);
+            throw countErr;
         }
-        diag.log(`[Diag:Repo] findAll OK rows=${(data || []).length} took=${(performance.now() - _t).toFixed(1)}ms`);
-        return (data || []).map(row => normalizeOrder(row as unknown as Order));
+
+        const totalRows = count ?? 0;
+        if (totalRows === 0) {
+            diag.log(`[Diag:Repo] findAll OK rows=0 took=${(performance.now() - _t).toFixed(1)}ms`);
+            return [];
+        }
+
+        // 2. Build page ranges and fetch all pages in parallel.
+        const pageCount = Math.ceil(totalRows / step);
+        const pagePromises = Array.from({ length: pageCount }, (_, i) => {
+            const from = i * step;
+            return supabase
+                .from("v_orders_with_risk")
+                .select(LIST_VIEW_COLUMNS)
+                .eq("is_archived", false)
+                .order("created_at", { ascending: false })
+                .range(from, from + step - 1);
+        });
+
+        const pages = await Promise.all(pagePromises);
+
+        // 3. Merge results, preserving page order for correct sort.
+        let allData: any[] = [];
+        for (let i = 0; i < pages.length; i++) {
+            const { data, error } = pages[i];
+            if (error) {
+                diag.log(`[Diag:Repo] findAll page=${i} ERR err=${error.message} took=${(performance.now() - _t).toFixed(1)}ms`);
+                throw error;
+            }
+            if (data && data.length > 0) {
+                allData = [...allData, ...data];
+            }
+        }
+
+        const result = allData.map(row => normalizeOrder(row as unknown as Order));
+        diag.log(`[Diag:Repo] findAll OK rows=${allData.length} pages=${pageCount} took=${(performance.now() - _t).toFixed(1)}ms`);
+        return result;
     },
 
     /**
@@ -86,14 +132,29 @@ export const orderRepository = {
 
     /** Fetch all archived orders, newest first. */
     async findArchived(): Promise<Order[]> {
-        const { data, error } = await supabase
-            .from("v_orders_with_risk")
-            .select(LIST_VIEW_COLUMNS)
-            .eq("is_archived", true)
-            .order("created_at", { ascending: false });
+        let allData: any[] = [];
+        let from = 0;
+        const step = 1000;
 
-        if (error) throw error;
-        return (data || []).map(row => normalizeOrder(row as unknown as Order));
+        while (true) {
+            const { data, error } = await supabase
+                .from("v_orders_with_risk")
+                .select(LIST_VIEW_COLUMNS)
+                .eq("is_archived", true)
+                .order("created_at", { ascending: false })
+                .range(from, from + step - 1);
+
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                allData = [...allData, ...data];
+                from += step;
+            }
+
+            if (!data || data.length < step) break;
+        }
+
+        return allData.map(row => normalizeOrder(row as unknown as Order));
     },
 
     /** Fetch a single order by ID (all columns for detail view). */

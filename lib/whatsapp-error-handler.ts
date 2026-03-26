@@ -34,7 +34,11 @@ export function categorizeWhatsAppFailure(
     } else if (statusCode === 429 || errorMsg.toLowerCase().includes("rate limit")) {
         reason = "whatsapp_rate_limited";
         notePrefix = "تم تجاوز حد الإرسال";
-    } else if (statusCode >= 500 || errorMsg.toLowerCase().includes("network")) {
+    } else if (
+        statusCode >= 500 ||
+        errorMsg.toLowerCase().includes("network") ||
+        errorMsg.toLowerCase().includes("invalid response")
+    ) {
         reason = "whatsapp_network_error";
         notePrefix = "خطأ في الشبكة";
     } else if (errorMsg.includes("not configured")) {
@@ -42,7 +46,8 @@ export function categorizeWhatsAppFailure(
         notePrefix = "خطأ في إعدادات واتساب";
     }
 
-    const deliveryNote = `${notePrefix}: ${errorMsg} (كود: ${statusCode || 'N/A'}) - رقم: ${phone} - طلب: ${orderId}`;
+    // Build a clean, human-readable delivery note (no raw error dumps)
+    const deliveryNote = `${notePrefix} - رقم: ${phone} - طلب: ${orderId} (HTTP ${statusCode || 'N/A'})`;
 
     return {
         needs_attention: true,
@@ -53,6 +58,8 @@ export function categorizeWhatsAppFailure(
 
 /**
  * Flag order as needing attention due to WhatsApp failure.
+ * Merges new attention_reasons with any existing ones (deduped).
+ * Also logs the failure to order_status_history for the timeline.
  */
 export async function flagOrderForWhatsAppFailure(
     orderUuid: string,
@@ -63,18 +70,69 @@ export async function flagOrderForWhatsAppFailure(
     const flags = categorizeWhatsAppFailure(result, orderId, phone);
 
     try {
+        // Fetch existing attention_reasons to merge (not overwrite)
+        const { data: current } = await supabaseAdmin
+            .from("orders")
+            .select("attention_reasons")
+            .eq("id", orderUuid)
+            .single();
+
+        const existing = (current?.attention_reasons as string[]) || [];
+        const merged = [...new Set([...existing, ...flags.attention_reasons])];
+
         await supabaseAdmin
             .from("orders")
             .update({
-                needs_attention: flags.needs_attention,
-                attention_reasons: flags.attention_reasons,
+                needs_attention: true,
+                attention_reasons: merged,
                 delivery_note: flags.delivery_note,
                 updated_at: new Date().toISOString(),
             })
             .eq("id", orderUuid);
 
-        console.log(`[WhatsApp Error Handler] Order ${orderId} flagged with: ${flags.attention_reasons[0]}`);
+        console.log(`[WhatsApp Error Handler] Order ${orderId} flagged with: ${flags.attention_reasons[0]} (merged: ${merged.join(', ')})`);
     } catch (err) {
         console.error(`[WhatsApp Error Handler] Failed to flag order ${orderId}:`, err);
+    }
+
+    // Log to order_status_history so it shows in the timeline permanently
+    try {
+        await supabaseAdmin.from("order_status_history").insert({
+            order_id: orderUuid,
+            from_status: null,
+            to_status: null,
+            changed_by: "whatsapp_bot",
+            notes: flags.delivery_note,
+        });
+    } catch (err) {
+        console.error(`[WhatsApp Error Handler] Failed to log timeline for order ${orderId}:`, err);
+    }
+}
+
+/**
+ * Clear WhatsApp-specific failure flags from an order after a successful send.
+ * Preserves non-WhatsApp attention_reasons (e.g., high_risk_customer, delivery_*).
+ */
+export async function clearWhatsAppFailureFlags(orderUuid: string): Promise<void> {
+    try {
+        const { data: current } = await supabaseAdmin
+            .from("orders")
+            .select("attention_reasons")
+            .eq("id", orderUuid)
+            .single();
+
+        const existing = (current?.attention_reasons as string[]) || [];
+        const remaining = existing.filter(r => !r.startsWith("whatsapp_"));
+
+        await supabaseAdmin
+            .from("orders")
+            .update({
+                needs_attention: remaining.length > 0,
+                attention_reasons: remaining.length > 0 ? remaining : null,
+                delivery_note: remaining.length > 0 ? undefined : null,
+            })
+            .eq("id", orderUuid);
+    } catch (err) {
+        console.error(`[WhatsApp Error Handler] Failed to clear flags for order ${orderUuid}:`, err);
     }
 }
