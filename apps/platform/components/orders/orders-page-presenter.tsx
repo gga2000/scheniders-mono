@@ -28,7 +28,9 @@ const CreateOrderModal = dynamic(
     { ssr: false }
 );
 // Dynamic imports for other heavy components
-import { FloatingActionBar } from "@/components/orders/floating-action-bar";
+import { SelectionToolbar } from "@/components/orders/table/selection-toolbar";
+import { DensityToggle } from "@/components/orders/table/density-toggle";
+import { ColumnVisibilityToggle } from "@/components/orders/table/column-visibility";
 import { WorkflowTabs } from "@/components/orders/workflow-tabs";
 const DuplicateComparisonModal = dynamic(
     () => import("@/components/orders/duplicate-comparison-modal").then(mod => ({ default: mod.DuplicateComparisonModal })),
@@ -332,6 +334,10 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
     } = props;
 
     const { settings } = useSettings();
+    const tableDensity = useOrderStore((s) => s.tableDensity);
+    const setTableDensity = useOrderStore((s) => s.setTableDensity);
+    const hiddenColumns = useOrderStore((s) => s.hiddenColumns);
+    const setHiddenColumns = useOrderStore((s) => s.setHiddenColumns);
 
     // Update notification service when settings change
     useEffect(() => {
@@ -608,6 +614,20 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                                                         <v.icon className="w-4 h-4" />
                                                     </button>
                                                 ))}
+
+                                                {/* Table Density + Column Visibility Toggles */}
+                                                {!workflowMode && viewMode === "table" && (
+                                                    <>
+                                                        <DensityToggle
+                                                            density={tableDensity}
+                                                            onChange={setTableDensity}
+                                                        />
+                                                        <ColumnVisibilityToggle
+                                                            hiddenColumns={hiddenColumns}
+                                                            onChange={setHiddenColumns}
+                                                        />
+                                                    </>
+                                                )}
 
                                                 {/* Compact Toggle */}
                                                 {!workflowMode && viewMode === "cards" && (
@@ -1825,6 +1845,8 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                                             setShowDuplicateModal={setShowDuplicateModal}
                                             modePrice={modePrice}
                                             updateOrderStatus={updateOrderStatus}
+                                            updateOrder={updateOrder}
+                                            deleteOrder={deleteOrder}
                                             getRiskLevel={(phone) => {
                                                 const order = displayedOrders.find(o => o.phone === phone);
                                                 return (order as any)?.risk_data?.level || "low";
@@ -1935,12 +1957,18 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                     )
                 }
 
-                <FloatingActionBar
+                <SelectionToolbar
                     selectedCount={selectedOrders.size}
-                    onConfirm={handleBulkConfirm}
-                    onReject={handleBulkReject}
-                    onArchive={handleBulkArchive}
-                    onDelete={handleBulkDelete}
+                    onDeselectAll={() => useOrderStore.getState().setSelectedOrders(new Set())}
+                    onBulkConfirm={handleBulkConfirm}
+                    onBulkInTransit={handleBulkInTransit}
+                    onBulkCompleted={handleBulkCompleted}
+                    onBulkContacted={handleBulkContacted}
+                    onBulkNoResponse={handleBulkNoResponse}
+                    onBulkReject={handleBulkReject}
+                    onBulkArchive={handleBulkArchive}
+                    onBulkDelete={handleBulkDelete}
+                    onBulkNew={handleBulkNew}
                 />
 
 

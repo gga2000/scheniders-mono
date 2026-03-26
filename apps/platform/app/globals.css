@@ -2343,6 +2343,12 @@ body {
   animation: success-flash 0.5s ease-out;
 }
 
+@keyframes statusFlash {
+  0% { background-color: rgba(59, 130, 246, 0.15); }
+  50% { background-color: rgba(16, 185, 129, 0.12); }
+  100% { background-color: transparent; }
+}
+
 /* Mobile-specific scroll improvements */
 @media (max-width: 768px) {
 

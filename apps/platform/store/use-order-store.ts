@@ -34,6 +34,8 @@ interface ViewPreferencesSlice {
   toolbarCollapsed: boolean;
   workflowMode: boolean;
   soundEnabled: boolean;
+  tableDensity: "compact" | "comfortable" | "spacious";
+  hiddenColumns: Set<string>;
 
   setViewMode: (mode: "list" | "cards" | "table" | "kanban") => void;
   setCompactView: (val: 0 | 1 | 2) => void;
@@ -46,6 +48,8 @@ interface ViewPreferencesSlice {
   setWorkflowMode: (val: boolean) => void;
   toggleWorkflowMode: () => void;
   setSoundEnabled: (val: boolean) => void;
+  setTableDensity: (val: "compact" | "comfortable" | "spacious") => void;
+  setHiddenColumns: (val: Set<string>) => void;
 }
 
 interface FilterUISlice {
@@ -55,6 +59,7 @@ interface FilterUISlice {
   groupBy: "none" | "status" | "city" | "verified";
   filterDuplicatesOnly: boolean;
   sortConfig: { key: string; direction: "asc" | "desc" } | null;
+  sortConfigs: Array<{ key: string; direction: "asc" | "desc" }>;
   columnFilters: Record<string, string>;
   openFilterColumn: string | null;
   activePresetId: string | null;
@@ -67,7 +72,7 @@ interface FilterUISlice {
   setNewPresetName: (name: string) => void;
   setGroupBy: (val: "none" | "status" | "city" | "verified") => void;
   setFilterDuplicatesOnly: (val: boolean) => void;
-  toggleSort: (key: string) => void;
+  toggleSort: (key: string, shiftKey?: boolean) => void;
   setColumnFilters: (filters: Record<string, string>) => void;
   setOpenFilterColumn: (val: string | null) => void;
   setActivePresetId: (id: string | null) => void;
@@ -145,10 +150,12 @@ interface TransientSlice {
   isFilterPanelAnimating: boolean;
   isHeaderAnimating: boolean;
   notificationsEnabled: boolean;
+  editingCell: { orderId: string; field: string } | null;
 
   setIsFilterPanelAnimating: (val: boolean) => void;
   setIsHeaderAnimating: (val: boolean) => void;
   setNotificationsEnabled: (val: boolean) => void;
+  setEditingCell: (val: { orderId: string; field: string } | null) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -194,6 +201,10 @@ export const useOrderStore = create<OrderStore>()(
       toggleWorkflowMode: () =>
         set((s) => ({ workflowMode: !s.workflowMode })),
       setSoundEnabled: (val) => set({ soundEnabled: val }),
+      tableDensity: "comfortable",
+      hiddenColumns: new Set<string>(),
+      setTableDensity: (val) => set({ tableDensity: val }),
+      setHiddenColumns: (val) => set({ hiddenColumns: val }),
 
       // =====================================================================
       // Filter UI Slice
@@ -204,6 +215,7 @@ export const useOrderStore = create<OrderStore>()(
       groupBy: "none",
       filterDuplicatesOnly: false,
       sortConfig: null,
+      sortConfigs: [],
       columnFilters: {},
       openFilterColumn: null,
       activePresetId: null,
@@ -216,14 +228,30 @@ export const useOrderStore = create<OrderStore>()(
       setNewPresetName: (name) => set({ newPresetName: name }),
       setGroupBy: (val) => set({ groupBy: val }),
       setFilterDuplicatesOnly: (val) => set({ filterDuplicatesOnly: val }),
-      toggleSort: (key) =>
+      toggleSort: (key, shiftKey) =>
         set((s) => {
+          if (shiftKey) {
+            // Multi-sort: add or toggle this key in the sortConfigs array (max 3)
+            const existing = s.sortConfigs.findIndex(sc => sc.key === key);
+            let next = [...s.sortConfigs];
+            if (existing >= 0) {
+              if (next[existing].direction === "asc") {
+                next[existing] = { key, direction: "desc" };
+              } else {
+                next.splice(existing, 1);
+              }
+            } else if (next.length < 3) {
+              next.push({ key, direction: "asc" });
+            }
+            return { sortConfigs: next, sortConfig: next.length === 1 ? next[0] : next.length === 0 ? null : s.sortConfig };
+          }
+          // Single sort (original behavior)
           if (s.sortConfig?.key === key) {
             if (s.sortConfig.direction === "asc")
-              return { sortConfig: { key, direction: "desc" } };
-            return { sortConfig: null };
+              return { sortConfig: { key, direction: "desc" }, sortConfigs: [{ key, direction: "desc" }] };
+            return { sortConfig: null, sortConfigs: [] };
           }
-          return { sortConfig: { key, direction: "asc" } };
+          return { sortConfig: { key, direction: "asc" }, sortConfigs: [{ key, direction: "asc" }] };
         }),
       setColumnFilters: (filters) => set({ columnFilters: filters }),
       setOpenFilterColumn: (val) => set({ openFilterColumn: val }),
@@ -324,6 +352,8 @@ export const useOrderStore = create<OrderStore>()(
       isHeaderAnimating: false,
       notificationsEnabled: true,
 
+      editingCell: null,
+      setEditingCell: (val) => set({ editingCell: val }),
       setIsFilterPanelAnimating: (val) => set({ isFilterPanelAnimating: val }),
       setIsHeaderAnimating: (val) => set({ isHeaderAnimating: val }),
       setNotificationsEnabled: (val) => set({ notificationsEnabled: val }),
@@ -342,6 +372,7 @@ export const useOrderStore = create<OrderStore>()(
         toolbarCollapsed: state.toolbarCollapsed,
         workflowMode: state.workflowMode,
         soundEnabled: state.soundEnabled,
+        tableDensity: state.tableDensity,
         activeDateRange: state.activeDateRange,
         notificationsEnabled: state.notificationsEnabled,
       }),

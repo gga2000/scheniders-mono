@@ -323,7 +323,7 @@ export default function OrdersPage() {
         newPresetName, setNewPresetName,
         groupBy, setGroupBy,
         filterDuplicatesOnly, setFilterDuplicatesOnly,
-        sortConfig, toggleSort,
+        sortConfig, sortConfigs, toggleSort,
         columnFilters, setColumnFilters,
         openFilterColumn, setOpenFilterColumn,
         activePresetId, setActivePresetId,
@@ -533,6 +533,7 @@ export default function OrdersPage() {
     const defFilterDuplicatesOnly = React.useDeferredValue(filterDuplicatesOnly);
     const defRiskLevel = React.useDeferredValue(filters.riskLevel);
     const defSortConfig = React.useDeferredValue(sortConfig);
+    const defSortConfigs = React.useDeferredValue(sortConfigs);
 
     // Sort hook's filtered orders
     // Advanced Filtering & Sorting
@@ -575,30 +576,33 @@ export default function OrdersPage() {
         }
 
         // 2. Sort
+        const activeSorts = defSortConfigs.length > 0 ? defSortConfigs : defSortConfig ? [defSortConfig] : [];
+
         result.sort((a, b) => {
             // Priority: Pinned first
             if (a.is_pinned && !b.is_pinned) return -1;
             if (!a.is_pinned && b.is_pinned) return 1;
 
-            if (defSortConfig) {
-                let aVal: unknown = a[defSortConfig.key as keyof Order];
-                let bVal: unknown = b[defSortConfig.key as keyof Order];
+            // Multi-column sort
+            for (const sc of activeSorts) {
+                let aVal: unknown = a[sc.key as keyof Order];
+                let bVal: unknown = b[sc.key as keyof Order];
 
-                // Handle special keys
-                if (defSortConfig.key === 'amount') { aVal = Number(a.price); bVal = Number(b.price); }
-                if (defSortConfig.key === 'order_id') { aVal = a.sequence_number || a.order_id; bVal = b.sequence_number || b.order_id; }
-                if (defSortConfig.key === 'created_at') { aVal = new Date(a.created_at).getTime(); bVal = new Date(b.created_at).getTime(); }
+                if (sc.key === 'amount') { aVal = Number(a.price); bVal = Number(b.price); }
+                if (sc.key === 'order_id') { aVal = a.sequence_number || a.order_id; bVal = b.sequence_number || b.order_id; }
+                if (sc.key === 'created_at') { aVal = new Date(a.created_at).getTime(); bVal = new Date(b.created_at).getTime(); }
 
-                if (aVal != null && bVal != null && aVal < bVal) return defSortConfig.direction === 'asc' ? -1 : 1;
-                if (aVal != null && bVal != null && aVal > bVal) return defSortConfig.direction === 'asc' ? 1 : -1;
-                return 0;
+                if (aVal != null && bVal != null && aVal < bVal) return sc.direction === 'asc' ? -1 : 1;
+                if (aVal != null && bVal != null && aVal > bVal) return sc.direction === 'asc' ? 1 : -1;
             }
+
+            if (activeSorts.length > 0) return 0;
 
             // Default sort: Newest first
             return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         });
         return result;
-    }, [defHookFilteredOrders, defSortConfig, defColumnFilters, defFilterDuplicatesOnly, getCustomerOrderCount, defRiskLevel]);  
+    }, [defHookFilteredOrders, defSortConfig, defSortConfigs, defColumnFilters, defFilterDuplicatesOnly, getCustomerOrderCount, defRiskLevel]);
 
     const defOrders = React.useDeferredValue(orders);
 

@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendTemplateMessage, TEMPLATE_NAMES } from "@/lib/interakt";
 import { Order } from "@/types/order";
-import { flagOrderForWhatsAppFailure } from "@/lib/whatsapp-error-handler";
+import { flagOrderForWhatsAppFailure, clearWhatsAppFailureFlags } from "@/lib/whatsapp-error-handler";
 
 // This endpoint receives an order ID, fetches it from the DB,
 // and sends a WhatsApp template. It allows the dispatcher to be decoupled
@@ -117,6 +117,9 @@ export async function POST(request: NextRequest) {
                 console.error("[WhatsApp Dispatcher] Error sending to secondary phone:", secErr);
             }
         }
+
+        // Clear any previous WhatsApp failure flags since primary send succeeded
+        await clearWhatsAppFailureFlags(order.id);
 
         // 5. Auto-update order status + increment contact_count
         const previousStatus = order.status || "new";

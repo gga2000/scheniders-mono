@@ -20,6 +20,7 @@ import {
     type ValidationErrors,
 } from "@/lib/order-utils";
 import type { OrderItem } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "sonner";
 import {
     User,
@@ -82,6 +83,7 @@ export function CreateOrderModal({
     checkOrderIdExists,
     initialData,
 }: CreateOrderModalProps) {
+    const { session } = useAuth();
     const [orderType, setOrderType] = useState<OrderType>("delivery");
     const [formData, setFormData] = useState<OrderFormData & { secondary_phone?: string; source?: string; order_id?: string }>({
         customer_name: initialData?.customer_name || "",
@@ -283,6 +285,9 @@ export function CreateOrderModal({
 
             const response = await fetch("/api/orders/analyze-image", {
                 method: "POST",
+                headers: {
+                    ...(session?.access_token ? { "Authorization": `Bearer ${session.access_token}` } : {}),
+                },
                 body: formData,
             });
 

@@ -328,7 +328,22 @@ export async function sendTemplateMessage(
                 continue;
             }
 
-            const data = (await response.json()) as InteraktAPIResponse;
+            // Safe JSON parsing — Interakt sometimes returns non-JSON responses
+            let data: InteraktAPIResponse;
+            try {
+                data = (await response.json()) as InteraktAPIResponse;
+            } catch {
+                const rawText = await response.text().catch(() => "(unreadable)");
+                console.error(
+                    `[Interakt] Non-JSON response (HTTP ${response.status}):`,
+                    rawText.slice(0, 200)
+                );
+                return {
+                    success: false,
+                    error: `Interakt API returned invalid response (HTTP ${response.status})`,
+                    statusCode: response.status,
+                };
+            }
 
             if (!response.ok) {
                 console.error(
