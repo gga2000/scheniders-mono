@@ -71,6 +71,10 @@ const CancellationReasonDialog = dynamic(
     () => import("@/components/orders/cancellation-reason-dialog").then(mod => ({ default: mod.CancellationReasonDialog })),
     { loading: () => null, ssr: false }
 );
+const ShipExportConfirmationDialog = dynamic(
+    () => import("@/components/orders/ship-export-confirmation-dialog").then(mod => ({ default: mod.ShipExportConfirmationDialog })),
+    { loading: () => null, ssr: false }
+);
 const StickyFilterBar = dynamic(
     () => import("@/components/orders/sticky-filter-bar").then(mod => ({ default: mod.StickyFilterBar })),
     { ssr: false, loading: () => <div className="w-full h-14 animate-pulse bg-muted/20 rounded-2xl" /> }
@@ -642,12 +646,18 @@ export default function OrdersPage() {
         useOrderStore.getState().toggleOrderSelection(orderId);
     }, []);
 
+    const PAGE_SELECT_LIMIT = 50;
+
     const selectAll = useCallback(() => {
         const store = useOrderStore.getState();
-        if (store.selectedOrders.size === filteredOrders.length) {
+        if (store.selectedOrders.size > 0) {
             store.clearSelection();
         } else {
-            store.selectAll(filteredOrders.map(o => o.id));
+            // Select first PAGE_SELECT_LIMIT orders instead of all
+            const idsToSelect = filteredOrders.length > PAGE_SELECT_LIMIT
+                ? filteredOrders.slice(0, PAGE_SELECT_LIMIT).map(o => o.id)
+                : filteredOrders.map(o => o.id);
+            store.selectAll(idsToSelect);
         }
     }, [filteredOrders]);
 
@@ -715,6 +725,11 @@ export default function OrdersPage() {
     const [deleteCountdown, setDeleteCountdown] = useState(5);
     const [isDeleting, setIsDeleting] = useState(false);
     const [showShipMenu, setShowShipMenu] = useState(false);
+
+    // Ship export confirmation dialog state
+    const [shipConfirmOpen, setShipConfirmOpen] = useState(false);
+    const [shipConfirmCompany, setShipConfirmCompany] = useState<'prime' | 'waseet'>('prime');
+    const [shipConfirmKey, setShipConfirmKey] = useState(0);
     const [showMapPanel, setShowMapPanel] = useState(false);
 
     useEffect(() => {
@@ -850,13 +865,43 @@ export default function OrdersPage() {
                     await exportOrdersToWaseetXLSX(ids, ordersToExport);
                 }
 
-                await bulkUpdateStatus(ids, "in_transit");
+                // Capture previous statuses for undo capability
+                const previousStatuses = ordersToExport.map(o => ({ id: o.id, status: o.status }));
                 setSelectedOrders(new Set());
 
-                toast.success(
-                    "Export successful",
-                    `${ids.length} orders exported via ${companyLabel} → In Transit`
-                );
+                toast({
+                    title: "Export successful",
+                    description: `${ids.length} orders exported via ${companyLabel}`,
+                    variant: "success",
+                    duration: 20000,
+                    action: {
+                        label: `Move ${ids.length} → In Transit`,
+                        onClick: async () => {
+                            await bulkUpdateStatus(ids, "in_transit");
+                            toast({
+                                title: `${ids.length} orders moved to In Transit`,
+                                description: "Click undo to restore previous statuses",
+                                variant: "success",
+                                duration: 20000,
+                                action: {
+                                    label: "Undo",
+                                    onClick: async () => {
+                                        const byStatus = new Map<string, string[]>();
+                                        previousStatuses.forEach(({ id, status }) => {
+                                            const group = byStatus.get(status) || [];
+                                            group.push(id);
+                                            byStatus.set(status, group);
+                                        });
+                                        for (const [status, orderIds] of byStatus) {
+                                            await bulkUpdateStatus(orderIds, status as Order["status"]);
+                                        }
+                                        toast.success("Undone", `${ids.length} orders restored to their previous statuses`);
+                                    }
+                                }
+                            });
+                        }
+                    }
+                });
             } else {
                 throw new Error(batchError || "Failed to create export batch");
             }
@@ -1611,7 +1656,9 @@ export default function OrdersPage() {
                                                                         <div className="absolute top-full mt-1 right-0 z-50 bg-white rounded-xl shadow-lg border border-gray-200 py-1 min-w-[180px]">
                                                                             <button
                                                                                 onClick={() => {
-                                                                                    handleShipExport('prime');
+                                                                                    setShipConfirmCompany('prime');
+                                                                                    setShipConfirmKey(k => k + 1);
+                                                                                    setShipConfirmOpen(true);
                                                                                     setShowShipMenu(false);
                                                                                 }}
                                                                                 className="w-full text-right px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
@@ -1621,7 +1668,9 @@ export default function OrdersPage() {
                                                                             </button>
                                                                             <button
                                                                                 onClick={() => {
-                                                                                    handleShipExport('waseet');
+                                                                                    setShipConfirmCompany('waseet');
+                                                                                    setShipConfirmKey(k => k + 1);
+                                                                                    setShipConfirmOpen(true);
                                                                                     setShowShipMenu(false);
                                                                                 }}
                                                                                 className="w-full text-right px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
@@ -2252,6 +2301,41 @@ export default function OrdersPage() {
                                         />
                                     ) : (
                                         <>
+                                            {/* Selection Banner */}
+                                            <AnimatePresence>
+                                                {selectedOrders.size > 0 && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, height: 0 }}
+                                                        animate={{ opacity: 1, height: 'auto' }}
+                                                        exit={{ opacity: 0, height: 0 }}
+                                                        className={cn(
+                                                            "flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl text-sm font-medium mb-3",
+                                                            selectedOrders.size > 20
+                                                                ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                                                : "bg-blue-50 text-blue-700 border border-blue-100"
+                                                        )}
+                                                    >
+                                                        <span className="font-semibold">{selectedOrders.size} orders selected</span>
+                                                        {selectedOrders.size < filteredOrders.length && filteredOrders.length > PAGE_SELECT_LIMIT && (
+                                                            <button
+                                                                onClick={() => {
+                                                                    useOrderStore.getState().selectAll(filteredOrders.map(o => o.id));
+                                                                }}
+                                                                className="underline font-bold hover:opacity-80 transition-opacity"
+                                                            >
+                                                                Select all {filteredOrders.length} orders
+                                                            </button>
+                                                        )}
+                                                        <button
+                                                            onClick={() => setSelectedOrders(new Set())}
+                                                            className="text-xs underline opacity-70 hover:opacity-100 transition-opacity"
+                                                        >
+                                                            Clear selection
+                                                        </button>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+
                                             {/* Cards View */}
                                             {(viewMode === "cards" || viewMode === "list") && (
                                                 <>
@@ -2736,6 +2820,21 @@ export default function OrdersPage() {
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
+
+                    {/* Ship Export Confirmation Dialog */}
+                    <ShipExportConfirmationDialog
+                        key={shipConfirmKey}
+                        open={shipConfirmOpen}
+                        onOpenChange={setShipConfirmOpen}
+                        company={shipConfirmCompany}
+                        orders={selectedOrders.size > 0
+                            ? orders.filter(o => selectedOrders.has(o.id))
+                            : filteredOrders
+                        }
+                        currentTab={filters.status || 'all'}
+                        hasSelection={selectedOrders.size > 0}
+                        onConfirmExport={() => handleShipExport(shipConfirmCompany)}
+                    />
 
                 </motion.div>
             )}

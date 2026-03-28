@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+ 
 import { toast } from "@/hooks/use-toast";
 import { Order } from "@/lib/supabase";
 import { exportOrdersToPrimeCSV } from "@/lib/export-utils";
@@ -218,12 +218,41 @@ export const useOrderBulkActions = ({
 
             if (batchSuccess) {
                 await exportOrdersToPrimeCSV(ids, ordersToExport);
-                await bulkUpdateStatus(ids, "in_transit");
+                const previousStatuses = ordersToExport.map(o => ({ id: o.id, status: o.status }));
                 setSelectedOrders(new Set());
-                toast.success(
-                    "Export successful",
-                    `${ids.length} orders exported → In Transit`
-                );
+                toast({
+                    title: "Export successful",
+                    description: `${ids.length} orders exported via Prime`,
+                    variant: "success",
+                    duration: 20000,
+                    action: {
+                        label: `Move ${ids.length} → In Transit`,
+                        onClick: async () => {
+                            await bulkUpdateStatus(ids, "in_transit");
+                            toast({
+                                title: `${ids.length} orders moved to In Transit`,
+                                description: "Click undo to restore previous statuses",
+                                variant: "success",
+                                duration: 20000,
+                                action: {
+                                    label: "Undo",
+                                    onClick: async () => {
+                                        const byStatus = new Map<string, string[]>();
+                                        previousStatuses.forEach(({ id, status }) => {
+                                            const group = byStatus.get(status) || [];
+                                            group.push(id);
+                                            byStatus.set(status, group);
+                                        });
+                                        for (const [status, orderIds] of byStatus) {
+                                            await bulkUpdateStatus(orderIds, status as Order["status"]);
+                                        }
+                                        toast.success("Undone", `${ids.length} orders restored to their previous statuses`);
+                                    }
+                                }
+                            });
+                        }
+                    }
+                });
             } else {
                 throw new Error(batchError || "Failed to create export batch");
             }
