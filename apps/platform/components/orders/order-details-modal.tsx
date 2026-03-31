@@ -74,7 +74,9 @@ import {
     PhoneOff,
     Pause,
     CheckCheck,
+    Ban,
 } from "lucide-react";
+import { BlacklistDialog } from "@/components/orders/blacklist-dialog";
 
 interface OrderDetailsModalProps {
     order: Order | null;
@@ -170,7 +172,9 @@ export function OrderDetailsModal({
         t
     });
 
-    const { splitOrder } = useOrdersContext();
+    const { splitOrder, isBlacklisted, getBlacklistEntry, addToBlacklist, removeFromBlacklist } = useOrdersContext();
+    const [blacklistDialogOpen, setBlacklistDialogOpen] = useState(false);
+    const [blacklistDialogMode, setBlacklistDialogMode] = useState<"add" | "remove">("add");
     const {
         activeTab, setActiveTab,
         timeline, notes, loadingTimeline,
@@ -640,6 +644,26 @@ export function OrderDetailsModal({
                                             </div>
                                         )}
                                     </div>
+
+                                    {/* Blacklist toggle icon */}
+                                    {isBlacklisted(order.phone) ? (
+                                        <button
+                                            onClick={() => { setBlacklistDialogMode("remove"); setBlacklistDialogOpen(true); }}
+                                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-full bg-gray-900 text-white border border-gray-800 hover:bg-gray-700 transition-all"
+                                            title="رفع الحظر"
+                                        >
+                                            <Ban className="w-3 h-3" />
+                                            محظور
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => { setBlacklistDialogMode("add"); setBlacklistDialogOpen(true); }}
+                                            className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 text-gray-500 border border-gray-200 hover:bg-red-100 hover:text-red-600 hover:border-red-200 transition-all"
+                                            title="إضافة للقائمة السوداء"
+                                        >
+                                            <Ban className="w-3.5 h-3.5" />
+                                        </button>
+                                    )}
                                 </div>
                                 {/* Date in English format (YYYY-MM-DD) */}
                                 <span className="flex items-center gap-1.5 text-xs text-muted">
@@ -1575,6 +1599,25 @@ export function OrderDetailsModal({
 
             {/* Dynamic async prompt dialog */}
             <PromptComponent />
+
+            {/* Blacklist dialog */}
+            {order && (
+                <BlacklistDialog
+                    open={blacklistDialogOpen}
+                    onClose={() => setBlacklistDialogOpen(false)}
+                    mode={blacklistDialogMode}
+                    customerName={order.customer_name}
+                    customerPhone={order.phone}
+                    existingEntry={getBlacklistEntry(order.phone)}
+                    onConfirm={async (reason, notes) => {
+                        if (blacklistDialogMode === "add" && reason) {
+                            await addToBlacklist(order.phone, reason, notes);
+                        } else if (blacklistDialogMode === "remove") {
+                            await removeFromBlacklist(order.phone);
+                        }
+                    }}
+                />
+            )}
         </>
     );
 }

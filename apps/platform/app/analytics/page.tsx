@@ -21,6 +21,7 @@ import {
     Wallet,
     ListChecks,
     Truck,
+    AlertTriangle,
 } from "lucide-react";
 
 // Hooks
@@ -35,6 +36,7 @@ import { useUserPreferences } from "@/hooks/use-user-preferences";
 // Core components (always needed)
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { PageSkeleton } from "@/components/ui/skeletons";
+import { subDays, isWithinInterval } from "date-fns";
 
 // Dynamic imports for heavy components - reduces initial bundle by ~50KB
 const RevenueCards = dynamic(
@@ -129,6 +131,10 @@ const IraqMap = dynamic(
     () => import("@/components/shared/iraq-map").then(mod => ({ default: mod.IraqMap })),
     { loading: () => <div className="skeleton h-64 rounded-2xl" />, ssr: false }
 );
+const ActionRequiredTab = dynamic(
+    () => import("@/components/analytics/action-required-tab").then(mod => ({ default: mod.ActionRequiredTab })),
+    { loading: () => <div className="skeleton h-64 rounded-2xl" /> }
+);
 
 // Utils
 import { exportFinancesToCSV, exportFinancesToExcel, printFinancialReport } from "@/lib/finance-export";
@@ -136,7 +142,7 @@ import { Expense } from "@/types/expense";
 import { ExpenseFormData } from "@/components/finances/expense-form-modal";
 import { cn } from "@/lib/utils";
 
-type ActiveTab = "overview" | "profit" | "customers" | "expenses" | "deliveries";
+type ActiveTab = "action_required" | "profit" | "customers" | "overview";
 
 export default function AnalyticsPage() {
     // Date range state - default to all orders (empty = no filter)
@@ -145,7 +151,7 @@ export default function AnalyticsPage() {
         endDate: "",
     });
 
-    const [activeTab, setActiveTab] = useState<ActiveTab>("profit");
+    const [activeTab, setActiveTab] = useState<ActiveTab>("action_required");
     const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
     const [isMarketingModalOpen, setIsMarketingModalOpen] = useState(false);
     const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
@@ -336,12 +342,29 @@ export default function AnalyticsPage() {
         setExportMenuOpen(false);
     };
 
+    // Calculate urgent count for badge
+    const urgentCount = useMemo(() => {
+        const sevenDaysAgo = subDays(new Date(), 7);
+        const failedLast7Days = orders.filter(o =>
+            o.status === 'rejected' &&
+            isWithinInterval(new Date(o.created_at), {
+                start: sevenDaysAgo,
+                end: new Date()
+            })
+        ).length;
+        return failedLast7Days;
+    }, [orders]);
+
     const tabs = [
+        {
+            id: "action_required" as const,
+            label: "Action Required",
+            icon: AlertTriangle,
+            badge: urgentCount > 0 ? urgentCount : undefined,
+        },
         { id: "profit" as const, label: "Profit Analysis", icon: TrendingUp },
         { id: "customers" as const, label: "Customers", icon: Users },
         { id: "overview" as const, label: "Overview", icon: BarChart3 },
-        { id: "expenses" as const, label: "Expenses", icon: PieChart },
-        { id: "deliveries" as const, label: "Deliveries", icon: Truck },
     ];
 
     const { t } = useLanguage();
@@ -473,7 +496,7 @@ export default function AnalyticsPage() {
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
                                 className={cn(
-                                    "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                                    "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap relative",
                                     activeTab === tab.id
                                         ? "bg-[var(--ink)] text-white"
                                         : "text-muted hover:text-foreground"
@@ -481,13 +504,26 @@ export default function AnalyticsPage() {
                             >
                                 <Icon className="w-4 h-4" />
                                 {tab.label}
+                                {tab.badge && tab.badge > 0 && activeTab !== tab.id && (
+                                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-600 text-xs font-bold text-white shadow-lg animate-pulse">
+                                        {tab.badge > 99 ? "99+" : tab.badge}
+                                    </span>
+                                )}
                             </button>
                         );
                     })}
                 </div>
 
                 {/* Content */}
-                {activeTab === "profit" ? (
+                {activeTab === "action_required" ? (
+                    <div className="space-y-6">
+                        <ActionRequiredTab
+                            orders={ordersInRange}
+                            products={products}
+                            marketingCost={marketingCost}
+                        />
+                    </div>
+                ) : activeTab === "profit" ? (
                     <div className="space-y-6">
                         {/* Overview Cards - Full Width at Top */}
                         <OverviewCards profitSummary={profitSummary} pipelineSummary={pipelineSummary} />
@@ -697,38 +733,7 @@ export default function AnalyticsPage() {
                             </div>
                         </div>
                     </div>
-                ) : activeTab === "deliveries" ? (
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between">
-                            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                                <Truck className="w-5 h-5 text-teal-600" />
-                                Delivery Import History
-                            </h2>
-                            <button
-                                onClick={() => setIsDeliveryImportOpen(true)}
-                                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-xl font-medium text-sm hover:opacity-90 transition-all shadow-lg shadow-teal-500/20"
-                            >
-                                <Plus className="w-4 h-4" />
-                                New Import
-                            </button>
-                        </div>
-                        <DeliveryHistory />
-                    </div>
-                ) : (
-                    <div className="space-y-6">
-                        <BalanceSummaryCard
-                            profitSummary={profitSummary}
-                            expenses={expenses}
-                        />
-                        <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
-                            <ExpenseList
-                                expenses={expenses}
-                                onEdit={handleEditExpense}
-                                onDelete={handleDeleteExpense}
-                            />
-                        </div>
-                    </div>
-                )}
+                ) : null}
 
                 {/* Expense Form Modal */}
                 <ExpenseFormModal

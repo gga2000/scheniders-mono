@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
     Dialog,
     DialogContent,
@@ -46,10 +46,19 @@ import {
     Sparkles,
     RefreshCw,
     XCircle,
+    Banknote,
+    CreditCard,
+    Sun,
+    CloudSun,
+    Moon,
+    Clock,
+    Ban,
 } from "lucide-react";
+import type { BlacklistEntry } from "@/hooks/use-order-auxiliary";
 import { ProductPicker } from "./product-picker";
 import { DiscountPresetSelector } from "./discount-preset-selector";
 import { BulkUploadModal } from "./bulk-upload-modal";
+import { DateTimePicker } from "@/components/ui/datetime-picker";
 
 // TikTok icon component
 const TikTokIcon = ({ className }: { className?: string }) => (
@@ -64,6 +73,7 @@ interface CreateOrderModalProps {
     onCreate: (orderData: any) => Promise<any>;
     checkOrderIdExists?: (orderId: string) => Promise<boolean>;
     initialData?: Partial<OrderFormData & { secondary_phone?: string; source?: string; order_id?: string }>;
+    getBlacklistEntry?: (phone: string) => BlacklistEntry | null;
 }
 
 const ORDER_SOURCES = [
@@ -82,6 +92,7 @@ export function CreateOrderModal({
     onCreate,
     checkOrderIdExists,
     initialData,
+    getBlacklistEntry,
 }: CreateOrderModalProps) {
     const { session } = useAuth();
     const [orderType, setOrderType] = useState<OrderType>("delivery");
@@ -112,9 +123,15 @@ export function CreateOrderModal({
     const [isAnalyzingImage, setIsAnalyzingImage] = useState(false);
     const [uploadedImage, setUploadedImage] = useState<string | null>(null);
     const [showBulkUpload, setShowBulkUpload] = useState(false);
+    const [customCreatedAt, setCustomCreatedAt] = useState<string>(new Date().toISOString());
+    const [createAndNew, setCreateAndNew] = useState(false);
+    const handleCreateRef = useRef<() => void>();
 
     // Sync formData with initialData only when modal first opens
     useEffect(() => {
+        if (open) {
+            setCustomCreatedAt(new Date().toISOString());
+        }
         if (open && initialData) {
             setFormData({
                 customer_name: initialData.customer_name || "",
@@ -152,8 +169,7 @@ export function CreateOrderModal({
         }
     };
 
-    const handleClose = () => {
-        if (isCreating) return;
+    const resetForm = () => {
         setOrderType("delivery");
         setFormData({
             customer_name: "",
@@ -175,6 +191,12 @@ export function CreateOrderModal({
         setIncludeDeliveryFee(false);
         setOrderIdStatus("idle");
         setEditingPriceIndex(null);
+        setCustomCreatedAt(new Date().toISOString());
+    };
+
+    const handleClose = () => {
+        if (isCreating) return;
+        resetForm();
         onClose();
     };
 
@@ -249,6 +271,7 @@ export function CreateOrderModal({
         setDiscount(0);
         setDeliveryFee(5000);
         setIncludeDeliveryFee(false);
+        setCustomCreatedAt(new Date().toISOString());
     };
 
     const handleRemoveImage = () => {
@@ -266,7 +289,7 @@ export function CreateOrderModal({
 
         // Validate file type
         if (!file.type.startsWith('image/')) {
-            alert('الرجاء اختيار صورة');
+            toast.error('الرجاء اختيار صورة');
             return;
         }
 
@@ -311,15 +334,15 @@ export function CreateOrderModal({
                     console.log('✅ تم استخراج البيانات بنجاح:', result.data);
                 } else {
                     console.warn('⚠️ لم يتم العثور على بيانات في الصورة');
-                    alert('لم يتم العثور على بيانات في الصورة. الرجاء التحقق من الصورة والمحاولة مرة أخرى.');
+                    toast.warning('لم يتم العثور على بيانات في الصورة. الرجاء التحقق من الصورة والمحاولة مرة أخرى.');
                 }
             } else {
                 console.error("Failed to analyze image:", result.error, result.details);
-                alert(`حدث خطأ أثناء تحليل الصورة: ${result.error || 'خطأ غير معروف'}`);
+                toast.error(`حدث خطأ أثناء تحليل الصورة: ${result.error || 'خطأ غير معروف'}`);
             }
         } catch (error) {
             console.error("Error uploading image:", error);
-            alert('حدث خطأ أثناء رفع الصورة. الرجاء المحاولة مرة أخرى.');
+            toast.error('حدث خطأ أثناء رفع الصورة. الرجاء المحاولة مرة أخرى.');
         } finally {
             setIsAnalyzingImage(false);
         }
@@ -403,10 +426,24 @@ export function CreateOrderModal({
                 notes: orderType === "shop" ? `[طلب محل] ${formData.notes || ''}`.trim() : formData.notes,
                 internal_notes: formData.internal_notes || "",
                 items: formData.items.filter(item => item.name.trim()),
+                custom_created_at: customCreatedAt,
             });
 
             if (result.success) {
-                handleClose();
+                const orderId = result.data?.order_id || '';
+                toast.success(`تم إنشاء الطلب ${orderId ? `#${orderId}` : 'بنجاح'}`, {
+                    action: result.data?.id ? {
+                        label: "عرض الطلب",
+                        onClick: () => { window.location.href = `/orders?highlight=${result.data.id}`; }
+                    } : undefined,
+                });
+
+                if (createAndNew) {
+                    resetForm();
+                    setCreateAndNew(false);
+                } else {
+                    handleClose();
+                }
             } else {
                 setErrors({ items: result.error || "حدث خطأ" });
             }
@@ -414,8 +451,25 @@ export function CreateOrderModal({
             setErrors({ items: "حدث خطأ غير متوقع" });
         } finally {
             setIsCreating(false);
+            setCreateAndNew(false);
         }
     };
+
+    // Keep ref in sync for keyboard shortcut
+    handleCreateRef.current = handleCreate;
+
+    // Ctrl/Cmd+Enter keyboard shortcut to submit
+    useEffect(() => {
+        if (!open) return;
+        const handler = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !isCreating) {
+                e.preventDefault();
+                handleCreateRef.current?.();
+            }
+        };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, [open, isCreating]);
 
     const subtotal = calculateTotal(formData.items);
     const actualDeliveryFee = orderType === "shop" ? 0 : (includeDeliveryFee ? deliveryFee : 0);
@@ -474,148 +528,65 @@ export function CreateOrderModal({
                     </DialogHeader>
 
                     <div className="p-6 space-y-5 max-h-[65vh] overflow-y-auto">
-                        {/* Order Type Toggle */}
-                        <div className="space-y-2">
-                            <Label className="text-xs text-muted">نوع الطلب</Label>
-                            <div className="grid grid-cols-2 gap-2">
+                        {/* Row 1: Order Type + Date/Time Picker */}
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-1.5">
                                 <button
                                     type="button"
                                     onClick={() => handleOrderTypeChange("delivery")}
                                     className={cn(
-                                        "flex items-center justify-center gap-2 py-3 rounded-xl border-2 text-sm font-semibold transition-all",
+                                        "flex items-center gap-1.5 px-3.5 py-2 rounded-lg border text-xs font-semibold transition-all",
                                         orderType === "delivery"
-                                            ? "border-green-500 bg-green-50 text-green-700 shadow-sm"
-                                            : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                                            ? "border-green-400 bg-green-50 text-green-700 shadow-sm"
+                                            : "border-gray-200 bg-white text-gray-400 hover:border-gray-300 hover:text-gray-500"
                                     )}
                                 >
-                                    <Truck className="h-4 w-4" />
-                                    طلب توصيل
+                                    <Truck className="h-3.5 w-3.5" />
+                                    توصيل
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleOrderTypeChange("shop")}
                                     className={cn(
-                                        "flex items-center justify-center gap-2 py-3 rounded-xl border-2 text-sm font-semibold transition-all",
+                                        "flex items-center gap-1.5 px-3.5 py-2 rounded-lg border text-xs font-semibold transition-all",
                                         orderType === "shop"
-                                            ? "border-amber-500 bg-amber-50 text-amber-700 shadow-sm"
-                                            : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                                            ? "border-amber-400 bg-amber-50 text-amber-700 shadow-sm"
+                                            : "border-gray-200 bg-white text-gray-400 hover:border-gray-300 hover:text-gray-500"
                                     )}
                                 >
-                                    <Store className="h-4 w-4" />
-                                    طلب من المحل
+                                    <Store className="h-3.5 w-3.5" />
+                                    محل
                                 </button>
                             </div>
-                            {orderType === "shop" && (
-                                <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">
-                                    ✨ طلب المحل: رقم الهاتف اختياري، بدون رسوم توصيل
-                                </p>
-                            )}
+                            <DateTimePicker
+                                value={customCreatedAt}
+                                onChange={(iso) => setCustomCreatedAt(iso)}
+                                showTime={true}
+                            />
                         </div>
-
-                        {/* AI Image Upload - Smart Order Entry */}
-                        <div className="space-y-2">
-                            <Label className="text-xs text-muted flex items-center gap-1">
-                                <Sparkles className="h-3 w-3 text-purple-600" />
-                                رفع صورة المحادثة (اختياري)
-                            </Label>
-                            <div className="relative">
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handleImageUpload}
-                                    className="hidden"
-                                    id="chat-image-upload"
-                                    disabled={isAnalyzingImage}
-                                />
-                                <label
-                                    htmlFor="chat-image-upload"
-                                    className={cn(
-                                        "flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-dashed cursor-pointer transition-all",
-                                        isAnalyzingImage
-                                            ? "border-purple-300 bg-purple-50/50 cursor-wait"
-                                            : uploadedImage
-                                                ? "border-purple-400 bg-purple-50"
-                                                : "border-gray-300 bg-gray-50/50 hover:border-purple-400 hover:bg-purple-50/50"
-                                    )}
-                                >
-                                    {isAnalyzingImage ? (
-                                        <>
-                                            <Loader2 className="h-8 w-8 text-purple-600 animate-spin" />
-                                            <div className="text-center">
-                                                <p className="text-sm font-semibold text-purple-700">جاري تحليل الصورة...</p>
-                                                <p className="text-xs text-purple-600 mt-1">الذكاء الاصطناعي يستخرج البيانات</p>
-                                            </div>
-                                        </>
-                                    ) : uploadedImage ? (
-                                        <>
-                                            <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    handleRemoveImage();
-                                                }}
-                                                className="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center transition-all shadow-md z-10"
-                                                title="إزالة الصورة"
-                                            >
-                                                <XCircle className="h-4 w-4" />
-                                            </button>
-                                            <div className="w-16 h-16 rounded-lg overflow-hidden border-2 border-purple-300">
-                                                <img src={uploadedImage} alt="Uploaded" className="w-full h-full object-cover" />
-                                            </div>
-                                            <div className="text-center">
-                                                <p className="text-sm font-semibold text-purple-700 flex items-center gap-1.5 justify-center">
-                                                    <Check className="h-4 w-4" />
-                                                    تم التحليل بنجاح
-                                                </p>
-                                                <p className="text-xs text-purple-600 mt-1">اضغط لرفع صورة أخرى</p>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <div className="w-12 h-12 rounded-xl bg-linear-to-br from-purple-100 to-pink-100 flex items-center justify-center">
-                                                <ImageIcon className="h-6 w-6 text-purple-600" />
-                                            </div>
-                                            <div className="text-center">
-                                                <p className="text-sm font-semibold text-gray-700 flex items-center gap-1.5 justify-center">
-                                                    <Upload className="h-4 w-4" />
-                                                    ارفع صورة المحادثة
-                                                </p>
-                                                <p className="text-xs text-gray-500 mt-1">من Instagram أو TikTok - سيتم استخراج الرقم والعنوان تلقائياً</p>
-                                            </div>
-                                        </>
-                                    )}
-                                </label>
-                            </div>
-                            <p className="text-xs text-muted bg-purple-50/50 px-3 py-2 rounded-lg flex items-center gap-1.5">
-                                <Sparkles className="h-3 w-3 text-purple-600 shrink-0" />
-                                <span>الذكاء الاصطناعي سيستخرج رقم الهاتف والعنوان من الصورة تلقائياً</span>
+                        {orderType === "shop" && (
+                            <p className="text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg -mt-2">
+                                طلب المحل: رقم الهاتف اختياري، بدون رسوم توصيل
                             </p>
-                            <button
-                                type="button"
-                                onClick={() => setShowBulkUpload(true)}
-                                className="text-xs text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1 hover:underline transition-all"
-                            >
-                                <Package className="h-3 w-3" />
-                                رفع طلبات متعددة دفعة واحدة
-                            </button>
-                        </div>
+                        )}
 
-                        {/* Optional Order ID */}
-                        <div className="space-y-1.5">
-                            <Label className="text-xs text-muted flex items-center gap-1">
-                                <Hash className="h-3 w-3" />
-                                رقم الطلب (اختياري)
-                            </Label>
-                            <div className="flex items-center gap-2">
-                                <div className="relative flex-1">
+                        {/* Row 2: Order ID + Source */}
+                        <div className="grid grid-cols-2 gap-3">
+                            {/* Order ID */}
+                            <div className="space-y-1">
+                                <Label className="text-[10px] text-muted flex items-center gap-1">
+                                    <Hash className="h-3 w-3" />
+                                    رقم الطلب (اختياري)
+                                </Label>
+                                <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm font-mono">#</span>
                                     <Input
                                         value={formData.order_id || ""}
                                         onChange={(e) => handleOrderIdChange(e.target.value)}
-                                        placeholder="اترك فارغاً للإنشاء تلقائياً"
+                                        placeholder="تلقائي"
                                         dir="ltr"
                                         className={cn(
-                                            "h-10 pl-7 rounded-lg font-mono",
+                                            "h-9 pl-7 rounded-lg font-mono text-sm",
                                             orderIdStatus === "exists"
                                                 ? "border-red-300 bg-red-50"
                                                 : orderIdStatus === "available"
@@ -623,338 +594,483 @@ export function CreateOrderModal({
                                                     : "border-[var(--card-border)] bg-[var(--background)]"
                                         )}
                                     />
-                                    {/* Status indicator */}
                                     {formData.order_id && (
                                         <div className="absolute right-3 top-1/2 -translate-y-1/2">
                                             {isCheckingId ? (
-                                                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                                <div className="w-3.5 h-3.5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
                                             ) : orderIdStatus === "available" ? (
-                                                <Check className="w-4 h-4 text-green-600" />
+                                                <Check className="w-3.5 h-3.5 text-green-600" />
                                             ) : orderIdStatus === "exists" ? (
-                                                <AlertTriangle className="w-4 h-4 text-red-600" />
+                                                <AlertTriangle className="w-3.5 h-3.5 text-red-600" />
                                             ) : null}
                                         </div>
                                     )}
                                 </div>
-                            </div>
-                            {orderIdStatus === "exists" && (
-                                <p className="text-xs text-red-500 flex items-center gap-1">
-                                    <AlertTriangle className="w-3 h-3" />
-                                    رقم الطلب موجود مسبقاً
-                                </p>
-                            )}
-                            {!formData.order_id && (
-                                <p className="text-xs text-muted">سيتم إنشاء رقم تلقائي عند ترك هذا الحقل فارغاً</p>
-                            )}
-                        </div>
-
-                        {/* Customer Information */}
-                        <div className="space-y-4">
-                            <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                                <User className="h-4 w-4 text-muted" />
-                                معلومات العميل
-                            </h3>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {/* Customer Name */}
-                                <div className="space-y-1.5">
-                                    <Label className="text-xs text-muted">اسم العميل <span className="text-red-500">*</span></Label>
-                                    <Input
-                                        value={formData.customer_name}
-                                        onChange={(e) => updateField("customer_name", e.target.value)}
-                                        placeholder="أحمد محمد"
-                                        inputMode="text"
-                                        autoComplete="name"
-                                        className={cn(
-                                            "h-10 rounded-lg border-[var(--card-border)] bg-[var(--background)] transition-all",
-                                            errors.customer_name && "field-error animate-shake"
-                                        )}
-                                        data-error={!!errors.customer_name}
-                                    />
-                                    {errors.customer_name && <p className="field-error-text">{errors.customer_name}</p>}
-                                </div>
-
-                                {/* Primary Phone */}
-                                <div className="space-y-1.5">
-                                    <Label className="text-xs text-muted flex items-center gap-1">
-                                        <Phone className="h-3 w-3" />
-                                        رقم الهاتف {orderType === "delivery" ? <span className="text-red-500">*</span> : "(اختياري)"}
-                                    </Label>
-                                    <Input
-                                        value={formData.phone}
-                                        onChange={(e) => updateField("phone", e.target.value)}
-                                        onBlur={() => {
-                                            if (formData.phone) {
-                                                updateField("phone", normalizeIraqiPhone(formData.phone));
-                                            }
-                                        }}
-                                        placeholder="07XXXXXXXX / +964 / ٠٧..."
-                                        dir="ltr"
-                                        inputMode="tel"
-                                        autoComplete="tel"
-                                        className={cn(
-                                            "h-10 rounded-lg border-[var(--card-border)] bg-[var(--background)] font-mono transition-all",
-                                            errors.phone && "field-error animate-shake"
-                                        )}
-                                        data-error={!!errors.phone}
-                                    />
-                                    {errors.phone && <p className="field-error-text">{errors.phone}</p>}
-                                </div>
-
-                                {/* Secondary Phone */}
-                                <div className="space-y-1.5">
-                                    <Label className="text-xs text-muted flex items-center gap-1">
-                                        <Phone className="h-3 w-3" />
-                                        رقم إضافي (اختياري)
-                                    </Label>
-                                    <Input
-                                        value={formData.secondary_phone || ""}
-                                        onChange={(e) => updateField("secondary_phone", e.target.value)}
-                                        onBlur={() => {
-                                            if (formData.secondary_phone) {
-                                                updateField("secondary_phone", normalizeIraqiPhone(formData.secondary_phone));
-                                            }
-                                        }}
-                                        placeholder="07XXXXXXXX / +964 / ٠٧..."
-                                        dir="ltr"
-                                        inputMode="tel"
-                                        autoComplete="tel"
-                                        className="h-10 rounded-lg border-[var(--card-border)] bg-[var(--background)] font-mono"
-                                    />
-                                </div>
-
-                                {/* Governorate (City) - Hidden for shop orders */}
-                                {orderType === "delivery" && (
-                                    <div className="space-y-1.5">
-                                        <Label className="text-xs text-muted">المحافظة</Label>
-                                        <div className="relative">
-                                            <select
-                                                value={formData.city}
-                                                onChange={(e) => {
-                                                    const selectedName = e.target.value;
-                                                    updateField("city", selectedName);
-                                                }}
-                                                className={cn(
-                                                    "h-10 w-full appearance-none rounded-lg border border-[var(--card-border)] bg-[var(--background)] px-3 pr-8 text-sm font-medium text-foreground outline-none transition-all focus:ring-2 focus:ring-[var(--card-border)]",
-                                                    !formData.city && "text-muted-foreground",
-                                                    errors.city && "field-error animate-shake"
-                                                )}
-                                                data-error={!!errors.city}
-                                            >
-                                                <option value="" disabled>اختر المحافظة...</option>
-                                                {governorates.map((gov) => (
-                                                    <option key={gov.code} value={gov.nameAr}>
-                                                        {gov.nameAr}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            {errors.city && <p className="field-error-text">{errors.city}</p>}
-                                            <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-down"><path d="m6 9 6 6 6-6" /></svg>
-                                            </div>
-                                        </div>
-                                    </div>
+                                {orderIdStatus === "exists" && (
+                                    <p className="text-[10px] text-red-500 flex items-center gap-1">
+                                        <AlertTriangle className="w-3 h-3" />
+                                        موجود مسبقاً
+                                    </p>
                                 )}
                             </div>
 
-                            {/* Address - Hidden for shop orders */}
-                            {orderType === "delivery" && (
-                                <div className="space-y-1.5">
-                                    <Label className="text-xs text-muted flex items-center gap-1">
-                                        <MapPin className="h-3 w-3" />
-                                        العنوان الكامل
-                                    </Label>
-                                    <Textarea
-                                        value={formData.address_details}
-                                        onChange={(e) => updateField("address_details", e.target.value)}
-                                        placeholder="أدخل العنوان التفصيلي..."
-                                        rows={2}
-                                        className={cn(
-                                            "rounded-lg border-[var(--card-border)] bg-[var(--background)] resize-none transition-all",
-                                            errors.address_details && "field-error animate-shake"
-                                        )}
-                                        data-error={!!errors.address_details}
-                                    />
-                                    {errors.address_details && <p className="field-error-text">{errors.address_details}</p>}
-                                </div>
-                            )}
-
-                            {/* Order Source */}
-                            <div className="space-y-1.5">
-                                <Label className="text-xs text-muted">مصدر الطلب</Label>
-                                <div className="flex flex-wrap gap-2">
+                            {/* Source - moved here from customer section */}
+                            <div className="space-y-1">
+                                <Label className="text-[10px] text-muted">مصدر الطلب</Label>
+                                <div className="flex flex-wrap gap-1">
                                     {ORDER_SOURCES.map((source) => (
                                         <button
                                             key={source.id}
                                             type="button"
                                             onClick={() => updateField("source", source.id)}
                                             className={cn(
-                                                "flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium transition-all",
+                                                "flex items-center justify-center gap-1 px-2 py-1.5 rounded-md border text-[10px] font-medium transition-all",
                                                 formData.source === source.id
-                                                    ? "border-[var(--pastel-green-dark)] bg-[var(--pastel-green-light)] text-foreground"
-                                                    : "border-[var(--card-border)] bg-white hover:bg-[var(--background)]"
+                                                    ? "border-green-300 bg-green-50 text-green-700"
+                                                    : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
                                             )}
+                                            title={source.label}
                                         >
-                                            <source.icon className={cn("h-3.5 w-3.5", source.color)} />
-                                            {source.label}
+                                            <source.icon className={cn("h-3 w-3", formData.source === source.id ? source.color : "")} />
+                                            <span className="hidden sm:inline">{source.label}</span>
                                         </button>
                                     ))}
                                 </div>
                             </div>
                         </div>
 
-                        {/* Products */}
-                        <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                                <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                                    <Package className="h-4 w-4 text-muted" />
-                                    المنتجات
-                                </h3>
+                        {/* Row 3: AI Upload - Compact Strip */}
+                        <div className="space-y-1.5">
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleImageUpload}
+                                className="hidden"
+                                id="chat-image-upload"
+                                disabled={isAnalyzingImage}
+                            />
+                            <label
+                                htmlFor="chat-image-upload"
+                                className={cn(
+                                    "flex items-center gap-3 px-3 py-2.5 rounded-xl border border-dashed cursor-pointer transition-all",
+                                    isAnalyzingImage
+                                        ? "border-purple-300 bg-purple-50/50 cursor-wait"
+                                        : uploadedImage
+                                            ? "border-purple-400 bg-purple-50/50"
+                                            : "border-gray-300 bg-gray-50/30 hover:border-purple-400 hover:bg-purple-50/30"
+                                )}
+                            >
+                                {isAnalyzingImage ? (
+                                    <Loader2 className="h-4 w-4 text-purple-600 animate-spin shrink-0" />
+                                ) : uploadedImage ? (
+                                    <div className="relative">
+                                        <img src={uploadedImage} alt="" className="w-8 h-8 rounded-lg object-cover border border-purple-300" />
+                                        <button
+                                            type="button"
+                                            onClick={(e) => { e.preventDefault(); handleRemoveImage(); }}
+                                            className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center"
+                                        >
+                                            <X className="h-2.5 w-2.5" />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center shrink-0">
+                                        <Sparkles className="h-4 w-4 text-purple-600" />
+                                    </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-medium text-gray-700">
+                                        {isAnalyzingImage ? "جاري تحليل الصورة..." : uploadedImage ? "تم التحليل — اضغط لتغيير الصورة" : "ارفع صورة المحادثة للتعبئة التلقائية"}
+                                    </p>
+                                    {!isAnalyzingImage && !uploadedImage && (
+                                        <p className="text-[10px] text-gray-400 mt-0.5">Instagram أو TikTok — استخراج تلقائي</p>
+                                    )}
+                                </div>
+                                {uploadedImage && !isAnalyzingImage && (
+                                    <Check className="h-4 w-4 text-purple-600 shrink-0" />
+                                )}
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => setShowBulkUpload(true)}
+                                className="text-[10px] text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1 hover:underline transition-all"
+                            >
+                                <Package className="h-3 w-3" />
+                                رفع طلبات متعددة دفعة واحدة
+                            </button>
+                        </div>
+
+                        {/* Customer Information — Card */}
+                        <div className="rounded-xl border border-[var(--card-border)] bg-white overflow-hidden">
+                            <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-50/80 border-b border-[var(--card-border)]">
+                                <User className="h-3.5 w-3.5 text-gray-500" />
+                                <span className="text-xs font-semibold text-foreground">معلومات العميل</span>
+                            </div>
+                            <div className="p-4 space-y-3">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {/* Customer Name */}
+                                    <div className="space-y-1">
+                                        <Label className="text-[10px] text-muted">اسم العميل <span className="text-red-500">*</span></Label>
+                                        <Input
+                                            value={formData.customer_name}
+                                            onChange={(e) => updateField("customer_name", e.target.value)}
+                                            placeholder="أحمد محمد"
+                                            inputMode="text"
+                                            autoComplete="name"
+                                            className={cn(
+                                                "h-9 rounded-lg border-[var(--card-border)] bg-[var(--background)] transition-all",
+                                                errors.customer_name && "field-error animate-shake"
+                                            )}
+                                            data-error={!!errors.customer_name}
+                                        />
+                                        {errors.customer_name && <p className="field-error-text">{errors.customer_name}</p>}
+                                    </div>
+
+                                    {/* Primary Phone */}
+                                    <div className="space-y-1">
+                                        <Label className="text-[10px] text-muted flex items-center gap-1">
+                                            <Phone className="h-3 w-3" />
+                                            رقم الهاتف {orderType === "delivery" ? <span className="text-red-500">*</span> : <span className="text-gray-400">(اختياري)</span>}
+                                        </Label>
+                                        <Input
+                                            value={formData.phone}
+                                            onChange={(e) => updateField("phone", e.target.value)}
+                                            onBlur={() => {
+                                                if (formData.phone) {
+                                                    updateField("phone", normalizeIraqiPhone(formData.phone));
+                                                }
+                                            }}
+                                            placeholder="07XXXXXXXX"
+                                            dir="ltr"
+                                            inputMode="tel"
+                                            autoComplete="tel"
+                                            className={cn(
+                                                "h-9 rounded-lg border-[var(--card-border)] bg-[var(--background)] font-mono transition-all",
+                                                errors.phone && "field-error animate-shake"
+                                            )}
+                                            data-error={!!errors.phone}
+                                        />
+                                        {errors.phone && <p className="field-error-text">{errors.phone}</p>}
+                                        {/* Blacklist warning */}
+                                        {(() => {
+                                            const normalizedPhone = normalizeIraqiPhone(formData.phone);
+                                            const entry = normalizedPhone && getBlacklistEntry ? getBlacklistEntry(normalizedPhone) : null;
+                                            if (!entry) return null;
+                                            return (
+                                                <div className="flex items-start gap-2 bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-800 rounded-lg px-3 py-2.5 mt-1" dir="rtl">
+                                                    <Ban className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                                                    <div className="text-xs space-y-0.5">
+                                                        <p className="font-bold text-red-700 dark:text-red-400">⛔ هذا الرقم في القائمة السوداء</p>
+                                                        <p className="text-red-600/90 dark:text-red-400/80">السبب: {entry.reason}</p>
+                                                        {entry.notes && <p className="text-red-500/80 dark:text-red-400/60">{entry.notes}</p>}
+                                                        {entry.added_by && <p className="text-muted text-[11px]">أضافه: {entry.added_by}</p>}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+
+                                    {/* Secondary Phone */}
+                                    <div className="space-y-1">
+                                        <Label className="text-[10px] text-muted flex items-center gap-1">
+                                            <Phone className="h-3 w-3" />
+                                            رقم إضافي <span className="text-gray-400">(اختياري)</span>
+                                        </Label>
+                                        <Input
+                                            value={formData.secondary_phone || ""}
+                                            onChange={(e) => updateField("secondary_phone", e.target.value)}
+                                            onBlur={() => {
+                                                if (formData.secondary_phone) {
+                                                    updateField("secondary_phone", normalizeIraqiPhone(formData.secondary_phone));
+                                                }
+                                            }}
+                                            placeholder="07XXXXXXXX"
+                                            dir="ltr"
+                                            inputMode="tel"
+                                            autoComplete="tel"
+                                            className="h-9 rounded-lg border-[var(--card-border)] bg-[var(--background)] font-mono"
+                                        />
+                                    </div>
+
+                                    {/* Governorate (City) - Hidden for shop orders */}
+                                    {orderType === "delivery" && (
+                                        <div className="space-y-1">
+                                            <Label className="text-[10px] text-muted">المحافظة</Label>
+                                            <div className="relative">
+                                                <select
+                                                    value={formData.city}
+                                                    onChange={(e) => updateField("city", e.target.value)}
+                                                    className={cn(
+                                                        "h-9 w-full appearance-none rounded-lg border border-[var(--card-border)] bg-[var(--background)] px-3 pr-8 text-sm font-medium text-foreground outline-none transition-all focus:ring-2 focus:ring-[var(--card-border)]",
+                                                        !formData.city && "text-muted-foreground",
+                                                        errors.city && "field-error animate-shake"
+                                                    )}
+                                                    data-error={!!errors.city}
+                                                >
+                                                    <option value="" disabled>اختر المحافظة...</option>
+                                                    {governorates.map((gov) => (
+                                                        <option key={gov.code} value={gov.nameAr}>
+                                                            {gov.nameAr}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                {errors.city && <p className="field-error-text">{errors.city}</p>}
+                                                <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Address - Hidden for shop orders */}
+                                {orderType === "delivery" && (
+                                    <div className="space-y-1">
+                                        <Label className="text-[10px] text-muted flex items-center gap-1">
+                                            <MapPin className="h-3 w-3" />
+                                            العنوان الكامل
+                                        </Label>
+                                        <Textarea
+                                            value={formData.address_details}
+                                            onChange={(e) => updateField("address_details", e.target.value)}
+                                            placeholder="أدخل العنوان التفصيلي..."
+                                            rows={2}
+                                            className={cn(
+                                                "rounded-lg border-[var(--card-border)] bg-[var(--background)] resize-none transition-all text-sm",
+                                                errors.address_details && "field-error animate-shake"
+                                            )}
+                                            data-error={!!errors.address_details}
+                                        />
+                                        {errors.address_details && <p className="field-error-text">{errors.address_details}</p>}
+                                    </div>
+                                )}
+
+                                {/* Payment Status + Delivery Slot Row */}
+                                <div className="flex flex-wrap items-center gap-3 pt-1">
+                                    {/* Payment Status */}
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-[10px] text-muted">الدفع:</span>
+                                        <div className="flex gap-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => updateField("payment_status", "cod")}
+                                                className={cn(
+                                                    "flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium border transition-all",
+                                                    formData.payment_status === "cod"
+                                                        ? "bg-amber-50 border-amber-300 text-amber-700"
+                                                        : "bg-white border-[var(--card-border)] text-muted hover:border-amber-200"
+                                                )}
+                                            >
+                                                <Banknote className="h-3 w-3" />
+                                                عند الاستلام
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => updateField("payment_status", "prepaid")}
+                                                className={cn(
+                                                    "flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium border transition-all",
+                                                    formData.payment_status === "prepaid"
+                                                        ? "bg-emerald-50 border-emerald-300 text-emerald-700"
+                                                        : "bg-white border-[var(--card-border)] text-muted hover:border-emerald-200"
+                                                )}
+                                            >
+                                                <CreditCard className="h-3 w-3" />
+                                                دفع الكتروني
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Delivery Slot - Only for delivery orders */}
+                                    {orderType === "delivery" && (
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-[10px] text-muted flex items-center gap-0.5">
+                                                <Clock className="h-2.5 w-2.5" />
+                                                التوصيل:
+                                            </span>
+                                            <div className="flex gap-1">
+                                                {[
+                                                    { value: "morning" as const, label: "صباحي", icon: Sun, active: "bg-amber-50 border-amber-300 text-amber-700" },
+                                                    { value: "afternoon" as const, label: "ظهري", icon: CloudSun, active: "bg-orange-50 border-orange-300 text-orange-700" },
+                                                    { value: "evening" as const, label: "مسائي", icon: Moon, active: "bg-indigo-50 border-indigo-300 text-indigo-700" },
+                                                ].map(({ value, label, icon: Icon, active }) => (
+                                                    <button
+                                                        key={value}
+                                                        type="button"
+                                                        onClick={() => updateField("delivery_slot", formData.delivery_slot === value ? undefined : value)}
+                                                        className={cn(
+                                                            "flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium border transition-all",
+                                                            formData.delivery_slot === value
+                                                                ? active
+                                                                : "bg-white border-[var(--card-border)] text-muted hover:bg-gray-50"
+                                                        )}
+                                                    >
+                                                        <Icon className="h-3 w-3" />
+                                                        {label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Products — Card */}
+                        <div className="rounded-xl border border-[var(--card-border)] bg-white overflow-hidden">
+                            <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50/80 border-b border-[var(--card-border)]">
+                                <div className="flex items-center gap-2">
+                                    <Package className="h-3.5 w-3.5 text-gray-500" />
+                                    <span className="text-xs font-semibold text-foreground">المنتجات</span>
+                                    {formData.items.length > 0 && (
+                                        <span className="text-[10px] font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{formData.items.length}</span>
+                                    )}
+                                </div>
                                 <button
                                     type="button"
                                     onClick={() => setShowProductPicker(true)}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-all"
+                                    className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-green-700 bg-green-50 border border-green-200 rounded-md hover:bg-green-100 transition-all"
                                 >
-                                    + إضافة منتج
+                                    + إضافة
                                 </button>
                             </div>
 
-                            {errors.items && (
-                                <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{errors.items}</p>
-                            )}
+                            <div className="p-3">
+                                {errors.items && (
+                                    <p className="text-xs text-red-500 bg-red-50 px-3 py-1.5 rounded-lg mb-2">{errors.items}</p>
+                                )}
 
-                            {formData.items.length === 0 ? (
-                                <div className="text-center py-8 text-muted bg-[var(--background)] rounded-lg border border-dashed border-[var(--card-border)]">
-                                    <Package className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                                    <p className="text-sm">لم تتم إضافة منتجات بعد</p>
+                                {formData.items.length === 0 ? (
                                     <button
                                         type="button"
                                         onClick={() => setShowProductPicker(true)}
                                         className={cn(
-                                            "mt-2 text-xs text-green-600 hover:underline transition-all p-2 rounded-md",
-                                            errors.items && "bg-red-50 text-red-600 animate-shake"
+                                            "w-full flex items-center justify-center gap-2 py-4 rounded-lg border border-dashed transition-all",
+                                            errors.items
+                                                ? "border-red-300 bg-red-50/50 text-red-500 animate-shake"
+                                                : "border-gray-200 bg-gray-50/30 text-gray-400 hover:border-green-300 hover:bg-green-50/30 hover:text-green-600"
                                         )}
                                         data-error={!!errors.items}
                                     >
-                                        اضغط لإضافة منتج
+                                        <Package className="w-4 h-4" />
+                                        <span className="text-xs font-medium">اضغط لإضافة منتج</span>
                                     </button>
-                                </div>
-                            ) : (
-                                <div className="space-y-2">
-                                    {formData.items.map((item, index) => (
-                                        <div
-                                            key={index}
-                                            className="flex items-center gap-3 p-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg"
-                                        >
-                                            <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center shrink-0">
-                                                <Package className="w-5 h-5 text-purple-600" />
-                                            </div>
-
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-medium text-sm text-foreground truncate">{item.name}</p>
-                                                {editingPriceIndex === index ? (
-                                                    <div className="flex items-center gap-1 mt-1">
-                                                        <Input
-                                                            type="number"
-                                                            value={item.price}
-                                                            onChange={(e) => updateItem(index, "price", parseFloat(e.target.value) || 0)}
-                                                            className="w-24 h-6 text-xs px-2 rounded border-green-300"
-                                                            autoFocus
-                                                            onBlur={() => setEditingPriceIndex(null)}
-                                                            onKeyDown={(e) => e.key === "Enter" && setEditingPriceIndex(null)}
-                                                        />
-                                                        <span className="text-xs text-muted">× {item.quantity}</span>
-                                                    </div>
-                                                ) : (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setEditingPriceIndex(index)}
-                                                        className="text-xs text-muted hover:text-green-600 flex items-center gap-1 group"
-                                                    >
-                                                        {formatIQD(item.price)} × {item.quantity}
-                                                        <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                                    </button>
-                                                )}
-                                            </div>
-
-                                            <div className="flex items-center gap-2">
-                                                <div className="flex items-center gap-1 bg-white border border-[var(--card-border)] rounded-lg px-1.5">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => updateItem(index, "quantity", Math.max(1, item.quantity - 1))}
-                                                        className="w-5 h-5 flex items-center justify-center text-gray-500 hover:text-gray-700"
-                                                    >
-                                                        -
-                                                    </button>
-                                                    <span className="w-6 text-center text-xs font-medium">{item.quantity}</span>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => updateItem(index, "quantity", item.quantity + 1)}
-                                                        className="w-5 h-5 flex items-center justify-center text-gray-500 hover:text-gray-700"
-                                                    >
-                                                        +
-                                                    </button>
+                                ) : (
+                                    <div className="space-y-1.5">
+                                        {formData.items.map((item, index) => (
+                                            <div
+                                                key={index}
+                                                className="flex items-center gap-2.5 p-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-lg"
+                                            >
+                                                <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center shrink-0">
+                                                    <Package className="w-4 h-4 text-purple-500" />
                                                 </div>
 
-                                                <span className="text-sm font-bold text-foreground font-mono w-24 text-right">
-                                                    {formatIQD(item.price * item.quantity)}
-                                                </span>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-medium text-xs text-foreground truncate">{item.name}</p>
+                                                    {editingPriceIndex === index ? (
+                                                        <div className="flex items-center gap-1 mt-0.5">
+                                                            <Input
+                                                                type="number"
+                                                                value={item.price}
+                                                                onChange={(e) => updateItem(index, "price", parseFloat(e.target.value) || 0)}
+                                                                className="w-20 h-5 text-[10px] px-1.5 rounded border-green-300"
+                                                                autoFocus
+                                                                onBlur={() => setEditingPriceIndex(null)}
+                                                                onKeyDown={(e) => e.key === "Enter" && setEditingPriceIndex(null)}
+                                                            />
+                                                            <span className="text-[10px] text-muted">x {item.quantity}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setEditingPriceIndex(index)}
+                                                            className="text-[10px] text-muted hover:text-green-600 flex items-center gap-1 group"
+                                                        >
+                                                            {formatIQD(item.price)} x {item.quantity}
+                                                            <Pencil className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                        </button>
+                                                    )}
+                                                </div>
 
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeItem(index)}
-                                                    className="w-7 h-7 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center transition-all"
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </button>
+                                                <div className="flex items-center gap-1.5">
+                                                    <div className="flex items-center bg-white border border-[var(--card-border)] rounded-md">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => updateItem(index, "quantity", Math.max(1, item.quantity - 1))}
+                                                            className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-gray-600 text-xs"
+                                                        >
+                                                            -
+                                                        </button>
+                                                        <span className="w-5 text-center text-[10px] font-semibold">{item.quantity}</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => updateItem(index, "quantity", item.quantity + 1)}
+                                                            className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-gray-600 text-xs"
+                                                        >
+                                                            +
+                                                        </button>
+                                                    </div>
+
+                                                    <span className="text-xs font-bold text-foreground font-mono w-20 text-right">
+                                                        {formatIQD(item.price * item.quantity)}
+                                                    </span>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeItem(index)}
+                                                        className="w-6 h-6 rounded-md bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600 flex items-center justify-center transition-all"
+                                                    >
+                                                        <Trash2 className="h-3 w-3" />
+                                                    </button>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
 
-                            {/* Discount & Total */}
+                            {/* Pricing Summary — inside products card */}
                             {formData.items.length > 0 && (
-                                <div className="space-y-3 pt-3 border-t border-[var(--card-border)]">
-                                    {/* Discount Preset Selector */}
-                                    <DiscountPresetSelector
-                                        items={formData.items}
-                                        currentDiscount={discount}
-                                        onDiscountChange={setDiscount}
-                                    />
-
-                                    {/* Subtotal */}
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm text-muted">المجموع الفرعي</span>
-                                        <span className="text-sm font-mono font-medium">{formatIQD(subtotal)}</span>
-                                    </div>
-
-                                    {/* Manual Discount Input */}
-                                    <div className="flex items-center justify-between gap-3">
-                                        <span className="text-sm text-muted">خصم مخصص</span>
-                                        <Input
-                                            type="number"
-                                            min="0"
-                                            value={discount}
-                                            onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
-                                            className="w-28 h-8 rounded-lg border-[var(--card-border)] bg-white text-sm font-mono text-right"
-                                            placeholder="0"
+                                <div className="px-4 pb-4 space-y-2.5">
+                                    <div className="border-t border-[var(--card-border)] pt-3 space-y-2">
+                                        {/* Discount Preset */}
+                                        <DiscountPresetSelector
+                                            items={formData.items}
+                                            currentDiscount={discount}
+                                            onDiscountChange={setDiscount}
                                         />
-                                    </div>
 
-                                    {/* Delivery Fee - Only for delivery orders */}
-                                    {orderType === "delivery" && (
-                                        <div className="space-y-2 p-3 bg-blue-50/50 rounded-lg border border-blue-100">
-                                            <div className="flex items-center justify-between">
-                                                <label className="flex items-center gap-2 cursor-pointer">
+                                        {/* Subtotal */}
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-xs text-muted">المجموع الفرعي</span>
+                                            <span className="text-xs font-mono font-medium">{formatIQD(subtotal)}</span>
+                                        </div>
+
+                                        {/* Manual Discount */}
+                                        <div className="flex items-center justify-between gap-3">
+                                            <span className="text-xs text-muted">خصم</span>
+                                            <Input
+                                                type="number"
+                                                min="0"
+                                                value={discount}
+                                                onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                                                className="w-24 h-7 rounded-md border-[var(--card-border)] bg-white text-xs font-mono text-right"
+                                                placeholder="0"
+                                            />
+                                        </div>
+
+                                        {/* Delivery Fee */}
+                                        {orderType === "delivery" && (
+                                            <div className="flex items-center justify-between gap-3 px-2.5 py-2 bg-blue-50/50 rounded-lg border border-blue-100/80">
+                                                <label className="flex items-center gap-1.5 cursor-pointer">
                                                     <input
                                                         type="checkbox"
                                                         checked={includeDeliveryFee}
                                                         onChange={(e) => setIncludeDeliveryFee(e.target.checked)}
-                                                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                        className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                                     />
-                                                    <Truck className="w-3.5 h-3.5 text-blue-600" />
-                                                    <span className="text-sm text-blue-800">رسوم التوصيل</span>
+                                                    <Truck className="w-3 h-3 text-blue-500" />
+                                                    <span className="text-xs text-blue-700">توصيل</span>
                                                 </label>
                                                 {includeDeliveryFee && (
                                                     <Input
@@ -962,84 +1078,70 @@ export function CreateOrderModal({
                                                         min="0"
                                                         value={deliveryFee}
                                                         onChange={(e) => setDeliveryFee(parseFloat(e.target.value) || 0)}
-                                                        className="w-24 h-7 rounded border-blue-200 bg-white text-xs font-mono text-right"
+                                                        className="w-20 h-6 rounded border-blue-200 bg-white text-[10px] font-mono text-right"
                                                     />
                                                 )}
                                             </div>
-                                            {includeDeliveryFee && (
-                                                <p className="text-xs text-blue-600/70">سيتم إضافة {formatIQD(deliveryFee)} للمجموع</p>
-                                            )}
-                                        </div>
-                                    )}
+                                        )}
 
-                                    {/* Total */}
-                                    <div className="flex items-center justify-between pt-2 border-t border-[var(--card-border)]">
-                                        <span className="text-sm font-semibold text-foreground">المجموع الكلي</span>
-                                        <div className="flex items-center gap-2">
-                                            <Input
-                                                type="number"
-                                                min="0"
-                                                value={total}
-                                                onChange={(e) => {
-                                                    const newTotal = parseFloat(e.target.value) || 0;
-                                                    const newDiscount = Math.max(0, subtotal + actualDeliveryFee - newTotal);
-                                                    setDiscount(newDiscount);
-                                                }}
-                                                className="w-28 h-8 rounded-lg border-[var(--card-border)] bg-white text-sm font-mono text-right font-bold text-green-700"
-                                            />
-                                            <span className="text-xs text-muted">IQD</span>
+                                        {/* Total */}
+                                        <div className="flex items-center justify-between pt-2 border-t border-[var(--card-border)]">
+                                            <span className="text-xs font-bold text-foreground">المجموع الكلي</span>
+                                            <div className="flex items-center gap-1.5">
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    value={total}
+                                                    onChange={(e) => {
+                                                        const newTotal = parseFloat(e.target.value) || 0;
+                                                        const newDiscount = Math.max(0, subtotal + actualDeliveryFee - newTotal);
+                                                        setDiscount(newDiscount);
+                                                    }}
+                                                    className="w-24 h-7 rounded-md border-[var(--card-border)] bg-white text-xs font-mono text-right font-bold text-green-700"
+                                                />
+                                                <span className="text-[10px] text-muted">IQD</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             )}
                         </div>
 
-                        {/* Notes - Two Column Layout */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {/* Order Notes - Shown on invoice */}
-                            <div className="rounded-xl border border-amber-200 overflow-hidden">
-                                <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border-b border-amber-200">
-                                    <FileText className="h-3.5 w-3.5 text-amber-600" />
-                                    <div>
-                                        <span className="text-xs font-semibold text-amber-900">Order Notes</span>
-                                        <span className="text-[10px] text-amber-600 mr-1">(Shown on invoice)</span>
-                                    </div>
+                        {/* Notes — Compact Two-Column */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-1.5 px-1">
+                                    <FileText className="h-3 w-3 text-amber-500" />
+                                    <span className="text-[10px] font-semibold text-amber-700">ملاحظات الطلب</span>
+                                    <span className="text-[9px] text-amber-400">(الفاتورة)</span>
                                 </div>
-                                <div className="p-3">
-                                    <textarea
-                                        value={formData.notes}
-                                        onChange={(e) => updateField("notes", e.target.value)}
-                                        placeholder="Notes visible to customer on invoice..."
-                                        rows={2}
-                                        className="w-full px-3 py-2 bg-amber-50/50 border border-amber-200 rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 resize-none"
-                                    />
-                                </div>
+                                <textarea
+                                    value={formData.notes}
+                                    onChange={(e) => updateField("notes", e.target.value)}
+                                    placeholder="ملاحظات تظهر على الفاتورة..."
+                                    rows={2}
+                                    className="w-full px-3 py-2 bg-amber-50/40 border border-amber-200/80 rounded-lg text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-amber-200 resize-none"
+                                />
                             </div>
-
-                            {/* Internal Notes - Employees only */}
-                            <div className="rounded-xl border border-blue-200 overflow-hidden">
-                                <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border-b border-blue-200">
-                                    <FileText className="h-3.5 w-3.5 text-blue-600" />
-                                    <div>
-                                        <span className="text-xs font-semibold text-blue-900">Internal Notes</span>
-                                        <span className="text-[10px] text-blue-600 mr-1">(Employees only)</span>
-                                    </div>
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-1.5 px-1">
+                                    <FileText className="h-3 w-3 text-blue-500" />
+                                    <span className="text-[10px] font-semibold text-blue-700">ملاحظات داخلية</span>
+                                    <span className="text-[9px] text-blue-400">(الموظفين)</span>
                                 </div>
-                                <div className="p-3">
-                                    <textarea
-                                        value={formData.internal_notes || ""}
-                                        onChange={(e) => updateField("internal_notes", e.target.value)}
-                                        placeholder="ملاحظات داخلية..."
-                                        rows={2}
-                                        className="w-full px-3 py-2 bg-blue-50/50 border border-blue-200 rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
-                                    />
-                                </div>
+                                <textarea
+                                    value={formData.internal_notes || ""}
+                                    onChange={(e) => updateField("internal_notes", e.target.value)}
+                                    placeholder="ملاحظات داخلية..."
+                                    rows={2}
+                                    className="w-full px-3 py-2 bg-blue-50/40 border border-blue-200/80 rounded-lg text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
+                                />
                             </div>
                         </div>
                     </div>
 
-                    {/* Footer */}
-                    <DialogFooter className="flex items-center justify-end gap-3 px-6 py-4 bg-[var(--background)] border-t border-[var(--card-border)]">
+                    {/* Sticky Footer */}
+                    <DialogFooter className="sticky bottom-0 z-10 flex items-center justify-between gap-3 px-6 py-3 bg-[var(--background)] border-t border-[var(--card-border)] shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
                         <button
                             type="button"
                             onClick={handleClose}
@@ -1049,19 +1151,44 @@ export function CreateOrderModal({
                             <X className="h-4 w-4" />
                             إلغاء
                         </button>
-                        <button
-                            type="button"
-                            onClick={handleCreate}
-                            disabled={isCreating}
-                            className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-[var(--button-success)] hover:bg-[var(--button-success-hover)] rounded-xl shadow-md transition-all disabled:opacity-50"
-                        >
-                            {isCreating ? (
-                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            ) : (
-                                <Save className="h-4 w-4" />
-                            )}
-                            إنشاء الطلب
-                        </button>
+
+                        {/* Live Total */}
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50/80 rounded-lg border border-green-100">
+                            <span className="text-[10px] text-green-600">المجموع</span>
+                            <span className="text-sm font-mono font-bold text-green-700">{formatIQD(total)}</span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            {/* Create & New */}
+                            <button
+                                type="button"
+                                onClick={() => { setCreateAndNew(true); handleCreate(); }}
+                                disabled={isCreating}
+                                className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl border border-gray-200 transition-all disabled:opacity-50"
+                            >
+                                {isCreating && createAndNew ? (
+                                    <div className="w-3.5 h-3.5 border-2 border-gray-400/30 border-t-gray-500 rounded-full animate-spin" />
+                                ) : (
+                                    <RefreshCw className="h-3.5 w-3.5" />
+                                )}
+                                إنشاء و جديد
+                            </button>
+
+                            {/* Create */}
+                            <button
+                                type="button"
+                                onClick={handleCreate}
+                                disabled={isCreating}
+                                className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-[var(--button-success)] hover:bg-[var(--button-success-hover)] rounded-xl shadow-md transition-all disabled:opacity-50"
+                            >
+                                {isCreating && !createAndNew ? (
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : (
+                                    <Save className="h-4 w-4" />
+                                )}
+                                إنشاء الطلب
+                            </button>
+                        </div>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

@@ -385,9 +385,12 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         }
     }
 
-    async function createOrder(orderData: Omit<Order, "id" | "created_at" | "updated_at">): Promise<{ success: boolean; data?: Order; error?: string }> {
+    async function createOrder(orderData: Omit<Order, "id" | "created_at" | "updated_at"> & { custom_created_at?: string | null }): Promise<{ success: boolean; data?: Order; error?: string }> {
+        // Extract custom_created_at before passing to mutation (not part of Order schema)
+        const { custom_created_at, ...cleanOrderData } = orderData;
+
         // Idempotency guard: prevent double-click / duplicate submissions
-        const fingerprint = `create_${orderData.order_id || ''}_${orderData.phone || ''}_${Date.now()}`;
+        const fingerprint = `create_${cleanOrderData.order_id || ''}_${cleanOrderData.phone || ''}_${Date.now()}`;
         const idempotencyKey = generateIdempotencyKey(fingerprint);
         const guard = getIdempotencyGuard();
 
@@ -398,8 +401,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
         try {
             const validationResult = OrderSchema.safeParse({
-                ...orderData,
-                items: orderData.items || [],
+                ...cleanOrderData,
+                items: cleanOrderData.items || [],
             });
 
             if (!validationResult.success) {
@@ -416,7 +419,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             // Include user attribution in the order data so notifications show the correct creator
             const orderDataWithAttribution = {
-                ...orderData,
+                ...cleanOrderData,
                 last_status_changed_by_name: changedBy,
                 last_status_changed_by_avatar: changedByAvatar || undefined,
             };
@@ -427,11 +430,11 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             // Calculate risk assessment seamlessly in the background WITHOUT blocking the UI
             try {
-                if (orderData.phone) {
-                    diag.log(`[Diag:CreateOrder] FRAUD_CHECK_START phone=${orderData.phone}`);
+                if (cleanOrderData.phone) {
+                    diag.log(`[Diag:CreateOrder] FRAUD_CHECK_START phone=${cleanOrderData.phone}`);
                     import("@/lib/fraud-detector").then(async ({ fraudDetector }) => {
                         try {
-                            const riskAssessment = await fraudDetector.assessCustomerRisk(orderData.phone!);
+                            const riskAssessment = await fraudDetector.assessCustomerRisk(cleanOrderData.phone!);
                             const riskPayload = fraudDetector.getPersistencePayload(riskAssessment);
                             diag.log(`[Diag:CreateOrder] FRAUD_CHECK_RESULT level=${riskAssessment.level}`);
 
@@ -462,15 +465,33 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             const data = await mutationPromise;
 
+            // Update created_at if user selected a custom date (fire-and-forget)
+            if (custom_created_at && data?.id) {
+                supabase
+                    .from("orders")
+                    .update({ created_at: custom_created_at })
+                    .eq("id", data.id)
+                    .then(({ error: dateError }) => {
+                        if (dateError) {
+                            console.error("Failed to update order date:", dateError);
+                        } else {
+                            // Update local cache to reflect the custom date
+                            queryClient.setQueryData<Order[]>(orderKeys.lists(), (prev) =>
+                                prev?.map(o => o.id === data.id ? { ...o, created_at: custom_created_at } : o)
+                            );
+                        }
+                    });
+            }
+
             // Handle Advanced Inventory
             import("@/lib/inventory-engine").then(engine => {
-                engine.allocateOrder(orderData.items || []);
+                engine.allocateOrder(cleanOrderData.items || []);
             }).catch(console.error);
 
             activityLogger.logOrderCreate(
                 data.id,
                 data.order_id,
-                orderData.source || "manual"
+                cleanOrderData.source || "manual"
             );
 
             // Record initial status change to history (fire-and-forget — don't block the modal)
@@ -480,7 +501,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     order_id: data.id,
                     changed_by: changedBy,
                     from_status: null,
-                    to_status: orderData.status || "new",
+                    to_status: cleanOrderData.status || "new",
                     changed_at: new Date().toISOString(),
                     notes: 'Order Created',
                 }])

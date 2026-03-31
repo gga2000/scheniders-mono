@@ -95,8 +95,6 @@ export function useOrders() {
     useRealtimeHeartbeat({ enabled: !loading });
 
 
-
-
     // =============================================
     // RETURN OBJECT (same shape for backward compat)
     // =============================================
@@ -180,6 +178,9 @@ export function useOrders() {
 
         // Blacklist
         isBlacklisted: auxiliaryHook.isBlacklisted,
+        getBlacklistEntry: auxiliaryHook.getBlacklistEntry,
+        addToBlacklist: auxiliaryHook.addToBlacklist,
+        removeFromBlacklist: auxiliaryHook.removeFromBlacklist,
 
         // Duplicate management
         getCustomerOrders: auxiliaryHook.getCustomerOrders,

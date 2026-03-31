@@ -7,7 +7,7 @@ export default function SettingsLayout({
 }) {
     // Protect all settings pages. Only users with ACCESS_SETTINGS permission (Admin) can view.
     return (
-        <div className="min-h-screen bg-[var(--background)] flex flex-col items-center">
+        <div className="h-full w-full flex flex-col">
             {children}
         </div>
     );

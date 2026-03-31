@@ -298,6 +298,9 @@ export interface OrdersPagePresenterProps {
     getCustomerArchivedCount: (phone: string) => number;
 
     isBlacklisted: (phone: string) => boolean;
+    getBlacklistEntry: (phone: string) => import("@/hooks/use-order-auxiliary").BlacklistEntry | null;
+    addToBlacklist: (phone: string, reason: string, notes?: string) => Promise<void>;
+    removeFromBlacklist: (phone: string) => Promise<void>;
     hasDuplicates: (orderId: string) => boolean;
     getReturnOrderInfo: (id: string) => any;
     getOriginalOrderInfo: (originalOrderId?: string) => any;
@@ -330,6 +333,7 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
         updateOrderStatus, updateOrder, createOrder, deleteOrder, cloneOrder, togglePin, getOrderTimeline, getOrderNotes, addOrderNote,
         checkOrderIdExists, handleSplitOrder, createReturnOrder, createReplacementOrder, mergeOrders, markAsVerifiedCustomer, dismissDuplicate, handleAssignDuty,
         toggleReviewed, getCustomerHistory, getCustomerOrderCount, getCustomerArchivedCount, isBlacklisted,
+        getBlacklistEntry, addToBlacklist, removeFromBlacklist,
         hasDuplicates, getReturnOrderInfo, getOriginalOrderInfo, getCustomerOrders, modePrice, normalizePhoneForSearch
     } = props;
 
@@ -1649,6 +1653,9 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                                                                 }}
                                                                 onSplit={() => setSplitOrderDialog({ open: true, order })}
                                                                 isBlacklisted={isBlacklisted(order.phone)}
+                                                                blacklistEntry={getBlacklistEntry(order.phone)}
+                                                                onAddToBlacklist={addToBlacklist}
+                                                                onRemoveFromBlacklist={removeFromBlacklist}
                                                                 riskLevel={(order as any).risk_data?.level || "low"}
                                                                 riskAssessment={(order as any).risk_data}
                                                                 customerOrderCount={orderCount}
@@ -1734,6 +1741,9 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                                                         }
                                                     }}
                                                     isBlacklisted={isBlacklisted}
+                                                    getBlacklistEntry={getBlacklistEntry}
+                                                    onAddToBlacklist={addToBlacklist}
+                                                    onRemoveFromBlacklist={removeFromBlacklist}
                                                     getRiskAssessment={(phone) => {
                                                         const order = displayedOrders.find(o => o.phone === phone);
                                                         return (order as any)?.risk_data;
@@ -1774,6 +1784,9 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                                                                     }}
                                                                     onSplit={() => setSplitOrderDialog({ open: true, order })}
                                                                     isBlacklisted={isBlacklisted(order.phone)}
+                                                                    blacklistEntry={getBlacklistEntry(order.phone)}
+                                                                    onAddToBlacklist={addToBlacklist}
+                                                                    onRemoveFromBlacklist={removeFromBlacklist}
                                                                     riskLevel={(order as any).risk_data?.level || "low"}
                                                                     riskAssessment={(order as any).risk_data}
                                                                     customerOrderCount={orderCount}

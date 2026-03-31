@@ -286,6 +286,7 @@ const copyToClipboard = (text: string, label: string) => {
 
 const VirtualTableRow = memo(function VirtualTableRow({
     order,
+    displayIndex,
     virtualRow,
     scrollMargin,
     isSelected,
@@ -371,7 +372,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
                             <GripVertical className="w-3 h-3 text-gray-300" />
                         </span>
                     )}
-                    <span className={cn(onRowDrop && "group-hover/num:hidden")}>{order.sequence_number || order.displayIndex || virtualRow.index + 1}</span>
+                    <span className={cn(onRowDrop && "group-hover/num:hidden")}>{order.sequence_number || displayIndex || virtualRow.index + 1}</span>
                     <button
                         onClick={(e) => { e.stopPropagation(); togglePin(order.id); }}
                         className={cn("hidden group-hover/num:block transition-opacity", order.is_pinned && "!block")}
@@ -438,8 +439,11 @@ const VirtualTableRow = memo(function VirtualTableRow({
                             {getInitials(order.customer_name)}
                         </div>
                         <span className="font-medium text-sm text-foreground truncate">{order.customer_name}</span>
-                        {getRiskLevel(order.phone) && (getRiskLevel(order.phone) === 'high' || getRiskLevel(order.phone) === 'blocked' || getRiskLevel(order.phone) === 'medium') && (
-                            <RiskBadge level={getRiskLevel(order.phone) as "high" | "low" | "medium" | "blocked"} showLabel={false} />
+                        {getRiskLevel(order.phone) && (getRiskLevel(order.phone) === 'blocked') && (
+                            <RiskBadge level="blocked" showLabel={true} />
+                        )}
+                        {getRiskLevel(order.phone) && (getRiskLevel(order.phone) === 'high' || getRiskLevel(order.phone) === 'medium') && (
+                            <RiskBadge level={getRiskLevel(order.phone) as "high" | "medium"} showLabel={false} />
                         )}
                     </div>
                 )}
@@ -580,6 +584,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
 }, (prevProps, nextProps) => {
     return (
         prevProps.order === nextProps.order &&
+        prevProps.displayIndex === nextProps.displayIndex &&
         prevProps.isSelected === nextProps.isSelected &&
         prevProps.isDuplicate === nextProps.isDuplicate &&
         prevProps.modePrice === nextProps.modePrice &&
@@ -746,16 +751,18 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
     }, [displayedOrders.length]);
 
     // Flatten groups for virtualization
+    // IMPORTANT: Do NOT spread orders here — { ...o } creates new object references
+    // which breaks React.memo on VirtualTableRow (prevProps.order !== nextProps.order)
     const flatItems = useMemo(() => {
-        const items: Array<{ type: 'header' | 'row', data: any, groupName?: string }> = [];
+        const items: Array<{ type: 'header' | 'row', data: any, groupName?: string, displayIndex?: number }> = [];
         if (groupBy === 'none') {
-            displayedOrders.forEach((o, index) => items.push({ type: 'row', data: { ...o, displayIndex: index + 1 } }));
+            displayedOrders.forEach((o, index) => items.push({ type: 'row', data: o, displayIndex: index + 1 }));
             return items;
         }
 
         Object.entries(groupedOrders).forEach(([groupName, groupOrders]) => {
             items.push({ type: 'header', data: groupOrders.length, groupName });
-            groupOrders.forEach((o, index) => items.push({ type: 'row', data: { ...o, displayIndex: index + 1 } }));
+            groupOrders.forEach((o, index) => items.push({ type: 'row', data: o, displayIndex: index + 1 }));
         });
         return items;
     }, [displayedOrders, groupedOrders, groupBy]);
@@ -770,7 +777,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
     const rowVirtualizer = useWindowVirtualizer({
         count: flatItems.length,
         estimateSize: (index) => flatItems[index].type === 'header' ? 40 : dc.rowHeight,
-        overscan: 10,
+        overscan: 5,
         scrollMargin,
     });
 
@@ -1085,6 +1092,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                                 <VirtualTableRow
                                     key={virtualRow.key}
                                     order={order}
+                                    displayIndex={item.displayIndex}
                                     virtualRow={virtualRow}
                                     scrollMargin={scrollMargin}
                                     isSelected={isSelected}

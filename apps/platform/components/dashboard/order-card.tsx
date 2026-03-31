@@ -19,11 +19,15 @@ import { extractGovernorate } from "@/lib/address-validator";
 import { REMINDER_DELAY_HOURS, DISCOUNT_DELAY_HOURS } from "@/lib/qstash";
 import { formatShortDate, formatTime, getOrderAge, getAgeUrgency, getItemsDisplay, getFullAddress, cleanSystemNotes, getActualNotes, getOrderReasonInfo, getGovernorateCode, getStatusColor, getStatusBadgeStyle, getDropdownItemStyle, getDisplayOrderId } from "@/lib/order-format-utils";
 
+import { BlacklistDialog } from "@/components/orders/blacklist-dialog";
+import type { BlacklistEntry } from "@/hooks/use-order-auxiliary";
+
 import {
     MessageCircle,
     Edit,
     XCircle,
     Ban,
+    ShieldCheck,
     MapPin,
     Phone,
     Package,
@@ -111,6 +115,10 @@ interface OrderCardProps {
     onSplit?: (order: Order) => void;
     // Archive info
     archivedOrderCount?: number;
+    // Blacklist management
+    blacklistEntry?: BlacklistEntry | null;
+    onAddToBlacklist?: (phone: string, reason: string, notes?: string) => Promise<void>;
+    onRemoveFromBlacklist?: (phone: string) => Promise<void>;
     // Disable layout animations (e.g. for virtualized lists)
     isVirtualized?: boolean;
     // Assignments
@@ -151,6 +159,9 @@ export const OrderCard = memo(function OrderCard({
     actionDock = false,
     assignments = [],
     onAssignDuty,
+    blacklistEntry,
+    onAddToBlacklist,
+    onRemoveFromBlacklist,
 }: OrderCardProps) {
     const isLoading = loadingId === order.id;
     const isNew = order.status === "new";
@@ -163,6 +174,10 @@ export const OrderCard = memo(function OrderCard({
     const isReviewed = order.is_reviewed;
     const isDelivered = order.status === "delivered";
     const hasRefund = !!returnOrderInfo;
+
+    // Blacklist dialog state
+    const [blacklistDialogOpen, setBlacklistDialogOpen] = useState(false);
+    const [blacklistDialogMode, setBlacklistDialogMode] = useState<"add" | "remove">("add");
 
     // More actions dropdown state
     const [actionsOpen, setActionsOpen] = useState(false);
@@ -519,7 +534,18 @@ export const OrderCard = memo(function OrderCard({
                     )}
                 >
                     {/* Status bar top */}
-                    <div className={cn("h-1.5 w-full flex-shrink-0", getStatusColor(order.status, isReturn))} />
+                    <div className={cn("h-1.5 w-full flex-shrink-0", isBlacklisted ? "bg-gray-900" : getStatusColor(order.status, isReturn))} />
+
+                    {/* Blacklist banner */}
+                    {isBlacklisted && (
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-900 text-white text-xs font-bold">
+                            <Ban className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span>عميل محظور</span>
+                            {blacklistEntry?.reason && (
+                                <span className="font-normal opacity-70 truncate">· {blacklistEntry.reason}</span>
+                            )}
+                        </div>
+                    )}
 
                     <div className="p-3 flex flex-col gap-2 flex-1 min-w-0">
                         {/* Row 1: Name + Status */}
@@ -708,7 +734,7 @@ export const OrderCard = memo(function OrderCard({
                     <div
                         className={cn(
                             "w-1 self-stretch rounded-l-xl flex-shrink-0",
-                            getStatusColor(order.status, isReturn)
+                            isBlacklisted ? "bg-gray-900" : getStatusColor(order.status, isReturn)
                         )}
                     />
 
@@ -736,7 +762,7 @@ export const OrderCard = memo(function OrderCard({
                         }}
                     >
                         {/* Customer Name + Order ID */}
-                        <div className="flex items-center gap-2 min-w-[130px] max-w-[180px] flex-shrink-0">
+                        <div className="flex items-center gap-2 min-w-[130px] max-w-[220px] flex-shrink-0">
                             {isPinned && <Pin className="w-3 h-3 text-blue-500 -rotate-45 flex-shrink-0" />}
                             {isNew && !isPinned && <Sparkles className="w-3 h-3 text-orange-500 flex-shrink-0" />}
                             <span className={cn(
@@ -745,6 +771,12 @@ export const OrderCard = memo(function OrderCard({
                             )}>
                                 <HighlightedText text={order.customer_name} query={localSearchQuery} />
                             </span>
+                            {isBlacklisted && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gray-900 text-white text-[9px] font-bold flex-shrink-0">
+                                    <Ban className="w-2.5 h-2.5" />
+                                    محظور
+                                </span>
+                            )}
                             <span className="text-xs font-mono text-muted flex-shrink-0 flex items-center gap-1">
                                 {(() => {
                                     const lfMatch = order.order_id.match(/LF-(\d+)-\d+$/);
@@ -897,6 +929,7 @@ export const OrderCard = memo(function OrderCard({
     }
 
     return (
+        <>
         <motion.div
             layoutId={getLayoutId(`order-card-${order.id}-${order.status}`)}
             className={cn(
@@ -2127,6 +2160,44 @@ export const OrderCard = memo(function OrderCard({
                                             <span className="font-medium">Share</span>
                                         </button>
                                     )}
+
+                                    {/* Blacklist toggle */}
+                                    {(onAddToBlacklist || onRemoveFromBlacklist) && (
+                                        <>
+                                            <div className="my-1 mx-3 border-t border-[var(--card-border)]" />
+                                            {isBlacklisted ? (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setBlacklistDialogMode("remove");
+                                                        setBlacklistDialogOpen(true);
+                                                        setActionsOpen(false);
+                                                    }}
+                                                    className="w-full px-3 py-2 flex items-center gap-2.5 text-sm text-emerald-700 hover:bg-emerald-50/70 transition-colors"
+                                                >
+                                                    <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center">
+                                                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                                                    </div>
+                                                    <span className="font-medium">رفع الحظر</span>
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setBlacklistDialogMode("add");
+                                                        setBlacklistDialogOpen(true);
+                                                        setActionsOpen(false);
+                                                    }}
+                                                    className="w-full px-3 py-2 flex items-center gap-2.5 text-sm text-red-700 hover:bg-red-50/70 transition-colors"
+                                                >
+                                                    <div className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center">
+                                                        <Ban className="w-3.5 h-3.5 text-red-600" />
+                                                    </div>
+                                                    <span className="font-medium">إضافة للقائمة السوداء</span>
+                                                </button>
+                                            )}
+                                        </>
+                                    )}
                                 </div>,
 
                                 document.body
@@ -2335,6 +2406,24 @@ export const OrderCard = memo(function OrderCard({
 
             </motion.div >
         </motion.div >
+
+        {/* Blacklist dialog — rendered outside the card motion wrapper */}
+        <BlacklistDialog
+            open={blacklistDialogOpen}
+            onClose={() => setBlacklistDialogOpen(false)}
+            mode={blacklistDialogMode}
+            customerName={order.customer_name}
+            customerPhone={order.phone}
+            existingEntry={blacklistEntry}
+            onConfirm={async (reason, notes) => {
+                if (blacklistDialogMode === "add" && onAddToBlacklist && reason) {
+                    await onAddToBlacklist(order.phone, reason, notes);
+                } else if (blacklistDialogMode === "remove" && onRemoveFromBlacklist) {
+                    await onRemoveFromBlacklist(order.phone);
+                }
+            }}
+        />
+        </>
     );
 });
 

@@ -83,7 +83,7 @@ export function PageSettings() {
     // Ideally, we could replicate the checkbox logic here, but focused on Pages.
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="space-y-6">
             <div>
                 <h2 className="text-2xl font-bold flex items-center gap-2">
                     <Layout className="w-6 h-6 text-primary" />

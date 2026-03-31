@@ -2,12 +2,14 @@
 
 import { Crown, TrendingUp } from "lucide-react";
 import { LeaderboardMetrics } from "@/lib/analytics/dashboard-calculations";
+import { useLanguage } from "@/hooks/use-language";
 
 interface LeaderboardProps {
     data: LeaderboardMetrics;
 }
 
 export function Leaderboard({ data }: LeaderboardProps) {
+    const { t } = useLanguage();
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
             {/* Top Cities */}
@@ -16,7 +18,7 @@ export function Leaderboard({ data }: LeaderboardProps) {
                     <div className="p-1.5 bg-yellow-100 rounded-lg text-yellow-600">
                         <Crown className="w-4 h-4" />
                     </div>
-                    Top Cities
+                    {t("dashboard.leaderboard.topCities")}
                 </h3>
                 <div className="space-y-4 flex-1">
                     {data.topCities.map((city, i) => (
@@ -47,7 +49,7 @@ export function Leaderboard({ data }: LeaderboardProps) {
                     <div className="p-1.5 bg-blue-100 rounded-lg text-blue-600">
                         <TrendingUp className="w-4 h-4" />
                     </div>
-                    Top Products
+                    {t("dashboard.leaderboard.topProducts")}
                 </h3>
                 <div className="space-y-4 flex-1">
                     {data.topProducts.map((prod, i) => (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -17,10 +17,15 @@ export function ScrollToTopButton({
     className,
 }: ScrollToTopButtonProps) {
     const [isVisible, setIsVisible] = useState(false);
+    const rafRef = useRef<number | null>(null);
 
     useEffect(() => {
         const handleScroll = () => {
-            setIsVisible(window.scrollY > threshold);
+            if (rafRef.current) return;
+            rafRef.current = requestAnimationFrame(() => {
+                setIsVisible(window.scrollY > threshold);
+                rafRef.current = null;
+            });
         };
 
         handleScroll();
@@ -28,6 +33,7 @@ export function ScrollToTopButton({
 
         return () => {
             window.removeEventListener("scroll", handleScroll);
+            if (rafRef.current) cancelAnimationFrame(rafRef.current);
         };
     }, [threshold]);
 
@@ -63,114 +69,31 @@ export function ScrollToTopButton({
                             "cursor-pointer",
                             "overflow-hidden",
                             "group",
+                            "hover:shadow-lg transition-shadow duration-200",
                             className
                         )}
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         aria-label="Scroll to top"
                     >
-                        {/* Animated gradient background */}
-                        <motion.div
+                        {/* Static gradient border — no infinite animation */}
+                        <div
                             className="absolute inset-0 rounded-full opacity-60"
                             style={{
-                                background: "linear-gradient(90deg, var(--pastel-green), var(--pastel-yellow), var(--pastel-purple), var(--pastel-green))",
-                                backgroundSize: "300% 100%",
-                            }}
-                            animate={{
-                                backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
-                            }}
-                            transition={{
-                                duration: 4,
-                                repeat: Infinity,
-                                ease: "linear",
+                                background: "linear-gradient(135deg, var(--pastel-green), var(--pastel-yellow), var(--pastel-purple))",
                             }}
                         />
 
-                        {/* Inner content background */}
+                        {/* Inner background */}
                         <div className="absolute inset-[2px] rounded-full bg-[var(--card-bg)]" />
 
-                        {/* Shimmer effect */}
-                        <motion.div
-                            className="absolute inset-0 rounded-full"
-                            style={{
-                                background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)",
-                            }}
-                            animate={{
-                                x: ["-100%", "200%"],
-                            }}
-                            transition={{
-                                duration: 2,
-                                repeat: Infinity,
-                                repeatDelay: 1,
-                                ease: "easeInOut",
-                            }}
-                        />
-
-                        {/* Pulsating glow ring */}
-                        <motion.div
-                            className="absolute -inset-1 rounded-full"
-                            style={{
-                                background: "linear-gradient(90deg, var(--pastel-green), var(--pastel-yellow), var(--pastel-purple))",
-                                filter: "blur(8px)",
-                            }}
-                            animate={{
-                                opacity: [0.3, 0.6, 0.3],
-                                scale: [1, 1.02, 1],
-                            }}
-                            transition={{
-                                duration: 2,
-                                repeat: Infinity,
-                                ease: "easeInOut",
-                            }}
-                        />
-
-                        {/* Icon with bounce animation */}
-                        <motion.div
-                            className="relative z-10"
-                            animate={{
-                                y: [0, -2, 0],
-                            }}
-                            transition={{
-                                duration: 1,
-                                repeat: Infinity,
-                                ease: "easeInOut",
-                            }}
-                        >
-                            <ChevronUp className="w-4 h-4 text-[var(--foreground)]" />
-                        </motion.div>
+                        {/* Icon */}
+                        <ChevronUp className="relative z-10 w-4 h-4 text-[var(--foreground)] group-hover:-translate-y-0.5 transition-transform duration-200" />
 
                         {/* Text */}
                         <span className="relative z-10 text-sm font-medium text-[var(--foreground)]">
                             Back to top
                         </span>
-
-                        {/* Hover sparkle particles */}
-                        <motion.div
-                            className="absolute inset-0 rounded-full pointer-events-none opacity-0 group-hover:opacity-100"
-                            transition={{ duration: 0.3 }}
-                        >
-                            {[...Array(3)].map((_, i) => (
-                                <motion.span
-                                    key={i}
-                                    className="absolute w-1 h-1 bg-white rounded-full"
-                                    style={{
-                                        left: `${20 + i * 30}%`,
-                                        top: "50%",
-                                    }}
-                                    animate={{
-                                        y: [0, -8, 0],
-                                        opacity: [0, 1, 0],
-                                        scale: [0.5, 1, 0.5],
-                                    }}
-                                    transition={{
-                                        duration: 1,
-                                        repeat: Infinity,
-                                        delay: i * 0.2,
-                                        ease: "easeOut",
-                                    }}
-                                />
-                            ))}
-                        </motion.div>
                     </motion.button>
                 </motion.div>
             )}

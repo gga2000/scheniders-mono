@@ -1,6 +1,4 @@
-"use client";
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, X, Archive, Eye, EyeOff, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,22 +27,24 @@ export function FloatingActionBar({
         }
         return false;
     });
-    const [scrollY, setScrollY] = useState(0);
+    const rafRef = useRef<number | null>(null);
 
-    // Track scroll position
+    // Track scroll position with RAF throttle — no setState spam
     useEffect(() => {
         const handleScroll = () => {
-            setScrollY(window.scrollY);
+            if (rafRef.current) return; // already scheduled
+            rafRef.current = requestAnimationFrame(() => {
+                setIsVisible(window.scrollY > 200);
+                rafRef.current = null;
+            });
         };
 
         window.addEventListener("scroll", handleScroll, { passive: true });
-        return () => window.removeEventListener("scroll", handleScroll);
+        return () => {
+            window.removeEventListener("scroll", handleScroll);
+            if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        };
     }, []);
-
-    // Show bar only when scrolled past header (200px)
-    useEffect(() => {
-        setIsVisible(scrollY > 200);
-    }, [scrollY]);
 
     const toggleHidden = () => {
         const newHidden = !isHidden;

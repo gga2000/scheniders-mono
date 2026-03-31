@@ -8,6 +8,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "sonner";
 import { createOrderAction } from "@/app/actions/orders";
 import type { RealtimeBatcher } from "@/lib/realtime-batcher";
+import { resolveStaleContacted } from "@/hooks/use-auto-no-response";
 // Refetch trigger constants
 export const orderRefetchTriggers = {
     appReopen: "appReopen",
@@ -97,10 +98,15 @@ async function fetchOrders(): Promise<Order[]> {
     const result = await orderRepository.findAll();
     diag.log(`[Diag:RQ:Fetch] fetchOrders OK count=${result.length} took=${(performance.now() - _tFetch).toFixed(1)}ms`);
 
-    // Persist to sessionStorage for SWR on next refresh
-    writeSwrCache(result);
+    // Layer 1: Resolve stale "contacted" orders → "no_response" at fetch time.
+    // This ensures the React Query cache ALWAYS has correct statuses from the
+    // first render — no flicker, no delayed effects, no cron dependency.
+    const resolved = resolveStaleContacted(result);
 
-    return result;
+    // Persist to sessionStorage for SWR on next refresh
+    writeSwrCache(resolved);
+
+    return resolved;
 }
 
 // Fetch archived orders

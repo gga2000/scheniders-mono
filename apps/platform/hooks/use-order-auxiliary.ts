@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef, useLayoutEffect } from "react";
 import { supabase, type Order, type RejectionReason, type MessageTemplate } from "@/lib/supabase";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
+import { useAuth } from "@/components/auth/auth-provider";
 
 // =============================================
 // ORDER AUXILIARY HOOK
@@ -16,7 +17,16 @@ interface UseOrderAuxiliaryOptions {
     archivedOrders: Order[];
 }
 
+export interface BlacklistEntry {
+    phone: string;
+    reason: string;
+    notes?: string | null;
+    added_by?: string | null;
+}
+
 export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryOptions) {
+    const { user, profile } = useAuth();
+
     // =============================================
     // REFERENCE DATA STATE
     // =============================================
@@ -24,29 +34,29 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
     const [auxData, setAuxData] = useState<{
         rejectionReasons: RejectionReason[];
         messageTemplates: MessageTemplate[];
-        blacklistedPhones: Set<string>;
+        blacklistMap: Map<string, BlacklistEntry>;
     }>({
         rejectionReasons: [],
         messageTemplates: [],
-        blacklistedPhones: new Set(),
+        blacklistMap: new Map(),
     });
 
     // Fetch on mount (only if not already loaded)
     useEffect(() => {
-        let mounted = true;
+        const mounted = { value: true };
         async function fetchAll() {
             try {
                 const [reasonsRes, templatesRes, blacklistRes] = await Promise.all([
                     supabase.from("rejection_reasons").select("*").eq("is_active", true).order("sort_order"),
                     supabase.from("message_templates").select("*").eq("is_active", true).order("sort_order"),
-                    supabase.from("blacklist").select("phone")
+                    supabase.from("blacklist").select("phone, reason, notes, added_by")
                 ]);
 
-                if (mounted) {
+                if (mounted.value) {
                     setAuxData({
                         rejectionReasons: reasonsRes.data || [],
                         messageTemplates: templatesRes.data || [],
-                        blacklistedPhones: new Set((blacklistRes.data || []).map((b: any) => b.phone))
+                        blacklistMap: new Map((blacklistRes.data || []).map((b: BlacklistEntry) => [b.phone, b])),
                     });
                 }
             } catch (err) {
@@ -58,11 +68,34 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
             fetchAll();
         }
 
-        return () => { mounted = false; };
+        return () => { mounted.value = false; };
     }, []);
 
     function isBlacklisted(phone: string): boolean {
-        return auxData.blacklistedPhones.has(phone);
+        return auxData.blacklistMap.has(phone);
+    }
+
+    function getBlacklistEntry(phone: string): BlacklistEntry | null {
+        return auxData.blacklistMap.get(phone) ?? null;
+    }
+
+    async function addToBlacklist(phone: string, reason: string, notes?: string): Promise<void> {
+        const addedBy = profile?.display_name || user?.email || null;
+        const entry: BlacklistEntry = { phone, reason, notes: notes || null, added_by: addedBy };
+        await supabase.from("blacklist").upsert(entry);
+        setAuxData(prev => ({
+            ...prev,
+            blacklistMap: new Map(prev.blacklistMap).set(phone, entry),
+        }));
+    }
+
+    async function removeFromBlacklist(phone: string): Promise<void> {
+        await supabase.from("blacklist").delete().eq("phone", phone);
+        setAuxData(prev => {
+            const updated = new Map(prev.blacklistMap);
+            updated.delete(phone);
+            return { ...prev, blacklistMap: updated };
+        });
     }
 
     // =============================================
@@ -295,6 +328,9 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
 
     const latestFn = {
         isBlacklisted,
+        getBlacklistEntry,
+        addToBlacklist,
+        removeFromBlacklist,
         getCustomerHistory,
         getCustomerOrderCount,
         getCustomerArchivedCount,

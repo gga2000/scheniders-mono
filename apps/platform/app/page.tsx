@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { StatsGrid } from "@/components/dashboard/stats-grid";
 import { CreateOrderModal } from "@/components/orders/create-order-modal";
 import { useOrdersContext } from "@/components/providers/orders-provider";
@@ -9,19 +10,33 @@ import { useStats } from "@/hooks/use-stats";
 import { Plus, Search, Bell } from "lucide-react";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDashboardMetrics } from "@/hooks/use-dashboard-metrics";
+import { filterOrdersByDateRange, DateRangeKey } from "@/lib/analytics/dashboard-calculations";
 import { useAuth } from "@/hooks/use-auth";
+import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { useViewport } from "@/hooks/use-viewport";
 import { MobileDashboardPage } from "@/components/mobile/dashboard/MobileDashboardPage";
-const UrgencyTriad = dynamic(() => import("@/components/dashboard/widgets/urgency-triad").then(mod => ({ default: mod.UrgencyTriad })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
-const OrderFunnel = dynamic(() => import("@/components/dashboard/widgets/funnel-chart").then(mod => ({ default: mod.OrderFunnel })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
-const VelocityMatrix = dynamic(() => import("@/components/dashboard/widgets/velocity-matrix").then(mod => ({ default: mod.VelocityMatrix })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
-const CohortGrid = dynamic(() => import("@/components/dashboard/widgets/cohort-grid").then(mod => ({ default: mod.CohortGrid })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
-const TargetRings = dynamic(() => import("@/components/dashboard/widgets/target-rings").then(mod => ({ default: mod.TargetRings })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
-const ProfitPulse = dynamic(() => import("@/components/dashboard/widgets/profit-pulse").then(mod => ({ default: mod.ProfitPulse })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
-const Leaderboard = dynamic(() => import("@/components/dashboard/widgets/leaderboard").then(mod => ({ default: mod.Leaderboard })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
-const IraqMap = dynamic(() => import("@/components/shared/iraq-map").then(mod => ({ default: mod.IraqMap })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+import { DateRangeFilter } from "@/components/dashboard/widgets/date-range-filter";
+import { TodayStrip } from "@/components/dashboard/widgets/today-strip";
+import { OrderPipeline } from "@/components/dashboard/widgets/order-pipeline";
 import { PageSkeleton } from "@/components/ui/skeletons";
 import { useLanguage } from "@/hooks/use-language";
+import { useAnnouncements } from "@/hooks/use-announcements";
+
+// Dynamic imports — all chart + operational widgets
+const Leaderboard = dynamic(() => import("@/components/dashboard/widgets/leaderboard").then(mod => ({ default: mod.Leaderboard })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+const IraqMap = dynamic(() => import("@/components/shared/iraq-map").then(mod => ({ default: mod.IraqMap })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+const RevenueTrendChart = dynamic(() => import("@/components/dashboard/widgets/revenue-trend-chart").then(mod => ({ default: mod.RevenueTrendChart })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+const DeliverySuccessRate = dynamic(() => import("@/components/dashboard/widgets/delivery-success-rate").then(mod => ({ default: mod.DeliverySuccessRate })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+const OrdersPerHour = dynamic(() => import("@/components/dashboard/widgets/orders-per-hour").then(mod => ({ default: mod.OrdersPerHour })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+const PeakHoursHeatmap = dynamic(() => import("@/components/dashboard/widgets/peak-hours-heatmap").then(mod => ({ default: mod.PeakHoursHeatmap })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+const AvgTimePerStage = dynamic(() => import("@/components/dashboard/widgets/avg-time-per-stage").then(mod => ({ default: mod.AvgTimePerStage })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+const WeekOverWeek = dynamic(() => import("@/components/dashboard/widgets/week-over-week").then(mod => ({ default: mod.WeekOverWeek })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+const MonthForecast = dynamic(() => import("@/components/dashboard/widgets/month-forecast").then(mod => ({ default: mod.MonthForecast })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+const RejectionBreakdown = dynamic(() => import("@/components/dashboard/widgets/rejection-breakdown").then(mod => ({ default: mod.RejectionBreakdown })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+const ProductLeaderboard = dynamic(() => import("@/components/dashboard/widgets/product-leaderboard").then(mod => ({ default: mod.ProductLeaderboard })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+const RecentOrdersFeed = dynamic(() => import("@/components/dashboard/widgets/recent-orders-feed").then(mod => ({ default: mod.RecentOrdersFeed })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+const StaffLeaderboard = dynamic(() => import("@/components/dashboard/widgets/staff-leaderboard").then(mod => ({ default: mod.StaffLeaderboard })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+const TeamAnnouncements = dynamic(() => import("@/components/dashboard/widgets/team-announcements").then(mod => ({ default: mod.TeamAnnouncements })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
 
 export default function Home() {
   const { orders, loading, error, createOrder } = useOrdersContext();
@@ -29,9 +44,16 @@ export default function Home() {
   const stats = useStats(orders);
   const dashboardMetrics = useDashboardMetrics(orders, products || []);
   const { t } = useLanguage();
-  const { profile } = useAuth();
+  const { profile, role } = useAuth();
   const { isMobile } = useViewport();
+  const router = useRouter();
 
+  const showFinancials = role === 'admin' || hasPermission(role, PERMISSIONS.VIEW_FINANCIALS);
+  const isAdmin = role === 'admin';
+
+  const { announcements, loading: announcementsLoading, createAnnouncement, togglePin, deleteAnnouncement } = useAnnouncements();
+
+  const [dateRange, setDateRange] = useState<DateRangeKey>('7d');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -39,7 +61,12 @@ export default function Home() {
     setIsMounted(true); // eslint-disable-line react-hooks/set-state-in-effect -- hydration guard
   }, []);
 
-  // Feature flag for mobile dashboard
+  const rangeOrders = useMemo(
+    () => filterOrdersByDateRange(orders, dateRange),
+    [orders, dateRange]
+  );
+  const rangeMetrics = useDashboardMetrics(rangeOrders, products || []);
+
   const ENABLE_MOBILE = true;
 
   if (!isMounted || loading || !dashboardMetrics) {
@@ -65,7 +92,6 @@ export default function Home() {
     );
   }
 
-  // Get current greeting based on time
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return t("dashboard.greeting.morning");
@@ -73,12 +99,20 @@ export default function Home() {
     return t("dashboard.greeting.evening");
   };
 
+  const handleStatCardClick = (status: 'new' | 'confirmed' | 'rejected') => {
+    router.push(`/orders?status=${status}`);
+  };
+
+  const handlePipelineStageClick = (status: string) => {
+    router.push(`/orders?status=${status}`);
+  };
+
   return (
     <div className="min-h-screen p-6 md:p-8 bg-[var(--background)]">
-      <div className="max-w-[1920px] mx-auto space-y-8">
+      <div className="max-w-[1920px] mx-auto space-y-6">
 
-        {/* Top Header Bar */}
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+        {/* Header */}
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
               {getGreeting()}{profile?.display_name ? `, ${profile.display_name}` : ''}
@@ -88,7 +122,9 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <DateRangeFilter value={dateRange} onChange={setDateRange} />
+
             <button className="w-12 h-12 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-foreground hover:bg-[var(--background)] transition-all shadow-sm">
               <Search className="w-5 h-5" />
             </button>
@@ -112,64 +148,103 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 1. Stats Grid (Legacy but loved) */}
-        <StatsGrid stats={stats} />
+        {/* Today at a Glance */}
+        <TodayStrip metrics={dashboardMetrics.todayStrip} showRevenue={showFinancials} />
 
-        {/* 2. Urgency Triad (Immediate Action) */}
-        <UrgencyTriad
-          metrics={dashboardMetrics.urgency}
-          onAction={() => { }}
+        {/* Stats Grid */}
+        <StatsGrid stats={stats} onCardClick={handleStatCardClick} />
+
+        {/* Order Pipeline */}
+        <OrderPipeline
+          stages={rangeMetrics?.pipeline ?? dashboardMetrics.pipeline}
+          onStageClick={handlePipelineStageClick}
         />
 
-        {/* 3. Main Intelligence Grid (Bento Layout) */}
+        {/* Charts Row: Trend (7col) | Delivery Rate + Hourly (5col) */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          <div className="xl:col-span-7 min-h-[320px]">
+            <RevenueTrendChart orders={orders} showRevenue={showFinancials} />
+          </div>
+          <div className="xl:col-span-5 flex flex-col gap-6">
+            <DeliverySuccessRate metrics={dashboardMetrics.deliveryRate} />
+            <OrdersPerHour data={dashboardMetrics.ordersPerHour} />
+          </div>
+        </div>
 
-          {/* Left Column: Financials & Flows (8 cols) */}
-          <div className="xl:col-span-8 flex flex-col gap-6">
+        {/* Heatmap Row: Peak Hours (8col) | Avg Time Per Stage (4col) */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          <div className="xl:col-span-8 min-h-[280px]">
+            <PeakHoursHeatmap data={dashboardMetrics.peakHeatmap} />
+          </div>
+          <div className="xl:col-span-4 min-h-[280px]">
+            <AvgTimePerStage metrics={dashboardMetrics.avgTimePerStage} />
+          </div>
+        </div>
 
-            {/* Row 1: Pulse & Targets */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-[280px]">
-              <ProfitPulse data={dashboardMetrics.profitPulse} />
-              <TargetRings
-                revenue={dashboardMetrics.profitPulse.today}
-                orders={stats.todayOrders}
+        {/* Intelligence Row: WoW | Forecast | Rejection */}
+        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-12 gap-6">
+          <div className="md:col-span-1 xl:col-span-4 min-h-[240px]">
+            <WeekOverWeek metrics={dashboardMetrics.weekOverWeek} showFinancials={showFinancials} />
+          </div>
+          <div className="md:col-span-1 xl:col-span-4 min-h-[240px]">
+            <MonthForecast forecast={dashboardMetrics.monthForecast} showFinancials={showFinancials} />
+          </div>
+          <div className="md:col-span-1 xl:col-span-4 min-h-[240px]">
+            <RejectionBreakdown cityRejectionStats={dashboardMetrics.urgency.cityRejectionStats} />
+          </div>
+        </div>
+
+        {/* Map (7col) | City Leaderboard + Product Leaderboard (5col) */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          <div className="xl:col-span-7 h-[460px]">
+            <IraqMap orders={orders} />
+          </div>
+          <div className="xl:col-span-5 flex flex-col gap-4 h-[460px]">
+            <div className="flex-1 overflow-hidden">
+              <Leaderboard data={{ topCities: dashboardMetrics.enhancedLeaderboard.topCities, topProducts: [] }} />
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <ProductLeaderboard
+                products={dashboardMetrics.enhancedLeaderboard.topProductsEnhanced}
+                showFinancials={showFinancials}
               />
             </div>
-
-            {/* Row 2: Funnel */}
-            <div className="h-[350px]">
-              <OrderFunnel data={dashboardMetrics.funnel} />
-            </div>
-
-            {/* Row 3: Cohorts */}
-            <div className="h-[300px]">
-              <CohortGrid data={dashboardMetrics.cohorts} />
-            </div>
-
-          </div>
-
-          {/* Right Column: Geo & Products (4 cols) */}
-          <div className="xl:col-span-4 flex flex-col gap-6">
-
-            {/* Governorate Map */}
-            <div className="h-[400px]">
-              <IraqMap orders={orders} />
-            </div>
-
-            {/* Leaderboards */}
-            <div className="flex-1 min-h-[400px]">
-              <Leaderboard data={dashboardMetrics.leaderboard} />
-            </div>
-
           </div>
         </div>
 
-        {/* 4. Deep Dive: Velocity Matrix (Full Width) */}
-        <div className="h-[500px]">
-          <VelocityMatrix data={dashboardMetrics.velocity} />
+        {/* Operational Row: Recent Orders | Staff Leaderboard (admin) | Announcements */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          {/* Recent Orders Feed */}
+          <div className={`xl:col-span-5 min-h-[380px]`}>
+            <RecentOrdersFeed
+              orders={dashboardMetrics.recentOrders}
+              showFinancials={showFinancials}
+            />
+          </div>
+
+          {/* Staff Leaderboard — admin only */}
+          {isAdmin ? (
+            <div className="xl:col-span-4 min-h-[380px]">
+              <StaffLeaderboard staff={dashboardMetrics.staffLeaderboard} />
+            </div>
+          ) : (
+            /* Non-admins: announcements takes more space */
+            null
+          )}
+
+          {/* Team Announcements */}
+          <div className={`${isAdmin ? 'xl:col-span-3' : 'xl:col-span-7'} min-h-[380px]`}>
+            <TeamAnnouncements
+              announcements={announcements}
+              isAdmin={isAdmin}
+              loading={announcementsLoading}
+              onCreate={createAnnouncement}
+              onTogglePin={togglePin}
+              onDelete={deleteAnnouncement}
+            />
+          </div>
         </div>
 
-        {/* Create Order Modal */}
         <CreateOrderModal
           open={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}

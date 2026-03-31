@@ -26,6 +26,9 @@ interface VirtualizedOrderListProps {
     onMergeWithPrevious: (currentOrderId: string, previousOrderId: string) => void;
     // Data helpers
     isBlacklisted: (phone: string) => boolean;
+    getBlacklistEntry?: (phone: string) => import("@/hooks/use-order-auxiliary").BlacklistEntry | null;
+    onAddToBlacklist?: (phone: string, reason: string, notes?: string) => Promise<void>;
+    onRemoveFromBlacklist?: (phone: string) => Promise<void>;
     getRiskLevel: (phone: string) => RiskLevel;
     getRiskAssessment?: (phone: string) => any; // New helper for full assessment
     hasDuplicates?: (orderId: string) => boolean;
@@ -66,6 +69,9 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
     onShowDuplicates,
     onMergeWithPrevious,
     isBlacklisted,
+    getBlacklistEntry,
+    onAddToBlacklist,
+    onRemoveFromBlacklist,
     getCustomerOrderCount,
     getCustomerArchivedCount,
     getCustomerHistory,
@@ -160,6 +166,9 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
                                 onStatusUpdate={handleStatusUpdate}
                                 onViewDetails={handleViewDetails}
                                 isBlacklisted={isBlacklisted(order.phone)}
+                                blacklistEntry={getBlacklistEntry?.(order.phone)}
+                                onAddToBlacklist={onAddToBlacklist}
+                                onRemoveFromBlacklist={onRemoveFromBlacklist}
                                 riskLevel={getRiskLevel(order.phone)}
                                 riskAssessment={getRiskAssessment?.(order.phone)} // Pass full assessment
                                 customerOrderCount={orderCount}

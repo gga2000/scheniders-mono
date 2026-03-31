@@ -62,22 +62,28 @@ const DialogContent = forwardRef<
                 "fixed inset-0 z-50 md:inset-auto",
                 "md:left-[50%] md:top-[50%] md:translate-x-[-50%] md:translate-y-[-50%]",
                 // Styling
-                "bg-[var(--card-bg)] p-4 md:p-6 shadow-xl duration-200",
+                "bg-[var(--card-bg)] shadow-xl duration-200",
                 "md:rounded-[24px] md:border md:border-[var(--card-border)]",
                 // Size constraints
                 "w-full md:max-w-3xl md:max-h-[90vh]",
-                "overflow-y-auto",
+                // CRITICAL: overflow-hidden clips scrollbar to rounded corners
+                "overflow-hidden flex flex-col",
                 // Animation
                 "data-[state=open]:animate-slide-in-up",
                 className
             )}
-            style={{
-                paddingTop: "max(1rem, env(safe-area-inset-top))",
-                paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
-            }}
             {...props}
         >
-            {children}
+            {/* Inner scrollable area — stays inside the rounded clip */}
+            <div
+                className="flex-1 overflow-y-auto p-4 md:p-6"
+                style={{
+                    paddingTop: "max(1rem, env(safe-area-inset-top))",
+                    paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
+                }}
+            >
+                {children}
+            </div>
             {!hideCloseButton && (
                 <DialogPrimitive.Close className="absolute right-3 top-3 md:right-4 md:top-4 rounded-xl p-2.5 md:p-2 text-[var(--foreground-muted)] transition-all hover:text-foreground hover:bg-[var(--background)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] disabled:pointer-events-none touch-target">
                     <X className="h-5 w-5 md:h-5 md:w-5" />

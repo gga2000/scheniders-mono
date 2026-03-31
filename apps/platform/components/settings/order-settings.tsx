@@ -9,10 +9,10 @@ import { MessageTemplatesList } from "@/components/settings/message-templates-li
 
 export function OrderSettings() {
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <div>
                 <h2 className="text-2xl font-bold tracking-tight text-foreground">Order Settings</h2>
-                <p className="text-muted">Configure order processing workflows and defaults.</p>
+                <p className="text-sm text-muted-foreground">Configure order processing workflows and defaults.</p>
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

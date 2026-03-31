@@ -2,6 +2,7 @@
 
 import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 interface StatsCardProps {
     title: string;
@@ -17,6 +18,7 @@ interface StatsCardProps {
 }
 
 export function StatsCard({ title, value, icon: Icon, description, variant = "default", trend, className }: StatsCardProps) {
+    const { t } = useLanguage();
 
     // Background colors for the "Yellow/Pink/Green" pastel look
     const getVariantStyles = () => {
@@ -65,7 +67,7 @@ export function StatsCard({ title, value, icon: Icon, description, variant = "de
                         <span className={trend.isPositive ? "text-emerald-600" : "text-rose-500"}>
                             {trend.isPositive ? "↑" : "↓"} {trend.value}%
                         </span>
-                        <span className="text-zinc-400 font-medium">vs last month</span>
+                        <span className="text-zinc-400 font-medium">{t("dashboard.stats.vsLastMonth")}</span>
                     </div>
                 )}
             </div>

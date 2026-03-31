@@ -259,6 +259,9 @@ export default function OrdersPage() {
         createReturnOrder,
         createReplacementOrder,
         isBlacklisted,
+        getBlacklistEntry,
+        addToBlacklist,
+        removeFromBlacklist,
         stats,
         availableCities,
         availableProducts,
@@ -303,6 +306,17 @@ export default function OrdersPage() {
         // Message templates
         messageTemplates,
     } = useOrdersContext();
+
+    // Apply ?status= query param from dashboard card clicks (one-time on mount)
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const params = new URLSearchParams(window.location.search);
+        const statusParam = params.get('status');
+        if (statusParam) {
+            setFilters(prev => ({ ...prev, status: statusParam as 'new' | 'confirmed' | 'rejected' | 'all' }));
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // run once on mount
 
     // Get products for Excel import matching
     useProductsCrud();
@@ -2367,6 +2381,9 @@ export default function OrdersPage() {
                                                                         onViewDetails={handleViewDetails}
                                                                         onSplit={() => setSplitOrderDialog({ open: true, order })}
                                                                         isBlacklisted={isBlacklisted(order.phone)}
+                                                                        blacklistEntry={getBlacklistEntry(order.phone)}
+                                                                        onAddToBlacklist={addToBlacklist}
+                                                                        onRemoveFromBlacklist={removeFromBlacklist}
                                                                         riskLevel={(order.risk_data?.level || "low") as "low" | "medium" | "high" | "blocked"}
                                                                         riskAssessment={order.risk_data}
                                                                         customerOrderCount={orderCount}
@@ -2445,6 +2462,9 @@ export default function OrdersPage() {
                                                                 await mergeOrders(keepId, archiveId);
                                                             }}
                                                             isBlacklisted={isBlacklisted}
+                                                            getBlacklistEntry={getBlacklistEntry}
+                                                            onAddToBlacklist={addToBlacklist}
+                                                            onRemoveFromBlacklist={removeFromBlacklist}
                                                             getRiskAssessment={(phone) => {
                                                                 const order = displayedOrders.find(o => o.phone === phone);
                                                                 return order?.risk_data;
@@ -2483,6 +2503,9 @@ export default function OrdersPage() {
                                                                             onViewDetails={handleViewDetails}
                                                                             onSplit={() => setSplitOrderDialog({ open: true, order })}
                                                                             isBlacklisted={isBlacklisted(order.phone)}
+                                                                            blacklistEntry={getBlacklistEntry(order.phone)}
+                                                                            onAddToBlacklist={addToBlacklist}
+                                                                            onRemoveFromBlacklist={removeFromBlacklist}
                                                                             riskLevel={(order.risk_data?.level || "low") as "low" | "medium" | "high" | "blocked"}
                                                                             riskAssessment={order.risk_data}
                                                                             customerOrderCount={orderCount}
@@ -2619,6 +2642,7 @@ export default function OrdersPage() {
                         onClose={() => setIsCreateModalOpen(false)}
                         onCreate={createOrder}
                         checkOrderIdExists={checkOrderIdExists}
+                        getBlacklistEntry={getBlacklistEntry}
                     />
 
                     {/* Duplicate Comparison Modal */}

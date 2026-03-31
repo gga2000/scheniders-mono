@@ -29,6 +29,161 @@ export const translations: Record<Locale, Record<string, string>> = {
         "dashboard.newOrder": "New Order",
         "dashboard.errorTitle": "Error Loading Dashboard",
 
+        // ── Dashboard Widgets ──
+        // Stats Grid
+        "dashboard.stats.urgent": "Urgent",
+        "dashboard.stats.pendingReview": "Pending Review",
+        "dashboard.stats.waitingWhatsApp": "Waiting for WhatsApp message",
+        "dashboard.stats.awaitingContact": "Awaiting contact",
+        "dashboard.stats.ready": "Ready",
+        "dashboard.stats.toBePacked": "To Be Packed",
+        "dashboard.stats.boxesNeeded": "Boxes needed for packing",
+        "dashboard.stats.readyToPack": "Ready to pack",
+        "dashboard.stats.review": "Review",
+        "dashboard.stats.flaggedFake": "Flagged / Fake",
+        "dashboard.stats.reviewBeforeBlocking": "Review before blocking",
+        "dashboard.stats.needsReview": "Needs review",
+        "dashboard.stats.vsLastMonth": "vs last month",
+
+        // Today Strip
+        "dashboard.today": "Today",
+        "dashboard.today.orders": "Orders",
+        "dashboard.today.revenue": "Revenue",
+        "dashboard.today.sameAsYesterday": "Same as yesterday",
+        "dashboard.today.vsYesterday": "vs yesterday:",
+        "dashboard.today.ordersCount": "orders",
+
+        // Date Range Filter
+        "dashboard.dateRange.today": "Today",
+        "dashboard.dateRange.7d": "7 Days",
+        "dashboard.dateRange.30d": "30 Days",
+        "dashboard.dateRange.all": "All Time",
+
+        // Order Pipeline
+        "dashboard.pipeline.title": "Order Pipeline",
+        "dashboard.pipeline.totalActive": "total active",
+        "dashboard.pipeline.orders": "orders",
+        "dashboard.pipeline.new": "New",
+        "dashboard.pipeline.contacted": "Contacted",
+        "dashboard.pipeline.confirmed": "Confirmed",
+        "dashboard.pipeline.inTransit": "In Transit",
+        "dashboard.pipeline.delivered": "Delivered",
+
+        // Revenue Trend Chart
+        "dashboard.trend.title": "Order Trends",
+        "dashboard.trend.orders": "orders",
+        "dashboard.trend.ordersLabel": "Orders",
+        "dashboard.trend.revenueLabel": "Revenue",
+
+        // Delivery Success Rate
+        "dashboard.deliveryRate.title": "Delivery Rate",
+        "dashboard.deliveryRate.vsLastWeek": "vs last week",
+        "dashboard.deliveryRate.stable": "Stable",
+        "dashboard.deliveryRate.formula": "Last 7 days · delivered ÷ (delivered + rejected)",
+
+        // Orders Per Hour
+        "dashboard.hourly.title": "Hourly (Today)",
+        "dashboard.hourly.orders": "orders",
+        "dashboard.hourly.peakAt": "peak at",
+
+        // Peak Hours Heatmap
+        "dashboard.heatmap.title": "Peak Hours",
+        "dashboard.heatmap.busiest": "Busiest:",
+        "dashboard.heatmap.less": "Less",
+        "dashboard.heatmap.more": "More",
+        "dashboard.heatmap.at": "at",
+        "dashboard.heatmap.orders": "orders",
+
+        // Avg Time Per Stage
+        "dashboard.avgTime.title": "Avg Time Per Stage",
+        "dashboard.avgTime.subtitle": "Based on current order data",
+        "dashboard.avgTime.fullCycle": "New → Delivered (full cycle)",
+        "dashboard.avgTime.pendingResponse": "Pending response (avg age)",
+        "dashboard.avgTime.inTransitWait": "In transit (avg wait)",
+        "dashboard.avgTime.disclaimer": "* Cycle time uses delivered_at. Pending and in-transit use current timestamp vs last update.",
+
+        // Week over Week
+        "dashboard.wow.title": "Week over Week",
+        "dashboard.wow.subtitle": "This week vs last week",
+        "dashboard.wow.same": "Same",
+        "dashboard.wow.prev": "prev:",
+        "dashboard.wow.orders": "Orders",
+        "dashboard.wow.deliveryRate": "Delivery Rate",
+        "dashboard.wow.revenue": "Revenue",
+
+        // Month Forecast
+        "dashboard.forecast.title": "Month Forecast",
+        "dashboard.forecast.atCurrentPace": "At current pace",
+        "dashboard.forecast.day": "Day",
+        "dashboard.forecast.throughMonth": "through month",
+        "dashboard.forecast.projectedOrders": "Projected Orders",
+        "dashboard.forecast.projectedRevenue": "Projected Revenue",
+        "dashboard.forecast.soFar": "so far",
+        "dashboard.forecast.perDay": "/day",
+        "dashboard.forecast.linearProjection": "Linear projection based on",
+        "dashboard.forecast.daySample": "-day sample",
+
+        // Rejection Breakdown
+        "dashboard.rejection.title": "Rejection by City",
+        "dashboard.rejection.subtitle": "Cities with ≥5 orders, sorted by rejection %",
+        "dashboard.rejection.noData": "Not enough data yet",
+
+        // Leaderboard
+        "dashboard.leaderboard.topCities": "Top Cities",
+        "dashboard.leaderboard.topProducts": "Top Products",
+
+        // Product Leaderboard
+        "dashboard.products.title": "Top Products",
+        "dashboard.products.unitsSoldRevenue": "Units sold · Revenue",
+        "dashboard.products.unitsSold": "Units sold",
+        "dashboard.products.noData": "No product data yet",
+
+        // Recent Orders Feed
+        "dashboard.recent.title": "Recent Orders",
+        "dashboard.recent.lastOrders": "Last {count} orders",
+        "dashboard.recent.live": "Live",
+        "dashboard.recent.noOrders": "No orders yet",
+        "dashboard.recent.statusNew": "New",
+        "dashboard.recent.statusContacted": "Contacted",
+        "dashboard.recent.statusConfirmed": "Confirmed",
+        "dashboard.recent.statusInTransit": "In Transit",
+        "dashboard.recent.statusDelivered": "Delivered",
+        "dashboard.recent.statusRejected": "Rejected",
+        "dashboard.recent.statusCancelled": "Cancelled",
+        "dashboard.recent.statusNoResponse": "No Response",
+        "dashboard.recent.statusReturn": "Return",
+
+        // Staff Leaderboard
+        "dashboard.staff.title": "Team Leaderboard",
+        "dashboard.staff.adminOnly": "Admin only",
+        "dashboard.staff.adminOnlyProcessed": "Admin only · orders processed",
+        "dashboard.staff.noActivity": "No activity tracked yet",
+        "dashboard.staff.noActivityDesc": "Updates when order statuses are changed by team members",
+        "dashboard.staff.today": "Today",
+        "dashboard.staff.week": "Week",
+
+        // Team Announcements
+        "dashboard.announcements.title": "Announcements",
+        "dashboard.announcements.subtitle": "Team updates",
+        "dashboard.announcements.add": "Add",
+        "dashboard.announcements.placeholder": "Type your announcement… (⌘↵ to send)",
+        "dashboard.announcements.sending": "Sending…",
+        "dashboard.announcements.send": "Send",
+        "dashboard.announcements.loading": "Loading…",
+        "dashboard.announcements.noAnnouncements": "No announcements yet",
+        "dashboard.announcements.pinned": "Pinned",
+        "dashboard.announcements.unpin": "Unpin",
+        "dashboard.announcements.pin": "Pin",
+        "dashboard.announcements.delete": "Delete",
+        "dashboard.announcements.confirmDelete": "Click again to confirm",
+        "dashboard.announcements.justNow": "just now",
+
+        // Time ago
+        "dashboard.timeAgo.seconds": "s ago",
+        "dashboard.timeAgo.minutes": "m ago",
+        "dashboard.timeAgo.hours": "h ago",
+        "dashboard.timeAgo.days": "d ago",
+
         // ── Orders ──
         "orders.title": "Orders",
         "orders.search": "Search orders...",
@@ -517,6 +672,161 @@ export const translations: Record<Locale, Record<string, string>> = {
         "dashboard.subtitle": "مركز القيادة والمعلومات الفورية",
         "dashboard.newOrder": "طلب جديد",
         "dashboard.errorTitle": "خطأ في تحميل لوحة التحكم",
+
+        // ── أدوات لوحة التحكم ──
+        // بطاقات الإحصائيات
+        "dashboard.stats.urgent": "عاجل",
+        "dashboard.stats.pendingReview": "بانتظار المراجعة",
+        "dashboard.stats.waitingWhatsApp": "بانتظار رسالة واتساب",
+        "dashboard.stats.awaitingContact": "بانتظار التواصل",
+        "dashboard.stats.ready": "جاهز",
+        "dashboard.stats.toBePacked": "جاهز للتغليف",
+        "dashboard.stats.boxesNeeded": "صناديق جاهزة للتغليف",
+        "dashboard.stats.readyToPack": "جاهز للتغليف",
+        "dashboard.stats.review": "مراجعة",
+        "dashboard.stats.flaggedFake": "مشبوه / وهمي",
+        "dashboard.stats.reviewBeforeBlocking": "مراجعة قبل الحظر",
+        "dashboard.stats.needsReview": "يحتاج مراجعة",
+        "dashboard.stats.vsLastMonth": "مقارنة بالشهر الماضي",
+
+        // شريط اليوم
+        "dashboard.today": "اليوم",
+        "dashboard.today.orders": "الطلبات",
+        "dashboard.today.revenue": "الإيرادات",
+        "dashboard.today.sameAsYesterday": "نفس الأمس",
+        "dashboard.today.vsYesterday": "مقارنة بالأمس:",
+        "dashboard.today.ordersCount": "طلبات",
+
+        // فلتر النطاق الزمني
+        "dashboard.dateRange.today": "اليوم",
+        "dashboard.dateRange.7d": "٧ أيام",
+        "dashboard.dateRange.30d": "٣٠ يوم",
+        "dashboard.dateRange.all": "الكل",
+
+        // خط أنابيب الطلبات
+        "dashboard.pipeline.title": "خط سير الطلبات",
+        "dashboard.pipeline.totalActive": "إجمالي نشط",
+        "dashboard.pipeline.orders": "طلبات",
+        "dashboard.pipeline.new": "جديد",
+        "dashboard.pipeline.contacted": "تم الاتصال",
+        "dashboard.pipeline.confirmed": "مؤكد",
+        "dashboard.pipeline.inTransit": "قيد التوصيل",
+        "dashboard.pipeline.delivered": "تم التوصيل",
+
+        // مخطط اتجاه الطلبات
+        "dashboard.trend.title": "اتجاه الطلبات",
+        "dashboard.trend.orders": "طلبات",
+        "dashboard.trend.ordersLabel": "الطلبات",
+        "dashboard.trend.revenueLabel": "الإيرادات",
+
+        // نسبة نجاح التوصيل
+        "dashboard.deliveryRate.title": "نسبة التوصيل",
+        "dashboard.deliveryRate.vsLastWeek": "مقارنة بالأسبوع الماضي",
+        "dashboard.deliveryRate.stable": "مستقر",
+        "dashboard.deliveryRate.formula": "آخر ٧ أيام · تم التوصيل ÷ (تم التوصيل + مرفوض)",
+
+        // طلبات في الساعة
+        "dashboard.hourly.title": "بالساعة (اليوم)",
+        "dashboard.hourly.orders": "طلبات",
+        "dashboard.hourly.peakAt": "الذروة في",
+
+        // خريطة الذروة الحرارية
+        "dashboard.heatmap.title": "ساعات الذروة",
+        "dashboard.heatmap.busiest": "الأكثر ازدحاماً:",
+        "dashboard.heatmap.less": "أقل",
+        "dashboard.heatmap.more": "أكثر",
+        "dashboard.heatmap.at": "في",
+        "dashboard.heatmap.orders": "طلبات",
+
+        // متوسط الوقت لكل مرحلة
+        "dashboard.avgTime.title": "متوسط الوقت لكل مرحلة",
+        "dashboard.avgTime.subtitle": "بناءً على بيانات الطلبات الحالية",
+        "dashboard.avgTime.fullCycle": "جديد ← تم التوصيل (الدورة الكاملة)",
+        "dashboard.avgTime.pendingResponse": "بانتظار الرد (متوسط العمر)",
+        "dashboard.avgTime.inTransitWait": "قيد التوصيل (متوسط الانتظار)",
+        "dashboard.avgTime.disclaimer": "* وقت الدورة يستخدم تاريخ التوصيل. المعلق وقيد التوصيل يستخدمان الطابع الزمني الحالي مقابل آخر تحديث.",
+
+        // مقارنة أسبوعية
+        "dashboard.wow.title": "مقارنة أسبوعية",
+        "dashboard.wow.subtitle": "هذا الأسبوع مقابل الأسبوع الماضي",
+        "dashboard.wow.same": "مماثل",
+        "dashboard.wow.prev": "السابق:",
+        "dashboard.wow.orders": "الطلبات",
+        "dashboard.wow.deliveryRate": "نسبة التوصيل",
+        "dashboard.wow.revenue": "الإيرادات",
+
+        // توقعات الشهر
+        "dashboard.forecast.title": "توقعات الشهر",
+        "dashboard.forecast.atCurrentPace": "بالوتيرة الحالية",
+        "dashboard.forecast.day": "يوم",
+        "dashboard.forecast.throughMonth": "من الشهر",
+        "dashboard.forecast.projectedOrders": "الطلبات المتوقعة",
+        "dashboard.forecast.projectedRevenue": "الإيرادات المتوقعة",
+        "dashboard.forecast.soFar": "حتى الآن",
+        "dashboard.forecast.perDay": "/يوم",
+        "dashboard.forecast.linearProjection": "توقع خطي بناءً على",
+        "dashboard.forecast.daySample": " يوم من البيانات",
+
+        // تفصيل الرفض
+        "dashboard.rejection.title": "الرفض حسب المدينة",
+        "dashboard.rejection.subtitle": "مدن بـ ≥٥ طلبات، مرتبة حسب نسبة الرفض",
+        "dashboard.rejection.noData": "لا توجد بيانات كافية بعد",
+
+        // قائمة المتصدرين
+        "dashboard.leaderboard.topCities": "أعلى المدن",
+        "dashboard.leaderboard.topProducts": "أعلى المنتجات",
+
+        // قائمة المنتجات
+        "dashboard.products.title": "أعلى المنتجات",
+        "dashboard.products.unitsSoldRevenue": "وحدات مباعة · الإيرادات",
+        "dashboard.products.unitsSold": "وحدات مباعة",
+        "dashboard.products.noData": "لا توجد بيانات منتجات بعد",
+
+        // آخر الطلبات
+        "dashboard.recent.title": "آخر الطلبات",
+        "dashboard.recent.lastOrders": "آخر {count} طلبات",
+        "dashboard.recent.live": "مباشر",
+        "dashboard.recent.noOrders": "لا توجد طلبات بعد",
+        "dashboard.recent.statusNew": "جديد",
+        "dashboard.recent.statusContacted": "تم الاتصال",
+        "dashboard.recent.statusConfirmed": "مؤكد",
+        "dashboard.recent.statusInTransit": "قيد التوصيل",
+        "dashboard.recent.statusDelivered": "تم التوصيل",
+        "dashboard.recent.statusRejected": "مرفوض",
+        "dashboard.recent.statusCancelled": "ملغي",
+        "dashboard.recent.statusNoResponse": "لم يرد",
+        "dashboard.recent.statusReturn": "مرتجع",
+
+        // قائمة متصدري الفريق
+        "dashboard.staff.title": "متصدرو الفريق",
+        "dashboard.staff.adminOnly": "للمسؤولين فقط",
+        "dashboard.staff.adminOnlyProcessed": "للمسؤولين فقط · طلبات معالَجة",
+        "dashboard.staff.noActivity": "لا توجد نشاطات مسجلة بعد",
+        "dashboard.staff.noActivityDesc": "يتم التحديث عند تغيير حالة الطلبات من قبل أعضاء الفريق",
+        "dashboard.staff.today": "اليوم",
+        "dashboard.staff.week": "الأسبوع",
+
+        // الإعلانات
+        "dashboard.announcements.title": "الإعلانات",
+        "dashboard.announcements.subtitle": "تحديثات الفريق",
+        "dashboard.announcements.add": "إضافة",
+        "dashboard.announcements.placeholder": "اكتب إعلانك… (⌘↵ للإرسال)",
+        "dashboard.announcements.sending": "جاري الإرسال…",
+        "dashboard.announcements.send": "إرسال",
+        "dashboard.announcements.loading": "جاري التحميل…",
+        "dashboard.announcements.noAnnouncements": "لا توجد إعلانات بعد",
+        "dashboard.announcements.pinned": "مثبت",
+        "dashboard.announcements.unpin": "إلغاء التثبيت",
+        "dashboard.announcements.pin": "تثبيت",
+        "dashboard.announcements.delete": "حذف",
+        "dashboard.announcements.confirmDelete": "اضغط مرة أخرى للتأكيد",
+        "dashboard.announcements.justNow": "الآن",
+
+        // الوقت المنقضي
+        "dashboard.timeAgo.seconds": "ث مضت",
+        "dashboard.timeAgo.minutes": "د مضت",
+        "dashboard.timeAgo.hours": "س مضت",
+        "dashboard.timeAgo.days": "ي مضت",
 
         // ── Orders ──
         "orders.title": "الطلبات",
