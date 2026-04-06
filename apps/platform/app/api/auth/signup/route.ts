@@ -156,16 +156,14 @@ export async function POST(request: NextRequest) {
         const now = new Date();
         await adminClient
             .from('usage_tracking')
-            .insert({
+            .upsert({
                 tenant_id: tenant.id,
                 year: now.getFullYear(),
                 month: now.getMonth() + 1,
                 orders_count: 0,
                 orders_charged: 0,
                 team_members_count: 1,
-            })
-            .onConflict('tenant_id, year, month')
-            .ignore();
+            }, { onConflict: 'tenant_id, year, month', ignoreDuplicates: true });
 
         return NextResponse.json({
             success: true,

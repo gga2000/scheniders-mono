@@ -72,18 +72,20 @@ function validateEnv() {
     // Server vars are only validated on the server side
     let serverVars: z.infer<typeof serverSchema> = {};
     if (typeof window === "undefined") {
+        // Convert empty strings to undefined so .optional() works correctly
+        const orUndef = (v: string | undefined) => (v && v.trim() ? v.trim() : undefined);
         const serverResult = serverSchema.safeParse({
-            SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-            LIGHTFUNNELS_WEBHOOK_SECRET: process.env.LIGHTFUNNELS_WEBHOOK_SECRET,
-            WEBHOOK_LOGGING_ENABLED: process.env.WEBHOOK_LOGGING_ENABLED,
-            CRON_SECRET: process.env.CRON_SECRET,
-            QSTASH_TOKEN: process.env.QSTASH_TOKEN,
-            QSTASH_CURRENT_SIGNING_KEY: process.env.QSTASH_CURRENT_SIGNING_KEY,
-            QSTASH_NEXT_SIGNING_KEY: process.env.QSTASH_NEXT_SIGNING_KEY,
-            INTERAKT_API_KEY: process.env.INTERAKT_API_KEY,
-            INTERAKT_WEBHOOK_SECRET: process.env.INTERAKT_WEBHOOK_SECRET,
-            WASEET_USERNAME: process.env.WASEET_USERNAME,
-            WASEET_PASSWORD: process.env.WASEET_PASSWORD,
+            SUPABASE_SERVICE_ROLE_KEY: orUndef(process.env.SUPABASE_SERVICE_ROLE_KEY),
+            LIGHTFUNNELS_WEBHOOK_SECRET: orUndef(process.env.LIGHTFUNNELS_WEBHOOK_SECRET),
+            WEBHOOK_LOGGING_ENABLED: orUndef(process.env.WEBHOOK_LOGGING_ENABLED),
+            CRON_SECRET: orUndef(process.env.CRON_SECRET),
+            QSTASH_TOKEN: orUndef(process.env.QSTASH_TOKEN),
+            QSTASH_CURRENT_SIGNING_KEY: orUndef(process.env.QSTASH_CURRENT_SIGNING_KEY),
+            QSTASH_NEXT_SIGNING_KEY: orUndef(process.env.QSTASH_NEXT_SIGNING_KEY),
+            INTERAKT_API_KEY: orUndef(process.env.INTERAKT_API_KEY),
+            INTERAKT_WEBHOOK_SECRET: orUndef(process.env.INTERAKT_WEBHOOK_SECRET),
+            WASEET_USERNAME: orUndef(process.env.WASEET_USERNAME),
+            WASEET_PASSWORD: orUndef(process.env.WASEET_PASSWORD),
         });
 
         if (!serverResult.success) {
