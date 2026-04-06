@@ -2,18 +2,42 @@
 
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { Order, OrderItem } from "@/lib/supabase";
+import { canCreateOrder, getCurrentUsage, getPlanLimits, getWallet } from "@/lib/tenant";
+
+// =============================================
+// CHECK LIMITS (called from UI before showing create modal)
+// =============================================
+
+export async function checkOrderLimitsAction(
+    tenantId: string
+): Promise<{ allowed: boolean; reason?: string; warning?: string }> {
+    return canCreateOrder(tenantId);
+}
+
+// =============================================
+// CREATE ORDER (with charging + usage tracking)
+// =============================================
 
 export async function createOrderAction(
     orderData: Omit<Order, "id" | "created_at" | "updated_at">,
     tenantId: string | null,
     retryCount = 0
-): Promise<{ success: boolean; data?: Order; error?: string }> {
+): Promise<{ success: boolean; data?: Order; error?: string; warning?: string }> {
     const MAX_RETRIES = 5;
     const supabase = createSupabaseServiceClient();
 
     try {
+        // ── 1. Check plan limits (if tenant exists) ──
+        let warning: string | undefined;
+        if (tenantId) {
+            const limitCheck = await canCreateOrder(tenantId);
+            if (!limitCheck.allowed) {
+                return { success: false, error: limitCheck.reason };
+            }
+            warning = limitCheck.warning;
+        }
 
-        // We delegate all the sequence number and ID generation to the atomic DB RPC
+        // ── 2. Create the order ──
         const payload = {
             ...orderData,
             status: orderData.status || "confirmed",
@@ -30,7 +54,14 @@ export async function createOrderAction(
             throw insertError;
         }
 
-        return { success: true, data: data as Order };
+        // ── 3. Post-creation: charge wallet + increment usage (fire-and-forget) ──
+        if (tenantId) {
+            chargeAndTrack(tenantId, supabase).catch((err) => {
+                console.error('[createOrderAction] Post-creation charge/track failed:', err);
+            });
+        }
+
+        return { success: true, data: data as Order, warning };
     } catch (err: unknown) {
         // Extract more detailed error information
         let errorMessage = "Failed to create order";
@@ -83,6 +114,77 @@ export async function splitOrderAction(
         return { success: false, error: errorMessage };
     }
 }
+
+// =============================================
+// POST-CREATION: Charge wallet + increment usage
+// =============================================
+
+type SupabaseAdmin = ReturnType<typeof createSupabaseServiceClient>;
+
+async function chargeAndTrack(tenantId: string, supabase: SupabaseAdmin) {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+
+    // Get current usage + plan limits to determine price
+    const [usage, wallet] = await Promise.all([
+        getCurrentUsage(tenantId),
+        getWallet(tenantId),
+    ]);
+
+    // Determine per-order price
+    // We need plan info from the tenant
+    const { data: tenant } = await supabase
+        .from('tenants')
+        .select('plan')
+        .eq('id', tenantId)
+        .single();
+
+    const limits = tenant ? await getPlanLimits(tenant.plan) : null;
+    const isOverLimit = limits && limits.max_orders_per_month !== -1 && usage.orders_count >= limits.max_orders_per_month;
+    const chargeAmount = isOverLimit
+        ? (limits?.overage_price_iqd ?? 500)
+        : (limits?.order_price_iqd ?? 100);
+
+    // ── Increment usage_tracking ──
+    await supabase
+        .from('usage_tracking')
+        .upsert({
+            tenant_id: tenantId,
+            year,
+            month,
+            orders_count: usage.orders_count + 1,
+            orders_charged: usage.orders_charged + 1,
+            team_members_count: usage.team_members_count,
+        }, { onConflict: 'tenant_id, year, month' });
+
+    // ── Charge wallet (if wallet exists and has balance) ──
+    if (wallet && wallet.balance_iqd > 0) {
+        const newBalance = wallet.balance_iqd - chargeAmount;
+
+        await supabase
+            .from('wallet')
+            .update({
+                balance_iqd: newBalance,
+                total_charged_iqd: wallet.total_charged_iqd + chargeAmount,
+                updated_at: now.toISOString(),
+            })
+            .eq('tenant_id', tenantId);
+
+        // Log transaction
+        await supabase.from('wallet_transactions').insert({
+            tenant_id: tenantId,
+            type: 'charge',
+            amount_iqd: -chargeAmount,
+            balance_after_iqd: newBalance,
+            description: `Order charge${isOverLimit ? ' (overage)' : ''}`,
+        });
+    }
+}
+
+// =============================================
+// CHECK ORDER ID EXISTS
+// =============================================
 
 export async function checkOrderIdExists(orderId: string, excludeUuid?: string, tenantId?: string | null): Promise<boolean> {
     const supabase = createSupabaseServiceClient();

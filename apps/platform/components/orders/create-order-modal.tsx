@@ -21,6 +21,7 @@ import {
 } from "@/lib/order-utils";
 import type { OrderItem } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
+import { checkOrderLimitsAction } from "@/app/actions/orders";
 import { toast } from "sonner";
 import {
     User,
@@ -70,6 +71,7 @@ const TikTokIcon = ({ className }: { className?: string }) => (
 interface CreateOrderModalProps {
     open: boolean;
     onClose: () => void;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onCreate: (orderData: any) => Promise<any>;
     checkOrderIdExists?: (orderId: string) => Promise<boolean>;
     initialData?: Partial<OrderFormData & { secondary_phone?: string; source?: string; order_id?: string }>;
@@ -94,7 +96,9 @@ export function CreateOrderModal({
     initialData,
     getBlacklistEntry,
 }: CreateOrderModalProps) {
-    const { session } = useAuth();
+    const { session, tenantId } = useAuth();
+    const [limitWarning, setLimitWarning] = useState<string | null>(null);
+    const [limitBlocked, setLimitBlocked] = useState<string | null>(null);
     const [orderType, setOrderType] = useState<OrderType>("delivery");
     const [formData, setFormData] = useState<OrderFormData & { secondary_phone?: string; source?: string; order_id?: string }>({
         customer_name: initialData?.customer_name || "",
@@ -126,6 +130,21 @@ export function CreateOrderModal({
     const [customCreatedAt, setCustomCreatedAt] = useState<string>(new Date().toISOString());
     const [createAndNew, setCreateAndNew] = useState(false);
     const handleCreateRef = useRef<() => void>();
+
+    // Check plan limits when modal opens
+    useEffect(() => {
+        if (open && tenantId) {
+            setLimitWarning(null);
+            setLimitBlocked(null);
+            checkOrderLimitsAction(tenantId).then((result) => {
+                if (!result.allowed) {
+                    setLimitBlocked(result.reason ?? "Order limit reached");
+                } else if (result.warning) {
+                    setLimitWarning(result.warning);
+                }
+            }).catch(() => { /* non-critical */ });
+        }
+    }, [open, tenantId]);  
 
     // Sync formData with initialData only when modal first opens
     useEffect(() => {
@@ -528,6 +547,23 @@ export function CreateOrderModal({
                     </DialogHeader>
 
                     <div className="p-6 space-y-5 max-h-[65vh] overflow-y-auto">
+                        {/* Plan Limit Block */}
+                        {limitBlocked && (
+                            <div className="flex items-center gap-3 p-3 rounded-xl bg-red-50 border border-red-200">
+                                <Ban className="w-5 h-5 text-red-500 shrink-0" />
+                                <div>
+                                    <p className="text-sm font-medium text-red-800">Cannot create order</p>
+                                    <p className="text-xs text-red-600">{limitBlocked}</p>
+                                </div>
+                            </div>
+                        )}
+                        {/* Plan Limit Warning */}
+                        {limitWarning && !limitBlocked && (
+                            <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 border border-amber-200">
+                                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                                <p className="text-xs text-amber-700">{limitWarning}</p>
+                            </div>
+                        )}
                         {/* Row 1: Order Type + Date/Time Picker */}
                         <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-1.5">
@@ -1163,7 +1199,7 @@ export function CreateOrderModal({
                             <button
                                 type="button"
                                 onClick={() => { setCreateAndNew(true); handleCreate(); }}
-                                disabled={isCreating}
+                                disabled={isCreating || !!limitBlocked}
                                 className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl border border-gray-200 transition-all disabled:opacity-50"
                             >
                                 {isCreating && createAndNew ? (
@@ -1178,7 +1214,7 @@ export function CreateOrderModal({
                             <button
                                 type="button"
                                 onClick={handleCreate}
-                                disabled={isCreating}
+                                disabled={isCreating || !!limitBlocked}
                                 className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-[var(--button-success)] hover:bg-[var(--button-success-hover)] rounded-xl shadow-md transition-all disabled:opacity-50"
                             >
                                 {isCreating && !createAndNew ? (

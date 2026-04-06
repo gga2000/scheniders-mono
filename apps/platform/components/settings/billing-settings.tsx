@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
     Wallet,
     CreditCard,
@@ -15,9 +16,13 @@ import {
     Loader2,
     Check,
     ChevronRight,
+    Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBilling, PlanLimitsData } from "@/hooks/use-billing";
+import { useAuth } from "@/components/auth/auth-provider";
+import { topUpWalletAction } from "@/app/actions/wallet";
+import { toast } from "@/hooks/use-toast";
 
 function formatIQD(amount: number): string {
     return new Intl.NumberFormat("en-IQ").format(Math.round(amount)) + " IQD";
@@ -54,8 +59,28 @@ const FEATURE_LABELS: Record<string, string> = {
     custom_storefront: "Custom Storefront",
 };
 
+const TOP_UP_PRESETS = [25_000, 50_000, 100_000, 250_000, 500_000, 1_000_000];
+
 export function BillingSettings() {
-    const { wallet, subscription, usage, allPlans, transactions, isLoading } = useBilling();
+    const { tenantId } = useAuth();
+    const { wallet, subscription, usage, allPlans, transactions, isLoading, refetch } = useBilling();
+    const [showTopUp, setShowTopUp] = useState(false);
+    const [topUpAmount, setTopUpAmount] = useState<number>(100_000);
+    const [isTopping, setIsTopping] = useState(false);
+
+    const handleTopUp = async () => {
+        if (!tenantId || topUpAmount <= 0) return;
+        setIsTopping(true);
+        const result = await topUpWalletAction(tenantId, topUpAmount, "manual");
+        setIsTopping(false);
+        if (result.success) {
+            toast.success(`Wallet topped up by ${formatIQD(topUpAmount)}`);
+            setShowTopUp(false);
+            refetch();
+        } else {
+            toast.error("Top-up failed", result.error);
+        }
+    };
 
     if (isLoading) {
         return (
@@ -156,6 +181,52 @@ export function BillingSettings() {
                                         ({formatIQD(currentPlan.overage_price_iqd)} over limit)
                                     </span>
                                 </p>
+                            </div>
+                        )}
+
+                        {/* Top Up Section */}
+                        {!showTopUp ? (
+                            <button
+                                onClick={() => setShowTopUp(true)}
+                                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-green-300 text-green-700 text-sm font-medium hover:bg-green-50 transition-colors"
+                            >
+                                <Plus className="w-4 h-4" />
+                                Top Up Wallet
+                            </button>
+                        ) : (
+                            <div className="p-4 rounded-xl border border-green-200 bg-green-50/50 space-y-3">
+                                <div className="flex flex-wrap gap-2">
+                                    {TOP_UP_PRESETS.map((amt) => (
+                                        <button
+                                            key={amt}
+                                            onClick={() => setTopUpAmount(amt)}
+                                            className={cn(
+                                                "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                                                topUpAmount === amt
+                                                    ? "bg-green-600 text-white"
+                                                    : "bg-white border border-green-200 text-green-700 hover:bg-green-100"
+                                            )}
+                                        >
+                                            {formatIQD(amt)}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setShowTopUp(false)}
+                                        className="flex-1 py-2 rounded-xl text-xs font-medium border border-(--card-border) hover:bg-muted/30 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleTopUp}
+                                        disabled={isTopping}
+                                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+                                    >
+                                        {isTopping ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                                        Add {formatIQD(topUpAmount)}
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>
