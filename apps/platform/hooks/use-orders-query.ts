@@ -417,12 +417,12 @@ export function useDeleteOrderMutation() {
 /**
  * useCreateOrderMutation - Optimistic create
  */
-export function useCreateOrderMutation() {
+export function useCreateOrderMutation(tenantId: string | null) {
     const queryClient = useQueryClient();
 
     return useMutation({
         mutationFn: async (orderData: Omit<Order, "id" | "created_at" | "updated_at">) => {
-            const result = await createOrderAction(orderData);
+            const result = await createOrderAction(orderData, tenantId);
             if (!result.success || !result.data) {
                 console.error("[createOrderMutation] Server action failed:", result.error);
                 throw new Error(result.error || "Failed to create order");

@@ -31,7 +31,7 @@ class ActivityLogger {
     /**
      * Log an activity to the database (fire-and-forget, non-blocking)
      */
-    async log(params: LogActivityParams): Promise<{ success: boolean; error?: string }> {
+    async log(params: LogActivityParams, tenantId?: string | null): Promise<{ success: boolean; error?: string }> {
         try {
             const { userId, userEmail } = await this.getCachedSession();
 
@@ -48,6 +48,7 @@ class ActivityLogger {
                 entity_id: params.entityId || null,
                 details: params.details || {},
                 user_agent: this.getUserAgent(),
+                tenant_id: tenantId ?? null,
             });
 
             if (error) {
@@ -73,7 +74,8 @@ class ActivityLogger {
         orderDisplayId: string,
         fromStatus: string,
         toStatus: string,
-        reason?: string
+        reason?: string,
+        tenantId?: string | null
     ): void {
         this.log({
             action: "order.status_change",
@@ -85,13 +87,13 @@ class ActivityLogger {
                 to_status: toStatus,
                 reason: reason || null,
             },
-        }).catch(err => console.warn("[ActivityLogger] Background log failed:", err));
+        }, tenantId).catch(err => console.warn("[ActivityLogger] Background log failed:", err));
     }
 
     /**
      * Log order creation (fire-and-forget, non-blocking)
      */
-    logOrderCreate(orderId: string, orderDisplayId: string, source?: string): void {
+    logOrderCreate(orderId: string, orderDisplayId: string, source?: string, tenantId?: string | null): void {
         this.log({
             action: "order.create",
             entityType: "order",
@@ -100,7 +102,7 @@ class ActivityLogger {
                 order_id: orderDisplayId,
                 source: source || "manual",
             },
-        }).catch(err => console.warn("[ActivityLogger] Background log failed:", err));
+        }, tenantId).catch(err => console.warn("[ActivityLogger] Background log failed:", err));
     }
 
     /**
@@ -109,7 +111,8 @@ class ActivityLogger {
     logOrderEdit(
         orderId: string,
         orderDisplayId: string,
-        changes: Record<string, { from: unknown; to: unknown }>
+        changes: Record<string, { from: unknown; to: unknown }>,
+        tenantId?: string | null
     ): void {
         this.log({
             action: "order.edit",
@@ -119,7 +122,7 @@ class ActivityLogger {
                 order_id: orderDisplayId,
                 changes,
             },
-        }).catch(err => console.warn("[ActivityLogger] Background log failed:", err));
+        }, tenantId).catch(err => console.warn("[ActivityLogger] Background log failed:", err));
     }
 
     /**
@@ -129,7 +132,8 @@ class ActivityLogger {
         orderId: string,
         orderDisplayId: string,
         assignedToId: string,
-        assignedToName: string
+        assignedToName: string,
+        tenantId?: string | null
     ): void {
         this.log({
             action: "order.assign",
@@ -140,13 +144,13 @@ class ActivityLogger {
                 assigned_to_id: assignedToId,
                 assigned_to_name: assignedToName,
             },
-        }).catch(err => console.warn("[ActivityLogger] Background log failed:", err));
+        }, tenantId).catch(err => console.warn("[ActivityLogger] Background log failed:", err));
     }
 
     /**
      * Log print action (fire-and-forget, non-blocking)
      */
-    logPrint(orderIds: string[], orderDisplayIds: string[], batchId?: string): void {
+    logPrint(orderIds: string[], orderDisplayIds: string[], batchId?: string, tenantId?: string | null): void {
         this.log({
             action: "order.print",
             entityType: "order",
@@ -156,13 +160,13 @@ class ActivityLogger {
                 count: orderIds.length,
                 batch_id: batchId,
             },
-        }).catch(err => console.warn("[ActivityLogger] Background log failed:", err));
+        }, tenantId).catch(err => console.warn("[ActivityLogger] Background log failed:", err));
     }
 
     /**
      * Log blacklist action (fire-and-forget, non-blocking)
      */
-    logBlacklist(phone: string, reason: string): void {
+    logBlacklist(phone: string, reason: string, tenantId?: string | null): void {
         this.log({
             action: "customer.blacklist",
             entityType: "customer",
@@ -171,7 +175,7 @@ class ActivityLogger {
                 phone,
                 reason,
             },
-        }).catch(err => console.warn("[ActivityLogger] Background log failed:", err));
+        }, tenantId).catch(err => console.warn("[ActivityLogger] Background log failed:", err));
     }
 
     /**

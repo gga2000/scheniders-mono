@@ -25,12 +25,12 @@ export const productRepository = {
     },
 
     /** Insert a new product. Returns the created product. */
-    async create(productData: Omit<Product, "id" | "created_at" | "updated_at" | "variants">): Promise<Product> {
+    async create(productData: Omit<Product, "id" | "created_at" | "updated_at" | "variants">, tenantId: string | null): Promise<Product> {
         return withRetry('productRepository.create', async () => {
             const { sku: _sku, ...data } = productData as Omit<Product, "id" | "created_at" | "updated_at" | "variants"> & { sku?: string };
             const { data: newProduct, error } = await supabase
                 .from("products")
-                .insert([{ ...data, is_archived: false }])
+                .insert([{ ...data, is_archived: false, tenant_id: tenantId }])
                 .select()
                 .single();
 
@@ -131,11 +131,11 @@ export const productRepository = {
     // =============================================
 
     /** Add a variant to a product. */
-    async addVariant(productId: string, data: Partial<ProductVariant>): Promise<ProductVariant> {
+    async addVariant(productId: string, data: Partial<ProductVariant>, tenantId: string | null): Promise<ProductVariant> {
         return withRetry('productRepository.addVariant', async () => {
             const { data: newVariant, error } = await supabase
                 .from("product_variants")
-                .insert([{ product_id: productId, ...data }])
+                .insert([{ product_id: productId, ...data, tenant_id: tenantId }])
                 .select()
                 .single();
 

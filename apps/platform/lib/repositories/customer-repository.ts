@@ -28,11 +28,11 @@ export const customerRepository = {
         });
     },
 
-    async createTag(name: string, color: string): Promise<CustomerTag> {
+    async createTag(name: string, color: string, tenantId: string | null): Promise<CustomerTag> {
         return withRetry('customerRepository.createTag', async () => {
             const { data, error } = await supabase
                 .from("customer_tags")
-                .insert([{ name, color }])
+                .insert([{ name, color, tenant_id: tenantId }])
                 .select()
                 .single();
 
@@ -79,11 +79,11 @@ export const customerRepository = {
         });
     },
 
-    async assignTag(phone: string, tagId: string): Promise<void> {
+    async assignTag(phone: string, tagId: string, tenantId: string | null): Promise<void> {
         return withRetry('customerRepository.assignTag', async () => {
             const { error } = await supabase
                 .from("customer_tag_assignments")
-                .insert([{ customer_phone: phone, tag_id: tagId }]);
+                .insert([{ customer_phone: phone, tag_id: tagId, tenant_id: tenantId }]);
 
             if (error) throw error;
         });
@@ -131,13 +131,14 @@ export const customerRepository = {
 
     async upsertMetadata(
         phone: string,
-        updates: { birthday?: string; manual_status?: CustomerStatus }
+        updates: { birthday?: string; manual_status?: CustomerStatus },
+        tenantId: string | null
     ): Promise<void> {
         return withRetry('customerRepository.upsertMetadata', async () => {
             const { error } = await supabase
                 .from("customer_metadata")
                 .upsert(
-                    { customer_phone: phone, ...updates },
+                    { customer_phone: phone, ...updates, tenant_id: tenantId },
                     { onConflict: "customer_phone" }
                 );
 
@@ -162,11 +163,11 @@ export const customerRepository = {
         });
     },
 
-    async createNote(phone: string, note: string): Promise<CustomerNote> {
+    async createNote(phone: string, note: string, tenantId: string | null): Promise<CustomerNote> {
         return withRetry('customerRepository.createNote', async () => {
             const { data, error } = await supabase
                 .from("customer_notes")
-                .insert([{ customer_phone: phone, note }])
+                .insert([{ customer_phone: phone, note, tenant_id: tenantId }])
                 .select()
                 .single();
 
@@ -227,11 +228,11 @@ export const customerRepository = {
         });
     },
 
-    async addToWhitelist(phone: string, reason?: string): Promise<void> {
+    async addToWhitelist(phone: string, reason: string | undefined, tenantId: string | null): Promise<void> {
         return withRetry('customerRepository.addToWhitelist', async () => {
             const { error } = await supabase
                 .from("customer_whitelist")
-                .upsert([{ phone, reason }]);
+                .upsert([{ phone, reason, tenant_id: tenantId }]);
 
             if (error) throw error;
         });

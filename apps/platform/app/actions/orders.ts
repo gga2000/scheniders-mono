@@ -5,6 +5,7 @@ import { Order, OrderItem } from "@/lib/supabase";
 
 export async function createOrderAction(
     orderData: Omit<Order, "id" | "created_at" | "updated_at">,
+    tenantId: string | null,
     retryCount = 0
 ): Promise<{ success: boolean; data?: Order; error?: string }> {
     const MAX_RETRIES = 5;
@@ -23,7 +24,7 @@ export async function createOrderAction(
         };
 
         const { data, error: insertError } = await supabase
-            .rpc('create_order_atomic', { _order_data: payload });
+            .rpc('create_order_atomic', { _order_data: payload, _tenant_id: tenantId });
 
         if (insertError) {
             throw insertError;
@@ -54,7 +55,8 @@ export async function createOrderAction(
 export async function splitOrderAction(
     originalOrderId: string,
     keptItems: OrderItem[],
-    returnedItems: OrderItem[]
+    returnedItems: OrderItem[],
+    tenantId: string | null
 ): Promise<{ success: boolean; data?: Order; error?: string }> {
     const supabase = createSupabaseServiceClient();
 
@@ -66,7 +68,8 @@ export async function splitOrderAction(
             .rpc('split_order_atomic', {
                 _original_order_id: originalOrderId,
                 _kept_items: keptItems,
-                _returned_items: returnedItems
+                _returned_items: returnedItems,
+                _tenant_id: tenantId,
             });
 
         if (splitError) {
@@ -81,7 +84,7 @@ export async function splitOrderAction(
     }
 }
 
-export async function checkOrderIdExists(orderId: string, excludeUuid?: string): Promise<boolean> {
+export async function checkOrderIdExists(orderId: string, excludeUuid?: string, tenantId?: string | null): Promise<boolean> {
     const supabase = createSupabaseServiceClient();
 
     try {
@@ -92,6 +95,10 @@ export async function checkOrderIdExists(orderId: string, excludeUuid?: string):
 
         if (excludeUuid) {
             query = query.neq("id", excludeUuid);
+        }
+
+        if (tenantId) {
+            query = query.eq("tenant_id", tenantId);
         }
 
         const { data, error } = await query;

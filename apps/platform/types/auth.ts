@@ -12,6 +12,7 @@ export interface UserProfile {
     avatar_url: string | null;
     is_active?: boolean;
     last_login_at?: string | null;
+    current_tenant_id?: string | null;
 }
 
 export interface AuthContextType {
@@ -20,6 +21,7 @@ export interface AuthContextType {
     role: string | null;
     profile: UserProfile | null;
     permissions: string[];
+    tenantId: string | null;
     isLoading: boolean;
     profileLoaded: boolean;
     clientReady: boolean; // Supabase client's internal session ready (not just React state)

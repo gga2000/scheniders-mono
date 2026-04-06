@@ -73,9 +73,10 @@ export function usePrefetchProducts() {
 
 export function useAddProductMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async (productData: any) => {
-            return productRepository.create(productData);
+            return productRepository.create(productData, tenantId);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: productKeys.lists() });
@@ -203,9 +204,10 @@ export function useBulkArchiveMutation() {
 // Variant Mutations
 export function useAddVariantMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async ({ productId, data }: { productId: string; data: any }) => {
-            return productRepository.addVariant(productId, data);
+            return productRepository.addVariant(productId, data, tenantId);
         },
         onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
     });

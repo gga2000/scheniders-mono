@@ -15,6 +15,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [role, setRole] = useState<string | null>(null);
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [permissions, setPermissions] = useState<string[]>([]);
+    const [tenantId, setTenantId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [profileLoaded, setProfileLoaded] = useState(false);
     const [clientReady, setClientReady] = useState(false);
@@ -49,6 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             setRole(profileData.role);
             setProfile(profileData as UserProfile);
+            setTenantId(profileData.current_tenant_id ?? null);
 
             // Fetch role permissions + user overrides in parallel
             const [rolePermsResult, userOverridesResult] = await Promise.all([
@@ -164,6 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                                 setRole(null);
                                 setProfile(null);
                                 setPermissions([]);
+                                setTenantId(null);
                                 markProfileLoaded(false);
                                 setClientReady(false);
                                 setIsLoading(false);
@@ -225,6 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setRole(null);
                     setProfile(null);
                     setPermissions([]);
+                    setTenantId(null);
                     markProfileLoaded(false);
                     setClientReady(false);
                     setIsLoading(false);
@@ -321,6 +325,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 role,
                 profile,
                 permissions,
+                tenantId,
                 isLoading,
                 profileLoaded,
                 clientReady,

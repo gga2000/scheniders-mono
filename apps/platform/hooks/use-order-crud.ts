@@ -49,7 +49,7 @@ interface UseOrderCrudOptions {
 
 export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     const queryClient = useQueryClient();
-    const { user, profile, session } = useAuth();
+    const { user, profile, session, tenantId } = useAuth();
 
     // Stable Auth Ref to prevent stale closures in stableAPI proxy
     const authRef = useRef({ user, profile, session });
@@ -68,7 +68,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     // Mutations
     const updateStatusMutation = useUpdateStatusMutation();
     const updateOrderMutation = useUpdateOrderMutation();
-    const createOrderMutation = useCreateOrderMutation();
+    const createOrderMutation = useCreateOrderMutation(tenantId);
 
     // Undo stack
     const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
@@ -229,6 +229,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                                     changed_at: new Date().toISOString(),
                                     notes: rejectionReason || null,
                                     changed_by: changedBy,
+                                    tenant_id: tenantId,
                                 }]);
                             
                             if (historyError) {
@@ -350,6 +351,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                         changed_at: new Date().toISOString(),
                         notes: `Updated: ${auditChanges.join(', ')}`,
                         changed_by: changedBy,
+                        tenant_id: tenantId,
                     }]).then(({ error }) => {
                         if (error) console.error("Failed to record detail history:", error);
                     });
@@ -504,6 +506,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     to_status: cleanOrderData.status || "new",
                     changed_at: new Date().toISOString(),
                     notes: 'Order Created',
+                    tenant_id: tenantId,
                 }])
                 .then(({ error: historyError }) => {
                     if (historyError) console.error("Failed to record initial status history:", historyError);
@@ -563,7 +566,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         try {
             const originalOrder = orders.find(o => o.id === originalOrderId);
 
-            const result = await splitOrderAction(originalOrderId, keptItems, returnedItems);
+            const result = await splitOrderAction(originalOrderId, keptItems, returnedItems, tenantId);
 
             if (result.success) {
                 await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
@@ -854,6 +857,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 to_status: status,
                 changed_at: new Date().toISOString(),
                 notes: `Bulk update to ${status}`,
+                tenant_id: tenantId,
             }));
 
             if (historyEntries.length > 0) {
@@ -1258,8 +1262,9 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                         order_id: keepOrderId,
                         changed_by: changedBy,
                         from_status: keepOrder.status,
-                        to_status: keepOrder.status, // Still the same status, but data changed
+                        to_status: keepOrder.status,
                         notes: `Merged with #${archiveOrder.order_id}`,
+                        tenant_id: tenantId,
                     },
                     {
                         order_id: archiveOrderId,
@@ -1267,6 +1272,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                         from_status: archiveOrder.status,
                         to_status: "rejected",
                         notes: `Merged into #${keepOrder.order_id}`,
+                        tenant_id: tenantId,
                     }
                 ]);
 
@@ -1299,7 +1305,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         try {
             const { data, error: insertError } = await supabase
                 .from("order_notes")
-                .insert([{ order_id: orderId, note }])
+                .insert([{ order_id: orderId, note, tenant_id: tenantId }])
                 .select()
                 .single();
 
@@ -1375,6 +1381,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     order_ids: orderIds,
                     invoice_template: invoiceTemplate,
                     print_type: printType,
+                    tenant_id: tenantId,
                 })
                 .select()
                 .single();
@@ -1403,6 +1410,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     order_id: orderId,
                     reminder_date: reminderDate.toISOString(),
                     note,
+                    tenant_id: tenantId,
                 }])
                 .select()
                 .single();

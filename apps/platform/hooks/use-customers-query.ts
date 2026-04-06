@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { customerRepository } from "@/lib/repositories/customer-repository";
 import { CustomerTag, CustomerNote, CustomerMetadata, CustomerTagAssignment, CustomerStatus } from "@/types/customer";
 import { CACHE_PRESETS } from '@/lib/query-config';
+import { useAuth } from "@/components/auth/auth-provider";
 
 // Query Keys
 export const customerKeys = {
@@ -162,9 +163,10 @@ export function usePrefetchCustomers() {
 // Tags
 export function useCreateTagMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async ({ name, color }: { name: string; color: string }) => {
-            return customerRepository.createTag(name, color);
+            return customerRepository.createTag(name, color, tenantId);
         },
         onMutate: async ({ name, color }) => {
             await queryClient.cancelQueries({ queryKey: customerKeys.tags() });
@@ -216,9 +218,10 @@ export function useDeleteTagMutation() {
 // Assignments
 export function useAssignTagMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async ({ phone, tagId }: { phone: string; tagId: string }) => {
-            await customerRepository.assignTag(phone, tagId);
+            await customerRepository.assignTag(phone, tagId, tenantId);
             return { phone, tagId };
         },
         onMutate: async ({ phone, tagId }) => {
@@ -302,9 +305,10 @@ export function useRemoveTagMutation() {
 // Metadata
 export function useUpdateMetadataMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async ({ phone, updates }: { phone: string; updates: { birthday?: string; manual_status?: CustomerStatus } }) => {
-            await customerRepository.upsertMetadata(phone, updates);
+            await customerRepository.upsertMetadata(phone, updates, tenantId);
             return { phone, updates };
         },
         onMutate: async ({ phone, updates }) => {
@@ -353,9 +357,10 @@ export function useUpdateMetadataMutation() {
 // Notes
 export function useAddNoteMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async ({ phone, note }: { phone: string; note: string }) => {
-            return customerRepository.createNote(phone, note);
+            return customerRepository.createNote(phone, note, tenantId);
         },
         onMutate: async ({ phone, note }) => {
             await queryClient.cancelQueries({ queryKey: customerKeys.notes(phone) });
@@ -445,9 +450,10 @@ export function useDeleteNoteMutation() {
 // Whitelist
 export function useAddToWhitelistMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async ({ phone, reason }: { phone: string; reason?: string }) => {
-            await customerRepository.addToWhitelist(phone, reason);
+            await customerRepository.addToWhitelist(phone, reason, tenantId);
             return phone;
         },
         onSettled: () => {
