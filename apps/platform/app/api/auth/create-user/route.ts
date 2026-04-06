@@ -28,10 +28,21 @@ export async function POST(request: Request) {
         }
 
         // Parse request body
-        const { email, password, displayName, role } = await request.json();
+        const { email, password, displayName, role, tenantId } = await request.json();
 
         if (!email || !password) {
             return NextResponse.json({ error: "البريد الإلكتروني وكلمة المرور مطلوبان" }, { status: 400 });
+        }
+
+        // Resolve tenant: use provided tenantId or fall back to inviting user's tenant
+        let resolvedTenantId = tenantId;
+        if (!resolvedTenantId) {
+            const { data: inviterProfile } = await supabaseAdmin
+                .from("user_profiles")
+                .select("current_tenant_id")
+                .eq("id", user.id)
+                .single();
+            resolvedTenantId = inviterProfile?.current_tenant_id;
         }
 
         const { data, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -48,13 +59,14 @@ export async function POST(request: Request) {
         }
 
         if (data.user) {
-            // Update the user profile with role
+            // Update the user profile with role and tenant
             const { error: profileError } = await supabaseAdmin
                 .from("user_profiles")
                 .update({
                     role: role || "employee",
                     display_name: displayName || email.split("@")[0],
                     is_active: true,
+                    ...(resolvedTenantId ? { current_tenant_id: resolvedTenantId } : {}),
                 })
                 .eq("id", data.user.id);
 
@@ -63,6 +75,18 @@ export async function POST(request: Request) {
                     { error: "تم إنشاء الحساب لكن تعذر تحديث الملف الشخصي", userId: data.user.id },
                     { status: 207 }
                 );
+            }
+
+            // Create tenant_members entry so RLS grants access
+            if (resolvedTenantId) {
+                await supabaseAdmin.from("tenant_members").insert({
+                    tenant_id: resolvedTenantId,
+                    user_id: data.user.id,
+                    role: role || "employee",
+                    invited_by: user.id,
+                    status: "active",
+                    joined_at: new Date().toISOString(),
+                });
             }
         }
 

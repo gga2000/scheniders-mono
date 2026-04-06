@@ -617,7 +617,7 @@ export function TeamSettings() {
     const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
 
     // State for permissions management
-    const [dbPermissions, setDbPermissions] = useState<any[]>([]);
+    const [dbPermissions, setDbPermissions] = useState<{ role: string; permission: string }[]>([]);
 
     // Global Activity Feed State (Admin Only)
     const [globalLogs, setGlobalLogs] = useState<ActivityLogEntry[]>([]);
@@ -1053,6 +1053,7 @@ export function TeamSettings() {
 
 // Re-including InviteUserModal just to be safe and complete as I'm overwriting the file.
 function InviteUserModal({ onClose, onUserCreated }: { onClose: () => void; onUserCreated: () => void; }) {
+    const { tenantId } = useAuth();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [displayName, setDisplayName] = useState("");
@@ -1078,6 +1079,7 @@ function InviteUserModal({ onClose, onUserCreated }: { onClose: () => void; onUs
                     password,
                     displayName: displayName || email.split("@")[0],
                     role,
+                    tenantId,
                 }),
             });
 
