@@ -21,9 +21,6 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
 
   // Bundle optimization - tree-shake these large packages
   experimental: {
