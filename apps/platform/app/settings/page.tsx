@@ -12,6 +12,7 @@ import {
     UsersRound,
     Search,
     ShieldBan,
+    Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GeneralSettings } from "@/components/settings/general-settings";
@@ -23,6 +24,7 @@ import { LightfunnelsSettings } from "@/components/settings/lightfunnels-setting
 import { PageSettings } from "@/components/settings/pages-settings";
 import { WaseetSettingsPanel } from "@/components/settings/waseet-settings";
 import { CustomerBlacklist } from "@/components/settings/customer-blacklist";
+import { BusinessSettings } from "@/components/settings/business-settings";
 
 function IntegrationsSettings() {
     const [tab, setTab] = useState<"lightfunnels" | "waseet">("lightfunnels");
@@ -56,6 +58,16 @@ function IntegrationsSettings() {
 }
 
 const SECTIONS = [
+    {
+        id: "business",
+        title: "Business",
+        description: "Profile, branding & plan",
+        icon: Building2,
+        colorVar: "--pastel-orange",
+        iconColor: "text-orange-700",
+        component: BusinessSettings,
+        keywords: ["business", "tenant", "branding", "logo", "color", "plan", "subscription", "trial", "name", "contact"],
+    },
     {
         id: "general",
         title: "Store",
@@ -139,7 +151,7 @@ const SECTIONS = [
 ];
 
 export default function SettingsPage() {
-    const [activeSection, setActiveSection] = useState("general");
+    const [activeSection, setActiveSection] = useState("business");
     const [search, setSearch] = useState("");
 
     const filtered = useMemo(() => {
