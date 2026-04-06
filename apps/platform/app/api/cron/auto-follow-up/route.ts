@@ -52,19 +52,7 @@ export async function POST(request: Request) {
 
     console.log(`[Auto Follow-up] Processing ${templateType} for order ${orderUuid}`);
 
-    // Check if auto-send is still enabled
-    const { data: settings } = await supabaseAdmin
-        .from("app_settings")
-        .select("value")
-        .eq("key", "whatsapp_auto_send")
-        .single();
-
-    if (!settings?.value?.enabled) {
-        console.log("[Auto Follow-up] Auto-send is disabled, skipping");
-        return NextResponse.json({ skipped: true, reason: "auto_send_disabled" });
-    }
-
-    // Fetch the order — must still be "contacted" (not confirmed/cancelled)
+    // Fetch the order first (to get tenant_id for scoped settings)
     const { data: order, error: fetchErr } = await supabaseAdmin
         .from("orders")
         .select("*")
@@ -74,6 +62,23 @@ export async function POST(request: Request) {
     if (fetchErr || !order) {
         console.error("[Auto Follow-up] Order not found:", orderUuid);
         return NextResponse.json({ skipped: true, reason: "order_not_found" });
+    }
+
+    // Check if auto-send is enabled for this tenant
+    let settingsQuery = supabaseAdmin
+        .from("app_settings")
+        .select("value")
+        .eq("key", "whatsapp_auto_send");
+
+    if (order.tenant_id) {
+        settingsQuery = settingsQuery.eq("tenant_id", order.tenant_id);
+    }
+
+    const { data: settings } = await settingsQuery.single();
+
+    if (!settings?.value?.enabled) {
+        console.log("[Auto Follow-up] Auto-send is disabled, skipping");
+        return NextResponse.json({ skipped: true, reason: "auto_send_disabled" });
     }
 
     // Only send follow-ups for orders still in "contacted" status
@@ -151,6 +156,7 @@ export async function POST(request: Request) {
         status: "sent",
         interakt_message_id: result.messageId || null,
         payload: { source: "auto_follow_up", templateType },
+        tenant_id: order.tenant_id,
     });
 
     console.log(`[Auto Follow-up] ${templateType} sent for ${order.order_id} (count: ${contactCount} → ${newContactCount})`);

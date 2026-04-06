@@ -712,7 +712,7 @@ async function findProductBySku(sku: string | undefined, lightfunnelsName: strin
 /**
  * Create order from webhook data
  */
-export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
+export async function createOrderFromWebhook(webhook: LightFunnelsWebhook, tenantId?: string | null) {
     try {
         // Format phone number
         const formattedPhone = formatPhoneToStandard(webhook.customer.phone);
@@ -875,7 +875,7 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook) {
 
         // Use atomic RPC to create order with Lightfunnels order ID
         const { data, error } = await supabase
-            .rpc('create_order_atomic', { _order_data: orderData });
+            .rpc('create_order_atomic', { _order_data: orderData, _tenant_id: tenantId ?? null });
 
         if (error) {
             console.error("Error creating order:", error);

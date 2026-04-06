@@ -30,23 +30,39 @@ export async function GET(request: NextRequest) {
 
         const supabaseAdmin = createSupabaseServiceClient();
 
-        // Check if sync is enabled
-        const { data: syncSetting } = await supabaseAdmin
-            .from("app_settings")
-            .select("value")
-            .eq("key", "waseet_sync_enabled")
-            .single();
+        // Find all tenants with active Waseet integration
+        const { data: activeTenants } = await supabaseAdmin
+            .from("tenant_integrations")
+            .select("tenant_id")
+            .eq("provider", "waseet")
+            .eq("is_active", true);
 
-        if (!syncSetting?.value) {
-            return NextResponse.json({ success: true, message: "Sync disabled", updated: 0 });
+        // Also check for global sync setting (backward compat for tenants using env vars)
+        const { data: globalSyncSetting } = await supabaseAdmin
+            .from("app_settings")
+            .select("value, tenant_id")
+            .eq("key", "waseet_sync_enabled");
+
+        // Build set of tenant IDs that have sync enabled
+        const enabledTenantIds = new Set<string>();
+
+        // Tenants with active integration
+        activeTenants?.forEach(t => enabledTenantIds.add(t.tenant_id));
+
+        // Tenants with sync setting enabled
+        globalSyncSetting?.filter(s => s.value && s.tenant_id).forEach(s => enabledTenantIds.add(s.tenant_id));
+
+        if (enabledTenantIds.size === 0) {
+            return NextResponse.json({ success: true, message: "No tenants with Waseet sync", updated: 0 });
         }
 
-        // Fetch all our orders that are submitted to Al-Waseet and still in-transit
+        // Fetch all orders across enabled tenants that are submitted to Al-Waseet
         const { data: orders, error: fetchError } = await supabaseAdmin
             .from("orders")
-            .select("id, order_id, waseet_qr_id, waseet_status_id, status")
+            .select("id, order_id, waseet_qr_id, waseet_status_id, status, tenant_id")
             .eq("delivery_company", "waseet")
             .in("status", ["in_transit", "confirmed"])
+            .in("tenant_id", Array.from(enabledTenantIds))
             .not("waseet_qr_id", "is", null);
 
         if (fetchError) {
@@ -134,6 +150,7 @@ export async function GET(request: NextRequest) {
                             to_status: statusUpdate.ourStatus,
                             changed_by: "waseet_sync",
                             notes: `Al-Waseet status: ${waseetOrder.status} (id: ${waseetOrder.status_id})`,
+                            tenant_id: order.tenant_id,
                         });
                     } catch (err) {
                         console.error("[Waseet Sync] History log failed:", err);
