@@ -252,7 +252,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                             previousOrder.order_id,
                             previousOrder.status,
                             status,
-                            rejectionReason
+                            rejectionReason,
+                            tenantId
                         );
                     }
 
@@ -493,7 +494,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             activityLogger.logOrderCreate(
                 data.id,
                 data.order_id,
-                cleanOrderData.source || "manual"
+                cleanOrderData.source || "manual",
+                tenantId
             );
 
             // Record initial status change to history (fire-and-forget — don't block the modal)
@@ -584,7 +586,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                             order_id: originalOrder.order_id,
                             note: `Split order: Kept ${keptItems.length} items (${keptTotal}), Returned ${returnedItems.length} items (${returnedTotal}). New Return Order: ${result.data?.order_id || 'Generated'}`
                         }
-                    });
+                    }, tenantId);
                 }
 
                 return { success: true };

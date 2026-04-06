@@ -167,7 +167,7 @@ interface EditUserModalProps {
 }
 
 function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
-    const { user: currentUser, refreshProfile } = useAuth(); // Get current user and refreshProfile
+    const { user: currentUser, refreshProfile, tenantId } = useAuth();
     const [activeTab, setActiveTab] = useState<"profile" | "permissions" | "activity">("profile");
     const [displayName, setDisplayName] = useState(user.display_name || "");
     const [role, setRole] = useState<UserRole>(user.role);
@@ -286,7 +286,7 @@ function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
                     updated_user: displayName || user.email,
                     changes: { role, display_name: displayName, avatar: !!avatarUrl }
                 }
-            });
+            }, tenantId);
 
             onUpdate();
 
