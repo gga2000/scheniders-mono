@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     Building2,
@@ -13,6 +13,9 @@ import {
     Crown,
     Calendar,
     Loader2,
+    Upload,
+    ImageIcon,
+    Trash2,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -113,6 +116,35 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
     const [address, setAddress] = useState(tenant.address || "");
     const [primaryColor, setPrimaryColor] = useState(tenant.branding?.primary_color || "#3b82f6");
     const [secondaryColor, setSecondaryColor] = useState(tenant.branding?.secondary_color || "#8b5cf6");
+    const [logoUrl, setLogoUrl] = useState(tenant.branding?.logo_url || null);
+    const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleLogoUpload = async (file: File) => {
+        if (file.size > 512 * 1024) {
+            toast.error("Logo must be under 512KB");
+            return;
+        }
+        setIsUploadingLogo(true);
+        const ext = file.name.split(".").pop() || "png";
+        const path = `${tenantId}/logo-${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+            .from("tenant-assets")
+            .upload(path, file, { cacheControl: "3600", upsert: true });
+        if (uploadError) {
+            toast.error("Upload failed", uploadError.message);
+            setIsUploadingLogo(false);
+            return;
+        }
+        const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(path);
+        setLogoUrl(urlData.publicUrl);
+        setIsUploadingLogo(false);
+        toast.success("Logo uploaded");
+    };
+
+    const handleRemoveLogo = () => {
+        setLogoUrl(null);
+    };
 
     const saveMutation = useMutation({
         mutationFn: async () => {
@@ -126,6 +158,7 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                     address: address.trim() || null,
                     branding: {
                         ...tenant.branding,
+                        logo_url: logoUrl,
                         primary_color: primaryColor,
                         secondary_color: secondaryColor,
                     },
@@ -283,6 +316,58 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                         <h3 className="text-base font-semibold text-foreground">Branding</h3>
                     </div>
                     <div className="space-y-5">
+                        {/* Logo Upload */}
+                        <div>
+                            <label className="block text-xs font-medium text-muted-foreground mb-2">
+                                Business Logo
+                            </label>
+                            <div className="flex items-center gap-4">
+                                {logoUrl ? (
+                                    <div className="relative group">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img
+                                            src={logoUrl}
+                                            alt="Logo"
+                                            className="w-16 h-16 rounded-xl object-cover border border-(--card-border)"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleRemoveLogo}
+                                            className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <Trash2 className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="w-16 h-16 rounded-xl border-2 border-dashed border-(--card-border) flex items-center justify-center text-muted-foreground">
+                                        <ImageIcon className="w-6 h-6" />
+                                    </div>
+                                )}
+                                <div>
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) handleLogoUpload(file);
+                                        }}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={isUploadingLogo}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-(--card-border) text-xs font-medium hover:bg-muted/30 transition-colors disabled:opacity-50"
+                                    >
+                                        {isUploadingLogo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                                        {logoUrl ? "Change" : "Upload"}
+                                    </button>
+                                    <p className="text-[10px] text-muted-foreground mt-1">PNG, JPG, WebP, SVG. Max 512KB.</p>
+                                </div>
+                            </div>
+                        </div>
+
                         <div>
                             <label className="block text-xs font-medium text-muted-foreground mb-2">
                                 Primary Color
@@ -338,12 +423,17 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                         <div className="mt-4 p-4 rounded-xl border border-(--card-border) bg-muted/30">
                             <p className="text-xs text-muted-foreground mb-3">Brand Preview</p>
                             <div className="flex items-center gap-3">
-                                <div
-                                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold"
-                                    style={{ backgroundColor: primaryColor }}
-                                >
-                                    {businessName.charAt(0).toUpperCase() || "B"}
-                                </div>
+                                {logoUrl ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={logoUrl} alt="Logo" className="w-10 h-10 rounded-xl object-cover" />
+                                ) : (
+                                    <div
+                                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold"
+                                        style={{ backgroundColor: primaryColor }}
+                                    >
+                                        {businessName.charAt(0).toUpperCase() || "B"}
+                                    </div>
+                                )}
                                 <div>
                                     <p className="font-semibold text-sm" style={{ color: primaryColor }}>
                                         {businessName || "Your Business"}

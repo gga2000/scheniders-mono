@@ -1,13 +1,13 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { TopBar } from "./global-search";
-import { MobileNav } from "./mobile-nav";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { PageGuard } from "@/components/auth/role-guard";
+import { TrialBanner } from "@/components/billing/trial-banner";
 
 // Sidebar state context — lets child pages know if the sidebar is expanded
 const SidebarContext = createContext<{ sidebarExpanded: boolean; setMobileMenuOpen?: (open: boolean) => void }>({ sidebarExpanded: false });
@@ -30,14 +30,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
     const isMobile = useIsMobile();
 
-    // Check if we are on an auth page
-    const isAuthPage = pathname?.startsWith('/login') ||
-        pathname?.startsWith('/forgot-password') ||
-        pathname?.startsWith('/reset-password');
-
-    useEffect(() => {
-        setMounted(true);
+    const handleSetMobileMenuOpen = useCallback((open: boolean) => {
+        setMobileMenuOpen(open);
     }, []);
+
+    /* eslint-disable react-hooks/set-state-in-effect */
+    useEffect(() => { setMounted(true); }, []);
 
     useEffect(() => {
         if (mounted) {
@@ -50,6 +48,14 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             setMobileMenuOpen(false);
         }
     }, [isMobile, mobileMenuOpen]);
+    /* eslint-enable react-hooks/set-state-in-effect */
+
+    // Check if we are on an auth page
+    const isAuthPage = pathname?.startsWith('/login') ||
+        pathname?.startsWith('/forgot-password') ||
+        pathname?.startsWith('/reset-password') ||
+        pathname?.startsWith('/signup') ||
+        pathname?.startsWith('/landing');
 
     if (isAuthPage) {
         return (
@@ -69,12 +75,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
     return (
         <PageGuard>
-            <SidebarContext.Provider value={{ sidebarExpanded: !isCollapsed && !isMobile, setMobileMenuOpen }}>
+            <SidebarContext.Provider value={{ sidebarExpanded: !isCollapsed && !isMobile, setMobileMenuOpen: handleSetMobileMenuOpen }}>
                 <div className="flex min-h-screen bg-background text-foreground">
                     {isMobile && mobileMenuOpen && (
                         <div
                             className="mobile-overlay active"
-                            onClick={() => setMobileMenuOpen(false)}
+                            onClick={() => handleSetMobileMenuOpen(false)}
                         />
                     )}
 
@@ -83,7 +89,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                         setCollapsed={setIsCollapsed}
                         isMobile={isMobile}
                         mobileMenuOpen={mobileMenuOpen}
-                        setMobileMenuOpen={setMobileMenuOpen}
+                        setMobileMenuOpen={handleSetMobileMenuOpen}
                     />
 
                     <main
@@ -95,8 +101,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                             paddingBottom: "0",
                         }}
                     >
+                        <TrialBanner />
                         <TopBar
-                            onMenuClick={() => setMobileMenuOpen(true)}
+                            onMenuClick={() => handleSetMobileMenuOpen(true)}
                             isMobile={isMobile}
                         />
 
