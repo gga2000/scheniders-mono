@@ -13,6 +13,7 @@ import {
     Search,
     ShieldBan,
     Building2,
+    CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GeneralSettings } from "@/components/settings/general-settings";
@@ -25,6 +26,7 @@ import { PageSettings } from "@/components/settings/pages-settings";
 import { WaseetSettingsPanel } from "@/components/settings/waseet-settings";
 import { CustomerBlacklist } from "@/components/settings/customer-blacklist";
 import { BusinessSettings } from "@/components/settings/business-settings";
+import { BillingSettings } from "@/components/settings/billing-settings";
 
 function IntegrationsSettings() {
     const [tab, setTab] = useState<"lightfunnels" | "waseet">("lightfunnels");
@@ -67,6 +69,16 @@ const SECTIONS = [
         iconColor: "text-orange-700",
         component: BusinessSettings,
         keywords: ["business", "tenant", "branding", "logo", "color", "plan", "subscription", "trial", "name", "contact"],
+    },
+    {
+        id: "billing",
+        title: "Billing",
+        description: "Wallet, usage & plans",
+        icon: CreditCard,
+        colorVar: "--pastel-green",
+        iconColor: "text-green-700",
+        component: BillingSettings,
+        keywords: ["billing", "wallet", "balance", "top-up", "usage", "plan", "subscription", "charge", "payment", "invoice"],
     },
     {
         id: "general",
