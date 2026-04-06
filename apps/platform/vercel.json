@@ -8,6 +8,10 @@
         {
             "path": "/api/cron/waseet-sync",
             "schedule": "0 12 * * *"
+        },
+        {
+            "path": "/api/cron/trial-suspend",
+            "schedule": "0 6 * * *"
         }
     ]
 }
