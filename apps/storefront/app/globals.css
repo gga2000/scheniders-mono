@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-primary: #3b82f6;
+  --brand-secondary: #8b5cf6;
+  --brand-accent: #f59e0b;
+  --brand-font: system-ui, -apple-system, sans-serif;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  font-family: var(--brand-font);
+}
+
+* {
+  box-sizing: border-box;
+}
