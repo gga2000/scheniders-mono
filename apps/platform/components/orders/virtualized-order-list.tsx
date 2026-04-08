@@ -1,0 +1,207 @@
+"use client";
+
+import React, { useRef, memo, useCallback, useEffect, useState } from "react";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import { Order, MessageTemplate } from "@/lib/supabase";
+import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
+import { RiskLevel } from "@/lib/fraud-detector";
+
+interface VirtualizedOrderListProps {
+    orders: Order[];
+    loadingId: string | null;
+    selectedOrders: Set<string>;
+    messageTemplates: MessageTemplate[];
+    // Callbacks
+    onStatusUpdate: (id: string, status: Order["status"], reason?: string) => void;
+    onViewDetails: (order: Order) => void;
+    onToggleSelection: (orderId: string) => void;
+    onTogglePin: (orderId: string) => void;
+    onCloneOrder: (orderId: string) => void;
+    onScreenshot: (order: Order) => void;
+    onCancelWithReason: (order: Order) => void;
+    onRejectWithReason: (order: Order) => void;
+    onToggleReviewed: (orderId: string) => void;
+    onOpenTemplatePanel: (order: Order) => void;
+    onShowDuplicates: (order: Order) => void;
+    onMergeWithPrevious: (currentOrderId: string, previousOrderId: string) => void;
+    // Data helpers
+    isBlacklisted: (phone: string) => boolean;
+    getBlacklistEntry?: (phone: string) => import("@/hooks/use-order-auxiliary").BlacklistEntry | null;
+    onAddToBlacklist?: (phone: string, reason: string, notes?: string) => Promise<void>;
+    onRemoveFromBlacklist?: (phone: string) => Promise<void>;
+    getRiskLevel: (phone: string) => RiskLevel;
+    getRiskAssessment?: (phone: string) => any; // New helper for full assessment
+    hasDuplicates?: (orderId: string) => boolean;
+    getCustomerOrderCount: (phone: string, orderId: string) => number;
+    getCustomerArchivedCount: (phone: string) => number;
+    getCustomerHistory: (phone: string) => Order[];
+    getReturnOrderInfo: (orderId: string) => { returnOrderId: string; returnSequenceNumber?: number } | null;
+    getOriginalOrderInfo: (originalOrderId?: string) => { originalOrderId: string; originalSequenceNumber?: number } | null;
+    // Options
+    compactView?: 0 | 1 | 2;
+    actionDock?: boolean;
+    onSplitOrder?: (order: any) => void;
+    // Assignments
+    assignments?: any[];
+    onAssignDuty?: (orderId: string, duty: 'confirmation' | 'fulfillment', employeeId: string) => void;
+}
+
+// Estimated card heights (will be measured dynamically)
+const ESTIMATED_CARD_HEIGHT = 180;
+const COMPACT_CARD_HEIGHT = 100;
+const ULTRA_COMPACT_CARD_HEIGHT = 56;
+
+export const VirtualizedOrderList = memo(function VirtualizedOrderList({
+    orders,
+    loadingId,
+    selectedOrders,
+    messageTemplates,
+    onStatusUpdate,
+    onViewDetails,
+    onToggleSelection,
+    onTogglePin,
+    onCloneOrder,
+    onScreenshot,
+    onCancelWithReason,
+    onRejectWithReason,
+    onToggleReviewed,
+    onOpenTemplatePanel,
+    onShowDuplicates,
+    onMergeWithPrevious,
+    isBlacklisted,
+    getBlacklistEntry,
+    onAddToBlacklist,
+    onRemoveFromBlacklist,
+    getCustomerOrderCount,
+    getCustomerArchivedCount,
+    getCustomerHistory,
+    getReturnOrderInfo,
+    getOriginalOrderInfo,
+    compactView = 0,
+    actionDock = false,
+    getRiskLevel,
+    getRiskAssessment,
+    hasDuplicates,
+    onSplitOrder,
+    assignments = [],
+    onAssignDuty,
+}: VirtualizedOrderListProps) {
+    const listRef = useRef<HTMLDivElement>(null);
+    const [scrollMargin, setScrollMargin] = useState(0);
+
+    // Calculate scroll margin (distance from top of viewport to top of list)
+    useEffect(() => {
+        if (listRef.current) {
+            const rect = listRef.current.getBoundingClientRect();
+            setScrollMargin(rect.top + window.scrollY);
+        }
+    }, []);
+
+    // Memoize the keys to prevent infinite loops from virtualizer config updates
+    const getItemKey = useCallback((index: number) => orders[index]?.id || index, [orders]);
+    const estimateSize = useCallback(() => compactView === 2 ? ULTRA_COMPACT_CARD_HEIGHT : compactView === 1 ? COMPACT_CARD_HEIGHT : ESTIMATED_CARD_HEIGHT, [compactView]);
+
+    // Use window-based virtualizer - cards scroll with the page
+    const virtualizer = useWindowVirtualizer({
+        count: orders.length,
+        getItemKey,
+        estimateSize,
+        overscan: 5, // Render 5 extra items above/below viewport
+        gap: 12, // Gap between items
+        scrollMargin,
+    });
+
+    const items = virtualizer.getVirtualItems();
+
+    // Memoize callbacks to prevent re-renders
+    const handleStatusUpdate = useCallback(onStatusUpdate, [onStatusUpdate]);
+    const handleViewDetails = useCallback(onViewDetails, [onViewDetails]);
+
+    const EMPTY_ARRAY: any[] = [];
+    const orderAssignments = React.useMemo(() => {
+        const map = new Map();
+        assignments.forEach(a => {
+            if (!map.has(a.order_id)) map.set(a.order_id, []);
+            map.get(a.order_id).push(a);
+        });
+        return map;
+    }, [assignments]);
+
+    if (orders.length === 0) {
+        return null;
+    }
+
+    return (
+        <div ref={listRef} className="relative w-full">
+            {/* Spacer div that reserves height for all virtual items */}
+            <div
+                style={{
+                    height: `${virtualizer.getTotalSize()}px`,
+                    width: "100%",
+                    position: "relative",
+                }}
+            >
+                {items.map((virtualRow) => {
+                    const order = orders[virtualRow.index];
+                    const customerOrders = getCustomerHistory(order.phone);
+                    const orderCount = getCustomerOrderCount(order.phone, order.order_id);
+                    const previousOrder = !order.is_return ? (customerOrders.find(o => o.id !== order.id) || null) : null;
+
+                    return (
+                        <div
+                            key={order.id}
+                            data-index={virtualRow.index}
+                            ref={virtualizer.measureElement}
+                            style={{
+                                position: "absolute",
+                                top: 0,
+                                left: 0,
+                                width: "100%",
+                                transform: `translateY(${virtualRow.start - scrollMargin}px)`,
+                            }}
+                        >
+                            <SwipeableOrderCard
+                                order={order}
+                                loadingId={loadingId}
+                                onStatusUpdate={handleStatusUpdate}
+                                onViewDetails={handleViewDetails}
+                                isBlacklisted={isBlacklisted(order.phone)}
+                                blacklistEntry={getBlacklistEntry?.(order.phone)}
+                                onAddToBlacklist={onAddToBlacklist}
+                                onRemoveFromBlacklist={onRemoveFromBlacklist}
+                                riskLevel={getRiskLevel(order.phone)}
+                                riskAssessment={getRiskAssessment?.(order.phone)} // Pass full assessment
+                                customerOrderCount={orderCount}
+                                archivedOrderCount={getCustomerArchivedCount(order.phone)}
+                                hasDuplicates={hasDuplicates?.(order.id) || false}
+                                previousOrder={previousOrder}
+                                onMergeWithPrevious={onMergeWithPrevious}
+                                onShowDuplicates={onShowDuplicates}
+                                onTogglePin={onTogglePin}
+                                onCloneOrder={onCloneOrder}
+                                onScreenshot={onScreenshot}
+                                onCancelWithReason={onCancelWithReason}
+                                onRejectWithReason={onRejectWithReason}
+                                onToggleReviewed={onToggleReviewed}
+                                onSplit={onSplitOrder}
+                                returnOrderInfo={getReturnOrderInfo(order.id)}
+                                originalOrderInfo={getOriginalOrderInfo(order.original_order_id)}
+                                compact={compactView}
+                                actionDock={actionDock}
+                                isVirtualized={true}
+                                onOpenTemplatePanel={onOpenTemplatePanel}
+                                messageTemplates={messageTemplates}
+                                isSelected={selectedOrders.has(order.id)}
+                                onToggleSelection={onToggleSelection}
+                                assignments={orderAssignments.get(order.id) || EMPTY_ARRAY}
+                                onAssignDuty={onAssignDuty}
+                            />
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+});
+
+VirtualizedOrderList.displayName = "VirtualizedOrderList";

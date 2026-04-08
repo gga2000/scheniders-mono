@@ -1,0 +1,36 @@
+{
+    "name": "Schenider OMS",
+    "short_name": "Schenider",
+    "description": "نظام إدارة الطلبات - Order Management System",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0a0a0a",
+    "theme_color": "#E4B5D1",
+    "orientation": "portrait-primary",
+    "dir": "rtl",
+    "lang": "ar",
+    "categories": [
+        "business",
+        "productivity"
+    ],
+    "icons": [
+        {
+            "src": "/icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "screenshots": [],
+    "shortcuts": [],
+    "related_applications": [],
+    "prefer_related_applications": false,
+    "scope": "/",
+    "id": "schenider-oms"
+}

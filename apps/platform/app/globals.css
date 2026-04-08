@@ -1,0 +1,2686 @@
+@import "tailwindcss";
+
+@plugin "tailwindcss-animate";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Performance: Inform browser to optimize font rendering */
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Override Tailwind v4 dark mode to use class-based selector
+   instead of prefers-color-scheme, matching our ThemeProvider config */
+@variant dark (&:where(.dark, .dark *));
+
+/* ============================================
+   Intelly Pastel Design System
+   A warm, professional, medical dashboard aesthetic
+   ============================================ */
+
+:root,
+.light,
+[data-theme='light'] {
+  /* ============================================
+     Light Mode (Default) 
+     Matches previous tailwind.config.ts hardcoded values completely
+     ============================================ */
+
+  /* Core Backgrounds */
+  --background: #F5F0E8;
+  /* Warm beige - main background (Restored) */
+  --background-soft: #FAF8F5;
+  /* Slightly lighter beige (Restored) */
+  --foreground: #1E1E1E;
+  /* Near black - primary text */
+  --foreground-muted: #6B6B6B;
+  /* Medium gray - secondary text (Restored) */
+  --foreground-subtle: #9A9A9A;
+  /* Light gray - tertiary text (Restored) */
+  --ink: #1E1E1E;
+  --ink-hover: #2D2D2D;
+  --ink-contrast: #FFFFFF;
+
+  /* Sidebar */
+  --sidebar-bg: #1E1E1E;
+  --sidebar-fg: #FFFFFF;
+
+  /* Pastel Accent Colors (Original) */
+  --pastel-yellow: #FBE38E;
+  --pastel-yellow-light: #FFFBEB;
+  --pastel-pink: #F4C7CF;
+  --pastel-pink-light: #FFF1F2;
+  --pastel-green: #C0EBA6;
+  --pastel-green-light: #ECFCCB;
+  --pastel-mint: #B8E8E0;
+  --pastel-mint-light: #F0FDFA;
+  --pastel-purple: #E4C1F9;
+  --pastel-purple-light: #FAF5FF;
+  --pastel-blue: #A6C8FF;
+  --pastel-blue-light: #EFF6FF;
+
+  /* Card & Surface Colors */
+  --card-bg: #FFFFFF;
+  --card-bg-hover: #FEFEFE;
+  --card-border: #E7E5E4;
+  /* zinc-200 */
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03);
+  --card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.04);
+
+  /* Radii */
+  --card-radius: 24px;
+  --card-radius-sm: 16px;
+  --card-radius-xs: 12px;
+
+  /* Interactive Elements */
+  --button-primary: #1E1E1E;
+  --button-primary-hover: #2D2D2D;
+  --button-success: #22C55E;
+  --button-success-hover: #16A34A;
+
+  /* Semantic Colors */
+  --primary: #1E1E1E;
+  --primary-fg: #FFFFFF;
+  --destructive: #F4C7CF;
+  --destructive-fg: #1E1E1E;
+  --financial: #FBE38E;
+  --financial-fg: #1E1E1E;
+  --border: #E7E5E4;
+  --border-hover: #D6D3D1;
+
+  /* Status Colors */
+  --status-new: var(--pastel-yellow);
+  --status-contacted: var(--pastel-mint);
+  --status-confirmed: var(--pastel-green);
+  --status-delivered: var(--pastel-purple);
+  --status-rejected: var(--pastel-pink);
+  --status-success: #C0EBA6;
+  --status-warning: #FBE38E;
+  --status-error: #F4C7CF;
+  --status-info: #A6C8FF;
+
+  /* Fonts */
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --skeleton-highlight: rgba(255, 255, 255, 0.5);
+  color-scheme: light;
+}
+
+.dark,
+[data-theme='dark'] {
+  /* ============================================
+     Stitch Neon Dark Mode
+     Deep charcoal + neon yellow/cyan accents
+     Based on Stitch reference: Order Management Dark Mode V2
+     ============================================ */
+
+  /* Core Palette — Stitch Reference */
+  --background: #121212;
+  /* ui-bg — deep charcoal */
+  --background-soft: #1A1A1A;
+  /* slightly lighter than bg */
+  --foreground: #FFFFFF;
+  /* pure white text */
+  --foreground-muted: #A1A1A1;
+  /* ui-muted */
+  --foreground-subtle: #6B6B6B;
+  /* dimmer tertiary text */
+  --ink: #121212;
+  --ink-hover: #1A1A1A;
+  --ink-contrast: #FFFFFF;
+
+  /* Sidebar — same as page bg per reference */
+  --sidebar-bg: #121212;
+  --sidebar-fg: #FFFFFF;
+
+  /* Keep brand pastels vivid enough for chips/tags with existing dark text classes */
+  --pastel-yellow: #f4d887;
+  --pastel-yellow-light: #fff3c7;
+  --pastel-pink: #f3c0ce;
+  --pastel-pink-light: #ffe5ec;
+  --pastel-green: #bee7ab;
+  --pastel-green-light: #e9f9d9;
+  --pastel-mint: #aee8df;
+  --pastel-mint-light: #e1fbf5;
+  --pastel-purple: #dcc2f8;
+  --pastel-purple-light: #f0e7ff;
+  --pastel-blue: #b7cdff;
+  --pastel-blue-light: #e6eeff;
+
+  /* Card & Surface Colors — Stitch Reference */
+  --card-bg: #2A2A2A;
+  /* ui-card */
+  --card-bg-hover: #333333;
+  /* slightly lighter on hover */
+  --card-border: #3F3F3F;
+  /* ui-border */
+  --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  --card-shadow-hover: 0 18px 32px rgba(0, 0, 0, 0.5);
+
+  /* Interactive Elements — Neon Yellow Primary */
+  --button-primary: #EFFF00;
+  --button-primary-hover: #D4E300;
+  --button-success: #33c786;
+  --button-success-hover: #2bb177;
+
+  /* Semantic Colors */
+  --primary: #EFFF00;
+  --primary-fg: #000000;
+  /* black text on yellow */
+  --destructive: #c85c73;
+  --destructive-fg: #fff1f5;
+  --financial: #EFFF00;
+  --financial-fg: #000000;
+  --border: #3F3F3F;
+  /* ui-border */
+  --border-hover: #555555;
+
+  /* Status Colors */
+  --status-new: var(--pastel-yellow);
+  --status-contacted: var(--pastel-mint);
+  --status-confirmed: var(--pastel-green);
+  --status-delivered: var(--pastel-purple);
+  --status-rejected: var(--pastel-pink);
+  --status-success: #bee7ab;
+  --status-warning: #f4d887;
+  --status-error: #f3c0ce;
+  --status-info: #b7cdff;
+  --skeleton-highlight: rgba(255, 255, 255, 0.08);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+}
+
+/* ============================================
+   Base Styles
+   ============================================ */
+
+body {
+  background-color: var(--background);
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background-color: var(--pastel-yellow);
+  color: var(--foreground);
+}
+
+/* ============================================
+   Utility Classes
+   ============================================ */
+
+.text-balance {
+  text-wrap: balance;
+}
+
+/* Pastel Card Variants */
+.pastel-card {
+  background: var(--card-bg);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  transition: all 0.3s ease;
+}
+
+.pastel-card:hover {
+  box-shadow: var(--card-shadow-hover);
+  transform: translateY(-2px);
+}
+
+.pastel-card-yellow {
+  background: linear-gradient(135deg, var(--pastel-yellow) 0%, var(--pastel-yellow-light) 100%);
+}
+
+.pastel-card-pink {
+  background: linear-gradient(135deg, var(--pastel-pink) 0%, var(--pastel-pink-light) 100%);
+}
+
+.pastel-card-green {
+  background: linear-gradient(135deg, var(--pastel-green) 0%, var(--pastel-green-light) 100%);
+}
+
+.pastel-card-mint {
+  background: linear-gradient(135deg, var(--pastel-mint) 0%, var(--pastel-mint-light) 100%);
+}
+
+.pastel-card-purple {
+  background: linear-gradient(135deg, var(--pastel-purple) 0%, var(--pastel-purple-light) 100%);
+}
+
+.pastel-card-blue {
+  background: linear-gradient(135deg, var(--pastel-blue) 0%, var(--pastel-blue-light) 100%);
+}
+
+/* Glass card for dark elements (sidebar compatibility) */
+.glass-card {
+  background: rgba(30, 30, 30, 0.9);
+  backdrop-filter: blur(20px);
+  border-radius: var(--card-radius);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================
+   Analytics / Stats Pages — Dark Mode
+   ============================================ */
+
+/* Pastel stat cards → deep glass with neon accent borders */
+.dark .pastel-card-yellow {
+  background: linear-gradient(135deg, rgba(239, 255, 0, 0.08) 0%, rgba(239, 255, 0, 0.03) 100%) !important;
+  border: 1px solid rgba(239, 255, 0, 0.15) !important;
+}
+
+.dark .pastel-card-yellow h3,
+.dark .pastel-card-yellow .text-amber-900\/70 {
+  color: #EFFF00 !important;
+}
+
+.dark .pastel-card-yellow p[class*="text-amber-950"],
+.dark .pastel-card-yellow p[class*="font-bold"] {
+  color: #FFFFFF !important;
+}
+
+.dark .pastel-card-yellow p[class*="text-amber-800"] {
+  color: #A1A1A1 !important;
+}
+
+.dark .pastel-card-yellow span[class*="bg-amber-600"] {
+  background: rgba(239, 255, 0, 0.5) !important;
+}
+
+.dark .pastel-card-yellow span[class*="text-amber-800"] {
+  color: #EFFF00 !important;
+  background: rgba(239, 255, 0, 0.1) !important;
+}
+
+.dark .pastel-card-yellow div[class*="bg-white"] {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark .pastel-card-yellow svg {
+  color: #EFFF00 !important;
+}
+
+.dark .pastel-card-green {
+  background: linear-gradient(135deg, rgba(0, 255, 100, 0.08) 0%, rgba(0, 255, 100, 0.03) 100%) !important;
+  border: 1px solid rgba(0, 255, 100, 0.15) !important;
+}
+
+.dark .pastel-card-green h3,
+.dark .pastel-card-green .text-green-900\/70 {
+  color: #66FFAA !important;
+}
+
+.dark .pastel-card-green p[class*="text-green-950"],
+.dark .pastel-card-green p[class*="font-bold"] {
+  color: #FFFFFF !important;
+}
+
+.dark .pastel-card-green p[class*="text-green-800"] {
+  color: #A1A1A1 !important;
+}
+
+.dark .pastel-card-green span[class*="bg-green-600"] {
+  background: rgba(0, 255, 100, 0.5) !important;
+}
+
+.dark .pastel-card-green span[class*="text-green-800"] {
+  color: #66FFAA !important;
+  background: rgba(0, 255, 100, 0.1) !important;
+}
+
+.dark .pastel-card-green div[class*="bg-white"] {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark .pastel-card-green svg {
+  color: #66FFAA !important;
+}
+
+.dark .pastel-card-pink {
+  background: linear-gradient(135deg, rgba(255, 80, 100, 0.08) 0%, rgba(255, 80, 100, 0.03) 100%) !important;
+  border: 1px solid rgba(255, 80, 100, 0.15) !important;
+}
+
+.dark .pastel-card-pink h3,
+.dark .pastel-card-pink .text-rose-900\/70 {
+  color: #FF8899 !important;
+}
+
+.dark .pastel-card-pink p[class*="text-rose-950"],
+.dark .pastel-card-pink p[class*="font-bold"] {
+  color: #FFFFFF !important;
+}
+
+.dark .pastel-card-pink p[class*="text-rose-800"] {
+  color: #A1A1A1 !important;
+}
+
+.dark .pastel-card-pink span[class*="bg-rose-600"] {
+  background: rgba(255, 80, 100, 0.5) !important;
+}
+
+.dark .pastel-card-pink span[class*="text-rose-800"] {
+  color: #FF8899 !important;
+  background: rgba(255, 80, 100, 0.1) !important;
+}
+
+.dark .pastel-card-pink div[class*="bg-white"] {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark .pastel-card-pink svg {
+  color: #FF8899 !important;
+}
+
+/* StatsCard — bg-white overrides */
+.dark div[class*="bg-white"][class*="rounded-[24px]"] {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+.dark div[class*="bg-white"][class*="rounded-[24px]"] h3[class*="text-zinc-600"] {
+  color: #A1A1A1 !important;
+}
+
+.dark div[class*="bg-white"][class*="rounded-[24px]"] div[class*="text-zinc-900"] {
+  color: #FFFFFF !important;
+}
+
+.dark div[class*="bg-white"][class*="rounded-[24px]"] p[class*="text-zinc-500"] {
+  color: #6B6B6B !important;
+}
+
+.dark div[class*="bg-white"][class*="rounded-[24px]"] p[class*="text-zinc-400"] {
+  color: #555555 !important;
+}
+
+.dark div[class*="bg-white"][class*="rounded-[24px]"] div[class*="bg-white/50"] {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+.dark div[class*="bg-white"][class*="rounded-[24px]"] svg[class*="text-zinc-700"] {
+  color: #A1A1A1 !important;
+}
+
+/* Product ranking badges */
+.dark span[class*="bg-amber-100"][class*="text-amber-700"] {
+  background: rgba(239, 255, 0, 0.12) !important;
+  color: #EFFF00 !important;
+}
+
+.dark span[class*="bg-gray-200"][class*="text-gray-700"] {
+  background: #333333 !important;
+  color: #CCCCCC !important;
+}
+
+.dark span[class*="bg-orange-100"][class*="text-orange-700"] {
+  background: rgba(255, 140, 66, 0.12) !important;
+  color: #FFB380 !important;
+}
+
+/* Recharts tooltip — already dark, but ensure text is visible */
+.dark .recharts-default-tooltip {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+.dark .recharts-tooltip-label {
+  color: #FFFFFF !important;
+}
+
+.dark .recharts-legend-item-text {
+  color: #A1A1A1 !important;
+}
+
+.dark .recharts-cartesian-axis-tick-value {
+  fill: #6B6B6B !important;
+}
+
+.dark .recharts-cartesian-grid line {
+  stroke: #2A2A2A !important;
+}
+
+/* Tab bar background override */
+.dark div[class*="bg-"][class*="card-bg"][class*="rounded-xl"][class*="p-1"] {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+/* Active tab → neon yellow */
+.dark button[class*="bg-"][class*="ink"][class*="rounded-lg"] {
+  background: #EFFF00 !important;
+  color: #000000 !important;
+}
+
+/* Add Expense button */
+.dark button[class*="bg-"][class*="ink"][class*="rounded-xl"] {
+  background: #EFFF00 !important;
+  color: #000000 !important;
+}
+
+/* ============================================
+   Orders Dark Mode — Stitch Neon Reference  
+   Deep charcoal + neon yellow/cyan accents
+   ============================================ */
+
+/* Page background: subtle cyan grid pattern applied globally to main to put grid at the top */
+.dark main {
+  background-image:
+    linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+.dark .orders-page {
+  background-color: transparent !important;
+}
+
+/* Collapsed toolbar — flat dark surface */
+.dark .orders-page .orders-collapsed-toolbar {
+  background: #2A2A2A;
+  border-color: #3F3F3F;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+}
+
+/* Toolbar pill — charcoal glass with neon border */
+.dark .orders-page .orders-toolbar-pill {
+  background: #1E1E1E !important;
+  border-color: #333333 !important;
+  box-shadow: none !important;
+  --tw-ring-shadow: 0 0 transparent !important;
+}
+
+/* Toolbar group — flat ui-card with neon-tinted label */
+.dark .orders-page .orders-toolbar-group {
+  background: #1E1E1E;
+  border-color: #3F3F3F;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.dark .orders-page .orders-toolbar-group>span {
+  color: rgba(239, 255, 0, 0.5) !important;
+}
+
+/* Toolbar divider — neon-tinted */
+.dark .orders-page .orders-toolbar-divider {
+  background: linear-gradient(to bottom, transparent, rgba(239, 255, 0, 0.12), transparent);
+}
+
+/* Date popover — flat dark surface with glow border */
+.dark .orders-page .orders-date-popover {
+  background: #2A2A2A;
+  border-color: #3F3F3F;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(239, 255, 0, 0.1);
+}
+
+/* Search panel — flat ui-card */
+.dark .orders-page .orders-search-panel {
+  background: #2A2A2A;
+  border: 1px solid #3F3F3F;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+}
+
+/* Analytics cards — uniform charcoal glass */
+.dark .orders-page .orders-analytics-card {
+  background: #1E1E1E !important;
+  border: 1px solid #333333 !important;
+  box-shadow: none !important;
+  transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+}
+
+.dark .orders-page .orders-analytics-card:hover {
+  transform: translateY(-2px);
+  border-color: #555555 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Hide the large decorative background icons */
+.dark .orders-page .orders-analytics-card>div[class*="absolute"][class*="opacity-"] {
+  display: none !important;
+}
+
+/* All card values → white */
+.dark .orders-page .orders-analytics-card h3 {
+  color: #FFFFFF !important;
+}
+
+/* All card subtitles → muted */
+.dark .orders-page .orders-analytics-card span[class*="/80"],
+.dark .orders-page .orders-analytics-card span[class*="font-medium"]:not([class*="uppercase"]) {
+  color: #6B6B6B !important;
+}
+
+/* ---- Per-card neon accent (label + icon badge only) ---- */
+
+/* Card 1: NEW → neon pink */
+.dark .orders-page .orders-analytics-card:nth-child(1) span[class*="uppercase"] {
+  color: #FF6B8A !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(1) div[class*="rounded-lg"][class*="bg-"] {
+  background: rgba(255, 107, 138, 0.12) !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(1) div[class*="rounded-lg"][class*="bg-"] svg {
+  color: #FF6B8A !important;
+}
+
+/* Card 2: CONTACTED → neon amber */
+.dark .orders-page .orders-analytics-card:nth-child(2) span[class*="uppercase"] {
+  color: #FFB347 !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(2) div[class*="rounded-lg"][class*="bg-"] {
+  background: rgba(255, 179, 71, 0.12) !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(2) div[class*="rounded-lg"][class*="bg-"] svg {
+  color: #FFB347 !important;
+}
+
+/* Card 3: CONFIRMED → neon yellow (hero card with subtle glow) */
+.dark .orders-page .orders-analytics-card:nth-child(3) {
+  border-color: rgba(239, 255, 0, 0.2) !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(3):hover {
+  box-shadow: 0 0 20px rgba(239, 255, 0, 0.08) !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(3) span[class*="uppercase"] {
+  color: #EFFF00 !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(3) div[class*="rounded-lg"][class*="bg-"] {
+  background: rgba(239, 255, 0, 0.12) !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(3) div[class*="rounded-lg"][class*="bg-"] svg {
+  color: #EFFF00 !important;
+}
+
+/* Card 4: TRANSIT → neon orange */
+.dark .orders-page .orders-analytics-card:nth-child(4) span[class*="uppercase"] {
+  color: #FF8C42 !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(4) div[class*="rounded-lg"][class*="bg-"] {
+  background: rgba(255, 140, 66, 0.12) !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(4) div[class*="rounded-lg"][class*="bg-"] svg {
+  color: #FF8C42 !important;
+}
+
+/* Card 5: CONVERSION → neon yellow with glow */
+.dark .orders-page .orders-analytics-card:nth-child(5) {
+  border-color: rgba(239, 255, 0, 0.2) !important;
+  box-shadow: 0 0 20px rgba(239, 255, 0, 0.06) !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(5):hover {
+  border-color: rgba(239, 255, 0, 0.35) !important;
+  box-shadow: 0 0 30px rgba(239, 255, 0, 0.12) !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(5) span[class*="uppercase"] {
+  color: #EFFF00 !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(5) div[class*="rounded-lg"][class*="bg-"] {
+  background: rgba(239, 255, 0, 0.12) !important;
+}
+
+.dark .orders-page .orders-analytics-card:nth-child(5) div[class*="rounded-lg"][class*="bg-"] svg {
+  color: #EFFF00 !important;
+}
+
+/* Progress bar track */
+.dark .orders-page .orders-analytics-card:nth-child(5) div[class*="bg-gray-100"] {
+  background: #333333 !important;
+}
+
+/* Progress bar fill → neon yellow gradient with glow */
+.dark .orders-page .orders-analytics-card:nth-child(5) div[class*="bg-gradient-to-r"][class*="from-emerald"] {
+  background: linear-gradient(90deg, #EFFF00, #C8E600) !important;
+  box-shadow: 0 0 12px rgba(239, 255, 0, 0.5) !important;
+}
+
+/* Shimmer animation → neon tinted */
+.dark .orders-page .orders-analytics-card:nth-child(5) div[class*="animate-"] {
+  background: linear-gradient(90deg, transparent, rgba(239, 255, 0, 0.2), transparent) !important;
+}
+
+/* Kill the ring-1 from conversion card */
+.dark .orders-page .orders-analytics-card:nth-child(5)[class*="ring-1"] {
+  --tw-ring-shadow: 0 0 transparent !important;
+}
+
+
+/* ---- Level 2 expanded panels (Velocity, Attention, Business) ---- */
+.dark .orders-page .pastel-card {
+  background: #1E1E1E !important;
+  border: 1px solid #333333 !important;
+  box-shadow: none !important;
+}
+
+.dark .orders-page .pastel-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Dashed borders inside expanded panels */
+.dark .orders-page .pastel-card div[class*="border-dashed"][class*="border-gray-100"] {
+  border-color: #333333 !important;
+}
+
+/* Peak hour badge */
+.dark .orders-page span[class*="bg-blue-50"][class*="text-blue-600"] {
+  background: rgba(0, 150, 255, 0.1) !important;
+  color: #66BBFF !important;
+}
+
+/* Needs Attention hover rows */
+.dark .orders-page div[class*="hover:bg-rose-50/50"]:hover,
+.dark .orders-page div[class*="hover:bg-red-50/50"]:hover,
+.dark .orders-page div[class*="hover:bg-orange-50/50"]:hover,
+.dark .orders-page div[class*="hover:bg-yellow-50/50"]:hover {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+
+
+
+
+
+/* Search bar focus — cyan glow ring */
+.dark .orders-page input[type="text"]:focus {
+  border-color: rgba(0, 255, 255, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(0, 255, 255, 0.15), 0 0 15px rgba(0, 255, 255, 0.1) !important;
+}
+
+/* Search icon → cyan on focus */
+.dark .orders-page .orders-search-panel:focus-within svg {
+  color: #00FFFF;
+}
+
+/* Sticky filter bar — flat dark surface */
+.dark .orders-page .orders-sticky-filter>div {
+  border-radius: 16px;
+  border: 1px solid #3F3F3F;
+  background: #1A1A1A;
+}
+
+/* Order card surface — flat ui-card */
+.dark .orders-page .orders-card-surface {
+  background: #2A2A2A;
+  border: 1px solid #3F3F3F;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+}
+
+.dark .orders-page .orders-card-surface:hover {
+  border-color: #555555;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 255, 255, 0.1);
+}
+
+/* Tags/chips on order cards — bg-ui-bg text-secondary border-secondary/30 */
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"] {
+  background: #121212 !important;
+  color: #00FFFF !important;
+  border-color: rgba(0, 255, 255, 0.3) !important;
+}
+
+/* Green status tags */
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-green"],
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-emerald"],
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-teal"] {
+  background: rgba(0, 255, 100, 0.1) !important;
+  color: #66FFAA !important;
+  border-color: rgba(0, 255, 100, 0.3) !important;
+}
+
+/* Red/pink status tags */
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-rose"],
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-red"] {
+  background: rgba(255, 80, 100, 0.12) !important;
+  color: #FF8899 !important;
+  border-color: rgba(255, 80, 100, 0.3) !important;
+}
+
+/* Orange/amber/yellow status tags */
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-orange"],
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-amber"],
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-yellow"] {
+  background: rgba(239, 255, 0, 0.1) !important;
+  color: #EFFF00 !important;
+  border-color: rgba(239, 255, 0, 0.3) !important;
+}
+
+/* Blue/purple status tags */
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-blue"],
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-indigo"],
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-violet"],
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-purple"],
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-cyan"] {
+  background: rgba(0, 255, 255, 0.1) !important;
+  color: #00FFFF !important;
+  border-color: rgba(0, 255, 255, 0.3) !important;
+}
+
+/* Muted/gray status tags */
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-gray"],
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-slate"],
+.dark .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-muted"] {
+  background: #1A1A1A !important;
+  color: #A1A1A1 !important;
+  border-color: #3F3F3F !important;
+}
+
+/* Micro tags (sequence IDs, duplicate markers, etc.) */
+.dark .orders-page .orders-card-surface [class*="rounded"][class*="text-[9px]"][class*="bg-"] {
+  background: #121212 !important;
+  color: #A1A1A1 !important;
+  border-color: #3F3F3F !important;
+}
+
+/* Action buttons on order cards — bg-ui-surface text-ui-muted, hover → text-secondary border-secondary */
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"]:not([class*="text-white"]) {
+  background: #242424 !important;
+  color: #A1A1A1 !important;
+  border: 1px solid #3F3F3F !important;
+  box-shadow: none;
+}
+
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"]:not([class*="text-white"]):hover {
+  color: #00FFFF !important;
+  border-color: #00FFFF !important;
+}
+
+/* Green action buttons (chat/WhatsApp) — primary neon yellow */
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-green"],
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-emerald"],
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-teal"] {
+  background: #EFFF00 !important;
+  color: #000000 !important;
+  border-color: transparent !important;
+  box-shadow: 0 0 20px rgba(239, 255, 0, 0.4);
+}
+
+/* Red action buttons */
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-red"],
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-rose"] {
+  background: rgba(255, 80, 100, 0.15) !important;
+  color: #FF8899 !important;
+  border-color: rgba(255, 80, 100, 0.3) !important;
+}
+
+/* Orange/amber action buttons */
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-orange"],
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-amber"],
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-yellow"] {
+  background: rgba(239, 255, 0, 0.12) !important;
+  color: #EFFF00 !important;
+  border-color: rgba(239, 255, 0, 0.3) !important;
+}
+
+/* Blue/purple action buttons */
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-blue"],
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-indigo"],
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-violet"],
+.dark .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-purple"] {
+  background: rgba(0, 255, 255, 0.12) !important;
+  color: #00FFFF !important;
+  border-color: rgba(0, 255, 255, 0.3) !important;
+}
+
+/* Dark mode scrollbar — neon yellow accent on hover */
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #EFFF00;
+}
+
+/* ============================================
+   Global Header / TopBar — Dark Mode
+   ============================================ */
+
+/* TopBar header background */
+.dark header[class*="bg-[var(--background)]"] {
+  background: #121212 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Search bar styling */
+.dark header div[class*="bg-[var(--card-bg)]"][class*="rounded-full"] {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+.dark header div[class*="bg-[var(--card-bg)]"][class*="rounded-full"][class*="ring-2"] {
+  box-shadow: 0 0 15px rgba(239, 255, 0, 0.15) !important;
+}
+
+/* Search icon circle */
+.dark header div[class*="bg-[var(--ink)]"][class*="rounded-full"] {
+  background: #EFFF00 !important;
+}
+
+.dark header div[class*="bg-[var(--ink)]"][class*="rounded-full"] svg {
+  color: #000000 !important;
+}
+
+/* Search category pills */
+.dark header button[class*="bg-[var(--ink)]"][class*="rounded-full"] {
+  background: #EFFF00 !important;
+  color: #000000 !important;
+}
+
+.dark header button[class*="bg-"][class*="background"][class*="rounded-full"] {
+  background: #333333 !important;
+  border-color: #3F3F3F !important;
+  color: #A1A1A1 !important;
+}
+
+.dark header button[class*="bg-"][class*="background"][class*="rounded-full"]:hover {
+  background: #3F3F3F !important;
+  color: #FFFFFF !important;
+}
+
+/* Search results dropdown */
+.dark header div[class*="bg-"][class*="card-bg"][class*="rounded-2xl"][class*="shadow-xl"] {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6) !important;
+}
+
+.dark header button[class*="hover:bg-"][class*="background"]:hover {
+  background: #333333 !important;
+}
+
+/* Search result icon backgrounds (pastel → neon muted) */
+.dark header div[class*="bg-"][class*="pastel-yellow"] {
+  background: rgba(239, 255, 0, 0.15) !important;
+  color: #EFFF00 !important;
+}
+
+.dark header div[class*="bg-"][class*="pastel-green"] {
+  background: rgba(0, 255, 100, 0.15) !important;
+  color: #66FFAA !important;
+}
+
+.dark header div[class*="bg-"][class*="pastel-mint"] {
+  background: rgba(0, 255, 255, 0.15) !important;
+  color: #00FFFF !important;
+}
+
+/* Keyboard hints bar */
+.dark header div[class*="bg-"][class*="background"][class*="border-t"] {
+  background: #1A1A1A !important;
+  border-color: #3F3F3F !important;
+}
+
+.dark header kbd {
+  background: #333333 !important;
+  border-color: #3F3F3F !important;
+  color: #A1A1A1 !important;
+}
+
+/* TopBar action buttons (Notifications, Settings) */
+.dark header a[class*="bg-"][class*="card-bg"][class*="rounded-full"],
+.dark header button[class*="bg-"][class*="card-bg"][class*="rounded-full"] {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+.dark header a[class*="bg-"][class*="card-bg"][class*="rounded-full"]:hover,
+.dark header button[class*="bg-"][class*="card-bg"][class*="rounded-full"]:hover {
+  background: #333333 !important;
+  border-color: #555555 !important;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.1) !important;
+}
+
+/* ============================================
+   Mobile Bottom Nav — Dark Mode
+   ============================================ */
+
+.dark .mobile-bottom-nav {
+  background: #1A1A1A !important;
+  border-top-color: #3F3F3F !important;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4) !important;
+}
+
+.dark .mobile-nav-item {
+  color: #6B6B6B !important;
+}
+
+.dark .mobile-nav-item.active {
+  color: #FFFFFF !important;
+}
+
+/* Mobile active indicator — neon yellow */
+.dark .mobile-nav-item div[class*="bg-"][class*="pastel-yellow"] {
+  background: #EFFF00 !important;
+  box-shadow: 0 0 8px rgba(239, 255, 0, 0.5) !important;
+}
+
+/* Mobile "More" bottom sheet */
+.dark div[class*="bg-"][class*="card-bg"][class*="rounded-t-3xl"] {
+  background: #1A1A1A !important;
+  border-color: #3F3F3F !important;
+  box-shadow: 0 -15px 40px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Sheet handle */
+.dark div[class*="bg-"][class*="card-border"][class*="rounded-full"][class*="w-10"] {
+  background: #555555 !important;
+}
+
+/* Active nav item in the bottom sheet */
+.dark a[class*="bg-"][class*="ink"][class*="rounded-2xl"] {
+  background: rgba(239, 255, 0, 0.15) !important;
+  color: #EFFF00 !important;
+}
+
+/* Inactive nav items in the bottom sheet */
+.dark a[class*="hover:bg-"][class*="background"][class*="rounded-2xl"]:hover {
+  background: #2A2A2A !important;
+}
+
+/* ============================================
+   Order Cards — Dark Mode Elevate
+   ============================================ */
+
+/* Text colors */
+.dark .orders-card-surface .text-foreground {
+  color: #FFFFFF !important;
+}
+
+.dark .orders-card-surface .text-muted,
+.dark .orders-card-surface .text-foreground\/60 {
+  color: #A1A1A1 !important;
+}
+
+/* Base Card Actions */
+.dark .orders-card-surface button[class*="bg-"][class*="background"] {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+  color: #D4D4D4 !important;
+}
+
+.dark .orders-card-surface button[class*="bg-"][class*="background"]:hover {
+  background: #333333 !important;
+  border-color: #555555 !important;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.1) !important;
+  color: #FFFFFF !important;
+}
+
+/* Secondary phone button (emerald) */
+.dark .orders-card-surface button[class*="bg-emerald-500"] {
+  background: rgba(0, 255, 100, 0.15) !important;
+  color: #66FFAA !important;
+  border-color: rgba(0, 255, 100, 0.3) !important;
+  box-shadow: none !important;
+}
+
+.dark .orders-card-surface button[class*="bg-emerald-500"]:hover {
+  background: rgba(0, 255, 100, 0.25) !important;
+  box-shadow: 0 0 10px rgba(0, 255, 100, 0.2) !important;
+}
+
+.dark .orders-card-surface span[class*="bg-white"][class*="text-emerald-600"] {
+  background: #1A1A1A !important;
+  border-color: rgba(0, 255, 100, 0.3) !important;
+  color: #66FFAA !important;
+}
+
+/* Primary WhatsApp Buttons (Variable Based) */
+.dark .orders-card-surface button[class*="bg-yellow-500"] {
+  background: rgba(239, 255, 0, 0.15) !important;
+  color: #EFFF00 !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(239, 255, 0, 0.3) !important;
+}
+
+.dark .orders-card-surface button[class*="bg-yellow-500"]:hover {
+  background: rgba(239, 255, 0, 0.25) !important;
+  box-shadow: 0 0 10px rgba(239, 255, 0, 0.2) !important;
+}
+
+.dark .orders-card-surface button[class*="bg-orange-500"] {
+  background: rgba(255, 140, 66, 0.15) !important;
+  color: #FFB380 !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(255, 140, 66, 0.3) !important;
+}
+
+.dark .orders-card-surface button[class*="bg-orange-500"]:hover {
+  background: rgba(255, 140, 66, 0.25) !important;
+  box-shadow: 0 0 10px rgba(255, 140, 66, 0.2) !important;
+}
+
+.dark .orders-card-surface button[class*="bg-red-500"] {
+  background: rgba(255, 80, 100, 0.15) !important;
+  color: #FF8899 !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(255, 80, 100, 0.3) !important;
+}
+
+.dark .orders-card-surface button[class*="bg-red-500"]:hover {
+  background: rgba(255, 80, 100, 0.25) !important;
+  box-shadow: 0 0 10px rgba(255, 80, 100, 0.2) !important;
+}
+
+/* Primary Neon (No Contact Yet) */
+.dark .orders-card-surface button[class*="bg-"][class*="primary"] {
+  background: var(--primary) !important;
+  color: #000000 !important;
+  box-shadow: 0 0 15px rgba(239, 255, 0, 0.15) !important;
+}
+
+.dark .orders-card-surface button[class*="bg-"][class*="primary"]:hover {
+  box-shadow: 0 0 20px rgba(239, 255, 0, 0.4) !important;
+  transform: scale(1.05);
+}
+
+/* Contact Badges (on buttons) */
+.dark .orders-card-surface span[class*="bg-white"][class*="text-yellow-600"] {
+  background: #1A1A1A !important;
+  border-color: rgba(239, 255, 0, 0.3) !important;
+  color: #EFFF00 !important;
+}
+
+.dark .orders-card-surface span[class*="bg-white"][class*="text-orange-600"] {
+  background: #1A1A1A !important;
+  border-color: rgba(255, 140, 66, 0.3) !important;
+  color: #FFB380 !important;
+}
+
+.dark .orders-card-surface span[class*="bg-white"][class*="text-red-600"] {
+  background: #1A1A1A !important;
+  border-color: rgba(255, 80, 100, 0.3) !important;
+  color: #FF8899 !important;
+}
+
+/* Order Source Tags (Instagram, Tiktok, etc) */
+.dark .orders-card-surface span[class*="bg-rose-50"],
+.dark .orders-card-surface span[class*="bg-rose-100"] {
+  background: rgba(255, 80, 100, 0.12) !important;
+  color: #FF8899 !important;
+  border-color: rgba(255, 80, 100, 0.3) !important;
+}
+
+.dark .orders-card-surface span[class*="bg-blue-50"] {
+  background: rgba(0, 150, 255, 0.12) !important;
+  color: #88CCFF !important;
+  border-color: rgba(0, 150, 255, 0.3) !important;
+}
+
+.dark .orders-card-surface span[class*="bg-gray-100"] {
+  background: #333333 !important;
+  color: #CCCCCC !important;
+  border-color: #555555 !important;
+}
+
+.dark .orders-card-surface span[class*="bg-amber-100"] {
+  background: rgba(255, 180, 0, 0.12) !important;
+  color: #FFCC33 !important;
+  border-color: rgba(255, 180, 0, 0.3) !important;
+}
+
+/* Time/Age indicators */
+.dark .orders-card-surface span[class*="bg-emerald-50"][class*="text-emerald-700"] {
+  background: rgba(0, 255, 100, 0.1) !important;
+  color: #66FFAA !important;
+  border-color: rgba(0, 255, 100, 0.2) !important;
+}
+
+.dark .orders-card-surface span[class*="bg-emerald-100"][class*="text-emerald-700"],
+.dark .orders-card-surface span[class*="bg-green-100"][class*="text-green-700"] {
+  background: rgba(0, 255, 100, 0.15) !important;
+  color: #00FFAA !important;
+  border: 1px solid rgba(0, 255, 100, 0.3) !important;
+}
+
+.dark .orders-card-surface span[class*="bg-amber-50"][class*="text-amber-700"] {
+  background: rgba(255, 180, 0, 0.1) !important;
+  color: #FFCC33 !important;
+  border-color: rgba(255, 180, 0, 0.2) !important;
+}
+
+.dark .orders-card-surface span[class*="bg-orange-100"][class*="text-orange-700"] {
+  background: rgba(255, 140, 66, 0.15) !important;
+  color: #FFB380 !important;
+  border: 1px solid rgba(255, 140, 66, 0.3) !important;
+}
+
+.dark .orders-card-surface span[class*="bg-red-50"][class*="text-red-700"] {
+  background: rgba(255, 80, 100, 0.1) !important;
+  color: #FF8899 !important;
+  border-color: rgba(255, 80, 100, 0.2) !important;
+}
+
+.dark .orders-card-surface span[class*="bg-red-100"][class*="text-red-700"] {
+  background: rgba(255, 80, 100, 0.15) !important;
+  color: #FF5064 !important;
+  border: 1px solid rgba(255, 80, 100, 0.3) !important;
+}
+
+/* Notes bubble */
+.dark .orders-card-surface div[class*="bg-amber-50/50"] {
+  background: #1A1A1A !important;
+  border-color: #3F3F3F !important;
+  color: #D4D4D4 !important;
+}
+
+/* Edit dates tag */
+.dark .orders-card-surface span[class*="bg-orange-50/50"] {
+  background: rgba(255, 140, 66, 0.1) !important;
+  color: #FFB380 !important;
+  border-color: rgba(255, 140, 66, 0.2) !important;
+}
+
+/* Governorate Badge */
+.dark .orders-card-surface span[class*="bg-emerald-500"][class*="text-white"] {
+  background: rgba(0, 255, 100, 0.2) !important;
+  color: #00FFAA !important;
+  box-shadow: 0 0 10px rgba(0, 255, 100, 0.1) !important;
+}
+
+/* Address background override */
+.dark .orders-card-surface div[class*="bg-"][class*="background"][class*="/80"] {
+  background: #1A1A1A !important;
+  border-color: #3F3F3F !important;
+}
+
+/* Return tags */
+.dark .orders-card-surface span[class*="bg-rose-100"][class*="text-rose-700"] {
+  background: rgba(255, 80, 100, 0.15) !important;
+  color: #FF8899 !important;
+  border-color: rgba(255, 80, 100, 0.3) !important;
+}
+
+/* Review Indicator Button */
+.dark .orders-card-surface button[class*="border-gray-300"] {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+.dark .orders-card-surface button[class*="hover:border-cyan-400"]:hover {
+  border-color: #00FFFF !important;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.2) !important;
+}
+
+.dark .orders-card-surface button[class*="bg-cyan-500"] {
+  background: rgba(0, 255, 255, 0.2) !important;
+  border-color: cyan !important;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.3) !important;
+}
+
+.dark .orders-card-surface button[class*="bg-cyan-500"] svg {
+  color: #00FFFF !important;
+}
+
+/* Ring utilities fix - Replace hardcoded ring effects with box shadows */
+.dark .orders-card-surface.ring-blue-300 {
+  --tw-ring-shadow: 0 0 transparent !important;
+  outline: none !important;
+  border: 1px solid #00FFFF !important;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.2) !important;
+}
+
+.dark .orders-card-surface.ring-red-500,
+.dark .orders-card-surface.ring-red-400,
+.dark .orders-card-surface.ring-rose-300 {
+  --tw-ring-shadow: 0 0 transparent !important;
+  outline: none !important;
+  border: 1px solid #FF5064 !important;
+  box-shadow: 0 0 15px rgba(255, 80, 100, 0.2) !important;
+}
+
+.dark .orders-card-surface.ring-amber-300,
+.dark .orders-card-surface.ring-orange-400,
+.dark .orders-card-surface.ring-orange-300 {
+  --tw-ring-shadow: 0 0 transparent !important;
+  outline: none !important;
+  border: 1px solid #FFB400 !important;
+  box-shadow: 0 0 15px rgba(255, 180, 0, 0.2) !important;
+}
+
+.dark .orders-card-surface.ring-emerald-300 {
+  --tw-ring-shadow: 0 0 transparent !important;
+  outline: none !important;
+  border: 1px solid #00FFAA !important;
+  box-shadow: 0 0 15px rgba(0, 255, 100, 0.2) !important;
+}
+
+/* Card Selection outline */
+.dark .orders-card-surface:has(input[type="checkbox"]:checked) {
+  --tw-ring-shadow: 0 0 transparent !important;
+  outline: none !important;
+  border: 1px solid #EFFF00 !important;
+  box-shadow: 0 0 15px rgba(239, 255, 0, 0.2) !important;
+}
+
+/* Dropdown styling */
+.dark [role="dialog"] div[class*="bg-white"][class*="shadow-lg"][class*="border-gray-100"],
+.dark div[class*="bg-"][class*="card-bg"][class*="shadow-lg"][class*="border-"][class*="card-border"] {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5) !important;
+}
+
+.dark div[class*="bg-"][class*="card-bg"][class*="shadow-lg"] button {
+  color: #D4D4D4 !important;
+}
+
+.dark div[class*="bg-"][class*="card-bg"][class*="shadow-lg"] button:hover {
+  background: #333333 !important;
+  color: #FFFFFF !important;
+}
+
+.dark div[class*="bg-"][class*="card-bg"][class*="shadow-lg"] button[class*="text-rose-600"] {
+  color: #FF8899 !important;
+}
+
+.dark div[class*="bg-"][class*="card-bg"][class*="shadow-lg"] button[class*="text-rose-600"]:hover {
+  background: rgba(255, 80, 100, 0.1) !important;
+  color: #FF99AA !important;
+}
+
+/* ============================================
+   Order Details Modal — Dark Mode Overrides
+   Stitch neon + deep charcoal surfaces
+   ============================================ */
+
+/* Dialog surface override — deep charcoal with subtle glow border */
+.dark [role="dialog"][class*="bg-"] {
+  background: #1A1A1A !important;
+  border-color: #3F3F3F !important;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(239, 255, 0, 0.08) !important;
+}
+
+/* Dialog close button hover — cyan accent */
+.dark [role="dialog"] button[class*="absolute"][class*="right-"] {
+  color: #A1A1A1;
+}
+
+.dark [role="dialog"] button[class*="absolute"][class*="right-"]:hover {
+  color: #00FFFF;
+  background: rgba(0, 255, 255, 0.08);
+}
+
+/* Bottom sheet drag handle */
+.dark [role="dialog"] .bg-gray-300 {
+  background: #555 !important;
+}
+
+/* --- Header Area --- */
+
+/* Status badge — muted glass with glow text */
+.dark [role="dialog"] span[class*="rounded-full"][class*="uppercase"] {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Timeline/History button — dark surface */
+.dark [role="dialog"] button[class*="bg-"][class*="border-"][class*="rounded-lg"][class*="text-xs"] {
+  border-color: #3F3F3F !important;
+}
+
+/* Active state (ink bg) → neon yellow */
+.dark [role="dialog"] button[class*="bg-"][class*="ink"] {
+  background: var(--primary) !important;
+  color: var(--primary-fg) !important;
+}
+
+/* --- Quick Action Buttons --- */
+
+/* Pastel action buttons → muted dark versions */
+.dark [role="dialog"] button[class*="bg-"][class*="pastel-yellow"] {
+  background: rgba(239, 255, 0, 0.12) !important;
+  color: #EFFF00 !important;
+}
+
+.dark [role="dialog"] button[class*="bg-"][class*="pastel-green"] {
+  background: rgba(0, 255, 100, 0.1) !important;
+  color: #66FFAA !important;
+}
+
+.dark [role="dialog"] button[class*="bg-"][class*="pastel-mint"] {
+  background: rgba(0, 255, 200, 0.1) !important;
+  color: #66FFD0 !important;
+}
+
+.dark [role="dialog"] button[class*="bg-"][class*="pastel-pink"] {
+  background: rgba(255, 80, 100, 0.12) !important;
+  color: #FF8899 !important;
+}
+
+.dark [role="dialog"] button[class*="bg-orange-100"] {
+  background: rgba(255, 140, 66, 0.12) !important;
+  color: #FFB380 !important;
+}
+
+/* Current status ring — neon yellow glow */
+.dark [role="dialog"] button[class*="ring-"][class*="foreground"] {
+  box-shadow: 0 0 0 2px var(--primary), 0 0 8px rgba(239, 255, 0, 0.3) !important;
+}
+
+/* Priority icons hover */
+.dark [role="dialog"] button[class*="hover:bg-gray-100"]:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark [role="dialog"] button[class*="hover:bg-amber-50"]:hover {
+  background: rgba(239, 255, 0, 0.1) !important;
+}
+
+.dark [role="dialog"] button[class*="hover:bg-red-50"]:hover {
+  background: rgba(255, 80, 100, 0.1) !important;
+}
+
+.dark [role="dialog"] button[class*="hover:bg-blue-50"]:hover {
+  background: rgba(0, 150, 255, 0.1) !important;
+}
+
+/* Active priority icon — neon yellow */
+.dark [role="dialog"] button[class*="bg-blue-100"][class*="ring-1"] {
+  background: rgba(0, 150, 255, 0.15) !important;
+  border-color: rgba(0, 150, 255, 0.3) !important;
+}
+
+/* Quick actions border separator */
+.dark [role="dialog"] .border-y,
+.dark [role="dialog"] .border-t,
+.dark [role="dialog"] .border-b {
+  border-color: #3F3F3F !important;
+}
+
+.dark [role="dialog"] .border-l {
+  border-color: #3F3F3F !important;
+}
+
+/* --- Customer Card --- */
+
+.dark .order-detail-customer {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+/* Date modified styling — neon amber in dark mode */
+.dark .order-detail-customer div[class*="bg-amber-50"] {
+  background: rgba(239, 255, 0, 0.06) !important;
+  border-color: rgba(239, 255, 0, 0.2) !important;
+  border-left-color: #EFFF00 !important;
+}
+
+.dark .order-detail-customer span[class*="text-amber-900"] {
+  color: #EFFF00 !important;
+}
+
+.dark .order-detail-customer span[class*="bg-amber-100"][class*="text-amber"] {
+  background: rgba(239, 255, 0, 0.12) !important;
+  color: #EFFF00 !important;
+  border-color: rgba(239, 255, 0, 0.3) !important;
+}
+
+.dark .order-detail-customer span[class*="bg-amber-100"][class*="rounded-full"] {
+  background: rgba(239, 255, 0, 0.15) !important;
+  color: #EFFF00 !important;
+}
+
+.dark .order-detail-customer span[class*="text-amber-500"] {
+  color: rgba(239, 255, 0, 0.5) !important;
+}
+
+.dark .order-detail-customer span[class*="text-amber-600"] {
+  color: rgba(239, 255, 0, 0.6) !important;
+}
+
+/* --- Items Editor --- */
+
+.dark .order-detail-items {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+/* Quantity +/- buttons */
+.dark .order-detail-items button[class*="bg-gray-100"] {
+  background: #3F3F3F !important;
+  color: #A1A1A1 !important;
+}
+
+.dark .order-detail-items button[class*="bg-gray-100"]:hover {
+  background: #555 !important;
+  color: white !important;
+}
+
+/* Remove item button */
+.dark .order-detail-items button[class*="bg-red-100"] {
+  background: rgba(255, 80, 100, 0.15) !important;
+  color: #FF8899 !important;
+}
+
+/* Add product button */
+.dark .order-detail-items button[class*="bg-green-50"] {
+  background: rgba(0, 255, 100, 0.1) !important;
+  color: #66FFAA !important;
+  border-color: rgba(0, 255, 100, 0.2) !important;
+}
+
+/* Price edit input bg-white override */
+.dark .order-detail-items input[class*="bg-white"] {
+  background: #1E1E1E !important;
+  border-color: #3F3F3F !important;
+  color: white !important;
+}
+
+/* Price diff badges */
+.dark .order-detail-items span[class*="bg-green-100"] {
+  background: rgba(0, 255, 100, 0.1) !important;
+  color: #66FFAA !important;
+}
+
+.dark .order-detail-items span[class*="bg-red-100"] {
+  background: rgba(255, 80, 100, 0.12) !important;
+  color: #FF8899 !important;
+}
+
+/* --- Notes Cards --- */
+
+/* Order notes (amber theme) → warm neon */
+.dark .order-detail-notes>div:first-child {
+  background: #2A2A2A !important;
+  border-color: rgba(239, 255, 0, 0.2) !important;
+}
+
+.dark .order-detail-notes>div:first-child>div:first-child {
+  background: rgba(239, 255, 0, 0.06) !important;
+  border-color: rgba(239, 255, 0, 0.15) !important;
+}
+
+.dark .order-detail-notes>div:first-child span[class*="text-amber-900"] {
+  color: #EFFF00 !important;
+}
+
+.dark .order-detail-notes>div:first-child span[class*="text-amber-600"] {
+  color: rgba(239, 255, 0, 0.5) !important;
+}
+
+.dark .order-detail-notes>div:first-child p[class*="text-amber-800"] {
+  color: #D4D4D4 !important;
+}
+
+.dark .order-detail-notes>div:first-child textarea {
+  background: #1E1E1E !important;
+  border-color: rgba(239, 255, 0, 0.2) !important;
+  color: white !important;
+}
+
+/* Internal notes (blue theme) → cyan neon */
+.dark .order-detail-notes>div:last-child {
+  background: #2A2A2A !important;
+  border-color: rgba(0, 255, 255, 0.2) !important;
+}
+
+.dark .order-detail-notes>div:last-child>div:first-child {
+  background: rgba(0, 255, 255, 0.06) !important;
+  border-color: rgba(0, 255, 255, 0.15) !important;
+}
+
+.dark .order-detail-notes>div:last-child span[class*="text-blue-900"] {
+  color: #00FFFF !important;
+}
+
+.dark .order-detail-notes>div:last-child span[class*="text-blue-600"] {
+  color: rgba(0, 255, 255, 0.5) !important;
+}
+
+.dark .order-detail-notes>div:last-child p[class*="text-blue-800"] {
+  color: #D4D4D4 !important;
+}
+
+.dark .order-detail-notes>div:last-child textarea {
+  background: #1E1E1E !important;
+  border-color: rgba(0, 255, 255, 0.2) !important;
+  color: white !important;
+}
+
+/* --- Timeline Tab --- */
+
+.dark [role="dialog"] div[class*="bg-gray-50"][class*="rounded-xl"] {
+  background: #242424 !important;
+  border-color: #3F3F3F !important;
+}
+
+.dark [role="dialog"] textarea[class*="bg-white"] {
+  background: #1E1E1E !important;
+  border-color: #3F3F3F !important;
+  color: white !important;
+}
+
+.dark [role="dialog"] textarea[class*="bg-white"]:focus {
+  border-color: rgba(0, 255, 255, 0.4) !important;
+  box-shadow: 0 0 0 3px rgba(0, 255, 255, 0.1) !important;
+}
+
+/* Save note button */
+.dark [role="dialog"] button[class*="bg-white"][class*="border-gray-200"] {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+  color: #D4D4D4 !important;
+}
+
+.dark [role="dialog"] button[class*="bg-white"][class*="border-gray-200"]:hover {
+  background: #3F3F3F !important;
+}
+
+/* --- Footer --- */
+
+/* Delete & split buttons — muted dark tints */
+.dark [role="dialog"] button[class*="bg-rose-50"] {
+  background: rgba(255, 80, 100, 0.1) !important;
+  border-color: rgba(255, 80, 100, 0.25) !important;
+  color: #FF8899 !important;
+}
+
+.dark [role="dialog"] button[class*="bg-rose-50"]:hover {
+  background: rgba(255, 80, 100, 0.18) !important;
+}
+
+.dark [role="dialog"] button[class*="bg-orange-50"] {
+  background: rgba(255, 140, 66, 0.1) !important;
+  border-color: rgba(255, 140, 66, 0.25) !important;
+  color: #FFB380 !important;
+}
+
+.dark [role="dialog"] button[class*="bg-orange-50"]:hover {
+  background: rgba(255, 140, 66, 0.18) !important;
+}
+
+/* Delete confirmation panel */
+.dark [role="dialog"] div[class*="bg-rose-50"][class*="border-rose-200"] {
+  background: rgba(255, 80, 100, 0.08) !important;
+  border-color: rgba(255, 80, 100, 0.3) !important;
+}
+
+.dark [role="dialog"] div[class*="bg-rose-100"] {
+  background: rgba(255, 80, 100, 0.15) !important;
+}
+
+.dark [role="dialog"] h4[class*="text-rose-900"] {
+  color: #FF8899 !important;
+}
+
+.dark [role="dialog"] p[class*="text-rose-700"] {
+  color: #FF99AA !important;
+}
+
+/* Cancel delete button */
+.dark [role="dialog"] button[class*="bg-white"][class*="border-rose-200"] {
+  background: #2A2A2A !important;
+  border-color: rgba(255, 80, 100, 0.3) !important;
+  color: #FF8899 !important;
+}
+
+/* Disabled delete button */
+.dark [role="dialog"] button[class*="bg-rose-200"] {
+  background: rgba(255, 80, 100, 0.15) !important;
+  color: rgba(255, 80, 100, 0.4) !important;
+}
+
+/* --- Inline Modals (Return Order, ID Warning) --- */
+
+/* Return order modal */
+.dark [role="dialog"] div.fixed[class*="bg-black"] div[class*="bg-white"][class*="rounded-2xl"] {
+  background: #1E1E1E !important;
+  border-color: #3F3F3F !important;
+}
+
+.dark [role="dialog"] h3[class*="text-gray-900"] {
+  color: #E5E5E5 !important;
+}
+
+.dark [role="dialog"] p[class*="text-gray-500"] {
+  color: #A1A1A1 !important;
+}
+
+/* Order info card inside return modal */
+.dark [role="dialog"] div[class*="bg-gray-50"][class*="rounded-xl"] {
+  background: #242424 !important;
+  border-color: #3F3F3F !important;
+}
+
+/* Select dropdown */
+.dark [role="dialog"] select[class*="border-gray-200"] {
+  background: #242424 !important;
+  border-color: #3F3F3F !important;
+  color: #D4D4D4 !important;
+}
+
+/* Deduct delivery fee checkbox area */
+.dark [role="dialog"] label[class*="bg-amber-50"] {
+  background: rgba(239, 255, 0, 0.06) !important;
+  border-color: rgba(239, 255, 0, 0.2) !important;
+}
+
+.dark [role="dialog"] p[class*="text-amber-800"] {
+  color: #EFFF00 !important;
+}
+
+.dark [role="dialog"] p[class*="text-amber-600"] {
+  color: rgba(239, 255, 0, 0.6) !important;
+}
+
+/* Refund preview */
+.dark [role="dialog"] div[class*="bg-red-50"][class*="rounded-xl"] {
+  background: rgba(255, 80, 100, 0.08) !important;
+  border-color: rgba(255, 80, 100, 0.2) !important;
+}
+
+.dark [role="dialog"] p[class*="text-red-700"] {
+  color: #FF8899 !important;
+}
+
+/* Cancel button in return modal */
+.dark [role="dialog"] button[class*="border-gray-200"][class*="rounded-lg"] {
+  background: transparent !important;
+  border-color: #3F3F3F !important;
+  color: #A1A1A1 !important;
+}
+
+.dark [role="dialog"] button[class*="border-gray-200"][class*="rounded-lg"]:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* ID edit overlay */
+.dark [role="dialog"] div[class*="bg-white"][class*="shadow-lg"][class*="border-gray-100"] {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+/* ID edit input */
+.dark [role="dialog"] input[class*="border-gray-200"][class*="font-mono"] {
+  background: #1E1E1E !important;
+  border-color: #3F3F3F !important;
+  color: white !important;
+}
+
+/* ID edit save button */
+.dark [role="dialog"] button[class*="bg-green-100"] {
+  background: rgba(0, 255, 100, 0.12) !important;
+  color: #66FFAA !important;
+}
+
+/* ID edit cancel button */
+.dark [role="dialog"] button[class*="bg-gray-100"][class*="text-gray-700"] {
+  background: #3F3F3F !important;
+  color: #A1A1A1 !important;
+}
+
+/* --- Refund Status Buttons (Customer Card) --- */
+
+.dark .order-detail-customer button[class*="bg-emerald-50"] {
+  background: rgba(0, 255, 100, 0.1) !important;
+  color: #66FFAA !important;
+  border-color: rgba(0, 255, 100, 0.2) !important;
+}
+
+.dark .order-detail-customer button[class*="bg-red-50"] {
+  background: rgba(255, 80, 100, 0.1) !important;
+  color: #FF8899 !important;
+  border-color: rgba(255, 80, 100, 0.2) !important;
+}
+
+/* Edit button hover — appears on order ID */
+.dark [role="dialog"] button[class*="bg-white"][class*="shadow-sm"][class*="border-gray-100"] {
+  background: #3F3F3F !important;
+  border-color: #555 !important;
+}
+
+/* Input focus rings in edit mode */
+.dark [role="dialog"] input:focus,
+.dark [role="dialog"] select:focus {
+  box-shadow: 0 0 0 2px rgba(0, 255, 255, 0.2) !important;
+}
+
+/* ============================================
+   Create Order Modal — Dark Mode Overrides
+   ============================================ */
+
+/* Order type toggle buttons */
+.dark .create-order-modal button[class*="border-green-500"] {
+  border-color: rgba(0, 255, 100, 0.5) !important;
+  background: rgba(0, 255, 100, 0.1) !important;
+  color: #66FFAA !important;
+}
+
+.dark .create-order-modal button[class*="border-amber-500"] {
+  border-color: rgba(239, 255, 0, 0.5) !important;
+  background: rgba(239, 255, 0, 0.1) !important;
+  color: #EFFF00 !important;
+}
+
+.dark .create-order-modal button[class*="border-gray-200"] {
+  border-color: #3F3F3F !important;
+  background: #2A2A2A !important;
+  color: #A1A1A1 !important;
+}
+
+.dark .create-order-modal button[class*="border-gray-200"]:hover {
+  border-color: #555 !important;
+  color: #D4D4D4 !important;
+}
+
+/* Shop order notice */
+.dark .create-order-modal p[class*="bg-amber-50"] {
+  background: rgba(239, 255, 0, 0.06) !important;
+  color: #EFFF00 !important;
+}
+
+/* Header icon */
+.dark .create-order-modal div[class*="bg-"][class*="pastel-green"] {
+  background: rgba(0, 255, 100, 0.15) !important;
+}
+
+.dark .create-order-modal div[class*="bg-"][class*="pastel-green"] svg {
+  color: #66FFAA !important;
+}
+
+/* Source selector buttons */
+.dark .create-order-modal button[class*="bg-"][class*="pastel-green-light"] {
+  background: rgba(0, 255, 100, 0.12) !important;
+  border-color: rgba(0, 255, 100, 0.3) !important;
+}
+
+.dark .create-order-modal button[class*="bg-white"][class*="border-"][class*="card-border"] {
+  background: #2A2A2A !important;
+}
+
+.dark .create-order-modal button[class*="bg-white"][class*="border-"][class*="card-border"]:hover {
+  background: #3F3F3F !important;
+}
+
+/* Order ID — error & success states */
+.dark .create-order-modal input[class*="border-red-300"] {
+  border-color: rgba(255, 80, 100, 0.5) !important;
+  background: rgba(255, 80, 100, 0.08) !important;
+}
+
+.dark .create-order-modal input[class*="border-green-300"] {
+  border-color: rgba(0, 255, 100, 0.5) !important;
+  background: rgba(0, 255, 100, 0.08) !important;
+}
+
+/* Error text */
+.dark .create-order-modal p[class*="text-red-500"][class*="bg-red-50"] {
+  background: rgba(255, 80, 100, 0.08) !important;
+  color: #FF8899 !important;
+}
+
+/* Product item icon */
+.dark .create-order-modal div[class*="bg-purple-100"] {
+  background: rgba(147, 51, 234, 0.15) !important;
+}
+
+.dark .create-order-modal div[class*="bg-purple-100"] svg {
+  color: #C084FC !important;
+}
+
+/* Product item quantity controls — white bg */
+.dark .create-order-modal div[class*="bg-white"][class*="border"][class*="rounded-lg"] {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+.dark .create-order-modal button[class*="text-gray-500"][class*="hover:text-gray-700"]:hover {
+  color: white !important;
+}
+
+/* Remove item button */
+.dark .create-order-modal button[class*="bg-red-100"] {
+  background: rgba(255, 80, 100, 0.15) !important;
+  color: #FF8899 !important;
+}
+
+/* Add product button */
+.dark .create-order-modal button[class*="bg-green-50"] {
+  background: rgba(0, 255, 100, 0.1) !important;
+  color: #66FFAA !important;
+  border-color: rgba(0, 255, 100, 0.2) !important;
+}
+
+/* Discount input */
+.dark .create-order-modal input[class*="bg-white"] {
+  background: #1E1E1E !important;
+  border-color: #3F3F3F !important;
+  color: white !important;
+}
+
+/* Delivery fee area */
+.dark .create-order-modal div[class*="bg-blue-50"] {
+  background: rgba(0, 150, 255, 0.06) !important;
+  border-color: rgba(0, 150, 255, 0.15) !important;
+}
+
+.dark .create-order-modal span[class*="text-blue-800"] {
+  color: #66BBFF !important;
+}
+
+.dark .create-order-modal p[class*="text-blue-600"] {
+  color: rgba(0, 150, 255, 0.6) !important;
+}
+
+.dark .create-order-modal input[class*="border-blue-200"] {
+  background: #1E1E1E !important;
+  border-color: rgba(0, 150, 255, 0.3) !important;
+  color: white !important;
+}
+
+/* Total — green text */
+.dark .create-order-modal span[class*="text-green-700"] {
+  color: #66FFAA !important;
+}
+
+/* Empty products placeholder */
+.dark .create-order-modal div[class*="border-dashed"] {
+  border-color: #3F3F3F !important;
+}
+
+/* ============================================
+   Product Picker — Dark Mode Overrides
+   ============================================ */
+
+/* Product picker overlay panel */
+.dark div[data-portal-ignore] div[class*="bg-white"][class*="rounded-2xl"],
+.dark .product-picker-panel {
+  background: #1E1E1E !important;
+  border-color: #3F3F3F !important;
+}
+
+/* Search bar inside picker */
+.dark div[data-portal-ignore] div[class*="bg-white"][class*="border-b"] {
+  background: #1E1E1E !important;
+}
+
+/* Quantity controls in picker */
+.dark div[data-portal-ignore] div[class*="bg-white"][class*="border"][class*="rounded-lg"] {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+.dark div[data-portal-ignore] button[class*="hover:bg-gray-100"]:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Add button in picker */
+.dark div[data-portal-ignore] button[class*="bg-green-100"] {
+  background: rgba(0, 255, 100, 0.12) !important;
+  color: #66FFAA !important;
+}
+
+/* Remove button in picker */
+.dark div[data-portal-ignore] button[class*="bg-red-100"] {
+  background: rgba(255, 80, 100, 0.15) !important;
+  color: #FF8899 !important;
+}
+
+/* Price text in picker */
+.dark div[data-portal-ignore] p[class*="text-green-700"] {
+  color: #66FFAA !important;
+}
+
+/* Picker footer total */
+.dark div[data-portal-ignore] span[class*="text-green-700"] {
+  color: #66FFAA !important;
+}
+
+/* ============================================
+   Scrollbar Styling
+   ============================================ */
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--card-border);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hover);
+}
+
+/* ============================================
+   Animation & Transitions
+   ============================================ */
+
+* {
+  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-soft {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+/* ============================================
+   Focus States
+   ============================================ */
+
+*:focus-visible {
+  outline: 2px solid var(--pastel-yellow);
+  outline-offset: 2px;
+  border-radius: 0.375rem;
+}
+
+/* ============================================
+   Typography Helpers
+   ============================================ */
+
+.heading-primary {
+  font-weight: 700;
+  color: var(--foreground);
+  letter-spacing: -0.02em;
+}
+
+.heading-secondary {
+  font-weight: 600;
+  color: var(--foreground);
+  letter-spacing: -0.01em;
+}
+
+.text-muted {
+  color: var(--foreground-muted);
+}
+
+.text-subtle {
+  color: var(--foreground-subtle);
+}
+
+/* ============================================
+   Mobile Responsive Utilities
+   ============================================ */
+
+/* Safe area insets for notched devices */
+:root {
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+
+  /* Mobile navigation height */
+  --mobile-nav-height: 72px;
+  --mobile-header-height: 56px;
+  --radius: 0.625rem;
+  --card: var(--card-bg);
+  --card-foreground: var(--foreground);
+  --popover: var(--card-bg);
+  --popover-foreground: var(--foreground);
+  --secondary: var(--background-soft);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--background-soft);
+  --muted-foreground: var(--foreground-muted);
+  --accent: var(--background-soft);
+  --accent-foreground: var(--foreground);
+  --input: var(--border);
+  --ring: var(--primary);
+}
+
+/* ============================================
+   Common Animations & Components
+   ============================================ */
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+@keyframes pulse-error {
+  0%, 100% { 
+    box-shadow: 0 0 0 1px #ef4444; 
+    border-color: #ef4444;
+    background-color: #fef2f2;
+  }
+  50% { 
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.3); 
+    border-color: #f87171;
+    background-color: #fee2e2;
+  }
+}
+
+.animate-shake {
+  animation: shake 0.4s ease-in-out 0s 2;
+}
+
+.field-error {
+  border-style: solid !important;
+  border-width: 1px !important;
+  animation: pulse-error 2s ease-in-out infinite;
+}
+
+/* Allow both animations to run if both classes are present */
+.field-error.animate-shake {
+  animation: shake 0.4s ease-in-out 2, pulse-error 2s ease-in-out infinite;
+}
+
+.field-error-text {
+  color: #ef4444 !important;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  font-weight: 500;
+}
+
+/* Touch-friendly tap targets */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Mobile-first responsive container */
+.container-responsive {
+  width: 100%;
+  padding-left: max(1rem, var(--safe-area-left));
+  padding-right: max(1rem, var(--safe-area-right));
+}
+
+@media (min-width: 640px) {
+  .container-responsive {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container-responsive {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+/* Mobile overlay backdrop */
+.mobile-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 40;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.mobile-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Bottom sheet animation */
+@keyframes slideUpSheet {
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDownSheet {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(100%);
+  }
+}
+
+.animate-slide-up {
+  animation: slideUpSheet 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+.animate-slide-down {
+  animation: slideDownSheet 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+/* ============================================
+   Mobile Polish & Haptic Feedback
+   ============================================ */
+
+/* Haptic-style tap feedback - use on buttons/interactive elements */
+.tap-feedback {
+  transition: transform 100ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms;
+}
+
+.tap-feedback:active {
+  transform: scale(0.97);
+  opacity: 0.9;
+}
+
+/* Stronger press effect for important actions */
+.press-feedback {
+  transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.press-feedback:active {
+  transform: scale(0.95);
+}
+
+/* Skeleton loading shimmer */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg,
+      var(--card-bg) 25%,
+      var(--skeleton-highlight) 50%,
+      var(--card-bg) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--card-radius-sm);
+}
+
+/* Skeleton text placeholder */
+.skeleton-text {
+  height: 1em;
+  border-radius: 4px;
+}
+
+.skeleton-text-sm {
+  height: 0.75em;
+  width: 60%;
+}
+
+.skeleton-circle {
+  border-radius: 50%;
+}
+
+/* Bounce animation for FAB and important CTAs */
+@keyframes bounce-gentle {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-bounce-gentle {
+  animation: bounce-gentle 2s ease-in-out infinite;
+}
+
+/* Pulse ring for attention-grabbing elements */
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 currentColor;
+    opacity: 0.4;
+  }
+
+  70% {
+    box-shadow: 0 0 0 10px currentColor;
+    opacity: 0;
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 currentColor;
+    opacity: 0;
+  }
+}
+
+.pulse-ring {
+  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Success flash animation */
+@keyframes success-flash {
+  0% {
+    background-color: var(--pastel-green);
+  }
+
+  100% {
+    background-color: transparent;
+  }
+}
+
+.animate-success {
+  animation: success-flash 0.5s ease-out;
+}
+
+@keyframes statusFlash {
+  0% { background-color: rgba(59, 130, 246, 0.15); }
+  50% { background-color: rgba(16, 185, 129, 0.12); }
+  100% { background-color: transparent; }
+}
+
+/* Mobile-specific scroll improvements */
+@media (max-width: 768px) {
+
+  /* Smooth momentum scrolling */
+  .scroll-smooth-mobile {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide-mobile::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-hide-mobile {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Sidebar slide animation */
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOutLeft {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+.animate-slide-out-left {
+  animation: slideOutLeft 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+/* Mobile card styling - no hover effects */
+@media (max-width: 768px) {
+  .pastel-card:hover {
+    transform: none;
+    box-shadow: var(--card-shadow);
+  }
+
+  /* Reduce border radius on mobile */
+  :root {
+    --card-radius: 20px;
+    --card-radius-sm: 14px;
+    --card-radius-xs: 10px;
+  }
+
+  /* Disable pointer-based transitions on touch */
+  * {
+    transition-duration: 150ms;
+  }
+}
+
+/* Hide on mobile */
+@media (max-width: 768px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+/* Hide on tablet and up */
+@media (min-width: 769px) {
+  .hide-desktop {
+    display: none !important;
+  }
+}
+
+/* Hide on tablet only */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .hide-tablet {
+    display: none !important;
+  }
+}
+
+/* Show only on mobile */
+@media (min-width: 769px) {
+  .mobile-only {
+    display: none !important;
+  }
+}
+
+/* Show only on desktop */
+@media (max-width: 1024px) {
+  .desktop-only {
+    display: none !important;
+  }
+}
+
+/* Bottom safe area padding */
+.pb-safe {
+  padding-bottom: max(1rem, var(--safe-area-bottom));
+}
+
+.pb-nav-safe {
+  padding-bottom: calc(var(--mobile-nav-height) + var(--safe-area-bottom));
+}
+
+/* Full height minus nav */
+.h-screen-nav {
+  height: calc(100vh - var(--mobile-nav-height) - var(--safe-area-bottom));
+}
+
+/* Mobile bottom navigation styles */
+.mobile-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--mobile-nav-height);
+  padding-bottom: var(--safe-area-bottom);
+  background: var(--card-bg);
+  border-top: 1px solid var(--card-border);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+}
+
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  flex: 1;
+  padding: 0.5rem;
+  color: var(--foreground-muted);
+  transition: color 0.2s ease;
+}
+
+.mobile-nav-item.active {
+  color: var(--foreground);
+}
+
+.mobile-nav-item span {
+  font-size: 0.625rem;
+  font-weight: 500;
+}
+
+/* Mobile sidebar drawer */
+.mobile-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 280px;
+  max-width: 85vw;
+  z-index: 60;
+  transform: translateX(-100%);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.mobile-sidebar.open {
+  transform: translateX(0);
+}
+
+/* Responsive text scales */
+@media (max-width: 768px) {
+  .text-responsive-xl {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+
+  .text-responsive-2xl {
+    font-size: 1.75rem;
+    line-height: 2.25rem;
+  }
+
+  .text-responsive-3xl {
+    font-size: 2rem;
+    line-height: 2.5rem;
+  }
+}
+
+@media (min-width: 769px) {
+  .text-responsive-xl {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+
+  .text-responsive-2xl {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+
+  .text-responsive-3xl {
+    font-size: 1.875rem;
+    line-height: 2.25rem;
+  }
+}
+
+/* ============================================
+   Elegant App-Colored Toast System
+   ============================================ */
+
+/* --- Toast Animations (Smooth & Refined) --- */
+@keyframes toast-in {
+  0% {
+    transform: translateX(16px) scale(0.96);
+    opacity: 0;
+  }
+
+  100% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-out {
+  0% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateX(calc(100% + 2rem)) scale(0.97);
+    opacity: 0;
+  }
+}
+
+@keyframes toast-swipe-out {
+  from {
+    transform: translateX(var(--radix-toast-swipe-end-x));
+  }
+
+  to {
+    transform: translateX(calc(100% + 1rem));
+  }
+}
+
+@keyframes toast-progress {
+  from {
+    width: 100%;
+  }
+
+  to {
+    width: 0%;
+  }
+}
+
+.animate-toast-progress {
+  animation: toast-progress var(--toast-duration, 5000ms) linear forwards;
+}
+
+.toast-card:hover .animate-toast-progress {
+  animation-play-state: paused;
+}
+
+.animate-toast-in {
+  animation: toast-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-toast-out {
+  animation: toast-out 0.4s cubic-bezier(0.06, 0.71, 0.55, 1) forwards;
+}
+
+.animate-toast-swipe-out {
+  animation: toast-swipe-out 0.3s ease-out forwards;
+}
+
+/* Mobile: slide from top */
+@media (max-width: 640px) {
+  @keyframes toast-in-mobile {
+    0% {
+      transform: translateY(calc(-100% - 1rem));
+      opacity: 0;
+    }
+
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes toast-out-mobile {
+    0% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    100% {
+      transform: translateY(calc(-100% - 1rem));
+      opacity: 0;
+    }
+  }
+
+  .animate-toast-in {
+    animation: toast-in-mobile 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+
+  .animate-toast-out {
+    animation: toast-out-mobile 0.4s cubic-bezier(0.06, 0.71, 0.55, 1) forwards;
+  }
+
+  /* Reset the viewport */
+  .toast-viewport {
+    top: 0 !important;
+    bottom: auto !important;
+    right: 0 !important;
+    left: 0 !important;
+    align-items: center;
+    padding-bottom: 0 !important;
+  }
+}
+
+.dark {
+  --card: var(--card-bg);
+  --card-foreground: var(--foreground);
+  --popover: var(--card-bg);
+  --popover-foreground: var(--foreground);
+  --secondary: var(--background-soft);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--background-soft);
+  --muted-foreground: var(--foreground-muted);
+  --accent: var(--card-bg-hover);
+  --accent-foreground: var(--foreground);
+  --input: var(--border);
+  --ring: var(--primary);
+}

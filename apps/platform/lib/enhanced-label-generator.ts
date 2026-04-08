@@ -1,0 +1,1980 @@
+/**
+ * Enhanced Label Generator
+ * Generates printable shipping labels with QR codes, barcodes, and multiple sizes
+ */
+
+import { Order } from "@/lib/supabase";
+import { formatIQD, formatIQDArabic, formatDate, getBaseOrderId } from "@/lib/utils";
+import { formatPhoneForDisplay } from "@/lib/order-utils";
+import QRCode from "qrcode";
+
+// =============================================
+// TYPES
+// =============================================
+
+export type LabelSize = "4x6" | "3x2" | "a5" | "a6" | "compact" | "80x120";
+
+export type InvoiceTemplate = "classic" | "modern" | "prime";
+
+export interface EnhancedLabelOptions {
+    size: LabelSize;
+    showPrice: boolean;
+    isGift: boolean;
+    showQrCode: boolean;
+    showBarcode: boolean;
+    showCompanyLogo: boolean;
+    showDeliveryLogo: boolean;
+    companyLogoUrl?: string;
+    deliveryLogoUrl?: string;
+    customerOrderCount?: number;
+    invoiceTemplate?: InvoiceTemplate;
+}
+
+// Label dimensions in inches
+const LABEL_SIZES: Record<LabelSize, { width: string; height: string; fontSize: string; padding: string }> = {
+    "4x6": { width: "4in", height: "6in", fontSize: "12px", padding: "16px" },
+    "3x2": { width: "3in", height: "2in", fontSize: "9px", padding: "8px" },
+    "a5": { width: "148mm", height: "210mm", fontSize: "11px", padding: "14px" },
+    "a6": { width: "105mm", height: "148mm", fontSize: "10px", padding: "12px" },
+    "compact": { width: "80mm", height: "60mm", fontSize: "8px", padding: "6px" },
+    "80x120": { width: "80mm", height: "120mm", fontSize: "9px", padding: "3mm" },
+};
+
+// =============================================
+// SCHNEIDERS LOGO (B&W for thermal printing)
+// =============================================
+
+const SCHNEIDERS_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="-300 -300 600 600">
+  <g fill="#000" transform="scale(0.9783764)">
+    <circle r="50"/>
+    <path d="M75,0A75,75 0 0,0 37.5-64.951905L125-216.50635A250,250 0 0,1 250,0Z"/>
+    <path d="M75,0A75,75 0 0,0 37.5-64.951905L125-216.50635A250,250 0 0,1 250,0Z" transform="rotate(120)"/>
+    <path d="M75,0A75,75 0 0,0 37.5-64.951905L125-216.50635A250,250 0 0,1 250,0Z" transform="rotate(240)"/>
+  </g>
+</svg>`;
+
+// =============================================
+// QR CODE GENERATION
+// =============================================
+
+async function generateQRCodeDataUrl(data: string): Promise<string> {
+    try {
+        return await QRCode.toDataURL(data, {
+            width: 80,
+            margin: 1,
+            color: {
+                dark: "#000000",
+                light: "#ffffff",
+            },
+        });
+    } catch (err) {
+        console.error("Error generating QR code:", err);
+        return "";
+    }
+}
+
+// =============================================
+// BARCODE GENERATION (Code128-like SVG)
+// =============================================
+
+function generateBarcodeHTML(orderId: string): string {
+    // Simple barcode representation using CSS
+    const chars = orderId.split("");
+    const bars = chars.map((char) => {
+        const code = char.charCodeAt(0);
+        return `
+            <div style="display:inline-block;width:${(code % 3) + 1}px;height:30px;background:${code % 2 === 0 ? '#000' : '#fff'};"></div>
+            <div style="display:inline-block;width:${((code + 1) % 2) + 1}px;height:30px;background:${code % 2 === 0 ? '#fff' : '#000'};"></div>
+        `;
+    }).join("");
+
+    return `
+        <div style="text-align:center;margin:8px 0;">
+            <div style="display:inline-block;background:white;padding:4px 8px;">
+                ${bars}
+            </div>
+            <div style="font-family:monospace;font-size:10px;margin-top:2px;">${orderId}</div>
+        </div>
+    `;
+}
+
+// =============================================
+// REAL BARCODE GENERATION (JsBarcode → PNG data URL for thermal printer compatibility)
+// =============================================
+
+async function generateRealBarcodeHTML(data: string): Promise<string> {
+    if (typeof window === 'undefined') {
+        return `<div style="text-align:center;font-family:monospace;font-size:12px;font-weight:bold;padding:4px 0;">${data}</div>`;
+    }
+    try {
+        const JsBarcode = (await import('jsbarcode')).default;
+        // Render to canvas for PNG output (thermal printers handle bitmaps better than SVGs)
+        const canvas = document.createElement('canvas');
+        JsBarcode(canvas, data, {
+            format: "CODE128",
+            width: 2,
+            height: 50,
+            displayValue: true,
+            fontSize: 14,
+            fontOptions: "bold",
+            textMargin: 3,
+            margin: 4,
+            background: "#ffffff",
+            lineColor: "#000000",
+        });
+        const pngDataUrl = canvas.toDataURL('image/png');
+        return `<div style="text-align:center;margin-top:auto;padding-top:4px;"><img src="${pngDataUrl}" style="width:100%;max-width:250px;height:auto;image-rendering:pixelated;" /></div>`;
+    } catch (err) {
+        console.error('Barcode generation failed:', err);
+        return `<div style="text-align:center;font-family:monospace;font-size:12px;font-weight:bold;padding:4px 0;">${data}</div>`;
+    }
+}
+
+// =============================================
+// QR CODE → PNG DATA URL (for thermal printer compatibility)
+// =============================================
+
+async function generateQRCodePngDataUrl(data: string, width = 150): Promise<string> {
+    try {
+        return await QRCode.toDataURL(data, {
+            width,
+            margin: 1,
+            color: { dark: '#000000', light: '#ffffff' },
+            errorCorrectionLevel: 'M',
+        });
+    } catch (err) {
+        console.error('QR code PNG generation failed:', err);
+        return '';
+    }
+}
+
+// =============================================
+// LOGO SVG → PNG DATA URL (for thermal printer compatibility)
+// =============================================
+
+function generateLogoPngDataUrl(): Promise<string> {
+    return new Promise((resolve) => {
+        if (typeof window === 'undefined') {
+            resolve('');
+            return;
+        }
+        const canvas = document.createElement('canvas');
+        const size = 100; // High res for crisp thermal printing
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { resolve(''); return; }
+
+        const img = new Image();
+        const svgBlob = new Blob([SCHNEIDERS_LOGO_SVG], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(svgBlob);
+        img.onload = () => {
+            ctx.drawImage(img, 0, 0, size, size);
+            URL.revokeObjectURL(url);
+            resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            resolve('');
+        };
+        img.src = url;
+    });
+}
+
+// =============================================
+// LABEL HTML GENERATION
+// =============================================
+
+export async function generateLabelHTML(
+    order: Order,
+    options: EnhancedLabelOptions
+): Promise<string> {
+    const sizeConfig = LABEL_SIZES[options.size];
+    const qrCodeDataUrl = options.showQrCode
+        ? await generateQRCodeDataUrl(`ORDER:${order.order_id}|PHONE:${order.phone}`)
+        : "";
+
+    const subtotal = order.items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || Number(order.price);
+    const total = subtotal - (order.discount_amount || 0);
+
+    // Payment status badge
+    const paymentBadge = order.payment_status === "prepaid"
+        ? '<span style="background:#10b981;color:white;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:bold;">✓ PAID</span>'
+        : order.payment_status === "partial"
+            ? '<span style="background:#3b82f6;color:white;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:bold;">PARTIAL</span>'
+            : '<span style="background:#f59e0b;color:#78350f;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:bold;">COD</span>';
+
+    // Customer order count badge
+    const orderCountBadge = options.customerOrderCount && options.customerOrderCount > 1
+        ? `<span style="background:#8b5cf6;color:white;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:bold;margin-left:6px;">🔄 Order #${options.customerOrderCount}</span>`
+        : "";
+
+    // Gift mode styling
+    const priceSection = options.isGift
+        ? '<div style="text-align:center;padding:10px;background:#fdf2f8;border-radius:8px;margin-top:10px;"><span style="font-size:16px;">🎁</span> <span style="font-size:12px;color:#be185d;font-weight:bold;">GIFT - No Price Display</span></div>'
+        : options.showPrice
+            ? `
+                <div style="text-align:center;margin-top:12px;padding-top:10px;border-top:2px solid #000;">
+                    <div style="font-size:${options.size === "compact" ? "16px" : "22px"};font-weight:bold;font-family:monospace;">${formatIQD(total)}</div>
+                    <div style="margin-top:4px;">${paymentBadge}</div>
+                </div>
+            `
+            : "";
+
+    // Company logo
+    const companyLogo = options.showCompanyLogo && options.companyLogoUrl
+        ? `<img src="${options.companyLogoUrl}" alt="Logo" style="height:30px;margin-bottom:6px;" />`
+        : '<div style="font-size:14px;font-weight:bold;">🧴 Schneiders</div>';
+
+    // Delivery company logo
+    const deliveryLogo = options.showDeliveryLogo && options.deliveryLogoUrl
+        ? `<img src="${options.deliveryLogoUrl}" alt="Delivery" style="height:20px;margin-top:6px;" />`
+        : "";
+
+    // QR Code section
+    const qrSection = qrCodeDataUrl
+        ? `<img src="${qrCodeDataUrl}" style="width:60px;height:60px;position:absolute;top:10px;left:10px;" />`
+        : "";
+
+    // Barcode section
+    const barcodeSection = options.showBarcode ? generateBarcodeHTML(order.order_id) : "";
+
+    return `
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <title>طلب #${order.order_id}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, sans-serif; 
+            font-size: ${sizeConfig.fontSize}; 
+            background: white;
+        }
+        .label {
+            width: ${sizeConfig.width};
+            height: ${sizeConfig.height};
+            padding: ${sizeConfig.padding};
+            border: 2px solid #000;
+            position: relative;
+            page-break-after: always;
+        }
+        .label:last-child { page-break-after: avoid; }
+        .header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: flex-start;
+            border-bottom: 2px dashed #ccc; 
+            padding-bottom: 8px; 
+            margin-bottom: 10px;
+        }
+        .order-id { font-size: 1.6em; font-weight: bold; font-family: monospace; }
+        .date { font-size: 0.8em; color: #666; margin-top: 2px; }
+        .customer-name { font-size: 1.4em; font-weight: bold; margin: 6px 0; }
+        .phone { font-family: monospace; font-size: 1.1em; direction: ltr; text-align: right; }
+        .address { background: #f5f5f5; padding: 8px; border-radius: 6px; margin: 8px 0; line-height: 1.4; }
+        .products { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ccc; }
+        .product-row { display: flex; justify-content: space-between; padding: 2px 0; font-size: 0.9em; }
+        .notes { background: #fffbeb; padding: 6px; border-radius: 4px; margin-top: 8px; font-size: 0.85em; border: 1px dashed #f59e0b; }
+        .footer { text-align: center; margin-top: 8px; font-size: 0.7em; color: #999; }
+        @media print {
+            body { padding: 0; }
+            .label { margin: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="label">
+        ${qrSection}
+        <div class="header">
+            <div>
+                ${companyLogo}
+                <div class="order-id">#${order.order_id}</div>
+                <div class="date">${formatDate(order.created_at)}</div>
+            </div>
+            <div style="text-align:left;">
+                ${order.is_return ? '<span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:bold;">RETURN</span>' : ''}
+                ${orderCountBadge}
+            </div>
+        </div>
+        
+        <div class="customer-name">${order.customer_name}</div>
+        
+        <div style="margin:4px 0;">
+            <span style="opacity:0.7;">📱</span>
+            <span class="phone">${formatPhoneForDisplay(order.phone) || order.phone}</span>
+        </div>
+        
+        ${order.secondary_phone ? `
+        <div style="margin:4px 0;">
+            <span style="opacity:0.7;">📞</span>
+            <span class="phone">${formatPhoneForDisplay(order.secondary_phone)}</span>
+        </div>
+        ` : ""}
+        
+        ${order.city ? `
+        <div style="margin:4px 0;">
+            <span style="opacity:0.7;">📍</span>
+            <span>${order.city}${order.governorate_code ? ` (${order.governorate_code})` : ""}</span>
+        </div>
+        ` : ""}
+        
+        ${order.address_details ? `<div class="address">${order.address_details}</div>` : ""}
+        
+        ${order.items && order.items.length > 0 && options.size !== "compact" ? `
+        <div class="products">
+            ${order.items.map(item => `
+                <div class="product-row">
+                    <span>${item.name}</span>
+                    <span style="font-weight:bold;">×${item.quantity}</span>
+                </div>
+            `).join("")}
+        </div>
+        ` : ""}
+        
+        ${priceSection}
+        
+        ${barcodeSection}
+        
+        ${order.notes && options.size !== "compact" ? `
+        <div class="notes">📝 ${order.notes}</div>
+        ` : ""}
+        
+        <div class="footer">
+            ${deliveryLogo}
+            <div>${new Date().toLocaleDateString('ar-IQ')} — Printed by System</div>
+        </div>
+    </div>
+</body>
+</html>
+    `;
+}
+
+// =============================================
+// BULK LABEL GENERATION
+// =============================================
+
+export async function generateBulkLabelsHTML(
+    orders: Order[],
+    options: EnhancedLabelOptions,
+    customerOrderCounts?: Record<string, number>
+): Promise<string> {
+    const sizeConfig = LABEL_SIZES[options.size];
+    const labelPromises = orders.map(async (order) => {
+        const orderOptions = {
+            ...options,
+            customerOrderCount: customerOrderCounts?.[order.phone] || 1,
+        };
+        const labelHtml = await generateLabelHTML(order, orderOptions);
+        // Extract just the body content
+        const bodyMatch = labelHtml.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+        return bodyMatch ? bodyMatch[1] : "";
+    });
+
+    const labelContents = await Promise.all(labelPromises);
+
+    return `
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <title>طباعة ${orders.length} طلبات</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, sans-serif; 
+            font-size: ${sizeConfig.fontSize}; 
+            background: white;
+        }
+        .label {
+            width: ${sizeConfig.width};
+            height: ${sizeConfig.height};
+            padding: ${sizeConfig.padding};
+            border: 2px solid #000;
+            position: relative;
+            page-break-after: always;
+            margin: 10px auto;
+        }
+        .label:last-child { page-break-after: avoid; }
+        .header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: flex-start;
+            border-bottom: 2px dashed #ccc; 
+            padding-bottom: 8px; 
+            margin-bottom: 10px;
+        }
+        .order-id { font-size: 1.6em; font-weight: bold; font-family: monospace; }
+        .date { font-size: 0.8em; color: #666; margin-top: 2px; }
+        .customer-name { font-size: 1.4em; font-weight: bold; margin: 6px 0; }
+        .phone { font-family: monospace; font-size: 1.1em; direction: ltr; text-align: right; }
+        .address { background: #f5f5f5; padding: 8px; border-radius: 6px; margin: 8px 0; line-height: 1.4; }
+        .products { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ccc; }
+        .product-row { display: flex; justify-content: space-between; padding: 2px 0; font-size: 0.9em; }
+        .notes { background: #fffbeb; padding: 6px; border-radius: 4px; margin-top: 8px; font-size: 0.85em; border: 1px dashed #f59e0b; }
+        .footer { text-align: center; margin-top: 8px; font-size: 0.7em; color: #999; }
+        @page { size: auto; margin: 10mm; }
+        @media print {
+            body { padding: 0; }
+            .label { margin: 0; page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    ${labelContents.join("\n")}
+    <script>
+        window.onload = function() {
+            window.print();
+            window.onafterprint = function() { window.close(); };
+        };
+    </script>
+</body>
+</html>
+    `;
+}
+
+// =============================================
+// INVOICE HTML GENERATION
+// =============================================
+
+export function generateInvoiceHTML(order: Order, options: EnhancedLabelOptions): string {
+    const subtotal = order.items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || Number(order.price);
+    const deliveryFee = order.delivery_fee || 0;
+    const discount = order.discount_amount || 0;
+    const total = subtotal + deliveryFee - discount;
+
+    const companyLogo = options.showCompanyLogo && options.companyLogoUrl
+        ? `<img src="${options.companyLogoUrl}" alt="Logo" style="height:50px;" />`
+        : '<div style="font-size:24px;font-weight:bold;">🧴 Schneiders</div>';
+
+    const paymentBadge = order.payment_status === "prepaid"
+        ? '<span style="background:#10b981;color:white;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:bold;">✓ PAID</span>'
+        : order.payment_status === "partial"
+            ? '<span style="background:#3b82f6;color:white;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:bold;">PARTIAL PAYMENT</span>'
+            : '<span style="background:#f59e0b;color:#78350f;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:bold;">CASH ON DELIVERY</span>';
+
+    return `
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <title>فاتورة #${order.order_id}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 12px; background: white; }
+        .invoice { max-width: 8in; margin: 20px auto; padding: 30px; border: 1px solid #ddd; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 20px; }
+        .invoice-info { text-align: left; }
+        .invoice-number { font-size: 14px; color: #666; }
+        .date { font-size: 12px; color: #999; }
+        .customer-section { display: flex; justify-content: space-between; margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 8px; }
+        .customer-info h3 { margin-bottom: 10px; }
+        .customer-info p { margin: 5px 0; color: #666; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { padding: 12px; text-align: right; border-bottom: 1px solid #eee; }
+        th { background: #f5f5f5; font-weight: bold; }
+        .total-row { font-size: 16px; font-weight: bold; background: #333; color: white; }
+        .total-row td { padding: 15px; }
+        .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; color: #999; font-size: 12px; }
+        @media print { .invoice { margin: 0; border: none; } }
+    </style>
+</head>
+<body>
+    <div class="invoice">
+        <div class="header">
+            <div>${companyLogo}</div>
+            <div class="invoice-info">
+                <div class="invoice-number">فاتورة #${order.order_id}</div>
+                <div class="date">${formatDate(order.created_at)}</div>
+                <div style="margin-top:8px;">${paymentBadge}</div>
+            </div>
+        </div>
+        
+        <div class="customer-section">
+            <div class="customer-info">
+                <h3>معلومات العميل</h3>
+                <p><strong>${order.customer_name}</strong></p>
+                <p>📞 ${order.phone}</p>
+                ${order.secondary_phone ? `<p>📱 ${order.secondary_phone}</p>` : ""}
+            </div>
+            <div class="customer-info">
+                <h3>عنوان الشحن</h3>
+                <p>${order.city || "-"} ${order.governorate_code ? `(${order.governorate_code})` : ""}</p>
+                <p>${order.address_details || "-"}</p>
+            </div>
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>المنتج</th>
+                    <th>الكمية</th>
+                    <th>السعر</th>
+                    <th>المجموع</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${order.items?.map(item => `
+                    <tr>
+                        <td>${item.name}</td>
+                        <td>${item.quantity}</td>
+                        <td>${formatIQD(item.price)}</td>
+                        <td>${formatIQD(item.price * item.quantity)}</td>
+                    </tr>
+                `).join("") || "<tr><td colspan='4'>لا توجد عناصر</td></tr>"}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3" style="text-align:left;">المجموع الفرعي</td>
+                    <td>${formatIQD(subtotal)}</td>
+                </tr>
+                ${deliveryFee > 0 ? `
+                <tr>
+                    <td colspan="3" style="text-align:left;">رسوم التوصيل</td>
+                    <td>${formatIQD(deliveryFee)}</td>
+                </tr>
+                ` : ""}
+                ${discount > 0 ? `
+                <tr>
+                    <td colspan="3" style="text-align:left;color:#10b981;">الخصم</td>
+                    <td style="color:#10b981;">-${formatIQD(discount)}</td>
+                </tr>
+                ` : ""}
+                <tr class="total-row">
+                    <td colspan="3" style="text-align:left;">المجموع الكلي</td>
+                    <td>${formatIQD(total)}</td>
+                </tr>
+            </tfoot>
+        </table>
+        
+        ${order.notes ? `
+        <div style="background:#fffbeb;padding:12px;border-radius:8px;margin:20px 0;border:1px dashed #f59e0b;">
+            <strong>ملاحظات:</strong> ${order.notes}
+        </div>
+        ` : ""}
+        
+        <div class="footer">
+            <p>شكراً لتسوقكم معنا! 💜</p>
+            <p>Schneiders Perfumes</p>
+        </div>
+    </div>
+    <script>
+        window.onload = function() { window.print(); window.onafterprint = function() { window.close(); }; };
+    </script>
+</body>
+</html>
+    `;
+}
+
+// =============================================
+// COMPACT INVOICE HTML GENERATION (6-up printing)
+// =============================================
+
+export async function generateA6InvoiceHTML(order: Order, options: EnhancedLabelOptions): Promise<string> {
+    const subtotal = order.items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || Number(order.price);
+    const deliveryFee = order.delivery_fee || 0;
+    const discount = order.discount_amount || 0;
+    const total = subtotal + deliveryFee - discount;
+
+    // Calculate discount percentage if applicable
+    const discountPercent = discount > 0 && subtotal > 0 ? Math.round((discount / subtotal) * 100) : 0;
+
+    // Format date
+    const orderDate = new Date(order.created_at);
+    const formattedDate = orderDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+
+    // Use sequence_number if available (new format like #178), otherwise fallback to order_id
+
+    // Display on invoice: use getBaseOrderId to extract just the number (e.g., 5434 from LF-5434-137)
+    const displayOrderIdForInvoice = getBaseOrderId(order.order_id);
+    // QR code should contain the same as displayed for consistency
+    const qrCodeData = displayOrderIdForInvoice;
+
+    // Format phone number with spaces for readability (e.g., 0770 230 1677)
+    const formatPhoneWithSpaces = (phone: string): string => {
+        const cleaned = phone?.replace(/\D/g, '') || '';
+        if (cleaned.length === 11) {
+            return `${cleaned.slice(0, 4)} ${cleaned.slice(4, 7)} ${cleaned.slice(7)}`;
+        } else if (cleaned.length === 10) {
+            return `${cleaned.slice(0, 4)} ${cleaned.slice(4, 7)} ${cleaned.slice(7)}`;
+        }
+        return phone || '';
+    };
+
+    // Generate QR code for order ID
+    let qrCodeSvg = '';
+    try {
+        qrCodeSvg = await QRCode.toString(qrCodeData, {
+            type: 'svg',
+            width: 50,
+            margin: 0,
+            color: { dark: '#1a1a2e', light: '#ffffff' }
+        });
+    } catch (err) {
+        console.error('QR code generation failed:', err);
+    }
+
+    // Payment badge
+
+
+    // Company logo HTML (if provided and enabled)
+    const companyLogoHTML = options.showCompanyLogo && options.companyLogoUrl
+        ? `<img src="${options.companyLogoUrl}" alt="Logo" style="max-height:24px;max-width:60px;object-fit:contain;">`
+        : '';
+
+    return `
+<div class="a6-invoice" dir="rtl">
+    <!-- Header Row: Logo + INVOICE + QR -->
+    <div class="invoice-header">
+        <div class="header-left">
+            ${companyLogoHTML || '<div class="company-badge">SCHNEIDERS</div>'}
+        </div>
+        <div class="header-center">
+            <span class="invoice-title">فاتورة</span>
+            <span class="invoice-title-en">INVOICE</span>
+        </div>
+        <div class="header-right">
+            <div class="qr-box">${qrCodeSvg}</div>
+            <span class="qr-label">${displayOrderIdForInvoice}</span>
+        </div>
+    </div>
+
+    <!-- Client Info Bar -->
+    <div class="client-bar">
+        <div class="client-field">
+            <span class="field-label">اسم الزبون</span>
+            <span class="field-value">${order.customer_name}</span>
+        </div>
+        <div class="client-field">
+            <span class="field-label">رقم الوصل</span>
+            <span class="field-value">${displayOrderIdForInvoice}</span>
+        </div>
+        <div class="client-field">
+            <span class="field-label">التاريخ</span>
+            <span class="field-value">${formattedDate}</span>
+        </div>
+        <div class="client-field">
+        <span class="field-label">الهاتف</span>
+            <span class="field-value phone-num">${formatPhoneWithSpaces(order.phone)}${order.secondary_phone ? ` / ${formatPhoneWithSpaces(order.secondary_phone)}` : ''}</span>
+        </div>
+    </div>
+
+    <!-- Main Content: Sidebar + Items Table -->
+    <div class="main-content">
+        <!-- Left Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-item">
+                <span class="sidebar-label">المدينة</span>
+                <span class="sidebar-value">${order.city || '-'}</span>
+            </div>
+            ${order.address_details ? `
+            <div class="sidebar-item">
+                <span class="sidebar-label">العنوان</span>
+                <span class="sidebar-value address-val">${order.address_details.substring(0, 30)}${order.address_details.length > 30 ? '...' : ''}</span>
+            </div>
+            ` : ''}
+        </div>
+
+        <!-- Items Table -->
+        <div class="items-section">
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th class="col-sl">#</th>
+                        <th class="col-desc">اسم المنتج</th>
+                        <th class="col-qty">الكمية</th>
+                        <th class="col-price">السعر</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${order.items?.map((item, idx) => `
+                    <tr>
+                        <td class="col-sl">${idx + 1}</td>
+                        <td class="col-desc">${item.name}</td>
+                        <td class="col-qty">${item.quantity}</td>
+                        <td class="col-price">${formatIQD(item.price * item.quantity)}</td>
+                    </tr>
+                    `).join("") || '<tr><td colspan="4">لا توجد منتجات</td></tr>'}
+                </tbody>
+            </table>
+
+            <!-- Totals -->
+            <div class="totals-section">
+                ${discount > 0 ? `
+                <div class="total-row discount-row">
+                    <span>الخصم:</span>
+                    <span class="discount-badge">${discountPercent}%</span>
+                </div>
+                ` : ''}
+                ${deliveryFee > 0 ? `
+                <div class="total-row">
+                    <span>التوصيل:</span>
+                    <span>${formatIQD(deliveryFee)}</span>
+                </div>
+                ` : ''}
+                <div class="total-row grand-total">
+                    <span>المجموع:</span>
+                    <span class="total-amount">${formatIQDArabic(total)}</span>
+                </div>
+                <div class="customer-note">المبلغ المطلوب من الزبون</div>
+            </div>
+        </div>
+    </div>
+
+    ${order.notes ? `
+    <!-- Notes -->
+    <div class="notes-section">
+        <span class="notes-label">ملاحظات:</span> ${order.notes.substring(0, 50)}${order.notes.length > 50 ? '...' : ''}
+    </div>
+    ` : ''}
+
+    <!-- Footer -->
+    <div class="invoice-footer">
+        <div class="footer-line"></div>
+        <div class="footer-text">شكراً لطلبكم • Schneiders Perfumes</div>
+    </div>
+</div>
+    `;
+}
+
+// =============================================
+// MODERN INVOICE TEMPLATE (Space-optimized, readable at a glance)
+// =============================================
+
+export async function generateA6InvoiceModern(order: Order, options: EnhancedLabelOptions): Promise<string> {
+    const total = Number(order.price) || 0;
+    const deliveryFee = Number(order.delivery_fee) || 0;
+
+    // Display order ID
+    const displayOrderId = getBaseOrderId(order.order_id);
+
+    // Format phone with spaces for Iraqi format (0780 230 1677)
+    const formatPhoneSpaced = (phone: string): string => {
+        if (!phone) return '';
+        // Remove any non-digit characters except +
+        let cleaned = phone.replace(/[^\d+]/g, '');
+        // Remove +964 prefix if present and add 0
+        if (cleaned.startsWith('+964')) {
+            cleaned = '0' + cleaned.slice(4);
+        } else if (cleaned.startsWith('964')) {
+            cleaned = '0' + cleaned.slice(3);
+        }
+        // Remove leading zeros if more than one
+        cleaned = cleaned.replace(/^0+/, '0');
+
+        // Format as 0780 230 1677 (4-3-4 pattern)
+        if (cleaned.length === 11) {
+            return `${cleaned.slice(0, 4)} ${cleaned.slice(4, 7)} ${cleaned.slice(7)}`;
+        } else if (cleaned.length === 10) {
+            return `${cleaned.slice(0, 4)} ${cleaned.slice(4, 7)} ${cleaned.slice(7)}`;
+        }
+        return cleaned;
+    };
+
+    // Generate QR code
+    let qrCodeSvg = '';
+    try {
+        qrCodeSvg = await QRCode.toString(displayOrderId, {
+            type: 'svg',
+            width: 40,
+            margin: 0,
+            color: { dark: '#1a1a2e', light: '#ffffff' }
+        });
+    } catch (err) {
+        console.error('QR code generation failed:', err);
+    }
+
+    // Product list as compact bullets
+    const productsList = order.items?.map(item =>
+        `<div class="product-item">▪ ${item.name} × ${item.quantity}</div>`
+    ).join('') || '<div class="product-item">لا توجد منتجات</div>';
+
+    return `
+<div class="modern-invoice" dir="rtl">
+    <!-- Top Bar: Logo (left) + Brand + QR (right) -->
+    <div class="top-bar">
+        <div class="logo-section">
+            ${options.companyLogoUrl
+            ? `<img src="${options.companyLogoUrl}" alt="Company Logo" class="company-logo" style="max-height:40px;max-width:60px;object-fit:contain;" />`
+            : `<div class="logo-placeholder">SCHNEIDERS</div>`
+        }
+        </div>
+        <div class="brand">SCHNEIDERS</div>
+        <div class="qr-section">
+            <div class="qr-code">${qrCodeSvg}</div>
+            <span class="order-id">#${displayOrderId}</span>
+        </div>
+    </div>
+
+    <!-- Main Customer Info - HUGE and readable -->
+    <div class="customer-section">
+        <div class="customer-order-id">#${displayOrderId}</div>
+        <div class="customer-name">${order.customer_name}</div>
+        <div class="customer-phone-section">
+            <div class="phone-row"><span class="phone-label">رقم الهاتف الاساسي</span><span class="phone-value" dir="ltr">${formatPhoneSpaced(order.phone)}</span></div>
+            ${order.secondary_phone ? `<div class="phone-row"><span class="phone-label">رقم الهاتف الاحتياط</span><span class="phone-value" dir="ltr">${formatPhoneSpaced(order.secondary_phone)}</span></div>` : ''}
+        </div>
+        ${order.address_details ? `<div class="customer-address">📍 ${order.address_details.substring(0, 50)}${order.address_details.length > 50 ? '...' : ''}</div>` : ''}
+        ${order.city ? `<div class="customer-address">📍 ${order.city}${order.governorate_code ? ` (${order.governorate_code})` : ''}</div>` : ''}
+    </div>
+
+    <!-- Products - Compact list -->
+    <div class="products-section">
+        ${productsList}
+    </div>
+
+    <!-- Total - HUGE and prominent -->
+    <div class="total-section">
+        ${deliveryFee > 0 ? `<div class="delivery-row">التوصيل: ${formatIQD(deliveryFee)}</div>` : ''}
+        <div class="total-amount">${formatIQDArabic(total)}</div>
+        <div class="total-label">المجموع</div>
+    </div>
+
+    ${order.notes ? `<div class="notes-section">📝 ${order.notes.substring(0, 35)}${order.notes.length > 35 ? '...' : ''}</div>` : ''}
+</div>
+    `;
+}
+
+// =============================================
+// PRIME-STYLE A6 INVOICE (TABLE LAYOUT)
+// =============================================
+
+export async function generateA6InvoicePrime(order: Order, options: EnhancedLabelOptions): Promise<string> {
+    // Display order ID (clean format without LF prefix)
+    const displayOrderId = getBaseOrderId(order.order_id);
+
+    // Generate QR code using the clean order ID
+    let qrCodeSvg = '';
+    try {
+        qrCodeSvg = await QRCode.toString(displayOrderId, {
+            type: 'svg',
+            width: 70,
+            margin: 0,
+            color: { dark: '#000000', light: '#ffffff' }
+        });
+    } catch (err) {
+        console.error('QR code generation failed:', err);
+    }
+
+    // Format phone with spaces for Iraqi format
+    const formatPhoneSpaced = (phone: string): string => {
+        if (!phone) return '';
+        let cleaned = phone.replace(/[^\d+]/g, '');
+        if (cleaned.startsWith('+964')) {
+            cleaned = '0' + cleaned.slice(4);
+        } else if (cleaned.startsWith('964')) {
+            cleaned = '0' + cleaned.slice(3);
+        }
+        while (cleaned.length > 1 && cleaned.startsWith('00')) {
+            cleaned = cleaned.slice(1);
+        }
+        if (cleaned.length === 10) {
+            return `${cleaned.slice(0, 4)} ${cleaned.slice(4, 7)} ${cleaned.slice(7)}`;
+        }
+        return cleaned;
+    };
+
+    // Use order.price as final total (already includes discounts, delivery, etc.)
+    // For refunded orders, this will be negative
+    const total = Number(order.price) || 0;
+
+    // Format date and time
+    const orderDate = new Date(order.created_at);
+    const formattedDate = orderDate.toLocaleDateString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+    const formattedTime = orderDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+
+    // Product list as single line
+    const productsText = order.items?.map(item => `${item.name} × ${item.quantity}`).join(', ') || 'لا توجد منتجات';
+    const productCount = order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+
+    return `
+<div class="prime-invoice" dir="rtl">
+    <!-- Header: Logo (left) + Brand (center) + QR (right) -->
+    <div class="prime-header">
+        <div class="prime-logo">
+            ${options.companyLogoUrl
+            ? `<img src="${options.companyLogoUrl}" alt="Logo" style="max-height:50px;max-width:80px;object-fit:contain;" />`
+            : ``
+        }
+        </div>
+        <div class="prime-brand-center">Schneiders Perfumes</div>
+        <div class="prime-qr">
+            <div class="prime-qr-code">${qrCodeSvg}</div>
+        </div>
+    </div>
+
+    <!-- Shipment Number -->
+    <div class="prime-shipment-row">
+        <span class="prime-shipment-label">رقم الشحنة:</span>
+        <span class="prime-shipment-value">${displayOrderId}</span>
+    </div>
+
+    <!-- Details Table -->
+    <table class="prime-table">
+        <tr>
+            <td class="prime-label">اسم الزبون</td>
+            <td class="prime-value">${order.customer_name}</td>
+            <td class="prime-label">المتجر</td>
+            <td class="prime-value">شنايدر</td>
+        </tr>
+        <tr>
+            <td class="prime-label">هاتف الزبون</td>
+            <td class="prime-value" colspan="3" dir="ltr" style="text-align:right;">${formatPhoneSpaced(order.phone)}${order.secondary_phone ? ` / ${formatPhoneSpaced(order.secondary_phone)}` : ''}</td>
+        </tr>
+        <tr>
+            <td class="prime-label">عنوان الزبون</td>
+            <td class="prime-value" colspan="3">${order.city || ''}${order.address_details ? ` - ${order.address_details.substring(0, 40)}` : ''}</td>
+        </tr>
+    </table>
+
+    <!-- Order Details Section -->
+    <div class="prime-section-title">تفاصيل الطلب</div>
+    <table class="prime-table">
+        <tr>
+            <td class="prime-label">نوع البضاعة</td>
+            <td class="prime-value">${productsText.substring(0, 50)}${productsText.length > 50 ? '...' : ''}</td>
+            <td class="prime-label">عدد</td>
+            <td class="prime-value-centered">${productCount}</td>
+        </tr>
+        <tr>
+            <td class="prime-label">المبلغ الكلي للفاتورة</td>
+            <td class="prime-value-amount" colspan="3">${formatIQD(total)}</td>
+        </tr>
+        <tr>
+            <td class="prime-label">الملاحظات</td>
+            <td class="prime-value" colspan="3">${order.notes ? order.notes.substring(0, 50) : '—'}</td>
+        </tr>
+        <tr>
+            <td class="prime-label">تاريخ وقت الحجز</td>
+            <td class="prime-value" colspan="3" dir="ltr" style="text-align:right;">${formattedDate} ${formattedTime}</td>
+        </tr>
+    </table>
+</div>
+    `;
+}
+
+
+// =============================================
+// SHIPPING LABEL (80x120mm THERMAL)
+// =============================================
+
+export async function generateShippingLabelHTML(
+    order: Order,
+    options: EnhancedLabelOptions
+): Promise<string> {
+    const displayOrderId = getBaseOrderId(order.order_id);
+
+    // Generate QR code as PNG data URL (thermal printers handle bitmaps better than SVGs)
+    const qrCodePng = await generateQRCodePngDataUrl(displayOrderId, 150);
+
+    // Generate logo as PNG data URL
+    const logoPng = await generateLogoPngDataUrl();
+
+    // Generate real barcode (already outputs PNG via canvas)
+    const barcodeHtml = options.showBarcode
+        ? await generateRealBarcodeHTML(displayOrderId)
+        : '';
+
+    // Clean phone number (normalize to local format)
+    const cleanPhone = (phone: string): string => {
+        if (!phone) return '';
+        let cleaned = phone.replace(/[^\d]/g, '');
+        if (cleaned.startsWith('964')) cleaned = '0' + cleaned.slice(3);
+        // Ensure starts with 0
+        if (cleaned.length === 10 && !cleaned.startsWith('0')) cleaned = '0' + cleaned;
+        return cleaned;
+    };
+
+    // Use order.price as final total (already includes discounts, delivery, etc.)
+    // For refunded orders, this will be negative
+    const total = Number(order.price) || 0;
+
+    // Format date/time
+    const orderDate = new Date(order.created_at);
+    const formattedDate = orderDate.toLocaleDateString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+    const formattedTime = orderDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+
+    // Product list
+    const productsText = order.items?.map(item => `${item.name}${item.quantity > 1 ? ` × ${item.quantity}` : ''}`).join(', ') || 'N/A';
+    const productCount = order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+
+    return `
+<div class="shipping-label" dir="rtl">
+    <div class="sl-header">
+        <div class="sl-logo">${logoPng ? `<img src="${logoPng}" width="50" height="50" style="display:block;" />` : SCHNEIDERS_LOGO_SVG}</div>
+        <div class="sl-brand">Schneiders Perfumes</div>
+        <div class="sl-qr">${qrCodePng ? `<img src="${qrCodePng}" width="55" height="55" style="display:block;" />` : ''}</div>
+    </div>
+
+    <div class="sl-shipment">
+        <span class="sl-shipment-label">رقم الشحنة:</span>
+        <span class="sl-shipment-value">${displayOrderId}</span>
+    </div>
+
+    <table class="sl-table">
+        <tr>
+            <td class="sl-td-label">اسم الزبون</td>
+            <td class="sl-td-value">${order.customer_name}</td>
+            <td class="sl-td-label">المتجر</td>
+            <td class="sl-td-value">شنايدر</td>
+        </tr>
+        <tr>
+            <td class="sl-td-label">هاتف الزبون</td>
+            <td class="sl-td-value" colspan="3" dir="ltr" style="text-align:right;">${cleanPhone(order.phone)}</td>
+        </tr>
+        ${order.secondary_phone ? `<tr>
+            <td class="sl-td-label">هاتف احتياط</td>
+            <td class="sl-td-value" colspan="3" dir="ltr" style="text-align:right;">${cleanPhone(order.secondary_phone)}</td>
+        </tr>` : ''}
+        <tr>
+            <td class="sl-td-label">عنوان الزبون</td>
+            <td class="sl-td-value" colspan="3">${order.city || ''}${order.address_details ? ' - ' + order.address_details : ''}</td>
+        </tr>
+    </table>
+
+    <div class="sl-section-title">تفاصيل الطلب</div>
+
+    <table class="sl-table">
+        <tr>
+            <td class="sl-td-label">نوع البضاعة</td>
+            <td class="sl-td-value">${productsText}</td>
+            <td class="sl-td-label">عدد</td>
+            <td class="sl-td-value" style="text-align:center;font-weight:700;">${productCount}</td>
+        </tr>
+        <tr>
+            <td class="sl-td-label">المبلغ الكلي للفاتورة</td>
+            <td class="sl-td-value sl-amount" colspan="3">${formatIQD(total)}</td>
+        </tr>
+        <tr>
+            <td class="sl-td-label">الملاحظات</td>
+            <td class="sl-td-value" colspan="3">${order.notes || '—'}</td>
+        </tr>
+        <tr>
+            <td class="sl-td-label">تاريخ وقت الحجز</td>
+            <td class="sl-td-value" colspan="3" dir="ltr" style="text-align:right;">${formattedTime} ${formattedDate}</td>
+        </tr>
+    </table>
+
+    ${barcodeHtml}
+</div>
+    `;
+}
+
+// CSS for shipping labels (used in bulk wrapper and preview)
+export const SHIPPING_LABEL_CSS = `
+    .shipping-label {
+        width: 80mm;
+        height: 120mm;
+        border: 1px solid #000;
+        padding: 3mm;
+        display: flex;
+        flex-direction: column;
+        background: white;
+        font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+        font-size: 9px;
+        color: #000;
+        direction: rtl;
+        overflow: hidden;
+        box-sizing: border-box;
+    }
+    .sl-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 4px;
+        border-bottom: 2px solid #000;
+        margin-bottom: 4px;
+    }
+    .sl-logo { flex-shrink: 0; width: 50px; height: 50px; }
+    .sl-logo svg { width: 50px; height: 50px; display: block; }
+    .sl-logo img { width: 50px; height: 50px; display: block; }
+    .sl-brand {
+        font-family: 'Arial Black', 'Segoe UI Black', 'Segoe UI', sans-serif;
+        font-size: 14px;
+        font-weight: 900;
+        color: #000;
+        letter-spacing: 0.5px;
+        text-align: center;
+        flex: 1;
+        padding: 0 6px;
+        line-height: 1.2;
+    }
+    .sl-qr { flex-shrink: 0; width: 55px; height: 55px; }
+    .sl-qr svg { width: 100%; height: 100%; display: block; }
+    .sl-qr img { width: 100%; height: 100%; display: block; }
+    .sl-shipment {
+        text-align: center;
+        padding: 3px 0;
+        border-bottom: 1px solid #000;
+        margin-bottom: 4px;
+    }
+    .sl-shipment-label { font-size: 9px; color: #333; margin-left: 6px; }
+    .sl-shipment-value { font-size: 14px; font-weight: 900; color: #000; }
+    .sl-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 3px;
+    }
+    .sl-table td {
+        border: 1px solid #999;
+        padding: 3px 4px;
+        font-size: 8px;
+        vertical-align: middle;
+    }
+    .sl-td-label {
+        background: #f0f0f0;
+        font-weight: 700;
+        color: #000;
+        width: 24%;
+        font-size: 8px;
+    }
+    .sl-td-value {
+        font-weight: 500;
+        color: #000;
+        font-size: 9px;
+    }
+    .sl-amount {
+        font-weight: 900;
+        font-size: 11px;
+    }
+    .sl-section-title {
+        font-size: 10px;
+        font-weight: 800;
+        color: #000;
+        padding: 3px 0 2px 0;
+        border-bottom: 1px solid #000;
+        margin-bottom: 2px;
+        text-align: center;
+    }
+`;
+
+// =============================================
+// BULK SHIPPING LABELS (one per page, 80x120mm)
+// =============================================
+
+export async function generateBulkShippingLabelsHTML(
+    orders: Order[],
+    options: EnhancedLabelOptions
+): Promise<string> {
+    const labelPromises = orders.map(order => generateShippingLabelHTML(order, options));
+    const labelContents = await Promise.all(labelPromises);
+
+    return `
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>ملصقات الشحن - ${orders.length} طلب</title>
+    <style>
+        @page { size: 80mm 120mm; margin: 0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+        }
+        .label-page {
+            page-break-after: always;
+            width: 80mm;
+            height: 120mm;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .label-page:last-child { page-break-after: avoid; }
+        ${SHIPPING_LABEL_CSS}
+        @media print {
+            body { background: white; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .label-page { margin: 0; box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+    ${labelContents.map(label => `<div class="label-page">${label}</div>`).join('\n')}
+    <script>
+        window.onload = function() { window.print(); window.onafterprint = function() { window.close(); }; };
+    </script>
+</body>
+</html>
+    `;
+}
+
+export async function printBulkShippingLabels(
+    orders: Order[],
+    options: EnhancedLabelOptions
+): Promise<void> {
+    const html = await generateBulkShippingLabelsHTML(orders, options);
+    const printWindow = window.open("", "_blank", "width=400,height=600");
+    if (!printWindow) {
+        alert("Please allow popups to print labels");
+        return;
+    }
+    printWindow.document.write(html);
+    printWindow.document.close();
+}
+
+// =============================================
+// BULK A6 INVOICES (6-up on A4)
+// =============================================
+
+export async function generateBulkA6InvoicesHTML(orders: Order[], options: EnhancedLabelOptions): Promise<string> {
+    // Select template based on option
+    const template = options.invoiceTemplate || 'classic';
+
+    // Generate all invoices asynchronously using selected template
+    const invoicePromises = orders.map(order => {
+        if (template === 'prime') {
+            return generateA6InvoicePrime(order, options);
+        } else if (template === 'modern') {
+            return generateA6InvoiceModern(order, options);
+        } else {
+            return generateA6InvoiceHTML(order, options);
+        }
+    });
+    const invoiceContents = await Promise.all(invoicePromises);
+
+    return `
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>الفواتير - ${orders.length} طلب</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-size: 7px;
+            background: white;
+            color: #1a1a2e;
+            direction: rtl;
+        }
+
+        /* A4 page container with 2x3 grid (6 invoices per page) */
+        .page-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            width: 210mm;
+            height: 297mm;
+            padding: 3mm;
+            gap: 0;
+            page-break-after: always;
+        }
+
+        .page-container:last-child {
+            page-break-after: avoid;
+        }
+
+        /* Invoice wrapper with dashed cutting lines */
+        .invoice-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        /* Horizontal dashed line between rows (bottom of each cell except last row) */
+        .invoice-wrapper:nth-child(-n+4)::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 5%;
+            width: 90%;
+            border-bottom: 1px dashed #ccc;
+        }
+
+        /* Vertical dashed line between columns (right of odd cells) */
+        .invoice-wrapper:nth-child(odd)::before {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 5%;
+            height: 90%;
+            border-right: 1px dashed #ccc;
+        }
+
+        /* Compact Invoice Card */
+        .a6-invoice {
+            width: 98mm;
+            border: 1px solid #e0e0e0;
+            border-radius: 2px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-size: 8px;
+            color: #1a1a2e;
+            direction: rtl;
+        }
+
+        /* Invoice Header - New Layout */
+        .invoice-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .header-left, .header-center, .header-right {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .header-left { align-items: flex-start; }
+        .header-right { align-items: flex-end; }
+
+        .company-badge {
+            background: #1a1a2e;
+            color: white;
+            padding: 3px 8px;
+            font-size: 6px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            border-radius: 2px;
+        }
+
+        .invoice-title {
+            font-size: 12px;
+            font-weight: 900;
+            color: #E3735E;
+            line-height: 1;
+        }
+
+        .invoice-title-en {
+            font-size: 8px;
+            font-weight: 700;
+            color: #1a1a2e;
+            letter-spacing: 1px;
+        }
+
+        .qr-box {
+            width: 40px;
+            height: 40px;
+        }
+
+        .qr-box svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .qr-label {
+            font-size: 6px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-top: 2px;
+        }
+
+        /* Client Bar */
+        .client-bar {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1.5fr;
+            gap: 3px;
+            padding: 4px 0;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 4px;
+        }
+
+        .client-field {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .field-label {
+            font-size: 5px;
+            color: #6CB3B3;
+            font-weight: 600;
+            margin-bottom: 1px;
+        }
+
+        .field-value {
+            font-size: 7px;
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+
+        .phone-num {
+            font-family: 'Courier New', monospace;
+            letter-spacing: 0.3px;
+            direction: ltr;
+            text-align: right;
+        }
+
+        /* Main Content */
+        .main-content {
+            display: flex;
+            flex: 1;
+            gap: 4px;
+            min-height: 0;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 55px;
+            background: #f8f9fa;
+            padding: 4px;
+            border-radius: 2px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .sidebar-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-label {
+            font-size: 5px;
+            color: #6CB3B3;
+            font-weight: 700;
+        }
+
+        .sidebar-value {
+            font-size: 6px;
+            color: #1a1a2e;
+            word-break: break-word;
+        }
+
+        .address-val {
+            font-size: 5px;
+            line-height: 1.2;
+        }
+
+        /* Items Section */
+        .items-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 6px;
+        }
+
+        .items-table thead tr {
+            background: #FF6B35;
+            color: white;
+        }
+
+        .items-table th {
+            padding: 2px 3px;
+            text-align: right;
+            font-weight: 600;
+            font-size: 5px;
+        }
+
+        .items-table td {
+            padding: 2px 3px;
+            border-bottom: 1px solid #f0f0f0;
+            text-align: right;
+        }
+
+        .col-sl {
+            width: 15px;
+            text-align: center !important;
+        }
+
+        .col-desc {
+            width: auto;
+        }
+
+        .col-qty {
+            width: 25px;
+            text-align: center !important;
+        }
+
+        .col-price {
+            width: 50px;
+            text-align: left !important;
+            direction: ltr;
+            font-weight: 600;
+        }
+
+        /* Totals Section */
+        .totals-section {
+            margin-top: auto;
+            padding-top: 4px;
+            border-top: 1px dashed #ddd;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 6px;
+            padding: 1px 0;
+        }
+
+        .discount-row {
+            color: #6CB3B3;
+        }
+
+        .discount-badge {
+            background: #6CB3B3;
+            color: white;
+            padding: 0 4px;
+            border-radius: 6px;
+            font-size: 5px;
+            font-weight: 600;
+        }
+
+        .grand-total {
+            font-size: 9px;
+            font-weight: 700;
+            color: #1a1a2e;
+            padding-top: 3px;
+            border-top: 1px solid #1a1a2e;
+            margin-top: 2px;
+        }
+
+        .total-amount {
+            color: #000000;
+            font-weight: 800;
+        }
+
+        .customer-note {
+            font-size: 5px;
+            color: #888;
+            text-align: left;
+            margin-top: 2px;
+            font-style: italic;
+        }
+
+        /* Notes */
+        .notes-section {
+            background: #fffbeb;
+            padding: 3px 5px;
+            border-radius: 2px;
+            font-size: 5px;
+            margin-top: 3px;
+            border: 1px dashed #f59e0b;
+        }
+
+        .notes-label {
+            font-weight: 600;
+            color: #f59e0b;
+        }
+
+        /* Footer */
+        .invoice-footer {
+            margin-top: auto;
+            padding-top: 3px;
+        }
+
+        .footer-line {
+            height: 2px;
+            background: #FF6B35;
+            margin-bottom: 2px;
+        }
+
+        .footer-text {
+            font-size: 5px;
+            color: #888;
+            text-align: center;
+        }
+
+        /* ========================================= */
+        /* MODERN INVOICE TEMPLATE STYLES            */
+        /* ========================================= */
+        
+        .modern-invoice {
+            width: 98mm;
+            height: 90mm;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            direction: rtl;
+            overflow: hidden;
+        }
+
+        .modern-invoice .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 6px;
+            border-bottom: 2px solid #1a1a2e;
+            margin-bottom: 6px;
+        }
+
+        .modern-invoice .qr-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .modern-invoice .qr-code {
+            width: 35px;
+            height: 35px;
+        }
+
+        .modern-invoice .qr-code svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .modern-invoice .order-id {
+            font-size: 8px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-top: 2px;
+        }
+
+        .modern-invoice .brand {
+            font-size: 12px;
+            font-weight: 800;
+            color: #FF6B35;
+            letter-spacing: 1px;
+        }
+
+        .modern-invoice .city-badge {
+            background: linear-gradient(135deg, #FF6B35, #E3735E);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .modern-invoice .customer-section {
+            text-align: center;
+            padding: 8px 0;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .modern-invoice .customer-name {
+            font-size: 16px;
+            font-weight: 800;
+            color: #1a1a2e;
+            margin-bottom: 4px;
+            line-height: 1.1;
+        }
+
+        .modern-invoice .customer-order-id {
+            font-size: 12px;
+            font-weight: 700;
+            color: #FF6B35;
+            margin-bottom: 2px;
+        }
+
+        .modern-invoice .customer-phone {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            direction: ltr;
+            letter-spacing: 1px;
+        }
+
+        .modern-invoice .customer-phone-section {
+            margin: 6px 0;
+        }
+
+        .modern-invoice .phone-row {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .modern-invoice .phone-label {
+            font-size: 9px;
+            font-weight: 500;
+            color: #666;
+            margin-bottom: 2px;
+        }
+
+        .modern-invoice .phone-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            direction: ltr;
+            letter-spacing: 1px;
+        }
+
+        .modern-invoice .customer-address {
+            font-size: 11px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-top: 6px;
+            padding: 4px 8px;
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+
+        .modern-invoice .products-section {
+            background: #f8f8f8;
+            border-radius: 4px;
+            padding: 6px 8px;
+            margin: 4px 0;
+        }
+
+        .modern-invoice .product-item {
+            font-size: 9px;
+            color: #333;
+            padding: 2px 0;
+        }
+
+        .modern-invoice .total-section {
+            text-align: center;
+            padding: 8px 0;
+            border-top: 2px dashed #ddd;
+            margin-top: auto;
+        }
+
+        .modern-invoice .delivery-row {
+            font-size: 8px;
+            color: #666;
+            margin-bottom: 2px;
+        }
+
+        .modern-invoice .total-amount {
+            font-size: 18px;
+            font-weight: 900;
+            color: #1a1a2e;
+            direction: rtl;
+        }
+
+        .modern-invoice .total-label {
+            font-size: 10px;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .modern-invoice .notes-section {
+            font-size: 7px;
+            color: #f59e0b;
+            text-align: center;
+            margin-top: 4px;
+        }
+
+        /* ========================================= */
+        /* PRIME INVOICE TEMPLATE STYLES             */
+        /* ========================================= */
+
+        .prime-invoice {
+            width: 98mm;
+            height: 90mm;
+            border: 1px solid #ccc;
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            direction: rtl;
+        }
+
+        .prime-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #333;
+            margin-bottom: 6px;
+        }
+
+        .prime-logo {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            min-width: 50px;
+        }
+
+        .prime-brand-center {
+            font-size: 11px;
+            font-weight: 700;
+            color: #666;
+            letter-spacing: 0.5px;
+            text-align: center;
+            flex: 1;
+        }
+
+        .prime-qr {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .prime-qr-code {
+            width: 50px;
+            height: 50px;
+        }
+
+        .prime-qr-code svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .prime-shipment-row {
+            text-align: center;
+            padding: 4px 0;
+            border-bottom: 1px solid #ccc;
+            margin-bottom: 6px;
+        }
+
+        .prime-shipment-label {
+            font-size: 9px;
+            color: #666;
+            margin-left: 6px;
+        }
+
+        .prime-shipment-value {
+            font-size: 12px;
+            font-weight: 800;
+            color: #1a1a2e;
+        }
+
+        .prime-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 4px;
+        }
+
+        .prime-table td {
+            border: 1px solid #ccc;
+            padding: 3px 5px;
+            font-size: 8px;
+        }
+
+        .prime-label {
+            background: #f0f0f0;
+            font-weight: 600;
+            color: #333;
+            width: 22%;
+        }
+
+        .prime-value {
+            font-weight: 500;
+            color: #1a1a2e;
+        }
+
+        .prime-value-centered {
+            font-weight: 700;
+            color: #1a1a2e;
+            text-align: center;
+            width: 10%;
+        }
+
+        .prime-value-amount {
+            font-weight: 800;
+            font-size: 10px;
+            color: #1a1a2e;
+        }
+
+        .prime-section-title {
+            font-size: 9px;
+            font-weight: 700;
+            color: #333;
+            padding: 4px 0 3px 0;
+            border-bottom: 1px solid #ccc;
+            margin-bottom: 3px;
+        }
+
+        @media print {
+            body { 
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .page-container {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    ${(() => {
+            // Group invoices into pages of 6 (2x3 grid)
+            const pages = [];
+            for (let i = 0; i < orders.length; i += 6) {
+                const pageInvoices = invoiceContents.slice(i, i + 6);
+                // Wrap each invoice in a wrapper div for cutting marks
+                const wrappedInvoices = pageInvoices.map(inv => `<div class="invoice-wrapper">${inv}</div>`);
+                const pageContent = wrappedInvoices.join("\n");
+                pages.push(`<div class="page-container">${pageContent}</div>`);
+            }
+            return pages.join("\n");
+        })()}
+    <script>
+        window.onload = function() { window.print(); window.onafterprint = function() { window.close(); }; };
+    </script>
+</body>
+</html>
+    `;
+}
+
+// =============================================
+// PRINT FUNCTIONS
+// =============================================
+
+export async function printEnhancedLabel(order: Order, options: EnhancedLabelOptions): Promise<void> {
+    const html = await generateLabelHTML(order, options);
+    const printWindow = window.open("", "_blank", "width=400,height=600");
+    if (!printWindow) {
+        alert("Please allow popups to print labels");
+        return;
+    }
+    printWindow.document.write(html);
+    printWindow.document.close();
+}
+
+export async function printBulkEnhancedLabels(
+    orders: Order[],
+    options: EnhancedLabelOptions,
+    customerOrderCounts?: Record<string, number>
+): Promise<void> {
+    const html = await generateBulkLabelsHTML(orders, options, customerOrderCounts);
+    const printWindow = window.open("", "_blank", "width=600,height=800");
+    if (!printWindow) {
+        alert("Please allow popups to print labels");
+        return;
+    }
+    printWindow.document.write(html);
+    printWindow.document.close();
+}
+
+export function printInvoice(order: Order, options: EnhancedLabelOptions): void {
+    const html = generateInvoiceHTML(order, options);
+    const printWindow = window.open("", "_blank", "width=800,height=1000");
+    if (!printWindow) {
+        alert("Please allow popups to print invoices");
+        return;
+    }
+    printWindow.document.write(html);
+    printWindow.document.close();
+}
+
+export async function printBulkInvoices(orders: Order[], options: EnhancedLabelOptions): Promise<void> {
+    // Use the new compact invoice layout (6-up on A4)
+    const html = await generateBulkA6InvoicesHTML(orders, options);
+
+    const printWindow = window.open("", "_blank", "width=800,height=1000");
+    if (!printWindow) {
+        alert("Please allow popups to print invoices");
+        return;
+    }
+    printWindow.document.write(html);
+    printWindow.document.close();
+}

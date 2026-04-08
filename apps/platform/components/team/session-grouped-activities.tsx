@@ -1,0 +1,198 @@
+"use client";
+
+import { useMemo } from "react";
+import { motion } from "framer-motion";
+import { Clock, Activity, ChevronDown, ChevronUp } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ActivityLogEntry } from "@/lib/activity-logger";
+import { WorkSession, formatSessionDuration, formatSessionTimeRange } from "./hooks/use-work-sessions";
+import { ActivityTimeline } from "./activity-timeline";
+import { useState } from "react";
+
+interface SessionGroupedActivitiesProps {
+    sessions: WorkSession[];
+    maxSessions?: number;
+    className?: string;
+}
+
+// Session Card
+function SessionCard({
+    session,
+    isExpanded,
+    onToggle,
+    delay = 0,
+}: {
+    session: WorkSession;
+    isExpanded: boolean;
+    onToggle: () => void;
+    delay?: number;
+}) {
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay }}
+            className="rounded-2xl border border-border/50 overflow-hidden bg-white/50"
+        >
+            {/* Session Header */}
+            <button
+                onClick={onToggle}
+                className={cn(
+                    "w-full flex items-center justify-between p-4",
+                    "hover:bg-muted/30 transition-colors",
+                    isExpanded && "bg-muted/20"
+                )}
+            >
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                        <Clock className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="text-right">
+                        <p className="font-semibold text-foreground">
+                            {formatSessionTimeRange(session)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            {new Date(session.startTime).toLocaleDateString("ar-IQ", {
+                                weekday: "short",
+                                month: "short",
+                                day: "numeric",
+                            })}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                    {/* Session stats */}
+                    <div className="flex items-center gap-4 text-sm">
+                        <div className="flex items-center gap-1.5">
+                            <Activity className="w-4 h-4 text-primary" />
+                            <span className="font-medium">{session.activityCount}</span>
+                        </div>
+                        <div className="px-2 py-1 rounded-lg bg-muted">
+                            <span className="text-xs font-medium text-muted-foreground">
+                                {formatSessionDuration(session.durationMinutes)}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Toggle icon */}
+                    {isExpanded ? (
+                        <ChevronUp className="w-5 h-5 text-muted-foreground" />
+                    ) : (
+                        <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                    )}
+                </div>
+            </button>
+
+            {/* Session Activities */}
+            {isExpanded && (
+                <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="border-t border-border/50"
+                >
+                    <div className="p-4 max-h-80 overflow-y-auto">
+                        <ActivityTimeline
+                            activities={session.activities}
+                            showUserInfo={false}
+                            groupBy="30min"
+                        />
+                    </div>
+                </motion.div>
+            )}
+        </motion.div>
+    );
+}
+
+export function SessionGroupedActivities({
+    sessions,
+    maxSessions = 10,
+    className,
+}: SessionGroupedActivitiesProps) {
+    const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
+
+    // Limit sessions
+    const displayedSessions = useMemo(() => {
+        return sessions.slice(0, maxSessions);
+    }, [sessions, maxSessions]);
+
+    // Toggle session expansion
+    const toggleSession = (sessionId: string) => {
+        setExpandedSessions((prev) => {
+            const next = new Set(prev);
+            if (next.has(sessionId)) {
+                next.delete(sessionId);
+            } else {
+                next.add(sessionId);
+            }
+            return next;
+        });
+    };
+
+    // Calculate totals
+    const totals = useMemo(() => {
+        return {
+            totalMinutes: displayedSessions.reduce((sum, s) => sum + s.durationMinutes, 0),
+            totalActivities: displayedSessions.reduce((sum, s) => sum + s.activityCount, 0),
+            sessionCount: displayedSessions.length,
+        };
+    }, [displayedSessions]);
+
+    if (sessions.length === 0) {
+        return (
+            <div className="text-center py-12 text-muted-foreground">
+                <Clock className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p>لا توجد جلسات عمل</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className={cn("space-y-4", className)}>
+            {/* Summary Header */}
+            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-primary/5 to-primary/10 rounded-2xl">
+                <div className="flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-primary" />
+                    <span className="font-bold text-foreground">جلسات العمل</span>
+                </div>
+                <div className="flex items-center gap-4 text-sm">
+                    <div className="text-center">
+                        <p className="font-bold text-foreground">{totals.sessionCount}</p>
+                        <p className="text-xs text-muted-foreground">جلسة</p>
+                    </div>
+                    <div className="text-center">
+                        <p className="font-bold text-foreground">{totals.totalActivities}</p>
+                        <p className="text-xs text-muted-foreground">نشاط</p>
+                    </div>
+                    <div className="text-center">
+                        <p className="font-bold text-foreground">
+                            {formatSessionDuration(totals.totalMinutes)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">إجمالي</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Sessions List */}
+            <div className="space-y-3">
+                {displayedSessions.map((session, index) => (
+                    <SessionCard
+                        key={session.id}
+                        session={session}
+                        isExpanded={expandedSessions.has(session.id)}
+                        onToggle={() => toggleSession(session.id)}
+                        delay={index * 0.05}
+                    />
+                ))}
+            </div>
+
+            {/* Show more indicator */}
+            {sessions.length > maxSessions && (
+                <p className="text-center text-sm text-muted-foreground">
+                    +{sessions.length - maxSessions} جلسات أخرى
+                </p>
+            )}
+        </div>
+    );
+}
