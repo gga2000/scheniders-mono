@@ -1,0 +1,17 @@
+{
+  "name": "@scheniders/supabase",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/database.types.ts",
+  "types": "./src/database.types.ts",
+  "exports": {
+    ".": "./src/database.types.ts"
+  },
+  "scripts": {
+    "generate-types": "supabase gen types --lang=typescript --project-id sduvpgqwhxragxtxztur > src/database.types.ts"
+  },
+  "devDependencies": {
+    "supabase": "^2.76.8",
+    "typescript": "^5"
+  }
+}

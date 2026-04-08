@@ -13,6 +13,9 @@ const nextConfig: NextConfig = {
   // StrictMode helps catch bugs in development
   reactStrictMode: true,
 
+  // Transpile workspace packages
+  transpilePackages: ["@scheniders/shared", "@scheniders/supabase"],
+
   // Externalize pdf-parse and pdfjs-dist from the server bundle
   // so Node.js resolves them natively (avoids Turbopack worker issues)
   serverExternalPackages: ["pdf-parse", "pdfjs-dist", "puppeteer-core", "@sparticuz/chromium"],

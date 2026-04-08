@@ -1,22 +1,15 @@
 /**
- * Storefront-facing types. Mirrors a subset of the platform DB schema.
+ * Storefront-facing types.
+ * Base types come from @scheniders/shared; storefront extends them.
  */
 
+import type { BaseTenant, BaseProduct, BaseProductVariant } from "@scheniders/shared";
+
+// Re-export shared types used directly
+export type { Category, CartItem, CheckoutFormData } from "@scheniders/shared";
+export type { TenantBranding, TenantSettings, TenantStatus } from "@scheniders/shared";
+
 export type TemplateName = "fashion" | "beauty" | "electronics" | "general" | "clean";
-
-export interface TenantBranding {
-  logo_url?: string | null;
-  primary_color?: string;
-  secondary_color?: string;
-  accent_color?: string;
-  font?: string;
-}
-
-export interface TenantSettings {
-  timezone?: string;
-  language?: string;
-  currency?: string;
-}
 
 export interface StoreConfig {
   template?: TemplateName;
@@ -41,34 +34,18 @@ export interface StoreConfig {
   enable_whatsapp_order?: boolean;
 }
 
-export interface Tenant {
-  id: string;
-  business_name: string;
-  slug: string;
-  plan: string;
-  status: "trial" | "active" | "suspended" | "cancelled";
-  branding: TenantBranding;
-  settings: TenantSettings;
+export interface Tenant extends BaseTenant {
   store_config?: StoreConfig | null;
-  contact_email?: string | null;
-  contact_phone?: string | null;
   address?: string | null;
-  city?: string | null;
 }
 
-export interface Product {
-  id: string;
+export interface Product extends BaseProduct {
   tenant_id: string;
-  name: string;
   description: string | null;
-  price: number;
   compare_at_price: number | null;
   image_url: string | null;
-  stock_quantity: number;
-  reserved_quantity: number;
   sku: string | null;
-  is_archived: boolean;
-  // Storefront-only fields (added in storefront migration)
+  // Storefront-only fields
   slug?: string | null;
   is_visible?: boolean;
   category_id?: string | null;
@@ -76,42 +53,8 @@ export interface Product {
   images?: string[];
 }
 
-export interface ProductVariant {
-  id: string;
-  product_id: string;
+export interface ProductVariant extends BaseProductVariant {
   tenant_id: string;
-  name: string;
   price: number;
-  stock_quantity: number;
   sku: string | null;
-}
-
-export interface Category {
-  id: string;
-  tenant_id: string;
-  name: string;
-  slug: string;
-  description: string | null;
-  image_url: string | null;
-  parent_id: string | null;
-  display_order: number;
-}
-
-export interface CartItem {
-  product_id: string;
-  variant_id: string | null;
-  name: string;
-  variant_name: string | null;
-  price: number;
-  quantity: number;
-  image_url: string | null;
-}
-
-export interface CheckoutFormData {
-  customer_name: string;
-  phone: string;
-  governorate_code: string;
-  city: string;
-  address_details: string;
-  notes?: string;
 }

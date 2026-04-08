@@ -1,0 +1,37 @@
+{
+  "name": "scheniders",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "dev:platform": "turbo dev --filter=@scheniders/platform",
+    "dev:storefront": "turbo dev --filter=@scheniders/storefront",
+    "build": "turbo build",
+    "build:platform": "turbo build --filter=@scheniders/platform",
+    "build:storefront": "turbo build --filter=@scheniders/storefront",
+    "lint": "turbo lint",
+    "type-check": "turbo type-check",
+    "test:e2e": "turbo test:e2e --filter=@scheniders/platform",
+    "storybook": "turbo storybook --filter=@scheniders/platform",
+    "generate-types": "turbo generate-types --filter=@scheniders/supabase",
+    "prepare": "husky",
+    "clean": "turbo clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7"
+  },
+  "lint-staged": {
+    "*.{js,ts,jsx,tsx}": [
+      "eslint --fix"
+    ]
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "packageManager": "npm@11.4.2",
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,23 +1,9 @@
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { formatIQD as _formatIQD } from "@scheniders/shared";
 
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+// Re-export shared utilities
+export { cn, slugify } from "@scheniders/shared";
 
+// Storefront uses Arabic locale by default
 export function formatIQD(amount: number): string {
-  return new Intl.NumberFormat("ar-IQ", {
-    style: "currency",
-    currency: "IQD",
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
-export function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/[\s_-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return _formatIQD(amount, "ar-IQ");
 }

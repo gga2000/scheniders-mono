@@ -1,36 +1,5 @@
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
-
-/**
- * Utility function to merge Tailwind CSS classes
- * Combines clsx and tailwind-merge for optimal class handling
- */
-export function cn(...inputs: ClassValue[]) {
-    return twMerge(clsx(inputs));
-}
-
-/**
- * Format Iraqi Dinar currency
- */
-export function formatIQD(amount: number): string {
-    return new Intl.NumberFormat('en-IQ', {
-        style: 'currency',
-        currency: 'IQD',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-    }).format(amount);
-}
-
-/**
- * Format price with Arabic currency text (دينار عراقي)
- */
-export function formatIQDArabic(amount: number): string {
-    const formattedNumber = new Intl.NumberFormat('ar-IQ', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-    }).format(amount);
-    return `${formattedNumber} دينار عراقي`;
-}
+// Re-export shared utilities
+export { cn, formatIQD, formatIQDArabic } from "@scheniders/shared";
 
 /**
  * Format phone number for WhatsApp link
