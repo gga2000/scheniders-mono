@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useStoreBase } from "@/lib/store-context";
 import { useCart } from "@/lib/cart-store";
 import { formatIQD } from "@/lib/utils";
 import { IRAQ_GOVERNORATES } from "@/lib/governorates";
@@ -13,6 +14,7 @@ interface Props {
 
 export function CheckoutForm({ tenantId }: Props) {
   const router = useRouter();
+  const storeBase = useStoreBase();
   const items = useCart((s) => s.items);
   const total = useCart((s) => s.getTotal());
   const clearCart = useCart((s) => s.clearCart);
@@ -61,7 +63,7 @@ export function CheckoutForm({ tenantId }: Props) {
       }
 
       clearCart();
-      router.push(`/checkout/success?order=${result.orderId}`);
+      router.push(`${storeBase}/checkout/success?order=${result.orderId}`);
     });
   }
 

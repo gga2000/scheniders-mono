@@ -1,5 +1,5 @@
-import Link from "next/link";
 import Image from "next/image";
+import { StoreLink } from "@/lib/store-context";
 import type { Product } from "@/lib/types";
 import { formatIQD, cn } from "@/lib/utils";
 
@@ -14,7 +14,7 @@ export function ProductCard({ product, variant = "default", className }: Props) 
   const inStock = product.stock_quantity - (product.reserved_quantity ?? 0) > 0;
 
   return (
-    <Link
+    <StoreLink
       href={`/products/${product.slug ?? product.id}`}
       className={cn(
         "group block bg-white rounded-lg overflow-hidden border border-zinc-200 hover:shadow-lg transition",
@@ -58,6 +58,6 @@ export function ProductCard({ product, variant = "default", className }: Props) 
           )}
         </div>
       </div>
-    </Link>
+    </StoreLink>
   );
 }

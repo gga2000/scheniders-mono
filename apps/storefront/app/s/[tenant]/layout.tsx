@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
+import { StoreBaseProvider } from "@/lib/store-context";
 import type { Tenant } from "@/lib/types";
 
 interface Props {
@@ -19,6 +21,11 @@ export default async function TenantLayout({ params, children }: Props) {
   const tenant = await resolveTenant(tenantParam);
 
   if (!tenant) notFound();
+
+  // Determine store base path from proxy header
+  // "" = subdomain mode (links are root-relative), "/s/slug" = path-based mode
+  const headerList = await headers();
+  const storeBase = headerList.get("x-store-base") ?? `/s/${tenantParam}`;
 
   if (tenant.status === "suspended" || tenant.status === "cancelled") {
     return (
@@ -43,7 +50,11 @@ export default async function TenantLayout({ params, children }: Props) {
     ["--brand-font" as string]: tenant.branding?.font || "system-ui, sans-serif",
   };
 
-  return <div style={brandVars}>{children}</div>;
+  return (
+    <StoreBaseProvider base={storeBase}>
+      <div style={brandVars}>{children}</div>
+    </StoreBaseProvider>
+  );
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ tenant: string }> }) {

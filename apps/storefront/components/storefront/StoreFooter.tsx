@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { StoreLink } from "@/lib/store-context";
 import type { Tenant } from "@/lib/types";
 
 export function StoreFooter({ tenant }: { tenant: Tenant }) {
@@ -19,14 +19,14 @@ export function StoreFooter({ tenant }: { tenant: Tenant }) {
           <h4 className="font-semibold mb-3">روابط</h4>
           <ul className="space-y-2 text-sm">
             <li>
-              <Link href="/" className="hover:text-brand-primary">
+              <StoreLink href="/" className="hover:text-brand-primary">
                 الرئيسية
-              </Link>
+              </StoreLink>
             </li>
             <li>
-              <Link href="/cart" className="hover:text-brand-primary">
+              <StoreLink href="/cart" className="hover:text-brand-primary">
                 السلة
-              </Link>
+              </StoreLink>
             </li>
           </ul>
         </div>

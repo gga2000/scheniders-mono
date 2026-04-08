@@ -1,6 +1,5 @@
-import Link from "next/link";
 import Image from "next/image";
-import { ShoppingCart } from "lucide-react";
+import { StoreLink } from "@/lib/store-context";
 import type { Tenant, Category } from "@/lib/types";
 import { CartButton } from "./CartButton";
 
@@ -15,7 +14,7 @@ export function StoreHeader({ tenant, categories = [], variant = "default" }: Pr
     <header className="sticky top-0 z-40 w-full bg-white/80 backdrop-blur-md border-b border-zinc-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-3">
+          <StoreLink href="/" className="flex items-center gap-3">
             {tenant.branding?.logo_url ? (
               <Image
                 src={tenant.branding.logo_url}
@@ -32,21 +31,21 @@ export function StoreHeader({ tenant, categories = [], variant = "default" }: Pr
             <span className="font-bold text-lg text-zinc-900">
               {tenant.business_name}
             </span>
-          </Link>
+          </StoreLink>
 
           {variant !== "minimal" && categories.length > 0 && (
             <nav className="hidden md:flex items-center gap-6">
-              <Link href="/" className="text-zinc-700 hover:text-brand-primary transition">
+              <StoreLink href="/" className="text-zinc-700 hover:text-brand-primary transition">
                 الرئيسية
-              </Link>
+              </StoreLink>
               {categories.slice(0, 5).map((cat) => (
-                <Link
+                <StoreLink
                   key={cat.id}
                   href={`/categories/${cat.slug}`}
                   className="text-zinc-700 hover:text-brand-primary transition"
                 >
                   {cat.name}
-                </Link>
+                </StoreLink>
               ))}
             </nav>
           )}

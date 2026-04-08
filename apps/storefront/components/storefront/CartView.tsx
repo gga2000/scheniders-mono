@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { Trash2, Minus, Plus, ShoppingBag } from "lucide-react";
+import { StoreLink } from "@/lib/store-context";
 import { useCart } from "@/lib/cart-store";
 import { formatIQD } from "@/lib/utils";
 
@@ -26,12 +26,12 @@ export function CartView() {
       <div className="text-center py-16">
         <ShoppingBag className="w-16 h-16 text-zinc-300 mx-auto mb-4" />
         <p className="text-zinc-500 mb-4">السلة فارغة</p>
-        <Link
+        <StoreLink
           href="/"
           className="inline-block bg-brand-primary text-white px-6 py-2 rounded-lg font-medium hover:opacity-90"
         >
           تصفح المنتجات
-        </Link>
+        </StoreLink>
       </div>
     );
   }
@@ -101,12 +101,12 @@ export function CartView() {
           <span>الإجمالي</span>
           <span className="text-brand-primary">{formatIQD(total)}</span>
         </div>
-        <Link
+        <StoreLink
           href="/checkout"
           className="block w-full bg-brand-primary text-white text-center py-3 rounded-lg font-bold hover:opacity-90"
         >
           إتمام الشراء
-        </Link>
+        </StoreLink>
       </div>
     </div>
   );

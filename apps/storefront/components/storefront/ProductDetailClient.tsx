@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ShoppingCart, MessageCircle, Minus, Plus } from "lucide-react";
+import { useStoreBase } from "@/lib/store-context";
 import type { Product, ProductVariant } from "@/lib/types";
 import { useCart } from "@/lib/cart-store";
 import { formatIQD, cn } from "@/lib/utils";
@@ -17,6 +18,7 @@ interface Props {
 
 export function ProductDetailClient({ product, images, variants, whatsappNumber }: Props) {
   const router = useRouter();
+  const storeBase = useStoreBase();
   const addItem = useCart((s) => s.addItem);
   const [activeImage, setActiveImage] = useState(0);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(
@@ -39,7 +41,7 @@ export function ProductDetailClient({ product, images, variants, whatsappNumber 
       quantity: qty,
       image_url: images[0] ?? null,
     });
-    router.push("/cart");
+    router.push(`${storeBase}/cart`);
   }
 
   function handleWhatsAppOrder() {

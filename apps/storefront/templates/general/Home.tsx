@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { StoreLink } from "@/lib/store-context";
 import { StoreHeader } from "@/components/storefront/StoreHeader";
 import { StoreFooter } from "@/components/storefront/StoreFooter";
 import { ProductCard } from "@/components/storefront/ProductCard";
@@ -36,13 +37,13 @@ export default function GeneralHome({ tenant, products, categories }: TemplateHo
             <h2 className="text-2xl font-bold mb-6 text-zinc-900">الأقسام</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
               {categories.map((cat) => (
-                <a
+                <StoreLink
                   key={cat.id}
                   href={`/categories/${cat.slug}`}
                   className="aspect-square bg-zinc-100 rounded-lg flex items-center justify-center text-center px-2 hover:bg-brand-primary hover:text-white transition"
                 >
                   <span className="font-medium">{cat.name}</span>
-                </a>
+                </StoreLink>
               ))}
             </div>
           </div>

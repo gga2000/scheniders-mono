@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
+import { StoreLink } from "@/lib/store-context";
 import { notFound } from "next/navigation";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
 import { StoreHeader } from "@/components/storefront/StoreHeader";
@@ -32,12 +32,12 @@ export default async function CheckoutSuccessPage({ params, searchParams }: Prop
           {order && (
             <p className="text-sm text-zinc-500 mb-6">رقم الطلب: <span className="font-mono">{order}</span></p>
           )}
-          <Link
+          <StoreLink
             href="/"
             className="inline-block bg-brand-primary text-white px-8 py-3 rounded-lg font-bold hover:opacity-90"
           >
             متابعة التسوق
-          </Link>
+          </StoreLink>
         </div>
       </main>
       <StoreFooter tenant={tenant} />

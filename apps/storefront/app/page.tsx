@@ -11,7 +11,7 @@ export default function StorefrontRootPage() {
         <h1 className="text-3xl font-bold mb-2">Scheniders Storefront</h1>
         <p className="text-zinc-600 max-w-md">
           هذا النطاق يخدم متاجر سكنيدرز. تفضل بزيارة متجرك على{" "}
-          <code className="bg-zinc-200 px-1 rounded">shopname.scheniders.com</code>
+          <code className="bg-zinc-200 px-1 rounded">/s/shopname</code>
         </p>
       </div>
     </main>

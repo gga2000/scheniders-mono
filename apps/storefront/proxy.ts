@@ -47,14 +47,26 @@ export function proxy(request: NextRequest) {
   }
 
   if (!slug && !isCustom) {
-    // Root domain — let app/page.tsx handle it
+    // Root domain — path-based access (/s/[tenant]/...) or landing page
+    // Set x-store-base so tenant layout knows to use path-based links
+    if (url.pathname.startsWith("/s/")) {
+      const tenantSlug = url.pathname.split("/")[2];
+      if (tenantSlug) {
+        const requestHeaders = new Headers(request.headers);
+        requestHeaders.set("x-store-base", `/s/${tenantSlug}`);
+        return NextResponse.next({ request: { headers: requestHeaders } });
+      }
+    }
     return NextResponse.next();
   }
 
-  // Rewrite to /s/[tenant]/... internal route
+  // Subdomain / custom domain → rewrite to /s/[tenant]/...
+  // x-store-base = "" means links stay root-relative (proxy handles rewrites)
   const tenantKey = isCustom ? `__domain__${slug}` : slug;
   url.pathname = `/s/${tenantKey}${url.pathname}`;
-  return NextResponse.rewrite(url);
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-store-base", "");
+  return NextResponse.rewrite(url, { request: { headers: requestHeaders } });
 }
 
 export const config = {

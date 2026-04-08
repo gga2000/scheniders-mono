@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
+import { StoreLink } from "@/lib/store-context";
 import { useCart } from "@/lib/cart-store";
 import { useEffect, useState } from "react";
 
@@ -13,7 +13,7 @@ export function CartButton() {
   useEffect(() => setMounted(true), []);
 
   return (
-    <Link
+    <StoreLink
       href="/cart"
       className="relative flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-primary text-white hover:opacity-90 transition"
     >
@@ -24,6 +24,6 @@ export function CartButton() {
           {itemCount}
         </span>
       )}
-    </Link>
+    </StoreLink>
   );
 }
