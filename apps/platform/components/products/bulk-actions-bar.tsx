@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, DollarSign, Archive, Download, Trash2 } from "lucide-react";
+import { X, DollarSign, Archive, Download, Trash2, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 
 interface BulkActionsBarProps {
@@ -9,6 +9,8 @@ interface BulkActionsBarProps {
     onUpdatePrice: (newPrice: number) => void;
     onArchive: () => void;
     onExport: () => void;
+    onShowOnStore?: () => void;
+    onHideFromStore?: () => void;
     onClearSelection: () => void;
 }
 
@@ -17,6 +19,8 @@ export function BulkActionsBar({
     onUpdatePrice,
     onArchive,
     onExport,
+    onShowOnStore,
+    onHideFromStore,
     onClearSelection,
 }: BulkActionsBarProps) {
     const [showPriceInput, setShowPriceInput] = useState(false);
@@ -101,6 +105,26 @@ export function BulkActionsBar({
                                 <Download className="w-4 h-4" />
                                 Export
                             </button>
+
+                            {onShowOnStore && (
+                                <button
+                                    onClick={onShowOnStore}
+                                    className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-blue-300 rounded-lg text-sm font-medium hover:bg-blue-500/30 transition-colors"
+                                >
+                                    <Eye className="w-4 h-4" />
+                                    Show
+                                </button>
+                            )}
+
+                            {onHideFromStore && (
+                                <button
+                                    onClick={onHideFromStore}
+                                    className="flex items-center gap-2 px-4 py-2 bg-slate-500/20 text-slate-300 rounded-lg text-sm font-medium hover:bg-slate-500/30 transition-colors"
+                                >
+                                    <EyeOff className="w-4 h-4" />
+                                    Hide
+                                </button>
+                            )}
 
                             {/* Clear Selection */}
                             <button

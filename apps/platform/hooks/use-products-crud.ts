@@ -13,6 +13,7 @@ import {
     useDeleteProductMutation,
     useBulkUpdatePricesMutation,
     useBulkArchiveMutation,
+    useBulkUpdateVisibilityMutation,
     useAddVariantMutation,
     useUpdateVariantMutation,
     useDeleteVariantMutation,
@@ -31,6 +32,13 @@ interface ProductFormData {
     image_url?: string;
     tag_color?: string; // Custom color for product tag display
     is_supply?: boolean;
+    // Storefront fields
+    slug?: string;
+    is_visible?: boolean;
+    display_order?: number;
+    category_id?: string | null;
+    website_price?: number | null;
+    short_description?: string;
 }
 
 interface VariantFormData {
@@ -54,6 +62,7 @@ export function useProductsCrud() {
     const deleteProductMutation = useDeleteProductMutation();
     const bulkUpdatePricesMutation = useBulkUpdatePricesMutation();
     const bulkArchiveMutation = useBulkArchiveMutation();
+    const bulkUpdateVisibilityMutation = useBulkUpdateVisibilityMutation();
     const addVariantMutation = useAddVariantMutation();
     const updateVariantMutation = useUpdateVariantMutation();
     const deleteVariantMutation = useDeleteVariantMutation();
@@ -180,6 +189,16 @@ export function useProductsCrud() {
         }
     };
 
+    const bulkUpdateVisibility = async (productIds: string[], isVisible: boolean): Promise<boolean> => {
+        try {
+            await bulkUpdateVisibilityMutation.mutateAsync({ ids: productIds, isVisible });
+            return true;
+        } catch (err) {
+            console.error("Error bulk updating visibility:", err);
+            return false;
+        }
+    };
+
     // =============================================
     // Variant Operations Wrappers
     // =============================================
@@ -288,6 +307,7 @@ export function useProductsCrud() {
         // Bulk operations
         bulkUpdatePrices,
         bulkArchive,
+        bulkUpdateVisibility,
         // Variant operations
         addVariant,
         updateVariant,

@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plus, Trash2, Package, DollarSign, Archive, Image as ImageIcon } from "lucide-react";
-import { Product, ProductVariant } from "@/lib/supabase";
-import { formatIQD } from "@/lib/utils";
+import { X, Plus, Trash2, Package, Globe, Eye, EyeOff } from "lucide-react";
+import { Product } from "@/lib/supabase";
 import { ProductImageUpload } from "./product-image-upload";
+import { ProductGallerySection } from "./product-gallery-section";
+import { useCategoriesQuery } from "@/hooks/use-categories-query";
 
 interface ProductFormModalProps {
     isOpen: boolean;
@@ -27,6 +28,13 @@ export interface ProductFormData {
     image_url: string;
     tag_color: string; // Custom color for product tag display
     is_supply: boolean;
+    // Storefront fields
+    slug: string;
+    is_visible: boolean;
+    display_order: number;
+    category_id: string | null;
+    website_price: number | null;
+    short_description: string;
     variants: VariantFormData[];
 }
 
@@ -47,6 +55,7 @@ export function ProductFormModal({
     mode,
 }: ProductFormModalProps) {
     const [loading, setLoading] = useState(false);
+    const { data: categories = [] } = useCategoriesQuery();
     const [formData, setFormData] = useState<ProductFormData>({
         name: "",
         description: "",
@@ -59,6 +68,12 @@ export function ProductFormModal({
         image_url: "",
         tag_color: "#22c55e", // Default green
         is_supply: false,
+        slug: "",
+        is_visible: true,
+        display_order: 0,
+        category_id: null,
+        website_price: null,
+        short_description: "",
         variants: [],
     });
 
@@ -77,6 +92,12 @@ export function ProductFormModal({
                 image_url: product.image_url || "",
                 tag_color: product.tag_color || "#22c55e",
                 is_supply: product.is_supply || false,
+                slug: product.slug || "",
+                is_visible: product.is_visible ?? true,
+                display_order: product.display_order ?? 0,
+                category_id: product.category_id ?? null,
+                website_price: product.website_price ?? null,
+                short_description: product.short_description || "",
                 variants: (product.variants || []).map((v) => ({
                     id: v.id,
                     name: v.name,
@@ -99,6 +120,12 @@ export function ProductFormModal({
                 image_url: "",
                 tag_color: "#22c55e",
                 is_supply: false,
+                slug: "",
+                is_visible: true,
+                display_order: 0,
+                category_id: null,
+                website_price: null,
+                short_description: "",
                 variants: [],
             });
         }
@@ -146,6 +173,20 @@ export function ProductFormModal({
     const profitMargin = formData.cost > 0
         ? (((formData.price - formData.cost) / formData.price) * 100).toFixed(1)
         : null;
+
+    const slugify = (text: string) =>
+        text
+            .toLowerCase()
+            .trim()
+            .replace(/[^a-z0-9\s-]/g, "")
+            .replace(/\s+/g, "-")
+            .replace(/-+/g, "-");
+
+    const autoGenerateSlug = () => {
+        if (formData.name) {
+            setFormData((prev) => ({ ...prev, slug: slugify(formData.name) }));
+        }
+    };
 
     if (!isOpen) return null;
 
@@ -411,6 +452,141 @@ export function ProductFormModal({
 
                             </div>
                         </div>
+
+                        {/* Storefront */}
+                        {!formData.is_supply && (
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-sm font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
+                                        <Globe className="w-4 h-4" />
+                                        Storefront
+                                    </h3>
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData((prev) => ({ ...prev, is_visible: !prev.is_visible }))}
+                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${formData.is_visible
+                                            ? "bg-[var(--pastel-mint)] text-teal-700 hover:bg-[var(--pastel-green)]"
+                                            : "bg-[var(--background)] text-muted hover:bg-[var(--card-border)]"
+                                            }`}
+                                    >
+                                        {formData.is_visible ? (
+                                            <>
+                                                <Eye className="w-4 h-4" />
+                                                Visible on store
+                                            </>
+                                        ) : (
+                                            <>
+                                                <EyeOff className="w-4 h-4" />
+                                                Hidden from store
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Slug */}
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium text-foreground mb-2">
+                                            URL Slug
+                                            <span className="text-xs text-muted ml-1">(used in the product URL)</span>
+                                        </label>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={formData.slug}
+                                                onChange={(e) => setFormData((prev) => ({ ...prev, slug: slugify(e.target.value) }))}
+                                                placeholder="e.g., dior-sauvage-100ml"
+                                                className="flex-1 px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={autoGenerateSlug}
+                                                disabled={!formData.name}
+                                                className="px-4 py-3 bg-[var(--pastel-yellow)] text-amber-900 rounded-xl text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                                            >
+                                                Auto-generate
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Category */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-foreground mb-2">
+                                            Category
+                                        </label>
+                                        <select
+                                            value={formData.category_id ?? ""}
+                                            onChange={(e) => setFormData((prev) => ({ ...prev, category_id: e.target.value || null }))}
+                                            className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                                        >
+                                            <option value="">— Uncategorized —</option>
+                                            {categories.map((cat) => (
+                                                <option key={cat.id} value={cat.id}>
+                                                    {cat.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Display Order */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-foreground mb-2">
+                                            Display Order
+                                            <span className="text-xs text-muted ml-1">(lower = first)</span>
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={formData.display_order}
+                                            onChange={(e) => setFormData((prev) => ({ ...prev, display_order: parseInt(e.target.value) || 0 }))}
+                                            placeholder="0"
+                                            className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                                        />
+                                    </div>
+
+                                    {/* Website Price */}
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium text-foreground mb-2">
+                                            Website Price (IQD)
+                                            <span className="text-xs text-muted ml-1">(optional — overrides selling price on storefront)</span>
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={formData.website_price ?? ""}
+                                            onChange={(e) => {
+                                                const v = e.target.value;
+                                                setFormData((prev) => ({ ...prev, website_price: v === "" ? null : parseFloat(v) || 0 }));
+                                            }}
+                                            placeholder={`Default: ${formData.price}`}
+                                            min={0}
+                                            className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                                        />
+                                    </div>
+
+                                    {/* Short Description */}
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium text-foreground mb-2">
+                                            Short Description
+                                            <span className="text-xs text-muted ml-1">(shown on product cards)</span>
+                                        </label>
+                                        <textarea
+                                            value={formData.short_description}
+                                            onChange={(e) => setFormData((prev) => ({ ...prev, short_description: e.target.value }))}
+                                            placeholder="Brief tagline or 1-2 sentence summary..."
+                                            rows={2}
+                                            maxLength={200}
+                                            className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all resize-none"
+                                        />
+                                        <p className="text-xs text-muted mt-1 text-right">
+                                            {formData.short_description.length}/200
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {!formData.is_supply && (
+                            <ProductGallerySection productId={product?.id} />
+                        )}
 
                         {/* Variants */}
                         {!formData.is_supply && (

@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { createSupabaseServerClient } from "./supabase/server";
+import type { Tables } from "@scheniders/supabase";
 import type { Tenant } from "./types";
 
 /**
@@ -43,7 +44,8 @@ export const getTenantByCustomDomain = cache(
       .select("tenant_id")
       .eq("domain", domain)
       .eq("verified", true)
-      .maybeSingle();
+      .maybeSingle()
+      .then(r => ({ ...r, data: r.data as Pick<Tables<"tenant_domains">, "tenant_id"> | null }));
 
     if (!data?.tenant_id) return null;
 
@@ -55,6 +57,6 @@ export const getTenantByCustomDomain = cache(
       .eq("id", data.tenant_id)
       .maybeSingle();
 
-    return (tenant as Tenant) ?? null;
+    return (tenant as unknown as Tenant) ?? null;
   },
 );

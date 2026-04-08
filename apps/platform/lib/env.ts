@@ -28,6 +28,10 @@ const clientSchema = z.object({
         .string()
         .url("NEXT_PUBLIC_SITE_URL must be a valid URL")
         .optional(),
+    NEXT_PUBLIC_STOREFRONT_ROOT_DOMAIN: z
+        .string()
+        .min(1)
+        .default("scheniders.com"),
 });
 
 // =============================================
@@ -57,6 +61,7 @@ function validateEnv() {
         NEXT_PUBLIC_SUPABASE_URL: (process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim(),
         NEXT_PUBLIC_SUPABASE_ANON_KEY: (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "").trim(),
         NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL?.trim() || undefined,
+        NEXT_PUBLIC_STOREFRONT_ROOT_DOMAIN: process.env.NEXT_PUBLIC_STOREFRONT_ROOT_DOMAIN?.trim() || undefined,
     });
 
     if (!clientResult.success) {

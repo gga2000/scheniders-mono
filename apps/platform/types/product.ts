@@ -23,12 +23,33 @@ export interface Product {
     tag_color?: string;
     is_archived: boolean;
     is_supply: boolean;
+    // Storefront fields (exposed to public store)
+    slug?: string | null;
+    is_visible?: boolean;
+    display_order?: number;
+    category_id?: string | null;
+    website_price?: number | null;
+    short_description?: string | null;
     // Computed fields (not in DB)
     variants?: ProductVariant[];
     times_sold?: number;
     total_revenue?: number;
     profit_margin?: number;
     average_order_value?: number;
+}
+
+export interface Category {
+    id: string;
+    tenant_id: string;
+    name: string;
+    slug: string;
+    description?: string | null;
+    image_url?: string | null;
+    parent_id?: string | null;
+    display_order: number;
+    is_visible: boolean;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface ProductVariant {

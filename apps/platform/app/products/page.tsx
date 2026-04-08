@@ -19,6 +19,9 @@ import {
     Plus,
     CheckSquare,
     Square,
+    Eye,
+    EyeOff,
+    Tag,
 } from "lucide-react";
 import { formatIQD, formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -36,6 +39,7 @@ import { ExportMenu } from "@/components/products/export-menu";
 import { exportToCSV, exportToExcel, printProductReport } from "@/lib/export-utils";
 import { QCQuarantineTab } from "@/components/products/qc-quarantine-tab";
 import { SuppliesTab } from "@/components/products/supplies-tab";
+import { useCategoriesQuery } from "@/hooks/use-categories-query";
 
 export default function ProductsPage() {
     const {
@@ -52,7 +56,14 @@ export default function ProductsPage() {
         updateVariant,
         deleteVariant,
         getPriceHistory,
+        bulkUpdateVisibility,
     } = useProductsCrud();
+
+    const { data: categories } = useCategoriesQuery();
+    const categoriesMap = useMemo(() => {
+        if (!categories) return new Map();
+        return new Map(categories.map((c) => [c.id, c.name]));
+    }, [categories]);
 
     // UI State
     const [searchQuery, setSearchQuery] = useState("");
@@ -261,6 +272,16 @@ export default function ProductsPage() {
         clearSelection();
     };
 
+    const handleBulkShow = async () => {
+        await bulkUpdateVisibility(Array.from(selectedIds), true);
+        clearSelection();
+    };
+
+    const handleBulkHide = async () => {
+        await bulkUpdateVisibility(Array.from(selectedIds), false);
+        clearSelection();
+    };
+
     const handleBulkExport = () => {
         const selectedProducts = products.filter((p) => selectedIds.has(p.id));
         exportToCSV(selectedProducts, "selected-products");
@@ -278,6 +299,17 @@ export default function ProductsPage() {
 
     const handlePrintReport = () => {
         printProductReport(filteredProducts);
+    };
+
+    const handleVisibilityToggle = async (product: Product) => {
+        await updateProduct(product.id, { is_visible: !product.is_visible });
+    };
+
+    const handleOrderChange = async (productId: string, val: string) => {
+        const order = parseInt(val, 10);
+        if (!isNaN(order)) {
+            await updateProduct(productId, { display_order: order });
+        }
     };
 
     if (loading) {
@@ -637,13 +669,43 @@ export default function ProductsPage() {
                                                 {/* Product Info */}
                                                 <div className="p-4 space-y-2">
                                                     <div className="flex items-start justify-between gap-2">
-                                                        <h3 className="font-bold text-foreground truncate flex-1">
-                                                            {product.name}
-                                                        </h3>
+                                                        <div className="flex flex-col gap-1 flex-1 min-w-0">
+                                                            <h3 className="font-bold text-foreground truncate w-full">
+                                                                {product.name}
+                                                            </h3>
+                                                            {product.category_id && categoriesMap.get(product.category_id) && (
+                                                                <div 
+                                                                    onClick={(e) => { e.stopPropagation(); handleViewDetails(product); }}
+                                                                    className="inline-flex items-center gap-1 px-2 py-0.5 bg-[var(--background)] border border-[var(--card-border)] rounded-md cursor-pointer hover:border-blue-300 w-fit transition-colors"
+                                                                >
+                                                                    <Tag className="w-3 h-3 text-[var(--foreground-subtle)]" />
+                                                                    <span className="text-[10px] text-[var(--foreground-subtle)] font-medium">
+                                                                        {categoriesMap.get(product.category_id)}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); handleVisibilityToggle(product); }}
+                                                            className={cn("p-1.5 rounded-lg transition-colors border flex-shrink-0", product.is_visible ? "bg-blue-500/10 text-blue-600 border-blue-500/20 hover:bg-blue-500/20" : "bg-[var(--background)] text-muted border-[var(--card-border)] hover:bg-[var(--card-bg)]")}
+                                                            title={product.is_visible ? "Visible in Store" : "Hidden in Store"}
+                                                        >
+                                                            {product.is_visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                                                        </button>
                                                     </div>
-                                                    <p className="text-lg font-bold text-foreground">
-                                                        {formatIQD(product.price)}
-                                                    </p>
+                                                    <div className="flex items-center justify-between">
+                                                        <p className="text-lg font-bold text-foreground">
+                                                            {formatIQD(product.price)}
+                                                        </p>
+                                                        <input
+                                                            type="number"
+                                                            value={product.display_order ?? 0}
+                                                            onChange={(e) => handleOrderChange(product.id, e.target.value)}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="w-14 px-1.5 py-1 text-xs text-center bg-[var(--background)] border border-[var(--card-border)] rounded-md text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--pastel-yellow)] transition-all"
+                                                            title="Display Order"
+                                                        />
+                                                    </div>
                                                     <div className="flex items-center justify-between">
                                                         <div className="flex items-center gap-2">
                                                             <StockIndicator
@@ -732,6 +794,17 @@ export default function ProductsPage() {
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2">
                                                             <h3 className="font-bold text-foreground">{product.name}</h3>
+                                                            {product.category_id && categoriesMap.get(product.category_id) && (
+                                                                <div 
+                                                                    onClick={(e) => { e.stopPropagation(); handleViewDetails(product); }}
+                                                                    className="inline-flex items-center gap-1 px-2 py-0.5 bg-[var(--background)] border border-[var(--card-border)] rounded-md cursor-pointer hover:border-blue-300 transition-colors"
+                                                                >
+                                                                    <Tag className="w-3 h-3 text-[var(--foreground-subtle)]" />
+                                                                    <span className="text-[10px] text-[var(--foreground-subtle)] font-medium">
+                                                                        {categoriesMap.get(product.category_id)}
+                                                                    </span>
+                                                                </div>
+                                                            )}
                                                             <StockIndicator
                                                                 status={getStockStatus(product)}
                                                                 size="sm"
@@ -748,6 +821,25 @@ export default function ProductsPage() {
                                                                 </p>
                                                             )}
                                                         </div>
+                                                    </div>
+
+                                                    {/* Storefront Setup */}
+                                                    <div className="hidden lg:flex items-center gap-4 border-r border-[var(--card-border)] pr-8">
+                                                        <input
+                                                            type="number"
+                                                            value={product.display_order ?? 0}
+                                                            onChange={(e) => handleOrderChange(product.id, e.target.value)}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="w-14 px-1.5 py-1 text-xs text-center bg-[var(--background)] border border-[var(--card-border)] rounded-md text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--pastel-yellow)] transition-all"
+                                                            title="Display Order"
+                                                        />
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); handleVisibilityToggle(product); }}
+                                                            className={cn("p-1.5 rounded-lg transition-colors border", product.is_visible ? "bg-blue-500/10 text-blue-600 border-blue-500/20 hover:bg-blue-500/20" : "bg-[var(--background)] text-muted border-[var(--card-border)] hover:bg-[var(--card-bg)]")}
+                                                            title={product.is_visible ? "Visible in Store" : "Hidden in Store"}
+                                                        >
+                                                            {product.is_visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                                                        </button>
                                                     </div>
 
                                                     {/* Stats */}
@@ -819,6 +911,8 @@ export default function ProductsPage() {
                     onUpdatePrice={handleBulkUpdatePrice}
                     onArchive={handleBulkArchive}
                     onExport={handleBulkExport}
+                    onShowOnStore={handleBulkShow}
+                    onHideFromStore={handleBulkHide}
                     onClearSelection={clearSelection}
                 />
             )}

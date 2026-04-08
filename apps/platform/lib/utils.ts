@@ -1,4 +1,5 @@
 // Re-export shared utilities
+import { formatIQD } from "@scheniders/shared";
 export { cn, formatIQD, formatIQDArabic } from "@scheniders/shared";
 
 /**

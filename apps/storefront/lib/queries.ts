@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { createSupabaseServerClient } from "./supabase/server";
+import type { Tables } from "@scheniders/supabase";
 import type { Product, Category, ProductVariant } from "./types";
 
 export const listProducts = cache(
@@ -58,7 +59,8 @@ export const getProductImages = cache(async (productId: string): Promise<string[
     .from("product_images")
     .select("image_url, display_order")
     .eq("product_id", productId)
-    .order("display_order", { ascending: true });
+    .order("display_order", { ascending: true })
+    .returns<Pick<Tables<"product_images">, "image_url" | "display_order">[]>();
   return (data ?? []).map((r) => r.image_url);
 });
 
@@ -98,7 +100,7 @@ export const getCategoryBySlug = cache(
       .eq("tenant_id", tenantId)
       .eq("slug", slug)
       .maybeSingle();
-    return (data as Category) ?? null;
+    return (data as unknown as Category) ?? null;
   },
 );
 

@@ -201,6 +201,28 @@ export function useBulkArchiveMutation() {
     });
 }
 
+export function useBulkUpdateVisibilityMutation() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({ ids, isVisible }: { ids: string[]; isVisible: boolean }) => {
+            await productRepository.bulkUpdateVisibility(ids, isVisible);
+            return { ids, isVisible };
+        },
+        onMutate: async ({ ids, isVisible }) => {
+            await queryClient.cancelQueries({ queryKey: productKeys.lists() });
+            const previousProducts = queryClient.getQueryData<Product[]>(productKeys.lists());
+            queryClient.setQueryData<Product[]>(productKeys.lists(), (old) =>
+                old?.map((p) => (ids.includes(p.id) ? { ...p, is_visible: isVisible } : p))
+            );
+            return { previousProducts };
+        },
+        onError: (_err, _vars, context) => {
+            if (context?.previousProducts) queryClient.setQueryData(productKeys.lists(), context.previousProducts);
+        },
+        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+    });
+}
+
 // Variant Mutations
 export function useAddVariantMutation() {
     const queryClient = useQueryClient();

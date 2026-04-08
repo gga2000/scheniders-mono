@@ -112,6 +112,18 @@ export const productRepository = {
         });
     },
 
+    /** Bulk-update storefront visibility for multiple products. */
+    async bulkUpdateVisibility(ids: string[], isVisible: boolean): Promise<void> {
+        return withRetry('productRepository.bulkUpdateVisibility', async () => {
+            const { error } = await supabase
+                .from("products")
+                .update({ is_visible: isVisible })
+                .in("id", ids);
+
+            if (error) throw error;
+        });
+    },
+
     /** Fetch price history for a product. */
     async getPriceHistory(productId: string): Promise<ProductPriceHistory[]> {
         return withRetry('productRepository.getPriceHistory', async () => {

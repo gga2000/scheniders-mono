@@ -16,6 +16,7 @@ import {
     LogOut,
     FileBarChart,
     Database,
+    Store,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -39,6 +40,7 @@ const NAV_ITEMS = [
     { key: "nav.printing", icon: Printer, href: "/printing" },
     { key: "nav.team", icon: UsersRound, href: "/team" },
     { key: "nav.vault", icon: Database, href: "/vault" },
+    { key: "nav.store", icon: Store, href: "/store" },
     { key: "nav.settings", icon: Settings, href: "/settings" },
 ];
 

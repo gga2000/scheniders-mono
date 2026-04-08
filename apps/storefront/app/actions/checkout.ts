@@ -103,12 +103,13 @@ export async function submitCheckout(
   }
 
   // create_order_atomic returns the created order row (or its id)
-  const orderRow = Array.isArray(data) ? data[0] : data;
-  const orderId = orderRow?.id ?? orderRow?.order_id ?? null;
+  const raw = Array.isArray(data) ? data[0] : data;
+  const orderRow = raw as Record<string, unknown> | null;
+  const orderId = (orderRow?.id ?? orderRow?.order_id ?? null) as string | null;
 
   return {
     success: true,
-    orderId: orderId,
-    orderNumber: orderRow?.order_id ?? undefined,
+    orderId: orderId ?? undefined,
+    orderNumber: (orderRow?.order_id as string) ?? undefined,
   };
 }
