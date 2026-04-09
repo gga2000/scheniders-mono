@@ -17,6 +17,7 @@ import {
     FileBarChart,
     Database,
     Store,
+    Layers,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -35,6 +36,7 @@ const NAV_ITEMS = [
     { key: "nav.orders", icon: Package, href: "/orders" },
     { key: "nav.customers", icon: Users, href: "/customers" },
     { key: "nav.products", icon: ShoppingBag, href: "/products" },
+    { key: "nav.categories", icon: Layers, href: "/categories" },
     { key: "nav.analytics", icon: BarChart3, href: "/analytics" },
     { key: "nav.reports", icon: FileBarChart, href: "/reports" },
     { key: "nav.printing", icon: Printer, href: "/printing" },
