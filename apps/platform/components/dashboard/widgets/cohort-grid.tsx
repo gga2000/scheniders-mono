@@ -1,6 +1,10 @@
 "use client";
 
-import { CohortData } from "@/lib/analytics/dashboard-calculations";
+interface CohortData {
+    month: string;
+    cohortSize: number;
+    retention: (number | undefined)[];
+}
 
 interface CohortGridProps {
     data: CohortData[];

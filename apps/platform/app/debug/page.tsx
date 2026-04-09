@@ -123,7 +123,7 @@ export default function WebhookDebugPage() {
                         onClick={processCheckouts}
                         disabled={processing}
                         className="h-auto py-4 flex flex-col items-center gap-2"
-                        variant="secondary"
+                        variant="outline"
                     >
                         {processing ? <Loader2 className="h-5 w-5 animate-spin" /> : '⚡'}
                         <span className="font-semibold">Process Queue</span>

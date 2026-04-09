@@ -1,17 +1,27 @@
 "use client";
 
 import { ResponsiveContainer, ScatterChart, Scatter, XAxis, YAxis, ZAxis, Tooltip, Cell, ReferenceLine, Label } from "recharts";
-import { ProductMetric } from "@/lib/analytics/dashboard-calculations";
+
+type QuadrantCategory = 'Star' | 'Cash Cow' | 'Question Mark' | 'Dog';
+
+interface ProductMetric {
+    name: string;
+    volume: number;
+    margin: number;
+    revenue: number;
+    profit: number;
+    category: QuadrantCategory;
+}
 
 interface VelocityMatrixProps {
     data: ProductMetric[];
 }
 
-const COLORS = {
-    'Star': '#C0EBA6',      // Green
-    'Cash Cow': '#FBE38E',  // Yellow
-    'Question Mark': '#A6C8FF', // Blue
-    'Dog': '#F4C7CF',       // Red
+const COLORS: Record<QuadrantCategory, string> = {
+    'Star': '#C0EBA6',
+    'Cash Cow': '#FBE38E',
+    'Question Mark': '#A6C8FF',
+    'Dog': '#F4C7CF',
 };
 
 export function VelocityMatrix({ data }: VelocityMatrixProps) {

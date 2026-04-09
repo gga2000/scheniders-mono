@@ -15,7 +15,7 @@ import { MobileDashboardCards } from "./MobileDashboardCards";
 import { CreateOrderModal } from "@/components/orders/create-order-modal";
 
 const UrgencyTriad = dynamic(() => import("@/components/dashboard/widgets/urgency-triad").then(mod => ({ default: mod.UrgencyTriad })), { ssr: false });
-const ProfitPulse = dynamic(() => import("@/components/dashboard/widgets/profit-pulse").then(mod => ({ default: mod.ProfitPulse })), { ssr: false });
+// ProfitPulse removed — data source no longer in useDashboardMetrics
 
 export function MobileDashboardPage() {
     const { orders, loading, error, createOrder } = useOrdersContext();
@@ -93,10 +93,7 @@ export function MobileDashboardPage() {
                     />
                 </div>
 
-                {/* 3. Profit Pulse */}
-                <div className="h-[280px]">
-                    <ProfitPulse data={dashboardMetrics.profitPulse} />
-                </div>
+                {/* 3. Profit Pulse — temporarily disabled, data source removed */}
             </div>
 
             {/* Create Order FAB */}

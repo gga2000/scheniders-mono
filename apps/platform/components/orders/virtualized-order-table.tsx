@@ -401,7 +401,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
                         return order.order_id.slice(-6);
                     })()}
                 </span>
-                {order.needs_attention && order.attention_reasons?.some(r => r.startsWith('whatsapp_')) && (
+                {order.needs_attention && order.attention_reasons?.some((r: string) => r.startsWith('whatsapp_')) && (
                     <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-600 border border-red-200" title={order.delivery_note || 'فشل واتساب'}>
                         <AlertTriangle className="w-3 h-3" />
                         WA

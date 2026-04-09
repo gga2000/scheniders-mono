@@ -36,20 +36,20 @@ export function DeliveryFeesForm() {
 
     useEffect(() => {
         if (!settings.delivery_fees) return;
-        const f = settings.delivery_fees;
+        const f = settings.delivery_fees as Record<string, unknown>;
         if (f.governorates) {
-            setGovFees(f.governorates);
+            setGovFees(f.governorates as Record<string, number>);
         } else {
             // Migrate old format (baghdad / provinces / default)
-            const provinceDefault = f.provinces ?? f.default ?? 8000;
+            const provinceDefault = (f.provinces as number) ?? (f.default as number) ?? 8000;
             const initial: Record<string, number> = {};
             IRAQ_GOVERNORATES.forEach((g) => {
-                initial[g.id] = g.id === "baghdad" ? (f.baghdad ?? provinceDefault) : provinceDefault;
+                initial[g.id] = g.id === "baghdad" ? ((f.baghdad as number) ?? provinceDefault) : provinceDefault;
             });
             setGovFees(initial);
         }
-        setDefaultFee(f.default ?? 8000);
-        setFreeShipping(f.free_shipping_threshold ?? 0);
+        setDefaultFee((f.default as number) ?? 8000);
+        setFreeShipping((f.free_shipping_threshold as number) ?? 0);
     }, [settings.delivery_fees]);
 
     const handleSave = async () => {

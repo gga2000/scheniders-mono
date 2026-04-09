@@ -43,7 +43,7 @@ export function WaseetSettingsPanel() {
     const syncEnabled = get("waseet_sync_enabled") === true;
 
     // Default package size
-    const defaultPackageSize = get("waseet_default_package_size");
+    const defaultPackageSize = get("waseet_default_package_size") as { id?: string } | undefined;
 
     const loadExistingMappings = async (rows: CityMappingRow[]) => {
         const existing = await fetchCityMappings();

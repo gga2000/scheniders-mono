@@ -42,9 +42,9 @@ export function useFinancialEpoch() {
 
     // Read epoch data from settings
     const epochData = useMemo((): FinancialEpochData | null => {
-        const raw = get("financial_epoch");
+        const raw = get("financial_epoch") as FinancialEpochData | undefined;
         if (!raw || !raw.epoch_date) return null;
-        return raw as FinancialEpochData;
+        return raw;
     }, [get]);
 
     const epochDate = epochData?.epoch_date ?? null;

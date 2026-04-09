@@ -614,7 +614,7 @@ export function OrderDetailsModal({
                                         {showStatusDropdown && onStatusUpdate && (
                                             <div className="absolute top-full left-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-200 p-3 z-50 min-w-[240px] max-h-[500px] overflow-y-auto">
                                                 <div className="space-y-1.5">
-                                                    {Object.values(statusGroups).flat().map((action) => {
+                                                    {quickActions.map((action) => {
                                                         const Icon = action.icon;
                                                         const isCurrentStatus = order.status === action.status;
                                                         return (

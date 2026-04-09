@@ -129,7 +129,7 @@ export function CreateOrderModal({
     const [showBulkUpload, setShowBulkUpload] = useState(false);
     const [customCreatedAt, setCustomCreatedAt] = useState<string>(new Date().toISOString());
     const [createAndNew, setCreateAndNew] = useState(false);
-    const handleCreateRef = useRef<() => void>();
+    const handleCreateRef = useRef<(() => void) | undefined>(undefined);
 
     // Check plan limits when modal opens
     useEffect(() => {
