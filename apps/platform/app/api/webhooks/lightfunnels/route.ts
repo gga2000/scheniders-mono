@@ -10,9 +10,12 @@ import { scheduleCheckoutProcessing } from "@/lib/qstash";
 import { triggerImmediateConfirmation } from "@/lib/whatsapp-dispatcher";
 
 // Service role client to bypass RLS when writing to checkout_queue
+if (!env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY is required for webhook processing");
+}
 const supabaseAdmin = createClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
-    env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 // How long to wait before importing (gives customer time to finish filling form)
@@ -30,16 +33,12 @@ export async function POST(request: NextRequest) {
         const secret = request.headers.get("x-webhook-secret");
         const expectedSecret = env.LIGHTFUNNELS_WEBHOOK_SECRET;
 
-        // TEMPORARILY DISABLED: Accept all webhooks to get orders flowing
-        // Only reject if secret is sent AND doesn't match
-        // TODO: Re-enable strict checking once custom headers are configured in Lightfunnels
-        if (expectedSecret && secret && secret !== expectedSecret) {
-            console.error("[Webhook] Webhook secret mismatch");
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        if (!secret && expectedSecret) {
-            console.warn("[Webhook] No webhook secret provided in request - accepting anyway (security risk)");
+        // Verify webhook secret — reject if configured and doesn't match
+        if (expectedSecret) {
+            if (!secret || secret !== expectedSecret) {
+                console.error("[Webhook] Webhook secret missing or mismatch");
+                return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            }
         }
 
         // 2. Parse request body

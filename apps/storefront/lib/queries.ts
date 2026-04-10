@@ -34,22 +34,33 @@ export const listProducts = cache(
   },
 );
 
-export const getProductBySlug = cache(
-  async (tenantId: string, slug: string): Promise<Product | null> => {
-    const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase
-      .from("products")
-      .select(
-        "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id",
-      )
-      .eq("tenant_id", tenantId)
-      .eq("slug", slug)
-      .eq("is_visible", true)
-      .eq("is_archived", false)
-      .maybeSingle();
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-    if (error || !data) return null;
-    return normalizeProduct(data);
+export const getProductBySlug = cache(
+  async (tenantId: string, slugOrId: string): Promise<Product | null> => {
+    const supabase = await createSupabaseServerClient();
+    const columns =
+      "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id";
+
+    // ProductCard links to /products/{slug ?? id}, so the route param can be
+    // either a slug or a UUID. Try both paths so slug-less products still work.
+    const baseQuery = () =>
+      supabase
+        .from("products")
+        .select(columns)
+        .eq("tenant_id", tenantId)
+        .eq("is_visible", true)
+        .eq("is_archived", false);
+
+    const { data: bySlug } = await baseQuery().eq("slug", slugOrId).maybeSingle();
+    if (bySlug) return normalizeProduct(bySlug);
+
+    if (UUID_RE.test(slugOrId)) {
+      const { data: byId } = await baseQuery().eq("id", slugOrId).maybeSingle();
+      if (byId) return normalizeProduct(byId);
+    }
+
+    return null;
   },
 );
 

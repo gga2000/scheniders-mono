@@ -6,6 +6,7 @@ import type { TemplateHomeProps } from "../registry";
 
 export default function ElectronicsHome({ tenant, products, categories }: TemplateHomeProps) {
   const hero = tenant.store_config?.hero;
+  const about = tenant.store_config?.about;
 
   return (
     <div className="min-h-screen flex flex-col bg-zinc-950 text-white">
@@ -48,6 +49,16 @@ export default function ElectronicsHome({ tenant, products, categories }: Templa
           </div>
         </div>
       </section>
+
+      {/* About */}
+      {about?.enabled && (
+        <section className="py-16 border-t border-zinc-800">
+          <div className="max-w-4xl mx-auto px-4 text-center">
+            <h2 className="text-3xl font-bold mb-6">{about.title || "من نحن"}</h2>
+            <p className="text-zinc-400 leading-relaxed whitespace-pre-line text-lg">{about.body}</p>
+          </div>
+        </section>
+      )}
 
       <StoreFooter tenant={tenant} />
     </div>

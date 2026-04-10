@@ -81,36 +81,42 @@ export function CheckoutForm({ tenantId }: Props) {
     <div className="grid lg:grid-cols-3 gap-8">
       <form onSubmit={handleSubmit} className="lg:col-span-2 bg-white rounded-lg border border-zinc-200 p-6 space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">الاسم الكامل</label>
+          <label htmlFor="customer_name" className="block text-sm font-medium mb-1">الاسم الكامل</label>
           <input
+            id="customer_name"
             type="text"
             required
+            disabled={pending}
             value={form.customer_name}
             onChange={(e) => setForm({ ...form, customer_name: e.target.value })}
-            className="w-full px-3 py-2 border border-zinc-300 rounded focus:outline-none focus:border-brand-primary"
+            className="w-full px-3 py-2 border border-zinc-300 rounded focus:outline-none focus:border-brand-primary disabled:opacity-50"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">رقم الهاتف</label>
+          <label htmlFor="phone" className="block text-sm font-medium mb-1">رقم الهاتف</label>
           <input
+            id="phone"
             type="tel"
             required
+            disabled={pending}
             value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
             placeholder="07XXXXXXXXX"
-            className="w-full px-3 py-2 border border-zinc-300 rounded focus:outline-none focus:border-brand-primary"
+            className="w-full px-3 py-2 border border-zinc-300 rounded focus:outline-none focus:border-brand-primary disabled:opacity-50"
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-1">المحافظة</label>
+            <label htmlFor="governorate" className="block text-sm font-medium mb-1">المحافظة</label>
             <select
+              id="governorate"
               required
+              disabled={pending}
               value={form.governorate_code}
               onChange={(e) => setForm({ ...form, governorate_code: e.target.value })}
-              className="w-full px-3 py-2 border border-zinc-300 rounded focus:outline-none focus:border-brand-primary"
+              className="w-full px-3 py-2 border border-zinc-300 rounded focus:outline-none focus:border-brand-primary disabled:opacity-50"
             >
               {IRAQ_GOVERNORATES.map((g) => (
                 <option key={g.code} value={g.code}>
@@ -120,35 +126,41 @@ export function CheckoutForm({ tenantId }: Props) {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">المدينة / القضاء</label>
+            <label htmlFor="city" className="block text-sm font-medium mb-1">المدينة / القضاء</label>
             <input
+              id="city"
               type="text"
               required
+              disabled={pending}
               value={form.city}
               onChange={(e) => setForm({ ...form, city: e.target.value })}
-              className="w-full px-3 py-2 border border-zinc-300 rounded focus:outline-none focus:border-brand-primary"
+              className="w-full px-3 py-2 border border-zinc-300 rounded focus:outline-none focus:border-brand-primary disabled:opacity-50"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">العنوان التفصيلي</label>
+          <label htmlFor="address" className="block text-sm font-medium mb-1">العنوان التفصيلي</label>
           <textarea
+            id="address"
             required
+            disabled={pending}
             rows={3}
             value={form.address_details}
             onChange={(e) => setForm({ ...form, address_details: e.target.value })}
-            className="w-full px-3 py-2 border border-zinc-300 rounded focus:outline-none focus:border-brand-primary"
+            className="w-full px-3 py-2 border border-zinc-300 rounded focus:outline-none focus:border-brand-primary disabled:opacity-50"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">ملاحظات (اختياري)</label>
+          <label htmlFor="notes" className="block text-sm font-medium mb-1">ملاحظات (اختياري)</label>
           <textarea
+            id="notes"
             rows={2}
+            disabled={pending}
             value={form.notes}
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            className="w-full px-3 py-2 border border-zinc-300 rounded focus:outline-none focus:border-brand-primary"
+            className="w-full px-3 py-2 border border-zinc-300 rounded focus:outline-none focus:border-brand-primary disabled:opacity-50"
           />
         </div>
 

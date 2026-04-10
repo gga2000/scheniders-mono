@@ -1,0 +1,10 @@
+{
+    "framework": "nextjs",
+    "rewrites": [
+        {
+            "source": "/:path*",
+            "has": [{ "type": "host", "value": "(?<tenant>[^.]+)\\.scheniders\\.com" }],
+            "destination": "/s/:tenant/:path*"
+        }
+    ]
+}

@@ -76,14 +76,17 @@ export function ProductDetailClient({ product, images, variants, whatsappNumber 
           <div className="grid grid-cols-5 gap-2 mt-3">
             {images.map((img, i) => (
               <button
+                type="button"
                 key={i}
                 onClick={() => setActiveImage(i)}
+                aria-label={`${product.name} - صورة ${i + 1}`}
                 className={cn(
                   "relative aspect-square rounded overflow-hidden border-2",
                   i === activeImage ? "border-brand-primary" : "border-zinc-200",
+                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary",
                 )}
               >
-                <Image src={img} alt="" fill className="object-cover" />
+                <Image src={img} alt={`${product.name} - صورة ${i + 1}`} fill className="object-cover" />
               </button>
             ))}
           </div>
@@ -120,6 +123,7 @@ export function ProductDetailClient({ product, images, variants, whatsappNumber 
             <div className="flex flex-wrap gap-2">
               {variants.map((v) => (
                 <button
+                  type="button"
                   key={v.id}
                   onClick={() => setSelectedVariantId(v.id)}
                   disabled={v.stock_quantity === 0}
@@ -129,6 +133,7 @@ export function ProductDetailClient({ product, images, variants, whatsappNumber 
                       ? "bg-brand-primary text-white border-brand-primary"
                       : "bg-white text-zinc-900 border-zinc-300 hover:border-brand-primary",
                     v.stock_quantity === 0 && "opacity-50 cursor-not-allowed",
+                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary",
                   )}
                 >
                   {v.name}
@@ -145,15 +150,19 @@ export function ProductDetailClient({ product, images, variants, whatsappNumber 
           </label>
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={() => setQty((q) => Math.max(1, q - 1))}
-              className="w-10 h-10 rounded border border-zinc-300 flex items-center justify-center hover:bg-zinc-100"
+              className="w-10 h-10 rounded border border-zinc-300 flex items-center justify-center hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary"
+              aria-label="تقليل الكمية"
             >
               <Minus className="w-4 h-4" />
             </button>
             <span className="w-12 text-center font-bold">{qty}</span>
             <button
+              type="button"
               onClick={() => setQty((q) => Math.min(stock, q + 1))}
-              className="w-10 h-10 rounded border border-zinc-300 flex items-center justify-center hover:bg-zinc-100"
+              className="w-10 h-10 rounded border border-zinc-300 flex items-center justify-center hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary"
+              aria-label="زيادة الكمية"
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -166,17 +175,19 @@ export function ProductDetailClient({ product, images, variants, whatsappNumber 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-3">
           <button
+            type="button"
             onClick={handleAddToCart}
             disabled={!inStock}
-            className="flex-1 bg-brand-primary text-white py-3 rounded-lg font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="flex-1 bg-brand-primary text-white py-3 rounded-lg font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary"
           >
             <ShoppingCart className="w-5 h-5" />
             أضف إلى السلة
           </button>
           {whatsappNumber && (
             <button
+              type="button"
               onClick={handleWhatsAppOrder}
-              className="flex-1 bg-green-500 text-white py-3 rounded-lg font-bold hover:bg-green-600 flex items-center justify-center gap-2"
+              className="flex-1 bg-green-500 text-white py-3 rounded-lg font-bold hover:bg-green-600 flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary"
             >
               <MessageCircle className="w-5 h-5" />
               اطلب على واتساب

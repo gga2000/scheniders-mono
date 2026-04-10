@@ -72,6 +72,24 @@ export async function POST(request: NextRequest) {
                 contact_email: email.trim().toLowerCase(),
                 contact_phone: contact_phone?.trim() ?? null,
                 city: city?.trim() ?? null,
+                store_config: {
+                    template: 'general',
+                    hero: {
+                        title: business_name.trim(),
+                        subtitle: '',
+                        cta_text: 'تسوق الآن',
+                        image_url: null,
+                    },
+                    contact: {
+                        whatsapp_number: contact_phone?.trim() ?? null,
+                        instagram: null,
+                        facebook: null,
+                        tiktok: null,
+                    },
+                    about: { enabled: false, title: 'من نحن', body: '' },
+                    sections_order: ['hero', 'products', 'categories', 'about'],
+                    enable_whatsapp_order: true,
+                },
             })
             .select()
             .single();
@@ -106,72 +124,96 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // ── 4. Create tenant membership ──
-        const { error: memberError } = await adminClient
-            .from('tenant_members')
-            .insert({
-                tenant_id: tenant.id,
-                user_id: userId,
-                role: 'admin',
-                status: 'active',
-                joined_at: new Date().toISOString(),
-            });
+        // ── 4-7. Create supporting records (tenant_members, subscription, wallet, usage_tracking) ──
+        // If any of these fail, mark the tenant as 'incomplete' for admin review.
+        // We don't rollback — the user + tenant are already created and valuable.
+        let partialFailure = false;
+        const setupErrors: string[] = [];
 
-        if (memberError) {
-            console.error('[Signup] Failed to create tenant member:', memberError);
-            // Non-fatal — profile + tenant are created, this can be repaired
+        try {
+            // ── 4. Create tenant membership ──
+            const { error: memberError } = await adminClient
+                .from('tenant_members')
+                .insert({
+                    tenant_id: tenant.id,
+                    user_id: userId,
+                    role: 'admin',
+                    status: 'active',
+                    joined_at: new Date().toISOString(),
+                });
+
+            if (memberError) {
+                throw new Error(`tenant_members: ${memberError.message}`);
+            }
+
+            // ── 5. Create initial subscription (trial) ──
+            const { error: subError } = await adminClient
+                .from('subscriptions')
+                .insert({
+                    tenant_id: tenant.id,
+                    plan,
+                    status: 'trialing',
+                    current_period_start: new Date().toISOString(),
+                    current_period_end: trialEndsAt,
+                });
+
+            if (subError) {
+                throw new Error(`subscription: ${subError.message}`);
+            }
+
+            // ── 6. Initialize wallet with zero balance ──
+            const { error: walletError } = await adminClient
+                .from('wallet')
+                .insert({
+                    tenant_id: tenant.id,
+                    balance_iqd: 0,
+                    threshold_iqd: 5000,
+                });
+
+            if (walletError) {
+                throw new Error(`wallet: ${walletError.message}`);
+            }
+
+            // ── 7. Initialize usage tracking for current month ──
+            const now = new Date();
+            const { error: usageError } = await adminClient
+                .from('usage_tracking')
+                .upsert({
+                    tenant_id: tenant.id,
+                    year: now.getFullYear(),
+                    month: now.getMonth() + 1,
+                    orders_count: 0,
+                    orders_charged: 0,
+                    team_members_count: 1,
+                }, { onConflict: 'tenant_id, year, month', ignoreDuplicates: true });
+
+            if (usageError) {
+                throw new Error(`usage_tracking: ${usageError.message}`);
+            }
+        } catch (setupErr) {
+            partialFailure = true;
+            const errMsg = setupErr instanceof Error ? setupErr.message : 'Unknown setup error';
+            setupErrors.push(errMsg);
+            console.error('[Signup] Partial failure during tenant setup:', errMsg);
+
+            // Mark tenant as incomplete for admin review
+            await adminClient
+                .from('tenants')
+                .update({ status: 'incomplete' })
+                .eq('id', tenant.id);
         }
-
-        // ── 5. Create initial subscription (trial) ──
-        const { error: subError } = await adminClient
-            .from('subscriptions')
-            .insert({
-                tenant_id: tenant.id,
-                plan,
-                status: 'trialing',
-                current_period_start: new Date().toISOString(),
-                current_period_end: trialEndsAt,
-            });
-
-        if (subError) {
-            console.error('[Signup] Failed to create subscription:', subError);
-            // Non-fatal
-        }
-
-        // ── 6. Initialize wallet with zero balance ──
-        const { error: walletError } = await adminClient
-            .from('wallet')
-            .insert({
-                tenant_id: tenant.id,
-                balance_iqd: 0,
-                threshold_iqd: 5000,
-            });
-
-        if (walletError) {
-            console.error('[Signup] Failed to create wallet:', walletError);
-            // Non-fatal
-        }
-
-        // ── 7. Initialize usage tracking for current month ──
-        const now = new Date();
-        await adminClient
-            .from('usage_tracking')
-            .upsert({
-                tenant_id: tenant.id,
-                year: now.getFullYear(),
-                month: now.getMonth() + 1,
-                orders_count: 0,
-                orders_charged: 0,
-                team_members_count: 1,
-            }, { onConflict: 'tenant_id, year, month', ignoreDuplicates: true });
 
         return NextResponse.json({
             success: true,
+            partial_failure: partialFailure || undefined,
+            setup_errors: setupErrors.length > 0 ? setupErrors : undefined,
             user_id: userId,
             tenant_id: tenant.id,
             tenant_slug: tenant.slug,
             trial_ends_at: trialEndsAt,
-            message: `Account created! You have a 14-day free trial on the ${plan} plan.`,
+            message: partialFailure
+                ? `Account created but some setup steps failed. An admin will review your account shortly.`
+                : `Account created! You have a 14-day free trial on the ${plan} plan.`,
         }, { status: 201 });
 
     } catch (err) {

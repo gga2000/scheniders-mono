@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { useBilling, PlanLimitsData } from "@/hooks/use-billing";
 import { useAuth } from "@/components/auth/auth-provider";
 import { topUpWalletAction } from "@/app/actions/wallet";
+import { changePlanAction } from "@/app/actions/billing";
 import { toast } from "@/hooks/use-toast";
 
 function formatIQD(amount: number): string {
@@ -48,6 +49,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
     active: { label: "Active", color: "bg-green-100 text-green-700" },
     past_due: { label: "Past Due", color: "bg-red-100 text-red-700" },
     cancelled: { label: "Cancelled", color: "bg-gray-100 text-gray-700" },
+    incomplete: { label: "Incomplete", color: "bg-orange-100 text-orange-700" },
 };
 
 const FEATURE_LABELS: Record<string, string> = {
@@ -67,6 +69,20 @@ export function BillingSettings() {
     const [showTopUp, setShowTopUp] = useState(false);
     const [topUpAmount, setTopUpAmount] = useState<number>(100_000);
     const [isTopping, setIsTopping] = useState(false);
+    const [switchingPlan, setSwitchingPlan] = useState<string | null>(null);
+
+    const handleSwitchPlan = async (plan: string) => {
+        if (!tenantId) return;
+        setSwitchingPlan(plan);
+        const result = await changePlanAction(tenantId, plan);
+        setSwitchingPlan(null);
+        if (result.success) {
+            toast.success(`Plan change scheduled to ${plan}`);
+            refetch();
+        } else {
+            toast.error("Plan change failed", result.error);
+        }
+    };
 
     const handleTopUp = async () => {
         if (!tenantId || topUpAmount <= 0) return;
@@ -343,6 +359,8 @@ export function BillingSettings() {
                             key={plan.plan}
                             plan={plan}
                             isCurrent={plan.plan === subscription?.plan}
+                            onSwitch={() => handleSwitchPlan(plan.plan)}
+                            isSwitching={switchingPlan === plan.plan}
                         />
                     ))}
                 </div>
@@ -473,7 +491,7 @@ function UsageMeter({
     );
 }
 
-function PlanCard({ plan, isCurrent }: { plan: PlanLimitsData; isCurrent: boolean }) {
+function PlanCard({ plan, isCurrent, onSwitch, isSwitching }: { plan: PlanLimitsData; isCurrent: boolean; onSwitch: () => void; isSwitching: boolean }) {
     const color = PLAN_COLORS[plan.plan] ?? PLAN_COLORS.starter;
 
     return (
@@ -526,11 +544,15 @@ function PlanCard({ plan, isCurrent }: { plan: PlanLimitsData; isCurrent: boolea
             </div>
 
             {!isCurrent && (
-                <button className={cn(
-                    "w-full mt-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
-                    "border border-(--card-border) hover:bg-muted/40 text-foreground"
-                )}>
-                    Switch Plan
+                <button
+                    onClick={onSwitch}
+                    disabled={isSwitching}
+                    className={cn(
+                        "w-full mt-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+                        "border border-(--card-border) hover:bg-muted/40 text-foreground disabled:opacity-50"
+                    )}
+                >
+                    {isSwitching ? <Loader2 className="w-3.5 h-3.5 animate-spin mx-auto" /> : "Switch Plan"}
                 </button>
             )}
         </div>

@@ -17,16 +17,6 @@ export async function POST(request: Request) {
 
         const supabaseAdmin = createSupabaseServiceClient();
 
-        const { data: profile } = await supabaseAdmin
-            .from("user_profiles")
-            .select("role")
-            .eq("id", user.id)
-            .single();
-
-        if (profile?.role !== "admin") {
-            return NextResponse.json({ error: "هذا الإجراء مخصص للمسؤولين فقط" }, { status: 403 });
-        }
-
         // Parse request body
         const { email, password, displayName, role, tenantId } = await request.json();
 
@@ -43,6 +33,23 @@ export async function POST(request: Request) {
                 .eq("id", user.id)
                 .single();
             resolvedTenantId = inviterProfile?.current_tenant_id;
+        }
+
+        if (!resolvedTenantId) {
+            return NextResponse.json({ error: "لم يتم العثور على المتجر" }, { status: 400 });
+        }
+
+        // Check tenant-scoped admin role (not global user_profiles.role)
+        const { data: membership } = await supabaseAdmin
+            .from("tenant_members")
+            .select("role")
+            .eq("user_id", user.id)
+            .eq("tenant_id", resolvedTenantId)
+            .eq("status", "active")
+            .single();
+
+        if (membership?.role !== "admin") {
+            return NextResponse.json({ error: "هذا الإجراء مخصص للمسؤولين فقط" }, { status: 403 });
         }
 
         const { data, error: createError } = await supabaseAdmin.auth.admin.createUser({

@@ -55,6 +55,25 @@ export function StoreFooter({ tenant }: { tenant: Tenant }) {
                 </a>
               </li>
             )}
+            {c?.facebook && (
+              <li>
+                <a href={c.facebook} className="hover:text-brand-primary" target="_blank" rel="noreferrer">
+                  Facebook
+                </a>
+              </li>
+            )}
+            {c?.tiktok && (
+              <li>
+                <a
+                  href={`https://tiktok.com/@${c.tiktok.replace(/^https?:\/\/(www\.)?tiktok\.com\/@?/, "").replace(/^@/, "").split("/")[0]}`}
+                  className="hover:text-brand-primary"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  TikTok
+                </a>
+              </li>
+            )}
           </ul>
         </div>
       </div>

@@ -146,39 +146,30 @@ async function chargeAndTrack(tenantId: string, supabase: SupabaseAdmin) {
         ? (limits?.overage_price_iqd ?? 500)
         : (limits?.order_price_iqd ?? 100);
 
-    // ── Increment usage_tracking ──
-    await supabase
-        .from('usage_tracking')
-        .upsert({
-            tenant_id: tenantId,
-            year,
-            month,
-            orders_count: usage.orders_count + 1,
-            orders_charged: usage.orders_charged + 1,
-            team_members_count: usage.team_members_count,
-        }, { onConflict: 'tenant_id, year, month' });
+    // ── Increment usage_tracking atomically ──
+    await supabase.rpc('increment_usage_tracking', {
+        _tenant_id: tenantId,
+        _year: year,
+        _month: month,
+    });
 
-    // ── Charge wallet (if wallet exists and has balance) ──
-    if (wallet && wallet.balance_iqd > 0) {
-        const newBalance = wallet.balance_iqd - chargeAmount;
+    // ── Charge wallet atomically (prevents race conditions) ──
+    try {
+        const { data: chargeResult, error: chargeError } = await supabase
+            .rpc('charge_wallet_atomic', {
+                _tenant_id: tenantId,
+                _amount: chargeAmount,
+                _description: `Order charge${isOverLimit ? ' (overage)' : ''}`,
+                _order_id: null,
+            });
 
-        await supabase
-            .from('wallet')
-            .update({
-                balance_iqd: newBalance,
-                total_charged_iqd: wallet.total_charged_iqd + chargeAmount,
-                updated_at: now.toISOString(),
-            })
-            .eq('tenant_id', tenantId);
-
-        // Log transaction
-        await supabase.from('wallet_transactions').insert({
-            tenant_id: tenantId,
-            type: 'charge',
-            amount_iqd: -chargeAmount,
-            balance_after_iqd: newBalance,
-            description: `Order charge${isOverLimit ? ' (overage)' : ''}`,
-        });
+        if (chargeError) {
+            console.error('[chargeAndTrack] Wallet charge RPC error:', chargeError.message);
+        } else if (chargeResult && !chargeResult.success) {
+            console.warn('[chargeAndTrack] Wallet charge failed:', chargeResult.error);
+        }
+    } catch (err) {
+        console.error('[chargeAndTrack] Wallet charge exception:', err);
     }
 }
 

@@ -290,6 +290,7 @@ function StoreBuilderForm({
                     tiktok: tiktok.trim() || undefined,
                 },
                 enable_whatsapp_order: enableWhatsappOrder,
+                sections_order: config.sections_order || ['hero', 'products', 'categories', 'about'],
             };
 
             const { error } = await supabase

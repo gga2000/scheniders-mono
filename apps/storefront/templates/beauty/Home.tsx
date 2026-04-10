@@ -5,6 +5,7 @@ import type { TemplateHomeProps } from "../registry";
 
 export default function BeautyHome({ tenant, products, categories }: TemplateHomeProps) {
   const hero = tenant.store_config?.hero;
+  const about = tenant.store_config?.about;
 
   return (
     <div className="min-h-screen flex flex-col bg-rose-50">
@@ -46,6 +47,17 @@ export default function BeautyHome({ tenant, products, categories }: TemplateHom
           </div>
         </div>
       </section>
+
+      {/* About */}
+      {about?.enabled && (
+        <section className="py-16 bg-rose-50">
+          <div className="max-w-4xl mx-auto px-6 text-center">
+            <h2 className="text-3xl font-serif text-zinc-900 mb-4">{about.title || "من نحن"}</h2>
+            <div className="w-12 h-0.5 bg-rose-400 mx-auto mb-6" />
+            <p className="text-zinc-600 leading-relaxed whitespace-pre-line text-lg">{about.body}</p>
+          </div>
+        </section>
+      )}
 
       <StoreFooter tenant={tenant} />
     </div>

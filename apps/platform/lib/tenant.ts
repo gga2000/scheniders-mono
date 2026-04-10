@@ -8,6 +8,31 @@ export type PlanTier = 'starter' | 'growth' | 'professional' | 'enterprise';
 export type TenantStatus = 'trial' | 'active' | 'suspended' | 'cancelled';
 export type MemberStatus = 'pending' | 'active' | 'suspended';
 
+export type TemplateName = 'fashion' | 'beauty' | 'electronics' | 'general' | 'clean';
+
+export interface StoreConfig {
+    template?: TemplateName;
+    hero?: {
+        title?: string;
+        subtitle?: string;
+        cta_text?: string;
+        image_url?: string | null;
+    };
+    about?: {
+        enabled?: boolean;
+        title?: string;
+        body?: string;
+    };
+    contact?: {
+        whatsapp_number?: string | null;
+        instagram?: string | null;
+        facebook?: string | null;
+        tiktok?: string | null;
+    };
+    sections_order?: string[];
+    enable_whatsapp_order?: boolean;
+}
+
 export interface Tenant {
     id: string;
     business_name: string;
@@ -25,8 +50,10 @@ export interface Tenant {
         language: string;
         currency: string;
     };
+    store_config: StoreConfig;
     contact_email: string | null;
     contact_phone: string | null;
+    address: string | null;
     city: string | null;
     created_at: string;
 }
@@ -290,7 +317,7 @@ export async function getWallet(tenantId: string): Promise<WalletInfo | null> {
 
 /**
  * Deduct from wallet for order charges (service role).
- * Returns the new balance, or throws if insufficient funds.
+ * Uses the atomic charge_wallet_atomic RPC to prevent race conditions.
  */
 export async function chargeWallet(
     tenantId: string,
@@ -300,40 +327,17 @@ export async function chargeWallet(
 ): Promise<{ newBalance: number }> {
     const adminClient = createSupabaseServiceClient();
 
-    // Get current balance
-    const { data: wallet, error: walletError } = await adminClient
-        .from('wallet')
-        .select('balance_iqd')
-        .eq('tenant_id', tenantId)
-        .single();
-
-    if (walletError || !wallet) throw new Error('Wallet not found');
-
-    const newBalance = wallet.balance_iqd - amountIqd;
-
-    // Update balance
-    const { error: updateError } = await adminClient
-        .from('wallet')
-        .update({
-            balance_iqd: newBalance,
-            total_charged_iqd: adminClient.rpc('increment', { row_id: tenantId, amount: amountIqd }),
-            updated_at: new Date().toISOString(),
-        })
-        .eq('tenant_id', tenantId);
-
-    if (updateError) throw new Error(`Failed to charge wallet: ${updateError.message}`);
-
-    // Log the transaction
-    await adminClient.from('wallet_transactions').insert({
-        tenant_id: tenantId,
-        type: 'charge',
-        amount_iqd: -amountIqd,
-        balance_after_iqd: newBalance,
-        description,
-        reference_id: referenceId,
+    const { data, error } = await adminClient.rpc('charge_wallet_atomic', {
+        _tenant_id: tenantId,
+        _amount: amountIqd,
+        _description: description,
+        _order_id: referenceId ?? null,
     });
 
-    return { newBalance };
+    if (error) throw new Error(`Failed to charge wallet: ${error.message}`);
+    if (!data?.success) throw new Error(data?.error ?? 'Wallet charge failed');
+
+    return { newBalance: data.new_balance };
 }
 
 // =============================================

@@ -58,26 +58,32 @@ export function CartView() {
             </div>
             <div className="flex flex-col items-end justify-between">
               <button
+                type="button"
                 onClick={() => removeItem(item.product_id, item.variant_id)}
-                className="text-zinc-400 hover:text-red-500"
+                className="text-zinc-400 hover:text-red-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary"
+                aria-label="إزالة المنتج"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
               <div className="flex items-center gap-1">
                 <button
+                  type="button"
                   onClick={() =>
                     updateQuantity(item.product_id, item.variant_id, item.quantity - 1)
                   }
-                  className="w-7 h-7 rounded border border-zinc-300 flex items-center justify-center hover:bg-zinc-100"
+                  className="w-9 h-9 rounded border border-zinc-300 flex items-center justify-center hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary"
+                  aria-label="تقليل الكمية"
                 >
                   <Minus className="w-3 h-3" />
                 </button>
                 <span className="w-8 text-center font-bold text-sm">{item.quantity}</span>
                 <button
+                  type="button"
                   onClick={() =>
                     updateQuantity(item.product_id, item.variant_id, item.quantity + 1)
                   }
-                  className="w-7 h-7 rounded border border-zinc-300 flex items-center justify-center hover:bg-zinc-100"
+                  className="w-9 h-9 rounded border border-zinc-300 flex items-center justify-center hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary"
+                  aria-label="زيادة الكمية"
                 >
                   <Plus className="w-3 h-3" />
                 </button>

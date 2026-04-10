@@ -5,6 +5,7 @@ import type { TemplateHomeProps } from "../registry";
 
 export default function CleanHome({ tenant, products, categories }: TemplateHomeProps) {
   const hero = tenant.store_config?.hero;
+  const about = tenant.store_config?.about;
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -38,6 +39,16 @@ export default function CleanHome({ tenant, products, categories }: TemplateHome
           </div>
         </div>
       </section>
+
+      {/* About */}
+      {about?.enabled && (
+        <section className="py-12 border-t border-zinc-100">
+          <div className="max-w-3xl mx-auto px-6 text-center">
+            <h2 className="text-2xl font-bold text-zinc-900 mb-4">{about.title || "من نحن"}</h2>
+            <p className="text-zinc-600 leading-relaxed whitespace-pre-line">{about.body}</p>
+          </div>
+        </section>
+      )}
 
       <StoreFooter tenant={tenant} />
     </div>

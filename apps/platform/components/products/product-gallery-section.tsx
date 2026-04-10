@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Plus, X, GripVertical, Image as ImageIcon, Loader2 } from "lucide-react";
+import { useState, useRef } from "react";
+import { Plus, X, GripVertical, Loader2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 import {
   DndContext,
   closestCenter,
@@ -73,8 +74,18 @@ export function ProductGallerySection({ productId }: ProductGallerySectionProps)
     };
 
     const uploadFile = async (file: File) => {
-        if (!productId) return;
-        if (!file.type.startsWith("image/")) return;
+        if (!productId) {
+            toast.error("Save the product first before adding gallery images");
+            return;
+        }
+        if (!file.type.startsWith("image/")) {
+            toast.error("Only image files are allowed");
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error("Image must be under 5MB");
+            return;
+        }
 
         setUploading(true);
         try {
@@ -88,7 +99,10 @@ export function ProductGallerySection({ productId }: ProductGallerySectionProps)
                     upsert: true,
                 });
 
-            if (uploadError) throw uploadError;
+            if (uploadError) {
+                toast.error("Storage upload failed", uploadError.message);
+                throw uploadError;
+            }
 
             const { data: urlData } = supabase.storage
                 .from("product-images")
@@ -100,8 +114,12 @@ export function ProductGallerySection({ productId }: ProductGallerySectionProps)
                 alt_text: "",
                 display_order: images.length,
             });
+            toast.success("Image added");
         } catch (err) {
             console.error("Failed to upload gallery image", err);
+            const e = err as { message?: string; code?: string; details?: string; hint?: string };
+            const message = e?.message || e?.details || e?.hint || JSON.stringify(err);
+            toast.error("Failed to add image", e?.code ? `[${e.code}] ${message}` : message);
         } finally {
             setUploading(false);
             if (fileInputRef.current) {

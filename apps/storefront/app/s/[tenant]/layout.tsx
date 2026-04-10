@@ -27,15 +27,19 @@ export default async function TenantLayout({ params, children }: Props) {
   const headerList = await headers();
   const storeBase = headerList.get("x-store-base") ?? `/s/${tenantParam}`;
 
-  if (tenant.status === "suspended" || tenant.status === "cancelled") {
+  if (tenant.status === "cancelled") {
+    notFound();
+  }
+
+  if (tenant.status === "suspended") {
     return (
       <main className="min-h-screen flex items-center justify-center bg-zinc-50">
         <div className="text-center px-6 max-w-md">
           <h1 className="text-2xl font-bold mb-2 text-zinc-900">
-            {tenant.business_name}
+            المتجر غير متاح
           </h1>
           <p className="text-zinc-600">
-            هذا المتجر متوقف مؤقتاً. يرجى التواصل مع المالك.
+            هذا المتجر متوقف مؤقتاً. يرجى المحاولة لاحقاً.
           </p>
         </div>
       </main>
