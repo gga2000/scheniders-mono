@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Phone, Package, Truck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Order, MessageTemplate } from "@/lib/supabase";
+import { useLanguage } from "@/hooks/use-language";
 
 import { ConfirmTab } from "./workflow/confirm-tab";
 import { FulfillTab } from "./workflow/fulfill-tab";
@@ -22,36 +23,36 @@ interface WorkflowTabsProps {
 type WorkflowTab = "confirm" | "fulfill" | "delivery";
 
 const tabConfig: Record<WorkflowTab, {
-    label: string;
-    labelAr: string;
+    key: string;
     icon: typeof Phone;
     activeColor: string;
     activeBg: string;
     stepNumber: number;
+    descKey: string;
 }> = {
     confirm: {
-        label: "Confirm",
-        labelAr: "تأكيد",
+        key: "orders.workflow.confirm",
         icon: Phone,
         activeColor: "text-emerald-700",
         activeBg: "bg-[var(--pastel-green)]",
         stepNumber: 1,
+        descKey: "orders.workflow.confirmDesc",
     },
     fulfill: {
-        label: "Fulfill",
-        labelAr: "تجهيز",
+        key: "orders.workflow.fulfill",
         icon: Package,
         activeColor: "text-purple-700",
         activeBg: "bg-purple-100",
         stepNumber: 2,
+        descKey: "orders.workflow.fulfillDesc",
     },
     delivery: {
-        label: "Delivery",
-        labelAr: "توصيل",
+        key: "orders.workflow.delivery",
         icon: Truck,
         activeColor: "text-amber-700",
         activeBg: "bg-[var(--pastel-yellow)]",
         stepNumber: 3,
+        descKey: "orders.workflow.deliveryDesc",
     },
 };
 
@@ -66,6 +67,7 @@ export const WorkflowTabs = memo(function WorkflowTabs({
     messageTemplates = [],
 }: WorkflowTabsProps) {
     const [activeTab, setActiveTab] = useState<WorkflowTab>("confirm");
+    const { t } = useLanguage();
 
     // Filter orders by workflow stage
     const confirmOrders = orders.filter(o => o.status === "new" || o.status === "contacted");
@@ -125,8 +127,7 @@ export const WorkflowTabs = memo(function WorkflowTabs({
                                 )}
 
                                 <Icon className="w-5 h-5" />
-                                <span className="font-semibold">{config.label}</span>
-                                <span className="text-xs opacity-70">{config.labelAr}</span>
+                                <span className="font-semibold">{t(config.key)}</span>
                             </button>
                         );
                     })}
@@ -135,9 +136,7 @@ export const WorkflowTabs = memo(function WorkflowTabs({
 
             {/* Tab Description */}
             <p className="text-sm text-muted text-center">
-                {activeTab === "confirm" && "Contact customers & confirm orders"}
-                {activeTab === "fulfill" && "Pack orders & prepare for shipping"}
-                {activeTab === "delivery" && "Track deliveries & handle returns"}
+                {t(tabConfig[activeTab].descKey)}
             </p>
 
             {/* Tab Content */}
