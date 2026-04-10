@@ -1,0 +1,133 @@
+@import "tailwindcss";
+@import "@scheniders/ui/styles";
+
+@plugin "tailwindcss-animate";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Performance: Inform browser to optimize font rendering */
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Override Tailwind v4 dark mode to use class-based selector */
+@variant dark (&:where(.dark, .dark *));
+
+/* ======================================== */
+/* Admin-Specific Dark Mode Overrides       */
+/* ======================================== */
+
+/* Status badges in dark mode */
+.dark .bg-green-100 { background-color: rgba(34, 197, 94, 0.15); }
+.dark .bg-amber-100 { background-color: rgba(245, 158, 11, 0.15); }
+.dark .bg-red-100 { background-color: rgba(239, 68, 68, 0.15); }
+.dark .bg-gray-100 { background-color: rgba(156, 163, 175, 0.15); }
+
+.dark .text-green-800 { color: #86efac; }
+.dark .text-amber-800 { color: #fcd34d; }
+.dark .text-red-800 { color: #fca5a5; }
+.dark .text-gray-600 { color: #9ca3af; }
+
+/* Plan badges */
+.dark .text-blue-800 { color: #93c5fd; }
+.dark .text-purple-800 { color: #d8b4fe; }
+
+/* Pastel card text overrides for dark mode */
+.dark .text-blue-700 { color: #93c5fd; }
+.dark .text-green-700 { color: #86efac; }
+.dark .text-amber-700 { color: #fcd34d; }
+.dark .text-rose-700 { color: #fda4af; }
+.dark .text-purple-700 { color: #d8b4fe; }
+.dark .text-teal-700 { color: #5eead4; }
+
+.dark .text-blue-900\/70 { color: rgba(147, 197, 253, 0.7); }
+.dark .text-green-900\/70 { color: rgba(134, 239, 172, 0.7); }
+.dark .text-amber-900\/70 { color: rgba(252, 211, 77, 0.7); }
+.dark .text-rose-900\/70 { color: rgba(253, 164, 175, 0.7); }
+.dark .text-purple-900\/70 { color: rgba(216, 180, 254, 0.7); }
+.dark .text-teal-900\/70 { color: rgba(94, 234, 212, 0.7); }
+
+.dark .text-blue-950 { color: #bfdbfe; }
+.dark .text-green-950 { color: #bbf7d0; }
+.dark .text-amber-950 { color: #fef3c7; }
+.dark .text-rose-950 { color: #ffe4e6; }
+.dark .text-purple-950 { color: #e9d5ff; }
+.dark .text-teal-950 { color: #ccfbf1; }
+
+.dark .text-blue-800\/70 { color: rgba(147, 197, 253, 0.7); }
+.dark .text-green-800\/70 { color: rgba(134, 239, 172, 0.7); }
+.dark .text-amber-800\/70 { color: rgba(252, 211, 77, 0.7); }
+.dark .text-rose-800\/70 { color: rgba(253, 164, 175, 0.7); }
+.dark .text-purple-800\/70 { color: rgba(216, 180, 254, 0.7); }
+.dark .text-teal-800\/70 { color: rgba(94, 234, 212, 0.7); }
+
+/* Trial countdown in dark mode */
+.dark .bg-amber-50 { background-color: rgba(245, 158, 11, 0.1); }
+.dark .border-amber-200 { border-color: rgba(245, 158, 11, 0.3); }
+.dark .text-amber-700 { color: #fcd34d; }
+
+/* Red danger zone in dark mode */
+.dark .border-red-200 { border-color: rgba(239, 68, 68, 0.3); }
+.dark .bg-red-50 { background-color: rgba(239, 68, 68, 0.1); }
+.dark .text-red-700 { color: #fca5a5; }
+
+/* Recharts tooltip in dark mode */
+.dark .recharts-default-tooltip {
+  background-color: var(--card-bg) !important;
+  border-color: var(--card-border) !important;
+}
+
+/* Table row hover in dark mode */
+.dark tr:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* Input/Select in dark mode */
+.dark select,
+.dark input[type="text"],
+.dark input[type="email"],
+.dark input[type="password"],
+.dark input[type="number"],
+.dark textarea {
+  background-color: var(--card-bg);
+  color: var(--foreground);
+  border-color: var(--card-border);
+}
+
+/* Checkbox accent in dark mode */
+.dark input[type="checkbox"] {
+  accent-color: #EFFF00;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Pulse animation for status dots */
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
