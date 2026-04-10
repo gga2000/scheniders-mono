@@ -14,6 +14,7 @@ import {
     Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 interface BatchActionsBarProps {
     selectedCount: number;
@@ -44,6 +45,7 @@ export function BatchActionsBar({
     loading = false,
     className,
 }: BatchActionsBarProps) {
+    const { t } = useLanguage();
     if (selectedCount === 0) return null;
 
     const allSelected = selectedCount === totalCount;
@@ -64,7 +66,7 @@ export function BatchActionsBar({
                 {/* Selection info */}
                 <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 rounded-xl">
                     <span className="text-sm font-medium text-primary">
-                        {selectedCount} محدد
+                        {selectedCount} {t("orders.batch.selected")}
                     </span>
                 </div>
 
@@ -76,12 +78,12 @@ export function BatchActionsBar({
                     {allSelected ? (
                         <>
                             <Square className="w-4 h-4" />
-                            إلغاء الكل
+                            {t("orders.batch.deselectAll")}
                         </>
                     ) : (
                         <>
                             <CheckSquare className="w-4 h-4" />
-                            تحديد الكل
+                            {t("orders.batch.selectAll")}
                         </>
                     )}
                 </button>
@@ -96,10 +98,10 @@ export function BatchActionsBar({
                         onClick={onConfirmAll}
                         disabled={loading}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
-                        title="تأكيد المحدد"
+                        title={t("orders.batch.confirmSelected")}
                     >
                         <CheckCircle className="w-4 h-4" />
-                        <span className="hidden md:inline">تأكيد</span>
+                        <span className="hidden md:inline">{t("orders.batch.confirm")}</span>
                     </button>
 
                     {/* Mark In Transit */}
@@ -107,10 +109,10 @@ export function BatchActionsBar({
                         onClick={onMarkInTransit}
                         disabled={loading}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 transition-colors disabled:opacity-50"
-                        title="وضع قيد التوصيل"
+                        title={t("orders.batch.markInTransit")}
                     >
                         <Truck className="w-4 h-4" />
-                        <span className="hidden md:inline">قيد التوصيل</span>
+                        <span className="hidden md:inline">{t("orders.batch.inTransit")}</span>
                     </button>
 
                     {/* Cancel */}
@@ -118,10 +120,10 @@ export function BatchActionsBar({
                         onClick={onCancelAll}
                         disabled={loading}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium bg-rose-500/10 text-rose-600 hover:bg-rose-500/20 transition-colors disabled:opacity-50"
-                        title="إلغاء المحدد"
+                        title={t("orders.batch.cancelSelected")}
                     >
                         <XCircle className="w-4 h-4" />
-                        <span className="hidden md:inline">إلغاء</span>
+                        <span className="hidden md:inline">{t("orders.batch.cancel")}</span>
                     </button>
 
                     {/* WhatsApp */}
@@ -130,10 +132,10 @@ export function BatchActionsBar({
                             onClick={onWhatsApp}
                             disabled={loading}
                             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium bg-green-500/10 text-green-600 hover:bg-green-500/20 transition-colors disabled:opacity-50"
-                            title="واتساب"
+                            title={t("orders.batch.whatsapp")}
                         >
                             <MessageCircle className="w-4 h-4" />
-                            <span className="hidden md:inline">واتساب</span>
+                            <span className="hidden md:inline">{t("orders.batch.whatsapp")}</span>
                         </button>
                     )}
                 </div>
@@ -147,20 +149,20 @@ export function BatchActionsBar({
                         onClick={onPrint}
                         disabled={loading}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-colors disabled:opacity-50"
-                        title="طباعة"
+                        title={t("orders.batch.print")}
                     >
                         <Printer className="w-4 h-4" />
-                        <span className="hidden md:inline">طباعة</span>
+                        <span className="hidden md:inline">{t("orders.batch.print")}</span>
                     </button>
 
                     <button
                         onClick={onExport}
                         disabled={loading}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-colors disabled:opacity-50"
-                        title="تصدير"
+                        title={t("orders.batch.export")}
                     >
                         <Download className="w-4 h-4" />
-                        <span className="hidden md:inline">تصدير</span>
+                        <span className="hidden md:inline">{t("orders.batch.export")}</span>
                     </button>
                 </div>
 
@@ -168,7 +170,7 @@ export function BatchActionsBar({
                 <button
                     onClick={onDeselectAll}
                     className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-colors"
-                    title="إلغاء التحديد"
+                    title={t("orders.batch.clearSelection")}
                 >
                     <X className="w-4 h-4" />
                 </button>
