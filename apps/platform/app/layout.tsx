@@ -72,7 +72,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" dir="ltr" suppressHydrationWarning>
+    <html lang="ar" dir="ltr" suppressHydrationWarning>
       <head>
         {/* PWA Meta Tags */}
         <meta name="mobile-web-app-capable" content="yes" />

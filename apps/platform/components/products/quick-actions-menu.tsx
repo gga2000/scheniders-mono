@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MoreVertical, Edit, Archive, ArchiveRestore, Eye, ShoppingBag, Trash2, Copy } from "lucide-react";
 import { Product } from "@/lib/supabase";
+import { useLanguage } from "@/hooks/use-language";
 
 interface QuickActionsMenuProps {
     product: Product;
@@ -28,6 +29,7 @@ export function QuickActionsMenu({
 }: QuickActionsMenuProps) {
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+    const { t } = useLanguage();
 
     // Close menu when clicking outside
     useEffect(() => {
@@ -48,38 +50,38 @@ export function QuickActionsMenu({
 
     const menuItems = [
         {
-            label: "View Details",
+            label: t("products.actions.viewDetails"),
             icon: Eye,
             onClick: onViewDetails,
             show: true,
         },
         {
-            label: "Edit Product",
+            label: t("products.actions.editProduct"),
             icon: Edit,
             onClick: onEdit,
             show: true,
         },
         {
-            label: "View Orders",
+            label: t("products.actions.viewOrders"),
             icon: ShoppingBag,
             onClick: onViewOrders,
             show: true,
         },
         {
-            label: "Duplicate",
+            label: t("products.actions.duplicate"),
             icon: Copy,
             onClick: onDuplicate,
             show: !!onDuplicate && !product.is_archived,
         },
         {
-            label: product.is_archived ? "Restore" : "Archive",
+            label: product.is_archived ? t("products.actions.restore") : t("products.actions.archive"),
             icon: product.is_archived ? ArchiveRestore : Archive,
             onClick: product.is_archived ? onRestore : onArchive,
             show: true,
             className: product.is_archived ? "text-green-600" : "text-amber-600",
         },
         {
-            label: "Delete Permanently",
+            label: t("products.actions.deletePermanently"),
             icon: Trash2,
             onClick: onDelete,
             show: !!onDelete && product.is_archived,

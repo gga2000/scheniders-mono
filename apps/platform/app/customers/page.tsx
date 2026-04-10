@@ -15,6 +15,7 @@ import { BroadcastModal } from "@/components/customers/broadcast-modal";
 import { useCustomerBulkActions } from "@/hooks/use-bulk-actions";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
+import { useLanguage } from "@/components/providers/language-provider";
 
 const PAGE_LIMIT = 25;
 
@@ -25,6 +26,7 @@ const CustomerDashboardMetrics = dynamic(
 );
 
 export default function CustomersPage() {
+  const { t } = useLanguage();
   const [filterOpen, setFilterOpen] = useState(false);
   const [isTagModalOpen, setTagModalOpen] = useState(false);
   const [isBroadcastModalOpen, setBroadcastModalOpen] = useState(false);
@@ -82,7 +84,7 @@ export default function CustomersPage() {
   function handleExport() {
     const rows = allCustomers.filter(c => selectedPhones.has(c.phone));
     const csv = [
-      ["الاسم", "الهاتف", "الحالة", "المدينة", "الطلبات", "الإنفاق"],
+      [t("customers.export.name"), t("customers.export.phone"), t("customers.export.status"), t("customers.export.city"), t("customers.export.orders"), t("customers.export.spent")],
       ...rows.map(c => [c.name, c.phone, c.calculated_status, c.city || "", c.total_orders, c.total_spent]),
     ].map(r => r.join(",")).join("\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
@@ -98,10 +100,10 @@ export default function CustomersPage() {
       <header className="shrink-0 border-b border-(--card-border) bg-(--card-bg) px-4 py-4 sm:px-6">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-foreground">العملاء</h1>
+            <h1 className="text-xl font-bold text-foreground">{t("customers.title")}</h1>
             {totalCount > 0 && (
               <p className="text-xs text-muted mt-0.5">
-                {totalCount.toLocaleString("ar-IQ")} عميل مسجل
+                {t("customers.registeredCount", { count: totalCount.toLocaleString("ar-IQ") })}
               </p>
             )}
           </div>
@@ -113,7 +115,7 @@ export default function CustomersPage() {
               type="search"
               value={rawSearch}
               onChange={e => setSearch(e.target.value)}
-              placeholder="بحث بالاسم أو الهاتف..."
+              placeholder={t("customers.searchPlaceholder")}
               className="w-full rounded-2xl border border-(--card-border) bg-background py-2 pr-9 pl-3 text-sm text-foreground placeholder:text-muted focus:border-(--border-hover) focus:bg-(--card-bg) focus:outline-none focus:ring-2 focus:ring-(--pastel-blue) transition-all"
             />
             {rawSearch && (
@@ -132,7 +134,7 @@ export default function CustomersPage() {
             className="lg:hidden flex items-center gap-1.5 rounded-2xl border border-(--card-border) bg-(--card-bg) px-3 py-2 text-sm font-medium text-muted hover:bg-background transition-colors"
           >
             <SlidersHorizontal className="h-4 w-4" />
-            فلترة
+            {t("customers.filter")}
           </button>
         </div>
 

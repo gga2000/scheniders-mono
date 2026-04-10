@@ -6,19 +6,24 @@ import { translations, Locale } from "@/lib/i18n";
 interface LanguageContextType {
     language: Locale;
     setLanguage: (lang: Locale) => void;
-    t: (key: string) => string;
+    t: (key: string, vars?: Record<string, string | number>) => string;
 }
 
 const LanguageContext = createContext<LanguageContextType>({
-    language: "en",
+    language: "ar",
     setLanguage: () => { },
     t: (key: string) => key,
 });
 
 const STORAGE_KEY = "schneiders_language";
 
+function interpolate(template: string, vars?: Record<string, string | number>): string {
+    if (!vars) return template;
+    return template.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? `{${k}}`));
+}
+
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-    const [language, setLanguageState] = useState<Locale>("en");
+    const [language, setLanguageState] = useState<Locale>("ar");
     const [mounted, setMounted] = useState(false);
 
     // Load persisted language on mount
@@ -40,17 +45,20 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const t = useCallback(
-        (key: string): string => {
-            return translations[language]?.[key] ?? translations.en?.[key] ?? key;
+        (key: string, vars?: Record<string, string | number>): string => {
+            const raw = translations[language]?.[key] ?? translations.en?.[key] ?? key;
+            return interpolate(raw, vars);
         },
         [language]
     );
 
-    // Avoid hydration mismatch — render children with default "en" until mounted
+    // Avoid hydration mismatch — render children with default "ar" until mounted
     const value = {
-        language: mounted ? language : "en",
+        language: mounted ? language : "ar",
         setLanguage,
-        t: mounted ? t : (key: string) => translations.en?.[key] ?? key,
+        t: mounted
+            ? t
+            : (key: string, vars?: Record<string, string | number>) => interpolate(translations.ar?.[key] ?? translations.en?.[key] ?? key, vars),
     };
 
     return (
@@ -58,6 +66,10 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
             {children}
         </LanguageContext.Provider>
     );
+}
+
+export function useLanguage() {
+    return useContext(LanguageContext);
 }
 
 export { LanguageContext };

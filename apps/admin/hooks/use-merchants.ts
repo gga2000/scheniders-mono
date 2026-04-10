@@ -12,7 +12,7 @@ interface MerchantsResponse {
 }
 
 export function useMerchants(page = 1, limit = 20) {
-  const { planFilter, statusFilter, cityFilter, searchQuery } = useAdminStore();
+  const { planFilter, statusFilter, cityFilter, balanceFilter, healthFilter, searchQuery } = useAdminStore();
 
   const params = new URLSearchParams();
   params.set("page", String(page));
@@ -20,10 +20,12 @@ export function useMerchants(page = 1, limit = 20) {
   if (planFilter) params.set("plan", planFilter);
   if (statusFilter) params.set("status", statusFilter);
   if (cityFilter) params.set("city", cityFilter);
+  if (balanceFilter) params.set("balance", balanceFilter);
+  if (healthFilter) params.set("health", healthFilter);
   if (searchQuery) params.set("search", searchQuery);
 
   return useQuery<MerchantsResponse>({
-    queryKey: ["admin", "merchants", { page, limit, planFilter, statusFilter, cityFilter, searchQuery }],
+    queryKey: ["admin", "merchants", { page, limit, planFilter, statusFilter, cityFilter, balanceFilter, healthFilter, searchQuery }],
     queryFn: async () => {
       const res = await fetch(`/api/merchants?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch merchants");

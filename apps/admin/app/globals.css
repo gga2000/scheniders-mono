@@ -131,3 +131,108 @@ body {
 .animate-pulse-soft {
   animation: pulse-soft 2s ease-in-out infinite;
 }
+
+/* ======================================== */
+/* Lead Card Gamified Tier Animations       */
+/* ======================================== */
+
+/* CSS custom properties for animation angles */
+@property --diamond-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@property --legendary-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+/* Silver shimmer */
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.animate-shimmer {
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+/* Diamond: slow border rotation */
+@keyframes border-rotate {
+  0% { --diamond-angle: 0deg; }
+  100% { --diamond-angle: 360deg; }
+}
+.animate-border-rotate {
+  animation: border-rotate 6s linear infinite;
+}
+
+/* Legendary: fast border rotation */
+@keyframes border-rotate-fast {
+  0% { --legendary-angle: 0deg; }
+  100% { --legendary-angle: 360deg; }
+}
+.animate-border-rotate-fast {
+  animation: border-rotate-fast 3s linear infinite;
+}
+
+/* Rainbow sweep for legendary */
+@keyframes rainbow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.animate-rainbow {
+  animation: rainbow 4s ease-in-out infinite;
+}
+
+/* Sparkle animation */
+@keyframes sparkle {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.5); }
+}
+.animate-sparkle {
+  animation: sparkle 2.5s ease-in-out infinite;
+}
+.animate-sparkle-fast {
+  animation: sparkle 1.5s ease-in-out infinite;
+}
+
+/* Energy lines for legendary hover */
+@keyframes energy-line {
+  0% { transform: translateY(-100%); opacity: 0; }
+  30% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+.animate-energy-line {
+  animation: energy-line 2s ease-in-out infinite;
+}
+
+/* Delay utilities */
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+.delay-600 { animation-delay: 600ms; }
+.delay-800 { animation-delay: 800ms; }
+.delay-1000 { animation-delay: 1000ms; }
+
+/* Staleness overlays */
+.lead-card--stale::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(239, 68, 68, 0.03);
+  pointer-events: none;
+  z-index: 5;
+}
+.lead-card--cold::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(245, 158, 11, 0.02);
+  pointer-events: none;
+  z-index: 5;
+}

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useOrdersContext } from "@/components/providers/orders-provider";
+import { useLanguage } from "@/components/providers/language-provider";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Search,
@@ -42,6 +43,7 @@ export function GlobalSearch() {
     const router = useRouter();
     // Use shared context instead of direct useOrders() call
     const { orders } = useOrdersContext();
+    const { t } = useLanguage();
     const [query, setQuery] = useState("");
     const [category, setCategory] = useState<SearchCategory>("all");
     const [isOpen, setIsOpen] = useState(false);
@@ -50,10 +52,10 @@ export function GlobalSearch() {
     const containerRef = useRef<HTMLDivElement>(null);
 
     const categories = [
-        { id: "all" as const, label: "All" },
-        { id: "orders" as const, label: "Orders", icon: Package },
-        { id: "customers" as const, label: "Customers", icon: Users },
-        { id: "products" as const, label: "Products", icon: ShoppingBag },
+        { id: "all" as const, label: t("common.all") },
+        { id: "orders" as const, label: t("nav.orders"), icon: Package },
+        { id: "customers" as const, label: t("nav.customers"), icon: Users },
+        { id: "products" as const, label: t("nav.products"), icon: ShoppingBag },
     ];
 
     // Search logic
@@ -208,7 +210,7 @@ export function GlobalSearch() {
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onFocus={() => setIsOpen(true)}
-                    placeholder="Search orders, customers, products..."
+                    placeholder={t("search.placeholder")}
                     className="flex-1 bg-transparent text-foreground placeholder:text-muted focus:outline-none text-sm"
                 />
 
@@ -229,7 +231,7 @@ export function GlobalSearch() {
                 <div className="w-px h-6 bg-(--card-border)" />
 
                 {/* Category Label */}
-                <span className="text-xs text-muted font-medium">In:</span>
+                <span className="text-xs text-muted font-medium">{t("search.in")}</span>
 
                 {/* Category Pills */}
                 <div className="flex items-center gap-1">
@@ -298,14 +300,18 @@ export function GlobalSearch() {
                         ) : query.trim() ? (
                             <div className="py-8 text-center">
                                 <Search className="w-8 h-8 text-muted mx-auto mb-2" />
-                                <p className="text-muted text-sm">No results for &ldquo;{query}&rdquo;</p>
+                                <p className="text-muted text-sm">{t("search.noResults")} &ldquo;{query}&rdquo;</p>
                             </div>
                         ) : null}
 
                         {/* Keyboard Hint */}
                         <div className="px-4 py-2 bg-background border-t border-(--card-border) flex items-center justify-between text-xs text-muted">
-                            <span>Press <kbd className="px-1.5 py-0.5 bg-(--card-bg) rounded border border-(--card-border) font-mono">↵</kbd> to select</span>
-                            <span>Press <kbd className="px-1.5 py-0.5 bg-(--card-bg) rounded border border-(--card-border) font-mono">esc</kbd> to close</span>
+                            {t("search.hint.select").split("↵").map((part, i, arr) => 
+                                i === arr.length - 1 ? part : <span key={i}>{part}<kbd className="px-1.5 py-0.5 bg-(--card-bg) rounded border border-(--card-border) font-mono mx-1">↵</kbd></span>
+                            )}
+                            {t("search.hint.close").split("esc").map((part, i, arr) => 
+                                i === arr.length - 1 ? part : <span key={i}>{part}<kbd className="px-1.5 py-0.5 bg-(--card-bg) rounded border border-(--card-border) font-mono mx-1">esc</kbd></span>
+                            )}
                         </div>
                     </motion.div>
                 )}

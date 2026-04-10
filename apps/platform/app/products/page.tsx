@@ -74,6 +74,7 @@ function ProductsContent() {
         deleteVariant,
         getPriceHistory,
         bulkUpdateVisibility,
+        deleteProduct,
     } = useProductsCrud();
 
     const { data: categories } = useCategoriesQuery();
@@ -83,6 +84,7 @@ function ProductsContent() {
     }, [categories]);
 
     // UI State
+    const { t } = useLanguage();
     const searchParams = useSearchParams();
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
@@ -181,9 +183,7 @@ function ProductsContent() {
     };
 
     const handleEditProduct = (product: Product) => {
-        setSelectedProduct(product);
-        setFormModalMode("edit");
-        setIsFormModalOpen(true);
+        router.push(`/products/${product.id}/edit`);
     };
 
     const handleViewDetails = async (product: Product) => {
@@ -191,6 +191,35 @@ function ProductsContent() {
         const history = await getPriceHistory(product.id);
         setPriceHistory(history);
         setIsDetailModalOpen(true);
+    };
+
+    const handleDuplicateProduct = async (product: Product) => {
+        const newProduct = await addProduct({
+            name: `Copy of ${product.name}`,
+            sku: product.sku ? `${product.sku}-copy` : undefined,
+            description: product.description,
+            price: product.price,
+            compare_at_price: product.compare_at_price || undefined,
+            cost: product.cost,
+            stock_quantity: 0,
+            low_stock_threshold: product.low_stock_threshold,
+            image_url: product.image_url,
+            tag_color: product.tag_color,
+            is_supply: product.is_supply,
+            slug: product.slug ? `${product.slug}-copy` : undefined,
+            is_visible: false,
+            display_order: product.display_order,
+            category_id: product.category_id,
+            website_price: product.website_price,
+            short_description: product.short_description || undefined,
+        });
+        if (newProduct) {
+            router.push(`/products/${newProduct.id}/edit`);
+        }
+    };
+
+    const handleDeleteProduct = async (product: Product) => {
+        await deleteProduct(product.id);
     };
 
     const handleFormSubmit = async (data: ProductFormData) => {
@@ -207,6 +236,12 @@ function ProductsContent() {
                 image_url: data.image_url,
                 tag_color: data.tag_color,
                 is_supply: data.is_supply,
+                slug: data.slug || undefined,
+                is_visible: data.is_visible,
+                display_order: data.display_order,
+                category_id: data.category_id,
+                website_price: data.website_price,
+                short_description: data.short_description || undefined,
             });
 
             // Add variants if any
@@ -234,6 +269,12 @@ function ProductsContent() {
                 image_url: data.image_url,
                 tag_color: data.tag_color,
                 is_supply: data.is_supply,
+                slug: data.slug || undefined,
+                is_visible: data.is_visible,
+                display_order: data.display_order,
+                category_id: data.category_id,
+                website_price: data.website_price,
+                short_description: data.short_description || undefined,
             });
 
             // Handle variant updates (simplified - in production you'd want more sophisticated handling)
@@ -336,13 +377,11 @@ function ProductsContent() {
             <div className="min-h-screen flex items-center justify-center">
                 <div className="flex flex-col items-center gap-4">
                     <div className="w-12 h-12 rounded-full border-4 border-[var(--pastel-yellow)] border-t-transparent animate-spin"></div>
-                    <p className="text-muted font-medium">Loading products...</p>
+                    <p className="text-muted font-medium">{t("products.loading")}</p>
                 </div>
             </div>
         );
     }
-
-    const { t } = useLanguage();
 
     if (error) {
         return (
@@ -372,7 +411,7 @@ function ProductsContent() {
                                 {t("products.title")}
                             </h1>
                             <p className="text-muted mt-2 text-lg">
-                                {stats.totalProducts} products • {stats.totalSold} units sold
+                                {t("products.subtitle", { total: stats.totalProducts.toString(), sold: stats.totalSold.toString() })}
                             </p>
                         </div>
 
@@ -387,7 +426,7 @@ function ProductsContent() {
                                 className="flex items-center gap-2 px-5 py-3 bg-[var(--ink)] text-white rounded-xl font-medium hover:opacity-90 transition-all shadow-lg"
                             >
                                 <Plus className="w-5 h-5" />
-                                Add Product
+                                {t("products.addProduct")}
                             </button>
                         </div>
                     </motion.div>
@@ -403,7 +442,7 @@ function ProductsContent() {
                                     : "text-muted hover:text-foreground hover:bg-[var(--card-bg)]/50"
                             )}
                         >
-                            Products
+                            {t("products.tabs.products")}
                         </button>
                         <button
                             onClick={() => router.push("/products?tab=categories")}
@@ -414,7 +453,7 @@ function ProductsContent() {
                                     : "text-muted hover:text-foreground hover:bg-[var(--card-bg)]/50"
                             )}
                         >
-                            Categories
+                            {t("products.tabs.categories")}
                         </button>
                         <button
                             onClick={() => router.push("/products?tab=quarantine")}
@@ -425,7 +464,7 @@ function ProductsContent() {
                                     : "text-muted hover:text-foreground hover:bg-[var(--card-bg)]/50"
                             )}
                         >
-                            QC Quarantine
+                            {t("products.tabs.quarantine")}
                         </button>
                         <button
                             onClick={() => router.push("/products?tab=supplies")}
@@ -436,7 +475,7 @@ function ProductsContent() {
                                     : "text-muted hover:text-foreground hover:bg-[var(--card-bg)]/50"
                             )}
                         >
-                            Internal Supplies
+                            {t("products.tabs.supplies")}
                         </button>
                     </div>
 
@@ -532,7 +571,7 @@ function ProductsContent() {
                                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--foreground-subtle)]" />
                                         <input
                                             type="text"
-                                            placeholder="Search products..."
+                                            placeholder={t("products.searchPlaceholder")}
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
                                             className="w-full pl-12 pr-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all"
@@ -582,10 +621,10 @@ function ProductsContent() {
                                                 onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
                                                 className="appearance-none px-4 py-3 pr-10 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all cursor-pointer"
                                             >
-                                                <option value="sales">Best Selling</option>
-                                                <option value="revenue">Highest Revenue</option>
-                                                <option value="price">Highest Price</option>
-                                                <option value="stock">Highest Stock</option>
+                                                <option value="sales">{t("products.sort.bestSelling")}</option>
+                                                <option value="revenue">{t("products.sort.highestRevenue")}</option>
+                                                <option value="price">{t("products.sort.highestPrice")}</option>
+                                                <option value="stock">{t("products.sort.highestStock")}</option>
                                             </select>
                                             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
                                         </div>
@@ -604,11 +643,11 @@ function ProductsContent() {
                                             ) : (
                                                 <Square className="w-4 h-4" />
                                             )}
-                                            {selectedIds.size === filteredProducts.length ? "Deselect All" : "Select All"}
+                                            {selectedIds.size === filteredProducts.length ? t("products.selection.deselectAll") : t("products.selection.selectAll")}
                                         </button>
                                         {selectedIds.size > 0 && (
                                             <span className="text-sm text-muted">
-                                                {selectedIds.size} of {filteredProducts.length} selected
+                                                {t("products.selection.selectedCount", { count: selectedIds.size.toString(), total: filteredProducts.length.toString() })}
                                             </span>
                                         )}
                                     </div>
@@ -621,11 +660,11 @@ function ProductsContent() {
                                     <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--background)] flex items-center justify-center">
                                         <Package className="h-8 w-8 text-[var(--foreground-subtle)]" />
                                     </div>
-                                    <p className="text-lg font-medium text-foreground mb-1">No products found</p>
+                                    <p className="text-lg font-medium text-foreground mb-1">{t("products.emptyState.title")}</p>
                                     <p className="text-sm text-muted mb-4">
                                         {products.length === 0
-                                            ? "Add your first product to get started"
-                                            : "Try adjusting your search or filters"}
+                                            ? t("products.emptyState.descNew")
+                                            : t("products.emptyState.descFilter")}
                                     </p>
                                     {products.length === 0 && (
                                         <button
@@ -633,7 +672,7 @@ function ProductsContent() {
                                             className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--ink)] text-white rounded-lg font-medium hover:opacity-90 transition-all"
                                         >
                                             <Plus className="w-4 h-4" />
-                                            Add Product
+                                            {t("products.addProduct")}
                                         </button>
                                     )}
                                 </div>
@@ -719,7 +758,7 @@ function ProductsContent() {
                                                         <button 
                                                             onClick={(e) => { e.stopPropagation(); handleVisibilityToggle(product); }}
                                                             className={cn("p-1.5 rounded-lg transition-colors border flex-shrink-0", product.is_visible ? "bg-blue-500/10 text-blue-600 border-blue-500/20 hover:bg-blue-500/20" : "bg-[var(--background)] text-muted border-[var(--card-border)] hover:bg-[var(--card-bg)]")}
-                                                            title={product.is_visible ? "Visible in Store" : "Hidden in Store"}
+                                                            title={product.is_visible ? t("products.visibleInStore") : t("products.hiddenInStore")}
                                                         >
                                                             {product.is_visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                                                         </button>
@@ -734,7 +773,7 @@ function ProductsContent() {
                                                             onChange={(e) => handleOrderChange(product.id, e.target.value)}
                                                             onClick={(e) => e.stopPropagation()}
                                                             className="w-14 px-1.5 py-1 text-xs text-center bg-[var(--background)] border border-[var(--card-border)] rounded-md text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--pastel-yellow)] transition-all"
-                                                            title="Display Order"
+                                                            title={t("products.displayOrder")}
                                                         />
                                                     </div>
                                                     <div className="flex items-center justify-between">
@@ -745,7 +784,7 @@ function ProductsContent() {
                                                                 size="sm"
                                                             />
                                                             {(product.reserved_quantity || 0) > 0 && (
-                                                                <span className="text-[10px] bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded-md font-medium" title="Reserved Stock">
+                                                                <span className="text-[10px] bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded-md font-medium" title={t("products.stock.reservedStock")}>
                                                                     {product.reserved_quantity} R
                                                                 </span>
                                                             )}
@@ -754,7 +793,7 @@ function ProductsContent() {
                                                     <div className="flex items-center justify-between text-sm pt-2 border-t border-[var(--card-border)]">
                                                         <span className="text-muted flex items-center gap-1">
                                                             <ShoppingCart className="w-3 h-3" />
-                                                            {product.times_sold || 0} sold
+                                                            {product.times_sold || 0} {t("products.sold")}
                                                         </span>
                                                         <span className="text-[var(--pastel-green)] font-semibold flex items-center gap-1">
                                                             <TrendingUp className="w-3 h-3" />
@@ -844,11 +883,11 @@ function ProductsContent() {
                                                         </div>
                                                         <div className="flex items-center gap-3 mt-1">
                                                             <p className="text-sm text-muted">
-                                                                Avail: <span className="font-medium text-foreground">{Math.max(0, product.stock_quantity - (product.reserved_quantity || 0))}</span>
+                                                                {t("products.avail")}: <span className="font-medium text-foreground">{Math.max(0, product.stock_quantity - (product.reserved_quantity || 0))}</span>
                                                             </p>
                                                             {(product.reserved_quantity || 0) > 0 && (
                                                                 <p className="text-sm text-amber-600">
-                                                                    Rsvd: <span className="font-medium">{product.reserved_quantity}</span>
+                                                                    {t("products.rsvd")}: <span className="font-medium">{product.reserved_quantity}</span>
                                                                 </p>
                                                             )}
                                                         </div>
@@ -862,12 +901,12 @@ function ProductsContent() {
                                                             onChange={(e) => handleOrderChange(product.id, e.target.value)}
                                                             onClick={(e) => e.stopPropagation()}
                                                             className="w-14 px-1.5 py-1 text-xs text-center bg-[var(--background)] border border-[var(--card-border)] rounded-md text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--pastel-yellow)] transition-all"
-                                                            title="Display Order"
+                                                            title={t("products.displayOrder")}
                                                         />
                                                         <button 
                                                             onClick={(e) => { e.stopPropagation(); handleVisibilityToggle(product); }}
                                                             className={cn("p-1.5 rounded-lg transition-colors border", product.is_visible ? "bg-blue-500/10 text-blue-600 border-blue-500/20 hover:bg-blue-500/20" : "bg-[var(--background)] text-muted border-[var(--card-border)] hover:bg-[var(--card-bg)]")}
-                                                            title={product.is_visible ? "Visible in Store" : "Hidden in Store"}
+                                                            title={product.is_visible ? t("products.visibleInStore") : t("products.hiddenInStore")}
                                                         >
                                                             {product.is_visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                                                         </button>
@@ -879,19 +918,19 @@ function ProductsContent() {
                                                             <p className="text-lg font-bold text-foreground">
                                                                 {formatIQD(product.price)}
                                                             </p>
-                                                            <p className="text-xs text-muted">Price</p>
+                                                            <p className="text-xs text-muted">{t("products.price")}</p>
                                                         </div>
                                                         <div className="text-center">
                                                             <p className="text-lg font-bold text-foreground">
                                                                 {product.times_sold || 0}
                                                             </p>
-                                                            <p className="text-xs text-muted">Sold</p>
+                                                            <p className="text-xs text-muted">{t("products.soldLabel")}</p>
                                                         </div>
                                                         <div className="text-center">
                                                             <p className="text-lg font-bold text-green-700">
                                                                 {formatIQD(product.total_revenue || 0)}
                                                             </p>
-                                                            <p className="text-xs text-muted">Revenue</p>
+                                                            <p className="text-xs text-muted">{t("products.revenue")}</p>
                                                         </div>
                                                     </div>
 

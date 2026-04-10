@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 import { StockStatus } from "@/lib/supabase";
+import { useLanguage } from "@/hooks/use-language";
 
 interface StockIndicatorProps {
     status: StockStatus;
@@ -11,24 +12,24 @@ interface StockIndicatorProps {
     size?: "sm" | "md" | "lg";
 }
 
-const statusConfig: Record<StockStatus, { bg: string; text: string; icon: React.ElementType; label: string }> = {
+const statusConfig: Record<StockStatus, { bg: string; text: string; icon: React.ElementType; key: string }> = {
     in_stock: {
         bg: "bg-[var(--pastel-green)]",
         text: "text-green-700",
         icon: CheckCircle,
-        label: "In Stock",
+        key: "products.stock.inStock",
     },
     low_stock: {
         bg: "bg-[var(--pastel-yellow)]",
         text: "text-amber-700",
         icon: AlertTriangle,
-        label: "Low Stock",
+        key: "products.stock.lowStock",
     },
     out_of_stock: {
         bg: "bg-[var(--pastel-pink)]",
         text: "text-rose-700",
         icon: XCircle,
-        label: "Out of Stock",
+        key: "products.stock.outOfStock",
     },
 };
 
@@ -56,6 +57,7 @@ export function StockIndicator({
     showLabel = true,
     size = "md",
 }: StockIndicatorProps) {
+    const { t } = useLanguage();
     const config = statusConfig[status];
     const sizeStyles = sizeConfig[size];
     const Icon = config.icon;
@@ -72,10 +74,11 @@ export function StockIndicator({
             <Icon className={sizeStyles.icon} />
             {showLabel && (
                 <span className={sizeStyles.text}>
-                    {config.label}
+                    {t(config.key)}
                     {quantity !== undefined && ` (${quantity})`}
                 </span>
             )}
         </div>
     );
 }
+

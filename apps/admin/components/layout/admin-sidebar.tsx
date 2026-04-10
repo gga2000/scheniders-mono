@@ -9,11 +9,15 @@ import {
   Activity,
   FileText,
   Settings,
+  TrendingUp,
+  BarChart3,
   ChevronLeft,
   ChevronRight,
   Shield,
   X,
   LogOut,
+  UserPlus,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -22,11 +26,18 @@ import { motion, AnimatePresence } from "framer-motion";
 const NAV_ITEMS = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/" },
   { label: "Merchants", icon: Building2, href: "/merchants" },
+  { label: "Prospects", icon: UserPlus, href: "/leads" },
+  { label: "Team", icon: Users, href: "/team" },
   { label: "Billing", icon: CreditCard, href: "/billing" },
   { label: "Trials", icon: Clock, href: "/trials" },
   { label: "Health", icon: Activity, href: "/health" },
   { label: "Activity Log", icon: FileText, href: "/activity" },
   { label: "Settings", icon: Settings, href: "/settings" },
+];
+
+const ANALYTICS_ITEMS = [
+  { label: "Revenue", icon: TrendingUp, href: "/revenue" },
+  { label: "Usage Heatmap", icon: BarChart3, href: "/usage" },
 ];
 
 interface AdminSidebarProps {
@@ -151,6 +162,53 @@ export function AdminSidebar({
               </Link>
             );
           })}
+
+          {/* Analytics Section Divider */}
+          <div className={cn("my-3", collapsed ? "mx-auto w-6 h-px bg-white/10" : "h-px bg-white/10 mx-1")} />
+          {!collapsed && (
+            <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-3 px-1 transition-opacity duration-300">
+              Analytics
+            </div>
+          )}
+          {ANALYTICS_ITEMS.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={handleNavClick}
+                className={cn(
+                  "flex items-center py-3 rounded-2xl transition-all duration-300 group relative overflow-hidden",
+                  collapsed ? "justify-center w-full" : "gap-3 px-3",
+                  isActive
+                    ? "bg-white/10 text-white"
+                    : "text-zinc-500 hover:text-white hover:bg-white/[0.03]"
+                )}
+                title={collapsed ? item.label : undefined}
+              >
+                <item.icon
+                  className={cn(
+                    "w-[22px] h-[22px] transition-colors flex-shrink-0",
+                    isActive ? "text-white" : "text-zinc-500 group-hover:text-white"
+                  )}
+                />
+                <span
+                  className={cn(
+                    "font-medium text-[15px] transition-all duration-500 whitespace-nowrap",
+                    collapsed ? "w-0 opacity-0 hidden" : "opacity-100"
+                  )}
+                >
+                  {item.label}
+                </span>
+                {isActive && !collapsed && (
+                  <div className="ml-auto w-1.5 h-1.5 rounded-[2px] bg-[var(--primary)] shadow-[0_0_10px_rgba(239,255,0,0.6)]" />
+                )}
+                {isActive && collapsed && (
+                  <div className="absolute right-1.5 top-1.5 w-1.5 h-1.5 rounded-[2px] bg-[var(--primary)] shadow-[0_0_10px_rgba(239,255,0,0.6)]" />
+                )}
+              </Link>
+            );
+          })}
         </nav>
 
         {/* User Section */}
@@ -251,6 +309,34 @@ export function AdminSidebar({
               </div>
 
               {NAV_ITEMS.map((item) => {
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={handleNavClick}
+                    className={cn(
+                      "flex items-center gap-4 py-4 px-4 rounded-2xl transition-all duration-200",
+                      isActive
+                        ? "bg-white/10 text-white"
+                        : "text-zinc-400 hover:text-white hover:bg-white/5"
+                    )}
+                  >
+                    <item.icon className="w-5 h-5 flex-shrink-0" />
+                    <span className="font-medium text-base">{item.label}</span>
+                    {isActive && (
+                      <div className="ml-auto w-2 h-2 rounded-[2px] bg-[var(--primary)] shadow-[0_0_10px_rgba(239,255,0,0.6)]" />
+                    )}
+                  </Link>
+                );
+              })}
+
+              {/* Analytics Section */}
+              <div className="h-px bg-white/10 my-2 mx-3" />
+              <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-3 px-3">
+                Analytics
+              </div>
+              {ANALYTICS_ITEMS.map((item) => {
                 const isActive = pathname === item.href;
                 return (
                   <Link

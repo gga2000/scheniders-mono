@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Download, Tag, Radio, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 interface CustomerBulkBarProps {
   selectedCount: number;
@@ -19,6 +20,7 @@ export function CustomerBulkBar({
   onBroadcast,
   onClear,
 }: CustomerBulkBarProps) {
+  const { t } = useLanguage();
   return (
     <AnimatePresence>
       {selectedCount > 0 && (
@@ -35,7 +37,7 @@ export function CustomerBulkBar({
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500 text-[10px] font-bold text-white">
                 {selectedCount}
               </span>
-              محدد
+              {t("customers.bulk.selected")}
             </div>
 
             <div className="mx-1 h-5 w-px bg-(--card-border)" />
@@ -43,19 +45,19 @@ export function CustomerBulkBar({
             {/* Actions */}
             <ActionButton
               icon={Tag}
-              label="إضافة تصنيف"
+              label={t("customers.bulk.addTag")}
               onClick={onAddTag}
               pastelClass="hover:bg-(--pastel-purple)/40 hover:text-foreground"
             />
             <ActionButton
               icon={Radio}
-              label="إرسال رسالة"
+              label={t("customers.bulk.broadcast")}
               onClick={onBroadcast}
               pastelClass="hover:bg-(--pastel-green)/40 hover:text-foreground"
             />
             <ActionButton
               icon={Download}
-              label="تصدير CSV"
+              label={t("customers.bulk.exportCsv")}
               onClick={onExport}
               pastelClass="hover:bg-(--pastel-blue)/40 hover:text-foreground"
             />
@@ -68,7 +70,7 @@ export function CustomerBulkBar({
               className="flex items-center gap-1.5 rounded-2xl px-2.5 py-1.5 text-xs text-muted transition-colors hover:bg-background hover:text-foreground"
             >
               <X className="h-3.5 w-3.5" />
-              إلغاء
+              {t("customers.bulk.cancel")}
             </button>
           </div>
         </motion.div>

@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CustomerStatus } from "@/types/customer";
+import { useLanguage } from "@/components/providers/language-provider";
 
 type StatusFilter = CustomerStatus | "all" | "blacklisted";
 
@@ -26,21 +27,6 @@ interface CustomerFilterSidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
-const STATUS_OPTIONS: { value: StatusFilter; label: string; icon: React.ElementType; color: string }[] = [
-  { value: "all",        label: "الكل",    icon: Users,    color: "text-foreground bg-background" },
-  { value: "vip",        label: "VIP",     icon: Star,     color: "text-amber-700 bg-(--pastel-yellow)/40" },
-  { value: "regular",    label: "منتظم",   icon: User,     color: "text-blue-700 bg-(--pastel-blue)/40" },
-  { value: "new",        label: "جديد",    icon: Sparkles, color: "text-teal-700 bg-(--pastel-mint)/40" },
-  { value: "blacklisted",label: "محظور",   icon: Ban,      color: "text-rose-700 bg-(--pastel-pink)/40" },
-];
-
-const DATE_PRESETS = [
-  { label: "اليوم",     value: 1 },
-  { label: "7 أيام",   value: 7 },
-  { label: "30 يوم",   value: 30 },
-  { label: "90 يوم",   value: 90 },
-];
 
 function SectionHeader({ title, defaultOpen = true, children }: { title: string; defaultOpen?: boolean; children: React.ReactNode }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -84,6 +70,26 @@ export function CustomerFilterSidebar({
   isOpen,
   onClose,
 }: CustomerFilterSidebarProps) {
+  const { t } = useLanguage();
+
+  const STATUS_OPTIONS: { value: StatusFilter; label: string; icon: React.ElementType; color: string }[] = [
+    { value: "all",        label: t("customers.filters.all"),        icon: Users,    color: "text-foreground bg-background" },
+    { value: "vip",        label: t("customers.filters.vip"),        icon: Star,     color: "text-amber-700 bg-(--pastel-yellow)/40" },
+    { value: "regular",    label: t("customers.filters.regular"),    icon: User,     color: "text-blue-700 bg-(--pastel-blue)/40" },
+    { value: "new",        label: t("customers.filters.new"),        icon: Sparkles, color: "text-teal-700 bg-(--pastel-mint)/40" },
+    { value: "blacklisted",label: t("customers.filters.blacklisted"),icon: Ban,      color: "text-rose-700 bg-(--pastel-pink)/40" },
+  ];
+
+  const DATE_PRESETS = [
+    { label: t("customers.filters.today"),  value: 1 },
+    { label: t("customers.filters.7days"),  value: 7 },
+    { label: t("customers.filters.30days"), value: 30 },
+    { label: t("customers.filters.90days"), value: 90 },
+  ];
+
+
+
+
   const hasActiveFilters = status !== "all" || !!city || !!lastOrderDays || !!minLtv;
 
   function handleReset() {
@@ -99,7 +105,7 @@ export function CustomerFilterSidebar({
       <div className="flex items-center justify-between px-4 py-3 border-b border-(--card-border)">
         <div className="flex items-center gap-2">
           <SlidersHorizontal className="h-4 w-4 text-muted" />
-          <span className="text-sm font-semibold text-foreground">الفلاتر</span>
+          <span className="text-sm font-semibold text-foreground">{t("customers.filters.title")}</span>
           {hasActiveFilters && (
             <span className="h-1.5 w-1.5 rounded-full bg-(--pastel-blue)" />
           )}
@@ -111,7 +117,7 @@ export function CustomerFilterSidebar({
               className="text-xs text-muted hover:text-rose-600 flex items-center gap-1 transition-colors px-1.5 py-0.5 rounded hover:bg-(--pastel-pink)/30"
             >
               <RotateCcw className="h-3 w-3" />
-              مسح
+              {t("customers.filters.clear")}
             </button>
           )}
           <button
@@ -127,7 +133,7 @@ export function CustomerFilterSidebar({
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
 
         {/* Status */}
-        <SectionHeader title="الحالة">
+        <SectionHeader title={t("customers.filters.status")}>
           <div className="space-y-1 pb-2">
             {STATUS_OPTIONS.map((opt) => {
               const Icon = opt.icon;
@@ -159,7 +165,7 @@ export function CustomerFilterSidebar({
         <div className="border-t border-(--card-border)" />
 
         {/* Last order date */}
-        <SectionHeader title="آخر طلب">
+        <SectionHeader title={t("customers.filters.lastOrder")}>
           <div className="grid grid-cols-2 gap-1.5 pb-2">
             {DATE_PRESETS.map((p) => (
               <button
@@ -181,7 +187,7 @@ export function CustomerFilterSidebar({
         <div className="border-t border-(--card-border)" />
 
         {/* City */}
-        <SectionHeader title="المدينة">
+        <SectionHeader title={t("customers.filters.city")}>
           <div className="space-y-1 pb-2 max-h-40 overflow-y-auto">
             {["", ...cities].map((c) => (
               <button
@@ -194,7 +200,7 @@ export function CustomerFilterSidebar({
                     : "text-muted hover:bg-background"
                 )}
               >
-                {c || "جميع المدن"}
+                {c || t("customers.filters.allCities")}
               </button>
             ))}
           </div>
@@ -203,13 +209,13 @@ export function CustomerFilterSidebar({
         <div className="border-t border-(--card-border)" />
 
         {/* LTV Range */}
-        <SectionHeader title="قيمة العميل (IQD)">
+        <SectionHeader title={t("customers.filters.ltv")}>
           <div className="space-y-3 pb-2">
             {[
-              { label: "أقل من 100ك", min: undefined, max: 100_000 },
-              { label: "100ك - 500ك",  min: 100_000,  max: 500_000 },
-              { label: "500ك - 1م",    min: 500_000,  max: 1_000_000 },
-              { label: "أكثر من 1م",   min: 1_000_000, max: undefined },
+              { label: t("customers.filters.ltvUnder100k"), min: undefined, max: 100_000 },
+              { label: t("customers.filters.ltv100k500k"),  min: 100_000,  max: 500_000 },
+              { label: t("customers.filters.ltv500k1m"),    min: 500_000,  max: 1_000_000 },
+              { label: t("customers.filters.ltvOver1m"),   min: 1_000_000, max: undefined },
             ].map((range) => {
               const active = minLtv === range.min && maxLtv === range.max;
               return (

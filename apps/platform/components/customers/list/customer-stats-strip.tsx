@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Users, Star, Banknote, AlertTriangle, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/components/providers/language-provider";
 
 interface StatCard {
   label: string;
@@ -55,45 +56,6 @@ const cardVariants = {
   }),
 };
 
-const CARD_CONFIGS = [
-  {
-    label: "إجمالي العملاء",
-    sublabel: "عميل مسجل",
-    icon: Users,
-    pastelClass: "pastel-card-blue",
-    iconBg: "bg-[var(--pastel-blue)]/40",
-    iconColor: "text-blue-700",
-    valueColor: "text-foreground",
-  },
-  {
-    label: "عملاء VIP",
-    sublabel: "أعلى قيمة",
-    icon: Star,
-    pastelClass: "pastel-card-yellow",
-    iconBg: "bg-[var(--pastel-yellow)]/40",
-    iconColor: "text-amber-700",
-    valueColor: "text-foreground",
-  },
-  {
-    label: "إجمالي الإيرادات",
-    sublabel: "من جميع الطلبات",
-    icon: Banknote,
-    pastelClass: "pastel-card-green",
-    iconBg: "bg-[var(--pastel-green)]/40",
-    iconColor: "text-green-700",
-    valueColor: "text-foreground",
-  },
-  {
-    label: "في خطر",
-    sublabel: "لم يطلبوا منذ 30+ يوم",
-    icon: AlertTriangle,
-    pastelClass: "pastel-card-pink",
-    iconBg: "bg-[var(--pastel-pink)]/40",
-    iconColor: "text-rose-700",
-    valueColor: "text-foreground",
-  },
-];
-
 export function CustomerStatsStrip({
   totalCustomers,
   vipCustomers,
@@ -104,6 +66,46 @@ export function CustomerStatsStrip({
   trendRevenue,
   trendAtRisk,
 }: CustomerStatsStripProps) {
+  const { t } = useLanguage();
+
+  const CARD_CONFIGS = [
+    {
+      label: t("customers.stats.total"),
+      sublabel: t("customers.stats.totalSub"),
+      icon: Users,
+      pastelClass: "pastel-card-blue",
+      iconBg: "bg-[var(--pastel-blue)]/40",
+      iconColor: "text-blue-700",
+      valueColor: "text-foreground",
+    },
+    {
+      label: t("customers.stats.vip"),
+      sublabel: t("customers.stats.vipSub"),
+      icon: Star,
+      pastelClass: "pastel-card-yellow",
+      iconBg: "bg-[var(--pastel-yellow)]/40",
+      iconColor: "text-amber-700",
+      valueColor: "text-foreground",
+    },
+    {
+      label: t("customers.stats.revenue"),
+      sublabel: t("customers.stats.revenueSub"),
+      icon: Banknote,
+      pastelClass: "pastel-card-green",
+      iconBg: "bg-[var(--pastel-green)]/40",
+      iconColor: "text-green-700",
+      valueColor: "text-foreground",
+    },
+    {
+      label: t("customers.stats.atRisk"),
+      sublabel: t("customers.stats.atRiskSub"),
+      icon: AlertTriangle,
+      pastelClass: "pastel-card-pink",
+      iconBg: "bg-[var(--pastel-pink)]/40",
+      iconColor: "text-rose-700",
+      valueColor: "text-foreground",
+    },
+  ];
   const values = [
     totalCustomers.toLocaleString("ar-IQ"),
     vipCustomers.toLocaleString("ar-IQ"),
@@ -144,7 +146,7 @@ export function CustomerStatsStrip({
             {trends[i] !== undefined && (
               <div className="mt-3 flex items-center gap-2 border-t border-black/5 pt-3">
                 <TrendBadge trend={trends[i]!} />
-                <span className="text-xs text-muted">مقارنة بالشهر الماضي</span>
+                <span className="text-xs text-muted">{t("customers.stats.vsLastMonth")}</span>
               </div>
             )}
           </motion.div>

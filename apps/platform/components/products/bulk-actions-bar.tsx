@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X, DollarSign, Archive, Download, Trash2, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
+import { useLanguage } from "@/hooks/use-language";
 
 interface BulkActionsBarProps {
     selectedCount: number;
@@ -23,6 +24,7 @@ export function BulkActionsBar({
     onHideFromStore,
     onClearSelection,
 }: BulkActionsBarProps) {
+    const { t } = useLanguage();
     const [showPriceInput, setShowPriceInput] = useState(false);
     const [newPrice, setNewPrice] = useState("");
 
@@ -49,7 +51,7 @@ export function BulkActionsBar({
                     {/* Selection Count */}
                     <div className="flex items-center gap-2 pr-4 border-r border-white/20">
                         <span className="text-white font-bold text-lg">{selectedCount}</span>
-                        <span className="text-white/70 text-sm">selected</span>
+                        <span className="text-white/70 text-sm">{t("products.bulk.selected")}</span>
                     </div>
 
                     {/* Price Update */}
@@ -59,7 +61,7 @@ export function BulkActionsBar({
                                 type="number"
                                 value={newPrice}
                                 onChange={(e) => setNewPrice(e.target.value)}
-                                placeholder="New price"
+                                placeholder={t("products.bulk.newPrice")}
                                 autoFocus
                                 className="w-32 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder:text-white/50 text-sm focus:outline-none focus:ring-2 focus:ring-white/30"
                             />
@@ -67,7 +69,7 @@ export function BulkActionsBar({
                                 onClick={handlePriceSubmit}
                                 className="px-3 py-2 bg-white text-[var(--foreground)] rounded-lg text-sm font-medium hover:bg-white/90 transition-colors"
                             >
-                                Apply
+                                {t("products.bulk.apply")}
                             </button>
                             <button
                                 onClick={() => {
@@ -87,7 +89,7 @@ export function BulkActionsBar({
                                 className="flex items-center gap-2 px-4 py-2 bg-white/10 text-white rounded-lg text-sm font-medium hover:bg-white/20 transition-colors"
                             >
                                 <DollarSign className="w-4 h-4" />
-                                Update Price
+                                {t("products.bulk.updatePrice")}
                             </button>
 
                             <button
@@ -95,7 +97,7 @@ export function BulkActionsBar({
                                 className="flex items-center gap-2 px-4 py-2 bg-amber-500/20 text-amber-300 rounded-lg text-sm font-medium hover:bg-amber-500/30 transition-colors"
                             >
                                 <Archive className="w-4 h-4" />
-                                Archive
+                                {t("products.bulk.archive")}
                             </button>
 
                             <button
@@ -103,7 +105,7 @@ export function BulkActionsBar({
                                 className="flex items-center gap-2 px-4 py-2 bg-green-500/20 text-green-300 rounded-lg text-sm font-medium hover:bg-green-500/30 transition-colors"
                             >
                                 <Download className="w-4 h-4" />
-                                Export
+                                {t("products.bulk.export")}
                             </button>
 
                             {onShowOnStore && (
@@ -112,7 +114,7 @@ export function BulkActionsBar({
                                     className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-blue-300 rounded-lg text-sm font-medium hover:bg-blue-500/30 transition-colors"
                                 >
                                     <Eye className="w-4 h-4" />
-                                    Show
+                                    {t("products.bulk.show")}
                                 </button>
                             )}
 
@@ -122,7 +124,7 @@ export function BulkActionsBar({
                                     className="flex items-center gap-2 px-4 py-2 bg-slate-500/20 text-slate-300 rounded-lg text-sm font-medium hover:bg-slate-500/30 transition-colors"
                                 >
                                     <EyeOff className="w-4 h-4" />
-                                    Hide
+                                    {t("products.bulk.hide")}
                                 </button>
                             )}
 

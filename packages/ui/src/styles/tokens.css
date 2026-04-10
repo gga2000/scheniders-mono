@@ -53,6 +53,7 @@
   --card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.04);
 
   /* Radii */
+  --radius: 0.625rem;
   --card-radius: 24px;
   --card-radius-sm: 16px;
   --card-radius-xs: 12px;

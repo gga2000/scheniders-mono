@@ -226,7 +226,7 @@ export function Sidebar({
                                                                 ? "bg-[#E4B5D1] shadow-[0_0_10px_rgba(228,181,209,0.8)] scale-110" 
                                                                 : "bg-zinc-700 group-hover:bg-zinc-500"
                                                         )} />
-                                                        {subItem.label}
+                                                        {t(subItem.key)}
                                                     </TransitionLink>
                                                 )
                                             })}
@@ -311,7 +311,7 @@ export function Sidebar({
                                 collapsed ? "w-full" : ""
                             )}>
                                 {!collapsed && (
-                                    <p className="text-xs text-zinc-400 px-3">Are you sure?</p>
+                                    <p className="text-xs text-zinc-400 px-3">{t("nav.logoutConfirm")}</p>
                                 )}
                                 <div className={cn(
                                     "flex gap-2",
@@ -326,7 +326,7 @@ export function Sidebar({
                                             collapsed ? "px-2" : ""
                                         )}
                                     >
-                                        {collapsed ? "Yes" : t("nav.logout")}
+                                        {collapsed ? t("common.yes") : t("nav.logout")}
                                     </button>
                                     <button
                                         onClick={() => setShowLogoutConfirm(false)}
@@ -336,7 +336,7 @@ export function Sidebar({
                                             collapsed ? "px-2" : ""
                                         )}
                                     >
-                                        {collapsed ? "No" : t("common.cancel")}
+                                        {collapsed ? t("common.no") : t("common.cancel")}
                                     </button>
                                 </div>
                             </div>

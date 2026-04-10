@@ -12,6 +12,7 @@ import { CustomerStatusBadge } from "../shared/customer-status-badge";
 import type { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
+import { useLanguage } from "@/hooks/use-language";
 
 interface CustomerTableRowProps {
   customer: PaginatedCustomer;
@@ -42,6 +43,7 @@ export function CustomerTableRow({
   index,
 }: CustomerTableRowProps) {
   const router = useRouter();
+  const { t } = useLanguage();
   const [copied, setCopied] = useState(false);
 
   const status = customer.is_blacklisted
@@ -119,7 +121,7 @@ export function CustomerTableRow({
               <button
                 onClick={handleCopyPhone}
                 className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded text-muted hover:text-foreground"
-                title="نسخ الرقم"
+                title={t("customers.row.copyPhone")}
               >
                 {copied
                   ? <Check className="h-3 w-3 text-emerald-500" />
@@ -150,7 +152,7 @@ export function CustomerTableRow({
             {formatIQD(customer.total_spent)}
             <span className="text-xs font-normal text-muted mr-0.5"> د.ع</span>
           </p>
-          <p className="text-xs text-muted">{customer.total_orders} طلب</p>
+          <p className="text-xs text-muted">{customer.total_orders} {t("customers.row.orders")}</p>
         </div>
       </td>
 
@@ -167,13 +169,13 @@ export function CustomerTableRow({
           <button
             onClick={handleWhatsApp}
             className="p-1.5 rounded-xl text-muted hover:text-emerald-700 hover:bg-(--pastel-green)/40 transition-colors"
-            title="واتساب"
+            title={t("customers.row.whatsapp")}
           >
             <MessageCircle className="h-4 w-4" />
           </button>
           <button
             className="p-1.5 rounded-xl text-muted hover:text-foreground hover:bg-background transition-colors"
-            title="عرض الملف"
+            title={t("customers.row.viewProfile")}
           >
             <ChevronRight className="h-4 w-4" />
           </button>

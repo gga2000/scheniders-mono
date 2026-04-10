@@ -21,20 +21,20 @@ function makeBrowserClient() {
 
 const INVALIDATION_MAP: Record<string, readonly (readonly string[])[]> = {
   tenants: [
-    ["admin", "dashboard-stats"],
+    ["admin", "dashboard-v2"],
     ["admin", "merchants"],
     ["admin", "health"],
   ],
   wallet: [
-    ["admin", "dashboard-stats"],
+    ["admin", "dashboard-v2"],
     ["admin", "billing"],
   ],
   wallet_transactions: [
-    ["admin", "dashboard-stats"],
+    ["admin", "dashboard-v2"],
     ["admin", "billing"],
   ],
   admin_activity_logs: [
-    ["admin", "dashboard-stats"],
+    ["admin", "dashboard-v2"],
     ["admin", "activity"],
   ],
 };

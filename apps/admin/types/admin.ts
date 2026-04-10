@@ -3,6 +3,50 @@ export type AdminRole = "super_admin" | "support_staff";
 export type PlanTier = "starter" | "growth" | "professional" | "enterprise";
 export type TenantStatus = "trial" | "active" | "suspended" | "cancelled";
 
+export type TableDensity = "compact" | "comfortable" | "spacious";
+export type ViewMode = "cards" | "table" | "sheet";
+export type DetailViewMode = "dialog" | "panel" | "full";
+
+export interface SortConfig {
+  column: string;
+  direction: "asc" | "desc";
+}
+
+export interface SavedView {
+  id: string;
+  name: string;
+  icon?: string;
+  filters: {
+    planFilter: string | null;
+    statusFilter: string | null;
+    cityFilter: string | null;
+    balanceFilter: string | null;
+    healthFilter: string | null;
+    searchQuery?: string;
+    dateRange?: { from: string | null; to: string | null };
+  };
+  sort?: SortConfig[];
+  columns?: string[];
+  isDefault?: boolean;
+}
+
+export interface FilterCondition {
+  field: string;
+  operator: "equals" | "not_equals" | "gt" | "gte" | "lt" | "lte" | "between" | "in" | "not_in" | "contains" | "not_contains" | "before" | "after" | "within_last";
+  value: unknown;
+  secondValue?: unknown;
+}
+
+export interface FilterGroup {
+  logic: "and" | "or";
+  conditions: FilterCondition[];
+}
+
+export interface AdvancedFilters {
+  logic: "and" | "or";
+  groups: FilterGroup[];
+}
+
 export interface AdminUser {
   id: string;
   email: string;
@@ -33,6 +77,14 @@ export interface AdminTenant {
   address: string | null;
   city: string | null;
   created_at: string;
+  // Prospect fields
+  is_prospect?: boolean;
+  prospect_lead_id?: string | null;
+  // Computed fields
+  tags: string[];
+  last_active_at: string | null;
+  monthly_revenue: number;
+  order_sparkline: number[];
   // Joined data
   subscription?: {
     plan: PlanTier;
@@ -101,3 +153,29 @@ export const ADMIN_PERMISSIONS: Record<AdminRole, AdminAction[]> = {
     "extend_trial", "add_note", "send_notification", "impersonate", "export_data",
   ],
 };
+
+// Merchant table column definitions
+export type MerchantColumnId =
+  | "business" | "plan" | "status" | "city" | "balance" | "orders"
+  | "health" | "revenue" | "lastActive" | "tags" | "sparkline" | "actions";
+
+export interface MerchantColumn {
+  id: MerchantColumnId;
+  label: string;
+  locked?: boolean;
+}
+
+export const MERCHANT_COLUMNS: MerchantColumn[] = [
+  { id: "business", label: "Business", locked: true },
+  { id: "plan", label: "Plan" },
+  { id: "status", label: "Status" },
+  { id: "city", label: "City" },
+  { id: "balance", label: "Balance" },
+  { id: "orders", label: "Orders" },
+  { id: "health", label: "Health" },
+  { id: "revenue", label: "Revenue" },
+  { id: "lastActive", label: "Last Active" },
+  { id: "tags", label: "Tags" },
+  { id: "sparkline", label: "Trend" },
+  { id: "actions", label: "Actions" },
+];

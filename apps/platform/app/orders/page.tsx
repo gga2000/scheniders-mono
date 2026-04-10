@@ -218,7 +218,7 @@ const GlobalSearchField = React.memo(function GlobalSearchField({ filters, setFi
                     title="Include Archive in Search"
                 >
                     <Archive className="w-3.5 h-3.5" />
-                    {filters.searchIncludesArchive && <span className="text-[10px] sm:hidden font-bold pr-1">Archived Included</span>}
+                    {filters.searchIncludesArchive && <span className="text-[10px] sm:hidden font-bold pr-1">{t("orders.filter.archivedIncluded")}</span>}
                 </button>
             )}
         </div>
@@ -1147,7 +1147,7 @@ export default function OrdersPage() {
                                                         className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[var(--button-success)] text-white shadow-sm hover:bg-[var(--button-success-hover)] transition-all text-sm font-semibold"
                                                     >
                                                         <Plus className="w-4 h-4" />
-                                                        <span className="hidden sm:inline">New</span>
+                                                        <span className="hidden sm:inline">{t("orders.status.new")}</span>
                                                     </button>
 
                                                     {/* Expand Button */}
@@ -1157,7 +1157,7 @@ export default function OrdersPage() {
                                                         title="Expand toolbar (⌘\\)"
                                                     >
                                                         <Maximize2 className="w-4 h-4" />
-                                                        <span className="hidden lg:inline">Expand</span>
+                                                        <span className="hidden lg:inline">{t("orders.filter.expand")}</span>
                                                     </button>
                                                 </div>
                                             </div>
@@ -1753,7 +1753,7 @@ export default function OrdersPage() {
                                                                                 <div className="p-1.5 rounded-lg bg-rose-100 text-rose-600">
                                                                                     <Sparkles className="w-4 h-4" />
                                                                                 </div>
-                                                                                <span className="text-xs font-bold text-rose-600 uppercase tracking-wider">New</span>
+                                                                                <span className="text-xs font-bold text-rose-600 uppercase tracking-wider">{t("orders.status.new")}</span>
                                                                             </div>
                                                                             <div className="flex items-baseline gap-1">
                                                                                 <h3 className="text-3xl font-bold text-rose-900 dark:text-white">{statusCounts.new || 0}</h3>
@@ -1772,7 +1772,7 @@ export default function OrdersPage() {
                                                                                 <div className="p-1.5 rounded-lg bg-amber-100 text-amber-600">
                                                                                     <PhoneCall className="w-4 h-4" />
                                                                                 </div>
-                                                                                <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">Contacted</span>
+                                                                                <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">{t("orders.status.contacted")}</span>
                                                                             </div>
                                                                             <div className="flex items-baseline gap-1">
                                                                                 <h3 className="text-3xl font-bold text-amber-900 dark:text-white">{statusCounts.contacted || 0}</h3>
@@ -1791,7 +1791,7 @@ export default function OrdersPage() {
                                                                                 <div className="p-1.5 rounded-lg bg-violet-100 text-violet-600">
                                                                                     <CheckCircle2 className="w-4 h-4" />
                                                                                 </div>
-                                                                                <span className="text-xs font-bold text-violet-600 uppercase tracking-wider">Confirmed</span>
+                                                                                <span className="text-xs font-bold text-violet-600 uppercase tracking-wider">{t("orders.status.confirmed")}</span>
                                                                             </div>
                                                                             <div className="flex items-baseline gap-1">
                                                                                 <h3 className="text-3xl font-bold text-violet-900 dark:text-white">{statusCounts.confirmed || 0}</h3>
@@ -1810,7 +1810,7 @@ export default function OrdersPage() {
                                                                                 <div className="p-1.5 rounded-lg bg-orange-100 text-orange-600">
                                                                                     <Truck className="w-4 h-4" />
                                                                                 </div>
-                                                                                <span className="text-xs font-bold text-orange-600 uppercase tracking-wider">Transit</span>
+                                                                                <span className="text-xs font-bold text-orange-600 uppercase tracking-wider">{t("orders.status.inTransit")}</span>
                                                                             </div>
                                                                             <div className="flex items-baseline gap-1">
                                                                                 <h3 className="text-3xl font-bold text-orange-900 dark:text-white">{statusCounts.in_transit || 0}</h3>
@@ -1829,7 +1829,7 @@ export default function OrdersPage() {
                                                                                 <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-600">
                                                                                     <TrendingUp className="w-4 h-4" />
                                                                                 </div>
-                                                                                <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Conversion</span>
+                                                                                <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">{t("orders.stats.conversion")}</span>
                                                                             </div>
                                                                             <div className="flex items-end gap-2">
                                                                                 <h3 className="text-3xl font-bold text-foreground dark:text-white">{stats.conversionRate.toFixed(1)}%</h3>
@@ -1855,18 +1855,18 @@ export default function OrdersPage() {
                                                                             <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
                                                                                 <Activity className="w-16 h-16 text-blue-500 rotate-12" />
                                                                             </div>
-                                                                            <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-4">Operational Velocity</h4>
+                                                                            <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-4">{t("orders.stats.operationalVelocity")}</h4>
                                                                             <div className="space-y-4 relative z-10">
                                                                                 <div className="flex justify-between items-center">
-                                                                                    <span className="text-sm text-foreground/70">Confirm Speed</span>
+                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.confirmSpeed")}</span>
                                                                                     <span className="font-bold text-foreground">{stats.velocityMetrics.avgNewToConfirmed}</span>
                                                                                 </div>
                                                                                 <div className="flex justify-between items-center">
-                                                                                    <span className="text-sm text-foreground/70">Delivery Speed</span>
+                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.deliverySpeed")}</span>
                                                                                     <span className="font-bold text-foreground">{stats.velocityMetrics.avgConfirmedToDelivered}</span>
                                                                                 </div>
                                                                                 <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-100">
-                                                                                    <span className="text-sm text-foreground/70">Peak Hour</span>
+                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.peakHour")}</span>
                                                                                     <span className="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">{stats.peakTime}</span>
                                                                                 </div>
                                                                             </div>
@@ -1877,31 +1877,31 @@ export default function OrdersPage() {
                                                                             <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
                                                                                 <AlertTriangle className="w-16 h-16 text-red-500 -rotate-12" />
                                                                             </div>
-                                                                            <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-4">Needs Attention</h4>
+                                                                            <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-4">{t("orders.stats.needsAttention")}</h4>
                                                                             <div className="space-y-4 relative z-10">
                                                                                 <div className="flex justify-between items-center group/item hover:bg-rose-50/50 p-1 rounded-lg transition-colors cursor-pointer" onClick={() => setFilters({ ...filters, riskLevel: 'flagged' })}>
                                                                                     <div className="flex items-center gap-2">
                                                                                         <ShieldCheck className="w-4 h-4 text-rose-600" />
-                                                                                        <span className="text-sm text-foreground/70">Flagged</span>
+                                                                                        <span className="text-sm text-foreground/70">{t("orders.stats.flagged")}</span>
                                                                                     </div>
                                                                                     <span className="font-bold text-rose-600">{flaggedCount}</span>
                                                                                 </div>
                                                                                 <div className="flex justify-between items-center group/item hover:bg-red-50/50 p-1 rounded-lg transition-colors cursor-pointer" onClick={() => setFilters({ ...filters, priority: 'urgent' })}>
                                                                                     <div className="flex items-center gap-2">
                                                                                         <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                                                                                        <span className="text-sm text-foreground/70">Urgent</span>
+                                                                                        <span className="text-sm text-foreground/70">{t("orders.stats.urgent")}</span>
                                                                                     </div>
                                                                                     <span className="font-bold text-red-600">{stats.urgentOrders}</span>
                                                                                 </div>
                                                                                 <div className="flex justify-between items-center group/item hover:bg-orange-50/50 p-1 rounded-lg transition-colors cursor-pointer" onClick={() => setFilters({ ...filters, status: 'no_response' })}>
                                                                                     <div className="flex items-center gap-2">
                                                                                         <span className="w-2 h-2 rounded-full bg-orange-400" />
-                                                                                        <span className="text-sm text-foreground/70">No Response</span>
+                                                                                        <span className="text-sm text-foreground/70">{t("orders.stats.noResponse")}</span>
                                                                                     </div>
                                                                                     <span className="font-bold text-orange-600">{stats.noResponseOrders}</span>
                                                                                 </div>
                                                                                 <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-100 group/item hover:bg-yellow-50/50 p-1 rounded-lg transition-colors cursor-pointer" onClick={() => setFilters({ ...filters, status: 'return_pending' })}>
-                                                                                    <span className="text-sm text-foreground/70">Returns Pending</span>
+                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.returnsPending")}</span>
                                                                                     <span className="font-bold text-yellow-600">{stats.returnPendingOrders}</span>
                                                                                 </div>
                                                                             </div>
@@ -1912,18 +1912,18 @@ export default function OrdersPage() {
                                                                             <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
                                                                                 <BarChart3 className="w-16 h-16 text-emerald-500 rotate-6" />
                                                                             </div>
-                                                                            <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-4">Business Pulse (Today)</h4>
+                                                                            <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-4">{t("orders.stats.businessPulse")}</h4>
                                                                             <div className="space-y-4 relative z-10">
                                                                                 <div className="flex justify-between items-center">
-                                                                                    <span className="text-sm text-foreground/70">Revenue</span>
+                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.revenue")}</span>
                                                                                     <span className="font-bold text-emerald-600">{formatIQD(stats.todayRevenue)}</span>
                                                                                 </div>
                                                                                 <div className="flex justify-between items-center">
-                                                                                    <span className="text-sm text-foreground/70">Orders</span>
+                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.ordersCount")}</span>
                                                                                     <span className="font-bold text-foreground">{stats.todayOrders}</span>
                                                                                 </div>
                                                                                 <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-100">
-                                                                                    <span className="text-sm text-foreground/70">Avg. Order Value</span>
+                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.avgOrderValue")}</span>
                                                                                     <span className="font-bold text-foreground">{formatIQD(stats.averageOrderValue)}</span>
                                                                                 </div>
                                                                             </div>
@@ -1990,7 +1990,7 @@ export default function OrdersPage() {
                                                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                                                                 {/* City Filter */}
                                                                                 <div>
-                                                                                    <label className="text-xs text-muted font-medium block mb-1.5">City</label>
+                                                                                    <label className="text-xs text-muted font-medium block mb-1.5">{t("orders.filter.city")}</label>
                                                                                     <div className="relative">
                                                                                         <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
                                                                                         <select
@@ -1998,7 +1998,7 @@ export default function OrdersPage() {
                                                                                             onChange={(e) => setFilters({ ...filters, city: e.target.value || undefined })}
                                                                                             className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all appearance-none cursor-pointer"
                                                                                         >
-                                                                                            <option value="">All Cities</option>
+                                                                                            <option value="">{t("orders.filter.allCities")}</option>
                                                                                             {availableCities.map((city) => (
                                                                                                 <option key={city} value={city}>{city}</option>
                                                                                             ))}
@@ -2009,7 +2009,7 @@ export default function OrdersPage() {
 
                                                                                 {/* Product Filter */}
                                                                                 <div>
-                                                                                    <label className="text-xs text-muted font-medium block mb-1.5">Product</label>
+                                                                                    <label className="text-xs text-muted font-medium block mb-1.5">{t("orders.filter.product")}</label>
                                                                                     <div className="relative">
                                                                                         <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
                                                                                         <select
@@ -2017,7 +2017,7 @@ export default function OrdersPage() {
                                                                                             onChange={(e) => setFilters({ ...filters, product: e.target.value || undefined })}
                                                                                             className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all appearance-none cursor-pointer"
                                                                                         >
-                                                                                            <option value="">All Products</option>
+                                                                                            <option value="">{t("orders.filter.allProducts")}</option>
                                                                                             {availableProducts.map((product) => (
                                                                                                 <option key={product} value={product}>{product}</option>
                                                                                             ))}
@@ -2028,7 +2028,7 @@ export default function OrdersPage() {
 
                                                                                 {/* Payment Status Filter */}
                                                                                 <div>
-                                                                                    <label className="text-xs text-muted font-medium block mb-1.5">Payment</label>
+                                                                                    <label className="text-xs text-muted font-medium block mb-1.5">{t("orders.filter.payment")}</label>
                                                                                     <div className="relative">
                                                                                         <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
                                                                                         <select
@@ -2036,11 +2036,11 @@ export default function OrdersPage() {
                                                                                             onChange={(e) => setFilters({ ...filters, paymentStatus: (e.target.value as PaymentStatus) || undefined })}
                                                                                             className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all appearance-none cursor-pointer"
                                                                                         >
-                                                                                            <option value="">All Payments</option>
-                                                                                            <option value="cod">Cash on Delivery</option>
-                                                                                            <option value="prepaid">Prepaid (Digital)</option>
-                                                                                            <option value="pending">Pending</option>
-                                                                                            <option value="partial">Partial</option>
+                                                                                            <option value="">{t("orders.filter.allPayments")}</option>
+                                                                                            <option value="cod">{t("orders.filter.paymentCoD")}</option>
+                                                                                            <option value="prepaid">{t("orders.filter.paymentPrepaid")}</option>
+                                                                                            <option value="pending">{t("orders.filter.paymentPending")}</option>
+                                                                                            <option value="partial">{t("orders.filter.paymentPartial")}</option>
                                                                                         </select>
                                                                                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
                                                                                     </div>
@@ -2134,7 +2134,7 @@ export default function OrdersPage() {
                                                                                                     ))}
                                                                                                 </div>
                                                                                             ) : (
-                                                                                                <p className="text-xs text-muted">No saved filters. Apply filters then save them here.</p>
+                                                                                                <p className="text-xs text-muted">{t("orders.filter.noSavedFilters")}</p>
                                                                                             )}
                                                                                         </div>
                                                                                     </motion.div>

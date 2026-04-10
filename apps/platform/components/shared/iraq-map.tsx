@@ -4,7 +4,7 @@ import { useMemo, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, Expand, ArrowUpDown, X, AlertTriangle, TrendingUp } from "lucide-react";
 import { Order } from "@/types/order";
-import { IRAQ_GOVERNORATE_PATHS, IRAQ_MAP_WIDTH, IRAQ_MAP_HEIGHT } from "@/lib/iraq-map-paths";
+import { IRAQ_GOVERNORATE_PATHS, IRAQ_MAP_WIDTH, IRAQ_MAP_HEIGHT } from "@scheniders/shared/iraq-map-paths";
 import { calculateGovernorateMetrics, GovernorateStats } from "@/lib/analytics/governorate-metrics";
 import { useLanguage } from "@/hooks/use-language";
 import {

@@ -398,7 +398,7 @@ function AnalyticsContent() {
                             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
                                 <Wallet className="w-5 h-5 text-white" />
                             </div>
-                            Analytics & Finances
+                            {t("analytics.title")}
                         </h1>
                         <p className="text-muted mt-1">{t("analytics.subtitle")}</p>
                     </div>
@@ -416,7 +416,7 @@ function AnalyticsContent() {
                             title="Toggle Financial Era Settings"
                         >
                             <Sparkles className="w-4 h-4" />
-                            <span className="hidden md:inline">Financial Era</span>
+                            <span className="hidden md:inline">{t("analytics.era")}</span>
                         </button>
 
                         <DateRangePicker
@@ -432,7 +432,7 @@ function AnalyticsContent() {
                             className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-xl font-medium hover:opacity-90 transition-all shadow-lg shadow-teal-500/20"
                         >
                             <Truck className="w-4 h-4" />
-                            <span className="hidden md:inline">Import Delivery</span>
+                            <span className="hidden md:inline">{t("analytics.importDelivery")}</span>
                         </button>
 
                         {/* Marketing Expense Button */}
@@ -441,7 +441,7 @@ function AnalyticsContent() {
                             className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl font-medium hover:opacity-90 transition-all shadow-lg shadow-violet-500/20"
                         >
                             <Target className="w-4 h-4" />
-                            <span className="hidden md:inline">Marketing</span>
+                            <span className="hidden md:inline">{t("analytics.marketing")}</span>
                         </button>
 
                         {/* Export Menu */}
@@ -451,7 +451,7 @@ function AnalyticsContent() {
                                 className="flex items-center gap-2 px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground hover:border-[var(--ink)] transition-all"
                             >
                                 <Download className="w-4 h-4" />
-                                <span className="hidden md:inline">Export</span>
+                                <span className="hidden md:inline">{t("analytics.export")}</span>
                             </button>
 
                             {exportMenuOpen && (
@@ -465,21 +465,21 @@ function AnalyticsContent() {
                                         className="w-full flex items-center gap-2 px-4 py-3 text-sm text-foreground hover:bg-[var(--background)] transition-colors"
                                     >
                                         <FileText className="w-4 h-4" />
-                                        Export CSV
+                                        {t("analytics.exportCsv")}
                                     </button>
                                     <button
                                         onClick={() => handleExport("excel")}
                                         className="w-full flex items-center gap-2 px-4 py-3 text-sm text-foreground hover:bg-[var(--background)] transition-colors"
                                     >
                                         <FileSpreadsheet className="w-4 h-4" />
-                                        Export Excel
+                                        {t("analytics.exportExcel")}
                                     </button>
                                     <button
                                         onClick={() => handleExport("print")}
                                         className="w-full flex items-center gap-2 px-4 py-3 text-sm text-foreground hover:bg-[var(--background)] transition-colors"
                                     >
                                         <Printer className="w-4 h-4" />
-                                        Print Report
+                                        {t("analytics.printReport")}
                                     </button>
                                 </motion.div>
                             )}
@@ -490,7 +490,7 @@ function AnalyticsContent() {
                             className="flex items-center gap-2 px-4 py-3 bg-[var(--ink)] text-white rounded-xl font-medium hover:opacity-90 transition-all"
                         >
                             <Plus className="w-4 h-4" />
-                            <span className="hidden md:inline">Add Expense</span>
+                            <span className="hidden md:inline">{t("analytics.addExpense")}</span>
                         </button>
                     </div>
                 </div>
@@ -533,7 +533,7 @@ function AnalyticsContent() {
                                 )}
                             >
                                 <Icon className="w-4 h-4" />
-                                {tab.label}
+                                {t(`analytics.tabs.${tab.id}`)}
                             </button>
                         );
                     })}
@@ -556,8 +556,8 @@ function AnalyticsContent() {
                             <div className="flex flex-col">
                                 <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
                                     <Target className="w-5 h-5 text-indigo-600" />
-                                    Pipeline
-                                    <span className="text-xs font-normal text-muted">(Confirmed + In Transit)</span>
+                                    {t("analytics.pipeline")}
+                                    <span className="text-xs font-normal text-muted">{t("analytics.pipelineDesc")}</span>
                                 </h2>
                                 <PipelineSummaryCard pipeline={pipelineSummary} />
                             </div>
@@ -566,8 +566,8 @@ function AnalyticsContent() {
                             <div className="flex flex-col">
                                 <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
                                     <TrendingUp className="w-5 h-5 text-green-600" />
-                                    Realized Profit
-                                    <span className="text-xs font-normal text-muted">(Delivered + Completed)</span>
+                                    {t("analytics.realizedProfit")}
+                                    <span className="text-xs font-normal text-muted">{t("analytics.realizedProfitDesc")}</span>
                                 </h2>
                                 <ProfitSummaryCards summary={profitSummary} />
                             </div>
@@ -577,8 +577,8 @@ function AnalyticsContent() {
                         <div className="flex flex-col">
                             <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
                                 <ListChecks className="w-5 h-5 text-teal-600" />
-                                Order Funnel
-                                <span className="text-xs font-normal text-muted">(Excluding cancelled & rejected)</span>
+                                {t("analytics.orderFunnel")}
+                                <span className="text-xs font-normal text-muted">{t("analytics.orderFunnelDesc")}</span>
                             </h2>
                             <OrderFunnelCard funnel={funnelSummary} />
                         </div>
@@ -587,7 +587,7 @@ function AnalyticsContent() {
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
                                 <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
-                                    Cost Composition
+                                    {t("analytics.costComposition")}
                                 </h3>
                                 <CostCompositionChart summary={profitSummary} />
                             </div>
@@ -595,7 +595,7 @@ function AnalyticsContent() {
                             {/* Product Profit Analysis */}
                             <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
                                 <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
-                                    Product Profitability
+                                    {t("analytics.productProfitability")}
                                 </h3>
                                 <div className="space-y-2 max-h-80 overflow-y-auto">
                                     {productProfitAnalysis.slice(0, 10).map((product, index) => (
@@ -617,7 +617,7 @@ function AnalyticsContent() {
                                                     <p className="text-sm font-medium text-foreground truncate max-w-[200px]">
                                                         {product.name}
                                                     </p>
-                                                    <p className="text-xs text-muted">{product.sold} sold</p>
+                                                    <p className="text-xs text-muted">{product.sold} {t("analytics.productSold")}</p>
                                                 </div>
                                             </div>
                                             <div className="text-right">
@@ -630,13 +630,13 @@ function AnalyticsContent() {
                                                 <p className="text-xs text-muted">
                                                     {product.revenue > 0
                                                         ? ((product.profit / product.revenue) * 100).toFixed(1)
-                                                        : 0}% margin
+                                                        : 0}% {t("analytics.productMargin")}
                                                 </p>
                                             </div>
                                         </div>
                                     ))}
                                     {productProfitAnalysis.length === 0 && (
-                                        <p className="text-center text-muted py-8">No product data available</p>
+                                        <p className="text-center text-muted py-8">{t("analytics.noProductData")}</p>
                                     )}
                                 </div>
                             </div>
@@ -645,7 +645,7 @@ function AnalyticsContent() {
                         {/* Order Breakdown Table */}
                         <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
                             <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
-                                Per-Order Profit Breakdown
+                                {t("analytics.profitBreakdown")}
                             </h3>
                             <ProfitBreakdownTable breakdowns={orderCostBreakdowns} />
                         </div>
@@ -655,7 +655,7 @@ function AnalyticsContent() {
                         <div>
                             <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
                                 <Users className="w-5 h-5 text-blue-600" />
-                                Customer Analytics
+                                {t("analytics.customerAnalytics")}
                             </h2>
                             <CustomerAnalyticsCard analytics={customerAnalytics} />
                         </div>
@@ -665,7 +665,7 @@ function AnalyticsContent() {
                         <div>
                             <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
                                 <Receipt className="w-5 h-5 text-indigo-600" />
-                                Expense Registry
+                                {t("analytics.expenseRegistry")}
                             </h2>
                             <div className="bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)] p-6">
                                 <ExpenseList
@@ -682,7 +682,7 @@ function AnalyticsContent() {
                         <div>
                             <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
                                 <TrendingUp className="w-5 h-5 text-green-600" />
-                                Revenue
+                                {t("analytics.revenue")}
                             </h2>
                             <RevenueCards stats={revenueStats} comparison={periodComparison} />
                         </div>
@@ -691,7 +691,7 @@ function AnalyticsContent() {
                         <div>
                             <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
                                 <DollarSign className="w-5 h-5 text-blue-600" />
-                                Profit
+                                {t("analytics.profit")}
                             </h2>
                             <ProfitCards stats={profitStats} revenue={revenueStats.deliveredRevenue} />
                         </div>
@@ -701,7 +701,7 @@ function AnalyticsContent() {
                             {/* Revenue Trend */}
                             <div className="lg:col-span-2 p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
                                 <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
-                                    Revenue & Profit Trend
+                                    {t("analytics.revenueTrend")}
                                 </h3>
                                 <RevenueChart data={dailyData} showProfit />
                             </div>
@@ -724,7 +724,7 @@ function AnalyticsContent() {
                             {/* Expense Breakdown */}
                             <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
                                 <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
-                                    Expense Breakdown
+                                    {t("analytics.expenseBreakdown")}
                                 </h3>
                                 <ExpenseBreakdown data={expensesByCategory} />
                             </div>
@@ -733,7 +733,7 @@ function AnalyticsContent() {
                             <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
                                 <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4 flex items-center gap-2">
                                     <Clock className="w-4 h-4" />
-                                    Peak Sales Hours
+                                    {t("analytics.peakSales")}
                                 </h3>
                                 <PeakHoursChart data={hourlyData} />
                             </div>
@@ -744,22 +744,22 @@ function AnalyticsContent() {
                             <div className="p-6 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)]">
                                 <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4 flex items-center gap-2">
                                     <X className="w-4 h-4" />
-                                    Rejection Analysis
+                                    {t("analytics.rejectionAnalysis")}
                                 </h3>
                                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                                     <div className="lg:col-span-1 space-y-4">
                                         <div className="p-4 rounded-xl bg-rose-50 border border-rose-100 dark:bg-rose-900/10 dark:border-rose-900/20">
-                                            <p className="text-sm text-rose-600 font-medium">Total Rejected</p>
+                                            <p className="text-sm text-rose-600 font-medium">{t("analytics.totalRejected")}</p>
                                             <p className="text-2xl font-bold text-rose-700">{rejectionStats.totalRejected}</p>
                                         </div>
                                         <div className="p-4 rounded-xl bg-orange-50 border border-orange-100 dark:bg-orange-900/10 dark:border-orange-900/20">
-                                            <p className="text-sm text-orange-600 font-medium">Rejection Rate</p>
+                                            <p className="text-sm text-orange-600 font-medium">{t("analytics.rejectionRate")}</p>
                                             <p className="text-2xl font-bold text-orange-700">{rejectionStats.rejectionRate.toFixed(1)}%</p>
-                                            <p className="text-xs text-orange-600 mt-1">of attempted deliveries</p>
+                                            <p className="text-xs text-orange-600 mt-1">{t("analytics.ofAttempted")}</p>
                                         </div>
                                     </div>
                                     <div className="lg:col-span-2">
-                                        <h4 className="text-xs font-semibold text-muted mb-2">Top Reasons</h4>
+                                        <h4 className="text-xs font-semibold text-muted mb-2">{t("analytics.topReasons")}</h4>
                                         <RejectionReasonsChart data={rejectionStats.byReason} />
                                     </div>
                                 </div>

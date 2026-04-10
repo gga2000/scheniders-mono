@@ -14,6 +14,7 @@ import { InlineEditCell } from '@/components/orders/table/inline-edit-cell';
 import { RowHoverPreview } from '@/components/orders/table/hover-preview';
 import { useOrderStore } from '@/store/use-order-store';
 import type { TableDensity } from '@/components/orders/table/density-toggle';
+import { useLanguage } from '@/components/providers/language-provider';
 
 // Column definitions for resizable columns
 const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
@@ -643,6 +644,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
     // Store state
     const density = useOrderStore((s) => s.tableDensity);
     const editingCell = useOrderStore((s) => s.editingCell);
+    const { t } = useLanguage();
     const setEditingCell = useOrderStore((s) => s.setEditingCell);
     const sortConfigs = useOrderStore((s) => s.sortConfigs);
     const hiddenColumns = useOrderStore((s) => s.hiddenColumns);
@@ -882,15 +884,15 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                                 </div>
                             </div>
 
-                            {
-                                [
-                                    { key: 'order_id', label: 'Order', resizeKey: 'orderId' },
-                                    { key: 'customer_name', label: 'Customer', resizeKey: 'customer' },
-                                    { key: 'phone', label: 'Phone', noSort: true, resizeKey: 'phone' },
-                                    { key: 'secondary_phone', label: 'Phone 2', noSort: true, resizeKey: 'phone2' },
-                                    { key: 'city', label: 'City', filterType: 'select', options: availableCities, resizeKey: 'city' },
-                                    { key: 'address_details', label: 'Address', resizeKey: 'address' },
-                                ].map((col: any) => (
+                                {
+                                    [
+                                        { key: 'order_id', label: t("orders.header.order"), resizeKey: 'orderId' },
+                                        { key: 'customer_name', label: t("orders.header.customer"), resizeKey: 'customer' },
+                                        { key: 'phone', label: t("orders.header.phone"), noSort: true, resizeKey: 'phone' },
+                                        { key: 'secondary_phone', label: t("orders.header.phone2"), noSort: true, resizeKey: 'phone2' },
+                                        { key: 'city', label: t("orders.header.city"), filterType: 'select', options: availableCities, resizeKey: 'city' },
+                                        { key: 'address_details', label: t("orders.header.address"), resizeKey: 'address' },
+                                    ].map((col: any) => (
                                     <div role="columnheader"
                                         key={col.key}
                                         className={cn(
@@ -935,7 +937,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                                                             className={cn("px-2 py-1.5 rounded-lg cursor-pointer text-xs transition-colors flex items-center gap-2", !columnFilters[col.key] ? "bg-blue-50 text-blue-700 font-medium" : "hover:bg-gray-50 text-gray-700")}
                                                             onClick={() => setColumnFilters({ ...columnFilters, [col.key]: '' })}
                                                         >
-                                                            <span>All</span>
+                                                            <span>{t("orders.filter.all")}</span>
                                                             {!columnFilters[col.key] && <Check className="w-3 h-3 ml-auto text-blue-600" />}
                                                         </div>
                                                         {(col.options || []).map((opt: string) => (
@@ -953,7 +955,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                                                     <input
                                                         autoFocus
                                                         type="text"
-                                                        placeholder={`Filter ${col.label}...`}
+                                                        placeholder={`${t("orders.filter.filterBy")} ${col.label}...`}
                                                         className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all bg-gray-50 focus:bg-white"
                                                         value={columnFilters[col.key] || ''}
                                                         onChange={(e) => setColumnFilters({ ...columnFilters, [col.key]: e.target.value })}
@@ -964,7 +966,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                                                         onClick={() => setColumnFilters({ ...columnFilters, [col.key]: '' })}
                                                         className="mt-2 text-[10px] text-rose-500 hover:text-rose-600 font-medium transition-colors w-full text-center py-1 rounded hover:bg-rose-50"
                                                     >
-                                                        Clear Filter
+                                                        {t("orders.filter.clearFilter")}
                                                     </button>
                                                 )}
                                             </div>
@@ -979,7 +981,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                             {/* Products Header */}
                             <div role="columnheader" className="px-3 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider relative">
                                 <div className="flex items-center gap-1 group relative">
-                                    Products
+                                    {t("orders.header.products")}
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
@@ -999,7 +1001,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                                                     className={cn("px-2 py-1.5 rounded-lg cursor-pointer text-xs transition-colors flex items-center gap-2", !filters.product ? "bg-blue-50 text-blue-700 font-medium" : "hover:bg-gray-50 text-gray-700")}
                                                     onClick={() => setFilters({ ...filters, product: undefined })}
                                                 >
-                                                    <span>All Products</span>
+                                                    <span>{t("orders.filter.allProducts")}</span>
                                                     {!filters.product && <Check className="w-3 h-3 ml-auto text-blue-600" />}
                                                 </div>
                                                 {availableProducts.map((p) => (
@@ -1025,7 +1027,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                                 onClick={(e) => toggleSort('amount', e.shiftKey)}
                             >
                                 <div className="flex items-center gap-1">
-                                    Amount
+                                    {t("orders.header.amount")}
                                     {(() => {
                                         const idx = (sortConfigs || []).findIndex(s => s.key === 'amount');
                                         if (idx >= 0) {
@@ -1039,9 +1041,9 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                                 <ResizeHandle columnKey="amount" onResizeStart={handleResizeStart} onDoubleClick={handleResizeDoubleClick} />
                             </div>
 
-                            <div role="columnheader" className="px-3 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider relative">Status<ResizeHandle columnKey="status" onResizeStart={handleResizeStart} onDoubleClick={handleResizeDoubleClick} /></div>
-                            <div role="columnheader" className="px-3 py-3 text-center text-xs font-semibold text-muted uppercase tracking-wider">Source</div>
-                            <div role="columnheader" className="px-3 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider relative">Date<ResizeHandle columnKey="date" onResizeStart={handleResizeStart} onDoubleClick={handleResizeDoubleClick} /></div>
+                            <div role="columnheader" className="px-3 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider relative">{t("orders.header.status")}<ResizeHandle columnKey="status" onResizeStart={handleResizeStart} onDoubleClick={handleResizeDoubleClick} /></div>
+                            <div role="columnheader" className="px-3 py-3 text-center text-xs font-semibold text-muted uppercase tracking-wider">{t("orders.header.source")}</div>
+                            <div role="columnheader" className="px-3 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider relative">{t("orders.header.date")}<ResizeHandle columnKey="date" onResizeStart={handleResizeStart} onDoubleClick={handleResizeDoubleClick} /></div>
                             <div role="columnheader" className="px-3 py-3 text-center text-xs font-semibold text-muted">●</div>
                     </div>
                     <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }} role="rowgroup">

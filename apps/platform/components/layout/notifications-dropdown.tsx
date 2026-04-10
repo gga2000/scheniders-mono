@@ -8,6 +8,7 @@ import { cn, getStatusLabel } from "@/lib/utils";
 import { getStatusBadgeStyle } from "@/lib/order-format-utils";
 import { formatDistanceToNow } from "date-fns";
 import { Order } from "@/lib/supabase";
+import { useLanguage } from "@/components/providers/language-provider";
 
 export function NotificationsDropdown() {
     const {
@@ -18,6 +19,7 @@ export function NotificationsDropdown() {
         clearAll,
     } = useOrderActivityNotifications();
 
+    const { t } = useLanguage();
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -87,7 +89,7 @@ export function NotificationsDropdown() {
                         <div className="px-4 py-3 bg-[var(--background)] border-b border-[var(--card-border)] flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <Bell className="w-5 h-5 text-primary" />
-                                <h3 className="font-semibold text-foreground">Activity Feed</h3>
+                                <h3 className="font-semibold text-foreground">{t("notifications.title")}</h3>
                                 {unreadCount > 0 && (
                                     <span className="px-2 py-0.5 rounded-full bg-red-500 text-white text-xs font-bold">
                                         {unreadCount}
@@ -100,7 +102,7 @@ export function NotificationsDropdown() {
                                     <button
                                         onClick={markAllAsRead}
                                         className="p-1.5 rounded-lg hover:bg-muted transition-colors"
-                                        title="Mark all as read"
+                                        title={t("notifications.markAllRead")}
                                     >
                                         <CheckCheck className="w-4 h-4 text-muted-foreground" />
                                     </button>
@@ -109,7 +111,7 @@ export function NotificationsDropdown() {
                                     <button
                                         onClick={clearAll}
                                         className="p-1.5 rounded-lg hover:bg-muted transition-colors"
-                                        title="Clear all"
+                                        title={t("notifications.clearAll")}
                                     >
                                         <Trash2 className="w-4 h-4 text-muted-foreground" />
                                     </button>
@@ -124,9 +126,9 @@ export function NotificationsDropdown() {
                                     <div className="w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center mb-3">
                                         <Bell className="w-8 h-8 text-muted-foreground" />
                                     </div>
-                                    <p className="text-sm text-muted-foreground">No notifications yet</p>
+                                    <p className="text-sm text-muted-foreground">{t("notifications.empty")}</p>
                                     <p className="text-xs text-muted-foreground mt-1">
-                                        You'll see updates when team members make changes
+                                        {t("notifications.emptyDesc")}
                                     </p>
                                 </div>
                             ) : (
@@ -222,7 +224,7 @@ export function NotificationsDropdown() {
                                                             markAsRead(notification.id);
                                                         }}
                                                         className="p-1 rounded-full hover:bg-muted transition-colors shrink-0"
-                                                        title="Mark as read"
+                                                        title={t("notifications.markRead")}
                                                     >
                                                         <Check className="w-4 h-4 text-muted-foreground" />
                                                     </button>
@@ -238,7 +240,7 @@ export function NotificationsDropdown() {
                         {notifications.length > 0 && (
                             <div className="px-4 py-2 bg-[var(--background)] border-t border-[var(--card-border)] text-center">
                                 <p className="text-xs text-muted-foreground">
-                                    Real-time activity powered by Supabase
+                                    {t("notifications.footer")}
                                 </p>
                             </div>
                         )}

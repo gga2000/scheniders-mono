@@ -2,10 +2,11 @@
 
 import { useRef, useCallback } from "react";
 import { motion } from "framer-motion";
-import { ArrowUpDown, ArrowUp, ArrowDown, Check } from "lucide-react";
+import { Check, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CustomerTableRow } from "./customer-table-row";
 import type { PaginatedCustomer } from "@/hooks/use-paginated-customers";
+import { useLanguage } from "@/components/providers/language-provider";
 
 type SortField = "name" | "total_orders" | "total_spent" | "last_order_date";
 type SortOrder = "asc" | "desc";
@@ -25,16 +26,6 @@ interface CustomerTableProps {
   isFetchingNextPage?: boolean;
 }
 
-const COLUMNS: { key: SortField | null; label: string; className: string }[] = [
-  { key: null,               label: "",         className: "w-1 p-0" },
-  { key: null,               label: "",         className: "w-10" },
-  { key: "name",             label: "العميل",   className: "min-w-[200px]" },
-  { key: null,               label: "الحالة",   className: "hidden sm:table-cell" },
-  { key: null,               label: "المحافظة", className: "hidden md:table-cell" },
-  { key: "total_spent",      label: "الإنفاق",  className: "hidden sm:table-cell" },
-  { key: "last_order_date",  label: "آخر طلب",  className: "hidden lg:table-cell" },
-  { key: null,               label: "",         className: "w-20" },
-];
 
 function SortIcon({ field, sortBy, sortOrder }: { field: SortField | null; sortBy?: SortField; sortOrder?: SortOrder }) {
   if (!field) return null;
@@ -81,6 +72,7 @@ function SkeletonRow({ index }: { index: number }) {
 }
 
 function EmptyState({ hasFilters }: { hasFilters: boolean }) {
+  const { t } = useLanguage();
   return (
     <tr>
       <td colSpan={8} className="py-20 text-center">
@@ -94,10 +86,10 @@ function EmptyState({ hasFilters }: { hasFilters: boolean }) {
             <span className="text-3xl">🔍</span>
           </div>
           <p className="text-sm font-medium text-foreground">
-            {hasFilters ? "لا يوجد عملاء يطابقون الفلاتر" : "لا يوجد عملاء بعد"}
+            {hasFilters ? t("customers.empty.noMatch") : t("customers.empty.title")}
           </p>
           {hasFilters && (
-            <p className="text-xs text-muted">جرّب تغيير الفلاتر أو البحث بكلمة مختلفة</p>
+            <p className="text-xs text-muted">{t("customers.empty.desc")}</p>
           )}
         </motion.div>
       </td>
@@ -119,6 +111,18 @@ export function CustomerTable({
   onLoadMore,
   isFetchingNextPage,
 }: CustomerTableProps) {
+  const { t } = useLanguage();
+
+  const COLUMNS: { key: SortField | null; label: string; className: string }[] = [
+    { key: null,               label: "",         className: "w-1 p-0" },
+    { key: null,               label: "",         className: "w-10" },
+    { key: "name",             label: t("customers.table.customer"),   className: "min-w-[200px]" },
+    { key: null,               label: t("customers.table.status"),     className: "hidden sm:table-cell" },
+    { key: null,               label: t("customers.table.city"),       className: "hidden md:table-cell" },
+    { key: "total_spent",      label: t("customers.table.spent"),      className: "hidden sm:table-cell" },
+    { key: "last_order_date",  label: t("customers.table.lastOrder"),  className: "hidden lg:table-cell" },
+    { key: null,               label: "",         className: "w-20" },
+  ];
   const allSelected = customers.length > 0 && customers.every((c) => selectedPhones.has(c.phone));
   const someSelected = selectedPhones.size > 0 && !allSelected;
 
@@ -199,7 +203,7 @@ export function CustomerTable({
                 {isFetchingNextPage && (
                   <div className="flex items-center justify-center gap-2 text-xs text-muted">
                     <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-(--card-border) border-t-blue-500" />
-                    جاري التحميل...
+                    {t("customers.table.loadingMore")}
                   </div>
                 )}
               </td>

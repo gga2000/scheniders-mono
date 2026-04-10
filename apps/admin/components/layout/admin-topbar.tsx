@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Search, Sun, Moon, Menu, Loader2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
+import { NotificationBell } from "@/components/shared/notification-bell";
 
 const PAGE_TITLES: Record<string, string> = {
   "/": "Command Center",
@@ -13,6 +14,8 @@ const PAGE_TITLES: Record<string, string> = {
   "/health": "Health",
   "/activity": "Activity Log",
   "/settings": "Settings",
+  "/revenue": "Revenue Analytics",
+  "/usage": "Usage Heatmap",
 };
 
 interface MerchantResult {
@@ -41,9 +44,10 @@ interface AdminTopbarProps {
   user: { email: string; full_name: string | null; role: string } | null;
   onMenuClick?: () => void;
   isMobile?: boolean;
+  onOpenCommandPalette?: () => void;
 }
 
-export function AdminTopbar({ user, onMenuClick, isMobile }: AdminTopbarProps) {
+export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette }: AdminTopbarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
@@ -161,8 +165,16 @@ export function AdminTopbar({ user, onMenuClick, isMobile }: AdminTopbarProps) {
             onFocus={() => {
               if (results.length > 0) setIsOpen(true);
             }}
-            className="w-full h-10 pl-10 pr-10 rounded-xl bg-black/5 dark:bg-white/5 border border-transparent focus:border-[var(--primary)] focus:outline-none text-sm text-foreground placeholder:text-foreground-muted transition-colors"
+            className="w-full h-10 pl-10 pr-20 rounded-xl bg-black/5 dark:bg-white/5 border border-transparent focus:border-[var(--primary)] focus:outline-none text-sm text-foreground placeholder:text-foreground-muted transition-colors"
           />
+          {!query && (
+            <button
+              onClick={onOpenCommandPalette}
+              className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[10px] text-foreground/30 hover:text-foreground/50 transition-colors"
+            >
+              <kbd className="bg-foreground/5 px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
+            </button>
+          )}
 
           {/* Search results dropdown */}
           {isOpen && (
@@ -210,8 +222,9 @@ export function AdminTopbar({ user, onMenuClick, isMobile }: AdminTopbarProps) {
         </div>
       </div>
 
-      {/* Right: Theme toggle, role badge, avatar */}
-      <div className="flex items-center gap-3">
+      {/* Right: Notifications, Theme toggle, role badge, avatar */}
+      <div className="flex items-center gap-2">
+        <NotificationBell />
         <button
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors"

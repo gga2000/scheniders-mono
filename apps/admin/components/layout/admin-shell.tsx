@@ -12,6 +12,8 @@ import { AdminSidebar } from "./admin-sidebar";
 import { AdminTopbar } from "./admin-topbar";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { cn } from "@/lib/utils";
+import { CommandPalette, useCommandPalette } from "@/components/shared/command-palette";
+import { PageTransition } from "@/components/shared/page-transition";
 
 // ---------------------------------------------------------------------------
 // Sidebar Context
@@ -59,6 +61,7 @@ function useIsMobile() {
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, signOut } = useAdminAuth();
+  const commandPalette = useCommandPalette();
 
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window !== "undefined") {
@@ -145,10 +148,18 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             user={topbarUser}
             onMenuClick={() => handleSetMobileMenuOpen(true)}
             isMobile={isMobile}
+            onOpenCommandPalette={commandPalette.open}
           />
 
-          <div className="max-w-[1800px] mx-auto">{children}</div>
+          <div className="max-w-[1800px] mx-auto">
+            <PageTransition>{children}</PageTransition>
+          </div>
         </main>
+
+        <CommandPalette
+          isOpen={commandPalette.isOpen}
+          onClose={commandPalette.close}
+        />
       </div>
     </AdminSidebarContext.Provider>
   );
