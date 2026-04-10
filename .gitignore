@@ -34,3 +34,13 @@ storybook-static
 # playwright
 test-results/
 playwright-report/
+
+# AI tooling
+.agents/
+.claude/skills/
+.kiro/
+skills/
+skills-lock.json
+
+# supabase cli
+packages/supabase/.temp/
