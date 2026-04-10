@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@scheniders/shared";
 import { CSSProperties } from "react";
 
 interface SkeletonProps {

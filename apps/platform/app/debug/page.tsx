@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card } from '@scheniders/ui/card';
+import { Button } from '@scheniders/ui/button';
 import { RefreshCw, CheckCircle2, XCircle, AlertTriangle, Loader2 } from 'lucide-react';
 
 export default function WebhookDebugPage() {

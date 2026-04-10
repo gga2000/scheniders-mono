@@ -5,8 +5,8 @@ import { motion, animate } from "framer-motion";
 import { useBusinessMetrics } from "@/hooks/use-business-metrics";
 import { formatIQD, cn } from "@/lib/utils";
 import { Users, AlertTriangle, CreditCard, Star, Activity, TrendingUp, TrendingDown, RefreshCw, DollarSign, ShoppingCart, Zap, Crown, UserPlus, UserMinus, X } from "lucide-react";
-import { StatCardsSkeleton } from "@/components/ui/skeletons";
-import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { StatCardsSkeleton } from "@scheniders/ui/skeletons";
+import { ErrorBoundary } from "@scheniders/ui/error-boundary";
 
 // Stable format functions — defined OUTSIDE component to avoid re-creation
 const formatShortIQD = (val: number) => {

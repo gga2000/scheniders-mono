@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@scheniders/ui/dialog";
 import { Truck, CheckCircle, XCircle, AlertTriangle, ExternalLink, Loader2, Send } from "lucide-react";
 import { useWaseet } from "@/hooks/use-waseet";
 import { formatPhoneToStandard } from "@/lib/order-utils";

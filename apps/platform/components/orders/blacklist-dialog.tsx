@@ -7,10 +7,10 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+} from "@scheniders/ui/dialog";
+import { Button } from "@scheniders/ui/button";
+import { Label } from "@scheniders/ui/label";
+import { Textarea } from "@scheniders/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { BlacklistEntry } from "@/hooks/use-order-auxiliary";
 

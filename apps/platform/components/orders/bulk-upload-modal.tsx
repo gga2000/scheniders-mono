@@ -6,8 +6,8 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+} from "@scheniders/ui/dialog";
+import { Input } from "@scheniders/ui/input";
 import {
     Upload,
     Check,

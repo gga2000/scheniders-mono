@@ -1,4 +1,4 @@
-import { PageSkeleton } from "@/components/ui/skeletons";
+import { PageSkeleton } from "@scheniders/ui/skeletons";
 
 export default function Loading() {
     return (

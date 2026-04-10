@@ -10,7 +10,9 @@
       "@/*": ["./*"],
       "@scheniders/shared": ["../../packages/shared/src"],
       "@scheniders/shared/*": ["../../packages/shared/src/*"],
-      "@scheniders/supabase": ["../../packages/supabase/src"]
+      "@scheniders/supabase": ["../../packages/supabase/src"],
+      "@scheniders/ui": ["../../packages/ui/src"],
+      "@scheniders/ui/*": ["../../packages/ui/src/*"]
     }
   },
   "include": [

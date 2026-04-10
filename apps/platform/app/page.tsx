@@ -18,7 +18,7 @@ import { MobileDashboardPage } from "@/components/mobile/dashboard/MobileDashboa
 import { DateRangeFilter } from "@/components/dashboard/widgets/date-range-filter";
 import { TodayStrip } from "@/components/dashboard/widgets/today-strip";
 import { OrderPipeline } from "@/components/dashboard/widgets/order-pipeline";
-import { PageSkeleton } from "@/components/ui/skeletons";
+import { PageSkeleton } from "@scheniders/ui/skeletons";
 import { useLanguage } from "@/hooks/use-language";
 import { useAnnouncements } from "@/hooks/use-announcements";
 

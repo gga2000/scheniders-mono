@@ -14,7 +14,7 @@ import { BatchManager } from "@/components/printing/batch-manager";
 import { BatchDetailsModal } from "@/components/printing/batch-details-modal";
 import { ReprintWarningModal } from "@/components/printing/reprint-warning-modal";
 import { MarkAsShippedDialog, MarkAsDeliveredDialog } from "@/components/printing/confirmation-dialog";
-import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { DateRangePicker } from "@scheniders/ui/date-range-picker";
 import { SmartBatchPanel } from "@/components/printing/smart-batch-panel";
 import { EnhancedLabelOptions, printBulkEnhancedLabels, printBulkInvoices, generateBulkA6InvoicesHTML, printBulkShippingLabels, generateBulkShippingLabelsHTML } from "@/lib/enhanced-label-generator";
 import { downloadLabelPdf } from "@/lib/pdf-download";

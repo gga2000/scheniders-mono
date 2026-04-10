@@ -8,7 +8,7 @@ import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useReportsMetrics, useDateRangePresets, DateRange } from "@/hooks/use-reports-metrics";
 import { useEmployeeMetrics } from "@/hooks/use-employee-metrics";
 import { useBatchAnalytics } from "@/hooks/use-batch-analytics";
-import { PageSkeleton } from "@/components/ui/skeletons";
+import { PageSkeleton } from "@scheniders/ui/skeletons";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { exportReportsToCSV, exportReportsToExcel, printOperationalReport } from "@/lib/reports-export";

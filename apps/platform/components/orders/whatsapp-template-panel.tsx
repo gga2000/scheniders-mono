@@ -8,7 +8,7 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-} from "@/components/ui/dialog";
+} from "@scheniders/ui/dialog";
 import {
     MessageCircle,
     Copy,

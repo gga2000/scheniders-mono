@@ -178,8 +178,12 @@ export function useExpenses(filters?: ExpenseFilters) {
 
     // Real-time subscription
     useEffect(() => {
+        // Use a unique channel name to prevent collision if multiple components
+        // use this hook simultaneously (which causes the "cannot add callback" error)
+        const channelId = `expenses-changes-${Date.now()}-${Math.random().toString(36).substring(2)}`;
+        
         const subscription = supabase
-            .channel("expenses-changes")
+            .channel(channelId)
             .on(
                 "postgres_changes",
                 { event: "*", schema: "public", table: "expenses" },

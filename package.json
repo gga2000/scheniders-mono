@@ -5,6 +5,7 @@
     "dev": "turbo dev",
     "dev:platform": "turbo dev --filter=@scheniders/platform",
     "dev:storefront": "turbo dev --filter=@scheniders/storefront",
+    "dev:admin": "turbo dev --filter=@scheniders/admin",
     "build": "turbo build",
     "build:platform": "turbo build --filter=@scheniders/platform",
     "build:storefront": "turbo build --filter=@scheniders/storefront",

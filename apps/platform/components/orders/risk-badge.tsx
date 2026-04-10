@@ -3,7 +3,7 @@
 import { RiskLevel, RiskAssessment } from "@/lib/fraud-detector";
 import { cn } from "@/lib/utils";
 import { AlertOctagon, AlertTriangle, ShieldCheck, Ban, Info, ExternalLink, PackageX, PackageMinus, Clock } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui/popover";
 import Link from "next/link";
 
 interface RiskBadgeProps {

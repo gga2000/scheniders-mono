@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { Plus, Trash2, GripVertical, Save, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@scheniders/ui/button";
+import { Input } from "@scheniders/ui/input";
+import { Badge } from "@scheniders/ui/badge";
 
 interface RejectionReason {
     id: string;

@@ -6,7 +6,7 @@ import {
     BottomSheetContent,
     DialogHeader,
     DialogTitle,
-} from "@/components/ui/dialog";
+} from "@scheniders/ui/dialog";
 import { X, MapPin, Package, ShieldAlert } from "lucide-react";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 

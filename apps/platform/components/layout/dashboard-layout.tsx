@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, Suspense } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { TopBar } from "./global-search";
@@ -84,13 +84,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                         />
                     )}
 
-                    <Sidebar
-                        collapsed={isCollapsed}
-                        setCollapsed={setIsCollapsed}
-                        isMobile={isMobile}
-                        mobileMenuOpen={mobileMenuOpen}
-                        setMobileMenuOpen={handleSetMobileMenuOpen}
-                    />
+                    <Suspense fallback={<div className={cn("shrink-0 transition-all duration-500", isCollapsed ? "w-[88px]" : "w-[272px]")} />}>
+                        <Sidebar
+                            collapsed={isCollapsed}
+                            setCollapsed={setIsCollapsed}
+                            isMobile={isMobile}
+                            mobileMenuOpen={mobileMenuOpen}
+                            setMobileMenuOpen={handleSetMobileMenuOpen}
+                        />
+                    </Suspense>
 
                     <main
                         className={cn(

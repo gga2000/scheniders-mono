@@ -8,7 +8,7 @@ import { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 import { BentoMetrics, HealthScore, calculateLoyaltyScore } from "./bento-metrics";
 import { CustomerTimeline } from "./customer-timeline";
 import { PurchaseHeatmap } from "./purchase-heatmap";
-import { CustomerProfileSkeleton } from "../ui/skeletons";
+import { CustomerProfileSkeleton } from "@scheniders/ui/skeletons";
 import { cn, formatIQD, generateWhatsAppLink } from "@/lib/utils";
 import { Crown, Star, User, Phone, MapPin, Package, MessageCircle, PackagePlus } from "lucide-react";
 import Link from "next/link";

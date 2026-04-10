@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
@@ -22,6 +23,8 @@ import {
     ListChecks,
     Truck,
     AlertTriangle,
+    Sparkles,
+    Receipt,
 } from "lucide-react";
 
 // Hooks
@@ -34,9 +37,9 @@ import { useFinancialEpoch, EraMode } from "@/hooks/use-financial-epoch";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
 
 // Core components (always needed)
-import { DateRangePicker } from "@/components/ui/date-range-picker";
-import { PageSkeleton } from "@/components/ui/skeletons";
-import { subDays, isWithinInterval } from "date-fns";
+import { DateRangePicker } from "@scheniders/ui/date-range-picker";
+import { PageSkeleton } from "@scheniders/ui/skeletons";
+
 
 // Dynamic imports for heavy components - reduces initial bundle by ~50KB
 const RevenueCards = dynamic(
@@ -131,27 +134,36 @@ const IraqMap = dynamic(
     () => import("@/components/shared/iraq-map").then(mod => ({ default: mod.IraqMap })),
     { loading: () => <div className="skeleton h-64 rounded-2xl" />, ssr: false }
 );
-const ActionRequiredTab = dynamic(
-    () => import("@/components/analytics/action-required-tab").then(mod => ({ default: mod.ActionRequiredTab })),
-    { loading: () => <div className="skeleton h-64 rounded-2xl" /> }
-);
-
 // Utils
 import { exportFinancesToCSV, exportFinancesToExcel, printFinancialReport } from "@/lib/finance-export";
 import { Expense } from "@/types/expense";
 import { ExpenseFormData } from "@/components/finances/expense-form-modal";
 import { cn } from "@/lib/utils";
 
-type ActiveTab = "action_required" | "profit" | "customers" | "overview";
+type ActiveTab = "profit" | "customers" | "expenses" | "overview";
 
 export default function AnalyticsPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-[var(--background)]">
+                <PageSkeleton />
+            </div>
+        }>
+            <AnalyticsContent />
+        </Suspense>
+    );
+}
+
+function AnalyticsContent() {
     // Date range state - default to all orders (empty = no filter)
     const [dateRange, setDateRange] = useState<DateRange>({
         startDate: "",
         endDate: "",
     });
 
-    const [activeTab, setActiveTab] = useState<ActiveTab>("action_required");
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const activeTab = (searchParams?.get("tab") as ActiveTab) || "profit";
     const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
     const [isMarketingModalOpen, setIsMarketingModalOpen] = useState(false);
     const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
@@ -208,6 +220,23 @@ export default function AnalyticsPage() {
         setPreference("financialEraMode", "clean");
         setDateRange({ startDate: "", endDate: "" });
     }, [setEpochDate, setPreference]);
+
+    // Banner visibility
+    const [showFinancialEra, setShowFinancialEra] = useState<boolean>(() => {
+        if (typeof window === "undefined") return false;
+        try {
+            const stored = getPreference<boolean>("showFinancialEra");
+            return stored === null ? false : stored;
+        } catch {
+            return false;
+        }
+    });
+
+    const handleToggleFinancialEra = useCallback(() => {
+        const newValue = !showFinancialEra;
+        setShowFinancialEra(newValue);
+        setPreference("showFinancialEra", newValue);
+    }, [showFinancialEra, setPreference]);
 
     // Data hooks - single source of truth for orders and products
     const { orders } = useOrdersContext();
@@ -342,28 +371,10 @@ export default function AnalyticsPage() {
         setExportMenuOpen(false);
     };
 
-    // Calculate urgent count for badge
-    const urgentCount = useMemo(() => {
-        const sevenDaysAgo = subDays(new Date(), 7);
-        const failedLast7Days = orders.filter(o =>
-            o.status === 'rejected' &&
-            isWithinInterval(new Date(o.created_at), {
-                start: sevenDaysAgo,
-                end: new Date()
-            })
-        ).length;
-        return failedLast7Days;
-    }, [orders]);
-
     const tabs = [
-        {
-            id: "action_required" as const,
-            label: "Action Required",
-            icon: AlertTriangle,
-            badge: urgentCount > 0 ? urgentCount : undefined,
-        },
         { id: "profit" as const, label: "Profit Analysis", icon: TrendingUp },
         { id: "customers" as const, label: "Customers", icon: Users },
+        { id: "expenses" as const, label: "Expenses", icon: Receipt },
         { id: "overview" as const, label: "Overview", icon: BarChart3 },
     ];
 
@@ -393,6 +404,21 @@ export default function AnalyticsPage() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
+                        {/* Financial Era Toggle */}
+                        <button
+                            onClick={handleToggleFinancialEra}
+                            className={cn(
+                                "flex items-center gap-2 px-4 py-3 rounded-xl border font-medium transition-all text-sm",
+                                showFinancialEra 
+                                    ? "bg-amber-100 border-amber-200 text-amber-700 dark:bg-amber-900/20 dark:border-amber-900/30 dark:text-amber-400" 
+                                    : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:border-[var(--ink)] hover:text-foreground"
+                            )}
+                            title="Toggle Financial Era Settings"
+                        >
+                            <Sparkles className="w-4 h-4" />
+                            <span className="hidden md:inline">Financial Era</span>
+                        </button>
+
                         <DateRangePicker
                             dateFrom={dateRange.startDate}
                             dateTo={dateRange.endDate}
@@ -470,31 +496,35 @@ export default function AnalyticsPage() {
                 </div>
 
                 {/* Financial Epoch Banner */}
-                {isEpochLoading ? (
-                    <div className="skeleton h-24 rounded-2xl mb-6 border border-[var(--card-border)]" />
-                ) : (
-                    <EpochBanner
-                        isEpochSet={isEpochSet}
-                        epochDate={epochDate}
-                        streakDays={streakDays}
-                        currentMilestone={currentMilestone}
-                        nextMilestone={nextMilestone}
-                        milestoneProgress={milestoneProgress}
-                        eraMode={eraMode}
-                        onEraModeChange={handleEraModeChange}
-                        onSetEpoch={handleSetEpoch}
-                        isUpdating={isEpochUpdating}
-                    />
+                {showFinancialEra && (
+                    <div className="mb-8">
+                        {isEpochLoading ? (
+                            <div className="skeleton h-24 rounded-2xl border border-[var(--card-border)]" />
+                        ) : (
+                            <EpochBanner
+                                isEpochSet={isEpochSet}
+                                epochDate={epochDate}
+                                streakDays={streakDays}
+                                currentMilestone={currentMilestone}
+                                nextMilestone={nextMilestone}
+                                milestoneProgress={milestoneProgress}
+                                eraMode={eraMode}
+                                onEraModeChange={handleEraModeChange}
+                                onSetEpoch={handleSetEpoch}
+                                isUpdating={isEpochUpdating}
+                            />
+                        )}
+                    </div>
                 )}
 
-                {/* Tabs */}
-                <div className="flex bg-[var(--card-bg)] rounded-xl p-1 mb-6 w-fit border border-[var(--card-border)] overflow-x-auto mt-6">
+                {/* Mobile Tabs (Desktop uses Sidebar) */}
+                <div className="md:hidden flex bg-[var(--card-bg)] rounded-xl p-1 mb-6 w-fit max-w-full border border-[var(--card-border)] overflow-x-auto mt-6 scrollbar-hide">
                     {tabs.map(tab => {
                         const Icon = tab.icon;
                         return (
                             <button
                                 key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
+                                onClick={() => router.push(tab.id === "profit" ? "/analytics" : `/analytics?tab=${tab.id}`)}
                                 className={cn(
                                     "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap relative",
                                     activeTab === tab.id
@@ -504,26 +534,13 @@ export default function AnalyticsPage() {
                             >
                                 <Icon className="w-4 h-4" />
                                 {tab.label}
-                                {tab.badge && tab.badge > 0 && activeTab !== tab.id && (
-                                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-600 text-xs font-bold text-white shadow-lg animate-pulse">
-                                        {tab.badge > 99 ? "99+" : tab.badge}
-                                    </span>
-                                )}
                             </button>
                         );
                     })}
                 </div>
 
                 {/* Content */}
-                {activeTab === "action_required" ? (
-                    <div className="space-y-6">
-                        <ActionRequiredTab
-                            orders={ordersInRange}
-                            products={products}
-                            marketingCost={marketingCost}
-                        />
-                    </div>
-                ) : activeTab === "profit" ? (
+                {activeTab === "profit" ? (
                     <div className="space-y-6">
                         {/* Overview Cards - Full Width at Top */}
                         <OverviewCards profitSummary={profitSummary} pipelineSummary={pipelineSummary} />
@@ -641,6 +658,22 @@ export default function AnalyticsPage() {
                                 Customer Analytics
                             </h2>
                             <CustomerAnalyticsCard analytics={customerAnalytics} />
+                        </div>
+                    </div>
+                ) : activeTab === "expenses" ? (
+                    <div className="space-y-6">
+                        <div>
+                            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                                <Receipt className="w-5 h-5 text-indigo-600" />
+                                Expense Registry
+                            </h2>
+                            <div className="bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)] p-6">
+                                <ExpenseList
+                                    expenses={expenses}
+                                    onEdit={handleEditExpense}
+                                    onDelete={handleDeleteExpense}
+                                />
+                            </div>
                         </div>
                     </div>
                 ) : activeTab === "overview" ? (

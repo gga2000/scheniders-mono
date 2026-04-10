@@ -16,7 +16,7 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@scheniders/ui/dropdown-menu";
 
 interface MobileOrderCardProps {
     order: Order;

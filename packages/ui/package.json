@@ -1,0 +1,49 @@
+{
+  "name": "@scheniders/ui",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.tsx",
+  "types": "./src/index.tsx",
+  "exports": {
+    ".": "./src/index.tsx",
+    "./button": "./src/button.tsx",
+    "./badge": "./src/badge.tsx",
+    "./card": "./src/card.tsx",
+    "./dialog": "./src/dialog.tsx",
+    "./dropdown-menu": "./src/dropdown-menu.tsx",
+    "./input": "./src/input.tsx",
+    "./label": "./src/label.tsx",
+    "./popover": "./src/popover.tsx",
+    "./switch": "./src/switch.tsx",
+    "./table": "./src/table.tsx",
+    "./textarea": "./src/textarea.tsx",
+    "./date-range-picker": "./src/date-range-picker.tsx",
+    "./datetime-picker": "./src/datetime-picker.tsx",
+    "./animated-list": "./src/animated-list.tsx",
+    "./highlighted-text": "./src/highlighted-text.tsx",
+    "./scroll-to-top-button": "./src/scroll-to-top-button.tsx",
+    "./error-boundary": "./src/error-boundary.tsx",
+    "./skeletons": "./src/skeletons.tsx",
+    "./optimized-image": "./src/optimized-image.tsx",
+    "./prompt-dialog": "./src/prompt-dialog.tsx",
+    "./styles": "./src/styles/index.css"
+  },
+  "dependencies": {
+    "@scheniders/shared": "*",
+    "@radix-ui/react-dialog": "^1.1.2",
+    "@radix-ui/react-dropdown-menu": "^2.1.2",
+    "@radix-ui/react-popover": "^1.1.15",
+    "@radix-ui/react-slot": "^1.1.1",
+    "@radix-ui/react-switch": "^1.2.6",
+    "class-variance-authority": "^0.7.1",
+    "framer-motion": "^11.15.0",
+    "lucide-react": "^0.468.0"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}

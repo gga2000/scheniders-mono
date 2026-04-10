@@ -3,16 +3,16 @@
 import { useEffect, useState, useRef } from "react";
 import { Plus, Trash2, Edit2, MessageSquare, X, Smile, Phone, Bell, Gift, Filter, ChevronDown } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@scheniders/ui/button";
+import { Input } from "@scheniders/ui/input";
+import { Textarea } from "@scheniders/ui/textarea";
 import {
     Dialog,
     DialogContent,
     DialogHeader,
     DialogTitle,
     DialogTrigger,
-} from "@/components/ui/dialog";
+} from "@scheniders/ui/dialog";
 import { cn } from "@/lib/utils";
 import { getEmojiList, processEmojis } from "@/lib/emoji-shortcodes";
 

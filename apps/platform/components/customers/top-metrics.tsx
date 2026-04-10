@@ -5,7 +5,7 @@ import { motion, animate } from "framer-motion";
 import { useCustomerDashboardStats } from "@/hooks/use-paginated-customers";
 import { formatIQD, cn } from "@/lib/utils";
 import { Users, Crown, TrendingUp, Sparkles } from "lucide-react";
-import { StatCardsSkeleton } from "@/components/ui/skeletons";
+import { StatCardsSkeleton } from "@scheniders/ui/skeletons";
 
 // --- Animated Counter Component --- //
 function AnimatedCounter({ value, formatFn = (v: number) => v.toString() }: { value: number, formatFn?: (v: number) => string }) {

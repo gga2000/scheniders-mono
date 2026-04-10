@@ -8,7 +8,7 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-} from "@/components/ui/dialog";
+} from "@scheniders/ui/dialog";
 import { MessageCircle, Copy, Check, Sparkles, X, Edit2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MessageTemplate, Order } from "@/lib/supabase";

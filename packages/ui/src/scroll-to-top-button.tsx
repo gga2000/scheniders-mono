@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronUp } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@scheniders/shared";
 
 interface ScrollToTopButtonProps {
     /** Scroll threshold in pixels before the button appears */

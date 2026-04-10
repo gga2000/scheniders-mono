@@ -9,7 +9,7 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@scheniders/ui/dropdown-menu";
 import { useLanguage } from "@/hooks/use-language";
 
 interface FilterState {

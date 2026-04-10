@@ -69,10 +69,7 @@ export function PageGuard({
     const router = useRouter();
     const [isRetrying, setIsRetrying] = useState(false);
 
-    if (process.env.NODE_ENV === 'development') {
-        // eslint-disable-next-line no-console
-        console.log(`[PageGuard] render: isLoading=${isLoading}, user=${!!user}, role=${contextRole}, profileLoaded=${profileLoaded}`);
-    }
+    // Console log removed to prevent clogging the browser console
 
     // Use effect to handle redirect if needed (for auth)
     useEffect(() => {

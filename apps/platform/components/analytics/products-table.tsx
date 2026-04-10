@@ -1,7 +1,7 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card } from "@scheniders/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@scheniders/ui/table";
 import { formatIQD } from "@/lib/utils";
 
 interface ProductsTableProps {

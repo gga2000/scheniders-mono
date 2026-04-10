@@ -1,0 +1,74 @@
+/* ============================================
+   Scheniders Design System — Component Styles
+   Shared utility classes for all apps
+   ============================================ */
+
+/* ============================================
+   Base Styles
+   ============================================ */
+
+body {
+  background-color: var(--background);
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background-color: var(--pastel-yellow);
+  color: var(--foreground);
+}
+
+/* ============================================
+   Utility Classes
+   ============================================ */
+
+.text-balance {
+  text-wrap: balance;
+}
+
+/* Pastel Card Variants */
+.pastel-card {
+  background: var(--card-bg);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  transition: all 0.3s ease;
+}
+
+.pastel-card:hover {
+  box-shadow: var(--card-shadow-hover);
+  transform: translateY(-2px);
+}
+
+.pastel-card-yellow {
+  background: linear-gradient(135deg, var(--pastel-yellow) 0%, var(--pastel-yellow-light) 100%);
+}
+
+.pastel-card-pink {
+  background: linear-gradient(135deg, var(--pastel-pink) 0%, var(--pastel-pink-light) 100%);
+}
+
+.pastel-card-green {
+  background: linear-gradient(135deg, var(--pastel-green) 0%, var(--pastel-green-light) 100%);
+}
+
+.pastel-card-mint {
+  background: linear-gradient(135deg, var(--pastel-mint) 0%, var(--pastel-mint-light) 100%);
+}
+
+.pastel-card-purple {
+  background: linear-gradient(135deg, var(--pastel-purple) 0%, var(--pastel-purple-light) 100%);
+}
+
+.pastel-card-blue {
+  background: linear-gradient(135deg, var(--pastel-blue) 0%, var(--pastel-blue-light) 100%);
+}
+
+/* Glass card for dark elements (sidebar compatibility) */
+.glass-card {
+  background: rgba(30, 30, 30, 0.9);
+  backdrop-filter: blur(20px);
+  border-radius: var(--card-radius);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}

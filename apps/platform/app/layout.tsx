@@ -13,7 +13,7 @@ import { LanguageProvider } from "@/components/providers/language-provider";
 import { RoleProvider } from "@/components/providers/role-provider";
 import { DevServiceWorkerCleanup } from "@/components/pwa/dev-service-worker-cleanup";
 import { Toaster } from "@/components/ui/toaster";
-import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { ErrorBoundary } from "@scheniders/ui/error-boundary";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const geistSans = Geist({

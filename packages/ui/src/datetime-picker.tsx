@@ -11,7 +11,7 @@ import {
     Check,
     X
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@scheniders/shared";
 
 interface DateTimePickerProps {
     value: string | null; // ISO string or null

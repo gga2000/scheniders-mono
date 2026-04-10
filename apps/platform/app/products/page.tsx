@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { Product, getStockStatus } from "@/lib/supabase";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layout/page-transition";
@@ -39,9 +40,25 @@ import { ExportMenu } from "@/components/products/export-menu";
 import { exportToCSV, exportToExcel, printProductReport } from "@/lib/export-utils";
 import { QCQuarantineTab } from "@/components/products/qc-quarantine-tab";
 import { SuppliesTab } from "@/components/products/supplies-tab";
+import { CategoriesTab } from "@/components/products/categories-tab";
 import { useCategoriesQuery } from "@/hooks/use-categories-query";
 
 export default function ProductsPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 rounded-full border-4 border-[var(--pastel-yellow)] border-t-transparent animate-spin"></div>
+                    <p className="text-muted font-medium">Loading modules...</p>
+                </div>
+            </div>
+        }>
+            <ProductsContent />
+        </Suspense>
+    );
+}
+
+function ProductsContent() {
     const {
         products,
         loading,
@@ -66,9 +83,11 @@ export default function ProductsPage() {
     }, [categories]);
 
     // UI State
+    const searchParams = useSearchParams();
+    const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
     const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-    const [activeTab, setActiveTab] = useState<"products" | "quarantine" | "supplies">("products");
+    const activeTab = (searchParams?.get("tab") as "products" | "categories" | "quarantine" | "supplies") || "products";
     const [sortBy, setSortBy] = useState<"sales" | "revenue" | "price" | "stock">("sales");
     const [timePeriod, setTimePeriod] = useState<TimePeriod>("all");
     const [advancedFilters, setAdvancedFilters] = useState<FilterValues | null>(null);
@@ -373,12 +392,12 @@ export default function ProductsPage() {
                         </div>
                     </motion.div>
 
-                    {/* Tabs */}
-                    <div className="flex bg-[var(--background)] p-1 rounded-2xl border border-[var(--card-border)] w-fit">
+                    {/* Mobile Tabs (Desktop uses Sidebar) */}
+                    <div className="md:hidden flex bg-[var(--background)] p-1 rounded-2xl border border-[var(--card-border)] w-fit max-w-full overflow-x-auto scrollbar-hide">
                         <button
-                            onClick={() => setActiveTab("products")}
+                            onClick={() => router.push("/products")}
                             className={cn(
-                                "px-6 py-2.5 rounded-xl font-medium text-sm transition-all relative flex items-center gap-2",
+                                "px-6 py-2.5 rounded-xl font-medium text-sm transition-all relative flex items-center gap-2 whitespace-nowrap",
                                 activeTab === "products"
                                     ? "bg-[var(--card-bg)] text-foreground shadow-sm"
                                     : "text-muted hover:text-foreground hover:bg-[var(--card-bg)]/50"
@@ -387,9 +406,20 @@ export default function ProductsPage() {
                             Products
                         </button>
                         <button
-                            onClick={() => setActiveTab("quarantine")}
+                            onClick={() => router.push("/products?tab=categories")}
                             className={cn(
-                                "px-6 py-2.5 rounded-xl font-medium text-sm transition-all relative flex items-center gap-2",
+                                "px-6 py-2.5 rounded-xl font-medium text-sm transition-all relative flex items-center gap-2 whitespace-nowrap",
+                                activeTab === "categories"
+                                    ? "bg-[var(--card-bg)] text-foreground shadow-sm"
+                                    : "text-muted hover:text-foreground hover:bg-[var(--card-bg)]/50"
+                            )}
+                        >
+                            Categories
+                        </button>
+                        <button
+                            onClick={() => router.push("/products?tab=quarantine")}
+                            className={cn(
+                                "px-6 py-2.5 rounded-xl font-medium text-sm transition-all relative flex items-center gap-2 whitespace-nowrap",
                                 activeTab === "quarantine"
                                     ? "bg-[var(--card-bg)] text-foreground shadow-sm"
                                     : "text-muted hover:text-foreground hover:bg-[var(--card-bg)]/50"
@@ -398,9 +428,9 @@ export default function ProductsPage() {
                             QC Quarantine
                         </button>
                         <button
-                            onClick={() => setActiveTab("supplies")}
+                            onClick={() => router.push("/products?tab=supplies")}
                             className={cn(
-                                "px-6 py-2.5 rounded-xl font-medium text-sm transition-all relative flex items-center gap-2",
+                                "px-6 py-2.5 rounded-xl font-medium text-sm transition-all relative flex items-center gap-2 whitespace-nowrap",
                                 activeTab === "supplies"
                                     ? "bg-[var(--card-bg)] text-foreground shadow-sm"
                                     : "text-muted hover:text-foreground hover:bg-[var(--card-bg)]/50"
@@ -410,6 +440,7 @@ export default function ProductsPage() {
                         </button>
                     </div>
 
+                    {activeTab === "categories" && <CategoriesTab />}
                     {activeTab === "quarantine" && <QCQuarantineTab />}
                     {activeTab === "supplies" && <SuppliesTab onEdit={handleEditProduct} />}
 

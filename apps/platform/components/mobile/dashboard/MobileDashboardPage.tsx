@@ -8,7 +8,7 @@ import { useStats } from "@/hooks/use-stats";
 import { useDashboardMetrics } from "@/hooks/use-dashboard-metrics";
 import { useLanguage } from "@/hooks/use-language";
 import { useAuth } from "@/hooks/use-auth";
-import { PageSkeleton } from "@/components/ui/skeletons";
+import { PageSkeleton } from "@scheniders/ui/skeletons";
 import { Plus, Bell, Search } from "lucide-react";
 
 import { MobileDashboardCards } from "./MobileDashboardCards";

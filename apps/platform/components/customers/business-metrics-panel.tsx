@@ -17,7 +17,7 @@ import {
     Repeat,
     Target,
 } from "lucide-react";
-import { StatCardsSkeleton } from "@/components/ui/skeletons";
+import { StatCardsSkeleton } from "@scheniders/ui/skeletons";
 
 // --- Animated Counter Component --- //
 function AnimatedCounter({

@@ -184,8 +184,8 @@ export default function VaultPage() {
     };
 
     const handleFileSelect = (file: File) => {
-        if (!file.name.endsWith(".scheniders") && !file.name.endsWith(".json")) {
-            toast.error("Invalid file format. Please upload a .scheniders vault file.");
+        if (!file.name.endsWith(".scheniders") && !file.name.endsWith(".json") && !file.name.endsWith(".xlsx")) {
+            toast.error("Invalid file format. Please upload a .scheniders or .xlsx vault file.");
             return;
         }
         setRestoreFile(file);
@@ -193,20 +193,21 @@ export default function VaultPage() {
 
     const handleAnalyzeRestore = async () => {
         if (!restoreFile) return;
-        if (!restoreKey) {
+        const isExcel = restoreFile.name.endsWith(".xlsx");
+        if (!isExcel && !restoreKey) {
             toast.error("Please enter the Vault Key to unlock this file.");
             return;
         }
 
         setIsAnalyzing(true);
         try {
-            const parsedData = await parseVaultFile(restoreFile, restoreKey);
+            const parsedData = await parseVaultFile(restoreFile, isExcel ? undefined : restoreKey);
             const diff = await calculateVaultDiff(parsedData);
             setParsedVaultData(parsedData);
             setDiffResult(diff);
-            toast.success("File unlocked and analyzed successfully.");
+            toast.success(isExcel ? "Excel file analyzed successfully." : "File unlocked and analyzed successfully.");
         } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : "Failed to unlock vault. Incorrect key or corrupted file.";
+            const message = error instanceof Error ? error.message : (isExcel ? "Failed to parse Excel file." : "Failed to unlock vault. Incorrect key or corrupted file.");
             toast.error(message);
         } finally {
             setIsAnalyzing(false);
@@ -461,7 +462,7 @@ export default function VaultPage() {
                                 type="file"
                                 ref={fileInputRef}
                                 onChange={handleFileInput}
-                                accept=".scheniders,.json"
+                                accept=".scheniders,.json,.xlsx"
                                 className="hidden"
                             />
                             <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
@@ -469,7 +470,7 @@ export default function VaultPage() {
                             </div>
                             <h3 className="text-white font-medium mb-1">Upload Vault File</h3>
                             <p className="text-sm text-zinc-500 text-center max-w-[200px]">
-                                Drag & drop your .scheniders file here, or click to browse
+                                Drag & drop your .scheniders or .xlsx file here, or click to browse
                             </p>
                         </div>
                     ) : (
@@ -490,40 +491,49 @@ export default function VaultPage() {
                                             {restoreFile.name}
                                         </h3>
                                         <p className="text-xs text-zinc-500">
-                                            {(restoreFile.size / 1024 / 1024).toFixed(2)} MB • Encrypted Vault
+                                            {(restoreFile.size / 1024 / 1024).toFixed(2)} MB • {restoreFile.name.endsWith(".xlsx") ? "Excel Backup" : "Encrypted Vault"}
                                         </p>
                                     </div>
                                 </div>
 
                                 {!diffResult ? (
                                     <div className="space-y-4">
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium text-teal-400 flex items-center gap-2">
-                                                <KeyRound className="w-4 h-4" />
-                                                Enter Vault Key to Unlock
-                                            </label>
-                                            <div className="relative">
-                                                <input
-                                                    type={showRestoreKey ? "text" : "password"}
-                                                    value={restoreKey}
-                                                    onChange={(e) => setRestoreKey(e.target.value)}
-                                                    placeholder="Enter password..."
-                                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 transition-all"
-                                                />
-                                                <button
-                                                    onClick={() => setShowRestoreKey(!showRestoreKey)}
-                                                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-zinc-500 hover:text-zinc-300"
-                                                >
-                                                    {showRestoreKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                                </button>
+                                        {!restoreFile.name.endsWith(".xlsx") && (
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium text-teal-400 flex items-center gap-2">
+                                                    <KeyRound className="w-4 h-4" />
+                                                    Enter Vault Key to Unlock
+                                                </label>
+                                                <div className="relative">
+                                                    <input
+                                                        type={showRestoreKey ? "text" : "password"}
+                                                        value={restoreKey}
+                                                        onChange={(e) => setRestoreKey(e.target.value)}
+                                                        placeholder="Enter password..."
+                                                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 transition-all"
+                                                    />
+                                                    <button
+                                                        onClick={() => setShowRestoreKey(!showRestoreKey)}
+                                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-zinc-500 hover:text-zinc-300"
+                                                    >
+                                                        {showRestoreKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                    </button>
+                                                </div>
                                             </div>
-                                        </div>
+                                        )}
+                                        {restoreFile.name.endsWith(".xlsx") && (
+                                            <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
+                                                <p className="text-sm text-zinc-300">
+                                                    Excel backup ready for analysis. No password required.
+                                                </p>
+                                            </div>
+                                        )}
                                         <button
                                             onClick={handleAnalyzeRestore}
-                                            disabled={!restoreFile || !restoreKey || isAnalyzing}
+                                            disabled={!restoreFile || (!restoreFile.name.endsWith(".xlsx") && !restoreKey) || isAnalyzing}
                                             className={cn(
                                                 "w-full py-4 rounded-xl font-medium flex items-center justify-center gap-2 transition-all duration-300",
-                                                restoreFile && restoreKey
+                                                restoreFile && (restoreFile.name.endsWith(".xlsx") || restoreKey)
                                                     ? "bg-white text-black hover:bg-zinc-200 shadow-lg"
                                                     : "bg-white/5 text-zinc-500 cursor-not-allowed",
                                                 isAnalyzing && "opacity-70 cursor-not-allowed"
@@ -532,11 +542,11 @@ export default function VaultPage() {
                                             {isAnalyzing ? (
                                                 <>
                                                     <Loader2 className="w-5 h-5 animate-spin" />
-                                                    Decrypting & Analyzing...
+                                                    {restoreFile.name.endsWith(".xlsx") ? "Analyzing Excel..." : "Decrypting & Analyzing..."}
                                                 </>
                                             ) : (
                                                 <>
-                                                    Unlock & Preview Restore <ChevronRight className="w-5 h-5" />
+                                                    {restoreFile.name.endsWith(".xlsx") ? "Analyze Excel Data" : "Unlock & Preview Restore"} <ChevronRight className="w-5 h-5" />
                                                 </>
                                             )}
                                         </button>
@@ -551,7 +561,7 @@ export default function VaultPage() {
                                         <div className="bg-white/5 border border-white/10 p-4 rounded-xl space-y-3">
                                             <div className="flex items-center gap-2 text-teal-400 text-sm font-medium mb-1">
                                                 <ShieldCheck className="w-4 h-4" />
-                                                Vault Unlocked Successfully
+                                                {restoreFile?.name.endsWith(".xlsx") ? "Excel Successfully Parsed" : "Vault Unlocked Successfully"}
                                             </div>
                                             <div className="grid grid-cols-3 gap-2 text-center text-sm">
                                                 <div className="bg-black/30 rounded-lg p-2 border border-white/5">

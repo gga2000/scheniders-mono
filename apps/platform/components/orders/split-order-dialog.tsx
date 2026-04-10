@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@scheniders/ui/dialog";
+import { Button } from "@scheniders/ui/button";
 import { Order, OrderItem } from "@/lib/supabase";
 import { formatIQD } from "@/lib/utils";
 import { Check, ArrowRightLeft, AlertTriangle, Package, RotateCcw } from "lucide-react";

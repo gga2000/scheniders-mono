@@ -20,7 +20,7 @@ import {
     Layers,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { usePrefetchOrders } from "@/hooks/use-orders-query";
@@ -35,9 +35,28 @@ const NAV_ITEMS = [
     { key: "nav.dashboard", icon: LayoutDashboard, href: "/" },
     { key: "nav.orders", icon: Package, href: "/orders" },
     { key: "nav.customers", icon: Users, href: "/customers" },
-    { key: "nav.products", icon: ShoppingBag, href: "/products" },
-    { key: "nav.categories", icon: Layers, href: "/categories" },
-    { key: "nav.analytics", icon: BarChart3, href: "/analytics" },
+    { 
+        key: "nav.products", 
+        icon: ShoppingBag, 
+        href: "/products",
+        subItems: [
+            { key: "nav.allProducts", label: "All Products", href: "/products", tab: "products" },
+            { key: "nav.categories", label: "Categories", href: "/products?tab=categories", tab: "categories" },
+            { key: "nav.qcQuarantine", label: "QC Quarantine", href: "/products?tab=quarantine", tab: "quarantine" },
+            { key: "nav.internalSupplies", label: "Internal Supplies", href: "/products?tab=supplies", tab: "supplies" },
+        ]
+    },
+    { 
+        key: "nav.analytics", 
+        icon: BarChart3, 
+        href: "/analytics",
+        subItems: [
+            { key: "nav.profitAnalysis", label: "Profit Analysis", href: "/analytics", tab: "profit" },
+            { key: "nav.customers", label: "Customers", href: "/analytics?tab=customers", tab: "customers" },
+            { key: "nav.expenses", label: "Expenses", href: "/analytics?tab=expenses", tab: "expenses" },
+            { key: "nav.overview", label: "Overview", href: "/analytics?tab=overview", tab: "overview" },
+        ]
+    },
     { key: "nav.reports", icon: FileBarChart, href: "/reports" },
     { key: "nav.printing", icon: Printer, href: "/printing" },
     { key: "nav.team", icon: UsersRound, href: "/team" },
@@ -62,7 +81,9 @@ export function Sidebar({
     setMobileMenuOpen
 }: SidebarProps) {
     const pathname = usePathname();
+    const searchParams = useSearchParams();
     const router = useRouter();
+    const currentTab = searchParams?.get("tab") || (pathname.startsWith("/analytics") ? "profit" : "products");
     const { user, profile, signOut, isLoading: authLoading } = useAuth();
     const prefetchOrders = usePrefetchOrders();
     const prefetchCustomers = usePrefetchCustomers();
@@ -134,49 +155,85 @@ export function Sidebar({
                     )}
 
                     {NAV_ITEMS.map((item) => {
-                        const isActive = pathname === item.href;
+                        const isActive = pathname === item.href || (item.subItems && pathname.startsWith(item.href));
                         return (
-                            <TransitionLink
-                                key={item.href}
-                                href={item.href}
-                                prefetch={true}
-                                onMouseEnter={() => {
-                                    // Intent-based rigorous prefetching
-                                    if (["/", "/orders", "/analytics", "/printing"].includes(item.href)) prefetchOrders();
-                                    if (["/customers", "/analytics"].includes(item.href)) prefetchCustomers();
-                                    if (["/products", "/analytics"].includes(item.href)) prefetchProducts();
-                                }}
-                                className={cn(
-                                    "flex items-center py-3 rounded-2xl transition-all duration-300 group relative overflow-hidden",
-                                    collapsed
-                                        ? "justify-center w-full"
-                                        : "gap-3 px-3",
-                                    isActive
-                                        ? "bg-white/10 text-white"
-                                        : "text-zinc-500 hover:text-white hover:bg-white/[0.03]"
-                                )}
-                                title={collapsed ? t(item.key) : undefined}
-                            >
-                                <item.icon className={cn(
-                                    "w-[22px] h-[22px] transition-colors flex-shrink-0",
-                                    isActive ? "text-white" : "text-zinc-500 group-hover:text-white"
-                                )} />
+                            <div key={item.href} className="flex flex-col">
+                                <TransitionLink
+                                    href={item.href}
+                                    prefetch={true}
+                                    onMouseEnter={() => {
+                                        // Intent-based rigorous prefetching
+                                        if (["/", "/orders", "/analytics", "/printing"].includes(item.href)) prefetchOrders();
+                                        if (["/customers", "/analytics"].includes(item.href)) prefetchCustomers();
+                                        if (["/products", "/analytics"].includes(item.href)) prefetchProducts();
+                                    }}
+                                    className={cn(
+                                        "flex items-center py-3 rounded-2xl transition-all duration-300 group relative overflow-hidden",
+                                        collapsed
+                                            ? "justify-center w-full"
+                                            : "gap-3 px-3",
+                                        isActive
+                                            ? "bg-white/10 text-white"
+                                            : "text-zinc-500 hover:text-white hover:bg-white/[0.03]"
+                                    )}
+                                    title={collapsed ? t(item.key) : undefined}
+                                >
+                                    <item.icon className={cn(
+                                        "w-[22px] h-[22px] transition-colors flex-shrink-0",
+                                        isActive ? "text-white" : "text-zinc-500 group-hover:text-white"
+                                    )} />
 
-                                <span className={cn(
-                                    "font-medium text-[15px] transition-all duration-500 whitespace-nowrap",
-                                    collapsed ? "w-0 opacity-0 hidden" : "opacity-100"
-                                )}>
-                                    {t(item.key)}
-                                </span>
+                                    <span className={cn(
+                                        "font-medium text-[15px] transition-all duration-500 whitespace-nowrap",
+                                        collapsed ? "w-0 opacity-0 hidden" : "opacity-100"
+                                    )}>
+                                        {t(item.key)}
+                                    </span>
 
-                                {isActive && !collapsed && (
-                                    <div className="ml-auto w-1.5 h-1.5 rounded-[2px] bg-[var(--primary)] shadow-[0_0_10px_rgba(239,255,0,0.6)]" />
-                                )}
+                                    {isActive && !collapsed && (
+                                        <div className="ml-auto w-1.5 h-1.5 rounded-[2px] bg-[var(--primary)] shadow-[0_0_10px_rgba(239,255,0,0.6)]" />
+                                    )}
 
-                                {isActive && collapsed && (
-                                    <div className="absolute right-1.5 top-1.5 w-1.5 h-1.5 rounded-[2px] bg-[var(--primary)] shadow-[0_0_10px_rgba(239,255,0,0.6)]" />
+                                    {isActive && collapsed && (
+                                        <div className="absolute right-1.5 top-1.5 w-1.5 h-1.5 rounded-[2px] bg-[var(--primary)] shadow-[0_0_10px_rgba(239,255,0,0.6)]" />
+                                    )}
+                                </TransitionLink>
+
+                                {/* Sub Navigation for Desktop Sidebar */}
+                                {item.subItems && isActive && !collapsed && !isMobile && (
+                                    <div className="relative mt-1 mb-2">
+                                        {/* Continuous vertical tracking line */}
+                                        <div className="absolute left-[22px] top-0 bottom-4 w-[2px] bg-white/10 rounded-full" />
+                                        
+                                        <div className="flex flex-col gap-1.5 pl-[42px] pr-3">
+                                            {item.subItems.map(subItem => {
+                                                const isSubActive = currentTab === subItem.tab;
+                                                return (
+                                                    <TransitionLink
+                                                        key={subItem.href}
+                                                        href={subItem.href}
+                                                        className={cn(
+                                                            "text-[14px] py-2 px-3 rounded-xl transition-all relative flex items-center group",
+                                                            isSubActive 
+                                                                ? "text-white bg-white/10 font-medium shadow-sm ring-1 ring-white/5" 
+                                                                : "text-zinc-400 hover:text-white hover:bg-white/5"
+                                                        )}
+                                                    >
+                                                        {/* Dot positioned precisely ON the tracking line */}
+                                                        <div className={cn(
+                                                            "absolute -left-[22px] w-[6px] h-[6px] rounded-full transition-all duration-300 ring-[4px] ring-[#1E1E1E]",
+                                                            isSubActive 
+                                                                ? "bg-[#E4B5D1] shadow-[0_0_10px_rgba(228,181,209,0.8)] scale-110" 
+                                                                : "bg-zinc-700 group-hover:bg-zinc-500"
+                                                        )} />
+                                                        {subItem.label}
+                                                    </TransitionLink>
+                                                )
+                                            })}
+                                        </div>
+                                    </div>
                                 )}
-                            </TransitionLink>
+                            </div>
                         );
                     })}
                 </nav>

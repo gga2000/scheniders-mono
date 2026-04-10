@@ -53,7 +53,7 @@ const VirtualizedOrderList = dynamic(
     { ssr: false, loading: () => <div className="w-full h-[600px] animate-pulse bg-muted/20 rounded-2xl" /> }
 );
 const DateRangePicker = dynamic(
-    () => import("@/components/ui/date-range-picker").then(mod => ({ default: mod.DateRangePicker })),
+    () => import("@scheniders/ui/date-range-picker").then(mod => ({ default: mod.DateRangePicker })),
     { ssr: false, loading: () => <div className="w-full h-10 animate-pulse bg-muted/20 rounded-xl" /> }
 );
 import { EmptyState } from "@/components/ui/empty-states";
@@ -84,7 +84,7 @@ const VirtualizedOrderTable = dynamic(
     { loading: () => null, ssr: false }
 );
 const ScrollToTopButton = dynamic(
-    () => import("@/components/ui/scroll-to-top-button").then(mod => ({ default: mod.ScrollToTopButton })),
+    () => import("@scheniders/ui/scroll-to-top-button").then(mod => ({ default: mod.ScrollToTopButton })),
     { ssr: false, loading: () => <div className="hidden" /> }
 );
 const BackupPrompt = dynamic(
@@ -144,8 +144,8 @@ import { mockAssignmentRules } from "@/lib/team-types";
 import { exportOrdersToPrimeCSV, exportOrdersToWaseetXLSX } from "@/lib/export-utils";
 import { toast } from "@/hooks/use-toast";
 
-import { ErrorBoundary } from "@/components/ui/error-boundary";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { ErrorBoundary } from "@scheniders/ui/error-boundary";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@scheniders/ui/dialog";
 import { useLanguage } from "@/hooks/use-language";
 interface GlobalSearchFieldProps {
     filters: { searchQuery?: string; searchIncludesArchive?: boolean; dateFrom?: string; dateTo?: string };

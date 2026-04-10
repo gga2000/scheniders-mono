@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useSettings } from "@/hooks/use-settings";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+import { Switch } from "@scheniders/ui/switch";
+import { Label } from "@scheniders/ui/label";
+import { Input } from "@scheniders/ui/input";
 import { Save } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@scheniders/ui/button";
 import { toast } from "@/hooks/use-toast";
 
 export function WorkflowSettingsForm() {

@@ -11,14 +11,14 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-} from "@/components/ui/dialog";
+} from "@scheniders/ui/dialog";
 import { formatIQD, formatDate, generateWhatsAppLink, getStatusLabel, getBaseOrderId } from "@/lib/utils";
 import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
 import { getAllGovernorateCodes, extractGovernorate } from "@/lib/address-validator";
 import { cn } from "@/lib/utils";
 import type { Order, OrderStatusHistory, OrderNote, MessageTemplate, OrderItem } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
-import { usePrompt } from "@/components/ui/prompt-dialog";
+import { usePrompt } from "@scheniders/ui/prompt-dialog";
 import { OrderTimeline } from "./order-timeline";
 import { PresenceAvatarGroup } from "./presence-avatar-group";
 import { ProductPicker } from "./product-picker";
@@ -34,7 +34,7 @@ import { useOrderDetailsForm, useOrderIdEdit } from "@/hooks/use-order-details-f
 import { useOrderDetailsState } from "@/hooks/use-order-details-state";
 import { useOrderCrud } from "@/hooks/use-order-crud";
 
-import { DateTimePicker } from "@/components/ui/datetime-picker";
+import { DateTimePicker } from "@scheniders/ui/datetime-picker";
 import { OrderAssignment, OrderDuty, mockEmployees } from "@/lib/team-types";
 import { AvatarPill } from "@/components/ui/avatar-pill";
 import { AssignmentPopover } from "@/components/orders/assignment-popover";

@@ -22,23 +22,17 @@ export function TransitionLink({ children, href, onMouseEnter, onClick, classNam
 
     const handleNavigate = useCallback(
         (e: React.MouseEvent<HTMLAnchorElement>) => {
-            // Allow default open-in-new-tab behaviors
-            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
-                return;
-            }
-
-            e.preventDefault();
-
             if (onClick) {
                 onClick(e);
             }
-
-            // Start a non-blocking transition for the heavy lifting of parsing JS & rendering
+            
+            // Allow next/link to handle the actual routing natively
+            // We just trigger a transition to show the loading spinner state
             startTransition(() => {
-                router.push(href as string);
+                // Do nothing payload - Next.js Link inherently handles the soft route transition inline
             });
         },
-        [href, router, onClick]
+        [onClick]
     );
 
     const handlePrefetch = useCallback(() => {

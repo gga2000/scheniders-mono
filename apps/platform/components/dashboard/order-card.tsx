@@ -10,7 +10,7 @@ import { AvatarPill } from "@/components/ui/avatar-pill";
 
 import { OrderAssignment, mockEmployees } from "@/lib/team-types";
 import { useOrderStore } from "@/store/use-order-store";
-import { HighlightedText } from "@/components/ui/highlighted-text";
+import { HighlightedText } from "@scheniders/ui/highlighted-text";
 // ... existing imports ...
 
 import { formatIQD, generateWhatsAppLink, getStatusLabel, copyOrderToClipboard, getGuaranteeDaysRemaining, cn } from "@/lib/utils";
@@ -66,7 +66,7 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@scheniders/ui/dropdown-menu";
 
 
 interface OrderCardProps {

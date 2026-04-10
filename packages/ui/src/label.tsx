@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@scheniders/shared";
 import { forwardRef, LabelHTMLAttributes } from "react";
 
 const Label = forwardRef<

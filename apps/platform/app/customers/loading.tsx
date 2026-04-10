@@ -1,4 +1,4 @@
-import { CustomerSplitPaneSkeleton } from "@/components/ui/skeletons";
+import { CustomerSplitPaneSkeleton } from "@scheniders/ui/skeletons";
 
 export default function Loading() {
     return (

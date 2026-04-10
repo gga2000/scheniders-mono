@@ -7,7 +7,7 @@ import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card"
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { Search, Filter } from "lucide-react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
-import { usePrompt } from "@/components/ui/prompt-dialog";
+import { usePrompt } from "@scheniders/ui/prompt-dialog";
 
 interface OrdersTableProps {
     orders: Order[];

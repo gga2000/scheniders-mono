@@ -2,7 +2,7 @@
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@scheniders/shared";
 import { forwardRef, ComponentPropsWithoutRef, ElementRef, useState, useRef, useEffect } from "react";
 import { motion, useMotionValue, useTransform, PanInfo, AnimatePresence } from "framer-motion";
 

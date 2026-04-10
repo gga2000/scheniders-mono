@@ -30,7 +30,6 @@ const PRIMARY_NAV_ITEMS = [
 ];
 
 const MORE_NAV_ITEMS = [
-    { key: "nav.categories", icon: Layers, href: "/categories" },
     { key: "nav.analytics", icon: BarChart3, href: "/analytics" },
     { key: "nav.printing", icon: Printer, href: "/printing" },
     { key: "nav.team", icon: UsersRound, href: "/team" },

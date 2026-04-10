@@ -8,7 +8,7 @@ import {
     DialogTitle,
     DialogFooter,
     DialogDescription,
-} from "@/components/ui/dialog";
+} from "@scheniders/ui/dialog";
 import { cn } from "@/lib/utils";
 import { parseExcelFile, convertToDbOrder, type ParsedOrder, type ImportResult, type ProductCatalogueItem } from "@/lib/excel-importer";
 import {

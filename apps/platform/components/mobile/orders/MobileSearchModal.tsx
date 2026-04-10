@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import {
     Dialog,
     BottomSheetContent,
-} from "@/components/ui/dialog";
+} from "@scheniders/ui/dialog";
 import { Search, X, History, Archive } from "lucide-react";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useLanguage } from "@/hooks/use-language";

@@ -197,8 +197,44 @@ export async function parseVaultFile(file: File, password?: string): Promise<Vau
             throw new Error("Invalid vault file structure");
         }
         return decryptedData as VaultData;
+    } else if (file.name.endsWith(".xlsx")) {
+        const arrayBuffer = await file.arrayBuffer();
+        const wb = XLSX.read(arrayBuffer, { type: "array" });
+
+        const ordersRaw = wb.Sheets["Orders"] ? XLSX.utils.sheet_to_json(wb.Sheets["Orders"]) : [];
+        const productsRaw = wb.Sheets["Products"] ? XLSX.utils.sheet_to_json(wb.Sheets["Products"]) : [];
+        const customersRaw = wb.Sheets["Customers"] ? XLSX.utils.sheet_to_json(wb.Sheets["Customers"]) : [];
+
+        // Parse JSON strings back to objects where needed
+        const parsedOrders = ordersRaw.map((o: any) => ({
+            ...o,
+            items: typeof o.items === "string" ? JSON.parse(o.items) : (o.items || []),
+            risk_metadata: typeof o.risk_metadata === "string" ? JSON.parse(o.risk_metadata) : (o.risk_metadata || {})
+        }));
+
+        const isNotEmpty = parsedOrders.length > 0 || productsRaw.length > 0 || customersRaw.length > 0;
+        if (!isNotEmpty) {
+             throw new Error("Excel file doesn't contain valid backup sheets (Orders, Products, Customers).");
+        }
+
+        return {
+            metadata: {
+                version: "1.0.0",
+                timestamp: new Date().toISOString(),
+                counts: {
+                    orders: parsedOrders.length,
+                    products: productsRaw.length,
+                    customers: customersRaw.length
+                }
+            },
+            data: {
+                orders: parsedOrders,
+                products: productsRaw as any[],
+                customers: customersRaw as any[]
+            }
+        };
     } else {
-        throw new Error("Unsupported file format for restore. Please use a .scheniders file.");
+        throw new Error("Unsupported file format for restore. Please use a .scheniders or .xlsx file.");
     }
 }
 
@@ -228,7 +264,19 @@ export async function calculateVaultDiff(parsedVault: VaultData) {
  */
 export async function executeVaultRestore(vaultData: VaultData, onProgress?: (msg: string) => void): Promise<void> {
     try {
-        const { customers, products, orders } = vaultData.data;
+        let { customers, products, orders } = vaultData.data;
+
+        if (onProgress) onProgress("Initializing security context...");
+        const { data: tenantId, error: tenantError } = await supabase.rpc('get_current_tenant_id');
+
+        if (!tenantError && tenantId) {
+            // Inject the active tenant_id into all records to satisfy strict Row Level Security
+            // This is required especially for Excel file uploads or legacy backups.
+            const injectTenant = (items: any[]) => items?.map(item => ({ ...item, tenant_id: tenantId })) || [];
+            customers = injectTenant(customers);
+            products = injectTenant(products);
+            orders = injectTenant(orders);
+        }
 
         // 1. Restore Customers
         if (customers && customers.length > 0) {
@@ -260,7 +308,8 @@ export async function executeVaultRestore(vaultData: VaultData, onProgress?: (ms
         // Log the security event
         await supabase.from('security_logs').insert([{
             action: 'VAULT_RESTORE',
-            details: vaultData.metadata.counts
+            details: vaultData.metadata.counts,
+            tenant_id: typeof tenantId === 'string' ? tenantId : undefined
         }]);
 
     } catch (e: any) {

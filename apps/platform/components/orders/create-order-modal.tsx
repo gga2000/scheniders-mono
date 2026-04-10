@@ -7,10 +7,10 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+} from "@scheniders/ui/dialog";
+import { Input } from "@scheniders/ui/input";
+import { Textarea } from "@scheniders/ui/textarea";
+import { Label } from "@scheniders/ui/label";
 import { formatIQD, cn } from "@/lib/utils";
 import { getAllGovernorateCodes } from "@/lib/address-validator";
 import {
@@ -59,7 +59,7 @@ import type { BlacklistEntry } from "@/hooks/use-order-auxiliary";
 import { ProductPicker } from "./product-picker";
 import { DiscountPresetSelector } from "./discount-preset-selector";
 import { BulkUploadModal } from "./bulk-upload-modal";
-import { DateTimePicker } from "@/components/ui/datetime-picker";
+import { DateTimePicker } from "@scheniders/ui/datetime-picker";
 
 // TikTok icon component
 const TikTokIcon = ({ className }: { className?: string }) => (

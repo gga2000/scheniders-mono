@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, ImgHTMLAttributes, memo } from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@scheniders/shared";
 import { User } from "lucide-react";
 
 interface OptimizedImageProps extends ImgHTMLAttributes<HTMLImageElement> {

@@ -1,5 +1,5 @@
 import React from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@scheniders/shared";
 
 interface HighlightedTextProps {
     text: string | null | undefined;

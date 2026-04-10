@@ -2,7 +2,7 @@
 
 import { useToast } from "@/hooks/use-toast";
 import { Bell, CheckCircle2, AlertCircle, AlertTriangle, Info, Clock, Loader2 } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui/popover";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 

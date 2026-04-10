@@ -6,7 +6,7 @@ import { extractGovernorate, getAllGovernorateCodes } from "@/lib/address-valida
 import { generateWhatsAppLink } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { Banknote, Calendar, Clock, Globe, MapPin, MessageCircle, Phone, Truck, User, CheckCircle, XCircle } from "lucide-react";
-import { DateTimePicker } from "@/components/ui/datetime-picker";
+import { DateTimePicker } from "@scheniders/ui/datetime-picker";
 import type { OrderStatus } from "@/lib/supabase";
 
 interface OrderCustomerCardProps {

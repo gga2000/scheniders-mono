@@ -57,7 +57,7 @@ const VirtualizedOrderList = dynamic(
     { ssr: false }
 );
 
-import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { DateRangePicker } from "@scheniders/ui/date-range-picker";
 import { EmptyState } from "@/components/ui/empty-states";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layout/page-transition";
 import { SavedViewsTabs } from "@/components/orders/saved-views-tabs";
@@ -65,7 +65,7 @@ import { OrderConfirmationCard } from "@/components/orders/order-confirmation-ca
 import { CancellationReasonDialog } from "@/components/orders/cancellation-reason-dialog";
 import { StickyFilterBar } from "@/components/orders/sticky-filter-bar";
 import { VirtualizedOrderTable } from "@/components/orders/virtualized-order-table";
-import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
+import { ScrollToTopButton } from "@scheniders/ui/scroll-to-top-button";
 import { BackupPrompt } from "@/components/vault/backup-prompt";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { motion, AnimatePresence } from "framer-motion";
@@ -132,7 +132,7 @@ import { mockAssignmentRules } from "@/lib/team-types";
 import { exportOrdersToPrimeCSV } from "@/lib/export-utils";
 import { toast } from "@/hooks/use-toast";
 
-import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { ErrorBoundary } from "@scheniders/ui/error-boundary";
 import { useLanguage } from "@/hooks/use-language";
 import { useSettings } from "@/hooks/use-settings";
 

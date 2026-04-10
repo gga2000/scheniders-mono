@@ -8,7 +8,7 @@ import {
     DialogTitle,
     DialogFooter,
     DialogDescription,
-} from "@/components/ui/dialog";
+} from "@scheniders/ui/dialog";
 import { cn } from "@/lib/utils";
 import {
     Upload,

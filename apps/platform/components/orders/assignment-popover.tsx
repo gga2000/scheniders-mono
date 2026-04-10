@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Popover, PopoverTrigger, PopoverContent } from '@scheniders/ui/popover';
 import { OrderDuty, mockEmployees } from '@/lib/team-types';
 import { UserPlus, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';

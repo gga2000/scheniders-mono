@@ -14,7 +14,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
 
   // Transpile workspace packages
-  transpilePackages: ["@scheniders/shared", "@scheniders/supabase"],
+  transpilePackages: ["@scheniders/shared", "@scheniders/supabase", "@scheniders/ui"],
 
   // Externalize pdf-parse and pdfjs-dist from the server bundle
   // so Node.js resolves them natively (avoids Turbopack worker issues)
