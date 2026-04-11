@@ -3,36 +3,12 @@
  * Base types come from @scheniders/shared; storefront extends them.
  */
 
-import type { BaseTenant, BaseProduct, BaseProductVariant } from "@scheniders/shared";
+import type { BaseTenant, BaseProduct, BaseProductVariant, StoreConfig } from "@scheniders/shared";
 
 // Re-export shared types used directly
 export type { Category, CartItem, CheckoutFormData } from "@scheniders/shared";
 export type { TenantBranding, TenantSettings, TenantStatus } from "@scheniders/shared";
-
-export type TemplateName = "fashion" | "beauty" | "electronics" | "general" | "clean";
-
-export interface StoreConfig {
-  template?: TemplateName;
-  hero?: {
-    title?: string;
-    subtitle?: string;
-    cta_text?: string;
-    image_url?: string;
-  };
-  about?: {
-    enabled?: boolean;
-    title?: string;
-    body?: string;
-  };
-  contact?: {
-    whatsapp_number?: string;
-    instagram?: string;
-    facebook?: string;
-    tiktok?: string;
-  };
-  sections_order?: string[];
-  enable_whatsapp_order?: boolean;
-}
+export type { TemplateName, StoreConfig, DesignTokens, SectionConfig, SEOConfig, HeroConfig, AboutConfig, ContactConfig } from "@scheniders/shared";
 
 export interface Tenant extends BaseTenant {
   store_config?: StoreConfig | null;
