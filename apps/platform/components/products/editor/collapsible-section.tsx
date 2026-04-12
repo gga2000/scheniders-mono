@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -9,11 +9,34 @@ interface CollapsibleSectionProps {
     icon?: React.ReactNode;
     defaultOpen?: boolean;
     badge?: string | number;
+    persistKey?: string;
     children: React.ReactNode;
 }
 
-export function CollapsibleSection({ title, icon, defaultOpen = false, badge, children }: CollapsibleSectionProps) {
-    const [isOpen, setIsOpen] = useState(defaultOpen);
+const LS_PREFIX = "product-editor-collapse:";
+
+function readPersisted(key: string | undefined, defaultOpen: boolean): boolean {
+    if (!key || typeof window === "undefined") return defaultOpen;
+    try {
+        const raw = window.localStorage.getItem(LS_PREFIX + key);
+        if (raw === null) return defaultOpen;
+        return raw === "1";
+    } catch {
+        return defaultOpen;
+    }
+}
+
+export function CollapsibleSection({ title, icon, defaultOpen = false, badge, persistKey, children }: CollapsibleSectionProps) {
+    const [isOpen, setIsOpen] = useState(() => readPersisted(persistKey, defaultOpen));
+
+    useEffect(() => {
+        if (!persistKey || typeof window === "undefined") return;
+        try {
+            window.localStorage.setItem(LS_PREFIX + persistKey, isOpen ? "1" : "0");
+        } catch {
+            // ignore quota / privacy-mode errors
+        }
+    }, [isOpen, persistKey]);
 
     return (
         <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden">

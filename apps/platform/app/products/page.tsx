@@ -1,47 +1,63 @@
 "use client";
 
-import { useState, useMemo, useCallback, Suspense } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useProductsCrud } from "@/hooks/use-products-crud";
-import { Product, getStockStatus } from "@/lib/supabase";
+import { Product, getStockStatus, supabase } from "@/lib/supabase";
+import { useQuery } from "@tanstack/react-query";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layout/page-transition";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
+import { toast } from "@/hooks/use-toast";
 import {
     Search,
     Package,
     Grid3X3,
     List,
-    TrendingUp,
-    DollarSign,
-    ShoppingCart,
-    Award,
     ChevronDown,
     Plus,
     CheckSquare,
     Square,
-    Eye,
-    EyeOff,
-    Tag,
+    Filter,
+    Layers,
+    Columns3,
+    BarChart3,
 } from "lucide-react";
-import { formatIQD, formatDate } from "@/lib/utils";
+import { formatIQD } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
-// Import new components
+// Import components
 import { ProductFormModal, ProductFormData } from "@/components/products/product-form-modal";
 import { ProductDetailModal } from "@/components/products/product-detail-modal";
-import { StockIndicator } from "@/components/products/stock-indicator";
-import { QuickActionsMenu } from "@/components/products/quick-actions-menu";
 import { LowStockAlert } from "@/components/products/low-stock-alert";
 import { TimePeriodFilter, TimePeriod, filterByTimePeriod } from "@/components/products/time-period-filter";
 import { AdvancedFilters, FilterValues } from "@/components/products/advanced-filters";
+import { ActiveFilterPills } from "@/components/products/active-filter-pills";
+import { FilterBottomSheet } from "@/components/products/filter-bottom-sheet";
 import { BulkActionsBar } from "@/components/products/bulk-actions-bar";
 import { ExportMenu } from "@/components/products/export-menu";
+import { AbcTierProvider } from "@/components/products/abc-tier-context";
 import { exportToCSV, exportToExcel, printProductReport } from "@/lib/export-utils";
 import { QCQuarantineTab } from "@/components/products/qc-quarantine-tab";
 import { SuppliesTab } from "@/components/products/supplies-tab";
 import { CategoriesTab } from "@/components/products/categories-tab";
 import { useCategoriesQuery } from "@/hooks/use-categories-query";
+import { useAuth } from "@/components/auth/auth-provider";
+
+// Virtualized views
+import { VirtualizedProductGrid } from "@/components/products/virtualized-product-grid";
+import { VirtualizedProductList } from "@/components/products/virtualized-product-list";
+
+// New view modes
+import { CategoryGroupedView } from "@/components/products/views/category-grouped-view";
+import { KanbanStockBoard } from "@/components/products/views/kanban-stock-board";
+import { MarginHeatmapView } from "@/components/products/views/margin-heatmap-view";
+
+// Analytics
+import { ForecastingCards } from "@/components/products/forecasting-cards";
+
+// Store
+import { useProductStore } from "@/store/use-product-store";
 
 export default function ProductsPage() {
     return (
@@ -58,6 +74,18 @@ export default function ProductsPage() {
     );
 }
 
+// Memoized IQD formatter cache
+const iqdCache = new Map<number, string>();
+function formatIQDCached(amount: number): string {
+    const cached = iqdCache.get(amount);
+    if (cached) return cached;
+    const formatted = formatIQD(amount);
+    // Keep cache size reasonable
+    if (iqdCache.size > 5000) iqdCache.clear();
+    iqdCache.set(amount, formatted);
+    return formatted;
+}
+
 function ProductsContent() {
     const {
         products,
@@ -69,30 +97,102 @@ function ProductsContent() {
         restoreProduct,
         bulkUpdatePrices,
         bulkArchive,
+        bulkRestore,
+        bulkDelete,
         addVariant,
         updateVariant,
         deleteVariant,
         getPriceHistory,
         bulkUpdateVisibility,
         deleteProduct,
+        reorderProducts,
     } = useProductsCrud();
 
     const { data: categories } = useCategoriesQuery();
     const categoriesMap = useMemo(() => {
-        if (!categories) return new Map();
+        if (!categories) return new Map<string, string>();
         return new Map(categories.map((c) => [c.id, c.name]));
     }, [categories]);
 
-    // UI State
+    // Store state
+    const viewMode = useProductStore((s) => s.viewMode);
+    const setViewMode = useProductStore((s) => s.setViewMode);
+    const sortBy = useProductStore((s) => s.sortBy);
+    const setSortBy = useProductStore((s) => s.setSortBy);
+    const selectedIds = useProductStore((s) => s.selectedIds);
+    const toggleSelection = useProductStore((s) => s.toggleSelection);
+    const selectAll = useProductStore((s) => s.selectAll);
+    const clearSelection = useProductStore((s) => s.clearSelection);
+
+    // Local UI State (not persisted)
     const { t } = useLanguage();
     const searchParams = useSearchParams();
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
-    const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
     const activeTab = (searchParams?.get("tab") as "products" | "categories" | "quarantine" | "supplies") || "products";
-    const [sortBy, setSortBy] = useState<"sales" | "revenue" | "price" | "stock">("sales");
     const [timePeriod, setTimePeriod] = useState<TimePeriod>("all");
     const [advancedFilters, setAdvancedFilters] = useState<FilterValues | null>(null);
+    const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+    const urlSyncInitialized = useRef(false);
+
+    // Product IDs for the currently selected tag filter
+    const { tenantId } = useAuth();
+    const selectedTagId = advancedFilters?.tagId ?? null;
+    const { data: tagMemberIds } = useQuery<Set<string>>({
+        queryKey: ["product-tag-members", tenantId, selectedTagId],
+        queryFn: async () => {
+            if (!selectedTagId || !tenantId) return new Set<string>();
+            const { data, error } = await supabase
+                .from("product_tag_assignments")
+                .select("product_id")
+                .eq("tenant_id", tenantId)
+                .eq("tag_id", selectedTagId);
+            if (error) throw error;
+            return new Set((data ?? []).map((r: any) => r.product_id as string));
+        },
+        enabled: !!selectedTagId && !!tenantId,
+        staleTime: 60 * 1000,
+    });
+
+    // URL → state hydrate (once on mount): ?view=<mode> and ?filters=<base64 json>
+    useEffect(() => {
+        if (urlSyncInitialized.current || !searchParams) return;
+        urlSyncInitialized.current = true;
+        const viewParam = searchParams.get("view");
+        const validViews = ["grid", "list", "category", "kanban", "heatmap"] as const;
+        if (viewParam && (validViews as readonly string[]).includes(viewParam)) {
+            setViewMode(viewParam as any);
+        }
+        const filterParam = searchParams.get("filters");
+        if (filterParam) {
+            try {
+                const decoded = JSON.parse(atob(filterParam));
+                if (decoded && typeof decoded === "object") {
+                    setAdvancedFilters(decoded as FilterValues);
+                }
+            } catch {
+                // ignore malformed filter param
+            }
+        }
+    }, [searchParams, setViewMode]);
+
+    // state → URL sync (viewMode + advancedFilters)
+    useEffect(() => {
+        if (!urlSyncInitialized.current) return;
+        const params = new URLSearchParams(searchParams?.toString() ?? "");
+        if (viewMode && viewMode !== "grid") {
+            params.set("view", viewMode);
+        } else {
+            params.delete("view");
+        }
+        if (advancedFilters) {
+            params.set("filters", btoa(JSON.stringify(advancedFilters)));
+        } else {
+            params.delete("filters");
+        }
+        const query = params.toString();
+        router.replace(query ? `?${query}` : "?", { scroll: false });
+    }, [viewMode, advancedFilters, router, searchParams]);
 
     // Modal State
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -101,11 +201,7 @@ function ProductsContent() {
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [priceHistory, setPriceHistory] = useState<any[]>([]);
 
-    // Selection State
-    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-    const [showLowStockAlert, setShowLowStockAlert] = useState(true);
-
-    // Filter and sort products
+    // Filter and sort products — memoized with stable deps
     const filteredProducts = useMemo(() => {
         let result = products;
 
@@ -114,7 +210,8 @@ function ProductsContent() {
             const query = searchQuery.toLowerCase();
             result = result.filter((product) =>
                 product.name.toLowerCase().includes(query) ||
-                (product.description?.toLowerCase().includes(query))
+                (product.description?.toLowerCase().includes(query)) ||
+                (product.sku?.toLowerCase().includes(query))
             );
         }
 
@@ -138,8 +235,26 @@ function ProductsContent() {
             if (!advancedFilters.showArchived) {
                 result = result.filter((p) => !p.is_archived);
             }
+            if (advancedFilters.categoryId) {
+                result = result.filter((p) => p.category_id === advancedFilters.categoryId);
+            }
+            if (advancedFilters.visibility === "visible") {
+                result = result.filter((p) => p.is_visible);
+            } else if (advancedFilters.visibility === "hidden") {
+                result = result.filter((p) => !p.is_visible);
+            }
+            if (advancedFilters.productType) {
+                result = result.filter((p) => (p as any).product_type === advancedFilters.productType);
+            }
+            if (advancedFilters.hasVariants === "yes") {
+                result = result.filter((p) => (p as any).variants && (p as any).variants.length > 0);
+            } else if (advancedFilters.hasVariants === "no") {
+                result = result.filter((p) => !(p as any).variants || (p as any).variants.length === 0);
+            }
+            if (advancedFilters.tagId && tagMemberIds) {
+                result = result.filter((p) => tagMemberIds.has(p.id));
+            }
         } else {
-            // Default: hide archived
             result = result.filter((p) => !p.is_archived);
         }
 
@@ -155,45 +270,49 @@ function ProductsContent() {
                     return b.price - a.price;
                 case "stock":
                     return b.stock_quantity - a.stock_quantity;
-                default:
+                case "name":
+                    return a.name.localeCompare(b.name);
+                case "displayOrder":
+                    return (a.display_order || 0) - (b.display_order || 0);
+                default: // "sales"
                     return (b.times_sold || 0) - (a.times_sold || 0);
             }
         });
 
         return result;
-    }, [products, searchQuery, sortBy, advancedFilters]);
+    }, [products, searchQuery, sortBy, advancedFilters, tagMemberIds]);
 
-    // Calculate stats
+    // Calculate stats — separate memo from filtering
     const stats = useMemo(() => {
-        const activeProducts = products.filter((p) => !p.is_archived);
+        const activeProducts = products.filter((p) => !p.is_archived && !p.is_supply);
         const totalProducts = activeProducts.length;
         const totalSold = activeProducts.reduce((sum, p) => sum + (p.times_sold || 0), 0);
         const totalRevenue = activeProducts.reduce((sum, p) => sum + (p.total_revenue || 0), 0);
         const averageOrderValue = totalSold > 0 ? totalRevenue / totalSold : 0;
-        const bestSeller = activeProducts.sort((a, b) => (b.times_sold || 0) - (a.times_sold || 0))[0] || null;
+        const bestSeller = [...activeProducts].sort((a, b) => (b.times_sold || 0) - (a.times_sold || 0))[0] || null;
 
         return { totalProducts, totalSold, totalRevenue, averageOrderValue, bestSeller };
     }, [products]);
 
-    // Handlers
-    const handleAddProduct = () => {
+    // Stable callback refs for child components
+    const handleAddProduct = useCallback(() => {
         setSelectedProduct(null);
         setFormModalMode("add");
         setIsFormModalOpen(true);
-    };
+    }, []);
 
-    const handleEditProduct = (product: Product) => {
+    const handleEditProduct = useCallback((product: Product) => {
         router.push(`/products/${product.id}/edit`);
-    };
+    }, [router]);
 
-    const handleViewDetails = async (product: Product) => {
+    const handleViewDetails = useCallback(async (product: Product) => {
         setSelectedProduct(product);
         const history = await getPriceHistory(product.id);
         setPriceHistory(history);
         setIsDetailModalOpen(true);
-    };
+    }, [getPriceHistory]);
 
-    const handleDuplicateProduct = async (product: Product) => {
+    const handleDuplicateProduct = useCallback(async (product: Product) => {
         const newProduct = await addProduct({
             name: `Copy of ${product.name}`,
             sku: product.sku ? `${product.sku}-copy` : undefined,
@@ -216,13 +335,30 @@ function ProductsContent() {
         if (newProduct) {
             router.push(`/products/${newProduct.id}/edit`);
         }
-    };
+    }, [addProduct, router]);
 
-    const handleDeleteProduct = async (product: Product) => {
+    const handleDeleteProduct = useCallback(async (product: Product) => {
         await deleteProduct(product.id);
-    };
+    }, [deleteProduct]);
 
-    const handleFormSubmit = async (data: ProductFormData) => {
+    const handleArchive = useCallback(async (id: string) => {
+        await archiveProduct(id);
+    }, [archiveProduct]);
+
+    const handleRestore = useCallback(async (id: string) => {
+        await restoreProduct(id);
+    }, [restoreProduct]);
+
+    const handleReorder = useCallback(async (updates: { id: string; display_order: number }[]) => {
+        await reorderProducts(updates);
+        toast.success(t("products.reorderSuccess"));
+    }, [reorderProducts, t]);
+
+    const handleVisibilityToggle = useCallback(async (product: Product) => {
+        await updateProduct(product.id, { is_visible: !product.is_visible });
+    }, [updateProduct]);
+
+    const handleFormSubmit = useCallback(async (data: ProductFormData) => {
         if (formModalMode === "add") {
             const newProduct = await addProduct({
                 name: data.name,
@@ -244,7 +380,6 @@ function ProductsContent() {
                 short_description: data.short_description || undefined,
             });
 
-            // Add variants if any
             if (newProduct && data.variants.length > 0) {
                 for (const variant of data.variants) {
                     await addVariant(newProduct.id, {
@@ -277,7 +412,6 @@ function ProductsContent() {
                 short_description: data.short_description || undefined,
             });
 
-            // Handle variant updates (simplified - in production you'd want more sophisticated handling)
             for (const variant of data.variants) {
                 if (variant.id) {
                     await updateVariant(variant.id, {
@@ -298,79 +432,170 @@ function ProductsContent() {
                 }
             }
         }
-    };
+    }, [formModalMode, selectedProduct, addProduct, updateProduct, addVariant, updateVariant]);
 
     // Selection handlers
-    const toggleSelection = (id: string) => {
-        setSelectedIds((prev) => {
-            const newSet = new Set(prev);
-            if (newSet.has(id)) {
-                newSet.delete(id);
-            } else {
-                newSet.add(id);
-            }
-            return newSet;
-        });
-    };
-
-    const selectAll = () => {
-        setSelectedIds(new Set(filteredProducts.map((p) => p.id)));
-    };
-
-    const clearSelection = () => {
-        setSelectedIds(new Set());
-    };
+    const handleSelectAll = useCallback(() => {
+        if (selectedIds.size === filteredProducts.length) {
+            clearSelection();
+        } else {
+            selectAll(filteredProducts.map((p) => p.id));
+        }
+    }, [selectedIds.size, filteredProducts, selectAll, clearSelection]);
 
     // Bulk action handlers
-    const handleBulkUpdatePrice = async (newPrice: number) => {
+    const handleBulkUpdatePrice = useCallback(async (newPrice: number) => {
         await bulkUpdatePrices(Array.from(selectedIds), newPrice);
         clearSelection();
-    };
+    }, [selectedIds, bulkUpdatePrices, clearSelection]);
 
-    const handleBulkArchive = async () => {
-        await bulkArchive(Array.from(selectedIds));
+    const lastArchivedIdsRef = useRef<string[]>([]);
+
+    const handleBulkArchiveUndo = useCallback(async () => {
+        if (lastArchivedIdsRef.current.length === 0) return;
+        const ids = lastArchivedIdsRef.current;
+        lastArchivedIdsRef.current = [];
+        await bulkRestore(ids);
+        toast.success(t("products.bulk.undone"));
+    }, [bulkRestore, t]);
+
+    const handleBulkArchive = useCallback(async () => {
+        const ids = Array.from(selectedIds);
+        lastArchivedIdsRef.current = ids;
+        await bulkArchive(ids);
         clearSelection();
-    };
+        toast({
+            title: t("products.bulk.archiveSuccess").replace("{count}", String(ids.length)),
+            variant: "success",
+            duration: 8000,
+            action: {
+                label: t("products.bulk.undo"),
+                onClick: () => { void handleBulkArchiveUndo(); },
+            },
+        });
+    }, [selectedIds, bulkArchive, clearSelection, t, handleBulkArchiveUndo]);
 
-    const handleBulkShow = async () => {
+    const handleBulkDelete = useCallback(async () => {
+        const ids = Array.from(selectedIds);
+        await bulkDelete(ids);
+        clearSelection();
+        toast.success(t("products.bulk.deleteSuccess").replace("{count}", String(ids.length)));
+    }, [selectedIds, bulkDelete, clearSelection, t]);
+
+    const handleBulkShow = useCallback(async () => {
         await bulkUpdateVisibility(Array.from(selectedIds), true);
         clearSelection();
-    };
+    }, [selectedIds, bulkUpdateVisibility, clearSelection]);
 
-    const handleBulkHide = async () => {
+    const handleBulkHide = useCallback(async () => {
         await bulkUpdateVisibility(Array.from(selectedIds), false);
         clearSelection();
-    };
+    }, [selectedIds, bulkUpdateVisibility, clearSelection]);
 
-    const handleBulkExport = () => {
+    const handleBulkExport = useCallback(() => {
         const selectedProducts = products.filter((p) => selectedIds.has(p.id));
         exportToCSV(selectedProducts, "selected-products");
         clearSelection();
-    };
+    }, [products, selectedIds, clearSelection]);
 
     // Export handlers
-    const handleExportCSV = () => {
+    const handleExportCSV = useCallback(() => {
         exportToCSV(filteredProducts, "products");
-    };
+    }, [filteredProducts]);
 
-    const handleExportExcel = () => {
+    const handleExportExcel = useCallback(() => {
         exportToExcel(filteredProducts, "products");
-    };
+    }, [filteredProducts]);
 
-    const handlePrintReport = () => {
+    const handlePrintReport = useCallback(() => {
         printProductReport(filteredProducts);
-    };
+    }, [filteredProducts]);
 
-    const handleVisibilityToggle = async (product: Product) => {
-        await updateProduct(product.id, { is_visible: !product.is_visible });
-    };
+    // Keyboard chord: G then {G|L|C|K|H} to switch view mode
+    useEffect(() => {
+        let pendingG = false;
+        let pendingGTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const handleOrderChange = async (productId: string, val: string) => {
-        const order = parseInt(val, 10);
-        if (!isNaN(order)) {
-            await updateProduct(productId, { display_order: order });
-        }
-    };
+        const resetChord = () => {
+            pendingG = false;
+            if (pendingGTimer) {
+                clearTimeout(pendingGTimer);
+                pendingGTimer = null;
+            }
+        };
+
+        const onKey = (e: KeyboardEvent) => {
+            if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+            const target = e.target as HTMLElement;
+            if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable) return;
+            const key = e.key.toLowerCase();
+
+            if (pendingG) {
+                const chord: Record<string, typeof viewMode> = {
+                    g: "grid",
+                    l: "list",
+                    c: "category",
+                    k: "kanban",
+                    h: "heatmap",
+                };
+                const next = chord[key];
+                if (next) {
+                    e.preventDefault();
+                    setViewMode(next);
+                }
+                resetChord();
+                return;
+            }
+
+            if (key === "g") {
+                pendingG = true;
+                pendingGTimer = setTimeout(resetChord, 1000);
+            }
+        };
+
+        window.addEventListener("keydown", onKey);
+        return () => {
+            window.removeEventListener("keydown", onKey);
+            resetChord();
+        };
+    }, [setViewMode, viewMode]);
+
+    // Keyboard shortcut: Alt+Arrow to reorder selected product
+    useEffect(() => {
+        if (sortBy !== "displayOrder" || selectedIds.size !== 1) return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (!e.altKey || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+            const target = e.target as HTMLElement;
+            if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT") return;
+
+            e.preventDefault();
+            const selectedId = Array.from(selectedIds)[0];
+            const currentIndex = filteredProducts.findIndex((p) => p.id === selectedId);
+            if (currentIndex === -1) return;
+
+            const newIndex = e.key === "ArrowUp"
+                ? Math.max(0, currentIndex - 1)
+                : Math.min(filteredProducts.length - 1, currentIndex + 1);
+
+            if (newIndex === currentIndex) return;
+
+            const reordered = [...filteredProducts];
+            const [moved] = reordered.splice(currentIndex, 1);
+            reordered.splice(newIndex, 0, moved);
+
+            const minIdx = Math.min(currentIndex, newIndex);
+            const maxIdx = Math.max(currentIndex, newIndex);
+            const updates: { id: string; display_order: number }[] = [];
+            for (let i = minIdx; i <= maxIdx; i++) {
+                updates.push({ id: reordered[i].id, display_order: i });
+            }
+            handleReorder(updates);
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [sortBy, selectedIds, filteredProducts, handleReorder]);
 
     if (loading) {
         return (
@@ -403,19 +628,19 @@ function ProductsContent() {
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.4, delay: 0.1 }}
-                        className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6"
+                        className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 lg:gap-6 flex-wrap"
                     >
-                        <div>
-                            <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight flex items-center gap-3">
-                                <Package className="w-8 h-8" />
-                                {t("products.title")}
+                        <div className="min-w-0 flex-1">
+                            <h1 className="text-2xl md:text-3xl xl:text-4xl font-bold text-foreground tracking-tight flex items-center gap-3 flex-wrap">
+                                <Package className="w-7 h-7 xl:w-8 xl:h-8 shrink-0" />
+                                <span className="truncate">{t("products.title")}</span>
                             </h1>
-                            <p className="text-muted mt-2 text-lg">
+                            <p className="text-muted mt-2 text-base xl:text-lg">
                                 {t("products.subtitle", { total: stats.totalProducts.toString(), sold: stats.totalSold.toString() })}
                             </p>
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 flex-wrap shrink-0">
                             <ExportMenu
                                 onExportCSV={handleExportCSV}
                                 onExportExcel={handleExportExcel}
@@ -431,52 +656,22 @@ function ProductsContent() {
                         </div>
                     </motion.div>
 
-                    {/* Mobile Tabs (Desktop uses Sidebar) */}
+                    {/* Mobile Tabs */}
                     <div className="md:hidden flex bg-[var(--background)] p-1 rounded-2xl border border-[var(--card-border)] w-fit max-w-full overflow-x-auto scrollbar-hide">
-                        <button
-                            onClick={() => router.push("/products")}
-                            className={cn(
-                                "px-6 py-2.5 rounded-xl font-medium text-sm transition-all relative flex items-center gap-2 whitespace-nowrap",
-                                activeTab === "products"
-                                    ? "bg-[var(--card-bg)] text-foreground shadow-sm"
-                                    : "text-muted hover:text-foreground hover:bg-[var(--card-bg)]/50"
-                            )}
-                        >
-                            {t("products.tabs.products")}
-                        </button>
-                        <button
-                            onClick={() => router.push("/products?tab=categories")}
-                            className={cn(
-                                "px-6 py-2.5 rounded-xl font-medium text-sm transition-all relative flex items-center gap-2 whitespace-nowrap",
-                                activeTab === "categories"
-                                    ? "bg-[var(--card-bg)] text-foreground shadow-sm"
-                                    : "text-muted hover:text-foreground hover:bg-[var(--card-bg)]/50"
-                            )}
-                        >
-                            {t("products.tabs.categories")}
-                        </button>
-                        <button
-                            onClick={() => router.push("/products?tab=quarantine")}
-                            className={cn(
-                                "px-6 py-2.5 rounded-xl font-medium text-sm transition-all relative flex items-center gap-2 whitespace-nowrap",
-                                activeTab === "quarantine"
-                                    ? "bg-[var(--card-bg)] text-foreground shadow-sm"
-                                    : "text-muted hover:text-foreground hover:bg-[var(--card-bg)]/50"
-                            )}
-                        >
-                            {t("products.tabs.quarantine")}
-                        </button>
-                        <button
-                            onClick={() => router.push("/products?tab=supplies")}
-                            className={cn(
-                                "px-6 py-2.5 rounded-xl font-medium text-sm transition-all relative flex items-center gap-2 whitespace-nowrap",
-                                activeTab === "supplies"
-                                    ? "bg-[var(--card-bg)] text-foreground shadow-sm"
-                                    : "text-muted hover:text-foreground hover:bg-[var(--card-bg)]/50"
-                            )}
-                        >
-                            {t("products.tabs.supplies")}
-                        </button>
+                        {(["products", "categories", "quarantine", "supplies"] as const).map((tab) => (
+                            <button
+                                key={tab}
+                                onClick={() => router.push(tab === "products" ? "/products" : `/products?tab=${tab}`)}
+                                className={cn(
+                                    "px-6 py-2.5 rounded-xl font-medium text-sm transition-all relative flex items-center gap-2 whitespace-nowrap",
+                                    activeTab === tab
+                                        ? "bg-[var(--card-bg)] text-foreground shadow-sm"
+                                        : "text-muted hover:text-foreground hover:bg-[var(--card-bg)]/50"
+                                )}
+                            >
+                                {t(`products.tabs.${tab}`)}
+                            </button>
+                        ))}
                     </div>
 
                     {activeTab === "categories" && <CategoriesTab />}
@@ -486,76 +681,44 @@ function ProductsContent() {
                     {activeTab === "products" && (
                         <div className="space-y-6">
                             {/* Low Stock Alert */}
-                            {showLowStockAlert && (
-                                <LowStockAlert
-                                    products={products}
-                                    onDismiss={() => setShowLowStockAlert(false)}
-                                    onViewProduct={handleViewDetails}
-                                />
-                            )}
+                            <LowStockAlert
+                                products={products}
+                                onViewProduct={handleViewDetails}
+                            />
 
-                            {/* Stats Cards */}
+                            {/* Forecasting Cards */}
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.4, delay: 0.15 }}
-                                className="grid grid-cols-2 md:grid-cols-5 gap-4"
                             >
-                                <div className="pastel-card pastel-card-yellow p-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-white/50 flex items-center justify-center">
-                                            <Package className="w-5 h-5 text-amber-700" />
-                                        </div>
-                                        <div>
-                                            <p className="text-2xl font-bold text-amber-900">{stats.totalProducts}</p>
-                                            <p className="text-xs text-amber-700">{t("products.title")}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="pastel-card pastel-card-green p-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-white/50 flex items-center justify-center">
-                                            <ShoppingCart className="w-5 h-5 text-green-700" />
-                                        </div>
-                                        <div>
-                                            <p className="text-2xl font-bold text-green-900">{stats.totalSold}</p>
-                                            <p className="text-xs text-green-700">{t("products.unitsSold")}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="pastel-card pastel-card-mint p-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-white/50 flex items-center justify-center">
-                                            <DollarSign className="w-5 h-5 text-teal-700" />
-                                        </div>
-                                        <div>
-                                            <p className="text-2xl font-bold text-teal-900">{formatIQD(stats.totalRevenue)}</p>
-                                            <p className="text-xs text-teal-700">{t("products.totalRevenue")}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="pastel-card pastel-card-blue p-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-white/50 flex items-center justify-center">
-                                            <TrendingUp className="w-5 h-5 text-blue-700" />
-                                        </div>
-                                        <div>
-                                            <p className="text-2xl font-bold text-blue-900">{formatIQD(stats.averageOrderValue)}</p>
-                                            <p className="text-xs text-blue-700">{t("products.avgOrderValue")}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="pastel-card pastel-card-pink p-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-white/50 flex items-center justify-center">
-                                            <Award className="w-5 h-5 text-rose-700" />
-                                        </div>
-                                        <div>
-                                            <p className="text-lg font-bold text-rose-900 truncate">{stats.bestSeller?.name || "-"}</p>
-                                            <p className="text-xs text-rose-700">{t("products.bestSeller")}</p>
-                                        </div>
-                                    </div>
-                                </div>
+                                <ForecastingCards
+                                    products={products}
+                                    onDrillDown={(target) => {
+                                        const base: FilterValues = advancedFilters ?? {
+                                            priceMin: null,
+                                            priceMax: null,
+                                            salesMin: null,
+                                            salesMax: null,
+                                            revenueMin: null,
+                                            revenueMax: null,
+                                            stockStatus: "all",
+                                            showArchived: false,
+                                            categoryId: null,
+                                            visibility: "all",
+                                            productType: null,
+                                            hasVariants: "all",
+                                            tagId: null,
+                                        };
+                                        if (target === "stockout") {
+                                            setAdvancedFilters({ ...base, stockStatus: "out_of_stock" });
+                                        } else if (target === "lowStock") {
+                                            setAdvancedFilters({ ...base, stockStatus: "low_stock" });
+                                        } else if (target === "revenue") {
+                                            setSortBy("revenue");
+                                        }
+                                    }}
+                                />
                             </motion.div>
 
                             {/* Filters & Search Bar */}
@@ -582,36 +745,46 @@ function ProductsContent() {
                                         {/* Time Period Filter */}
                                         <TimePeriodFilter value={timePeriod} onChange={setTimePeriod} />
 
-                                        {/* Advanced Filters */}
-                                        <AdvancedFilters
-                                            onApply={setAdvancedFilters}
-                                            onReset={() => setAdvancedFilters(null)}
-                                        />
+                                        {/* Advanced Filters — desktop dropdown */}
+                                        <div className="hidden sm:block">
+                                            <AdvancedFilters
+                                                onApply={setAdvancedFilters}
+                                                onReset={() => setAdvancedFilters(null)}
+                                            />
+                                        </div>
+
+                                        {/* Advanced Filters — mobile bottom sheet trigger */}
+                                        <button
+                                            onClick={() => setIsMobileFilterOpen(true)}
+                                            className="sm:hidden flex items-center gap-2 px-4 py-3 rounded-xl border bg-[var(--background)] border-[var(--card-border)] text-foreground hover:border-[var(--ink)] transition-all"
+                                        >
+                                            <Filter className="w-4 h-4" />
+                                            <span className="font-medium">{t("products.filters.title")}</span>
+                                        </button>
 
                                         {/* View Toggle */}
                                         <div className="flex bg-[var(--background)] rounded-xl p-1 border border-[var(--card-border)]">
-                                            <button
-                                                onClick={() => setViewMode("grid")}
-                                                className={cn(
-                                                    "p-2 rounded-lg transition-all",
-                                                    viewMode === "grid"
-                                                        ? "bg-[var(--ink)] text-white"
-                                                        : "text-muted hover:text-foreground"
-                                                )}
-                                            >
-                                                <Grid3X3 className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => setViewMode("list")}
-                                                className={cn(
-                                                    "p-2 rounded-lg transition-all",
-                                                    viewMode === "list"
-                                                        ? "bg-[var(--ink)] text-white"
-                                                        : "text-muted hover:text-foreground"
-                                                )}
-                                            >
-                                                <List className="w-4 h-4" />
-                                            </button>
+                                            {([
+                                                { mode: "grid" as const, icon: Grid3X3, label: "products.views.grid" },
+                                                { mode: "list" as const, icon: List, label: "products.views.list" },
+                                                { mode: "category" as const, icon: Layers, label: "products.views.category" },
+                                                { mode: "kanban" as const, icon: Columns3, label: "products.views.kanban" },
+                                                { mode: "heatmap" as const, icon: BarChart3, label: "products.views.heatmap" },
+                                            ]).map(({ mode, icon: Icon, label }) => (
+                                                <button
+                                                    key={mode}
+                                                    onClick={() => setViewMode(mode)}
+                                                    className={cn(
+                                                        "p-2 rounded-lg transition-all",
+                                                        viewMode === mode
+                                                            ? "bg-[var(--ink)] text-white"
+                                                            : "text-muted hover:text-foreground"
+                                                    )}
+                                                    title={t(label)}
+                                                >
+                                                    <Icon className="w-4 h-4" />
+                                                </button>
+                                            ))}
                                         </div>
 
                                         {/* Sort Dropdown */}
@@ -621,21 +794,25 @@ function ProductsContent() {
                                                 onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
                                                 className="appearance-none px-4 py-3 pr-10 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all cursor-pointer"
                                             >
-                                                <option value="sales">{t("products.sort.bestSelling")}</option>
-                                                <option value="revenue">{t("products.sort.highestRevenue")}</option>
-                                                <option value="price">{t("products.sort.highestPrice")}</option>
-                                                <option value="stock">{t("products.sort.highestStock")}</option>
+                                                <option value="sales">{t("products.bestSelling")}</option>
+                                                <option value="revenue">{t("products.highestRevenue")}</option>
+                                                <option value="price">{t("products.highestPrice")}</option>
+                                                <option value="stock">{t("products.highestStock")}</option>
+                                                <option value="displayOrder">{t("products.customOrder")}</option>
                                             </select>
                                             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
                                         </div>
                                     </div>
                                 </div>
 
+                                {/* Active Filter Pills */}
+                                <ActiveFilterPills filters={advancedFilters} onChange={setAdvancedFilters} />
+
                                 {/* Bulk Selection Controls */}
                                 {filteredProducts.length > 0 && (
                                     <div className="flex items-center gap-4 mt-4 pt-4 border-t border-[var(--card-border)]">
                                         <button
-                                            onClick={selectedIds.size === filteredProducts.length ? clearSelection : selectAll}
+                                            onClick={handleSelectAll}
                                             className="flex items-center gap-2 text-sm text-muted hover:text-foreground transition-colors"
                                         >
                                             {selectedIds.size === filteredProducts.length ? (
@@ -643,18 +820,23 @@ function ProductsContent() {
                                             ) : (
                                                 <Square className="w-4 h-4" />
                                             )}
-                                            {selectedIds.size === filteredProducts.length ? t("products.selection.deselectAll") : t("products.selection.selectAll")}
+                                            {selectedIds.size === filteredProducts.length
+                                                ? t("products.selection.deselectAll")
+                                                : t("products.selection.selectAll")}
                                         </button>
                                         {selectedIds.size > 0 && (
                                             <span className="text-sm text-muted">
-                                                {t("products.selection.selectedCount", { count: selectedIds.size.toString(), total: filteredProducts.length.toString() })}
+                                                {t("products.selection.selectedCount", {
+                                                    count: selectedIds.size.toString(),
+                                                    total: filteredProducts.length.toString(),
+                                                })}
                                             </span>
                                         )}
                                     </div>
                                 )}
                             </motion.div>
 
-                            {/* Products Grid/List */}
+                            {/* Products Grid/List — Virtualized */}
                             {filteredProducts.length === 0 ? (
                                 <div className="pastel-card p-12 text-center">
                                     <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--background)] flex items-center justify-center">
@@ -677,278 +859,72 @@ function ProductsContent() {
                                     )}
                                 </div>
                             ) : viewMode === "grid" ? (
-                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                                    {filteredProducts.map((product, index) => (
-                                        <div key={product.id}>
-                                            <motion.div
-                                                className={cn(
-                                                    "bg-[var(--card-bg)] rounded-[20px] shadow-[var(--card-shadow)] overflow-hidden hover:shadow-[var(--card-shadow-hover)] transition-all group relative",
-                                                    selectedIds.has(product.id) && "ring-2 ring-[var(--foreground)]"
-                                                )}
-                                            >
-                                                {/* Selection Checkbox */}
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        toggleSelection(product.id);
-                                                    }}
-                                                    className="absolute top-3 left-3 z-10 p-1 bg-white/80 backdrop-blur-sm rounded-lg hover:bg-white transition-colors"
-                                                >
-                                                    {selectedIds.has(product.id) ? (
-                                                        <CheckSquare className="w-4 h-4 text-[var(--foreground)]" />
-                                                    ) : (
-                                                        <Square className="w-4 h-4 text-muted" />
-                                                    )}
-                                                </button>
-
-                                                {/* Quick Actions */}
-                                                <div className="absolute top-3 right-3 z-10">
-                                                    <QuickActionsMenu
-                                                        product={product}
-                                                        onEdit={() => handleEditProduct(product)}
-                                                        onArchive={() => archiveProduct(product.id)}
-                                                        onRestore={() => restoreProduct(product.id)}
-                                                        onViewDetails={() => handleViewDetails(product)}
-                                                        onViewOrders={() => { }}
-                                                    />
-                                                </div>
-
-                                                {/* Product Image */}
-                                                <div
-                                                    onClick={() => handleViewDetails(product)}
-                                                    className="aspect-square bg-gradient-to-br from-[var(--background)] to-[var(--card-border)] flex items-center justify-center relative cursor-pointer"
-                                                >
-                                                    {product.image_url ? (
-                                                        <img
-                                                            src={product.image_url}
-                                                            alt={product.name}
-                                                            className="w-full h-full object-cover"
-                                                        />
-                                                    ) : (
-                                                        <Package className="w-12 h-12 text-muted" />
-                                                    )}
-                                                    {index === 0 && (
-                                                        <div className="absolute bottom-3 right-3 px-2 py-1 bg-[var(--pastel-yellow)] rounded-lg">
-                                                            <span className="text-[10px] font-bold text-amber-900 flex items-center gap-1">
-                                                                <Award className="w-3 h-3" /> #1
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                {/* Product Info */}
-                                                <div className="p-4 space-y-2">
-                                                    <div className="flex items-start justify-between gap-2">
-                                                        <div className="flex flex-col gap-1 flex-1 min-w-0">
-                                                            <h3 className="font-bold text-foreground truncate w-full">
-                                                                {product.name}
-                                                            </h3>
-                                                            {product.category_id && categoriesMap.get(product.category_id) && (
-                                                                <div 
-                                                                    onClick={(e) => { e.stopPropagation(); handleViewDetails(product); }}
-                                                                    className="inline-flex items-center gap-1 px-2 py-0.5 bg-[var(--background)] border border-[var(--card-border)] rounded-md cursor-pointer hover:border-blue-300 w-fit transition-colors"
-                                                                >
-                                                                    <Tag className="w-3 h-3 text-[var(--foreground-subtle)]" />
-                                                                    <span className="text-[10px] text-[var(--foreground-subtle)] font-medium">
-                                                                        {categoriesMap.get(product.category_id)}
-                                                                    </span>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        <button 
-                                                            onClick={(e) => { e.stopPropagation(); handleVisibilityToggle(product); }}
-                                                            className={cn("p-1.5 rounded-lg transition-colors border flex-shrink-0", product.is_visible ? "bg-blue-500/10 text-blue-600 border-blue-500/20 hover:bg-blue-500/20" : "bg-[var(--background)] text-muted border-[var(--card-border)] hover:bg-[var(--card-bg)]")}
-                                                            title={product.is_visible ? t("products.visibleInStore") : t("products.hiddenInStore")}
-                                                        >
-                                                            {product.is_visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                                                        </button>
-                                                    </div>
-                                                    <div className="flex items-center justify-between">
-                                                        <p className="text-lg font-bold text-foreground">
-                                                            {formatIQD(product.price)}
-                                                        </p>
-                                                        <input
-                                                            type="number"
-                                                            value={product.display_order ?? 0}
-                                                            onChange={(e) => handleOrderChange(product.id, e.target.value)}
-                                                            onClick={(e) => e.stopPropagation()}
-                                                            className="w-14 px-1.5 py-1 text-xs text-center bg-[var(--background)] border border-[var(--card-border)] rounded-md text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--pastel-yellow)] transition-all"
-                                                            title={t("products.displayOrder")}
-                                                        />
-                                                    </div>
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-2">
-                                                            <StockIndicator
-                                                                status={getStockStatus(product)}
-                                                                quantity={Math.max(0, product.stock_quantity - (product.reserved_quantity || 0))}
-                                                                size="sm"
-                                                            />
-                                                            {(product.reserved_quantity || 0) > 0 && (
-                                                                <span className="text-[10px] bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded-md font-medium" title={t("products.stock.reservedStock")}>
-                                                                    {product.reserved_quantity} R
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center justify-between text-sm pt-2 border-t border-[var(--card-border)]">
-                                                        <span className="text-muted flex items-center gap-1">
-                                                            <ShoppingCart className="w-3 h-3" />
-                                                            {product.times_sold || 0} {t("products.sold")}
-                                                        </span>
-                                                        <span className="text-[var(--pastel-green)] font-semibold flex items-center gap-1">
-                                                            <TrendingUp className="w-3 h-3" />
-                                                            {formatIQD(product.total_revenue || 0)}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </motion.div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {filteredProducts.map((product, index) => (
-                                        <div key={product.id}>
-                                            <motion.div
-                                                className={cn(
-                                                    "bg-[var(--card-bg)] rounded-[20px] shadow-[var(--card-shadow)] overflow-hidden hover:shadow-[var(--card-shadow-hover)] transition-all",
-                                                    selectedIds.has(product.id) && "ring-2 ring-[var(--foreground)]"
-                                                )}
-                                            >
-                                                <div className="flex items-center p-4 gap-4">
-                                                    {/* Selection Checkbox */}
-                                                    <button
-                                                        onClick={() => toggleSelection(product.id)}
-                                                        className="p-1 hover:bg-[var(--background)] rounded-lg transition-colors"
-                                                    >
-                                                        {selectedIds.has(product.id) ? (
-                                                            <CheckSquare className="w-5 h-5 text-[var(--foreground)]" />
-                                                        ) : (
-                                                            <Square className="w-5 h-5 text-muted" />
-                                                        )}
-                                                    </button>
-
-                                                    {/* Rank Badge */}
-                                                    <div
-                                                        className={cn(
-                                                            "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-bold",
-                                                            index === 0
-                                                                ? "bg-[var(--pastel-yellow)] text-amber-900"
-                                                                : index === 1
-                                                                    ? "bg-[var(--pastel-mint)] text-teal-900"
-                                                                    : index === 2
-                                                                        ? "bg-[var(--pastel-pink)] text-rose-900"
-                                                                        : "bg-[var(--background)] text-muted"
-                                                        )}
-                                                    >
-                                                        #{index + 1}
-                                                    </div>
-
-                                                    {/* Product Image */}
-                                                    <div
-                                                        onClick={() => handleViewDetails(product)}
-                                                        className="w-14 h-14 rounded-xl bg-[var(--background)] flex items-center justify-center flex-shrink-0 overflow-hidden cursor-pointer"
-                                                    >
-                                                        {product.image_url ? (
-                                                            <img
-                                                                src={product.image_url}
-                                                                alt={product.name}
-                                                                className="w-full h-full object-cover"
-                                                            />
-                                                        ) : (
-                                                            <Package className="w-6 h-6 text-muted" />
-                                                        )}
-                                                    </div>
-
-                                                    {/* Product Info */}
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2">
-                                                            <h3 className="font-bold text-foreground">{product.name}</h3>
-                                                            {product.category_id && categoriesMap.get(product.category_id) && (
-                                                                <div 
-                                                                    onClick={(e) => { e.stopPropagation(); handleViewDetails(product); }}
-                                                                    className="inline-flex items-center gap-1 px-2 py-0.5 bg-[var(--background)] border border-[var(--card-border)] rounded-md cursor-pointer hover:border-blue-300 transition-colors"
-                                                                >
-                                                                    <Tag className="w-3 h-3 text-[var(--foreground-subtle)]" />
-                                                                    <span className="text-[10px] text-[var(--foreground-subtle)] font-medium">
-                                                                        {categoriesMap.get(product.category_id)}
-                                                                    </span>
-                                                                </div>
-                                                            )}
-                                                            <StockIndicator
-                                                                status={getStockStatus(product)}
-                                                                size="sm"
-                                                                showLabel={false}
-                                                            />
-                                                        </div>
-                                                        <div className="flex items-center gap-3 mt-1">
-                                                            <p className="text-sm text-muted">
-                                                                {t("products.avail")}: <span className="font-medium text-foreground">{Math.max(0, product.stock_quantity - (product.reserved_quantity || 0))}</span>
-                                                            </p>
-                                                            {(product.reserved_quantity || 0) > 0 && (
-                                                                <p className="text-sm text-amber-600">
-                                                                    {t("products.rsvd")}: <span className="font-medium">{product.reserved_quantity}</span>
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Storefront Setup */}
-                                                    <div className="hidden lg:flex items-center gap-4 border-r border-[var(--card-border)] pr-8">
-                                                        <input
-                                                            type="number"
-                                                            value={product.display_order ?? 0}
-                                                            onChange={(e) => handleOrderChange(product.id, e.target.value)}
-                                                            onClick={(e) => e.stopPropagation()}
-                                                            className="w-14 px-1.5 py-1 text-xs text-center bg-[var(--background)] border border-[var(--card-border)] rounded-md text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--pastel-yellow)] transition-all"
-                                                            title={t("products.displayOrder")}
-                                                        />
-                                                        <button 
-                                                            onClick={(e) => { e.stopPropagation(); handleVisibilityToggle(product); }}
-                                                            className={cn("p-1.5 rounded-lg transition-colors border", product.is_visible ? "bg-blue-500/10 text-blue-600 border-blue-500/20 hover:bg-blue-500/20" : "bg-[var(--background)] text-muted border-[var(--card-border)] hover:bg-[var(--card-bg)]")}
-                                                            title={product.is_visible ? t("products.visibleInStore") : t("products.hiddenInStore")}
-                                                        >
-                                                            {product.is_visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                                                        </button>
-                                                    </div>
-
-                                                    {/* Stats */}
-                                                    <div className="hidden md:flex items-center gap-8">
-                                                        <div className="text-center">
-                                                            <p className="text-lg font-bold text-foreground">
-                                                                {formatIQD(product.price)}
-                                                            </p>
-                                                            <p className="text-xs text-muted">{t("products.price")}</p>
-                                                        </div>
-                                                        <div className="text-center">
-                                                            <p className="text-lg font-bold text-foreground">
-                                                                {product.times_sold || 0}
-                                                            </p>
-                                                            <p className="text-xs text-muted">{t("products.soldLabel")}</p>
-                                                        </div>
-                                                        <div className="text-center">
-                                                            <p className="text-lg font-bold text-green-700">
-                                                                {formatIQD(product.total_revenue || 0)}
-                                                            </p>
-                                                            <p className="text-xs text-muted">{t("products.revenue")}</p>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Quick Actions */}
-                                                    <QuickActionsMenu
-                                                        product={product}
-                                                        onEdit={() => handleEditProduct(product)}
-                                                        onArchive={() => archiveProduct(product.id)}
-                                                        onRestore={() => restoreProduct(product.id)}
-                                                        onViewDetails={() => handleViewDetails(product)}
-                                                        onViewOrders={() => { }}
-                                                    />
-                                                </div>
-                                            </motion.div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                                <AbcTierProvider products={products}>
+                                <VirtualizedProductGrid
+                                    products={filteredProducts}
+                                    selectedIds={selectedIds}
+                                    categoriesMap={categoriesMap}
+                                    onToggleSelection={toggleSelection}
+                                    onViewDetails={handleViewDetails}
+                                    onEdit={handleEditProduct}
+                                    onArchive={handleArchive}
+                                    onRestore={handleRestore}
+                                    onDuplicate={handleDuplicateProduct}
+                                    onDelete={handleDeleteProduct}
+                                    onVisibilityToggle={handleVisibilityToggle}
+                                    onReorder={sortBy === "displayOrder" ? handleReorder : undefined}
+                                />
+                                </AbcTierProvider>
+                            ) : viewMode === "list" ? (
+                                <AbcTierProvider products={products}>
+                                <VirtualizedProductList
+                                    products={filteredProducts}
+                                    selectedIds={selectedIds}
+                                    categoriesMap={categoriesMap}
+                                    onToggleSelection={toggleSelection}
+                                    onViewDetails={handleViewDetails}
+                                    onEdit={handleEditProduct}
+                                    onArchive={handleArchive}
+                                    onRestore={handleRestore}
+                                    onDuplicate={handleDuplicateProduct}
+                                    onDelete={handleDeleteProduct}
+                                    onVisibilityToggle={handleVisibilityToggle}
+                                    onReorder={sortBy === "displayOrder" ? handleReorder : undefined}
+                                />
+                                </AbcTierProvider>
+                            ) : viewMode === "category" ? (
+                                <AbcTierProvider products={products}>
+                                <CategoryGroupedView
+                                    products={filteredProducts}
+                                    categories={categories || []}
+                                    selectedIds={selectedIds}
+                                    onToggleSelection={toggleSelection}
+                                    onViewDetails={handleViewDetails}
+                                    onEdit={handleEditProduct}
+                                    onArchive={handleArchive}
+                                    onRestore={handleRestore}
+                                    onDuplicate={handleDuplicateProduct}
+                                    onDelete={handleDeleteProduct}
+                                    onVisibilityToggle={handleVisibilityToggle}
+                                />
+                                </AbcTierProvider>
+                            ) : viewMode === "kanban" ? (
+                                <KanbanStockBoard
+                                    products={filteredProducts}
+                                    selectedIds={selectedIds}
+                                    onToggleSelection={toggleSelection}
+                                    onViewDetails={handleViewDetails}
+                                    onEdit={handleEditProduct}
+                                    onArchive={handleArchive}
+                                    onRestore={handleRestore}
+                                    onVisibilityToggle={handleVisibilityToggle}
+                                />
+                            ) : viewMode === "heatmap" ? (
+                                <MarginHeatmapView
+                                    products={filteredProducts}
+                                    onViewDetails={handleViewDetails}
+                                />
+                            ) : null}
                         </div>
                     )}
                 </div>
@@ -978,14 +954,28 @@ function ProductsContent() {
             {activeTab === "products" && (
                 <BulkActionsBar
                     selectedCount={selectedIds.size}
+                    totalCount={filteredProducts.length}
+                    selectedProductNames={products
+                        .filter((p) => selectedIds.has(p.id))
+                        .map((p) => p.name)}
                     onUpdatePrice={handleBulkUpdatePrice}
                     onArchive={handleBulkArchive}
                     onExport={handleBulkExport}
                     onShowOnStore={handleBulkShow}
                     onHideFromStore={handleBulkHide}
                     onClearSelection={clearSelection}
+                    onUndo={handleBulkArchiveUndo}
+                    onDelete={handleBulkDelete}
                 />
             )}
+
+            {/* Mobile Filter Bottom Sheet */}
+            <FilterBottomSheet
+                isOpen={isMobileFilterOpen}
+                onClose={() => setIsMobileFilterOpen(false)}
+                onApply={setAdvancedFilters}
+                onReset={() => setAdvancedFilters(null)}
+            />
         </PageTransition>
     );
 }

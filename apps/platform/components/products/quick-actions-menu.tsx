@@ -1,10 +1,21 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { MoreVertical, Edit, Archive, ArchiveRestore, Eye, ShoppingBag, Trash2, Copy } from "lucide-react";
+import { useState } from "react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import {
+    MoreVertical,
+    Edit,
+    Archive,
+    ArchiveRestore,
+    Eye,
+    ShoppingBag,
+    Trash2,
+    Copy,
+    AlertTriangle,
+} from "lucide-react";
 import { Product } from "@/lib/supabase";
 import { useLanguage } from "@/hooks/use-language";
+import { cn } from "@/lib/utils";
 
 interface QuickActionsMenuProps {
     product: Product;
@@ -15,7 +26,12 @@ interface QuickActionsMenuProps {
     onViewOrders: () => void;
     onDuplicate?: () => void;
     onDelete?: () => void;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }
+
+const itemClasses =
+    "flex items-center gap-3 px-3 py-2.5 text-sm outline-none cursor-pointer select-none rounded-lg transition-colors data-[highlighted]:bg-[var(--background)]";
 
 export function QuickActionsMenu({
     product,
@@ -26,108 +42,161 @@ export function QuickActionsMenu({
     onViewOrders,
     onDuplicate,
     onDelete,
+    open,
+    onOpenChange,
 }: QuickActionsMenuProps) {
-    const [isOpen, setIsOpen] = useState(false);
-    const menuRef = useRef<HTMLDivElement>(null);
     const { t } = useLanguage();
+    const [confirmingArchive, setConfirmingArchive] = useState(false);
+    const [confirmingDelete, setConfirmingDelete] = useState(false);
 
-    // Close menu when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-                setIsOpen(false);
-            }
-        };
-
-        if (isOpen) {
-            document.addEventListener("mousedown", handleClickOutside);
+    const handleOpenChange = (next: boolean) => {
+        if (!next) {
+            setConfirmingArchive(false);
+            setConfirmingDelete(false);
         }
-
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, [isOpen]);
-
-    const menuItems = [
-        {
-            label: t("products.actions.viewDetails"),
-            icon: Eye,
-            onClick: onViewDetails,
-            show: true,
-        },
-        {
-            label: t("products.actions.editProduct"),
-            icon: Edit,
-            onClick: onEdit,
-            show: true,
-        },
-        {
-            label: t("products.actions.viewOrders"),
-            icon: ShoppingBag,
-            onClick: onViewOrders,
-            show: true,
-        },
-        {
-            label: t("products.actions.duplicate"),
-            icon: Copy,
-            onClick: onDuplicate,
-            show: !!onDuplicate && !product.is_archived,
-        },
-        {
-            label: product.is_archived ? t("products.actions.restore") : t("products.actions.archive"),
-            icon: product.is_archived ? ArchiveRestore : Archive,
-            onClick: product.is_archived ? onRestore : onArchive,
-            show: true,
-            className: product.is_archived ? "text-green-600" : "text-amber-600",
-        },
-        {
-            label: t("products.actions.deletePermanently"),
-            icon: Trash2,
-            onClick: onDelete,
-            show: !!onDelete && product.is_archived,
-            className: "text-rose-600",
-        },
-    ].filter((item) => item.show);
+        onOpenChange?.(next);
+    };
 
     return (
-        <div ref={menuRef} className="relative">
-            <button
-                onClick={(e) => {
-                    e.stopPropagation();
-                    setIsOpen(!isOpen);
-                }}
-                className="p-2 rounded-lg hover:bg-[var(--background)] transition-colors"
-            >
-                <MoreVertical className="w-4 h-4 text-muted" />
-            </button>
+        <DropdownMenu.Root
+            open={open}
+            onOpenChange={handleOpenChange}
+        >
+            <DropdownMenu.Trigger asChild>
+                <button
+                    onClick={(e) => e.stopPropagation()}
+                    className="p-2 rounded-lg hover:bg-[var(--background)] transition-colors opacity-60 hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--foreground)] min-w-[44px] min-h-[44px] flex items-center justify-center"
+                    aria-label="Product actions"
+                >
+                    <MoreVertical className="w-4 h-4 text-muted" />
+                </button>
+            </DropdownMenu.Trigger>
 
-            <AnimatePresence>
-                {isOpen && (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                        transition={{ duration: 0.15 }}
-                        className="absolute right-0 top-full mt-1 z-50 w-48 bg-[var(--card-bg)] rounded-xl shadow-lg border border-[var(--card-border)] overflow-hidden"
+            <DropdownMenu.Portal>
+                <DropdownMenu.Content
+                    align="end"
+                    sideOffset={4}
+                    className="z-50 w-52 bg-[var(--card-bg)] rounded-xl shadow-lg border border-[var(--card-border)] overflow-hidden p-1 animate-in fade-in-0 zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {/* View Details */}
+                    <DropdownMenu.Item
+                        className={cn(itemClasses, "text-foreground")}
+                        onSelect={onViewDetails}
                     >
-                        {menuItems.map((item, index) => (
-                            <button
-                                key={index}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    item.onClick?.();
-                                    setIsOpen(false);
-                                }}
-                                className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-[var(--background)] transition-colors ${item.className || "text-foreground"
-                                    }`}
-                            >
-                                <item.icon className="w-4 h-4" />
-                                {item.label}
-                            </button>
-                        ))}
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
+                        <Eye className="w-4 h-4" />
+                        {t("products.actions.viewDetails")}
+                    </DropdownMenu.Item>
+
+                    {/* Edit */}
+                    <DropdownMenu.Item
+                        className={cn(itemClasses, "text-foreground")}
+                        onSelect={onEdit}
+                    >
+                        <Edit className="w-4 h-4" />
+                        {t("products.actions.editProduct")}
+                    </DropdownMenu.Item>
+
+                    {/* View Orders */}
+                    <DropdownMenu.Item
+                        className={cn(itemClasses, "text-foreground")}
+                        onSelect={onViewOrders}
+                    >
+                        <ShoppingBag className="w-4 h-4" />
+                        {t("products.actions.viewOrders")}
+                    </DropdownMenu.Item>
+
+                    <DropdownMenu.Separator className="h-px bg-[var(--card-border)] my-1" />
+
+                    {/* Duplicate */}
+                    {onDuplicate && !product.is_archived && (
+                        <DropdownMenu.Item
+                            className={cn(itemClasses, "text-foreground")}
+                            onSelect={onDuplicate}
+                        >
+                            <Copy className="w-4 h-4" />
+                            {t("products.actions.duplicate")}
+                        </DropdownMenu.Item>
+                    )}
+
+                    <DropdownMenu.Separator className="h-px bg-[var(--card-border)] my-1" />
+
+                    {/* Archive / Restore with inline confirmation */}
+                    {product.is_archived && onRestore ? (
+                        <DropdownMenu.Item
+                            className={cn(itemClasses, "text-green-600")}
+                            onSelect={onRestore}
+                        >
+                            <ArchiveRestore className="w-4 h-4" />
+                            {t("products.actions.restore")}
+                        </DropdownMenu.Item>
+                    ) : confirmingArchive ? (
+                        <DropdownMenu.Item
+                            className={cn(
+                                itemClasses,
+                                "text-amber-600 bg-amber-50 dark:bg-amber-950/30 data-[highlighted]:bg-amber-100 dark:data-[highlighted]:bg-amber-950/50"
+                            )}
+                            onSelect={(e) => {
+                                e.preventDefault();
+                                onArchive();
+                                setConfirmingArchive(false);
+                            }}
+                        >
+                            <AlertTriangle className="w-4 h-4" />
+                            {t("products.actions.confirmArchive")}
+                        </DropdownMenu.Item>
+                    ) : (
+                        <DropdownMenu.Item
+                            className={cn(itemClasses, "text-amber-600")}
+                            onSelect={(e) => {
+                                e.preventDefault();
+                                setConfirmingArchive(true);
+                            }}
+                        >
+                            <Archive className="w-4 h-4" />
+                            {t("products.actions.archive")}
+                        </DropdownMenu.Item>
+                    )}
+
+                    {/* Delete with inline confirmation (available regardless of archive state) */}
+                    {onDelete && (
+                        <>
+                            {confirmingDelete ? (
+                                <DropdownMenu.Item
+                                    className={cn(
+                                        itemClasses,
+                                        "text-rose-600 bg-rose-50 dark:bg-rose-950/30 data-[highlighted]:bg-rose-100 dark:data-[highlighted]:bg-rose-950/50"
+                                    )}
+                                    onSelect={(e) => {
+                                        e.preventDefault();
+                                        onDelete();
+                                        setConfirmingDelete(false);
+                                    }}
+                                >
+                                    <AlertTriangle className="w-4 h-4" />
+                                    <div>
+                                        <div>{t("products.actions.confirmDelete")}</div>
+                                        <div className="text-[10px] opacity-70">
+                                            {t("products.actions.deleteWarning")}
+                                        </div>
+                                    </div>
+                                </DropdownMenu.Item>
+                            ) : (
+                                <DropdownMenu.Item
+                                    className={cn(itemClasses, "text-rose-600")}
+                                    onSelect={(e) => {
+                                        e.preventDefault();
+                                        setConfirmingDelete(true);
+                                    }}
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                    {t("products.actions.deletePermanently")}
+                                </DropdownMenu.Item>
+                            )}
+                        </>
+                    )}
+                </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+        </DropdownMenu.Root>
     );
 }

@@ -13,6 +13,7 @@ interface ProductEditorHeaderProps {
     onSave: () => void;
     onDiscard: () => void;
     onDuplicate?: () => void;
+    children?: React.ReactNode;
 }
 
 export function ProductEditorHeader({
@@ -24,6 +25,7 @@ export function ProductEditorHeader({
     onSave,
     onDiscard,
     onDuplicate,
+    children,
 }: ProductEditorHeaderProps) {
     const router = useRouter();
 
@@ -52,7 +54,9 @@ export function ProductEditorHeader({
                     <span className={`px-3 py-1 rounded-full text-xs font-medium shrink-0 ${statusColors[status]}`}>
                         {status.charAt(0).toUpperCase() + status.slice(1)}
                     </span>
-                    {isDirty && (
+                    {children ? (
+                        <div className="shrink-0">{children}</div>
+                    ) : isDirty ? (
                         <motion.div
                             initial={{ opacity: 0, scale: 0.8 }}
                             animate={{ opacity: 1, scale: 1 }}
@@ -61,7 +65,7 @@ export function ProductEditorHeader({
                             <Circle className="w-2 h-2 fill-current" />
                             <span className="text-xs font-medium">Unsaved changes</span>
                         </motion.div>
-                    )}
+                    ) : null}
                 </div>
 
                 {/* Right: Actions */}

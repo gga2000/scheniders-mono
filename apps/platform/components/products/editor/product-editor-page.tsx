@@ -12,6 +12,7 @@ import { ProductStorefrontSection } from "./product-storefront-section";
 import { VariantOptionsBuilder } from "./variant-options-builder";
 import { VariantMatrixTable } from "./variant-matrix-table";
 import type { VariantRowData } from "./variant-matrix-table";
+import { VariantChangesDialog } from "./variant-changes-dialog";
 import { ProductTypeSelector } from "./product-type-selector";
 import { PhysicalFieldsSection } from "./physical-fields-section";
 import { DigitalFieldsSection } from "./digital-fields-section";
@@ -29,8 +30,15 @@ import { ActivityLogSection } from "./activity-log-section";
 import { StorefrontPreview } from "./storefront-preview";
 import { CollapsibleSection } from "./collapsible-section";
 import { AdvancedOptionsSection } from "./advanced-options-section";
+import { LandedCostSection } from "./landed-cost-section";
+import { BarcodeGenerator } from "../barcode/barcode-generator";
+import { TagInput } from "../tags/tag-input";
+import { BatchManager } from "../batch-tracking/batch-manager";
+import { ProductLocationPicker } from "../warehouse/product-location-picker";
 import { AnimatePresence, motion } from "framer-motion";
-import { TrendingUp, Clock, Package, Zap, Link as LinkIcon, Weight, Truck } from "lucide-react";
+import { TrendingUp, Clock, Package, Zap, Link as LinkIcon, Weight, Truck, Barcode, MapPin, Layers3, Tags } from "lucide-react";
+import { SectionNav } from "./section-nav";
+import { AutoSaveIndicator } from "./auto-save-indicator";
 
 interface ProductEditorPageProps {
     product?: Product | null;
@@ -48,10 +56,18 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
                 isDirty={editor.isDirty}
                 saving={editor.saving}
                 status={editor.formData.status}
-                onSave={editor.save}
+                onSave={() => { editor.save(); }}
                 onDiscard={editor.discard}
                 onDuplicate={mode === "edit" ? editor.duplicateProduct : undefined}
-            />
+            >
+                {mode === "edit" && (
+                    <AutoSaveIndicator
+                        isDirty={editor.isDirty}
+                        saving={editor.saving}
+                        onSave={() => { editor.save(); }}
+                    />
+                )}
+            </ProductEditorHeader>
 
             {/* Draft recovery banner */}
             <AnimatePresence>
@@ -85,36 +101,67 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
                 )}
             </AnimatePresence>
 
-            {/* Two-column layout */}
+            {/* Three-column layout: Nav | Content | Sidebar */}
             <div className="max-w-7xl mx-auto px-6 py-8">
                 <div className="flex flex-col lg:flex-row gap-8">
+                    {/* Section Navigation (desktop vertical + mobile horizontal) */}
+                    <SectionNav
+                        visibleSections={[
+                            "type",
+                            "basic",
+                            "media",
+                            "pricing",
+                            ...(editor.formData.product_type === "physical" && !editor.formData.is_supply ? ["variants"] : []),
+                            "storefront",
+                            ...(mode === "edit" ? ["tags"] : []),
+                            ...(editor.formData.product_type !== "digital" && editor.formData.product_type !== "service" ? ["inventory"] : []),
+                            "cms",
+                            ...(!editor.formData.is_supply ? ["preview"] : []),
+                            "advanced",
+                        ]}
+                    />
+
                     {/* Main content */}
                     <div className="flex-1 min-w-0 space-y-6">
                         {/* === CORE SECTIONS === */}
-                        <ProductTypeSelector
-                            value={editor.formData.product_type}
-                            onChange={(type) => editor.updateField("product_type", type)}
-                            mode={mode}
-                        />
+                        <div id="section-type">
+                            <ProductTypeSelector
+                                value={editor.formData.product_type}
+                                onChange={(type) => editor.updateField("product_type", type)}
+                                mode={mode}
+                            />
+                        </div>
 
-                        <ProductBasicSection
-                            formData={editor.formData}
-                            updateField={editor.updateField}
-                        />
+                        <div id="section-basic">
+                            <ProductBasicSection
+                                formData={editor.formData}
+                                updateField={editor.updateField}
+                            />
+                        </div>
 
-                        <ProductMediaSection
-                            formData={editor.formData}
-                            updateField={editor.updateField}
-                            productId={product?.id}
-                        />
+                        <div id="section-media">
+                            <ProductMediaSection
+                                formData={editor.formData}
+                                updateField={editor.updateField}
+                                productId={product?.id}
+                            />
+                        </div>
 
-                        <ProductPricingSection
-                            formData={editor.formData}
-                            updateField={editor.updateField}
-                            profitMargin={editor.profitMargin}
-                            profitAmount={editor.profitAmount}
-                            discountPercentage={editor.discountPercentage}
-                        />
+                        <div id="section-pricing">
+                            <ProductPricingSection
+                                formData={editor.formData}
+                                updateField={editor.updateField}
+                                profitMargin={editor.profitMargin}
+                                profitAmount={editor.profitAmount}
+                                discountPercentage={editor.discountPercentage}
+                            />
+                            <LandedCostSection
+                                costBreakdown={editor.formData.cost_breakdown_json}
+                                onCostBreakdownChange={(breakdown) => editor.updateField("cost_breakdown_json", breakdown)}
+                                onCostChange={(cost) => editor.updateField("cost", cost)}
+                                price={editor.formData.price}
+                            />
+                        </div>
 
                         {/* Type-specific fields */}
                         {editor.formData.product_type === "digital" && (
@@ -140,9 +187,9 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
                             />
                         )}
 
-                        {/* === VARIANTS (moved up — important for physical products) === */}
+                        {/* === VARIANTS === */}
                         {!editor.formData.is_supply && editor.formData.product_type === "physical" && (
-                            <>
+                            <div id="section-variants" className="space-y-4">
                                 <VariantOptionsBuilder
                                     options={editor.formData.variant_options}
                                     onChange={editor.updateVariantOptions}
@@ -152,24 +199,48 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
                                         variants={editor.formData.variants as VariantRowData[]}
                                         options={editor.formData.variant_options.filter(o => o.name.trim() && o.values.length > 0)}
                                         onUpdateVariant={editor.updateVariantRow}
+                                        onBulkUpdateVariants={editor.bulkUpdateVariants}
                                         onApplyToAll={editor.applyToAllVariants}
+                                        onDeleteVariants={editor.deleteVariants}
                                         productSku={editor.formData.sku}
                                         productPrice={editor.formData.price}
                                         productCost={editor.formData.cost}
                                     />
                                 )}
-                            </>
+                                {editor.pendingVariantDiff && (
+                                    <VariantChangesDialog
+                                        diff={editor.pendingVariantDiff}
+                                        onConfirm={editor.confirmVariantChanges}
+                                        onCancel={editor.cancelVariantChanges}
+                                    />
+                                )}
+                            </div>
                         )}
 
                         {/* === STOREFRONT & INVENTORY === */}
-                        <ProductStorefrontSection
-                            formData={editor.formData}
-                            updateField={editor.updateField}
-                            autoGenerateSlug={editor.autoGenerateSlug}
-                        />
+                        <div id="section-storefront">
+                            <ProductStorefrontSection
+                                formData={editor.formData}
+                                updateField={editor.updateField}
+                                autoGenerateSlug={editor.autoGenerateSlug}
+                            />
+                        </div>
+
+                        {/* === TAGS === */}
+                        {mode === "edit" && product?.id && (
+                            <div id="section-tags">
+                                <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6">
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <Tags className="w-4 h-4 text-muted" />
+                                        <h3 className="text-sm font-semibold text-muted uppercase tracking-wider">Tags</h3>
+                                    </div>
+                                    <TagInput productId={product.id} />
+                                </div>
+                            </div>
+                        )}
 
                         {editor.formData.product_type !== "digital" && editor.formData.product_type !== "service" && (
-                            <>
+                            <div id="section-inventory" className="space-y-6">
                                 <ProductInventorySection
                                     formData={editor.formData}
                                     updateField={editor.updateField}
@@ -179,10 +250,11 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
                                     formData={editor.formData}
                                     updateField={editor.updateField}
                                 />
-                            </>
+                            </div>
                         )}
 
-                        {/* === CMS TABS (features, FAQs, testimonials, reviews) === */}
+                        {/* === CMS TABS === */}
+                        <div id="section-cms">
                         <ProductCMSTabs
                             features={editor.formData.features}
                             onFeaturesChange={(features) => editor.updateField("features", features)}
@@ -193,9 +265,11 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
                             reviews={editor.formData.reviews}
                             onReviewsChange={(reviews) => editor.updateField("reviews", reviews)}
                         />
+                        </div>
 
                         {/* === STOREFRONT PREVIEW === */}
                         {!editor.formData.is_supply && (
+                            <div id="section-preview">
                             <StorefrontPreview
                                 name={editor.formData.name}
                                 description={editor.formData.description}
@@ -210,12 +284,14 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
                                 slug={editor.formData.slug}
                                 variantOptions={editor.formData.variant_options.filter(o => o.name.trim() && o.values.length > 0)}
                             />
+                            </div>
                         )}
 
                         {/* === ADVANCED OPTIONS (all collapsible, grouped together) === */}
+                        <div id="section-advanced">
                         <AdvancedOptionsSection>
                             {!editor.formData.is_supply && (
-                                <CollapsibleSection title="Volume Pricing" icon={<TrendingUp className="w-4 h-4 text-muted" />} badge={editor.formData.tiered_prices.length || undefined}>
+                                <CollapsibleSection title="Volume Pricing" icon={<TrendingUp className="w-4 h-4 text-muted" />} badge={editor.formData.tiered_prices.length || undefined} persistKey="volume-pricing">
                                     <TieredPricingSection
                                         tiers={editor.formData.tiered_prices}
                                         onChange={(tiers) => editor.updateField("tiered_prices", tiers)}
@@ -225,7 +301,7 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
                             )}
 
                             {editor.formData.product_type === "physical" && (
-                                <CollapsibleSection title="Shipping & Dimensions" icon={<Weight className="w-4 h-4 text-muted" />}>
+                                <CollapsibleSection title="Shipping & Dimensions" icon={<Weight className="w-4 h-4 text-muted" />} persistKey="shipping-dims">
                                     <PhysicalFieldsSection
                                         formData={editor.formData}
                                         updateField={editor.updateField}
@@ -235,14 +311,14 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
 
                             {editor.formData.product_type !== "digital" && editor.formData.product_type !== "service" && (
                                 <>
-                                    <CollapsibleSection title="Inventory History" icon={<Clock className="w-4 h-4 text-muted" />} badge={editor.formData.inventory_history.length || undefined}>
+                                    <CollapsibleSection title="Inventory History" icon={<Clock className="w-4 h-4 text-muted" />} badge={editor.formData.inventory_history.length || undefined} persistKey="inventory-history">
                                         <InventoryTimeline
                                             entries={editor.formData.inventory_history}
                                             onChange={(entries) => editor.updateField("inventory_history", entries)}
                                         />
                                     </CollapsibleSection>
 
-                                    <CollapsibleSection title="Suppliers" icon={<Truck className="w-4 h-4 text-muted" />} badge={editor.formData.suppliers.length || undefined}>
+                                    <CollapsibleSection title="Suppliers" icon={<Truck className="w-4 h-4 text-muted" />} badge={editor.formData.suppliers.length || undefined} persistKey="suppliers">
                                         <SupplierSection
                                             suppliers={editor.formData.suppliers}
                                             onChange={(suppliers) => editor.updateField("suppliers", suppliers)}
@@ -252,7 +328,7 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
                             )}
 
                             {!editor.formData.is_supply && (
-                                <CollapsibleSection title="Order Bumps" icon={<Zap className="w-4 h-4 text-muted" />} badge={editor.formData.order_bumps.length || undefined}>
+                                <CollapsibleSection title="Order Bumps" icon={<Zap className="w-4 h-4 text-muted" />} badge={editor.formData.order_bumps.length || undefined} persistKey="order-bumps">
                                     <OrderBumpsSection
                                         bumps={editor.formData.order_bumps}
                                         onChange={(bumps) => editor.updateField("order_bumps", bumps)}
@@ -261,7 +337,7 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
                                 </CollapsibleSection>
                             )}
 
-                            <CollapsibleSection title="Related Products" icon={<LinkIcon className="w-4 h-4 text-muted" />} badge={editor.formData.related_products.length || undefined}>
+                            <CollapsibleSection title="Related Products" icon={<LinkIcon className="w-4 h-4 text-muted" />} badge={editor.formData.related_products.length || undefined} persistKey="related-products">
                                 <RelatedProductsSection
                                     relatedProducts={editor.formData.related_products}
                                     onChange={(products) => editor.updateField("related_products", products)}
@@ -270,7 +346,7 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
                             </CollapsibleSection>
 
                             {mode === "edit" && (
-                                <CollapsibleSection title="Price History" icon={<TrendingUp className="w-4 h-4 text-muted" />}>
+                                <CollapsibleSection title="Price History" icon={<TrendingUp className="w-4 h-4 text-muted" />} persistKey="price-history">
                                     <PriceHistoryChart
                                         entries={editor.formData.price_history}
                                         currentPrice={editor.formData.price}
@@ -279,13 +355,40 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
                             )}
 
                             {mode === "edit" && (
-                                <CollapsibleSection title="Activity Log" icon={<Clock className="w-4 h-4 text-muted" />} badge={editor.formData.activity_log.length || undefined}>
+                                <CollapsibleSection title="Activity Log" icon={<Clock className="w-4 h-4 text-muted" />} badge={editor.formData.activity_log.length || undefined} persistKey="activity-log">
                                     <ActivityLogSection
                                         entries={editor.formData.activity_log}
                                     />
                                 </CollapsibleSection>
                             )}
+
+                            <CollapsibleSection title="Barcode / QR Code" icon={<Barcode className="w-4 h-4 text-muted" />} persistKey="barcode-qr">
+                                <BarcodeGenerator
+                                    barcode={editor.formData.barcode ?? ""}
+                                    onChange={(barcode) => editor.updateField("barcode" as any, barcode)}
+                                    productSku={editor.formData.sku}
+                                    productSlug={editor.formData.slug}
+                                />
+                            </CollapsibleSection>
+
+                            {editor.formData.product_type !== "digital" && editor.formData.product_type !== "service" && (
+                                <>
+                                    <CollapsibleSection title="Batch / Expiry Tracking" icon={<Layers3 className="w-4 h-4 text-muted" />} persistKey="batch-expiry">
+                                        <BatchManager
+                                            productId={product?.id || ""}
+                                            productName={editor.formData.name}
+                                        />
+                                    </CollapsibleSection>
+
+                                    <CollapsibleSection title="Storage Locations" icon={<MapPin className="w-4 h-4 text-muted" />} persistKey="storage-locations">
+                                        <ProductLocationPicker
+                                            productId={product?.id || ""}
+                                        />
+                                    </CollapsibleSection>
+                                </>
+                            )}
                         </AdvancedOptionsSection>
+                        </div>
                     </div>
 
                     {/* Sidebar */}
