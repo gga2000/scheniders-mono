@@ -9,7 +9,8 @@ import { cn } from "@/lib/utils";
 import type { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 import type { Order } from "@/types/order";
 import { format } from "date-fns";
-import { ar } from "date-fns/locale";
+import { ar, enUS } from "date-fns/locale";
+import { useLanguage } from "@/hooks/use-language";
 
 interface CustomerDetailsSidebarProps {
   customer: PaginatedCustomer;
@@ -40,6 +41,7 @@ function InfoRow({ icon: Icon, label, value, valueClass }: {
 }
 
 export function CustomerDetailsSidebar({ customer, orders }: CustomerDetailsSidebarProps) {
+  const { t, language } = useLanguage();
   // Compute most-used addresses from order history
   const addressCount = new Map<string, number>();
   orders.forEach((o) => {
@@ -60,13 +62,13 @@ export function CustomerDetailsSidebar({ customer, orders }: CustomerDetailsSide
 
   const risks: { label: string; sub: string; level: "warn" | "danger" }[] = [];
   if (daysSinceLastOrder !== null && daysSinceLastOrder >= 30) {
-    risks.push({ label: `لم يطلب منذ ${daysSinceLastOrder} يوم`, sub: "عميل في خطر", level: "warn" });
+    risks.push({ label: t("customers.details.notOrderedSince", { count: daysSinceLastOrder.toString() }), sub: t("customers.details.customerRisk"), level: "warn" });
   }
   if (rejectionRate >= 40) {
-    risks.push({ label: `معدل رفض ${rejectionRate}%`, sub: `${rejectedCount} من ${orders.length} طلبات مرفوضة`, level: "danger" });
+    risks.push({ label: t("customers.details.rejectionLabel", { rate: Math.round(rejectionRate).toString() }), sub: t("customers.details.rejectionSub", { count: rejectedCount.toString(), total: orders.length.toString() }), level: "danger" });
   }
   if (customer.is_blacklisted) {
-    risks.push({ label: "العميل محظور", sub: "مضاف إلى القائمة السوداء", level: "danger" });
+    risks.push({ label: t("customers.details.blockedCustomer"), sub: t("customers.details.addedToBlacklist"), level: "danger" });
   }
 
   // Preferred city
@@ -82,29 +84,29 @@ export function CustomerDetailsSidebar({ customer, orders }: CustomerDetailsSide
       className="flex w-64 shrink-0 flex-col gap-5 overflow-y-auto border-l border-(--card-border) bg-(--card-bg) p-5"
     >
       {/* Contact Info */}
-      <SidebarSection title="معلومات التواصل">
+      <SidebarSection title={t("customers.details.contactInfo")}>
         <div className="rounded-2xl border border-(--card-border) bg-background px-3 py-2 space-y-0.5">
-          <InfoRow icon={Phone} label="الهاتف الأساسي" value={customer.phone} />
+          <InfoRow icon={Phone} label={t("customers.details.primaryPhone")} value={customer.phone} />
           {customer.secondary_phone && (
-            <InfoRow icon={Phone} label="هاتف ثانوي" value={customer.secondary_phone} />
+            <InfoRow icon={Phone} label={t("customers.details.secondaryPhone")} value={customer.secondary_phone} />
           )}
-          <InfoRow icon={MapPin} label="المحافظة" value={customer.governorate || customer.city || ""} />
+          <InfoRow icon={MapPin} label={t("customers.details.governorate")} value={customer.governorate || customer.city || ""} />
           {preferredCity && (
-            <InfoRow icon={MapPin} label="المدينة المفضلة" value={preferredCity} />
+            <InfoRow icon={MapPin} label={t("customers.details.preferredCity")} value={preferredCity} />
           )}
         </div>
       </SidebarSection>
 
       {/* Address Book */}
       {topAddresses.length > 0 && (
-        <SidebarSection title="دفتر العناوين">
+        <SidebarSection title={t("customers.details.addressBook")}>
           <div className="space-y-1.5">
             {topAddresses.map(([addr, count]) => (
               <div key={addr} className="flex items-start gap-2 rounded-2xl border border-(--card-border) bg-background px-3 py-2">
                 <Home className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted" />
                 <div className="min-w-0 flex-1">
                   <p className="text-xs text-foreground leading-snug">{addr}</p>
-                  <p className="text-[10px] text-muted mt-0.5">استُخدم {count} {count === 1 ? "مرة" : "مرات"}</p>
+                  <p className="text-[10px] text-muted mt-0.5">{t("customers.details.usedTimes", { count: count.toString() })}</p>
                 </div>
               </div>
             ))}
@@ -114,7 +116,7 @@ export function CustomerDetailsSidebar({ customer, orders }: CustomerDetailsSide
 
       {/* Risk Signals */}
       {risks.length > 0 && (
-        <SidebarSection title="إشارات الخطر">
+        <SidebarSection title={t("customers.details.riskSignals")}>
           <div className="space-y-1.5">
             {risks.map((risk, i) => (
               <div
@@ -147,18 +149,18 @@ export function CustomerDetailsSidebar({ customer, orders }: CustomerDetailsSide
       )}
 
       {/* Quick Stats */}
-      <SidebarSection title="إحصائيات سريعة">
+      <SidebarSection title={t("customers.details.quickStats")}>
         <div className="space-y-1">
           <div className="flex items-center justify-between rounded-2xl px-2 py-1.5 hover:bg-background transition-colors">
-            <span className="text-xs text-muted">عميل منذ</span>
+            <span className="text-xs text-muted">{t("customers.details.customerSince")}</span>
             <span className="text-xs font-semibold text-foreground">
               {customer.first_order_date
-                ? format(new Date(customer.first_order_date), "MMM yyyy", { locale: ar })
+                ? format(new Date(customer.first_order_date), "MMM yyyy", { locale: language === "ar" ? ar : enUS })
                 : "—"}
             </span>
           </div>
           <div className="flex items-center justify-between rounded-2xl px-2 py-1.5 hover:bg-background transition-colors">
-            <span className="text-xs text-muted">معدل الرفض</span>
+            <span className="text-xs text-muted">{t("customers.details.rejectionRate")}</span>
             <span className={cn(
               "text-xs font-semibold",
               rejectionRate >= 40 ? "text-rose-600" : rejectionRate >= 20 ? "text-amber-600" : "text-emerald-600"
@@ -167,13 +169,13 @@ export function CustomerDetailsSidebar({ customer, orders }: CustomerDetailsSide
             </span>
           </div>
           <div className="flex items-center justify-between rounded-2xl px-2 py-1.5 hover:bg-background transition-colors">
-            <span className="text-xs text-muted">إجمالي الطلبات</span>
+            <span className="text-xs text-muted">{t("customers.details.totalOrders")}</span>
             <span className="text-xs font-semibold text-foreground">{customer.total_orders}</span>
           </div>
           {daysSinceLastOrder !== null && (
             <div className="flex items-center justify-between rounded-2xl px-2 py-1.5 hover:bg-background transition-colors">
-              <span className="text-xs text-muted">آخر طلب</span>
-              <span className="text-xs font-semibold text-foreground">{daysSinceLastOrder} يوم مضى</span>
+              <span className="text-xs text-muted">{t("customers.table.lastOrder")}</span>
+              <span className="text-xs font-semibold text-foreground">{t("customers.details.lastOrderDays", { count: daysSinceLastOrder.toString() })}</span>
             </div>
           )}
         </div>

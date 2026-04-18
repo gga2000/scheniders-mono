@@ -11,7 +11,7 @@ import { CustomerAvatar } from "../shared/customer-avatar";
 import { CustomerStatusBadge } from "../shared/customer-status-badge";
 import type { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 import { formatDistanceToNow } from "date-fns";
-import { ar } from "date-fns/locale";
+import { ar, enUS } from "date-fns/locale";
 import { useLanguage } from "@/hooks/use-language";
 
 interface CustomerTableRowProps {
@@ -21,16 +21,16 @@ interface CustomerTableRowProps {
   index: number;
 }
 
-function formatIQD(amount: number): string {
-  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}م`;
-  if (amount >= 1_000) return `${(amount / 1_000).toFixed(0)}ك`;
-  return amount.toLocaleString("ar-IQ");
+function formatIQD(amount: number, t: any): string {
+  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)} ${t("common.millionShort")}`;
+  if (amount >= 1_000) return `${(amount / 1_000).toFixed(0)} ${t("common.kiloShort")}`;
+  return amount.toLocaleString("en-US");
 }
 
-function relativeDate(dateStr: string): string {
+function relativeDate(dateStr: string, locale: any): string {
   if (!dateStr) return "—";
   try {
-    return formatDistanceToNow(new Date(dateStr), { addSuffix: true, locale: ar });
+    return formatDistanceToNow(new Date(dateStr), { addSuffix: true, locale });
   } catch {
     return dateStr;
   }
@@ -43,7 +43,7 @@ export function CustomerTableRow({
   index,
 }: CustomerTableRowProps) {
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [copied, setCopied] = useState(false);
 
   const status = customer.is_blacklisted
@@ -149,8 +149,8 @@ export function CustomerTableRow({
       <td className="px-3 py-3.5 hidden sm:table-cell">
         <div>
           <p className="text-sm font-bold text-foreground tabular-nums">
-            {formatIQD(customer.total_spent)}
-            <span className="text-xs font-normal text-muted mr-0.5"> د.ع</span>
+            {formatIQD(customer.total_spent, t)}
+            <span className="text-xs font-normal text-muted ml-0.5 mr-0.5"> {t("common.iqd")}</span>
           </p>
           <p className="text-xs text-muted">{customer.total_orders} {t("customers.row.orders")}</p>
         </div>
@@ -159,7 +159,7 @@ export function CustomerTableRow({
       {/* Last Order */}
       <td className="px-3 py-3.5 hidden lg:table-cell">
         <span className="text-sm text-muted">
-          {relativeDate(customer.last_order_date)}
+          {relativeDate(customer.last_order_date, language === "ar" ? ar : enUS)}
         </span>
       </td>
 

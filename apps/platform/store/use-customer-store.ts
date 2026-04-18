@@ -19,6 +19,36 @@ interface CustomerStore {
   isBroadcastModalOpen: boolean;
   setIsBroadcastModalOpen: (val: boolean) => void;
 
+  // Trust modals
+  isCommunityRatingModalOpen: boolean;
+  setCommunityRatingModalOpen: (val: boolean) => void;
+  communityRatingContext: { phone: string; orderId?: string } | null;
+  setCommunityRatingContext: (ctx: { phone: string; orderId?: string } | null) => void;
+
+  isScoreBreakdownModalOpen: boolean;
+  setScoreBreakdownModalOpen: (val: boolean) => void;
+  scoreBreakdownPhone: string | null;
+  setScoreBreakdownPhone: (phone: string | null) => void;
+
+  isRejectionEditModalOpen: boolean;
+  setRejectionEditModalOpen: (val: boolean) => void;
+  rejectionEditContext: { orderId: string; phone: string; currentReason: string } | null;
+  setRejectionEditContext: (ctx: { orderId: string; phone: string; currentReason: string } | null) => void;
+
+  isLinkCustomersModalOpen: boolean;
+  setLinkCustomersModalOpen: (val: boolean) => void;
+  linkCustomersPhone: string | null;
+  setLinkCustomersPhone: (phone: string | null) => void;
+
+  isVoiceRecorderModalOpen: boolean;
+  setVoiceRecorderModalOpen: (val: boolean) => void;
+  voiceRecorderPhone: string | null;
+  setVoiceRecorderPhone: (phone: string | null) => void;
+
+  // View mode
+  viewMode: 'grid' | 'list';
+  setViewMode: (mode: 'grid' | 'list') => void;
+
   // View preferences (persisted)
   compactLevel: 0 | 1 | 2;
   setCompactLevel: (val: 0 | 1 | 2) => void;
@@ -72,6 +102,36 @@ export const useCustomerStore = create<CustomerStore>()(
       isBroadcastModalOpen: false,
       setIsBroadcastModalOpen: (val) => set({ isBroadcastModalOpen: val }),
 
+      // Trust modals
+      isCommunityRatingModalOpen: false,
+      setCommunityRatingModalOpen: (val) => set({ isCommunityRatingModalOpen: val }),
+      communityRatingContext: null,
+      setCommunityRatingContext: (ctx) => set({ communityRatingContext: ctx }),
+
+      isScoreBreakdownModalOpen: false,
+      setScoreBreakdownModalOpen: (val) => set({ isScoreBreakdownModalOpen: val }),
+      scoreBreakdownPhone: null,
+      setScoreBreakdownPhone: (phone) => set({ scoreBreakdownPhone: phone }),
+
+      isRejectionEditModalOpen: false,
+      setRejectionEditModalOpen: (val) => set({ isRejectionEditModalOpen: val }),
+      rejectionEditContext: null,
+      setRejectionEditContext: (ctx) => set({ rejectionEditContext: ctx }),
+
+      isLinkCustomersModalOpen: false,
+      setLinkCustomersModalOpen: (val) => set({ isLinkCustomersModalOpen: val }),
+      linkCustomersPhone: null,
+      setLinkCustomersPhone: (phone) => set({ linkCustomersPhone: phone }),
+
+      isVoiceRecorderModalOpen: false,
+      setVoiceRecorderModalOpen: (val) => set({ isVoiceRecorderModalOpen: val }),
+      voiceRecorderPhone: null,
+      setVoiceRecorderPhone: (phone) => set({ voiceRecorderPhone: phone }),
+
+      // View mode
+      viewMode: 'grid' as const,
+      setViewMode: (mode) => set({ viewMode: mode }),
+
       // View preferences
       compactLevel: 2,
       setCompactLevel: (val) => set({ compactLevel: val }),
@@ -100,6 +160,7 @@ export const useCustomerStore = create<CustomerStore>()(
       name: "customers-ui-store",
       partialize: (state) => ({
         compactLevel: state.compactLevel,
+        viewMode: state.viewMode,
       }),
     }
   )

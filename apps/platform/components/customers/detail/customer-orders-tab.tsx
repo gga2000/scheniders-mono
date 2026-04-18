@@ -10,34 +10,35 @@ import {
 import { cn } from "@/lib/utils";
 import type { Order } from "@/types/order";
 import { formatDistanceToNow } from "date-fns";
-import { ar } from "date-fns/locale";
+import { ar, enUS } from "date-fns/locale";
+import { useLanguage } from "@/hooks/use-language";
 
-const STATUS_CONFIG: Record<string, { label: string; pastel: string; icon: React.ElementType; dot: string }> = {
-  delivered:  { label: "تم التوصيل", pastel: "bg-(--pastel-green)/40 border-(--pastel-green) text-zinc-800",   icon: CheckCircle, dot: "bg-(--pastel-green)" },
-  completed:  { label: "مكتمل",      pastel: "bg-(--pastel-green)/40 border-(--pastel-green) text-zinc-800",   icon: CheckCircle, dot: "bg-(--pastel-green)" },
-  confirmed:  { label: "مؤكد",       pastel: "bg-(--pastel-blue)/40 border-(--pastel-blue) text-zinc-800",     icon: CheckCircle, dot: "bg-(--pastel-blue)" },
-  in_transit: { label: "في الطريق",  pastel: "bg-(--pastel-mint)/40 border-(--pastel-mint) text-zinc-800",     icon: Truck,       dot: "bg-(--pastel-mint)" },
-  rejected:   { label: "مرفوض",      pastel: "bg-(--pastel-pink)/40 border-(--pastel-pink) text-zinc-800",     icon: XCircle,     dot: "bg-(--pastel-pink)" },
-  cancelled:  { label: "ملغي",       pastel: "bg-(--pastel-pink)/30 border-(--pastel-pink) text-zinc-800",     icon: XCircle,     dot: "bg-(--pastel-pink)" },
-  new:        { label: "جديد",       pastel: "bg-(--pastel-yellow)/40 border-(--pastel-yellow) text-zinc-800", icon: Circle,      dot: "bg-(--pastel-yellow)" },
-  contacted:  { label: "تم التواصل", pastel: "bg-(--pastel-mint)/30 border-(--pastel-mint) text-zinc-800",     icon: Clock,       dot: "bg-(--pastel-mint)" },
-  suspended:  { label: "معلق",       pastel: "bg-(--pastel-yellow)/30 border-(--pastel-yellow) text-zinc-800", icon: Clock,       dot: "bg-(--pastel-yellow)" },
+const STATUS_CONFIG: Record<string, { labelKey: string; pastel: string; icon: React.ElementType; dot: string }> = {
+  delivered:  { labelKey: "orders.status.delivered", pastel: "bg-(--pastel-green)/40 border-(--pastel-green) text-zinc-800",   icon: CheckCircle, dot: "bg-(--pastel-green)" },
+  completed:  { labelKey: "orders.status.completed", pastel: "bg-(--pastel-green)/40 border-(--pastel-green) text-zinc-800",   icon: CheckCircle, dot: "bg-(--pastel-green)" },
+  confirmed:  { labelKey: "orders.status.confirmed", pastel: "bg-(--pastel-blue)/40 border-(--pastel-blue) text-zinc-800",     icon: CheckCircle, dot: "bg-(--pastel-blue)" },
+  in_transit: { labelKey: "orders.status.inTransit", pastel: "bg-(--pastel-mint)/40 border-(--pastel-mint) text-zinc-800",     icon: Truck,       dot: "bg-(--pastel-mint)" },
+  rejected:   { labelKey: "orders.status.rejected",  pastel: "bg-(--pastel-pink)/40 border-(--pastel-pink) text-zinc-800",     icon: XCircle,     dot: "bg-(--pastel-pink)" },
+  cancelled:  { labelKey: "orders.status.cancelled", pastel: "bg-(--pastel-pink)/30 border-(--pastel-pink) text-zinc-800",     icon: XCircle,     dot: "bg-(--pastel-pink)" },
+  new:        { labelKey: "orders.status.new",       pastel: "bg-(--pastel-yellow)/40 border-(--pastel-yellow) text-zinc-800", icon: Circle,      dot: "bg-(--pastel-yellow)" },
+  contacted:  { labelKey: "orders.status.contacted", pastel: "bg-(--pastel-mint)/30 border-(--pastel-mint) text-zinc-800",     icon: Clock,       dot: "bg-(--pastel-mint)" },
+  suspended:  { labelKey: "orders.status.suspended", pastel: "bg-(--pastel-yellow)/30 border-(--pastel-yellow) text-zinc-800", icon: Clock,       dot: "bg-(--pastel-yellow)" },
 };
 
-const DEFAULT_STATUS = { label: "غير معروف", pastel: "bg-background border-(--card-border) text-muted", icon: Circle, dot: "bg-(--card-border)" };
+const DEFAULT_STATUS = { labelKey: "orders.status.unknown", pastel: "bg-background border-(--card-border) text-muted", icon: Circle, dot: "bg-(--card-border)" };
 
 type FilterType = "all" | "delivered" | "confirmed" | "rejected" | "in_transit";
 
-const FILTER_TABS: { value: FilterType; label: string }[] = [
-  { value: "all",        label: "الكل" },
-  { value: "delivered",  label: "تم التوصيل" },
-  { value: "confirmed",  label: "مؤكد" },
-  { value: "in_transit", label: "في الطريق" },
-  { value: "rejected",   label: "مرفوض" },
+const FILTER_TABS: { value: FilterType; labelKey: string }[] = [
+  { value: "all",        labelKey: "common.all" },
+  { value: "delivered",  labelKey: "orders.status.delivered" },
+  { value: "confirmed",  labelKey: "orders.status.confirmed" },
+  { value: "in_transit", labelKey: "orders.status.inTransit" },
+  { value: "rejected",   labelKey: "orders.status.rejected" },
 ];
 
-function formatIQD(n: number) {
-  return `${n.toLocaleString("ar-IQ")} د.ع`;
+function formatIQD(n: number, t: any) {
+  return `${n.toLocaleString("en-US")} ${t("customers.details.iqd")}`;
 }
 
 interface CustomerOrdersTabProps {
@@ -47,6 +48,7 @@ interface CustomerOrdersTabProps {
 
 export function CustomerOrdersTab({ orders, isLoading }: CustomerOrdersTabProps) {
   const router = useRouter();
+  const { t, language } = useLanguage();
   const [filter, setFilter] = useState<FilterType>("all");
 
   const filtered = filter === "all"
@@ -94,7 +96,7 @@ export function CustomerOrdersTab({ orders, isLoading }: CustomerOrdersTabProps)
                 : "bg-background text-muted hover:bg-(--card-border)"
             )}
           >
-            {tab.label}
+            {t(tab.labelKey as any)}
             {tab.value === "all" && (
               <span className="mr-1.5 text-[10px] opacity-70">{orders.length}</span>
             )}
@@ -106,7 +108,7 @@ export function CustomerOrdersTab({ orders, isLoading }: CustomerOrdersTabProps)
       {sorted.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-12 text-center">
           <Package className="h-10 w-10 text-muted" />
-          <p className="text-sm text-muted">لا توجد طلبات</p>
+          <p className="text-sm text-muted">{t("customers.orders.noOrders", { defaultValue: "لا توجد طلبات" })}</p>
         </div>
       ) : (
         <div className="space-y-2.5">
@@ -144,11 +146,11 @@ export function CustomerOrdersTab({ orders, isLoading }: CustomerOrdersTabProps)
                             cfg.pastel
                           )}>
                             <StatusIcon className="h-2.5 w-2.5" />
-                            {cfg.label}
+                            {t(cfg.labelKey as any)}
                           </span>
                         </div>
                         <span className="text-xs text-muted">
-                          {formatDistanceToNow(new Date(order.created_at), { addSuffix: true, locale: ar })}
+                          {formatDistanceToNow(new Date(order.created_at), { addSuffix: true, locale: language === "ar" ? ar : enUS })}
                         </span>
                       </div>
 
@@ -163,7 +165,7 @@ export function CustomerOrdersTab({ orders, isLoading }: CustomerOrdersTabProps)
                       <div className="mt-2 flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <span className="text-sm font-bold text-foreground tabular-nums">
-                            {formatIQD(order.price)}
+                            {formatIQD(order.price, t)}
                           </span>
                           {(order.city || order.governorate_code) && (
                             <span className="flex items-center gap-1 text-xs text-muted">

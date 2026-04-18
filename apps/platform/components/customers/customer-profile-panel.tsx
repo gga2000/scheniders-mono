@@ -18,6 +18,7 @@ import { CreateOrderModal } from "../orders/create-order-modal";
 import { useOrderCrud } from "@/hooks/use-order-crud";
 import { checkOrderIdExists } from "@/app/actions/orders";
 import { toast } from "sonner";
+import { useLanguage } from "@/hooks/use-language";
 
 interface CustomerProfilePanelProps {
     customerSummary: PaginatedCustomer;
@@ -25,6 +26,7 @@ interface CustomerProfilePanelProps {
 
 export function CustomerProfilePanel({ customerSummary }: CustomerProfilePanelProps) {
     const { phone } = customerSummary;
+    const { t } = useLanguage();
 
     // Fetch the deep order history and notes for this specific customer
     const { data: deepData, isLoading, isError } = useQuery({
@@ -205,7 +207,7 @@ export function CustomerProfilePanel({ customerSummary }: CustomerProfilePanelPr
                                     <Phone className="w-3.5 h-3.5 text-gray-500 dark:text-[#888888]" />
                                     <span dir="ltr">{customerSummary.phone}</span>
                                     <button
-                                        onClick={(e) => { e.preventDefault(); window.open(generateWhatsAppLink(customerSummary.phone, `مرحباً ${customerSummary.name}،`), "_blank"); }}
+                                        onClick={(e) => { e.preventDefault(); window.open(generateWhatsAppLink(customerSummary.phone, t("common.helloName", { name: customerSummary.name })), "_blank"); }}
                                         className="ml-1 w-6 h-6 rounded-md bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#25D366] flex items-center justify-center transition-colors border border-[#25D366]/20"
                                         title="WhatsApp (Primary)"
                                     >
@@ -217,7 +219,7 @@ export function CustomerProfilePanel({ customerSummary }: CustomerProfilePanelPr
                                         <Phone className="w-3.5 h-3.5 text-gray-500 dark:text-[#888888]" />
                                         <span dir="ltr">{customerSummary.secondary_phone}</span>
                                         <button
-                                            onClick={(e) => { e.preventDefault(); window.open(generateWhatsAppLink(customerSummary.secondary_phone!, `مرحباً ${customerSummary.name}،`), "_blank"); }}
+                                            onClick={(e) => { e.preventDefault(); window.open(generateWhatsAppLink(customerSummary.secondary_phone!, t("common.helloName", { name: customerSummary.name })), "_blank"); }}
                                             className="ml-1 w-6 h-6 rounded-md bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#25D366] flex items-center justify-center transition-colors border border-[#25D366]/20"
                                             title="WhatsApp (Secondary)"
                                         >

@@ -3,11 +3,15 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { PaginatedCustomerFilters } from "@/hooks/use-paginated-customers";
-import { CustomerStatus } from "@/types/customer";
+import { CustomerStatus, TrustTier } from "@/types/customer";
 import { useDebounce } from "@/hooks/use-debounce";
 
 interface CustomerUrlState extends PaginatedCustomerFilters {
     customerId: string | null;
+    trustTier?: TrustTier | "all";
+    minTrustScore?: number;
+    maxTrustScore?: number;
+    view?: "grid" | "list";
 }
 
 /**
@@ -33,6 +37,10 @@ export function useCustomerUrlState() {
         maxLtv: searchParams.has("maxLtv") ? Number(searchParams.get("maxLtv")) : undefined,
         lastOrderWithinDays: searchParams.has("withinDays") ? Number(searchParams.get("withinDays")) : undefined,
         tagId: searchParams.get("tagId") || undefined,
+        trustTier: (searchParams.get("tier") as TrustTier | "all") || undefined,
+        minTrustScore: searchParams.has("minScore") ? Number(searchParams.get("minScore")) : undefined,
+        maxTrustScore: searchParams.has("maxScore") ? Number(searchParams.get("maxScore")) : undefined,
+        view: (searchParams.get("view") as "grid" | "list") || undefined,
     };
 
     // 2. Local search tracking strictly for fast typing UI
@@ -80,6 +88,15 @@ export function useCustomerUrlState() {
         router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     };
 
+    const setTrustTier = (tier: TrustTier | "all" | undefined) => pushStateToUrl("tier", tier === "all" ? null : (tier || null));
+    const setTrustScoreRange = (min?: number, max?: number) => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (min !== undefined) params.set("minScore", min.toString()); else params.delete("minScore");
+        if (max !== undefined) params.set("maxScore", max.toString()); else params.delete("maxScore");
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    };
+    const setView = (view: "grid" | "list") => pushStateToUrl("view", view === "grid" ? null : view);
+
     const setAdvancedFilters = (filters: Pick<CustomerUrlState, "minLtv" | "maxLtv" | "lastOrderWithinDays" | "tagId">) => {
         const params = new URLSearchParams(searchParams.toString());
         if (filters.minLtv !== undefined) params.set("minLtv", filters.minLtv.toString()); else params.delete("minLtv");
@@ -110,6 +127,9 @@ export function useCustomerUrlState() {
         setSort,
         setSelectedCustomer,
         setAdvancedFilters,
-        clearAdvancedFilters
+        clearAdvancedFilters,
+        setTrustTier,
+        setTrustScoreRange,
+        setView,
     };
 }

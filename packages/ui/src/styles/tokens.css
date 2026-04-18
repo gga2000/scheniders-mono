@@ -85,6 +85,25 @@
   --status-error: #F4C7CF;
   --status-info: #A6C8FF;
 
+  /* Trust Tier Colors */
+  --trust-platinum: #A855F7;
+  --trust-platinum-bg: rgba(168, 85, 247, 0.08);
+  --trust-platinum-glow: rgba(168, 85, 247, 0.15);
+  --trust-gold: #F59E0B;
+  --trust-gold-bg: rgba(245, 158, 11, 0.08);
+  --trust-silver: #6B7280;
+  --trust-silver-bg: rgba(107, 114, 128, 0.08);
+  --trust-bronze: #D97706;
+  --trust-bronze-bg: rgba(217, 119, 6, 0.08);
+  --trust-new: #8B5CF6;
+  --trust-new-bg: rgba(139, 92, 246, 0.08);
+  --trust-watch: #F97316;
+  --trust-watch-bg: rgba(249, 115, 22, 0.08);
+  --trust-risky: #EF4444;
+  --trust-risky-bg: rgba(239, 68, 68, 0.08);
+  --trust-blocked: #DC2626;
+  --trust-blocked-bg: rgba(220, 38, 38, 0.08);
+
   /* Fonts */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -171,6 +190,25 @@
   --status-warning: #f4d887;
   --status-error: #f3c0ce;
   --status-info: #b7cdff;
+  /* Trust Tier Colors — Neon dark variants */
+  --trust-platinum: #C084FC;
+  --trust-platinum-bg: rgba(192, 132, 252, 0.12);
+  --trust-platinum-glow: rgba(192, 132, 252, 0.35);
+  --trust-gold: #FCD34D;
+  --trust-gold-bg: rgba(252, 211, 77, 0.12);
+  --trust-silver: #9CA3AF;
+  --trust-silver-bg: rgba(156, 163, 175, 0.1);
+  --trust-bronze: #FBBF24;
+  --trust-bronze-bg: rgba(251, 191, 36, 0.12);
+  --trust-new: #A78BFA;
+  --trust-new-bg: rgba(167, 139, 250, 0.12);
+  --trust-watch: #FB923C;
+  --trust-watch-bg: rgba(251, 146, 60, 0.12);
+  --trust-risky: #F87171;
+  --trust-risky-bg: rgba(248, 113, 113, 0.15);
+  --trust-blocked: #EF4444;
+  --trust-blocked-bg: rgba(239, 68, 68, 0.15);
+
   --skeleton-highlight: rgba(255, 255, 255, 0.08);
   color-scheme: dark;
 }

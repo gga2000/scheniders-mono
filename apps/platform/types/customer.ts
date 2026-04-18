@@ -94,3 +94,170 @@ export interface CustomerGrowth {
     newCustomers: number;
     totalCustomers: number;
 }
+
+// Trust tier system (replaces risk levels for display)
+export type TrustTier = 'platinum' | 'gold' | 'silver' | 'bronze' | 'new' | 'watch' | 'risky' | 'critical' | 'blocked';
+
+export interface TrustScoreBreakdownItem {
+    label: string;
+    value: number;
+    type: 'positive' | 'negative' | 'neutral';
+}
+
+export interface TrustAuditEvent {
+    id: string;
+    event_date: string;
+    event_type: string;
+    reason: string | null;
+    score_change: number;
+    score_before: number;
+    score_after: number;
+    source: string;
+    order_id: string | null;
+    edited_at: string | null;
+    edited_by: string | null;
+    edited_reason: string | null;
+    original_reason: string | null;
+}
+
+export interface CommunityRating {
+    id: string;
+    customer_phone: string;
+    order_id: string | null;
+    rater_id: string | null;
+    rater_store_id: string | null;
+    trust_stars: number;
+    communication_stars: number;
+    behavior_stars: number;
+    overall_type: 'positive' | 'neutral' | 'warning';
+    comment: string | null;
+    quick_tags: string[];
+    is_anonymous: boolean;
+    created_at: string;
+    disputed: boolean;
+    dispute_reason: string | null;
+}
+
+export interface CustomerLink {
+    id: string;
+    phone_a: string;
+    phone_b: string;
+    relationship_type: 'same_address' | 'family' | 'coworker' | 'duplicate';
+    similarity_hint: string | null;
+    linked_by: string | null;
+    created_at: string;
+}
+
+export interface VoiceNote {
+    id: string;
+    customer_phone: string;
+    audio_url: string;
+    duration_seconds: number;
+    text_note: string | null;
+    recorded_by: string | null;
+    created_at: string;
+}
+
+export interface TrustTierConfig {
+    labelKey: string;
+    labelAr: string;
+    color: string;
+    bgClass: string;
+    textClass: string;
+    borderClass: string;
+    glowClass: string;
+    ringColor: string;
+}
+
+export const TRUST_TIER_CONFIG: Record<TrustTier, TrustTierConfig> = {
+    platinum: {
+        labelKey: 'customers.tier.platinum',
+        labelAr: 'بلاتيني',
+        color: '#A855F7',
+        bgClass: 'bg-purple-100',
+        textClass: 'text-purple-700',
+        borderClass: 'border-purple-300',
+        glowClass: 'shadow-[0_0_20px_rgba(168,85,247,0.3)]',
+        ringColor: '#A855F7',
+    },
+    gold: {
+        labelKey: 'customers.tier.gold',
+        labelAr: 'ذهبي',
+        color: '#F59E0B',
+        bgClass: 'bg-amber-100',
+        textClass: 'text-amber-700',
+        borderClass: 'border-amber-300',
+        glowClass: 'shadow-[0_0_15px_rgba(245,158,11,0.25)]',
+        ringColor: '#F59E0B',
+    },
+    silver: {
+        labelKey: 'customers.tier.silver',
+        labelAr: 'فضي',
+        color: '#94A3B8',
+        bgClass: 'bg-slate-100',
+        textClass: 'text-slate-600',
+        borderClass: 'border-slate-300',
+        glowClass: '',
+        ringColor: '#94A3B8',
+    },
+    bronze: {
+        labelKey: 'customers.tier.bronze',
+        labelAr: 'برونزي',
+        color: '#D97706',
+        bgClass: 'bg-orange-100',
+        textClass: 'text-orange-700',
+        borderClass: 'border-orange-300',
+        glowClass: '',
+        ringColor: '#D97706',
+    },
+    new: {
+        labelKey: 'customers.tier.new',
+        labelAr: 'جديد',
+        color: '#3B82F6',
+        bgClass: 'bg-blue-100',
+        textClass: 'text-blue-700',
+        borderClass: 'border-blue-300',
+        glowClass: '',
+        ringColor: '#3B82F6',
+    },
+    watch: {
+        labelKey: 'customers.tier.watch',
+        labelAr: 'مراقبة',
+        color: '#EAB308',
+        bgClass: 'bg-yellow-100',
+        textClass: 'text-yellow-700',
+        borderClass: 'border-yellow-400',
+        glowClass: '',
+        ringColor: '#EAB308',
+    },
+    risky: {
+        labelKey: 'customers.tier.risky',
+        labelAr: 'خطر',
+        color: '#EF4444',
+        bgClass: 'bg-red-100',
+        textClass: 'text-red-700',
+        borderClass: 'border-red-400',
+        glowClass: '',
+        ringColor: '#EF4444',
+    },
+    critical: {
+        labelKey: 'customers.tier.critical',
+        labelAr: 'حرج',
+        color: '#991B1B',
+        bgClass: 'bg-red-900',
+        textClass: 'text-white',
+        borderClass: 'border-red-800',
+        glowClass: '',
+        ringColor: '#991B1B',
+    },
+    blocked: {
+        labelKey: 'customers.tier.blocked',
+        labelAr: 'محظور',
+        color: '#1F2937',
+        bgClass: 'bg-gray-900',
+        textClass: 'text-white',
+        borderClass: 'border-gray-700',
+        glowClass: '',
+        ringColor: '#1F2937',
+    },
+};

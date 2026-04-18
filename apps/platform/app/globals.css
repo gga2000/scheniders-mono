@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@source "../../../packages/ui/src/**/*.{ts,tsx}";
+
 @plugin "tailwindcss-animate";
 
 @custom-variant dark (&:is(.dark *));
@@ -593,6 +595,398 @@ body {
 /* Dark mode scrollbar — neon yellow accent on hover */
 .dark ::-webkit-scrollbar-thumb:hover {
   background: #EFFF00;
+}
+
+/* ============================================
+   Customers Page — Dark Mode (Trust Scoring)
+   Deep charcoal + neon tier accents + glassmorphism
+   ============================================ */
+
+/* Page container — transparent to show cyan grid from .dark main */
+.dark .customers-page {
+  background-color: transparent !important;
+}
+
+/* ---- Trust Tier Stat Cards ---- */
+.dark .customers-page .trust-stat-card {
+  background: #1E1E1E !important;
+  border: 1px solid #333333 !important;
+  box-shadow: none !important;
+}
+
+.dark .customers-page .trust-stat-card:hover {
+  border-color: #555555 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Stat card icon backgrounds → deep glass */
+.dark .customers-page .trust-stat-card .bg-purple-50 {
+  background: var(--trust-platinum-bg) !important;
+}
+.dark .customers-page .trust-stat-card .bg-green-50 {
+  background: rgba(0, 255, 100, 0.1) !important;
+}
+.dark .customers-page .trust-stat-card .bg-amber-50 {
+  background: rgba(239, 255, 0, 0.1) !important;
+}
+.dark .customers-page .trust-stat-card .bg-red-50 {
+  background: rgba(255, 80, 100, 0.1) !important;
+}
+
+/* Stat card icons → neon tint */
+.dark .customers-page .trust-stat-card .bg-purple-50 svg {
+  color: var(--trust-platinum) !important;
+}
+.dark .customers-page .trust-stat-card .bg-green-50 svg {
+  color: #66FFAA !important;
+}
+.dark .customers-page .trust-stat-card .bg-amber-50 svg {
+  color: #EFFF00 !important;
+}
+.dark .customers-page .trust-stat-card .bg-red-50 svg {
+  color: #FF8899 !important;
+}
+
+/* ---- Customer Cards ---- */
+
+/* Platinum card — neon purple glow in dark mode */
+.dark .customers-page .customer-card-platinum {
+  border-color: rgba(192, 132, 252, 0.3) !important;
+  box-shadow: 0 0 25px var(--trust-platinum-glow), 0 10px 25px rgba(0, 0, 0, 0.35) !important;
+}
+
+.dark .customers-page .customer-card-platinum:hover {
+  border-color: rgba(192, 132, 252, 0.5) !important;
+  box-shadow: 0 0 35px var(--trust-platinum-glow), 0 14px 30px rgba(0, 0, 0, 0.45) !important;
+}
+
+/* Warning cards (watch/risky/blocked) — neon red dashed border */
+.dark .customers-page .customer-card-warning {
+  border-color: rgba(248, 113, 113, 0.4) !important;
+}
+
+.dark .customers-page .customer-card-warning:hover {
+  border-color: rgba(248, 113, 113, 0.6) !important;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.15) !important;
+}
+
+/* Normal cards — flat ui-card */
+.dark .customers-page .customer-card {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35) !important;
+}
+
+.dark .customers-page .customer-card:hover {
+  border-color: #555555 !important;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 255, 255, 0.08) !important;
+}
+
+/* WhatsApp button on customer cards → neon yellow */
+.dark .customers-page .customer-card button.hover\:text-green-600:hover,
+.dark .customers-page .customer-card button.hover\:bg-green-50:hover {
+  background: rgba(239, 255, 0, 0.12) !important;
+  color: #EFFF00 !important;
+}
+
+/* City pill on customer cards */
+.dark .customers-page .customer-card .bg-muted\/30 {
+  background: #1A1A1A !important;
+  color: #00FFFF !important;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+/* ---- Trust Ring SVG — increased saturation ---- */
+.dark .customers-page .trust-ring-track {
+  opacity: 0.15;
+}
+
+/* ---- Filter Chips ---- */
+
+/* Active chip → neon yellow in dark mode */
+.dark .customers-page .trust-filter-active {
+  background: #EFFF00 !important;
+  color: #000000 !important;
+}
+
+/* Inactive chips → flat charcoal */
+.dark .customers-page .trust-filter-chip {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+  color: #A1A1A1 !important;
+}
+
+.dark .customers-page .trust-filter-chip:hover {
+  background: #333333 !important;
+  color: #FFFFFF !important;
+}
+
+/* ---- Secondary Filter Bar ---- */
+.dark .customers-page select,
+.dark .customers-page .secondary-filter-bar select {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+  color: #FFFFFF !important;
+}
+
+/* Search input — cyan glow on focus */
+.dark .customers-page input[type="text"]:focus,
+.dark .customers-page input[type="search"]:focus {
+  border-color: rgba(0, 255, 255, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(0, 255, 255, 0.15), 0 0 15px rgba(0, 255, 255, 0.1) !important;
+}
+
+/* ---- Pagination Footer ---- */
+.dark .customers-page .pagination-btn {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+  color: #A1A1A1 !important;
+}
+
+.dark .customers-page .pagination-btn:hover {
+  background: #333333 !important;
+  color: #FFFFFF !important;
+}
+
+.dark .customers-page .pagination-btn-active {
+  background: #EFFF00 !important;
+  color: #000000 !important;
+  border-color: transparent !important;
+}
+
+/* ============================================
+   Customer Profile Page — Dark Mode
+   ============================================ */
+
+/* Hero banner identity card */
+.dark .customer-profile .hero-banner {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+/* Bento grid cards */
+.dark .customer-profile .bento-card {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35) !important;
+}
+
+.dark .customer-profile .bento-card:hover {
+  border-color: #555555 !important;
+}
+
+/* Trust score ring — larger glow in dark */
+.dark .customer-profile .trust-score-ring {
+  filter: drop-shadow(0 0 12px var(--trust-platinum-glow));
+}
+
+/* Delivery success bars — neon green gradient */
+.dark .customer-profile .delivery-bar {
+  background: linear-gradient(to top, #33c786, #66FFAA) !important;
+}
+
+/* Trust history chart bars */
+.dark .customer-profile .history-bar-high {
+  background: var(--trust-gold) !important;
+}
+
+.dark .customer-profile .history-bar-mid {
+  background: var(--trust-silver) !important;
+}
+
+.dark .customer-profile .history-bar-low {
+  background: var(--trust-risky) !important;
+}
+
+/* Notes card — scrollable area */
+.dark .customer-profile .notes-list {
+  scrollbar-color: #3F3F3F #1E1E1E;
+}
+
+/* Tag pills on profile */
+.dark .customer-profile .customer-tag-pill {
+  background: #1A1A1A !important;
+  border: 1px solid #3F3F3F !important;
+}
+
+/* FAB → neon yellow */
+.dark .customer-profile .fab-shipment {
+  background: #EFFF00 !important;
+  color: #000000 !important;
+  box-shadow: 0 0 25px rgba(239, 255, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+.dark .customer-profile .fab-shipment:hover {
+  box-shadow: 0 0 35px rgba(239, 255, 0, 0.5), 0 12px 32px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* ============================================
+   Customer Modals — Dark Mode
+   ============================================ */
+
+/* Modal backdrop — deeper blur */
+.dark .customer-modal-backdrop {
+  background: rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+/* Modal surface — glass card */
+.dark .customer-modal-surface {
+  background: #1E1E1E !important;
+  border-color: #3F3F3F !important;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Star selectors — neon yellow fill */
+.dark .customer-modal-surface .star-filled {
+  color: #EFFF00 !important;
+  filter: drop-shadow(0 0 4px rgba(239, 255, 0, 0.5));
+}
+
+.dark .customer-modal-surface .star-empty {
+  color: #3F3F3F !important;
+}
+
+/* Quick tag pills in rating modal */
+.dark .customer-modal-surface .quick-tag-pill {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+  color: #A1A1A1 !important;
+}
+
+.dark .customer-modal-surface .quick-tag-pill:hover {
+  border-color: #00FFFF !important;
+  color: #00FFFF !important;
+}
+
+.dark .customer-modal-surface .quick-tag-active {
+  background: rgba(0, 255, 255, 0.12) !important;
+  border-color: #00FFFF !important;
+  color: #00FFFF !important;
+}
+
+/* Overall type selector cards */
+.dark .customer-modal-surface .type-card {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+.dark .customer-modal-surface .type-card:hover {
+  border-color: #555555 !important;
+}
+
+.dark .customer-modal-surface .type-card-active {
+  border-color: #00FFFF !important;
+  box-shadow: 0 0 12px rgba(0, 255, 255, 0.15) !important;
+}
+
+/* Score breakdown — waterfall chart bars */
+.dark .customer-modal-surface .waterfall-bar-positive {
+  background: #66FFAA !important;
+  box-shadow: 0 0 8px rgba(102, 255, 170, 0.3);
+}
+
+.dark .customer-modal-surface .waterfall-bar-negative {
+  background: #FF8899 !important;
+  box-shadow: 0 0 8px rgba(255, 136, 153, 0.3);
+}
+
+/* Audit log table — edited rows highlight */
+.dark .customer-modal-surface .audit-row-edited {
+  background: rgba(239, 255, 0, 0.06) !important;
+  border-left: 2px solid #EFFF00;
+}
+
+/* Rejection edit — reason cards */
+.dark .customer-modal-surface .reason-card {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+.dark .customer-modal-surface .reason-card:hover {
+  border-color: #555555 !important;
+}
+
+.dark .customer-modal-surface .reason-card-selected {
+  border-color: #EFFF00 !important;
+  box-shadow: 0 0 12px rgba(239, 255, 0, 0.15) !important;
+}
+
+/* Live score delta badge */
+.dark .customer-modal-surface .score-delta-positive {
+  background: rgba(102, 255, 170, 0.15) !important;
+  color: #66FFAA !important;
+}
+
+.dark .customer-modal-surface .score-delta-negative {
+  background: rgba(255, 136, 153, 0.15) !important;
+  color: #FF8899 !important;
+}
+
+/* Link customers modal — search results */
+.dark .customer-modal-surface .link-result-card {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+}
+
+.dark .customer-modal-surface .link-result-card:hover {
+  border-color: #00FFFF !important;
+}
+
+/* Cluster preview — dashed connection line */
+.dark .customer-modal-surface .cluster-line {
+  border-color: #00FFFF !important;
+}
+
+/* Voice recorder — waveform bars → neon cyan gradient */
+.dark .customer-modal-surface .waveform-bar {
+  background: linear-gradient(to top, #00FFFF, #00CED1) !important;
+  box-shadow: 0 0 6px rgba(0, 255, 255, 0.3);
+}
+
+/* Record button pulsing → neon red */
+.dark .customer-modal-surface .record-btn-active {
+  background: #FF4444 !important;
+  box-shadow: 0 0 20px rgba(255, 68, 68, 0.5) !important;
+}
+
+/* Voice playback bar */
+.dark .customer-modal-surface .voice-progress-bar {
+  background: linear-gradient(90deg, #00FFFF, #00CED1) !important;
+}
+
+/* Textarea inputs in modals */
+.dark .customer-modal-surface textarea {
+  background: #121212 !important;
+  border-color: #3F3F3F !important;
+  color: #FFFFFF !important;
+}
+
+.dark .customer-modal-surface textarea:focus {
+  border-color: rgba(0, 255, 255, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(0, 255, 255, 0.1) !important;
+}
+
+/* Modal primary action buttons → neon yellow */
+.dark .customer-modal-surface .btn-primary {
+  background: #EFFF00 !important;
+  color: #000000 !important;
+}
+
+.dark .customer-modal-surface .btn-primary:hover {
+  background: #D4E300 !important;
+}
+
+/* Modal secondary/cancel buttons */
+.dark .customer-modal-surface .btn-secondary {
+  background: #2A2A2A !important;
+  border-color: #3F3F3F !important;
+  color: #A1A1A1 !important;
+}
+
+.dark .customer-modal-surface .btn-secondary:hover {
+  background: #333333 !important;
+  color: #FFFFFF !important;
 }
 
 /* ============================================
@@ -2455,4 +2849,78 @@ body {
     padding-left: 1rem;
     margin: 0.5rem 0;
     color: var(--muted);
+}
+
+/* ============================================
+   Sidebar Nav Icon Shine — subtle left-to-right sweep
+   ============================================ */
+.nav-icon-shine {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    isolation: isolate;
+}
+
+.nav-icon-shine::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    pointer-events: none;
+    border-radius: 8px;
+    background: linear-gradient(
+        115deg,
+        transparent 38%,
+        rgba(255, 255, 255, 0.55) 49%,
+        rgba(255, 255, 255, 0.75) 50%,
+        rgba(255, 255, 255, 0.55) 51%,
+        transparent 62%
+    );
+    background-size: 260% 100%;
+    background-position: 150% 0;
+    mix-blend-mode: plus-lighter;
+    opacity: 0;
+    animation: nav-icon-shine-sweep 9s ease-in-out infinite;
+    animation-delay: var(--shine-delay, 0s);
+    will-change: background-position, opacity;
+}
+
+@keyframes nav-icon-shine-sweep {
+    0%, 85% {
+        background-position: 150% 0;
+        opacity: 0;
+    }
+    88% {
+        opacity: 0.85;
+    }
+    93% {
+        opacity: 0.85;
+    }
+    98% {
+        background-position: -30% 0;
+        opacity: 0;
+    }
+    100% {
+        background-position: -50% 0;
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .nav-icon-shine::after {
+        animation: none;
+        opacity: 0;
+    }
+
+    /* Customers page: disable SVG ring animation, bar grows, and stagger delays */
+    .customers-page .trust-ring-track,
+    .customers-page .trust-stat-card,
+    .customers-page .customer-card,
+    .customer-profile .bento-card,
+    .customer-modal-surface .waterfall-bar-positive,
+    .customer-modal-surface .waterfall-bar-negative,
+    .customer-modal-surface .waveform-bar {
+        transition: none !important;
+        animation: none !important;
+    }
 }

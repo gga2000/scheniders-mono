@@ -2,20 +2,24 @@
 
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { CustomerStatus } from "@/types/customer";
+import { CustomerStatus, TrustTier } from "@/types/customer";
 import { CACHE_PRESETS } from '@/lib/query-config';
 
 export interface PaginatedCustomerFilters {
     status?: CustomerStatus | "all";
     city?: string;
     search?: string;
-    sortBy?: "name" | "total_orders" | "total_spent" | "last_order_date";
+    sortBy?: "name" | "total_orders" | "total_spent" | "last_order_date" | "trust_score";
     sortOrder?: "asc" | "desc";
     // Advanced Filters
     minLtv?: number;
     maxLtv?: number;
     lastOrderWithinDays?: number;
     tagId?: string;
+    // Trust filters
+    trustTier?: TrustTier | "all";
+    minTrustScore?: number;
+    maxTrustScore?: number;
 }
 
 export interface PaginatedCustomer {
@@ -34,6 +38,11 @@ export interface PaginatedCustomer {
     last_order_status?: string;
     secondary_phone?: string;
     address_details?: string;
+    // Trust fields
+    trust_score: number;
+    trust_tier: TrustTier;
+    delivery_success_rate: number;
+    community_avg_rating: number;
 }
 
 export interface PaginatedCustomersResponse {
@@ -69,6 +78,9 @@ export function usePaginatedCustomers(
                 max_ltv: filters?.maxLtv ?? null,
                 last_order_within_days: filters?.lastOrderWithinDays ?? null,
                 tag_id_filter: filters?.tagId || null,
+                trust_tier_filter: filters?.trustTier === "all" ? null : (filters?.trustTier || null),
+                min_trust_score: filters?.minTrustScore ?? null,
+                max_trust_score: filters?.maxTrustScore ?? null,
             });
 
             if (error) {
@@ -92,10 +104,14 @@ export function usePaginatedCustomers(
                 last_order_date: row.last_order_date,
                 first_order_date: row.first_order_date,
                 calculated_status: row.calculated_status as CustomerStatus,
-                is_blacklisted: row.blacklisted,
+                is_blacklisted: row.blacklisted ?? row.is_blacklisted,
                 total_items: Number(row.total_items || 0),
                 last_order_id: row.last_order_id,
                 last_order_status: row.last_order_status,
+                trust_score: Number(row.trust_score ?? 50),
+                trust_tier: (row.trust_tier || 'new') as TrustTier,
+                delivery_success_rate: Number(row.delivery_success_rate ?? 0),
+                community_avg_rating: Number(row.community_avg_rating ?? 0),
             }));
 
             // Determine if there's a next page
@@ -139,6 +155,15 @@ export function useCustomerDashboardStats() {
                     vip_count: 0,
                     regular_count: 0,
                     new_count: 0,
+                    platinum_count: 0,
+                    gold_count: 0,
+                    silver_count: 0,
+                    bronze_count: 0,
+                    watch_count: 0,
+                    risky_count: 0,
+                    blocked_count: 0,
+                    new_tier_count: 0,
+                    avg_trust_score: 50,
                 };
             }
 
@@ -149,6 +174,15 @@ export function useCustomerDashboardStats() {
                 vip_count: Number(stats.vip_count),
                 regular_count: Number(stats.regular_count),
                 new_count: Number(stats.new_count),
+                platinum_count: Number(stats.platinum_count || 0),
+                gold_count: Number(stats.gold_count || 0),
+                silver_count: Number(stats.silver_count || 0),
+                bronze_count: Number(stats.bronze_count || 0),
+                watch_count: Number(stats.watch_count || 0),
+                risky_count: Number(stats.risky_count || 0),
+                blocked_count: Number(stats.blocked_count || 0),
+                new_tier_count: Number(stats.new_tier_count || 0),
+                avg_trust_score: Number(stats.avg_trust_score || 50),
             };
         },
         staleTime: CACHE_PRESETS.PAGINATION.staleTime,

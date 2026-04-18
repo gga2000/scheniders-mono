@@ -249,7 +249,7 @@ export function VirtualizedCustomerList({
                                 <CustomerCard
                                     customer={customer}
                                     isSelected={isDetailSelected || isSelected}
-                                    onToggleSelection={onToggleSelection ? handleToggleSelection : undefined}
+                                    onToggleSelect={onToggleSelection ? handleToggleSelection : undefined}
                                     onViewDetails={onSelectCustomer}
                                     compact={compactLevel}
                                     isVirtualized={true}

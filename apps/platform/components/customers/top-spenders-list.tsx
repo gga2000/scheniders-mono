@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Crown, TrendingUp, ShoppingBag, MessageCircle } from "lucide-react";
 import { Customer } from "@/hooks/use-customers";
 import { formatIQD, generateWhatsAppLink } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 interface TopSpendersListProps {
     customers: Customer[];
@@ -11,6 +12,7 @@ interface TopSpendersListProps {
 }
 
 export function TopSpendersList({ customers, onViewCustomer }: TopSpendersListProps) {
+    const { t } = useLanguage();
     if (customers.length === 0) {
         return (
             <div className="py-8 text-center text-muted">
@@ -54,7 +56,7 @@ export function TopSpendersList({ customers, onViewCustomer }: TopSpendersListPr
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
-                            window.open(generateWhatsAppLink(customer.phone, `مرحباً ${customer.name}`), "_blank");
+                            window.open(generateWhatsAppLink(customer.phone, t("common.helloName", { name: customer.name })), "_blank");
                         }}
                         className="opacity-0 group-hover:opacity-100 w-8 h-8 rounded-lg bg-green-500 text-white flex items-center justify-center transition-opacity"
                     >

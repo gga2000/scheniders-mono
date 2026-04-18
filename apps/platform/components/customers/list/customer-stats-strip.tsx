@@ -28,10 +28,10 @@ interface CustomerStatsStripProps {
   trendAtRisk?: number;
 }
 
-function formatIQD(amount: number): string {
-  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}م د.ع`;
-  if (amount >= 1_000) return `${(amount / 1_000).toFixed(0)}ك د.ع`;
-  return `${amount.toLocaleString()} د.ع`;
+function formatIQD(amount: number, t: any): string {
+  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)} ${t("customers.details.million")}`;
+  if (amount >= 1_000) return `${(amount / 1_000).toFixed(0)} ${t("customers.details.kilo")}`;
+  return `${amount.toLocaleString()} ${t("customers.details.iqd")}`;
 }
 
 function TrendBadge({ trend }: { trend: number }) {
@@ -107,10 +107,10 @@ export function CustomerStatsStrip({
     },
   ];
   const values = [
-    totalCustomers.toLocaleString("ar-IQ"),
-    vipCustomers.toLocaleString("ar-IQ"),
-    formatIQD(totalRevenue),
-    atRiskCustomers.toLocaleString("ar-IQ"),
+    totalCustomers.toLocaleString("en-US"),
+    vipCustomers.toLocaleString("en-US"),
+    formatIQD(totalRevenue, t),
+    atRiskCustomers.toLocaleString("en-US"),
   ];
   const trends = [trendTotal, trendVip, trendRevenue, trendAtRisk];
 

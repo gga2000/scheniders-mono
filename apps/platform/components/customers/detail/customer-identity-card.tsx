@@ -13,7 +13,8 @@ import type { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 import type { CustomerTag, CustomerTagAssignment } from "@/types/customer";
 import { tagColorClasses } from "@/types/customer";
 import { formatDistanceToNow } from "date-fns";
-import { ar } from "date-fns/locale";
+import { ar, enUS } from "date-fns/locale";
+import { useLanguage } from "@/hooks/use-language";
 
 interface MetricPillProps {
   label: string;
@@ -31,14 +32,14 @@ function MetricPill({ label, value, sub }: MetricPillProps) {
   );
 }
 
-function formatIQD(n: number) {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}م د.ع`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}ك د.ع`;
-  return `${n.toLocaleString()} د.ع`;
+function formatIQD(n: number, t: any) {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)} ${t("customers.details.million")}`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)} ${t("customers.details.kilo")}`;
+  return `${n.toLocaleString()} ${t("customers.details.iqd")}`;
 }
 
-function relDate(d: string) {
-  try { return formatDistanceToNow(new Date(d), { addSuffix: true, locale: ar }); }
+function relDate(d: string, locale: any) {
+  try { return formatDistanceToNow(new Date(d), { addSuffix: true, locale }); }
   catch { return d; }
 }
 
@@ -63,6 +64,7 @@ export function CustomerIdentityCard({
   onAssignTag,
   onRemoveTag,
 }: CustomerIdentityCardProps) {
+  const { t, language } = useLanguage();
   const [copiedPhone, setCopiedPhone] = useState(false);
   const [tagMenuOpen, setTagMenuOpen] = useState(false);
 
@@ -119,10 +121,10 @@ export function CustomerIdentityCard({
 
       {/* Metrics 2x2 */}
       <div className="grid grid-cols-2 gap-2">
-        <MetricPill label="الطلبات" value={customer.total_orders.toString()} />
-        <MetricPill label="الإنفاق" value={formatIQD(customer.total_spent)} />
-        <MetricPill label="متوسط الطلب" value={formatIQD(avgOrderValue)} />
-        <MetricPill label="آخر طلب" value={relDate(customer.last_order_date)} />
+        <MetricPill label={t("customers.details.orders")} value={customer.total_orders.toString()} />
+        <MetricPill label={t("customers.table.spent")} value={formatIQD(customer.total_spent, t)} />
+        <MetricPill label={t("customers.details.avgOrder")} value={formatIQD(avgOrderValue, t)} />
+        <MetricPill label={t("customers.table.lastOrder")} value={relDate(customer.last_order_date, language === "ar" ? ar : enUS)} />
       </div>
 
       {/* Actions */}
@@ -132,7 +134,7 @@ export function CustomerIdentityCard({
           className="flex items-center justify-center gap-2 rounded-2xl bg-(--pastel-green) px-4 py-2.5 text-sm font-semibold text-zinc-800 transition-all hover:brightness-95 active:scale-[0.98]"
         >
           <MessageCircle className="h-4 w-4" />
-          واتساب
+          {t("customers.row.whatsapp")}
         </button>
 
         <div className="grid grid-cols-2 gap-2">
@@ -141,14 +143,14 @@ export function CustomerIdentityCard({
             className="flex items-center justify-center gap-1.5 rounded-2xl border border-(--card-border) bg-background px-3 py-2 text-xs font-medium text-foreground transition-all hover:bg-background hover:border-(--border-hover)"
           >
             <StickyNote className="h-3.5 w-3.5" />
-            ملاحظة
+            {t("customers.details.note")}
           </button>
           <button
             onClick={onExport}
             className="flex items-center justify-center gap-1.5 rounded-2xl border border-(--card-border) bg-background px-3 py-2 text-xs font-medium text-foreground transition-all hover:bg-background hover:border-(--border-hover)"
           >
             <Download className="h-3.5 w-3.5" />
-            تصدير
+            {t("customers.details.export")}
           </button>
         </div>
 
@@ -162,25 +164,25 @@ export function CustomerIdentityCard({
           )}
         >
           <Ban className="h-3.5 w-3.5" />
-          {customer.is_blacklisted ? "رفع الحظر" : "إضافة للقائمة السوداء"}
+          {customer.is_blacklisted ? t("customers.details.unblock") : t("customers.details.addToBlacklist")}
         </button>
       </div>
 
       {/* Tags */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-bold uppercase tracking-widest text-muted">التصنيفات</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-muted">{t("customers.details.tags")}</p>
           <button
             onClick={() => setTagMenuOpen(!tagMenuOpen)}
             className="text-xs text-muted hover:text-foreground flex items-center gap-0.5 transition-colors"
           >
-            + إضافة
+            {t("customers.details.addTag")}
           </button>
         </div>
 
         <div className="flex flex-wrap gap-1.5">
           {assignedTags.length === 0 && (
-            <p className="text-xs text-muted">لا توجد تصنيفات</p>
+            <p className="text-xs text-muted">{t("customers.details.noTags")}</p>
           )}
           {assignedTags.map((tag) => {
             const colors = tagColorClasses[tag.color];
@@ -192,7 +194,7 @@ export function CustomerIdentityCard({
                   colors.bg, colors.text
                 )}
                 onClick={() => onRemoveTag(tag.id)}
-                title="انقر للإزالة"
+                title={t("customers.details.clickToRemove")}
               >
                 {tag.name}
               </span>
@@ -224,7 +226,7 @@ export function CustomerIdentityCard({
                 );
               })}
               {tags.filter((t) => !assignedTagIds.has(t.id)).length === 0 && (
-                <p className="px-3 py-2 text-xs text-muted">تم إضافة جميع التصنيفات</p>
+                <p className="px-3 py-2 text-xs text-muted">{t("customers.details.allTagsAdded")}</p>
               )}
             </motion.div>
           )}
@@ -233,9 +235,9 @@ export function CustomerIdentityCard({
 
       {/* Customer since */}
       <div className="rounded-2xl bg-background border border-(--card-border) px-3 py-2.5">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-muted">عميل منذ</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted">{t("customers.details.customerSince")}</p>
         <p className="mt-0.5 text-xs font-semibold text-foreground">
-          {relDate(customer.first_order_date)}
+          {relDate(customer.first_order_date, language === "ar" ? ar : enUS)}
         </p>
       </div>
     </motion.aside>

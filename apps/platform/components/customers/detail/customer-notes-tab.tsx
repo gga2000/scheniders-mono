@@ -6,7 +6,8 @@ import { Plus, Edit2, Trash2, Check, X, StickyNote } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CustomerNote } from "@/types/customer";
 import { formatDistanceToNow } from "date-fns";
-import { ar } from "date-fns/locale";
+import { ar, enUS } from "date-fns/locale";
+import { useLanguage } from "@/hooks/use-language";
 
 interface CustomerNotesTabProps {
   notes: CustomerNote[];
@@ -25,6 +26,7 @@ function NoteCard({
   onUpdate: (id: string, text: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }) {
+  const { t, language } = useLanguage();
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(note.note);
   const [saving, setSaving] = useState(false);
@@ -60,14 +62,14 @@ function NoteCard({
               onClick={() => { setEditing(false); setText(note.note); }}
               className="flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs text-muted hover:bg-background transition-colors"
             >
-              <X className="h-3 w-3" /> إلغاء
+              <X className="h-3 w-3" /> {t("common.cancel")}
             </button>
             <button
               onClick={save}
               disabled={saving}
               className="flex items-center gap-1 rounded-xl bg-foreground px-2.5 py-1.5 text-xs font-medium text-background hover:opacity-90 disabled:opacity-50 transition-all"
             >
-              <Check className="h-3 w-3" /> حفظ
+              <Check className="h-3 w-3" /> {t("common.save")}
             </button>
           </div>
         </div>
@@ -76,7 +78,7 @@ function NoteCard({
           <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{note.note}</p>
           <div className="mt-3 flex items-center justify-between">
             <span className="text-[10px] text-muted">
-              {formatDistanceToNow(new Date(note.created_at), { addSuffix: true, locale: ar })}
+              {formatDistanceToNow(new Date(note.created_at), { addSuffix: true, locale: language === "ar" ? ar : enUS })}
             </span>
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
@@ -100,6 +102,7 @@ function NoteCard({
 }
 
 export function CustomerNotesTab({ notes, isLoading, onAdd, onUpdate, onDelete }: CustomerNotesTabProps) {
+  const { t } = useLanguage();
   const [adding, setAdding] = useState(false);
   const [newText, setNewText] = useState("");
   const [saving, setSaving] = useState(false);
@@ -131,7 +134,7 @@ export function CustomerNotesTab({ notes, isLoading, onAdd, onUpdate, onDelete }
               onChange={(e) => setNewText(e.target.value)}
               rows={3}
               autoFocus
-              placeholder="اكتب ملاحظتك هنا..."
+              placeholder={t("customers.notes.placeholder")}
               className="w-full resize-none rounded-2xl border border-(--card-border) bg-background p-3 text-sm text-foreground placeholder:text-muted outline-none focus:ring-2 focus:ring-(--pastel-blue) transition-all"
             />
             <div className="flex items-center justify-end gap-2">
@@ -139,7 +142,7 @@ export function CustomerNotesTab({ notes, isLoading, onAdd, onUpdate, onDelete }
                 onClick={() => { setAdding(false); setNewText(""); }}
                 className="flex items-center gap-1 rounded-2xl px-3 py-1.5 text-xs text-muted hover:bg-background transition-all"
               >
-                <X className="h-3 w-3" /> إلغاء
+                <X className="h-3 w-3" /> {t("common.cancel")}
               </button>
               <button
                 onClick={submitNote}
@@ -147,7 +150,7 @@ export function CustomerNotesTab({ notes, isLoading, onAdd, onUpdate, onDelete }
                 className="flex items-center gap-1.5 rounded-2xl bg-foreground px-3 py-1.5 text-xs font-semibold text-background hover:opacity-90 disabled:opacity-40 transition-all"
               >
                 <Check className="h-3 w-3" />
-                {saving ? "جاري الحفظ..." : "حفظ الملاحظة"}
+                {saving ? t("customers.notes.saving") : t("customers.notes.save")}
               </button>
             </div>
           </motion.div>
@@ -160,7 +163,7 @@ export function CustomerNotesTab({ notes, isLoading, onAdd, onUpdate, onDelete }
             className="flex items-center justify-center gap-2 rounded-3xl border border-dashed border-(--card-border) bg-(--card-bg) py-3 text-sm font-medium text-muted transition-all hover:border-(--border-hover) hover:text-foreground hover:bg-background"
           >
             <Plus className="h-4 w-4" />
-            إضافة ملاحظة جديدة
+            {t("customers.notes.add")}
           </motion.button>
         )}
       </AnimatePresence>
@@ -180,8 +183,8 @@ export function CustomerNotesTab({ notes, isLoading, onAdd, onUpdate, onDelete }
       ) : notes.length === 0 && !adding ? (
         <div className="flex flex-col items-center gap-2 py-10 text-center">
           <StickyNote className="h-10 w-10 text-muted" />
-          <p className="text-sm text-muted">لا توجد ملاحظات بعد</p>
-          <p className="text-xs text-muted">أضف ملاحظة لتتبع المعلومات المهمة</p>
+          <p className="text-sm text-muted">{t("customers.notes.emptyTitle")}</p>
+          <p className="text-xs text-muted">{t("customers.notes.emptyDesc")}</p>
         </div>
       ) : (
         <AnimatePresence mode="popLayout">

@@ -1,299 +1,321 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { ChevronRight, Package, StickyNote, Activity, BarChart2 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { use, Suspense } from "react";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { ArrowLeft, Filter, Eye } from "lucide-react";
+import { useLanguage } from "@/hooks/use-language";
 import { supabase } from "@/lib/supabase";
-import { usePaginatedCustomers } from "@/hooks/use-paginated-customers";
-import { useCustomerNotes } from "@/hooks/use-customer-management";
-import { useCustomerAssignmentsQuery, useCustomerTagsQuery } from "@/hooks/use-customers-query";
-import { useAssignTagMutation, useRemoveTagMutation } from "@/hooks/use-customers-query";
-import { CustomerIdentityCard } from "@/components/customers/detail/customer-identity-card";
-import { CustomerOrdersTab } from "@/components/customers/detail/customer-orders-tab";
-import { CustomerNotesTab } from "@/components/customers/detail/customer-notes-tab";
-import { CustomerDetailsSidebar } from "@/components/customers/detail/customer-details-sidebar";
-import { cn } from "@/lib/utils";
-import type { Order } from "@/types/order";
-import { formatDistanceToNow } from "date-fns";
-import { ar } from "date-fns/locale";
+import { useQuery } from "@tanstack/react-query";
+import { trustEngine } from "@/lib/fraud-detector";
+import { useTrustScoreHistory } from "@/hooks/use-customer-trust";
+import { useVoiceNotes } from "@/hooks/use-voice-notes";
+import { useCustomerStore } from "@/store/use-customer-store";
+import { HeroIdentityBanner } from "@/components/customers/detail/hero-identity-banner";
+import { DeliverySuccessCard } from "@/components/customers/detail/delivery-success-card";
+import { TrustHistoryCard } from "@/components/customers/detail/trust-history-card";
+import { BehavioralPatternsCard } from "@/components/customers/detail/behavioral-patterns-card";
+import { SummaryStatsCards } from "@/components/customers/detail/summary-stats-cards";
+import { DossierNotesCard } from "@/components/customers/detail/dossier-notes-card";
+import { FabNewShipment } from "@/components/customers/detail/fab-new-shipment";
+import { ScoreBreakdownModal } from "@/components/customers/modals/score-breakdown-modal";
+import { CommunityRatingModal } from "@/components/customers/modals/community-rating-modal";
+import { LinkCustomersModal } from "@/components/customers/modals/link-customers-modal";
+import { VoiceRecorderModal } from "@/components/customers/modals/voice-recorder-modal";
+import { PeerComparisonBadge } from "@/components/customers/detail/peer-comparison-badge";
+import { LinkedPeopleSection } from "@/components/customers/detail/linked-people-section";
+import { AiSummaryCard } from "@/components/customers/detail/ai-summary-card";
+import { IdentityTimeline } from "@/components/customers/detail/identity-timeline";
+import { ConfidenceIndicator } from "@/components/customers/shared/confidence-indicator";
+import type { TrustTier } from "@/types/customer";
 
-type TabId = "orders" | "notes" | "activity";
+function useCustomerProfile(phone: string) {
+    return useQuery({
+        queryKey: ["customer-profile", phone],
+        queryFn: async () => {
+            const normalized = trustEngine.normalizePhone(phone);
+            const phoneVariants = [normalized, `0${normalized}`, `+964${normalized}`];
 
-const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
-  { id: "orders",   label: "الطلبات",    icon: Package },
-  { id: "notes",    label: "الملاحظات",  icon: StickyNote },
-  { id: "activity", label: "السجل",     icon: Activity },
-];
+            const { data: trust } = await supabase
+                .from("customer_trust")
+                .select("*")
+                .eq("phone", normalized)
+                .maybeSingle();
 
-// Fetch orders for a specific customer phone
-function useCustomerOrders(phone: string) {
-  return useQuery({
-    queryKey: ["customer-orders", phone],
-    queryFn: async (): Promise<Order[]> => {
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("phone", phone)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as Order[];
-    },
-    enabled: !!phone,
-    staleTime: 1000 * 60 * 2,
-  });
+            const { data: aggRows } = await supabase
+                .from("mv_customer_aggregates")
+                .select("*")
+                .in("customer_phone", phoneVariants)
+                .limit(1);
+            const agg = aggRows?.[0] || null;
+
+            const { data: notes } = await supabase
+                .from("customer_notes")
+                .select("*")
+                .in("customer_phone", phoneVariants)
+                .order("created_at", { ascending: false });
+
+            const { data: tagAssignments } = await supabase
+                .from("customer_tag_assignments")
+                .select("*, tag:customer_tags(*)")
+                .in("customer_phone", phoneVariants);
+
+            const { data: blacklistRows } = await supabase
+                .from("blacklist")
+                .select("phone")
+                .in("phone", phoneVariants)
+                .limit(1);
+            const blacklist = blacklistRows?.[0] || null;
+
+            // Fetch orders for the order history table
+            const { data: orders } = await supabase
+                .from("orders")
+                .select("id, created_at, items, total_price, status, governorate")
+                .in("customer_phone", phoneVariants)
+                .order("created_at", { ascending: false })
+                .limit(20);
+
+            return {
+                phone: normalized,
+                name: agg?.latest_name || "Unknown",
+                city: agg?.latest_city,
+                governorate: agg?.latest_governorate,
+                totalOrders: Number(agg?.total_orders || 0),
+                totalSpent: Number(agg?.total_spent || 0),
+                lastOrderDate: agg?.last_order_date,
+                firstOrderDate: agg?.first_order_date,
+                trustScore: trust?.trust_score ?? 100,
+                trustTier: (trust?.trust_tier ?? "new") as TrustTier,
+                deliverySuccessRate: Number(trust?.delivery_success_rate ?? 0),
+                isBlacklisted: !!blacklist,
+                notes: notes || [],
+                tags: (tagAssignments || []).map((ta: any) => ta.tag).filter(Boolean),
+                orders: orders || [],
+            };
+        },
+        staleTime: 5 * 60 * 1000,
+    });
 }
 
-export default function CustomerDetailPage() {
-  const params = useParams();
-  const router = useRouter();
-  const phone = decodeURIComponent(params.phone as string);
-  const [activeTab, setActiveTab] = useState<TabId>("orders");
-  const [addingNote, setAddingNote] = useState(false);
-
-  // Data
-  const { data: ordersData, isLoading: ordersLoading } = useCustomerOrders(phone);
-  const { notes, loading: notesLoading, addNote, updateNote, deleteNote } = useCustomerNotes(phone);
-  const { data: allTags = [] } = useCustomerTagsQuery();
-  const { data: assignments = [] } = useCustomerAssignmentsQuery(phone);
-  const assignTagMutation = useAssignTagMutation();
-  const removeTagMutation = useRemoveTagMutation();
-
-  // Get customer profile from paginated hook (single result by phone)
-  const { data: customerData, isLoading: customerLoading } = usePaginatedCustomers(1, {
-    search: phone,
-    sortBy: "last_order_date",
-    sortOrder: "desc",
-  });
-  const customer = customerData?.pages[0]?.customers?.[0];
-  const orders = ordersData ?? [];
-
-  async function handleExport() {
-    const { customerDataExport } = await import("@/lib/customer-data-export");
-    await customerDataExport.downloadAsJSON(phone);
-  }
-
-  async function handleToggleBlacklist() {
-    if (!customer) return;
-    if (customer.is_blacklisted) {
-      await supabase.from("blacklist").delete().eq("phone", phone);
-    } else {
-      await supabase.from("blacklist").insert({ phone });
+function OrderStatusBadge({ status }: { status: string }) {
+    const s = status?.toLowerCase();
+    if (s === "delivered" || s === "completed") {
+        return <span className="bg-[#c7f8ef] text-[#33605a] px-3 py-1.5 rounded-full text-[10px] font-bold uppercase">Delivered</span>;
     }
-  }
-
-  if (customerLoading) {
-    return (
-      <div className="flex h-full items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-(--card-border) border-t-foreground" />
-          <p className="text-sm text-muted">جاري تحميل بيانات العميل...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!customer) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 bg-background">
-        <p className="text-sm text-muted">لم يتم العثور على العميل</p>
-        <button
-          onClick={() => router.back()}
-          className="text-sm text-muted hover:text-foreground transition-colors"
-        >
-          العودة
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex h-full flex-col overflow-hidden bg-background">
-      {/* Breadcrumb */}
-      <header className="flex items-center gap-2 border-b border-(--card-border) bg-(--card-bg) px-4 py-3 sm:px-6">
-        <button
-          onClick={() => router.push("/customers")}
-          className="flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors"
-        >
-          العملاء
-        </button>
-        <ChevronRight className="h-3.5 w-3.5 text-muted" />
-        <span className="text-sm font-semibold text-foreground">{customer.name}</span>
-      </header>
-
-      {/* Body: 3-column layout */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left: Identity card */}
-        <CustomerIdentityCard
-          customer={customer}
-          tags={allTags}
-          assignments={assignments}
-          onAddNote={() => { setActiveTab("notes"); setAddingNote(true); }}
-          onExport={handleExport}
-          onToggleBlacklist={handleToggleBlacklist}
-          onAssignTag={(tagId) => assignTagMutation.mutate({ phone, tagId })}
-          onRemoveTag={(tagId) => removeTagMutation.mutate({ phone, tagId })}
-        />
-
-        {/* Center: Tabs */}
-        <main className="flex flex-1 flex-col overflow-hidden">
-          {/* Tab bar */}
-          <div className="flex items-center gap-1 border-b border-(--card-border) bg-(--card-bg) px-4 pt-3">
-            {TABS.map((tab) => {
-              const Icon = tab.icon;
-              const active = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={cn(
-                    "relative flex items-center gap-1.5 px-3 pb-3 pt-1 text-sm font-medium transition-colors",
-                    active ? "text-foreground" : "text-muted hover:text-foreground"
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
-                  {tab.label}
-                  {tab.id === "orders" && orders.length > 0 && (
-                    <span className="rounded-full bg-background px-1.5 py-0.5 text-[10px] text-muted">
-                      {orders.length}
-                    </span>
-                  )}
-                  {tab.id === "notes" && notes.length > 0 && (
-                    <span className="rounded-full bg-background px-1.5 py-0.5 text-[10px] text-muted">
-                      {notes.length}
-                    </span>
-                  )}
-                  {active && (
-                    <motion.div
-                      layoutId="tab-indicator"
-                      className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-foreground"
-                      transition={{ type: "spring", stiffness: 500, damping: 40 }}
-                    />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Tab content */}
-          <div className="flex-1 overflow-y-auto p-4 bg-background">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeTab}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.18, ease: "easeOut" }}
-              >
-                {activeTab === "orders" && (
-                  <CustomerOrdersTab orders={orders} isLoading={ordersLoading} />
-                )}
-                {activeTab === "notes" && (
-                  <CustomerNotesTab
-                    notes={notes}
-                    isLoading={notesLoading}
-                    onAdd={async (note) => { await addNote(note); }}
-                    onUpdate={async (id, note) => { await updateNote(id, note); }}
-                    onDelete={async (id) => { await deleteNote(id); }}
-                  />
-                )}
-                {activeTab === "activity" && (
-                  <ActivityLog orders={orders} notes={notes} />
-                )}
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        </main>
-
-        {/* Right: Details sidebar */}
-        <CustomerDetailsSidebar customer={customer} orders={orders} />
-      </div>
-    </div>
-  );
+    if (s === "rejected" || s === "returned") {
+        return <span className="bg-red-100 text-red-700 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase">Returned</span>;
+    }
+    if (s === "in_transit" || s === "shipping") {
+        return <span className="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase">In Transit</span>;
+    }
+    if (s === "confirmed") {
+        return <span className="bg-[#FBE38E]/30 text-foreground px-3 py-1.5 rounded-full text-[10px] font-bold uppercase">Confirmed</span>;
+    }
+    return <span className="bg-muted/50 text-muted-foreground px-3 py-1.5 rounded-full text-[10px] font-bold uppercase">{status}</span>;
 }
 
-// ── Inline Activity Log ──────────────────────────────────────
-function ActivityLog({ orders, notes }: { orders: Order[]; notes: any[] }) {
-  const events = useMemo(() => {
-    const items: { date: Date; type: string; label: string; sub?: string; pastel: string; dotClass: string }[] = [];
+function CustomerProfileContent({ phone }: { phone: string }) {
+    const { t } = useLanguage();
+    const router = useRouter();
+    const store = useCustomerStore();
 
-    orders.forEach((o) => {
-      items.push({
-        date: new Date(o.created_at),
-        type: "order",
-        label: `طلب #${o.order_id}`,
-        sub: getStatusLabel(o.status),
-        pastel: "bg-(--pastel-blue)/40",
-        dotClass: "bg-(--pastel-blue)",
-      });
-    });
+    const { data: profile, isLoading } = useCustomerProfile(phone);
+    const { data: historyData } = useTrustScoreHistory(profile?.phone);
+    const { data: voiceNotes } = useVoiceNotes(profile?.phone);
 
-    notes.forEach((n) => {
-      items.push({
-        date: new Date(n.created_at),
-        type: "note",
-        label: "ملاحظة مضافة",
-        sub: n.note.slice(0, 60) + (n.note.length > 60 ? "..." : ""),
-        pastel: "bg-(--pastel-yellow)/40",
-        dotClass: "bg-(--pastel-yellow)",
-      });
-    });
-
-    return items.sort((a, b) => b.date.getTime() - a.date.getTime());
-  }, [orders, notes]);
-
-  if (events.length === 0) {
-    return (
-      <div className="flex flex-col items-center gap-2 py-12 text-center">
-        <Activity className="h-10 w-10 text-muted" />
-        <p className="text-sm text-muted">لا توجد أنشطة بعد</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="relative space-y-0">
-      {/* Timeline line */}
-      <div className="absolute right-[19px] top-3 bottom-3 w-px bg-(--card-border)" />
-
-      {events.map((ev, i) => (
-        <motion.div
-          key={i}
-          initial={{ opacity: 0, x: 12 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.2, delay: i * 0.03 }}
-          className="relative flex items-start gap-3 pb-4 pr-10"
-        >
-          {/* Dot */}
-          <div className={cn(
-            "absolute right-3 mt-1 h-3.5 w-3.5 rounded-full border-2 border-(--card-bg) flex items-center justify-center",
-            ev.dotClass
-          )}>
-            {ev.type === "order" ? <Package className="h-2 w-2 text-zinc-700" /> : <StickyNote className="h-2 w-2 text-zinc-700" />}
-          </div>
-
-          <div className="flex-1 pastel-card px-3 py-2.5">
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-xs font-semibold text-foreground">{ev.label}</p>
-              <span className="shrink-0 text-[10px] text-muted">
-                {formatDistanceToNow(ev.date, { addSuffix: true, locale: ar })}
-              </span>
+    if (isLoading || !profile) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="w-8 h-8 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin" />
             </div>
-            {ev.sub && <p className="mt-0.5 text-[11px] text-muted">{ev.sub}</p>}
-          </div>
-        </motion.div>
-      ))}
-    </div>
-  );
+        );
+    }
+
+    return (
+        <div className="customers-page customer-profile min-h-screen p-6 md:p-8 lg:p-10 pb-24">
+            {/* Back button */}
+            <motion.button
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                onClick={() => router.push("/customers")}
+                className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors"
+            >
+                <ArrowLeft className="w-4 h-4" />
+                <span className="text-sm font-medium">{t("customers.title")}</span>
+            </motion.button>
+
+            {/* Hero Banner */}
+            <HeroIdentityBanner
+                name={profile.name}
+                phone={profile.phone}
+                city={profile.city}
+                tier={profile.trustTier}
+                trustScore={profile.trustScore}
+                totalOrders={profile.totalOrders}
+                isBlacklisted={profile.isBlacklisted}
+                tags={profile.tags}
+                firstOrderDate={profile.firstOrderDate}
+            />
+
+            {/* Peer badges row */}
+            <div className="flex items-center gap-3 mb-8 -mt-2">
+                <PeerComparisonBadge phone={profile.phone} city={profile.city || null} />
+                <ConfidenceIndicator orderCount={profile.totalOrders} />
+            </div>
+
+            {/* Bento Grid — Stitch Layout */}
+            <div className="grid grid-cols-12 gap-6">
+                {/* Row 1: Delivery Success (col-span-4) + Trust History (col-span-8) */}
+                <div className="col-span-12 lg:col-span-4">
+                    <DeliverySuccessCard successRate={profile.deliverySuccessRate} />
+                </div>
+                <div className="col-span-12 lg:col-span-8">
+                    <TrustHistoryCard data={historyData || []} />
+                </div>
+
+                {/* Row 2: Behavioral Patterns (col-span-5) + Dossier Notes (col-span-7) */}
+                <div className="col-span-12 lg:col-span-5">
+                    <BehavioralPatternsCard />
+                </div>
+                <div className="col-span-12 lg:col-span-7">
+                    <DossierNotesCard
+                        notes={profile.notes}
+                        voiceNotes={voiceNotes || []}
+                        onAddNote={() => {/* TODO */}}
+                        onPlayVoice={(id) => {/* TODO */}}
+                    />
+                </div>
+
+                {/* Row 3: AI Summary (col-span-12) */}
+                <div className="col-span-12">
+                    <AiSummaryCard phone={profile.phone} />
+                </div>
+
+                {/* Row 4: Summary Stats (col-span-7) + Linked People (col-span-5) */}
+                <div className="col-span-12 lg:col-span-7">
+                    <SummaryStatsCards
+                        totalOrders={profile.totalOrders}
+                        totalSpent={profile.totalSpent}
+                    />
+                </div>
+                <div className="col-span-12 lg:col-span-5">
+                    <LinkedPeopleSection phone={profile.phone} />
+                </div>
+
+                {/* Row 5: Identity Timeline (col-span-12) */}
+                <div className="col-span-12">
+                    <IdentityTimeline phone={profile.phone} />
+                </div>
+
+                {/* Row 6: Order History (col-span-12) */}
+                <div className="col-span-12">
+                    <div className="bg-(--card-bg) rounded-[3rem] p-8 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.04)] overflow-hidden">
+                        <div className="flex justify-between items-center mb-8">
+                            <h3 className="font-headline font-extrabold text-xl text-foreground">
+                                {t("customers.profile.orderHistory")}
+                            </h3>
+                            <div className="flex gap-4">
+                                <button className="flex items-center gap-2 px-5 py-2.5 bg-muted/30 rounded-full hover:bg-muted/50 transition-colors">
+                                    <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+                                    <span className="text-xs font-bold text-foreground">{t("customers.profile.filterByStatus")}</span>
+                                </button>
+                                <button className="text-xs font-bold bg-foreground text-background px-6 py-2.5 rounded-full shadow-lg hover:shadow-xl transition-all uppercase tracking-wide">
+                                    {t("customers.profile.exportHistory")}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left">
+                                <thead>
+                                    <tr className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest border-b border-muted/20">
+                                        <th className="pb-6 px-4">Order ID</th>
+                                        <th className="pb-6 px-4">Date</th>
+                                        <th className="pb-6 px-4">Items</th>
+                                        <th className="pb-6 px-4">Amount</th>
+                                        <th className="pb-6 px-4">Status</th>
+                                        <th className="pb-6 px-4 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-muted/10">
+                                    {profile.orders.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={6} className="py-12 text-center text-muted-foreground text-sm">
+                                                {t("customers.orders.noOrders")}
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        profile.orders.map((order: any) => {
+                                            const items = (() => {
+                                                try {
+                                                    const parsed = typeof order.items === "string" ? JSON.parse(order.items) : order.items;
+                                                    if (Array.isArray(parsed)) return `${parsed.length} item${parsed.length !== 1 ? "s" : ""}`;
+                                                } catch {}
+                                                return "—";
+                                            })();
+                                            return (
+                                                <tr key={order.id} className="group hover:bg-muted/10 transition-colors">
+                                                    <td className="py-6 px-4 font-headline font-bold text-sm tabular-nums text-foreground">
+                                                        #{order.id?.toString().slice(-6).toUpperCase()}
+                                                    </td>
+                                                    <td className="py-6 px-4 text-muted-foreground text-xs">
+                                                        {new Date(order.created_at).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })}
+                                                    </td>
+                                                    <td className="py-6 px-4 text-muted-foreground text-xs">{items}</td>
+                                                    <td className="py-6 px-4 font-bold text-sm tabular-nums text-foreground">
+                                                        IQD {Number(order.total_price || 0).toLocaleString("en-US")}
+                                                    </td>
+                                                    <td className="py-6 px-4">
+                                                        <OrderStatusBadge status={order.status} />
+                                                    </td>
+                                                    <td className="py-6 px-4 text-right">
+                                                        <button
+                                                            onClick={() => router.push(`/orders?highlight=${order.id}`)}
+                                                            className="text-muted-foreground/30 hover:text-foreground transition-colors"
+                                                        >
+                                                            <Eye className="w-5 h-5" />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {profile.totalOrders > 20 && (
+                            <div className="mt-10 flex justify-center">
+                                <button className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-[0.2em]">
+                                    {t("customers.profile.viewAll").replace("{count}", profile.totalOrders.toLocaleString("en-US"))}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            <FabNewShipment customerPhone={profile.phone} />
+
+            {/* Modals */}
+            <ScoreBreakdownModal />
+            <CommunityRatingModal />
+            <LinkCustomersModal />
+            <VoiceRecorderModal />
+        </div>
+    );
 }
 
-function getStatusLabel(status: string): string {
-  const map: Record<string, string> = {
-    new: "جديد", confirmed: "مؤكد", delivered: "تم التوصيل",
-    rejected: "مرفوض", cancelled: "ملغي", in_transit: "في الطريق",
-    completed: "مكتمل", contacted: "تم التواصل", suspended: "معلق",
-  };
-  return map[status] ?? status;
-}
+export default function CustomerProfilePage({ params }: { params: Promise<{ phone: string }> }) {
+    const { phone } = use(params);
 
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="w-8 h-8 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin" />
+            </div>
+        }>
+            <CustomerProfileContent phone={decodeURIComponent(phone)} />
+        </Suspense>
+    );
+}
