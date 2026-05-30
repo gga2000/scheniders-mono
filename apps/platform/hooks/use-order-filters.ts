@@ -131,9 +131,20 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
                             return false;
                         }
                     } else if (statusFilter === "refunds") {
-                        if (!["return_pending", "refund_delivered", "refund_failed"].includes(order.status)) {
-                            return false;
-                        }
+                        // All return transactions (RTN), at any point in their lifecycle.
+                        if (!order.is_return) return false;
+                    } else if (statusFilter === "refunded") {
+                        if ((order.refund_status || "none") !== "refunded") return false;
+                    } else if (statusFilter === "refund_pending") {
+                        if ((order.refund_status || "none") !== "pending") return false;
+                    } else if (statusFilter === "replacements") {
+                        if (!(order.is_replacement || order.order_id?.startsWith("RPL-"))) return false;
+                    } else if (statusFilter === "completed") {
+                        // Completed tab shows genuine sales only; refunds and replacements
+                        // live in their own tabs.
+                        const rs = order.refund_status || "none";
+                        const isReplacement = order.is_replacement || (order.order_id?.startsWith("RPL-") ?? false);
+                        if (order.status !== "completed" || rs === "refunded" || rs === "pending" || isReplacement) return false;
                     } else if (statusFilter === "confirmed") {
                         // Include both confirmed orders AND return_pending orders (refund/replacement orders)
                         if (order.status !== "confirmed" && order.status !== "return_pending") {
@@ -142,6 +153,16 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
                     } else if (order.status !== statusFilter) {
                         return false;
                     }
+                }
+
+                // Order-type sub-filter (refund / replacement) — narrows the
+                // Confirmed & All tabs to return or replacement orders.
+                const orderTypeFilter = (activeFilters as { orderType?: 'refund' | 'replacement' }).orderType;
+                if (orderTypeFilter === "refund") {
+                    if (!order.is_return) return false;
+                } else if (orderTypeFilter === "replacement") {
+                    const isReplacement = order.is_replacement || (order.order_id?.startsWith("RPL-") ?? false);
+                    if (!isReplacement) return false;
                 }
 
                 // Date range filter
@@ -307,6 +328,30 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
         return [...new Set(deferredOrders.flatMap((o) => o.items?.map((i) => i.name) || []).filter(Boolean))] as string[];
     }, [deferredOrders]);
 
+    // Products present in the orders matching the CURRENT view (every active
+    // filter except the product filter itself — so picking a product doesn't
+    // collapse the suggestion row to a single chip). Mirrors `statusCounts`.
+    // Count = number of visible orders containing that product.
+    const availableProductsInView = useMemo(() => {
+        const filtersWithoutProduct = { ...deferredFilters, product: undefined };
+        const matchingOrders = applyFilters(deferredOrders, filtersWithoutProduct);
+
+        const counts = new Map<string, number>();
+        for (const order of matchingOrders) {
+            // De-dupe per order so an order with the same product twice counts once.
+            const namesInOrder = new Set(
+                (order.items ?? []).map((i) => i.name).filter(Boolean) as string[]
+            );
+            for (const name of namesInOrder) {
+                counts.set(name, (counts.get(name) ?? 0) + 1);
+            }
+        }
+
+        return [...counts.entries()]
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    }, [deferredOrders, deferredFilters, applyFilters]);
+
     // =============================================
     // PRESET OPERATIONS
     // =============================================
@@ -369,6 +414,7 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
         statusCounts,
         availableCities,
         availableProducts,
+        availableProductsInView,
         ...stableAPI,
     };
 }
