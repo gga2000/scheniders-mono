@@ -1,119 +1,25 @@
-import { supabase, OrderItem, Product, QCItem } from './supabase';
+import { supabase, OrderItem, Product } from './supabase';
 
 /**
- * Calculates the truly available stock (physical - reserved)
+ * Calculates the truly available stock (physical - reserved).
+ *
+ * NOTE: reserved/stock math (allocate, fulfill, release) is owned by the
+ * `trg_inv_order_changed` trigger on the `orders` table. The previous app-layer
+ * functions (allocateOrder / fulfillOrder / releaseAllocation) were removed so
+ * inventory cannot be double-counted from any code path.
+ *
+ * What remains in this file are side-effects the trigger does NOT cover:
+ *   - QC quarantine queue (quarantine / remove / resolve)
+ *   - supplies / BOM deduction (supplies are not catalog products)
  */
 export function getAvailableStock(product: Product): number {
     return Math.max(0, product.stock_quantity - (product.reserved_quantity || 0));
 }
 
 /**
- * Allocates stock when a new order is confirmed by increasing reserved_quantity.
- */
-export async function allocateOrder(orderItems: OrderItem[]) {
-    if (!orderItems || orderItems.length === 0) return { success: true };
-
-    try {
-        // In a real production system, this should ideally be an SQL RPC function
-        // for atomicity to avoid race conditions. 
-        // For now, we do updates one by one.
-        for (const item of orderItems) {
-            if (!item.product_id) continue;
-
-            // Get current
-            const { data: product } = await supabase
-                .from('products')
-                .select('reserved_quantity')
-                .eq('id', item.product_id)
-                .single();
-
-            if (product) {
-                await supabase
-                    .from('products')
-                    .update({
-                        reserved_quantity: (product.reserved_quantity || 0) + item.quantity
-                    })
-                    .eq('id', item.product_id);
-            }
-        }
-        return { success: true };
-    } catch (e: any) {
-        console.error("Failed to allocate order:", e);
-        return { success: false, error: e.message };
-    }
-}
-
-/**
- * Fulfills an order when it's completed/delivered.
- * This drops both the physical stock AND the reserved stock,
- * meaning the "available" number remains unchanged, but the physical reality matches.
- */
-export async function fulfillOrder(orderItems: OrderItem[]) {
-    if (!orderItems || orderItems.length === 0) return { success: true };
-
-    try {
-        for (const item of orderItems) {
-            if (!item.product_id) continue;
-
-            const { data: product } = await supabase
-                .from('products')
-                .select('stock_quantity, reserved_quantity')
-                .eq('id', item.product_id)
-                .single();
-
-            if (product) {
-                await supabase
-                    .from('products')
-                    .update({
-                        stock_quantity: Math.max(0, product.stock_quantity - item.quantity),
-                        reserved_quantity: Math.max(0, (product.reserved_quantity || 0) - item.quantity)
-                    })
-                    .eq('id', item.product_id);
-            }
-        }
-        return { success: true };
-    } catch (e: any) {
-        console.error("Failed to fulfill order:", e);
-        return { success: false, error: e.message };
-    }
-}
-
-/**
- * Frees up reserved stock if an order is cancelled early on (before shipping/rejection).
- */
-export async function releaseAllocation(orderItems: OrderItem[]) {
-    if (!orderItems || orderItems.length === 0) return { success: true };
-
-    try {
-        for (const item of orderItems) {
-            if (!item.product_id) continue;
-
-            const { data: product } = await supabase
-                .from('products')
-                .select('reserved_quantity')
-                .eq('id', item.product_id)
-                .single();
-
-            if (product) {
-                await supabase
-                    .from('products')
-                    .update({
-                        reserved_quantity: Math.max(0, (product.reserved_quantity || 0) - item.quantity)
-                    })
-                    .eq('id', item.product_id);
-            }
-        }
-        return { success: true };
-    } catch (e: any) {
-        console.error("Failed to release allocation:", e);
-        return { success: false, error: e.message };
-    }
-}
-
-/**
  * Moves items into the QC Quarantine table when an order is Rejected or Refunded.
- * It also frees up the reserved_quantity because the order is dead,
- * but physical stock is NOT touched yet until inspected.
+ * Reserved/stock math is handled by the DB trigger on `orders`; this only
+ * records the returned items as needing inspection.
  */
 export async function quarantineOrder(orderId: string, orderItems: OrderItem[], reason: string) {
     if (!orderItems || orderItems.length === 0) return { success: true };
@@ -132,9 +38,6 @@ export async function quarantineOrder(orderId: string, orderItems: OrderItem[], 
         if (qcItems.length > 0) {
             await supabase.from('qc_quarantine').insert(qcItems);
         }
-
-        // Free up the reserved stock because this order will never be completed normally
-        await releaseAllocation(orderItems);
 
         return { success: true };
     } catch (e: any) {
@@ -168,6 +71,11 @@ export type QCResolution = 'restocked' | 'written_off' | 'returned_to_supplier';
  * `restocked` — item returned to sellable inventory (no stock change; was never deducted)
  * `written_off` — item destroyed / lost; physical stock deducted
  * `returned_to_supplier` — shipped back to supplier; physical stock deducted, RMA recorded
+ *
+ * A rejected/returned order never had its physical stock deducted under the
+ * reserve-model (the trigger only drops stock on the FULFILLED phase: in_transit,
+ * delivered, completed). So 'restocked' needs no stock change, while
+ * 'written_off' / 'returned_to_supplier' must drop physical stock here.
  */
 export async function resolveQuarantine(
     qcItemId: string,

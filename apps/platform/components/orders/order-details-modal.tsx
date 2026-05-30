@@ -322,7 +322,7 @@ export function OrderDetailsModal({
     ];
 
     // Handle product selection - add to replacement items if in replacement mode
-    const handleProductSelectWrapper = (product: { name: string; price: number; quantity: number; image_url?: string; tag_color?: string }) => {
+    const handleProductSelectWrapper = (product: { product_id: string; name: string; price: number; quantity: number; image_url?: string; tag_color?: string }) => {
         if (showReplacementModal) {
             // Add to replacement new items
             setReplacementNewItems(prev => [...prev, product]);

@@ -223,6 +223,32 @@ export function useBulkDeleteMutation() {
     });
 }
 
+export function useRecomputeInventoryMutation() {
+    const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
+    return useMutation({
+        mutationFn: async () => {
+            await productRepository.recomputeInventory(tenantId);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+        },
+    });
+}
+
+export function useZeroOversoldMutation() {
+    const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
+    return useMutation({
+        mutationFn: async () => {
+            await productRepository.zeroOversold(tenantId);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+        },
+    });
+}
+
 interface AdjustStockArgs {
     productId: string;
     previousQuantity: number;

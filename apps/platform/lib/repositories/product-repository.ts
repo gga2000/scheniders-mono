@@ -24,6 +24,28 @@ export const productRepository = {
         });
     },
 
+    /**
+     * Recompute reserved_quantity for all products in the tenant from active
+     * (RESERVED-phase) orders. Run after manual data fixes to re-sync.
+     */
+    async recomputeInventory(tenantId: string | null): Promise<void> {
+        return withRetry('productRepository.recomputeInventory', async () => {
+            const { error } = await supabase.rpc('recompute_inventory', { p_tenant_id: tenantId });
+            if (error) throw error;
+        });
+    },
+
+    /**
+     * Top on-hand up to reserved for any product where reserved > on-hand,
+     * so oversold becomes 0. Tenant-scoped. Supplies untouched.
+     */
+    async zeroOversold(tenantId: string | null): Promise<void> {
+        return withRetry('productRepository.zeroOversold', async () => {
+            const { error } = await supabase.rpc('zero_oversold', { p_tenant_id: tenantId });
+            if (error) throw error;
+        });
+    },
+
     /** Insert a new product. Returns the created product. */
     async create(productData: Omit<Product, "id" | "created_at" | "updated_at" | "variants">, tenantId: string | null): Promise<Product> {
         return withRetry('productRepository.create', async () => {
