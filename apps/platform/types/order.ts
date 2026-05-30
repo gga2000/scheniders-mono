@@ -84,6 +84,8 @@ export interface Order {
     /** Refund financial dimension. Independent of order status. */
     refund_status?: 'none' | 'pending' | 'refunded' | 'failed';
     refunded_at?: string;
+    /** FK to rejection_reasons.id when the cancellation/return reason was picked from the managed list. */
+    rejection_reason_id?: string;
     is_archived: boolean;
     is_pinned?: boolean;
     delivery_slot?: DeliverySlot;

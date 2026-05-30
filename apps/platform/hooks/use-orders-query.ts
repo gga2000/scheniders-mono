@@ -262,6 +262,7 @@ export function useUpdateStatusMutation() {
             orderId,
             status,
             rejectionReason,
+            rejectionReasonId,
             last_status_changed_by_name,
             last_status_changed_by_avatar,
             expectedUpdatedAt,
@@ -269,6 +270,7 @@ export function useUpdateStatusMutation() {
             orderId: string;
             status: Order["status"];
             rejectionReason?: string;
+            rejectionReasonId?: string;
             last_status_changed_by_name?: string;
             last_status_changed_by_avatar?: string;
             expectedUpdatedAt?: string;
@@ -279,7 +281,8 @@ export function useUpdateStatusMutation() {
                 rejectionReason,
                 last_status_changed_by_name,
                 last_status_changed_by_avatar,
-                expectedUpdatedAt
+                expectedUpdatedAt,
+                rejectionReasonId
             );
             return { orderId, status, data };
         },
