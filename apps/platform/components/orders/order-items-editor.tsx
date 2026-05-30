@@ -35,6 +35,12 @@ export function OrderItemsEditor({
         return order?.[key];
     };
 
+    const toggleOpenBox = (index: number) => {
+        const items = [...((formData.items || order.items || []) as any[])];
+        items[index] = { ...items[index], is_open_box: !items[index].is_open_box };
+        updateFormData("items", items);
+    };
+
     return (
         <div className="bg-[var(--background)] rounded-xl border border-[var(--card-border)] overflow-hidden order-detail-items">
             <div className="flex items-center gap-3 px-4 py-3 bg-[var(--background)] border-b border-[var(--card-border)]">
@@ -68,7 +74,26 @@ export function OrderItemsEditor({
                                     </div>
                                 )}
                                 <div className="flex-1 min-w-0">
-                                    <p className="font-medium text-foreground truncate">{item.name}</p>
+                                    <div className="flex items-center gap-1.5">
+                                        <p className="font-medium text-foreground truncate">{item.name}</p>
+                                        {isEditing ? (
+                                            <button
+                                                onClick={() => toggleOpenBox(index)}
+                                                className={cn(
+                                                    "shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-semibold transition-all",
+                                                    item.is_open_box
+                                                        ? "bg-amber-100 text-amber-700"
+                                                        : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                                                )}
+                                            >
+                                                {item.is_open_box ? "علبة مفتوحة" : "جديد"}
+                                            </button>
+                                        ) : item.is_open_box ? (
+                                            <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700">
+                                                علبة مفتوحة
+                                            </span>
+                                        ) : null}
+                                    </div>
                                     <div className="flex items-center gap-2 text-xs text-muted">
                                         {isEditing ? (
                                             <div className="flex items-center gap-1">

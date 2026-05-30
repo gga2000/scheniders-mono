@@ -31,6 +31,7 @@ interface ProductFormData {
     compare_at_price?: number; // Original price before discount
     cost?: number;
     stock_quantity: number;
+    open_box_quantity?: number;
     low_stock_threshold: number;
     image_url?: string;
     tag_color?: string; // Custom color for product tag display
