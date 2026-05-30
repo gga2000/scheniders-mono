@@ -234,13 +234,19 @@ export const orderRepository = {
         rejectionReason?: string,
         last_status_changed_by_name?: string,
         last_status_changed_by_avatar?: string,
-        expectedUpdatedAt?: string
+        expectedUpdatedAt?: string,
+        rejectionReasonId?: string
     ): Promise<Order> {
         const updateData: Partial<Order> = { status };
         if (rejectionReason) {
             updateData.rejection_reason = rejectionReason;
         } else if (status !== "cancelled" && status !== "rejected") {
             (updateData as Record<string, unknown>).rejection_reason = null;
+        }
+        if (rejectionReasonId !== undefined) {
+            (updateData as Record<string, unknown>).rejection_reason_id = rejectionReasonId || null;
+        } else if (status !== "cancelled" && status !== "rejected") {
+            (updateData as Record<string, unknown>).rejection_reason_id = null;
         }
         if (status === "delivered") updateData.delivered_at = new Date().toISOString();
         if (status === "cancelled") updateData.cancelled_at = new Date().toISOString();

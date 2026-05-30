@@ -2680,7 +2680,17 @@ export default function OrdersPage() {
                         getBlacklistEntry={getBlacklistEntry}
                     />
 
-                    {isMounted && <ReturnsCockpitModal open={isReturnsOpen} onClose={() => setIsReturnsOpen(false)} />}
+                    {isMounted && (
+                        <ReturnsCockpitModal
+                            open={isReturnsOpen}
+                            onClose={() => setIsReturnsOpen(false)}
+                            onOpenOrder={(order) => {
+                                setSelectedOrder(order);
+                                setIsModalOpen(true);
+                                setIsReturnsOpen(false);
+                            }}
+                        />
+                    )}
 
                     {/* Duplicate Comparison Modal */}
                     {

@@ -120,7 +120,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     async function updateOrderStatus(
         orderId: string,
         status: Order["status"],
-        rejectionReason?: string
+        rejectionReason?: string,
+        reasonId?: string
     ) {
         const _t0 = performance.now();
         diag.log(`[Diag:StatusUpdate] START orderId=${orderId} newStatus=${status} timestamp=${Date.now()}`);
@@ -179,6 +180,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                         orderId,
                         status,
                         rejectionReason,
+                        rejectionReasonId: reasonId,
                         last_status_changed_by_name: changedBy,
                         last_status_changed_by_avatar: changedByAvatar || undefined,
                         expectedUpdatedAt: previousOrder?.updated_at,
