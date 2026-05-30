@@ -4,12 +4,13 @@ import { motion } from "framer-motion";
 import {
     LayoutDashboard, TrendingUp, Landmark, Receipt, Truck,
     FileText, Users, Package, Target, FileSpreadsheet, Printer,
-    Undo2,
+    Undo2, AlertTriangle, Banknote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 
 export type FinanceTabId =
+    | "action_required"
     | "overview"
     | "revenue"
     | "cash"
@@ -21,7 +22,8 @@ export type FinanceTabId =
     | "products"
     | "print"
     | "forecasts"
-    | "reports";
+    | "reports"
+    | "salaries";
 
 interface Tab {
     id: FinanceTabId;
@@ -31,6 +33,7 @@ interface Tab {
 }
 
 const TABS: Tab[] = [
+    { id: "action_required", label: "Action Required", icon: AlertTriangle },
     { id: "overview", label: "Overview", icon: LayoutDashboard },
     { id: "revenue", label: "Revenue & Profit", icon: TrendingUp },
     { id: "cash", label: "Cash & COD", icon: Landmark },
@@ -43,6 +46,7 @@ const TABS: Tab[] = [
     { id: "print", label: "Print & Ship", icon: Printer },
     { id: "forecasts", label: "Forecasts", icon: Target },
     { id: "reports", label: "Exports", icon: FileSpreadsheet },
+    { id: "salaries", label: "Salaries", icon: Banknote },
 ];
 
 interface TabsShellProps {
