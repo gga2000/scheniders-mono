@@ -45,3 +45,19 @@ graphify-out/
 
 # supabase cli
 packages/supabase/.temp/
+supabase/.temp/
+
+# playwright MCP local recordings
+.playwright-mcp/
+
+# logs
+*.log
+
+# editor workspace files
+*.code-workspace
+
+# scratch snapshots / phase notes (local only)
+phase*.md
+phase*.yml
+snap*.yml
+*-snap.md
