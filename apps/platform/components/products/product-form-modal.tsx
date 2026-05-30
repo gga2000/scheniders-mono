@@ -25,6 +25,7 @@ export interface ProductFormData {
     compare_at_price: number; // Original price before discount
     cost: number;
     stock_quantity: number;
+    open_box_quantity: number;
     low_stock_threshold: number;
     image_url: string;
     tag_color: string; // Custom color for product tag display
@@ -66,6 +67,7 @@ export function ProductFormModal({
         compare_at_price: 0,
         cost: 0,
         stock_quantity: 0,
+        open_box_quantity: 0,
         low_stock_threshold: 5,
         image_url: "",
         tag_color: "#22c55e", // Default green
@@ -90,6 +92,7 @@ export function ProductFormModal({
                 compare_at_price: product.compare_at_price || 0,
                 cost: product.cost || 0,
                 stock_quantity: product.stock_quantity,
+                open_box_quantity: product.open_box_quantity || 0,
                 low_stock_threshold: product.low_stock_threshold,
                 image_url: product.image_url || "",
                 tag_color: product.tag_color || "#22c55e",
@@ -118,6 +121,7 @@ export function ProductFormModal({
                 compare_at_price: 0,
                 cost: 0,
                 stock_quantity: 0,
+                open_box_quantity: 0,
                 low_stock_threshold: 5,
                 image_url: "",
                 tag_color: "#22c55e",
@@ -423,7 +427,7 @@ export function ProductFormModal({
                                 Inventory
                             </h3>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-2">
                                         Stock Quantity
@@ -435,6 +439,20 @@ export function ProductFormModal({
                                         placeholder="0"
                                         min={0}
                                         className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-foreground mb-2">
+                                        Open-box Quantity
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={formData.open_box_quantity}
+                                        onChange={(e) => setFormData((prev) => ({ ...prev, open_box_quantity: parseInt(e.target.value) || 0 }))}
+                                        placeholder="0"
+                                        min={0}
+                                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-sky-400 transition-all"
                                     />
                                 </div>
 

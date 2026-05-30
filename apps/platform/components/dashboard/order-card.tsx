@@ -1501,6 +1501,11 @@ export const OrderCard = memo(function OrderCard({
                                                     <span className={`px-1.5 py-0.5 rounded-md text-xs font-bold border ${quantityColor}`}>
                                                         ×{item.quantity}
                                                     </span>
+                                                    {(item as { is_open_box?: boolean }).is_open_box && (
+                                                        <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20">
+                                                            علبة مفتوحة
+                                                        </span>
+                                                    )}
                                                     {/* Reason Tag - shows for return, rejected, cancelled orders */}
                                                     {orderReasonInfo?.reason && idx === 0 && (
                                                         <span className={cn(

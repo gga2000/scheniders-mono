@@ -414,6 +414,11 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                         ×{item.quantity}
                                     </span>
                                 )}
+                                {(item as { is_open_box?: boolean }).is_open_box && (
+                                    <span className="flex items-center justify-center h-4 px-1 rounded bg-amber-100 text-amber-700 text-[9px] font-bold leading-none shrink-0 ring-1 ring-amber-200">
+                                        علبة مفتوحة
+                                    </span>
+                                )}
                             </div>
                         ))}
                     </div>

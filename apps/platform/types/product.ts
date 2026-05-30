@@ -18,6 +18,7 @@ export interface Product {
     cost?: number;
     stock_quantity: number;
     reserved_quantity: number;
+    open_box_quantity: number;
     low_stock_threshold: number;
     reorder_point?: number | null;
     image_url?: string;

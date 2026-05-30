@@ -12,12 +12,13 @@ import { useLanguage } from "@/hooks/use-language";
 interface ProductPickerProps {
     open: boolean;
     onClose: () => void;
-    onSelect: (product: { product_id: string; name: string; price: number; quantity: number; image_url?: string; tag_color?: string }) => void;
+    onSelect: (product: { product_id: string; name: string; price: number; quantity: number; image_url?: string; tag_color?: string; is_open_box?: boolean }) => void;
 }
 
 interface SelectedProduct {
     product: Product;
     quantity: number;
+    isOpenBox: boolean;
 }
 
 export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
@@ -40,8 +41,17 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
             if (newMap.has(product.id)) {
                 newMap.delete(product.id);
             } else {
-                newMap.set(product.id, { product, quantity: 1 });
+                newMap.set(product.id, { product, quantity: 1, isOpenBox: false });
             }
+            return newMap;
+        });
+    };
+
+    const setOpenBox = (productId: string, isOpenBox: boolean) => {
+        setSelectedProducts(prev => {
+            const newMap = new Map(prev);
+            const item = newMap.get(productId);
+            if (item) newMap.set(productId, { ...item, isOpenBox });
             return newMap;
         });
     };
@@ -59,7 +69,7 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
     };
 
     const handleConfirm = () => {
-        selectedProducts.forEach(({ product, quantity }) => {
+        selectedProducts.forEach(({ product, quantity, isOpenBox }) => {
             onSelect({
                 product_id: product.id,
                 name: product.name,
@@ -67,6 +77,7 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
                 quantity: quantity,
                 image_url: product.image_url || "",
                 tag_color: product.tag_color || "#22c55e", // Include product color, default to green
+                is_open_box: isOpenBox,
             });
         });
         handleClose();
@@ -191,6 +202,34 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
                                             <div className="flex-1 min-w-0">
                                                 <p className="font-semibold text-sm text-foreground truncate">{product.name}</p>
                                                 <p className="text-sm font-mono text-green-700 font-bold">{formatIQD(product.price)}</p>
+                                                {isSelected && selectedData && (
+                                                    <div className="flex items-center gap-1 mt-1.5" onClick={(e) => e.stopPropagation()}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setOpenBox(product.id, false)}
+                                                            className={cn(
+                                                                "px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all",
+                                                                !selectedData.isOpenBox
+                                                                    ? "bg-green-600 text-white"
+                                                                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                                                            )}
+                                                        >
+                                                            جديد
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setOpenBox(product.id, true)}
+                                                            className={cn(
+                                                                "px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all",
+                                                                selectedData.isOpenBox
+                                                                    ? "bg-amber-500 text-white"
+                                                                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                                                            )}
+                                                        >
+                                                            علبة مفتوحة{product.open_box_quantity > 0 ? ` (${product.open_box_quantity})` : ""}
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </div>
 
                                             {/* Quantity Controls or Checkbox */}

@@ -23,6 +23,10 @@ const CreateOrderModal = dynamic(
     () => import("@/components/orders/create-order-modal").then(mod => ({ default: mod.CreateOrderModal })),
     { loading: () => null, ssr: false }
 );
+const ReturnsCockpitModal = dynamic(
+    () => import("@/components/returns/returns-cockpit-modal").then(mod => ({ default: mod.ReturnsCockpitModal })),
+    { loading: () => null, ssr: false }
+);
 // Dynamic imports for other heavy components
 const FloatingActionBar = dynamic(
     () => import("@/components/orders/floating-action-bar").then(mod => ({ default: mod.FloatingActionBar })),
@@ -135,8 +139,10 @@ import {
     Activity,
     AlertTriangle,
     PanelRight,
-    MessageCircle
+    MessageCircle,
+    PackageX,
 } from "lucide-react";
+import { extractScannedOrderId } from "@/lib/scan-utils";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
 import { notificationService } from "@/lib/notification-service";
@@ -164,7 +170,8 @@ const GlobalSearchField = React.memo(function GlobalSearchField({ filters, setFi
 
     useEffect(() => {
         const prevSearch = prevSearchRef.current;
-        const newSearch = debouncedSearchQuery;
+        // Normalize scanned/pasted QR ("QR:{id}|PHONE:..") down to the order id; plain text passes through.
+        const newSearch = extractScannedOrderId(debouncedSearchQuery);
 
         if (newSearch === (filters.searchQuery || "")) return; // No change needed
 
@@ -243,6 +250,7 @@ export default function OrdersPage() {
     }, []);
 
     const [isMounted, setIsMounted] = useState(false);
+    const [isReturnsOpen, setIsReturnsOpen] = useState(false);
     useEffect(() => {
         setIsMounted(true);
     }, []);
@@ -1141,6 +1149,16 @@ export default function OrdersPage() {
 
                                                 {/* Right: Quick actions + Expand */}
                                                 <div className="flex items-center gap-2">
+                                                    {/* Returns Cockpit Button */}
+                                                    <button
+                                                        onClick={() => setIsReturnsOpen(true)}
+                                                        className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-orange-500 text-white shadow-sm hover:bg-orange-600 transition-all text-sm font-semibold"
+                                                        title="Returns cockpit (scan returned packages)"
+                                                    >
+                                                        <PackageX className="w-4 h-4" />
+                                                        <span className="hidden sm:inline">Returns</span>
+                                                    </button>
+
                                                     {/* New Order Button */}
                                                     <button
                                                         onClick={() => setIsCreateModalOpen(true)}
@@ -2644,6 +2662,8 @@ export default function OrdersPage() {
                         checkOrderIdExists={checkOrderIdExists}
                         getBlacklistEntry={getBlacklistEntry}
                     />
+
+                    {isMounted && <ReturnsCockpitModal open={isReturnsOpen} onClose={() => setIsReturnsOpen(false)} />}
 
                     {/* Duplicate Comparison Modal */}
                     {
