@@ -59,6 +59,7 @@ const NAV_ITEMS = [
         icon: AnimatedFinancesIcon,
         href: "/finances",
         subItems: [
+            { key: "nav.financesActionRequired", label: "Action Required", href: "/finances?tab=action_required", tab: "action_required" },
             { key: "nav.financesOverview", label: "Overview", href: "/finances", tab: "overview" },
             { key: "nav.financesRevenue", label: "Revenue & Profit", href: "/finances?tab=revenue", tab: "revenue" },
             { key: "nav.financesCash", label: "Cash & COD", href: "/finances?tab=cash", tab: "cash" },
@@ -71,9 +72,11 @@ const NAV_ITEMS = [
             { key: "nav.financesPrint", label: "Print & Ship", href: "/finances?tab=print", tab: "print" },
             { key: "nav.financesForecasts", label: "Forecasts", href: "/finances?tab=forecasts", tab: "forecasts" },
             { key: "nav.financesReports", label: "Exports", href: "/finances?tab=reports", tab: "reports" },
+            { key: "nav.financesSalaries", label: "Salaries", href: "/finances?tab=salaries", tab: "salaries" },
         ]
     },
     { key: "nav.reports", icon: AnimatedReportsIcon, href: "/reports" },
+    { key: "nav.printing", icon: AnimatedPrintingIcon, href: "/printing" },
     { key: "nav.team", icon: AnimatedTeamIcon, href: "/team" },
     { key: "nav.vault", icon: AnimatedVaultIcon, href: "/vault" },
     { key: "nav.store", icon: AnimatedStoreIcon, href: "/store" },

@@ -141,10 +141,19 @@ const CollectionByCity = dynamic(
     { loading: () => <div className="h-[320px] rounded-2xl bg-[var(--card-bg)] animate-pulse" /> }
 );
 
+const ActionRequiredTab = dynamic(
+    () => import("@/components/finances/action-required-tab").then((m) => ({ default: m.ActionRequiredTab })),
+    { loading: () => <div className="h-[480px] rounded-2xl bg-[var(--card-bg)] animate-pulse" /> }
+);
+const SalariesTab = dynamic(
+    () => import("@/components/salary/salaries-tab").then((m) => ({ default: m.SalariesTab })),
+    { loading: () => <div className="h-[480px] rounded-2xl bg-[var(--card-bg)] animate-pulse" /> }
+);
+
 const VALID_TABS: FinanceTabId[] = [
-    "overview", "revenue", "cash", "expenses", "payouts",
+    "action_required", "overview", "revenue", "cash", "expenses", "payouts",
     "invoices", "refunds", "customers", "products", "print",
-    "forecasts", "reports",
+    "forecasts", "reports", "salaries",
 ];
 
 export default function FinancesPage() {
@@ -343,6 +352,12 @@ function FinancesContent() {
                 {activeTab === "reports" && (
                     <ReportsTab period={period} dateRangeStrings={dateRangeStrings} />
                 )}
+
+                {activeTab === "action_required" && (
+                    <ActionRequiredTab orders={orders} products={products} marketingCost={0} />
+                )}
+
+                {activeTab === "salaries" && <SalariesTab />}
             </div>
         </div>
     );
