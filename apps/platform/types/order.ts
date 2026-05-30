@@ -81,6 +81,9 @@ export interface Order {
     is_replacement: boolean;
     original_order_id?: string;
     original_created_at?: string;
+    /** Refund financial dimension. Independent of order status. */
+    refund_status?: 'none' | 'pending' | 'refunded' | 'failed';
+    refunded_at?: string;
     is_archived: boolean;
     is_pinned?: boolean;
     delivery_slot?: DeliverySlot;
@@ -170,7 +173,7 @@ export interface OrderStatusHistory {
 }
 
 export interface OrderFilters {
-    status?: Order['status'] | 'all' | 'refunds';
+    status?: Order['status'] | 'all' | 'refunds' | 'refunded' | 'refund_pending' | 'replacements';
     dateFrom?: string;
     dateTo?: string;
     city?: string;
@@ -182,6 +185,8 @@ export interface OrderFilters {
     searchQuery?: string;
     searchIncludesArchive?: boolean;
     riskLevel?: RiskLevel;
+    /** Sub-filter for the Confirmed / All tabs to narrow to return or replacement orders. */
+    orderType?: 'refund' | 'replacement';
 }
 
 export interface FilterPreset {
