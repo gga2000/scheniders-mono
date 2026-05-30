@@ -23,7 +23,7 @@ export type PaymentStatus = 'pending' | 'cod' | 'prepaid' | 'partial' | 'paid';
 
 export type DeliverySlot = 'morning' | 'afternoon' | 'evening';
 
-export type OrderSource = 'whatsapp' | 'lightfunnels' | 'meta' | 'tiktok' | 'delivery_import' | 'shop' | 'other';
+export type OrderSource = 'whatsapp' | 'lightfunnels' | 'meta' | 'tiktok' | 'delivery_import' | 'shop' | 'telegram' | 'other';
 
 export type OrderTagColor = 'yellow' | 'green' | 'blue' | 'pink' | 'purple' | null;
 
@@ -52,6 +52,7 @@ export interface OrderItem {
     image_url?: string;
     tag_color?: string;
     is_open_box?: boolean;
+    is_ai_extracted?: boolean;
 }
 
 export interface Order {

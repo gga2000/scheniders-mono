@@ -51,7 +51,7 @@ export const getAgeUrgency = (status: Order["status"], dateStr: string | Date | 
     return "stale";                         // Red - very old
 };
 
-export const getItemsDisplay = (items: Array<{ name: string; quantity: number; image_url?: string; tag_color?: string | null; is_open_box?: boolean }>) => {
+export const getItemsDisplay = (items: Array<{ name: string; quantity: number; image_url?: string; tag_color?: string | null; is_open_box?: boolean; is_ai_extracted?: boolean }>) => {
     if (!items || items.length === 0) return [];
     return items.map(item => ({
         name: item.name,
@@ -59,6 +59,7 @@ export const getItemsDisplay = (items: Array<{ name: string; quantity: number; i
         image_url: item.image_url,
         tag_color: item.tag_color,
         is_open_box: item.is_open_box,
+        is_ai_extracted: item.is_ai_extracted,
     }));
 };
 

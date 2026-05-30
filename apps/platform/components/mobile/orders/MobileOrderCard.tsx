@@ -11,6 +11,7 @@ import { REMINDER_DELAY_HOURS, DISCOUNT_DELAY_HOURS } from "@/lib/qstash";
 import { cn, getStatusLabel } from "@/lib/utils";
 import { RiskBadge } from "@/components/orders/risk-badge";
 import { DiscountBadge } from "@/components/orders/discount-badge";
+import { GeminiBadge } from "@/components/orders/gemini-badge";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -414,6 +415,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                         ×{item.quantity}
                                     </span>
                                 )}
+                                {item.is_ai_extracted && <GeminiBadge size="xs" />}
                                 {(item as { is_open_box?: boolean }).is_open_box && (
                                     <span className="flex items-center justify-center h-4 px-1 rounded bg-amber-100 text-amber-700 text-[9px] font-bold leading-none shrink-0 ring-1 ring-amber-200">
                                         علبة مفتوحة

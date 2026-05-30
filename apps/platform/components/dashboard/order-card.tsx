@@ -6,6 +6,7 @@ import { Order, OrderPriority, MessageTemplate } from "@/lib/supabase";
 import { RiskLevel, RiskAssessment } from "@/lib/fraud-detector";
 import { RiskBadge } from "@/components/orders/risk-badge";
 import { DiscountBadge } from "@/components/orders/discount-badge";
+import { GeminiBadge } from "@/components/orders/gemini-badge";
 import { AvatarPill } from "@/components/ui/avatar-pill";
 
 import { OrderAssignment, mockEmployees } from "@/lib/team-types";
@@ -1501,6 +1502,7 @@ export const OrderCard = memo(function OrderCard({
                                                     <span className={`px-1.5 py-0.5 rounded-md text-xs font-bold border ${quantityColor}`}>
                                                         ×{item.quantity}
                                                     </span>
+                                                    {item.is_ai_extracted && <GeminiBadge />}
                                                     {(item as { is_open_box?: boolean }).is_open_box && (
                                                         <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20">
                                                             علبة مفتوحة
