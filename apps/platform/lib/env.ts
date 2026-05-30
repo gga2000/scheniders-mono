@@ -50,6 +50,9 @@ const serverSchema = z.object({
     INTERAKT_WEBHOOK_SECRET: z.string().min(1).optional(),
     WASEET_USERNAME: z.string().min(1).optional(),
     WASEET_PASSWORD: z.string().min(1).optional(),
+    GEMINI_API_KEY: z.string().min(1).optional(),
+    TELEGRAM_BOT_TOKEN: z.string().min(1).optional(),
+    TELEGRAM_WEBHOOK_SECRET: z.string().min(1).optional(),
 });
 
 // =============================================
@@ -91,6 +94,9 @@ function validateEnv() {
             INTERAKT_WEBHOOK_SECRET: orUndef(process.env.INTERAKT_WEBHOOK_SECRET),
             WASEET_USERNAME: orUndef(process.env.WASEET_USERNAME),
             WASEET_PASSWORD: orUndef(process.env.WASEET_PASSWORD),
+            GEMINI_API_KEY: orUndef(process.env.GEMINI_API_KEY),
+            TELEGRAM_BOT_TOKEN: orUndef(process.env.TELEGRAM_BOT_TOKEN),
+            TELEGRAM_WEBHOOK_SECRET: orUndef(process.env.TELEGRAM_WEBHOOK_SECRET),
         });
 
         if (!serverResult.success) {
