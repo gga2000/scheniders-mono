@@ -71,8 +71,8 @@ export const StickyFilterBar = memo(function StickyFilterBar({
         { id: "completed", label: t("orders.status.completed"), count: statusCounts.completed || 0 },
         { id: "cancelled", label: t("orders.status.cancelled"), count: statusCounts.cancelled || 0 },
         { id: "rejected", label: t("orders.status.rejected"), count: statusCounts.rejected || 0 },
-        { id: "refunds", label: "المرتجعات", count: statusCounts.refunds || 0 },
-        { id: "suspended", label: "طلب معلق", count: statusCounts.suspended || 0 },
+        { id: "refunds", label: t("orders.filter.refunds"), count: statusCounts.refunds || 0 },
+        { id: "suspended", label: t("orders.filter.suspended"), count: statusCounts.suspended || 0 },
         { id: "no_response", label: t("orders.status.noResponse"), count: statusCounts.no_response || 0 },
     ];
 
@@ -204,7 +204,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                             <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                             <path d="M3 3v5h5" />
                         </svg>
-                        <span>{!isMobile && "المرتجعات"}</span>
+                        <span>{!isMobile && t("orders.filter.refunds")}</span>
                     </div>
                 </button>
 
@@ -223,7 +223,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                         )}
                     >
                         <Copy className="w-4 h-4" />
-                        <span>{!isMobile && "المكررين"}</span>
+                        <span>{!isMobile && t("orders.filter.duplicates")}</span>
                     </button>
                 )}
 

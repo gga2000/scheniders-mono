@@ -4,6 +4,8 @@ import { listCategories } from "@/lib/queries";
 import { StoreHeader } from "@/components/storefront/StoreHeader";
 import { StoreFooter } from "@/components/storefront/StoreFooter";
 import { CartView } from "@/components/storefront/CartView";
+import { SchneidersPageShell } from "@/components/schneiders/page-shell";
+import { SchneidersCartView } from "@/components/schneiders/cart-view";
 
 export default async function CartPage({
   params,
@@ -17,6 +19,15 @@ export default async function CartPage({
 
   if (!tenant) notFound();
   const categories = await listCategories(tenant.id);
+  const template = tenant.store_config?.template ?? "schneiders";
+
+  if (template === "schneiders") {
+    return (
+      <SchneidersPageShell tenant={tenant} categories={categories} showBack hideBottomBar>
+        <SchneidersCartView tenant={tenant} />
+      </SchneidersPageShell>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-zinc-50">

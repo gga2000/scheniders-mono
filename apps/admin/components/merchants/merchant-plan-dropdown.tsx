@@ -11,17 +11,21 @@ const PLAN_OPTIONS: Array<{
   label: string;
   color: string;
 }> = [
-  { value: "starter", label: "Starter", color: "bg-blue-100 text-blue-700 dark:bg-blue-400/15 dark:text-blue-400" },
-  { value: "growth", label: "Growth", color: "bg-green-100 text-green-700 dark:bg-green-400/15 dark:text-green-400" },
-  { value: "professional", label: "Pro", color: "bg-purple-100 text-purple-700 dark:bg-purple-400/15 dark:text-purple-400" },
-  { value: "enterprise", label: "Enterprise", color: "bg-amber-100 text-amber-700 dark:bg-amber-400/15 dark:text-amber-400" },
+  { value: "starter", label: "Starter", color: "bg-gradient-to-r from-sky-400 to-cyan-400 text-white" },
+  { value: "growth", label: "Growth", color: "bg-gradient-to-r from-emerald-400 to-teal-500 text-white" },
+  { value: "professional", label: "Pro", color: "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white" },
+  { value: "enterprise", label: "Enterprise", color: "bg-gradient-to-r from-amber-400 to-orange-500 text-white" },
 ];
 
 const planBadgeStyle: Record<PlanTier, string> = {
-  starter: "bg-blue-100 text-blue-800 dark:bg-blue-400/15 dark:text-blue-400",
-  growth: "bg-green-100 text-green-800 dark:bg-green-400/15 dark:text-green-400",
-  professional: "bg-purple-100 text-purple-800 dark:bg-purple-400/15 dark:text-purple-400",
-  enterprise: "bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-400",
+  starter:
+    "bg-gradient-to-br from-sky-400 to-cyan-500 text-white shadow-sm shadow-sky-500/30 ring-1 ring-white/20",
+  growth:
+    "bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm shadow-emerald-500/30 ring-1 ring-white/20",
+  professional:
+    "bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-sm shadow-violet-500/30 ring-1 ring-white/20",
+  enterprise:
+    "bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm shadow-amber-500/30 ring-1 ring-white/20",
 };
 
 interface MerchantPlanDropdownProps {
@@ -99,12 +103,17 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
           setOpen(!open);
         }}
         className={cn(
-          "px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer",
+          "px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer hover:scale-105 active:scale-95",
           planBadgeStyle[plan]
         )}
       >
         {current?.label ?? plan}
-        <ChevronDown className={cn("w-3 h-3 transition-transform", open && "rotate-180")} />
+        <ChevronDown
+          className={cn(
+            "w-3 h-3 transition-transform opacity-80",
+            open && "rotate-180"
+          )}
+        />
       </button>
 
       {open && (

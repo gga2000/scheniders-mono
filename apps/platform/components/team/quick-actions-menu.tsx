@@ -7,12 +7,13 @@ import {
     User,
     BarChart3,
     GitCompare,
-    Clock,
     Download,
     ExternalLink,
     Activity,
+    Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 interface QuickActionsMenuProps {
     employeeId: string;
@@ -42,6 +43,7 @@ export function QuickActionsMenu({
     onExportReport,
     className,
 }: QuickActionsMenuProps) {
+    const { t } = useLanguage();
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -76,7 +78,7 @@ export function QuickActionsMenu({
     const menuItems: MenuItem[] = [
         {
             icon: User,
-            label: "عرض التفاصيل",
+            label: t("team.actions.viewDetails"),
             onClick: () => {
                 onViewDetails?.();
                 setIsOpen(false);
@@ -85,7 +87,7 @@ export function QuickActionsMenu({
         },
         {
             icon: Activity,
-            label: "سجل النشاطات",
+            label: t("team.actions.activityLog"),
             onClick: () => {
                 onViewTimeline?.();
                 setIsOpen(false);
@@ -94,7 +96,7 @@ export function QuickActionsMenu({
         },
         {
             icon: GitCompare,
-            label: "مقارنة مع آخر",
+            label: t("team.actions.compare"),
             onClick: () => {
                 onCompare?.();
                 setIsOpen(false);
@@ -103,7 +105,7 @@ export function QuickActionsMenu({
         },
         {
             icon: Clock,
-            label: "جلسات العمل",
+            label: t("team.actions.workSessions"),
             onClick: () => {
                 onViewSessions?.();
                 setIsOpen(false);
@@ -112,7 +114,7 @@ export function QuickActionsMenu({
         },
         {
             icon: Download,
-            label: "تصدير التقرير",
+            label: t("team.actions.exportReport"),
             onClick: () => {
                 onExportReport?.();
                 setIsOpen(false);
@@ -156,7 +158,7 @@ export function QuickActionsMenu({
                     >
                         {/* Header */}
                         <div className="px-4 py-3 border-b border-border/50 bg-muted/30">
-                            <p className="text-xs text-muted-foreground">إجراءات سريعة</p>
+                            <p className="text-xs text-muted-foreground">{t("team.actions.quickActions")}</p>
                             <p className="text-sm font-semibold truncate">{employeeName}</p>
                         </div>
 

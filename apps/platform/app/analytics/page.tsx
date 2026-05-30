@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
 import {
     DollarSign,
@@ -14,7 +14,6 @@ import {
     Printer,
     TrendingUp,
     Clock,
-    PieChart,
     BarChart3,
     X,
     Target,
@@ -22,9 +21,9 @@ import {
     Wallet,
     ListChecks,
     Truck,
-    AlertTriangle,
     Sparkles,
     Receipt,
+    MoreHorizontal,
 } from "lucide-react";
 
 // Hooks
@@ -168,14 +167,34 @@ function AnalyticsContent() {
     const [isMarketingModalOpen, setIsMarketingModalOpen] = useState(false);
     const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
     const [expenseModalMode, setExpenseModalMode] = useState<"add" | "edit">("add");
-    const [exportMenuOpen, setExportMenuOpen] = useState(false);
+    const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
     const [isDeliveryImportOpen, setIsDeliveryImportOpen] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
+    const actionsMenuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsMounted(true);
     }, []);
+
+    // Close actions menu on Escape or outside click
+    useEffect(() => {
+        if (!actionsMenuOpen) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") setActionsMenuOpen(false);
+        };
+        const onClick = (e: MouseEvent) => {
+            if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target as Node)) {
+                setActionsMenuOpen(false);
+            }
+        };
+        window.addEventListener("keydown", onKey);
+        window.addEventListener("mousedown", onClick);
+        return () => {
+            window.removeEventListener("keydown", onKey);
+            window.removeEventListener("mousedown", onClick);
+        };
+    }, [actionsMenuOpen]);
 
     // =============================================
     // FINANCIAL EPOCH
@@ -350,7 +369,7 @@ function AnalyticsContent() {
 
     const handleExport = (type: "csv" | "excel" | "print") => {
         const reportData = {
-            dateRange: { start: dateRange.startDate, end: dateRange.endDate },
+            dateRange: { start: effectiveDateRange.startDate, end: effectiveDateRange.endDate },
             revenue: revenueStats,
             profit: profitStats,
             expenses,
@@ -368,7 +387,7 @@ function AnalyticsContent() {
                 printFinancialReport(reportData);
                 break;
         }
-        setExportMenuOpen(false);
+        setActionsMenuOpen(false);
     };
 
     const tabs = [
@@ -403,22 +422,7 @@ function AnalyticsContent() {
                         <p className="text-muted mt-1">{t("analytics.subtitle")}</p>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3">
-                        {/* Financial Era Toggle */}
-                        <button
-                            onClick={handleToggleFinancialEra}
-                            className={cn(
-                                "flex items-center gap-2 px-4 py-3 rounded-xl border font-medium transition-all text-sm",
-                                showFinancialEra 
-                                    ? "bg-amber-100 border-amber-200 text-amber-700 dark:bg-amber-900/20 dark:border-amber-900/30 dark:text-amber-400" 
-                                    : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:border-[var(--ink)] hover:text-foreground"
-                            )}
-                            title="Toggle Financial Era Settings"
-                        >
-                            <Sparkles className="w-4 h-4" />
-                            <span className="hidden md:inline">{t("analytics.era")}</span>
-                        </button>
-
+                    <div className="flex items-center gap-2 md:gap-3 flex-wrap">
                         <DateRangePicker
                             dateFrom={dateRange.startDate}
                             dateTo={dateRange.endDate}
@@ -426,68 +430,100 @@ function AnalyticsContent() {
                             epochDate={epochDate || undefined}
                         />
 
-                        {/* Import Delivery PDF Button */}
-                        <button
-                            onClick={() => setIsDeliveryImportOpen(true)}
-                            className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-xl font-medium hover:opacity-90 transition-all shadow-lg shadow-teal-500/20"
-                        >
-                            <Truck className="w-4 h-4" />
-                            <span className="hidden md:inline">{t("analytics.importDelivery")}</span>
-                        </button>
-
-                        {/* Marketing Expense Button */}
-                        <button
-                            onClick={() => setIsMarketingModalOpen(true)}
-                            className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl font-medium hover:opacity-90 transition-all shadow-lg shadow-violet-500/20"
-                        >
-                            <Target className="w-4 h-4" />
-                            <span className="hidden md:inline">{t("analytics.marketing")}</span>
-                        </button>
-
-                        {/* Export Menu */}
-                        <div className="relative">
+                        {/* Actions overflow menu — consolidates Era, Import Delivery, Marketing, Export */}
+                        <div className="relative" ref={actionsMenuRef}>
                             <button
-                                onClick={() => setExportMenuOpen(!exportMenuOpen)}
-                                className="flex items-center gap-2 px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground hover:border-[var(--ink)] transition-all"
+                                onClick={() => setActionsMenuOpen(o => !o)}
+                                aria-haspopup="menu"
+                                aria-expanded={actionsMenuOpen}
+                                aria-label={t("analytics.actionsMenu") || "Actions"}
+                                className="flex items-center gap-2 px-3 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground hover:border-[var(--ink)] transition-all"
                             >
-                                <Download className="w-4 h-4" />
-                                <span className="hidden md:inline">{t("analytics.export")}</span>
+                                <MoreHorizontal className="w-4 h-4" />
+                                <span className="hidden md:inline text-sm font-medium">{t("analytics.actionsMenu") || "Actions"}</span>
                             </button>
 
-                            {exportMenuOpen && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: -10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="absolute right-0 top-full mt-2 z-50 bg-[var(--card-bg)] rounded-xl shadow-lg border border-[var(--card-border)] overflow-hidden min-w-[160px]"
-                                >
-                                    <button
-                                        onClick={() => handleExport("csv")}
-                                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-foreground hover:bg-[var(--background)] transition-colors"
+                            <AnimatePresence>
+                                {actionsMenuOpen && (
+                                    <motion.div
+                                        role="menu"
+                                        initial={{ opacity: 0, y: -8 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -8 }}
+                                        transition={{ duration: 0.15 }}
+                                        className="absolute right-0 top-full mt-2 z-50 bg-[var(--card-bg)] rounded-xl shadow-xl border border-[var(--card-border)] overflow-hidden min-w-[240px] py-1"
                                     >
-                                        <FileText className="w-4 h-4" />
-                                        {t("analytics.exportCsv")}
-                                    </button>
-                                    <button
-                                        onClick={() => handleExport("excel")}
-                                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-foreground hover:bg-[var(--background)] transition-colors"
-                                    >
-                                        <FileSpreadsheet className="w-4 h-4" />
-                                        {t("analytics.exportExcel")}
-                                    </button>
-                                    <button
-                                        onClick={() => handleExport("print")}
-                                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-foreground hover:bg-[var(--background)] transition-colors"
-                                    >
-                                        <Printer className="w-4 h-4" />
-                                        {t("analytics.printReport")}
-                                    </button>
-                                </motion.div>
-                            )}
+                                        <button
+                                            role="menuitem"
+                                            onClick={() => { setIsMarketingModalOpen(true); setActionsMenuOpen(false); }}
+                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-[var(--background)] transition-colors"
+                                        >
+                                            <Target className="w-4 h-4 text-violet-600" />
+                                            <span>{t("analytics.marketing")}</span>
+                                        </button>
+                                        <button
+                                            role="menuitem"
+                                            onClick={() => { setIsDeliveryImportOpen(true); setActionsMenuOpen(false); }}
+                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-[var(--background)] transition-colors"
+                                        >
+                                            <Truck className="w-4 h-4 text-teal-600" />
+                                            <span>{t("analytics.importDelivery")}</span>
+                                        </button>
+
+                                        <div className="my-1 border-t border-[var(--card-border)]" />
+
+                                        <button
+                                            role="menuitem"
+                                            onClick={() => handleExport("csv")}
+                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-[var(--background)] transition-colors"
+                                        >
+                                            <FileText className="w-4 h-4 text-muted" />
+                                            <span>{t("analytics.exportCsv")}</span>
+                                        </button>
+                                        <button
+                                            role="menuitem"
+                                            onClick={() => handleExport("excel")}
+                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-[var(--background)] transition-colors"
+                                        >
+                                            <FileSpreadsheet className="w-4 h-4 text-muted" />
+                                            <span>{t("analytics.exportExcel")}</span>
+                                        </button>
+                                        <button
+                                            role="menuitem"
+                                            onClick={() => handleExport("print")}
+                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-[var(--background)] transition-colors"
+                                        >
+                                            <Printer className="w-4 h-4 text-muted" />
+                                            <span>{t("analytics.printReport")}</span>
+                                        </button>
+
+                                        <div className="my-1 border-t border-[var(--card-border)]" />
+
+                                        <button
+                                            role="menuitem"
+                                            onClick={() => { handleToggleFinancialEra(); setActionsMenuOpen(false); }}
+                                            className={cn(
+                                                "w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors",
+                                                showFinancialEra
+                                                    ? "text-amber-700 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-900/10 hover:bg-amber-100 dark:hover:bg-amber-900/20"
+                                                    : "text-foreground hover:bg-[var(--background)]"
+                                            )}
+                                        >
+                                            <Sparkles className="w-4 h-4" />
+                                            <span>{t("analytics.era")}</span>
+                                            {showFinancialEra && (
+                                                <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-amber-600">On</span>
+                                            )}
+                                        </button>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
 
+                        {/* Primary CTA — always visible */}
                         <button
                             onClick={handleAddExpense}
-                            className="flex items-center gap-2 px-4 py-3 bg-[var(--ink)] text-white rounded-xl font-medium hover:opacity-90 transition-all"
+                            className="flex items-center gap-2 px-4 py-3 bg-[var(--ink)] text-white rounded-xl font-medium hover:opacity-90 transition-all shadow-sm"
                         >
                             <Plus className="w-4 h-4" />
                             <span className="hidden md:inline">{t("analytics.addExpense")}</span>

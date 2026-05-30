@@ -8,7 +8,7 @@ import { NotificationBell } from "@/components/shared/notification-bell";
 
 const PAGE_TITLES: Record<string, string> = {
   "/": "Command Center",
-  "/merchants": "Merchants",
+  "/merchants": "",
   "/billing": "Billing",
   "/trials": "Trials",
   "/health": "Health",
@@ -146,7 +146,9 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
             <Menu className="w-5 h-5 text-foreground" />
           </button>
         )}
-        <h1 className="text-lg font-semibold text-foreground">{pageTitle}</h1>
+        {pageTitle && (
+          <h1 className="text-lg font-semibold text-foreground">{pageTitle}</h1>
+        )}
       </div>
 
       {/* Center: Search */}

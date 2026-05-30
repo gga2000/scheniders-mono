@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const CreateNoteSchema = z.object({
   content: z.string().min(1).max(2000),
   mentions: z.array(z.string()).optional(),
@@ -75,7 +78,8 @@ export async function POST(
       .from("admin_notes")
       .insert({
         tenant_id: id,
-        admin_user_id: "system",
+        admin_user_id: null,
+        admin_label: "system",
         content: parsed.data.content,
         is_pinned: false,
       })
@@ -92,10 +96,14 @@ export async function POST(
           .from("admin_activity_logs")
           .insert(
             parsed.data.mentions.map((userId) => ({
-              admin_id: userId,
-              action: "mention_in_note",
-              details: { tenant_id: id, note_id: data.id, content: parsed.data.content.substring(0, 100) },
+              admin_user_id: UUID_RE.test(userId) ? userId : null,
+              admin_label: UUID_RE.test(userId) ? null : userId,
               tenant_id: id,
+              action: "mention_in_note",
+              details: {
+                note_id: data.id,
+                content: parsed.data.content.substring(0, 100),
+              },
             }))
           );
       } catch (err) {

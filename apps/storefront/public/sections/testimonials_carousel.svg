@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" width="320" height="200">
+  <rect width="320" height="200" fill="#fff7ed"/>
+  <g transform="translate(16 24)">
+    <text x="0" y="14" font-family="Impact, sans-serif" font-weight="900" font-size="14" fill="#1a1a1a">WHAT CUSTOMERS SAY</text>
+    <line x1="0" y1="18" x2="148" y2="18" stroke="#7cf0bd" stroke-width="3" stroke-linecap="round"/>
+    <g transform="translate(0 32)">
+      <rect width="124" height="110" rx="10" fill="#fff" stroke="#1a1a1a" stroke-width="3" transform="rotate(-0.5 62 55)"/>
+      <text x="10" y="22" font-family="Impact, sans-serif" font-weight="900" font-size="12" fill="#ff5a8a">★★★★★</text>
+      <text x="10" y="44" font-family="Inter, sans-serif" font-size="9" fill="#1a1a1a">"Same-day delivery,</text>
+      <text x="10" y="56" font-family="Inter, sans-serif" font-size="9" fill="#1a1a1a">exactly as described."</text>
+      <circle cx="22" cy="86" r="9" fill="#ffd84a" stroke="#1a1a1a" stroke-width="2"/>
+      <text x="38" y="89" font-family="Impact, sans-serif" font-weight="900" font-size="10" fill="#1a1a1a">HADEEL M.</text>
+    </g>
+    <g transform="translate(132 32)">
+      <rect width="124" height="110" rx="10" fill="#fff" stroke="#1a1a1a" stroke-width="3" transform="rotate(0.5 62 55)"/>
+      <text x="10" y="22" font-family="Impact, sans-serif" font-weight="900" font-size="12" fill="#ff5a8a">★★★★★</text>
+      <text x="10" y="44" font-family="Inter, sans-serif" font-size="9" fill="#1a1a1a">"Quality beyond</text>
+      <text x="10" y="56" font-family="Inter, sans-serif" font-size="9" fill="#1a1a1a">the price."</text>
+      <circle cx="22" cy="86" r="9" fill="#9ad8ff" stroke="#1a1a1a" stroke-width="2"/>
+      <text x="38" y="89" font-family="Impact, sans-serif" font-weight="900" font-size="10" fill="#1a1a1a">AHMED K.</text>
+    </g>
+    <g transform="translate(264 32)">
+      <rect width="40" height="110" rx="10" fill="#fff" stroke="#1a1a1a" stroke-width="3"/>
+    </g>
+  </g>
+  <text x="160" y="194" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#1a1a1a" opacity="0.5">testimonials_carousel</text>
+</svg>

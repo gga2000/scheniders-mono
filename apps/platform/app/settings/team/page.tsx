@@ -29,7 +29,7 @@ import { cn, formatDate } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
 // Types
-type UserRole = "admin" | "employee" | "viewer";
+type UserRole = "super_admin" | "admin" | "employee" | "viewer";
 
 interface UserProfile {
     id: string;
@@ -45,6 +45,12 @@ interface UserProfile {
 
 // Role configuration
 const ROLE_CONFIG: Record<UserRole, { label: string; labelAr: string; icon: typeof Shield; color: string }> = {
+    super_admin: {
+        label: "Super Admin",
+        labelAr: "مدير عام",
+        icon: ShieldCheck,
+        color: "text-rose-400 bg-rose-500/20 border-rose-500/30",
+    },
     admin: {
         label: "Admin",
         labelAr: "مسؤول",
@@ -463,7 +469,7 @@ export default function TeamSettingsPage() {
                 <div className="glass-card p-4 rounded-xl border border-border">
                     <p className="text-sm text-muted-foreground">المسؤولين</p>
                     <p className="text-2xl font-bold text-amber-400">
-                        {users.filter(u => u.role === "admin").length}
+                        {users.filter(u => u.role === "admin" || u.role === "super_admin").length}
                     </p>
                 </div>
                 <div className="glass-card p-4 rounded-xl border border-border">

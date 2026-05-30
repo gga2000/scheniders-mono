@@ -2,12 +2,25 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Sparkles, RefreshCw } from "lucide-react";
+import { Sparkles, RefreshCw, KeyRound } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 interface AiSummaryCardProps {
     phone: string;
+}
+
+class AiSummaryError extends Error {
+    constructor(message: string, public readonly code: "missing_key" | "generic") {
+        super(message);
+    }
+}
+
+function classifyError(message: string): "missing_key" | "generic" {
+    const m = message.toLowerCase();
+    if (m.includes("anthropic") && (m.includes("key") || m.includes("api"))) return "missing_key";
+    if (m.includes("not configured")) return "missing_key";
+    return "generic";
 }
 
 async function fetchAiSummary(phone: string, refresh: boolean) {
@@ -27,7 +40,8 @@ async function fetchAiSummary(phone: string, refresh: boolean) {
 
     if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || "Failed to fetch AI summary");
+        const message = body.error || "Failed to fetch AI summary";
+        throw new AiSummaryError(message, classifyError(message));
     }
 
     return res.json() as Promise<{
@@ -101,9 +115,23 @@ export function AiSummaryCard({ phone }: AiSummaryCardProps) {
                     <div className="h-4 rounded-full bg-muted/40 animate-pulse w-3/4" />
                 </div>
             ) : error ? (
-                <p className="text-sm text-muted-foreground">
-                    Unable to generate summary. Please try again later.
-                </p>
+                error instanceof AiSummaryError && error.code === "missing_key" ? (
+                    <div className="flex items-start gap-3 rounded-2xl bg-amber-50 border border-amber-200 p-4">
+                        <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                            <KeyRound className="w-4 h-4 text-amber-700" />
+                        </div>
+                        <div className="text-sm leading-relaxed text-amber-900">
+                            <p className="font-bold mb-1">AI summaries are disabled for this workspace.</p>
+                            <p className="text-amber-800/80">
+                                Set <code className="px-1.5 py-0.5 rounded bg-amber-100 font-mono text-[12px]">ANTHROPIC_API_KEY</code> in your environment to enable summaries.
+                            </p>
+                        </div>
+                    </div>
+                ) : (
+                    <p className="text-sm text-muted-foreground">
+                        Unable to generate summary. Please try again later.
+                    </p>
+                )
             ) : data ? (
                 <div>
                     <p className="text-sm leading-relaxed italic text-foreground/80">

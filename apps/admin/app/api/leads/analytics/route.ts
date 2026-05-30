@@ -1,8 +1,13 @@
-import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/admin-supabase";
+import { NextRequest, NextResponse } from "next/server";
+import { createAdminClient, requireAdmin } from "@/lib/admin-supabase";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const token = request.headers.get("authorization")?.replace("Bearer ", "");
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const admin = await requireAdmin(token);
+    if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
     const supabase = createAdminClient();
 
     // Fetch all leads for analytics
@@ -36,7 +41,8 @@ export async function GET() {
     // By industry
     const industryMap = new Map<string, number>();
     for (const l of allLeads) {
-      const name = (l.industry as { name: string } | null)?.name || "Uncategorized";
+      const ind = l.industry as unknown as { name: string } | { name: string }[] | null;
+      const name = (Array.isArray(ind) ? ind[0]?.name : ind?.name) || "Uncategorized";
       industryMap.set(name, (industryMap.get(name) || 0) + 1);
     }
     const by_industry = Array.from(industryMap.entries()).map(([industry_name, count]) => ({ industry_name, count }));

@@ -115,6 +115,45 @@ export const getCategoryBySlug = cache(
   },
 );
 
+// Junction-first lookup: a product can live in multiple categories via
+// product_categories. Legacy listProducts({categoryId}) still works by filtering
+// products.category_id (the primary category), so this coexists with it.
+export const listProductsInCategory = cache(
+  async (
+    tenantId: string,
+    categoryId: string,
+    opts: { limit?: number; offset?: number } = {},
+  ): Promise<Product[]> => {
+    const supabase = await createSupabaseServerClient();
+    let q = supabase
+      .from("product_categories")
+      .select(
+        "products!inner(id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id)",
+      )
+      .eq("category_id", categoryId)
+      .eq("tenant_id", tenantId)
+      .eq("products.is_visible", true)
+      .eq("products.is_archived", false);
+
+    if (opts.limit) q = q.limit(opts.limit);
+    if (opts.offset)
+      q = q.range(opts.offset, opts.offset + (opts.limit ?? 50) - 1);
+
+    const { data, error } = await q;
+    if (error) {
+      console.error("[queries.listProductsInCategory]", error);
+      return [];
+    }
+
+    type Row = { products: Record<string, unknown> | null };
+    const rows = (data ?? []) as Row[];
+    return rows
+      .map((r) => r.products)
+      .filter((p): p is Record<string, unknown> => p !== null)
+      .map(normalizeProduct);
+  },
+);
+
 function normalizeProduct(row: Record<string, unknown>): Product {
   const r = row as unknown as Product & { website_price?: number | null };
   return {

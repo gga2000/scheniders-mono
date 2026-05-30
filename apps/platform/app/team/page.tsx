@@ -28,6 +28,7 @@ import { supabase } from "@/lib/supabase";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import { useAuth } from "@/components/auth/auth-provider";
+import { isAdminRole } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import { TeamAnalyticsTab } from "@/components/team/team-analytics-tab";
 import { EmployeeComparison } from "@/components/team/employee-comparison";
@@ -42,22 +43,24 @@ import { useInfiniteActivities } from "@/components/team/hooks/use-infinite-acti
 import { HeroStatsBanner } from "@/components/team/hero-stats-banner";
 import { ActivityTimeline } from "@/components/team/activity-timeline";
 import { EmployeeDrawer } from "@/components/team/employee-drawer";
+import { Skeleton } from "@scheniders/ui/skeletons";
 
 type TimeRange = "today" | "week" | "month" | "all";
 type ViewMode = "overview" | "analytics" | "comparison" | "goals" | "rules";
 
 // Action filter options
 const ACTION_FILTERS = [
-    { value: "all", label: "الكل" },
-    { value: "order.create", label: "طلبات" },
-    { value: "order.status_change", label: "تغييرات الحالة" },
-    { value: "order.print", label: "طباعة" },
-    { value: "order.edit", label: "تعديل" },
-    { value: "user.login", label: "دخول" },
+    { value: "all", labelKey: "team.filters.all" },
+    { value: "order.create", labelKey: "team.filters.orders" },
+    { value: "order.status_change", labelKey: "team.filters.statusChanges" },
+    { value: "order.print", labelKey: "team.filters.print" },
+    { value: "order.edit", labelKey: "team.filters.edit" },
+    { value: "user.login", labelKey: "team.filters.login" },
 ];
 
 // Live Indicator
 function LiveIndicator({ isConnected }: { isConnected: boolean }) {
+    const { t } = useLanguage();
     return (
         <div className={cn(
             "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold",
@@ -74,7 +77,7 @@ function LiveIndicator({ isConnected }: { isConnected: boolean }) {
                     isConnected ? "bg-green-500" : "bg-rose-500"
                 )} />
             </span>
-            {isConnected ? "مباشر" : "غير متصل"}
+            {isConnected ? t("team.page.live") : t("team.page.offline")}
         </div>
     );
 }
@@ -87,10 +90,16 @@ interface TickerNotification {
 }
 
 function LiveActivityTicker({ notifications }: { notifications: TickerNotification[] }) {
+    const { language } = useLanguage();
     if (notifications.length === 0) return null;
 
     return (
-        <div className="relative overflow-hidden rounded-2xl">
+        <div
+            className="relative overflow-hidden rounded-2xl"
+            role="status"
+            aria-live="polite"
+            aria-atomic="false"
+        >
             <AnimatePresence mode="popLayout">
                 {notifications.map((notif) => (
                     <motion.div
@@ -110,7 +119,7 @@ function LiveActivityTicker({ notifications }: { notifications: TickerNotificati
                                 {notif.message}
                             </p>
                             <span className="text-[10px] text-[#9A9A9A] dark:text-gray-500 shrink-0">
-                                {formatDistanceToNow(notif.timestamp, { addSuffix: true, locale: ar })}
+                                {formatDistanceToNow(notif.timestamp, { addSuffix: true, locale: language === "ar" ? ar : undefined })}
                             </span>
                         </div>
                     </motion.div>
@@ -122,6 +131,7 @@ function LiveActivityTicker({ notifications }: { notifications: TickerNotificati
 
 // Top Performer Podium (Compact Style)
 function TopPerformerPodium({ performers }: { performers: EmployeeStats[] }) {
+    const { t } = useLanguage();
     const top3 = performers.slice(0, 3);
     if (top3.length === 0) return null;
 
@@ -187,7 +197,7 @@ function TopPerformerPodium({ performers }: { performers: EmployeeStats[] }) {
                                     )}>
                                         {emp.total_actions}
                                     </p>
-                                    <p className="text-[10px] text-[#6B6B6B] dark:text-gray-400">نشاط</p>
+                                    <p className="text-[10px] text-[#6B6B6B] dark:text-gray-400">{t("team.stats.sessionLabel")}</p>
                                 </div>
                             </div>
                         </motion.div>
@@ -217,19 +227,20 @@ const ACTION_LABELS: Record<string, string> = {
 
 // Access Denied
 function AccessDenied() {
+    const { t } = useLanguage();
     return (
         <div className="min-h-screen flex items-center justify-center p-6">
             <PastelCard className="p-12 text-center max-w-md" variant="pink">
                 <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-white dark:bg-[#1A1A1A] flex items-center justify-center shadow-md">
                     <Lock className="w-10 h-10 text-rose-500" />
                 </div>
-                <h1 className="text-2xl font-bold text-[#1E1E1E] dark:text-white mb-2">الوصول مقيّد</h1>
-                <p className="text-[#6B6B6B] dark:text-gray-400 mb-6">هذه الصفحة متاحة للمسؤولين فقط.</p>
+                <h1 className="text-2xl font-bold text-[#1E1E1E] dark:text-white mb-2">{t("team.page.accessDenied")}</h1>
+                <p className="text-[#6B6B6B] dark:text-gray-400 mb-6">{t("team.page.adminOnly")}</p>
                 <a
                     href="/dashboard"
                     className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-[#1E1E1E] dark:bg-white text-white dark:text-[#1E1E1E] font-bold hover:bg-[#2D2D2D] dark:hover:bg-gray-100 transition-colors"
                 >
-                    العودة للرئيسية
+                    {t("team.page.backToDashboard")}
                 </a>
             </PastelCard>
         </div>
@@ -242,7 +253,7 @@ function AccessDenied() {
 
 export default function TeamPage() {
     const { profile, isLoading: authLoading } = useAuth();
-    const isAdmin = profile?.role === "admin";
+    const isAdmin = isAdminRole(profile?.role);
     const { t } = useLanguage();
 
     // State
@@ -255,11 +266,18 @@ export default function TeamPage() {
     const [selectedEmployeeIndex, setSelectedEmployeeIndex] = useState<number | null>(null);
     const [actionFilter, setActionFilter] = useState("all");
     const [tickerNotifications, setTickerNotifications] = useState<TickerNotification[]>([]);
+    // Previous-period totals for real trend deltas (replaces the old * 0.85 placeholder).
+    const [previousTotals, setPreviousTotals] = useState({
+        totalActions: 0,
+        ordersCreated: 0,
+        statusChanges: 0,
+        ordersPrinted: 0,
+    });
 
     // Refs for stable callbacks in useTeamRealtime
     const fetchLeaderboardRef = useRef<(() => Promise<void>) | undefined>(undefined);
 
-    // Date filter helper
+    // Current-period start as ISO (null = all time).
     const getDateFilter = useCallback((range: TimeRange): string | null => {
         const now = new Date();
         switch (range) {
@@ -267,6 +285,28 @@ export default function TeamPage() {
             case "week": now.setDate(now.getDate() - 7); return now.toISOString();
             case "month": now.setMonth(now.getMonth() - 1); return now.toISOString();
             case "all": return null;
+        }
+    }, []);
+
+    // Previous-period window of the same length, used for trend comparison.
+    const getPreviousWindow = useCallback((range: TimeRange): { start: string; end: string } | null => {
+        const start = new Date();
+        const end = new Date();
+        switch (range) {
+            case "today":
+                start.setDate(start.getDate() - 1); start.setHours(0, 0, 0, 0);
+                end.setHours(0, 0, 0, 0);
+                return { start: start.toISOString(), end: end.toISOString() };
+            case "week":
+                start.setDate(start.getDate() - 14);
+                end.setDate(end.getDate() - 7);
+                return { start: start.toISOString(), end: end.toISOString() };
+            case "month":
+                start.setMonth(start.getMonth() - 2);
+                end.setMonth(end.getMonth() - 1);
+                return { start: start.toISOString(), end: end.toISOString() };
+            case "all":
+                return null;
         }
     }, []);
 
@@ -284,8 +324,8 @@ export default function TeamPage() {
             fetchLeaderboardRef.current?.();
 
             // Add ticker notification (Step 7)
-            const userName = activity.user_email?.split("@")[0] || "مستخدم";
-            const actionLabel = ACTION_LABELS[activity.action] || activity.action;
+            const userName = activity.user_email?.split("@")[0] || "User";
+            const actionLabel = t(`team.timeline.${activity.action.replace('order.', '').replace('user.', '').replace('customer.', '').replace('settings.', '')}`) || activity.action;
             const entitySuffix = activity.entity_id ? ` #${activity.entity_id.slice(-6)}` : "";
 
             const notification: TickerNotification = {
@@ -324,7 +364,7 @@ export default function TeamPage() {
 
             const { data, error } = await query;
             if (error) {
-                toast({ title: "خطأ في تحميل البيانات", description: "تعذر تحميل بيانات الفريق. حاول مرة أخرى.", variant: "error" });
+                toast({ title: t("team.page.errorTitle"), description: t("team.page.errorDesc"), variant: "error" });
                 setLeaderboard([]);
                 return;
             }
@@ -391,7 +431,37 @@ export default function TeamPage() {
         }
 
         setLeaderboard(Array.from(statsMap.values()).sort((a, b) => b.total_actions - a.total_actions));
-    }, [timeRange, getDateFilter]);
+
+        // Previous-period totals (single count-only query per action).
+        const prev = getPreviousWindow(timeRange);
+        if (!prev) {
+            setPreviousTotals({ totalActions: 0, ordersCreated: 0, statusChanges: 0, ordersPrinted: 0 });
+        } else {
+            const countBy = async (action?: string) => {
+                let q = supabase
+                    .from("activity_logs")
+                    .select("id", { count: "exact", head: true })
+                    .not("user_id", "is", null)
+                    .gte("created_at", prev.start)
+                    .lt("created_at", prev.end);
+                if (action) q = q.eq("action", action);
+                const { count } = await q;
+                return count ?? 0;
+            };
+            const [prevTotal, prevCreated, prevStatus, prevPrinted] = await Promise.all([
+                countBy(),
+                countBy("order.create"),
+                countBy("order.status_change"),
+                countBy("order.print"),
+            ]);
+            setPreviousTotals({
+                totalActions: prevTotal,
+                ordersCreated: prevCreated,
+                statusChanges: prevStatus,
+                ordersPrinted: prevPrinted,
+            });
+        }
+    }, [timeRange, getDateFilter, getPreviousWindow]);
 
     // Keep ref in sync
     useEffect(() => {
@@ -408,7 +478,7 @@ export default function TeamPage() {
             try {
                 await fetchLeaderboard();
             } catch {
-                toast({ title: "خطأ في تحميل البيانات", description: "حدث خطأ أثناء تحميل بيانات الفريق.", variant: "error" });
+                toast({ title: t("team.page.errorTitle"), description: t("team.page.errorDesc"), variant: "error" });
             } finally {
                 setLoading(false);
             }
@@ -416,7 +486,7 @@ export default function TeamPage() {
         fetchData();
     }, [fetchLeaderboard, isAdmin, authLoading]);
 
-    // Stats with trends (Step 3)
+    // Stats with trends — uses real previous-period totals from DB.
     const heroStats = useMemo(() => {
         const current = {
             totalActions: leaderboard.reduce((sum, e) => sum + e.total_actions, 0),
@@ -425,22 +495,21 @@ export default function TeamPage() {
             ordersPrinted: leaderboard.reduce((sum, e) => sum + e.orders_printed, 0),
         };
 
-        // For trend calculation, we use a simple estimate based on the time range
-        // In a real scenario you'd fetch previous period data
-        const makeStat = (currentVal: number) => ({
+        const makeStat = (currentVal: number, prev: number) => ({
             current: currentVal,
-            previous: Math.round(currentVal * 0.85), // Estimated previous period
-            trend: currentVal > 0 ? Math.round(((currentVal - Math.round(currentVal * 0.85)) / Math.max(Math.round(currentVal * 0.85), 1)) * 100) : 0,
+            previous: prev,
+            // Null trend when there's no baseline (e.g. "all time" or prev period had zero).
+            trend: prev > 0 ? Math.round(((currentVal - prev) / prev) * 100) : null,
         });
 
         return {
-            totalActions: makeStat(current.totalActions),
-            ordersCreated: makeStat(current.ordersCreated),
-            statusChanges: makeStat(current.statusChanges),
-            ordersPrinted: makeStat(current.ordersPrinted),
+            totalActions: makeStat(current.totalActions, previousTotals.totalActions),
+            ordersCreated: makeStat(current.ordersCreated, previousTotals.ordersCreated),
+            statusChanges: makeStat(current.statusChanges, previousTotals.statusChanges),
+            ordersPrinted: makeStat(current.ordersPrinted, previousTotals.ordersPrinted),
             onlineCount: activeUserIds.size > 0 ? activeUserIds.size : leaderboard.filter(e => isUserOnline(e.last_login_at)).length,
         };
-    }, [leaderboard, activeUserIds]);
+    }, [leaderboard, activeUserIds, previousTotals]);
 
     // Sparkline data (last 7 days aggregated from activities)
     const sparklineData = useMemo(() => {
@@ -507,37 +576,17 @@ export default function TeamPage() {
         return ts ? Date.now() - ts < 3000 : false;
     }, []);
 
-    // Loading
-    if (authLoading || loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="text-center"
-                >
-                    <div className="w-16 h-16 rounded-2xl bg-[#FBE38E] dark:bg-amber-500/20 flex items-center justify-center shadow-lg mx-auto">
-                        <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                        >
-                            <RefreshCw className="w-8 h-8 text-amber-700 dark:text-amber-400" />
-                        </motion.div>
-                    </div>
-                    <p className="text-[#1E1E1E] dark:text-white font-medium mt-4">جاري التحميل...</p>
-                </motion.div>
-            </div>
-        );
-    }
+    // Loading: render page chrome with skeletons in-place (no full-screen spinner)
+    const isInitialLoading = authLoading || loading;
 
-    if (!isAdmin) return <AccessDenied />;
+    if (!authLoading && !isAdmin) return <AccessDenied />;
 
     const tabs: { id: ViewMode; label: string; icon: React.ElementType }[] = [
-        { id: "overview", label: "نظرة عامة", icon: LayoutGrid },
-        { id: "analytics", label: "التحليلات", icon: BarChart3 },
-        { id: "comparison", label: "المقارنة", icon: GitCompare },
-        { id: "goals", label: "الأهداف", icon: Target },
-        { id: "rules", label: "قواعد التعيين", icon: Settings2 },
+        { id: "overview", label: t("team.tabs.overview"), icon: LayoutGrid },
+        { id: "analytics", label: t("team.tabs.analytics"), icon: BarChart3 },
+        { id: "comparison", label: t("team.tabs.comparison"), icon: GitCompare },
+        { id: "goals", label: t("team.tabs.goals"), icon: Target },
+        { id: "rules", label: t("team.tabs.rules"), icon: Settings2 },
     ];
 
     return (
@@ -576,7 +625,7 @@ export default function TeamPage() {
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         className="p-3 rounded-2xl bg-white dark:bg-[#1A1A1A] border border-[#E8E4DC] dark:border-white/10 hover:shadow-md transition-all"
-                        aria-label="تحديث البيانات"
+                        aria-label={t("team.page.refresh")}
                     >
                         <RefreshCw className={cn("w-5 h-5 text-[#1E1E1E] dark:text-white", refreshing && "animate-spin")} />
                     </motion.button>
@@ -593,7 +642,7 @@ export default function TeamPage() {
                                         : "text-[#6B6B6B] dark:text-gray-400 hover:text-[#1E1E1E] dark:hover:text-white"
                                 )}
                             >
-                                {{ today: "اليوم", week: "الأسبوع", month: "الشهر", all: "الكل" }[range]}
+                                {t(`team.page.${range}`)}
                             </button>
                         ))}
                     </div>
@@ -625,6 +674,31 @@ export default function TeamPage() {
             </div>
 
             {/* Content Area */}
+            {isInitialLoading ? (
+                <div className="space-y-8" aria-busy="true" aria-live="polite">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                            <Skeleton key={i} className="h-32 rounded-2xl" />
+                        ))}
+                    </div>
+                    <div className="bg-[var(--card-bg)] rounded-3xl border border-[var(--card-border)] p-6 space-y-4">
+                        <Skeleton className="h-7 w-56 rounded" />
+                        <div className="flex items-stretch justify-center gap-4 py-4">
+                            {Array.from({ length: 3 }).map((_, i) => (
+                                <Skeleton key={i} className="flex-1 max-w-[200px] h-44 rounded-3xl" />
+                            ))}
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {Array.from({ length: 4 }).map((_, i) => (
+                                <Skeleton key={i} className="h-48 rounded-2xl" />
+                            ))}
+                        </div>
+                        <Skeleton className="h-[640px] rounded-2xl" />
+                    </div>
+                </div>
+            ) : (
             <AnimatePresence mode="wait">
                 {viewMode === "overview" && (
                     <motion.div
@@ -654,7 +728,7 @@ export default function TeamPage() {
                                         <Trophy className="w-5 h-5 text-amber-700 dark:text-amber-400" />
                                     </div>
                                     <h2 className="text-xl font-bold text-[#1E1E1E] dark:text-white">
-                                        {{ today: "أبطال اليوم", week: "أبطال الأسبوع", month: "أبطال الشهر", all: "الأبطال" }[timeRange]}
+                                        {t(`team.leaderboard.${timeRange}`)}
                                     </h2>
                                 </div>
                                 <TopPerformerPodium performers={leaderboard} />
@@ -668,13 +742,13 @@ export default function TeamPage() {
                                 <div className="flex items-center justify-between">
                                     <h2 className="text-lg font-bold text-[#1E1E1E] dark:text-white flex items-center gap-2">
                                         <Users className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                                        أداء الموظفين
+                                        {t("team.performance.title")}
                                     </h2>
                                     <div className="flex items-center gap-3">
                                         <div className="flex bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-xl p-1 shadow-sm backdrop-blur-sm">
                                             <button
                                                 onClick={() => setTeamViewMode('grid')}
-                                                aria-label="عرض شبكي"
+                                                aria-label={t("team.performance.grid")}
                                                 className={cn(
                                                     "p-1.5 rounded-lg transition-all",
                                                     teamViewMode === 'grid'
@@ -686,7 +760,7 @@ export default function TeamPage() {
                                             </button>
                                             <button
                                                 onClick={() => setTeamViewMode('list')}
-                                                aria-label="عرض قائمة"
+                                                aria-label={t("team.performance.list")}
                                                 className={cn(
                                                     "p-1.5 rounded-lg transition-all",
                                                     teamViewMode === 'list'
@@ -697,7 +771,9 @@ export default function TeamPage() {
                                                 <Users className="w-4 h-4" />
                                             </button>
                                         </div>
-                                        <span className="text-sm text-[#6B6B6B] dark:text-gray-400">{leaderboard.length} موظف</span>
+                                        <span className="text-sm text-[#6B6B6B] dark:text-gray-400">
+                                            {leaderboard.length} {t("team.performance.memberCount")}
+                                        </span>
                                     </div>
                                 </div>
 
@@ -728,7 +804,7 @@ export default function TeamPage() {
                                                 <div className="w-8 h-8 rounded-xl bg-[#E5F6F3] dark:bg-teal-500/15 flex items-center justify-center">
                                                     <Clock className="w-4 h-4 text-teal-600 dark:text-teal-400" />
                                                 </div>
-                                                <h2 className="font-bold text-[#1E1E1E] dark:text-white">آخر النشاطات</h2>
+                                                <h2 className="font-bold text-[#1E1E1E] dark:text-white">{t("team.activities.latest")}</h2>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 {infiniteActivities.totalCount > 0 && (
@@ -756,7 +832,7 @@ export default function TeamPage() {
                                                             : "bg-gray-100 dark:bg-white/5 text-[#6B6B6B] dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10"
                                                     )}
                                                 >
-                                                    {filter.label}
+                                                    {t(filter.labelKey)}
                                                 </button>
                                             ))}
                                         </div>
@@ -774,6 +850,28 @@ export default function TeamPage() {
                                                         </div>
                                                     </div>
                                                 ))}
+                                            </div>
+                                        ) : infiniteActivities.activities.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center py-12 text-center">
+                                                <div className="w-14 h-14 rounded-2xl bg-[#F5F0E8] dark:bg-white/5 flex items-center justify-center mb-3">
+                                                    <Clock className="w-6 h-6 text-[#9A9A9A] dark:text-gray-500" />
+                                                </div>
+                                                <p className="text-sm font-semibold text-[#1E1E1E] dark:text-white">
+                                                    {t("team.activities.emptyTitle")}
+                                                </p>
+                                                <p className="text-xs text-[#6B6B6B] dark:text-gray-400 mt-1 max-w-[220px]">
+                                                    {actionFilter === "all"
+                                                        ? t("team.activities.emptyAll")
+                                                        : t("team.activities.emptyFiltered")}
+                                                </p>
+                                                {actionFilter !== "all" && (
+                                                    <button
+                                                        onClick={() => setActionFilter("all")}
+                                                        className="mt-3 px-3 py-1.5 rounded-lg bg-[#1E1E1E] dark:bg-white text-white dark:text-[#1E1E1E] text-xs font-semibold"
+                                                    >
+                                                        {t("team.activities.clearFilter")}
+                                                    </button>
+                                                )}
                                             </div>
                                         ) : (
                                             <>
@@ -797,7 +895,7 @@ export default function TeamPage() {
                                                         {infiniteActivities.isLoadingMore ? (
                                                             <RefreshCw className="w-4 h-4 animate-spin mx-auto" />
                                                         ) : (
-                                                            "تحميل المزيد"
+                                                            t("team.activities.loadMore")
                                                         )}
                                                     </motion.button>
                                                 )}
@@ -832,7 +930,7 @@ export default function TeamPage() {
                             <EmployeeComparison employees={employeesAdapter} />
                         ) : (
                             <div className="text-center py-20">
-                                <p className="text-[#6B6B6B] dark:text-gray-400">البيانات غير كافية للمقارنة. تحتاج إلى موظفين اثنين على الأقل.</p>
+                                <p className="text-[#6B6B6B] dark:text-gray-400">{t("team.comparison.notEnough")}</p>
                             </div>
                         )}
                     </motion.div>
@@ -864,6 +962,7 @@ export default function TeamPage() {
                     </motion.div>
                 )}
             </AnimatePresence>
+            )}
 
             {/* Employee Drawer (Step 5) */}
             {selectedEmployee && (

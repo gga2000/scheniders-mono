@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 // Types
 interface DailyActivity {
@@ -31,21 +32,25 @@ function getActivityColor(count: number, maxCount: number): string {
     return "bg-emerald-200";
 }
 
-// Get week day labels in Arabic
-const WEEKDAYS = ["أحد", "إثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت"];
-
-// Get month labels in Arabic
-const MONTHS = [
-    "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
-    "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"
-];
-
 export function ActivityHeatmap({
     data,
     year = new Date().getFullYear(),
     onDayClick,
     className,
 }: ActivityHeatmapProps) {
+    const { t } = useLanguage();
+
+    const WEEKDAYS = [
+        t("team.charts.sun"), t("team.charts.mon"), t("team.charts.tue"),
+        t("team.charts.wed"), t("team.charts.thu"), t("team.charts.fri"), t("team.charts.sat")
+    ];
+
+    const MONTHS = [
+        t("team.charts.jan"), t("team.charts.feb"), t("team.charts.mar"),
+        t("team.charts.apr"), t("team.charts.may"), t("team.charts.jun"),
+        t("team.charts.jul"), t("team.charts.aug"), t("team.charts.sep"),
+        t("team.charts.oct"), t("team.charts.nov"), t("team.charts.dec")
+    ];
     // Create a map of date -> count for quick lookup
     const activityMap = useMemo(() => {
         const map = new Map<string, number>();
@@ -132,10 +137,10 @@ export function ActivityHeatmap({
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                     <CalendarDays className="w-5 h-5 text-primary" />
-                    <h3 className="font-bold text-foreground">نشاط على مدار السنة</h3>
+                    <h3 className="font-bold text-foreground">{t("team.charts.yearlyActivity")}</h3>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                    {totalActivities.toLocaleString()} نشاط في {year}
+                    {t("team.charts.activitiesInYear", { count: totalActivities.toLocaleString(), year: year.toString() })}
                 </div>
             </div>
 
@@ -205,7 +210,7 @@ export function ActivityHeatmap({
                                                 )}
                                                 title={
                                                     isCurrentYear
-                                                        ? `${dateStr}: ${day.count} نشاط`
+                                                        ? t("team.charts.activityCountOnDate", { date: dateStr, count: day.count.toString() })
                                                         : ""
                                                 }
                                             />
@@ -220,7 +225,7 @@ export function ActivityHeatmap({
 
             {/* Legend */}
             <div className="flex items-center justify-end gap-2 mt-4">
-                <span className="text-xs text-muted-foreground">أقل</span>
+                <span className="text-xs text-muted-foreground">{t("team.charts.less")}</span>
                 <div className="flex gap-0.5">
                     <div className="w-3 h-3 rounded-sm bg-gray-100" />
                     <div className="w-3 h-3 rounded-sm bg-emerald-200" />
@@ -229,7 +234,7 @@ export function ActivityHeatmap({
                     <div className="w-3 h-3 rounded-sm bg-emerald-500" />
                     <div className="w-3 h-3 rounded-sm bg-emerald-600" />
                 </div>
-                <span className="text-xs text-muted-foreground">أكثر</span>
+                <span className="text-xs text-muted-foreground">{t("team.charts.more")}</span>
             </div>
         </motion.div>
     );

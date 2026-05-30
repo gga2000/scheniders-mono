@@ -1,9 +1,9 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ShoppingBag, TrendingUp, DollarSign, RotateCcw } from "lucide-react";
+import { ShoppingBag, TrendingUp, TrendingDown, DollarSign, RotateCcw } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 function AnimatedCounter({ value, suffix }: { value: number; suffix?: string }) {
     const [display, setDisplay] = useState(0);
@@ -35,15 +35,89 @@ function formatLargeNumber(value: number): { display: string; suffix: string } {
     return { display: value.toLocaleString("en-US"), suffix: "" };
 }
 
+type Order = { created_at: string; status: string; total_price: number | string };
+
 interface SummaryStatsCardsProps {
     totalOrders: number;
     totalSpent: number;
-    avgBasket?: number;
-    returnCount?: number;
+    orders: Order[];
 }
 
-export function SummaryStatsCards({ totalOrders, totalSpent, avgBasket, returnCount }: SummaryStatsCardsProps) {
+interface MoMTrend {
+    orderCountPct: number | null;
+    revenuePct: number | null;
+    monthsOfHistory: number;
+}
+
+function computeMoM(orders: Order[]): MoMTrend {
+    if (orders.length === 0) return { orderCountPct: null, revenuePct: null, monthsOfHistory: 0 };
+
+    // Group by YYYY-MM
+    const byMonth = new Map<string, { count: number; revenue: number }>();
+    for (const o of orders) {
+        const d = new Date(o.created_at);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        const current = byMonth.get(key) || { count: 0, revenue: 0 };
+        current.count += 1;
+        current.revenue += Number(o.total_price || 0);
+        byMonth.set(key, current);
+    }
+
+    const monthsOfHistory = byMonth.size;
+    if (monthsOfHistory < 2) {
+        return { orderCountPct: null, revenuePct: null, monthsOfHistory };
+    }
+
+    const sortedKeys = [...byMonth.keys()].sort();
+    const last = byMonth.get(sortedKeys[sortedKeys.length - 1])!;
+    const prev = byMonth.get(sortedKeys[sortedKeys.length - 2])!;
+
+    const orderCountPct =
+        prev.count === 0 ? null : Math.round(((last.count - prev.count) / prev.count) * 100);
+    const revenuePct =
+        prev.revenue === 0 ? null : Math.round(((last.revenue - prev.revenue) / prev.revenue) * 100);
+
+    return { orderCountPct, revenuePct, monthsOfHistory };
+}
+
+function TrendBadge({ pct, label }: { pct: number; label: string }) {
+    const positive = pct >= 0;
+    return (
+        <div
+            className={
+                positive
+                    ? "flex items-center gap-1.5 bg-green-100 text-green-700 px-3 py-1.5 rounded-full"
+                    : "flex items-center gap-1.5 bg-rose-100 text-rose-700 px-3 py-1.5 rounded-full"
+            }
+        >
+            {positive ? (
+                <TrendingUp className="w-3.5 h-3.5" />
+            ) : (
+                <TrendingDown className="w-3.5 h-3.5" />
+            )}
+            <span className="text-xs font-bold">
+                {positive ? "+" : ""}
+                {pct}% {label}
+            </span>
+        </div>
+    );
+}
+
+export function SummaryStatsCards({ totalOrders, totalSpent, orders }: SummaryStatsCardsProps) {
     const { t } = useLanguage();
+
+    const avgBasket = totalOrders > 0 ? totalSpent / totalOrders : null;
+    const returnCount = useMemo(
+        () =>
+            orders.filter((o) => {
+                const s = o.status?.toLowerCase();
+                return s === "rejected" || s === "returned" || s === "refunded";
+            }).length,
+        [orders]
+    );
+
+    const trend = useMemo(() => computeMoM(orders), [orders]);
+
     const revenue = formatLargeNumber(totalSpent);
     const avgFormatted = avgBasket ? formatLargeNumber(avgBasket) : null;
 
@@ -68,10 +142,14 @@ export function SummaryStatsCards({ totalOrders, totalSpent, avgBasket, returnCo
                     <AnimatedCounter value={totalOrders} />
                 </p>
 
-                <div className="mt-4 flex items-center gap-1 text-green-600">
-                    <TrendingUp className="w-3.5 h-3.5" />
-                    <span className="text-xs font-bold">+12% {t("customers.profile.thisMonth")}</span>
-                </div>
+                {trend.orderCountPct !== null && (
+                    <div className="mt-4">
+                        <TrendBadge
+                            pct={trend.orderCountPct}
+                            label={t("customers.profile.thisMonth")}
+                        />
+                    </div>
+                )}
             </motion.div>
 
             {/* Total Revenue card — 2/3 width */}
@@ -99,13 +177,13 @@ export function SummaryStatsCards({ totalOrders, totalSpent, avgBasket, returnCo
 
                 {/* Right: trend + mini stats */}
                 <div className="flex flex-col items-end gap-5 shrink-0">
-                    {/* Trend badge */}
-                    <div className="flex items-center gap-1.5 bg-green-100 text-green-700 px-3 py-1.5 rounded-full">
-                        <TrendingUp className="w-3.5 h-3.5" />
-                        <span className="text-xs font-bold">+12% {t("customers.profile.thisMonth")}</span>
-                    </div>
+                    {trend.revenuePct !== null && (
+                        <TrendBadge
+                            pct={trend.revenuePct}
+                            label={t("customers.profile.thisMonth")}
+                        />
+                    )}
 
-                    {/* Mini stat columns */}
                     <div className="flex items-start gap-8">
                         {/* Avg Basket */}
                         <div className="flex flex-col items-end">
@@ -130,7 +208,7 @@ export function SummaryStatsCards({ totalOrders, totalSpent, avgBasket, returnCo
                             <div className="flex items-center gap-1">
                                 <RotateCcw className="w-3.5 h-3.5 text-red-500" />
                                 <p className="text-lg font-black text-red-500 tabular-nums leading-none">
-                                    {returnCount ?? 0}
+                                    {returnCount}
                                 </p>
                             </div>
                         </div>

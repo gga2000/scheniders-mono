@@ -1,12 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
+import { requireAdminFromRequest, requireAdminPermission } from "@/lib/api-auth";
 
 /**
  * GET — Check if seed automation cron jobs are active
- * POST — Toggle seed automation on/off
+ * POST — Toggle seed automation on/off (super_admin only)
  */
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await requireAdminFromRequest(request);
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const supabase = createAdminClient();
 
@@ -23,7 +27,10 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const auth = await requireAdminPermission(request, "update_settings");
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const { active } = await request.json();
     const supabase = createAdminClient();

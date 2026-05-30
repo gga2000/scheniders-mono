@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 // Types
 interface HourlyActivity {
@@ -43,6 +44,7 @@ export function PeakHoursHeatmap({
     employeeName,
     className,
 }: PeakHoursHeatmapProps) {
+    const { t } = useLanguage();
     // Fill in missing hours with 0
     const filledData = useMemo(() => {
         const hourMap = new Map<number, number>();
@@ -80,27 +82,27 @@ export function PeakHoursHeatmap({
     const periods = useMemo(() => {
         return [
             {
-                label: "صباحاً مبكراً",
+                label: t("team.charts.earlyMorning"),
                 hours: filledData.slice(0, 6),
                 range: "12AM - 6AM",
             },
             {
-                label: "صباحاً",
+                label: t("team.charts.morning"),
                 hours: filledData.slice(6, 12),
                 range: "6AM - 12PM",
             },
             {
-                label: "بعد الظهر",
+                label: t("team.charts.afternoon"),
                 hours: filledData.slice(12, 18),
                 range: "12PM - 6PM",
             },
             {
-                label: "مساءً",
+                label: t("team.charts.evening"),
                 hours: filledData.slice(18, 24),
                 range: "6PM - 12AM",
             },
         ];
-    }, [filledData]);
+    }, [filledData, t]);
 
     return (
         <motion.div
@@ -112,7 +114,7 @@ export function PeakHoursHeatmap({
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                     <Clock className="w-5 h-5 text-primary" />
-                    <h3 className="font-bold text-foreground">ساعات الذروة</h3>
+                    <h3 className="font-bold text-foreground">{t("team.charts.peakHours")}</h3>
                     {employeeName && (
                         <span className="text-sm text-muted-foreground">
                             - {employeeName}
@@ -120,7 +122,7 @@ export function PeakHoursHeatmap({
                     )}
                 </div>
                 <div className="text-sm text-muted-foreground">
-                    {totalActivities.toLocaleString()} نشاط
+                    {t("team.charts.activitiesPlural", { count: totalActivities.toLocaleString() })}
                 </div>
             </div>
 
@@ -148,7 +150,7 @@ export function PeakHoursHeatmap({
                                         "hover:ring-2 hover:ring-primary hover:ring-offset-1",
                                         getHourColor(hour.count, maxCount)
                                     )}
-                                    title={`${formatHour(hour.hour)}: ${hour.count} نشاط`}
+                                    title={t("team.charts.activityCountAtHour", { time: formatHour(hour.hour), count: hour.count.toString() })}
                                 >
                                     <span className="hidden sm:block">{hour.hour}</span>
                                     {hour.count > 0 && (
@@ -165,7 +167,7 @@ export function PeakHoursHeatmap({
             {peakHours.length > 0 && (
                 <div className="mt-4 p-3 bg-blue-50 rounded-xl border border-blue-200">
                     <p className="text-xs font-medium text-blue-800 mb-2">
-                        ⏰ أكثر الساعات نشاطاً:
+                        {t("team.charts.mostActiveHours")}
                     </p>
                     <div className="flex flex-wrap gap-2">
                         {peakHours.map((peak, index) => (
@@ -187,7 +189,7 @@ export function PeakHoursHeatmap({
 
             {/* Legend */}
             <div className="flex items-center justify-end gap-2 mt-4">
-                <span className="text-xs text-muted-foreground">أقل</span>
+                <span className="text-xs text-muted-foreground">{t("team.charts.less")}</span>
                 <div className="flex gap-0.5">
                     <div className="w-4 h-4 rounded-sm bg-gray-100" />
                     <div className="w-4 h-4 rounded-sm bg-blue-200" />
@@ -196,7 +198,7 @@ export function PeakHoursHeatmap({
                     <div className="w-4 h-4 rounded-sm bg-blue-500" />
                     <div className="w-4 h-4 rounded-sm bg-blue-600" />
                 </div>
-                <span className="text-xs text-muted-foreground">أكثر</span>
+                <span className="text-xs text-muted-foreground">{t("team.charts.more")}</span>
             </div>
         </motion.div>
     );

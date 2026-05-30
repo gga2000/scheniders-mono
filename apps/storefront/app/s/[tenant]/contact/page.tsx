@@ -1,0 +1,111 @@
+import { notFound } from "next/navigation";
+import { resolveSchneidersConfig } from "@scheniders/shared";
+import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
+import { listCategories } from "@/lib/queries";
+import { SchneidersPageShell } from "@/components/schneiders/page-shell";
+import { PageHeader } from "@/components/schneiders/content-page";
+import { BentoCard, ChunkyLink, MaterialIcon, WhatsAppIcon } from "@/components/schneiders/primitives";
+
+export const metadata = { title: "Contact — Schneiders" };
+
+export default async function ContactPage({ params }: { params: Promise<{ tenant: string }> }) {
+  const { tenant: tenantParam } = await params;
+  const tenant = tenantParam.startsWith("__domain__")
+    ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
+    : await getTenantBySlug(tenantParam);
+  if (!tenant) notFound();
+
+  const categories = await listCategories(tenant.id);
+  const c = tenant.store_config?.contact;
+  const wa = c?.whatsapp_number ?? null;
+  const schn = resolveSchneidersConfig(tenant.store_config?.schneiders);
+
+  return (
+    <SchneidersPageShell tenant={tenant} categories={categories} showBack promo="We reply fast ⚡ Avg response: 12 minutes">
+      <PageHeader
+        title="Get in Touch 👋"
+        subtitle="We're here to help, however you prefer."
+        color="mint"
+      />
+
+      <BentoCard bg="mint" rotate={1} className="p-5">
+        <div className="flex items-start gap-3">
+          <div className="text-3xl">💬</div>
+          <div className="flex-1">
+            <h3 className="font-display font-black text-lg uppercase">WhatsApp</h3>
+            <p className="font-body text-sm">Reply in under 15 min</p>
+          </div>
+          {wa && (
+            <a
+              href={`https://wa.me/${wa.replace(/\D/g, "")}`}
+              target="_blank"
+              rel="noreferrer"
+              className="bento-card-sm bg-white text-candy-ink font-display font-black text-xs px-3 py-2 inline-flex items-center gap-1 rounded-xl uppercase hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none transition-all"
+            >
+              <WhatsAppIcon className="w-4 h-4 text-candy-mint" />
+              Open
+            </a>
+          )}
+        </div>
+      </BentoCard>
+
+      <BentoCard bg="butter" rotate={-1} className="p-5">
+        <div className="flex items-start gap-3">
+          <MaterialIcon name="call" className="text-3xl drop-shadow-[2px_2px_0_#1a1a1a]" />
+          <div className="flex-1">
+            <h3 className="font-display font-black text-lg uppercase">Call us</h3>
+            <p className="font-body text-sm">{schn.reassurance.support_hours}</p>
+          </div>
+          {tenant.contact_phone && (
+            <a
+              href={`tel:${tenant.contact_phone}`}
+              className="bento-card-sm bg-candy-pink text-white font-display font-black text-xs px-3 py-2 inline-flex items-center gap-1 rounded-xl uppercase hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none transition-all"
+            >
+              Call
+            </a>
+          )}
+        </div>
+      </BentoCard>
+
+      <BentoCard bg="sky" rotate={1} className="p-5">
+        <div className="flex items-start gap-3">
+          <MaterialIcon name="email" className="text-3xl" />
+          <div className="flex-1">
+            <h3 className="font-display font-black text-lg uppercase">Email</h3>
+            <p className="font-body text-sm">{tenant.contact_email ?? "hello@schneiders.com"}</p>
+          </div>
+          {tenant.contact_email && (
+            <a
+              href={`mailto:${tenant.contact_email}`}
+              className="bento-card-sm bg-candy-lilac text-candy-ink font-display font-black text-xs px-3 py-2 inline-flex items-center gap-1 rounded-xl uppercase hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none transition-all"
+            >
+              Send
+            </a>
+          )}
+        </div>
+      </BentoCard>
+
+      <BentoCard bg="lilac" rotate={-1} className="p-5">
+        <div className="flex items-start gap-3">
+          <MaterialIcon name="storefront" className="text-3xl" />
+          <div>
+            <h3 className="font-display font-black text-lg uppercase">Visit our store</h3>
+            <p className="font-body text-sm">
+              {tenant.address && tenant.city
+                ? `${tenant.address}, ${tenant.city}`
+                : tenant.city ?? "Baghdad, Iraq 🇮🇶"}
+            </p>
+          </div>
+        </div>
+      </BentoCard>
+
+      <BentoCard bg="pink" className="p-5 text-center text-white">
+        <h3 className="font-display font-black text-xl uppercase">We reply in under 15 min ⚡</h3>
+      </BentoCard>
+
+      <ChunkyLink href="/faq" bg="white" size="md" fullWidth>
+        Browse FAQ instead
+      </ChunkyLink>
+    </SchneidersPageShell>
+  );
+}

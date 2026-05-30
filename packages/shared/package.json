@@ -11,11 +11,16 @@
     "./types": "./src/types/index.ts",
     "./iraq-map-paths": "./src/iraq-map-paths.ts"
   },
+  "scripts": {
+    "test": "vitest run"
+  },
   "dependencies": {
     "clsx": "^2.1.1",
     "tailwind-merge": "^2.6.1"
   },
   "devDependencies": {
-    "typescript": "^5"
+    "fast-check": "^4.8.0",
+    "typescript": "^5",
+    "vitest": "^2.1.9"
   }
 }

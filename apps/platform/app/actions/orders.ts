@@ -3,6 +3,7 @@
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { Order, OrderItem } from "@/lib/supabase";
 import { canCreateOrder, getCurrentUsage, getPlanLimits, getWallet } from "@/lib/tenant";
+import { assertNotBlocked, TenantBlockedError } from "@/lib/restrictions";
 
 // =============================================
 // CHECK LIMITS (called from UI before showing create modal)
@@ -27,6 +28,22 @@ export async function createOrderAction(
     const supabase = createSupabaseServiceClient();
 
     try {
+        // ── 0. Tenant pause guard (admin-issued restrictions) ──
+        if (tenantId) {
+            try {
+                await assertNotBlocked(tenantId, "new_orders");
+            } catch (err) {
+                if (err instanceof TenantBlockedError) {
+                    return {
+                        success: false,
+                        error: err.restrictions.reason
+                            || "New orders are paused for this account.",
+                    };
+                }
+                throw err;
+            }
+        }
+
         // ── 1. Check plan limits (if tenant exists) ──
         let warning: string | undefined;
         if (tenantId) {
@@ -92,6 +109,21 @@ export async function splitOrderAction(
     const supabase = createSupabaseServiceClient();
 
     try {
+        // Splitting creates a new return-order row (a write). Block when paused.
+        if (tenantId) {
+            try {
+                await assertNotBlocked(tenantId, "new_orders");
+            } catch (err) {
+                if (err instanceof TenantBlockedError) {
+                    return {
+                        success: false,
+                        error: err.restrictions.reason
+                            || "New orders are paused for this account.",
+                    };
+                }
+                throw err;
+            }
+        }
         // We delegate the split operation to our new atomic PostgreSQL RPC
         // which encapsulates fetching, calculating, updating, and inserting inside
         // a SERIALIZABLE transaction via row locks.

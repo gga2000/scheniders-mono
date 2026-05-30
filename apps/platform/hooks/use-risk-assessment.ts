@@ -23,7 +23,7 @@ export function useRiskAssessment(phone: string | undefined | null) {
         setError(null);
 
         fraudDetector
-            .assessCustomerRisk(phone)
+            .assessCustomerTrust(phone)
             .then((result) => {
                 if (!cancelled) {
                     setAssessment(result);
@@ -47,7 +47,7 @@ export function useRiskAssessment(phone: string | undefined | null) {
 
         setLoading(true);
         try {
-            const result = await fraudDetector.assessCustomerRisk(phone);
+            const result = await fraudDetector.assessCustomerTrust(phone);
             setAssessment(result);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to assess risk");
@@ -160,26 +160,35 @@ export function useBatchRiskAssessment(orders: OrderWithPhone[]) {
             if (rejected > 0 || cancelled >= 2) {
                 // Construct a simplified assessment
                 map.set(phone, {
-                    score: rejected > 0 ? 80 : 40,
+                    score: rejected > 0 ? 20 : 40,
+                    tier: rejected > 0 ? 'risky' : 'watch',
                     level: rejected > 0 ? 'high' : 'medium',
                     reasons: [
                         ...(rejected > 0 ? ['⚠️ Local: Found rejected order'] : []),
                         ...(cancelled >= 2 ? ['⚠️ Local: Found multiple cancellations'] : [])
                     ],
+                    deliverySuccessRate: customerOrders.length > 0 ? (delivered / customerOrders.length) * 100 : 0,
                     historicalData: {
                         totalOrders: customerOrders.length,
                         deliveredCount: delivered,
-                        cancelledCount: cancelled,
-                        rejectedCount: rejected,
-                        refundedCount: 0,
+                        cancelledCustomerCount: cancelled,
+                        cancelledMerchantCount: 0,
+                        rejectedCustomerFaultCount: rejected,
+                        rejectedMerchantFaultCount: 0,
+                        rejectedAmbiguousCount: 0,
                         noResponseCount: 0,
-                        pendingCount: 0,
+                        refundCount: 0,
                     },
+                    communityAvgRating: 0,
+                    communityRatingCount: 0,
                     isBlacklisted: false,
                     isReturningCustomer: customerOrders.length > 1,
                     lastOrderDate: null,
+                    totalSpent: 0,
+                    avgBasket: 0,
+                    scoreBreakdown: [],
                     recommendation: rejected > 0 ? 'caution' : 'review'
-                });
+                } as RiskAssessment);
             }
         });
 
@@ -215,7 +224,7 @@ export function useBatchRiskAssessment(orders: OrderWithPhone[]) {
         allPhones.forEach(phone => {
             // Assessment takes precedence over local
             const assessment = assessments.get(phone) || localRiskMap.get(phone);
-            if (assessment) {
+            if (assessment?.level) {
                 counts[assessment.level]++;
             }
         });

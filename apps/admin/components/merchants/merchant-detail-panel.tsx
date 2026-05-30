@@ -9,12 +9,13 @@ import {
   CreditCard,
   ShoppingBag,
   Users,
-  UserCircle,
-  Loader2,
   X,
   Maximize2,
-  GripVertical,
+  Mail,
+  Phone,
+  MapPin,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { EASE_CHROME } from "@/lib/animation-constants";
 import { OverviewTab } from "./detail/overview-tab";
 import { BillingTab } from "./detail/billing-tab";
@@ -23,38 +24,54 @@ import { TeamTab } from "./detail/team-tab";
 import { NotesTab } from "./detail/notes-tab";
 import { TenantTimeline } from "./tenant-timeline";
 import { OnboardingChecklist } from "./onboarding-checklist";
+import { MerchantActionBar } from "./detail/merchant-action-bar";
+import { CopyableText } from "@/components/shared/copyable-text";
+import type { TenantStatus, PlanTier } from "@/types/admin";
 import Link from "next/link";
 
-const fmt = (n: number) => new Intl.NumberFormat("en-IQ").format(n);
+const fmtCompact = (n: number): string => {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 10_000 ? 0 : 1)}K`;
+  return new Intl.NumberFormat("en-IQ").format(n);
+};
 
 const tabs = ["Overview", "Billing", "Usage", "Team", "Notes", "Timeline", "Onboarding"] as const;
 type Tab = (typeof tabs)[number];
 
 const statusStyles: Record<string, string> = {
-  active: "bg-green-100 text-green-800",
-  trial: "bg-amber-100 text-amber-800",
-  suspended: "bg-red-100 text-red-800",
-  cancelled: "bg-gray-100 text-gray-600",
+  active:
+    "bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm shadow-emerald-500/30 ring-1 ring-white/20",
+  trial:
+    "bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm shadow-amber-500/30 ring-1 ring-white/20",
+  limited:
+    "bg-gradient-to-br from-amber-300 to-yellow-500 text-white shadow-sm shadow-amber-400/30 ring-1 ring-white/20",
+  suspended:
+    "bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-sm shadow-rose-500/40 ring-1 ring-white/20",
+  cancelled:
+    "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-sm shadow-slate-500/20 ring-1 ring-white/20",
 };
 
 const planStyles: Record<string, string> = {
-  free: "bg-gray-100 text-gray-700",
-  starter: "bg-blue-100 text-blue-800",
-  growth: "bg-purple-100 text-purple-800",
-  professional: "bg-purple-100 text-purple-800",
-  enterprise: "bg-amber-100 text-amber-800",
+  free: "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-sm shadow-slate-500/20 ring-1 ring-white/20",
+  starter:
+    "bg-gradient-to-br from-sky-400 to-cyan-500 text-white shadow-sm shadow-sky-500/30 ring-1 ring-white/20",
+  growth:
+    "bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm shadow-emerald-500/30 ring-1 ring-white/20",
+  professional:
+    "bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-sm shadow-violet-500/30 ring-1 ring-white/20",
+  enterprise:
+    "bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm shadow-amber-500/30 ring-1 ring-white/20",
 };
 
 const MIN_WIDTH = 400;
 const MAX_WIDTH = 700;
-const DEFAULT_WIDTH = 520;
+const DEFAULT_WIDTH = 560;
 
-// ── Skeleton ────────────────────────────────────────────────────────────
 function PanelSkeleton() {
   return (
     <div className="p-5 space-y-4 animate-pulse">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-foreground/10" />
+        <div className="w-12 h-12 rounded-2xl bg-foreground/10" />
         <div className="space-y-1.5 flex-1">
           <div className="h-4 w-36 bg-foreground/10 rounded-lg" />
           <div className="h-3 w-24 bg-foreground/10 rounded-lg" />
@@ -62,17 +79,17 @@ function PanelSkeleton() {
       </div>
       <div className="grid grid-cols-2 gap-2">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-16 rounded-xl bg-foreground/5" />
+          <div key={i} className="h-16 rounded-2xl bg-foreground/5" />
         ))}
       </div>
-      <div className="h-8 bg-foreground/5 rounded-lg" />
-      <div className="h-48 bg-foreground/5 rounded-xl" />
+      <div className="h-9 bg-foreground/5 rounded-xl" />
+      <div className="h-48 bg-foreground/5 rounded-2xl" />
     </div>
   );
 }
 
 export function MerchantDetailPanel() {
-  const { activeDetailId, detailViewMode, setActiveDetailId, setDetailViewMode } = useAdminStore();
+  const { activeDetailId, detailViewMode, setActiveDetailId } = useAdminStore();
   const { data, isLoading } = useMerchantDetail(activeDetailId ?? "");
   const [activeTab, setActiveTab] = useState<Tab>("Overview");
   const [noteText, setNoteText] = useState("");
@@ -82,7 +99,6 @@ export function MerchantDetailPanel() {
 
   const isOpen = !!activeDetailId && detailViewMode === "panel";
 
-  // ── Close on Escape ───────────────────────────────────────────────────
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
@@ -94,7 +110,6 @@ export function MerchantDetailPanel() {
     return () => document.removeEventListener("keydown", handler);
   }, [isOpen, setActiveDetailId]);
 
-  // ── Resize drag handler ───────────────────────────────────────────────
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     isDragging.current = true;
@@ -138,7 +153,6 @@ export function MerchantDetailPanel() {
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
           <motion.div
             key="panel-backdrop"
             className="fixed inset-0 z-40 bg-black/20"
@@ -149,7 +163,6 @@ export function MerchantDetailPanel() {
             onClick={handleClose}
           />
 
-          {/* Panel */}
           <motion.div
             key="panel"
             ref={panelRef}
@@ -163,7 +176,6 @@ export function MerchantDetailPanel() {
               ease: EASE_CHROME as unknown as number[],
             }}
           >
-            {/* Resize handle */}
             <div
               className="absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize group hover:bg-foreground/10 transition-colors z-10"
               onMouseDown={handleMouseDown}
@@ -171,40 +183,46 @@ export function MerchantDetailPanel() {
               <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-full bg-foreground/20 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
 
-            {/* ── Sticky Header ──────────────────────────────────────── */}
-            <div className="shrink-0 p-4 border-b border-[var(--card-border)] bg-[var(--card-bg)]">
+            <div className="shrink-0 px-4 pt-4 pb-3 border-b border-[var(--card-border)] bg-[var(--card-bg)]">
               {isLoading || !data ? (
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-foreground/10 animate-pulse" />
-                  <div className="flex-1 space-y-1">
-                    <div className="h-4 w-32 bg-foreground/10 animate-pulse rounded" />
-                    <div className="h-3 w-20 bg-foreground/10 animate-pulse rounded" />
+                  <div className="w-12 h-12 rounded-2xl bg-foreground/10 animate-pulse" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-4 w-36 bg-foreground/10 animate-pulse rounded" />
+                    <div className="h-3 w-24 bg-foreground/10 animate-pulse rounded" />
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-3">
+                <div className="flex items-start gap-3">
                   <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0"
+                    className="w-12 h-12 rounded-2xl ring-1 ring-black/5 flex items-center justify-center text-white font-black text-base shrink-0"
                     style={{ backgroundColor: data.tenant.branding?.primary_color || "#1E1E1E" }}
                   >
                     {data.tenant.business_name.charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h2 className="text-sm font-bold text-foreground truncate">
-                      {data.tenant.business_name}
-                    </h2>
-                    <div className="flex items-center gap-1.5 mt-0.5">
+                    <CopyableText
+                      value={data.tenant.business_name}
+                      className="text-sm font-bold text-foreground"
+                    />
+                    <CopyableText
+                      value={data.tenant.slug}
+                      className="text-[11px] text-foreground/50 mt-0.5"
+                    />
+                    <div className="flex items-center gap-1 mt-1.5 flex-wrap">
                       <span
-                        className={`px-1.5 py-0.5 rounded-full text-[9px] font-semibold capitalize ${
-                          statusStyles[data.tenant.status] ?? "bg-gray-100 text-gray-600"
-                        }`}
+                        className={cn(
+                          "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-[0.1em]",
+                          statusStyles[data.tenant.status] ?? "bg-foreground/10 text-foreground/70"
+                        )}
                       >
                         {data.tenant.status}
                       </span>
                       <span
-                        className={`px-1.5 py-0.5 rounded-full text-[9px] font-semibold capitalize ${
-                          planStyles[data.tenant.plan] ?? "bg-gray-100 text-gray-700"
-                        }`}
+                        className={cn(
+                          "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-[0.1em]",
+                          planStyles[data.tenant.plan] ?? "bg-foreground/10 text-foreground/70"
+                        )}
                       >
                         {data.tenant.plan}
                       </span>
@@ -232,7 +250,6 @@ export function MerchantDetailPanel() {
               )}
             </div>
 
-            {/* ── Scrollable Body ────────────────────────────────────── */}
             <div className="flex-1 overflow-y-auto">
               {isLoading || !data ? (
                 <PanelSkeleton />
@@ -247,26 +264,12 @@ export function MerchantDetailPanel() {
                 />
               )}
             </div>
-
-            {/* ── Sticky Footer ──────────────────────────────────────── */}
-            {data && (
-              <div className="shrink-0 p-3 border-t border-[var(--card-border)] bg-[var(--card-bg)] flex items-center gap-2">
-                <button className="flex-1 px-3 py-2 rounded-xl text-xs font-semibold border border-green-300 text-green-700 bg-green-50 hover:bg-green-100 dark:border-green-400/30 dark:text-green-400 dark:bg-green-400/10 dark:hover:bg-green-400/15 transition-all">
-                  Top Up
-                </button>
-                <button className="flex-1 px-3 py-2 rounded-xl text-xs font-semibold border border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 dark:border-blue-400/30 dark:text-blue-400 dark:bg-blue-400/10 dark:hover:bg-blue-400/15 transition-all">
-                  Change Plan
-                </button>
-              </div>
-            )}
           </motion.div>
         </>
       )}
     </AnimatePresence>
   );
 }
-
-// ── Panel Body ──────────────────────────────────────────────────────────
 
 function PanelBody({
   data,
@@ -287,96 +290,204 @@ function PanelBody({
 
   return (
     <div className="p-4 space-y-4">
-      {/* ── Quick Stats ──────────────────────────────────────────── */}
+      <MerchantActionBar
+        merchantId={merchantId}
+        status={tenant.status as TenantStatus}
+        plan={tenant.plan as PlanTier}
+        walletBalance={wallet?.balance_iqd ?? 0}
+      />
+
       <div className="grid grid-cols-2 gap-2">
-        <div className="pastel-card p-2.5 bg-green-50/50 dark:bg-green-400/5">
-          <div className="flex items-center gap-1 text-green-700 dark:text-green-400 mb-0.5">
-            <Wallet className="w-3 h-3" />
-            <span className="text-[9px] font-semibold">Balance</span>
-          </div>
-          <p className="text-xs font-bold text-foreground">
-            {fmt(wallet?.balance_iqd ?? 0)} <span className="text-[9px] font-normal text-foreground/50">IQD</span>
-          </p>
-        </div>
-        <div className="pastel-card p-2.5 bg-amber-50/50 dark:bg-amber-400/5">
-          <div className="flex items-center gap-1 text-amber-700 dark:text-amber-400 mb-0.5">
-            <CreditCard className="w-3 h-3" />
-            <span className="text-[9px] font-semibold">Charged</span>
-          </div>
-          <p className="text-xs font-bold text-foreground">
-            {fmt(wallet?.total_charged_iqd ?? 0)} <span className="text-[9px] font-normal text-foreground/50">IQD</span>
-          </p>
-        </div>
-        <div className="pastel-card p-2.5 bg-blue-50/50 dark:bg-blue-400/5">
-          <div className="flex items-center gap-1 text-blue-700 dark:text-blue-400 mb-0.5">
-            <ShoppingBag className="w-3 h-3" />
-            <span className="text-[9px] font-semibold">Orders</span>
-          </div>
-          <p className="text-xs font-bold text-foreground">{fmt(orderCount)}</p>
-        </div>
-        <div className="pastel-card p-2.5 bg-purple-50/50 dark:bg-purple-400/5">
-          <div className="flex items-center gap-1 text-purple-700 dark:text-purple-400 mb-0.5">
-            <Users className="w-3 h-3" />
-            <span className="text-[9px] font-semibold">Team</span>
-          </div>
-          <p className="text-xs font-bold text-foreground">{team.length}</p>
-        </div>
+        <HeroStat
+          icon={Wallet}
+          label="Balance"
+          value={fmtCompact(wallet?.balance_iqd ?? 0)}
+          unit="IQD"
+          tone="emerald"
+          onClick={() => setActiveTab("Billing")}
+        />
+        <HeroStat
+          icon={CreditCard}
+          label="Lifetime"
+          value={fmtCompact(wallet?.total_charged_iqd ?? 0)}
+          unit="IQD"
+          tone="amber"
+          onClick={() => setActiveTab("Billing")}
+        />
+        <HeroStat
+          icon={ShoppingBag}
+          label="Orders"
+          value={fmtCompact(orderCount)}
+          tone="sky"
+          onClick={() => setActiveTab("Usage")}
+        />
+        <HeroStat
+          icon={Users}
+          label="Team"
+          value={String(team.length)}
+          tone="violet"
+          onClick={() => setActiveTab("Team")}
+        />
       </div>
 
-      {/* ── Tab Navigation ───────────────────────────────────────── */}
-      <div className="relative flex gap-0.5 border-b border-[var(--card-border)] overflow-x-auto scrollbar-hide">
-        {tabs.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`relative px-2.5 py-2 text-[11px] font-semibold whitespace-nowrap transition-colors ${
-              activeTab === tab
-                ? "text-foreground"
-                : "text-foreground/40 hover:text-foreground/60"
-            }`}
-          >
-            {tab}
-            {activeTab === tab && (
-              <motion.div
-                layoutId="panelTabIndicator"
-                className="absolute bottom-0 left-0 right-0 h-0.5 bg-foreground rounded-full"
-                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+      {(tenant.contact_email || tenant.contact_phone || tenant.address) && (
+        <div className="rounded-2xl border border-[var(--card-border)] bg-foreground/[0.015] dark:bg-foreground/[0.02] p-3 space-y-1.5">
+          {tenant.contact_email && (
+            <div className="flex items-center gap-2 text-[11px]">
+              <Mail className="w-3 h-3 text-foreground/40 shrink-0" />
+              <CopyableText
+                value={tenant.contact_email}
+                className="text-foreground/75 font-medium min-w-0"
               />
-            )}
-          </button>
-        ))}
+            </div>
+          )}
+          {tenant.contact_phone && (
+            <div className="flex items-center gap-2 text-[11px]">
+              <Phone className="w-3 h-3 text-foreground/40 shrink-0" />
+              <CopyableText
+                value={tenant.contact_phone}
+                className="text-foreground/75 font-medium tabular-nums min-w-0"
+              />
+            </div>
+          )}
+          {tenant.address && (
+            <div className="flex items-center gap-2 text-[11px]">
+              <MapPin className="w-3 h-3 text-foreground/40 shrink-0" />
+              <CopyableText
+                value={[tenant.address, tenant.city].filter(Boolean).join(", ")}
+                className="text-foreground/75 font-medium min-w-0"
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="relative inline-flex p-1 rounded-2xl bg-foreground/[0.04] border border-foreground/[0.05] gap-0.5 overflow-x-auto scrollbar-hide max-w-full">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab;
+          return (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={cn(
+                "relative px-3 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap transition-colors z-10",
+                isActive
+                  ? "text-white dark:text-[#1E1E1E]"
+                  : "text-foreground/55 hover:text-foreground"
+              )}
+            >
+              {isActive && (
+                <motion.div
+                  layoutId="panelTabIndicator"
+                  className="absolute inset-0 rounded-xl bg-[#1E1E1E] dark:bg-white shadow-sm shadow-black/20 dark:shadow-white/10"
+                  transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                />
+              )}
+              <span className="relative">{tab}</span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* ── Tab Content ──────────────────────────────────────────── */}
-      {activeTab === "Overview" && (
-        <OverviewTab tenant={tenant} subscription={subscription} />
-      )}
-      {activeTab === "Billing" && (
-        <BillingTab wallet={wallet} transactions={transactions} />
-      )}
-      {activeTab === "Usage" && <UsageTab usage={usage} />}
-      {activeTab === "Team" && <TeamTab team={team} />}
-      {activeTab === "Notes" && (
-        <NotesTab notes={notes} noteText={noteText} setNoteText={setNoteText} />
-      )}
-      {activeTab === "Timeline" && (
-        <TenantTimeline
-          transactions={transactions}
-          notes={notes}
-          orderCount={orderCount}
-          tenant={tenant}
-        />
-      )}
-      {activeTab === "Onboarding" && (
-        <OnboardingChecklist
-          tenant={tenant}
-          orderCount={orderCount}
-          teamCount={team.length}
-          walletBalance={wallet?.balance_iqd ?? 0}
-          hasStorefront={!!(tenant.store_config && Object.keys(tenant.store_config).length > 0)}
-          hasCustomDomain={false}
-        />
-      )}
+      <div className="min-h-[200px]">
+        {activeTab === "Overview" && (
+          <OverviewTab merchantId={tenant.id} tenant={tenant} subscription={subscription} />
+        )}
+        {activeTab === "Billing" && (
+          <BillingTab wallet={wallet} transactions={transactions} />
+        )}
+        {activeTab === "Usage" && <UsageTab usage={usage} />}
+        {activeTab === "Team" && <TeamTab team={team} merchantId={tenant.id} />}
+        {activeTab === "Notes" && (
+          <NotesTab notes={notes} noteText={noteText} setNoteText={setNoteText} />
+        )}
+        {activeTab === "Timeline" && (
+          <TenantTimeline
+            transactions={transactions}
+            notes={notes}
+            orderCount={orderCount}
+            tenant={tenant}
+          />
+        )}
+        {activeTab === "Onboarding" && (
+          <OnboardingChecklist
+            tenant={tenant}
+            orderCount={orderCount}
+            teamCount={team.length}
+            walletBalance={wallet?.balance_iqd ?? 0}
+            hasStorefront={!!(tenant.store_config && Object.keys(tenant.store_config).length > 0)}
+            hasCustomDomain={false}
+          />
+        )}
+      </div>
     </div>
+  );
+}
+
+const TONE_STYLES: Record<string, { icon: string; glow: string }> = {
+  emerald: {
+    icon: "text-emerald-500 dark:text-emerald-400",
+    glow: "from-emerald-400/0 via-emerald-400/5 to-emerald-400/10",
+  },
+  amber: {
+    icon: "text-amber-500 dark:text-amber-400",
+    glow: "from-amber-400/0 via-amber-400/5 to-amber-400/10",
+  },
+  sky: {
+    icon: "text-sky-500 dark:text-sky-400",
+    glow: "from-sky-400/0 via-sky-400/5 to-sky-400/10",
+  },
+  violet: {
+    icon: "text-violet-500 dark:text-violet-400",
+    glow: "from-violet-400/0 via-violet-400/5 to-violet-400/10",
+  },
+};
+
+function HeroStat({
+  icon: Icon,
+  label,
+  value,
+  unit,
+  tone,
+  onClick,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  unit?: string;
+  tone: keyof typeof TONE_STYLES;
+  onClick?: () => void;
+}) {
+  const styles = TONE_STYLES[tone];
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group relative overflow-hidden rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-2.5 text-left hover:border-foreground/15 hover:shadow-sm transition-all"
+    >
+      <div
+        aria-hidden
+        className={cn(
+          "absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity",
+          styles?.glow
+        )}
+      />
+      <div className="relative flex items-center gap-1.5 mb-1">
+        <Icon className={cn("w-3 h-3", styles?.icon)} />
+        <span className="text-[9px] uppercase tracking-[0.1em] font-black text-foreground/45">
+          {label}
+        </span>
+      </div>
+      <div className="relative flex items-baseline gap-1">
+        <span className="text-lg font-black tabular-nums text-foreground leading-none">
+          {value}
+        </span>
+        {unit && (
+          <span className="text-[9px] font-bold uppercase tracking-wider text-foreground/40">
+            {unit}
+          </span>
+        )}
+      </div>
+    </button>
   );
 }

@@ -13,6 +13,7 @@ import { MessageCircle, Copy, Check, Sparkles, X, Edit2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MessageTemplate, Order } from "@/lib/supabase";
 import { generateWhatsAppLink } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 interface MessageTemplatesModalProps {
     open: boolean;
@@ -29,6 +30,7 @@ export function MessageTemplatesModal({
 }: MessageTemplatesModalProps) {
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [previewTemplate, setPreviewTemplate] = useState<string | null>(null);
+    const { t } = useLanguage();
 
     // Replace placeholders in template
     const processTemplate = (content: string, orderData?: Order | null): string => {
@@ -67,11 +69,11 @@ export function MessageTemplatesModal({
     }, {} as Record<string, MessageTemplate[]>);
 
     const categoryLabels: Record<string, { label: string; color: string }> = {
-        confirmation: { label: "تأكيد الطلب", color: "bg-green-100 text-green-700" },
-        followup: { label: "متابعة", color: "bg-blue-100 text-blue-700" },
-        delivery: { label: "توصيل", color: "bg-teal-100 text-teal-700" },
-        rejection: { label: "رفض", color: "bg-rose-100 text-rose-700" },
-        general: { label: "عام", color: "bg-gray-100 text-gray-700" },
+        confirmation: { label: t("orders.msgTemplate.confirmation"), color: "bg-green-100 text-green-700" },
+        followup: { label: t("orders.msgTemplate.followup"), color: "bg-blue-100 text-blue-700" },
+        delivery: { label: t("orders.msgTemplate.delivery"), color: "bg-teal-100 text-teal-700" },
+        rejection: { label: t("orders.msgTemplate.rejection"), color: "bg-rose-100 text-rose-700" },
+        general: { label: t("orders.msgTemplate.general"), color: "bg-gray-100 text-gray-700" },
     };
 
     return (

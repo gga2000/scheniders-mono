@@ -108,7 +108,7 @@ CREATE TABLE public.leads (
 
     -- Predictions (computed from avg_view_count)
     estimated_daily_orders INTEGER NOT NULL DEFAULT 0,
-    estimated_monthly_revenue INTEGER NOT NULL DEFAULT 0,
+    estimated_monthly_revenue BIGINT NOT NULL DEFAULT 0,
 
     -- Location
     address TEXT,
@@ -176,6 +176,7 @@ CREATE INDEX idx_leads_next_follow_up ON public.leads(next_follow_up_at)
 CREATE INDEX idx_leads_platform ON public.leads(platform);
 CREATE INDEX idx_leads_industry_id ON public.leads(industry_id) WHERE industry_id IS NOT NULL;
 CREATE INDEX idx_leads_tier ON public.leads(tier);
+CREATE INDEX idx_leads_tags ON public.leads USING GIN (tags);
 
 -- Full-text search
 CREATE INDEX idx_leads_search ON public.leads
@@ -360,7 +361,8 @@ CREATE TABLE public.admin_employee_commissions (
     paid_at TIMESTAMPTZ,
     paid_by UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL,
     notes TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT period_valid CHECK (period_start <= period_end)
 );
 
 CREATE INDEX idx_commissions_user ON public.admin_employee_commissions(admin_user_id, period_start DESC);
@@ -407,7 +409,7 @@ CREATE OR REPLACE FUNCTION public.compute_lead_predictions(
     p_avg_view_count INTEGER,
     p_industry_id UUID
 )
-RETURNS TABLE(daily_orders INTEGER, monthly_revenue INTEGER) AS $$
+RETURNS TABLE(daily_orders INTEGER, monthly_revenue BIGINT) AS $$
 DECLARE
     v_daily INTEGER;
     v_avg_order_value INTEGER;
@@ -523,7 +525,7 @@ BEGIN
 
     RETURN v_score;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- ────────────────────────────────────────────────
 -- 16. TRIGGER: Auto-compute tier + predictions on insert/update
@@ -546,10 +548,7 @@ BEGIN
 
     -- Normalize phone for dedup
     IF NEW.phone_numbers IS NOT NULL AND jsonb_array_length(NEW.phone_numbers) > 0 THEN
-        NEW.normalized_phone := regexp_replace(
-            (NEW.phone_numbers->0->>'number')::TEXT,
-            '[^0-9]', '', 'g'
-        );
+        NEW.normalized_phone := public.normalize_phone((NEW.phone_numbers->0->>'number')::TEXT);
     END IF;
 
     -- Normalize name for dedup
@@ -576,7 +575,9 @@ CREATE TRIGGER trg_leads_before_upsert
 CREATE OR REPLACE FUNCTION public.leads_after_upsert()
 RETURNS TRIGGER AS $$
 BEGIN
-    PERFORM public.calculate_lead_score(NEW.id);
+    IF pg_trigger_depth() < 2 THEN
+        PERFORM public.calculate_lead_score(NEW.id);
+    END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -591,34 +592,34 @@ CREATE TRIGGER trg_leads_after_upsert
 -- ────────────────────────────────────────────────
 
 ALTER TABLE public.leads ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Service role only" ON public.leads FOR ALL USING (false);
+CREATE POLICY "Service role only" ON public.leads FOR ALL USING (false) WITH CHECK (false);
 
 ALTER TABLE public.industries ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Service role only" ON public.industries FOR ALL USING (false);
+CREATE POLICY "Service role only" ON public.industries FOR ALL USING (false) WITH CHECK (false);
 
 ALTER TABLE public.lead_activities ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Service role only" ON public.lead_activities FOR ALL USING (false);
+CREATE POLICY "Service role only" ON public.lead_activities FOR ALL USING (false) WITH CHECK (false);
 
 ALTER TABLE public.lead_follow_ups ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Service role only" ON public.lead_follow_ups FOR ALL USING (false);
+CREATE POLICY "Service role only" ON public.lead_follow_ups FOR ALL USING (false) WITH CHECK (false);
 
 ALTER TABLE public.lead_social_links ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Service role only" ON public.lead_social_links FOR ALL USING (false);
+CREATE POLICY "Service role only" ON public.lead_social_links FOR ALL USING (false) WITH CHECK (false);
 
 ALTER TABLE public.lead_competitors ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Service role only" ON public.lead_competitors FOR ALL USING (false);
+CREATE POLICY "Service role only" ON public.lead_competitors FOR ALL USING (false) WITH CHECK (false);
 
 ALTER TABLE public.whatsapp_outreach_templates ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Service role only" ON public.whatsapp_outreach_templates FOR ALL USING (false);
+CREATE POLICY "Service role only" ON public.whatsapp_outreach_templates FOR ALL USING (false) WITH CHECK (false);
 
 ALTER TABLE public.admin_employee_tracking ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Service role only" ON public.admin_employee_tracking FOR ALL USING (false);
+CREATE POLICY "Service role only" ON public.admin_employee_tracking FOR ALL USING (false) WITH CHECK (false);
 
 ALTER TABLE public.admin_commission_config ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Service role only" ON public.admin_commission_config FOR ALL USING (false);
+CREATE POLICY "Service role only" ON public.admin_commission_config FOR ALL USING (false) WITH CHECK (false);
 
 ALTER TABLE public.admin_employee_commissions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Service role only" ON public.admin_employee_commissions FOR ALL USING (false);
+CREATE POLICY "Service role only" ON public.admin_employee_commissions FOR ALL USING (false) WITH CHECK (false);
 
 ALTER TABLE public.admin_employee_achievements ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Service role only" ON public.admin_employee_achievements FOR ALL USING (false);
+CREATE POLICY "Service role only" ON public.admin_employee_achievements FOR ALL USING (false) WITH CHECK (false);

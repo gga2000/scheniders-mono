@@ -269,7 +269,7 @@ function getPageName(pathname: string): string {
     if (pathname === '/orders' || pathname.startsWith('/orders')) return 'Orders';
     if (pathname === '/customers' || pathname.startsWith('/customers')) return 'Customers';
     if (pathname === '/products' || pathname.startsWith('/products')) return 'Products';
-    if (pathname === '/analytics') return 'Analytics';
+    if (pathname === '/analytics') return 'Finances';
     if (pathname === '/reports') return 'Reports';
     if (pathname === '/settings') return 'Settings';
     return pathname.split('/')[1] || 'Unknown';

@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useCallback, useState, useEffect, useMemo } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useRef, useCallback, useState, useEffect, useMemo, useLayoutEffect } from "react";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import {
     DndContext,
     DragOverlay,
@@ -81,6 +81,7 @@ export function VirtualizedProductList({
     onReorder,
 }: VirtualizedProductListProps) {
     const parentRef = useRef<HTMLDivElement>(null);
+    const [scrollMargin, setScrollMargin] = useState(0);
     const [isMobile, setIsMobile] = useState(false);
     const [activeProduct, setActiveProduct] = useState<Product | null>(null);
 
@@ -91,12 +92,29 @@ export function VirtualizedProductList({
         return () => window.removeEventListener("resize", check);
     }, []);
 
-    const rowVirtualizer = useVirtualizer({
+    useLayoutEffect(() => {
+        const el = parentRef.current;
+        if (!el) return;
+        const update = () => {
+            const next = el.offsetTop;
+            setScrollMargin((prev) => (prev === next ? prev : next));
+        };
+        update();
+        const ro = new ResizeObserver(update);
+        ro.observe(document.documentElement);
+        window.addEventListener("resize", update);
+        return () => {
+            ro.disconnect();
+            window.removeEventListener("resize", update);
+        };
+    }, []);
+
+    const rowVirtualizer = useWindowVirtualizer({
         count: products.length,
-        getScrollElement: () => parentRef.current,
         estimateSize: () => 84, // Fallback estimate; actual row heights measured dynamically
         overscan: 5,
         measureElement: (element) => element?.getBoundingClientRect().height ?? 84,
+        scrollMargin,
     });
 
     const getCategoryName = useCallback(
@@ -167,7 +185,7 @@ export function VirtualizedProductList({
                                 top: 0,
                                 left: 0,
                                 width: "100%",
-                                transform: `translateY(${virtualRow.start}px)`,
+                                transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
                             }}
                         >
                             <div className="pb-3">
@@ -211,7 +229,7 @@ export function VirtualizedProductList({
                             top: 0,
                             left: 0,
                             width: "100%",
-                            transform: `translateY(${virtualRow.start}px)`,
+                            transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
                         }}
                     >
                         <div className="pb-3">
@@ -250,10 +268,7 @@ export function VirtualizedProductList({
                 onDragEnd={handleDragEnd}
             >
                 <SortableContext items={productIds} strategy={verticalListSortingStrategy}>
-                    <div
-                        ref={parentRef}
-                        className="h-[calc(100vh-320px)] overflow-auto scrollbar-hide"
-                    >
+                    <div ref={parentRef} className="relative">
                         {listContent}
                     </div>
                 </SortableContext>
@@ -281,10 +296,7 @@ export function VirtualizedProductList({
     }
 
     return (
-        <div
-            ref={parentRef}
-            className="h-[calc(100vh-320px)] overflow-auto scrollbar-hide"
-        >
+        <div ref={parentRef} className="relative">
             {listContent}
         </div>
     );

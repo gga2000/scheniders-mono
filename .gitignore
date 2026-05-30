@@ -41,6 +41,7 @@ playwright-report/
 .kiro/
 skills/
 skills-lock.json
+graphify-out/
 
 # supabase cli
 packages/supabase/.temp/

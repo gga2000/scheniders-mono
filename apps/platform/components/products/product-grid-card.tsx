@@ -13,26 +13,28 @@ import {
     Eye,
     EyeOff,
     ShoppingCart,
-    TrendingUp,
     Tag,
     GripVertical,
+    ChevronDown,
 } from "lucide-react";
+import { toast } from "sonner";
 import { StockIndicator } from "./stock-indicator";
 import { StockQuickAdjust } from "./stock-quick-adjust";
 import { QuickActionsMenu } from "./quick-actions-menu";
 import { BundleStockIndicator } from "./bundle-stock-indicator";
 import { HealthScoreBadge } from "./health-score-badge";
-import { StockSparkline } from "./stock-sparkline";
 import { StockStatusBadges } from "./stock-status-badges";
 import { BatchBadge } from "./batch-tracking/batch-badge";
-import { useAbcTier } from "./abc-tier-context";
+import { CategoryCombobox } from "./category-combobox";
+import { useCategoriesQuery } from "@/hooks/use-categories-query";
+import { useUpdateProductMutation } from "@/hooks/use-products-query";
 import { calculateProductScore, computeDailySalesRate, type ProductScoreInput } from "@/lib/utils/product-scoring";
 
 interface ProductGridCardProps {
     product: Product;
     categoryName?: string;
     isSelected: boolean;
-    onToggleSelection: (id: string) => void;
+    onToggleSelection: (id: string, event?: React.MouseEvent) => void;
     onViewDetails: (product: Product) => void;
     onEdit: (product: Product) => void;
     onArchive: (id: string) => void;
@@ -79,9 +81,11 @@ export const ProductGridCard = React.memo(function ProductGridCard({
         daily_sales_rate: dailyRate,
     };
     const healthScore = calculateProductScore(scoreInput);
-    const abcTier = useAbcTier(product.id);
     const [menuOpen, setMenuOpen] = useState(false);
     const [stockAdjustOpen, setStockAdjustOpen] = useState(false);
+    const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
+    const { data: allCategories = [] } = useCategoriesQuery();
+    const updateProductMutation = useUpdateProductMutation();
     const longPress = useLongPress(() => setMenuOpen(true), { threshold: 500 });
 
     return (
@@ -104,7 +108,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
             <button
                 onClick={(e) => {
                     e.stopPropagation();
-                    onToggleSelection(product.id);
+                    onToggleSelection(product.id, e);
                 }}
                 className="absolute top-3 left-3 z-10 p-1.5 bg-white/80 backdrop-blur-sm rounded-lg hover:bg-white transition-colors"
                 aria-label={isSelected ? t("products.selection.deselectAll") : t("products.selection.selectAll")}
@@ -160,144 +164,214 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                 ) : (
                     <Package className="w-12 h-12 text-muted" />
                 )}
+                {/* Health score overlay — keep one grade indicator on the card */}
+                <div
+                    className="absolute bottom-2 left-2 bg-white/25 backdrop-blur-md border border-white/40 rounded-xl px-1.5 py-0.5 shadow-lg ring-1 ring-black/5"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <HealthScoreBadge score={healthScore} size="sm" showTooltip />
+                </div>
+
+                {/* Visibility toggle — image overlay bottom-right */}
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onVisibilityToggle(product);
+                    }}
+                    className={cn(
+                        "absolute bottom-2 right-2 p-1.5 rounded-xl backdrop-blur-md border shadow-lg ring-1 ring-black/5 transition-colors",
+                        product.is_visible
+                            ? "bg-white/25 border-white/40 text-blue-600 hover:bg-white/40"
+                            : "bg-black/30 border-white/20 text-white hover:bg-black/50"
+                    )}
+                    title={product.is_visible ? t("products.visibleInStore") : t("products.hiddenInStore")}
+                >
+                    {product.is_visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                </button>
             </div>
 
             {/* Product Info */}
-            <div className="p-4 space-y-2">
-                {/* Name + Visibility */}
-                <div className="flex items-start justify-between gap-2">
-                    <div className="flex flex-col gap-1 flex-1 min-w-0">
-                        <h3 className="font-bold text-foreground truncate w-full">
-                            {product.name}
-                        </h3>
-                        {categoryName && (
-                            <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-[var(--background)] border border-[var(--card-border)] rounded-md w-fit">
-                                <Tag className="w-3 h-3 text-[var(--foreground-subtle)]" />
-                                <span className="text-[10px] text-[var(--foreground-subtle)] font-medium truncate max-w-[100px]">
-                                    {categoryName}
-                                </span>
-                            </div>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                        {abcTier && (
+            <div className="p-3 space-y-2">
+                {/* Name (left) · margin % + price (right) */}
+                <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-base font-bold text-foreground leading-tight line-clamp-2 flex-1 min-w-0">
+                        {product.name}
+                    </h3>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        {product.cost && product.cost > 0 && product.price > 0 && (
                             <span
                                 className={cn(
-                                    "inline-flex items-center justify-center w-5 h-5 rounded-md text-[10px] font-bold border",
-                                    abcTier === "A" && "bg-emerald-500/10 text-emerald-700 border-emerald-500/20",
-                                    abcTier === "B" && "bg-blue-500/10 text-blue-700 border-blue-500/20",
-                                    abcTier === "C" && "bg-gray-500/10 text-gray-700 border-gray-500/20",
+                                    "text-[10px] font-semibold px-2 py-0.5 rounded-md",
+                                    ((product.price - product.cost) / product.price) * 100 >= 40
+                                        ? "bg-[var(--pastel-green)] text-green-700"
+                                        : ((product.price - product.cost) / product.price) * 100 >= 20
+                                            ? "bg-[var(--pastel-yellow)] text-amber-700"
+                                            : "bg-[var(--pastel-pink)] text-rose-700"
                                 )}
-                                title={t("products.tier.tooltip")}
+                                title="Margin"
                             >
-                                {t(`products.tier.${abcTier.toLowerCase()}`)}
+                                {(((product.price - product.cost) / product.price) * 100).toFixed(0)}%
                             </span>
                         )}
-                        <HealthScoreBadge score={healthScore} size="sm" />
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onVisibilityToggle(product);
-                            }}
-                            className={cn(
-                                "p-1.5 rounded-lg transition-colors border",
-                                product.is_visible
-                                    ? "bg-blue-500/10 text-blue-600 border-blue-500/20 hover:bg-blue-500/20"
-                                    : "bg-[var(--background)] text-muted border-[var(--card-border)] hover:bg-[var(--card-bg)]"
-                            )}
-                            title={product.is_visible ? t("products.visibleInStore") : t("products.hiddenInStore")}
-                        >
-                            {product.is_visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                        </button>
+                        <p className="text-[15px] font-bold text-foreground whitespace-nowrap leading-tight">
+                            {formatIQD(product.price)}
+                        </p>
                     </div>
                 </div>
 
-                {/* Price + margin */}
-                <div className="flex items-baseline justify-between gap-2">
-                    <p className="text-lg font-bold text-foreground">
-                        {formatIQD(product.price)}
-                    </p>
-                    {product.cost && product.cost > 0 && product.price > 0 && (
+                {/* Category chip · stock indicator · margin — side by side */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                    {/* Category chip — inline picker */}
+                    <div className="relative w-fit">
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setCategoryPickerOpen((v) => !v);
+                        }}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onPointerUp={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-[var(--background)] border border-[var(--card-border)] rounded-md w-fit hover:bg-[var(--card-border)] cursor-pointer transition-colors group/catchip"
+                        aria-haspopup="listbox"
+                        aria-expanded={categoryPickerOpen}
+                    >
+                        <Tag className="w-3 h-3 text-[var(--foreground-subtle)]" />
                         <span
                             className={cn(
-                                "text-[10px] font-semibold px-1.5 py-0.5 rounded-md",
-                                ((product.price - product.cost) / product.price) * 100 >= 40
-                                    ? "bg-[var(--pastel-green)] text-green-700"
-                                    : ((product.price - product.cost) / product.price) * 100 >= 20
-                                        ? "bg-[var(--pastel-yellow)] text-amber-700"
-                                        : "bg-[var(--pastel-pink)] text-rose-700"
+                                "text-[10px] font-medium truncate max-w-[140px]",
+                                categoryName
+                                    ? "text-[var(--foreground-subtle)]"
+                                    : "text-muted"
                             )}
-                            title="Margin"
                         >
-                            {(((product.price - product.cost) / product.price) * 100).toFixed(0)}%
+                            {categoryName ?? t("products.category.uncategorized")}
+                        </span>
+                        <ChevronDown className="w-3 h-3 text-[var(--foreground-subtle)] opacity-0 group-hover/catchip:opacity-100 transition-opacity" />
+                    </button>
+                    {categoryPickerOpen && (
+                        <>
+                            <div
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setCategoryPickerOpen(false);
+                                }}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                className="fixed inset-0 z-30"
+                            />
+                            <div
+                                className="absolute left-0 top-full mt-1 z-40 min-w-[240px]"
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <CategoryCombobox
+                                    variant="anchored"
+                                    open={categoryPickerOpen}
+                                    onOpenChange={setCategoryPickerOpen}
+                                    value={product.category_id ?? null}
+                                    onChange={(newId) => {
+                                        if (newId === (product.category_id ?? null)) {
+                                            setCategoryPickerOpen(false);
+                                            return;
+                                        }
+                                        const targetName =
+                                            newId
+                                                ? allCategories.find((c) => c.id === newId)?.name ?? ""
+                                                : t("products.category.uncategorized");
+                                        updateProductMutation.mutate(
+                                            { id: product.id, data: { category_id: newId } },
+                                            {
+                                                onSuccess: () => {
+                                                    toast.success(
+                                                        t("products.bulkCategory.success", {
+                                                            count: 1,
+                                                            targetName,
+                                                        })
+                                                    );
+                                                },
+                                            }
+                                        );
+                                        setCategoryPickerOpen(false);
+                                    }}
+                                />
+                            </div>
+                        </>
+                    )}
+                    </div>
+
+                    {/* Stock indicator */}
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setStockAdjustOpen((v) => !v);
+                        }}
+                        className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pastel-yellow)]"
+                        aria-label="Adjust stock"
+                    >
+                        <StockIndicator
+                            status={stockStatus}
+                            quantity={availableStock}
+                            threshold={threshold}
+                            reserved={product.reserved_quantity || 0}
+                            dailySalesRate={dailyRate}
+                            size="sm"
+                        />
+                    </button>
+                    {stockAdjustOpen && (
+                        <>
+                            <div
+                                onClick={() => setStockAdjustOpen(false)}
+                                className="fixed inset-0 z-30"
+                            />
+                            <div className="absolute left-4 right-4 z-40 mt-2">
+                                <StockQuickAdjust
+                                    productId={product.id}
+                                    productName={product.name}
+                                    currentStock={product.stock_quantity}
+                                    onClose={() => setStockAdjustOpen(false)}
+                                />
+                            </div>
+                        </>
+                    )}
+
+                    {hasReserved && (
+                        <span
+                            className="text-[10px] bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded-md font-medium"
+                            title={t("products.stock.reservedStock")}
+                        >
+                            {product.reserved_quantity} R
                         </span>
                     )}
                 </div>
 
                 {/* Stock Progress Bar */}
-                <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                        <button
-                            type="button"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setStockAdjustOpen((v) => !v);
-                            }}
-                            className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pastel-yellow)]"
-                            aria-label="Adjust stock"
-                        >
-                            <StockIndicator
-                                status={stockStatus}
-                                quantity={availableStock}
-                                threshold={threshold}
-                                reserved={product.reserved_quantity || 0}
-                                dailySalesRate={dailyRate}
-                                size="sm"
-                                showHoverTooltip
-                            />
-                        </button>
-                        {stockAdjustOpen && (
-                            <>
-                                <div
-                                    onClick={() => setStockAdjustOpen(false)}
-                                    className="fixed inset-0 z-30"
-                                />
-                                <div className="absolute left-4 right-4 z-40 mt-2">
-                                    <StockQuickAdjust
-                                        productId={product.id}
-                                        productName={product.name}
-                                        currentStock={product.stock_quantity}
-                                        onClose={() => setStockAdjustOpen(false)}
-                                    />
-                                </div>
-                            </>
-                        )}
-                        {hasReserved && (
-                            <span
-                                className="text-[10px] bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded-md font-medium"
-                                title={t("products.stock.reservedStock")}
-                            >
-                                {product.reserved_quantity} R
-                            </span>
-                        )}
-                    </div>
+                <div>
                     {/* Mini stock progress bar */}
-                    <div className="h-1.5 w-full bg-[var(--background)] rounded-full overflow-hidden">
-                        <div
-                            className={cn(
-                                "h-full rounded-full transition-all",
-                                stockRatio > 1
-                                    ? "bg-blue-400"
-                                    : stockRatio > 0.5
-                                        ? "bg-green-400"
-                                        : stockRatio > 0.25
-                                            ? "bg-amber-400"
-                                            : stockRatio > 0
-                                                ? "bg-red-400"
-                                                : "bg-gray-300"
-                            )}
-                            style={{ width: `${Math.min(stockRatio * 50, 100)}%` }}
-                        />
+                    <div className="h-1.5 w-full bg-[var(--background)] rounded-full overflow-hidden relative">
+                        {availableStock <= 0 ? (
+                            <div
+                                className="h-full w-full rounded-full animate-pulse"
+                                style={{
+                                    backgroundImage:
+                                        "repeating-linear-gradient(45deg, rgba(244,63,94,0.85) 0 6px, rgba(225,29,72,0.85) 6px 12px)",
+                                }}
+                                title={t("products.status.outOfStock")}
+                            />
+                        ) : (
+                            <div
+                                className={cn(
+                                    "h-full rounded-full transition-all",
+                                    stockRatio > 1
+                                        ? "bg-blue-400"
+                                        : stockRatio > 0.5
+                                            ? "bg-green-400"
+                                            : stockRatio > 0.25
+                                                ? "bg-amber-400"
+                                                : "bg-red-400"
+                                )}
+                                style={{ width: `${Math.min(stockRatio * 50, 100)}%` }}
+                            />
+                        )}
                     </div>
                 </div>
 
@@ -318,28 +392,38 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                 <StockStatusBadges
                     flags={healthScore.flags}
                     dailySalesRate={dailyRate}
-                    daysSinceLastSale={Number.isFinite(healthScore.daysSinceLastSale) ? healthScore.daysSinceLastSale : 999}
-                    daysOfSupply={Number.isFinite(healthScore.daysOfSupply) ? healthScore.daysOfSupply : 999}
+                    daysSinceLastSale={healthScore.daysSinceLastSale}
+                    daysOfSupply={healthScore.daysOfSupply}
+                    availableStock={availableStock}
                     size="sm"
+                    showActions={false}
                 />
 
 
-                {/* Sales & Revenue — compact */}
-                <div className="flex items-center justify-between text-sm pt-2 border-t border-[var(--card-border)]">
-                    <span className="text-muted flex items-center gap-1">
-                        <ShoppingCart className="w-3 h-3" />
-                        {product.times_sold || 0} {t("products.sold")}
-                    </span>
-                    <StockSparkline
-                        stockQuantity={availableStock}
-                        lowStockThreshold={threshold}
-                        dailySalesRate={dailyRate}
-                        onClick={() => onViewDetails(product)}
-                    />
-                    <span className="text-[var(--pastel-green)] font-semibold flex items-center gap-1">
-                        <TrendingUp className="w-3 h-3" />
-                        {formatIQD(product.total_revenue || 0)}
-                    </span>
+                {/* Sales & Revenue */}
+                <div className="grid grid-cols-2 gap-1.5 pt-1.5 border-t border-[var(--card-border)]">
+                    <div className="flex items-center gap-1.5 rounded-lg bg-[var(--background)] border border-[var(--card-border)] px-2 py-1">
+                        <ShoppingCart className="w-3 h-3 text-amber-700 shrink-0" />
+                        <div className="flex flex-col leading-tight min-w-0">
+                            <span className="text-xs font-semibold text-foreground truncate">
+                                {product.times_sold || 0}
+                            </span>
+                            <span className="text-[9px] text-muted uppercase tracking-wide">
+                                {t("products.sold")}
+                            </span>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 rounded-lg bg-[var(--pastel-green)]/40 border border-emerald-500/20 px-2 py-1">
+                        <span className="text-[9px] font-bold text-emerald-700 shrink-0">IQD</span>
+                        <div className="flex flex-col leading-tight min-w-0">
+                            <span className="text-xs font-semibold text-emerald-800 truncate">
+                                {formatIQD(product.total_revenue || 0).replace(/^IQD\s*/, "")}
+                            </span>
+                            <span className="text-[9px] text-emerald-700/70 uppercase tracking-wide">
+                                {t("products.revenue")}
+                            </span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

@@ -36,6 +36,10 @@ export interface Product {
     // Service product fields
     duration_minutes?: number | null;
     booking_enabled?: boolean;
+    // Barcode
+    barcode?: string | null;
+    // Landed cost
+    cost_breakdown_json?: CostBreakdown | null;
     // Storefront fields (exposed to public store)
     slug?: string | null;
     is_visible?: boolean;
@@ -51,19 +55,31 @@ export interface Product {
     average_order_value?: number;
 }
 
-export interface Category {
-    id: string;
-    tenant_id: string;
-    name: string;
-    slug: string;
-    description?: string | null;
-    image_url?: string | null;
-    parent_id?: string | null;
-    display_order: number;
-    is_visible: boolean;
-    created_at: string;
-    updated_at: string;
-}
+// Canonical Category type lives in @scheniders/shared.
+// Re-exported here for ergonomic imports from existing product code paths.
+export type {
+    Category,
+    CategoryStatus,
+    NavVariant,
+    CategoryPageConfig,
+    CategoryPageBlock,
+    CategoryPageLayout,
+    CategoryPageSort,
+    CategoryPageFilter,
+    ProductCategoryAssignment,
+    CategoryRuleSource,
+    Collection,
+    CategoryRule,
+    CategoryRuleData,
+    CategoryRuleCondition,
+    CategoryRuleField,
+    CategoryRuleOp,
+    CategoryRedirect,
+    CategoryRelated,
+    CategoryExperiment,
+    CategoryExperimentMetrics,
+} from "@scheniders/shared";
+export { DEFAULT_CATEGORY_PAGE_CONFIG } from "@scheniders/shared";
 
 export interface ProductVariant {
     id: string;
@@ -74,10 +90,26 @@ export interface ProductVariant {
     price?: number;
     cost?: number;
     stock_quantity: number;
+    reserved_quantity?: number;
     sku?: string;
+    barcode?: string | null;
     option_values?: Record<string, string> | null;
     image_url?: string | null;
     is_enabled?: boolean;
+    compare_at_price?: number | null;
+    weight?: number | null;
+    dimensions_json?: { length?: number; width?: number; height?: number; unit?: string } | null;
+    low_stock_threshold?: number;
+    display_order?: number;
+}
+
+export type VariantOptionType = "color" | "size" | "material" | "style" | "custom";
+
+export interface OptionValueMetadata {
+    label: string;
+    hex?: string;         // for color type
+    measurement?: string; // for size type
+    description?: string; // for material type
 }
 
 export interface ProductOption {
@@ -85,6 +117,8 @@ export interface ProductOption {
     product_id: string;
     name: string;
     values: string[];
+    values_metadata?: OptionValueMetadata[] | null;
+    option_type?: VariantOptionType;
     display_order: number;
     tenant_id?: string;
     created_at: string;
@@ -100,20 +134,69 @@ export interface ProductPriceHistory {
     reason?: string;
 }
 
+export type QCStatus =
+    | 'pending_inspection'
+    | 'in_inspection'
+    | 'restocked'
+    | 'written_off'
+    | 'returned_to_supplier';
+
+export type QCReasonCategory =
+    | 'damaged'
+    | 'expired'
+    | 'defective'
+    | 'wrong_item'
+    | 'returned'
+    | 'other';
+
+export type QCResolution = 'restocked' | 'written_off' | 'returned_to_supplier';
+
+export interface QCChecklistItem {
+    id: string;
+    label: string;
+    checked: boolean;
+}
+
 export interface QCItem {
     id: string;
     order_id?: string;
     product_id: string;
     quantity: number;
-    status: 'pending_inspection' | 'restocked' | 'written_off';
+    status: QCStatus;
     reason: string;
     created_at: string;
     resolved_at?: string;
     resolved_by?: string;
     notes?: string;
+    // v2 fields (optional until migration applied)
+    assigned_to?: string | null;
+    reason_category?: QCReasonCategory | null;
+    photos?: string[];
+    rma_number?: string | null;
+    credit_expected?: number | null;
+    inspection_checklist?: QCChecklistItem[] | null;
+    tenant_id?: string | null;
     // Joined fields
     product?: Product;
     order?: Order;
+}
+
+export interface QCEvent {
+    id: string;
+    qc_item_id: string;
+    event_type:
+        | 'created'
+        | 'status_changed'
+        | 'assigned'
+        | 'photo_added'
+        | 'photo_removed'
+        | 'note_added'
+        | 'checklist_updated'
+        | 'reason_updated'
+        | 'bulk_action';
+    actor_id?: string | null;
+    payload?: Record<string, any> | null;
+    created_at: string;
 }
 
 export interface BundleItem {
@@ -263,6 +346,194 @@ export type InventoryChangeType = 'received' | 'sold' | 'returned' | 'adjusted' 
 export type ProductType = 'physical' | 'digital' | 'service' | 'bundle';
 
 export type StockStatus = 'in_stock' | 'low_stock' | 'out_of_stock';
+
+// =============================================
+// PHASE 5: Product Information Types
+// =============================================
+
+export interface CostBreakdown {
+    supplier_cost: number;
+    shipping: number;
+    customs: number;
+    handling: number;
+    other: number;
+}
+
+export interface StorageLocation {
+    id: string;
+    tenant_id: string;
+    name: string;
+    code: string;
+    type: 'warehouse' | 'zone' | 'aisle' | 'shelf' | 'bin';
+    parent_id?: string | null;
+    description?: string | null;
+    capacity?: number | null;
+    created_at: string;
+}
+
+export interface ProductStorage {
+    id: string;
+    product_id: string;
+    variant_id?: string | null;
+    location_id: string;
+    quantity: number;
+    tenant_id: string;
+    updated_at: string;
+    // Joined
+    storage_locations?: StorageLocation;
+}
+
+export interface ProductBatch {
+    id: string;
+    product_id: string;
+    variant_id?: string | null;
+    batch_number: string;
+    expiry_date?: string | null;
+    quantity: number;
+    cost_per_unit?: number | null;
+    received_at: string;
+    notes?: string | null;
+    status: 'active' | 'expired' | 'written_off';
+    tenant_id: string;
+    created_at: string;
+}
+
+export interface ProductTag {
+    id: string;
+    tenant_id: string;
+    name: string;
+    color: string;
+    created_at: string;
+}
+
+export interface ProductTagAssignment {
+    product_id: string;
+    tag_id: string;
+    product_tags?: ProductTag;
+}
+
+export interface SmartCollection {
+    id: string;
+    tenant_id: string;
+    name: string;
+    description?: string | null;
+    rules_json: CollectionRule[];
+    is_active: boolean;
+    created_at: string;
+}
+
+export interface CollectionRule {
+    field: string;
+    operator: string;
+    value: string | number | boolean;
+    value2?: number;
+    conjunction: 'and' | 'or';
+}
+
+export type StorageLocationType = 'warehouse' | 'zone' | 'aisle' | 'shelf' | 'bin';
+
+export type BatchStatus = 'active' | 'expired' | 'written_off';
+
+// =============================================
+// PHASE 6: Inventory Operations Types
+// =============================================
+
+export type PurchaseOrderStatus = 'draft' | 'sent' | 'confirmed' | 'partial' | 'received' | 'cancelled';
+
+export interface PurchaseOrder {
+    id: string;
+    tenant_id: string;
+    po_number: string;
+    supplier_name: string;
+    supplier_contact?: string | null;
+    supplier_email?: string | null;
+    status: PurchaseOrderStatus;
+    total_cost: number;
+    notes?: string | null;
+    expected_date?: string | null;
+    sent_at?: string | null;
+    received_at?: string | null;
+    created_by?: string | null;
+    created_at: string;
+    updated_at: string;
+    // Joined
+    items?: PurchaseOrderItem[];
+}
+
+export interface PurchaseOrderItem {
+    id: string;
+    po_id: string;
+    product_id: string;
+    variant_id?: string | null;
+    product_name: string;
+    variant_name?: string | null;
+    sku?: string | null;
+    quantity_ordered: number;
+    quantity_received: number;
+    unit_cost: number;
+    notes?: string | null;
+    created_at: string;
+    // Computed
+    total_cost?: number;
+    // Joined
+    product?: Product;
+}
+
+export type StockTakeStatus = 'in_progress' | 'completed' | 'cancelled';
+
+export interface StockTake {
+    id: string;
+    tenant_id: string;
+    name: string;
+    status: StockTakeStatus;
+    started_by?: string | null;
+    completed_at?: string | null;
+    notes?: string | null;
+    total_counted: number;
+    total_variance: number;
+    variance_value: number;
+    created_at: string;
+    updated_at: string;
+    // Joined
+    items?: StockTakeItem[];
+}
+
+export interface StockTakeItem {
+    id: string;
+    stock_take_id: string;
+    product_id: string;
+    variant_id?: string | null;
+    location_id?: string | null;
+    expected_quantity: number;
+    counted_quantity?: number | null;
+    variance?: number | null;
+    reason?: string | null;
+    counted_at?: string | null;
+    created_at: string;
+    // Joined
+    product?: Product;
+}
+
+export type InventoryAlertType = 'stockout' | 'low_stock' | 'overstock' | 'expiring' | 'dead_stock' | 'po_due';
+
+export interface InventoryAlert {
+    id: string;
+    tenant_id: string;
+    product_id?: string | null;
+    alert_type: InventoryAlertType;
+    message: string;
+    is_read: boolean;
+    is_dismissed: boolean;
+    snoozed_until?: string | null;
+    metadata_json?: Record<string, any> | null;
+    created_at: string;
+    // Joined
+    product?: Product;
+}
+
+export type ShrinkageType = 'shrinkage_damaged' | 'shrinkage_stolen' | 'shrinkage_expired' | 'shrinkage_other';
+
+export type ExtendedInventoryChangeType = InventoryChangeType | ShrinkageType | 'transfer' | 'stock_take';
 
 export function getStockStatus(product: Product): StockStatus {
     const available = product.stock_quantity - (product.reserved_quantity || 0);

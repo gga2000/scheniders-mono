@@ -28,7 +28,7 @@ export function CostBreakdownItem({
             </div>
             <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-foreground tabular-nums">
-                    IQD {formatIQD(amount)}
+                    {formatIQD(amount)}
                 </span>
                 {showPercentage && percentage !== undefined && (
                     <span className="text-xs text-muted tabular-nums w-12 text-right">

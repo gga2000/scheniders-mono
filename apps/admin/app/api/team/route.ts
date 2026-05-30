@@ -1,8 +1,13 @@
-import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/admin-supabase";
+import { NextRequest, NextResponse } from "next/server";
+import { createAdminClient, requireAdmin } from "@/lib/admin-supabase";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const token = request.headers.get("authorization")?.replace("Bearer ", "");
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const admin = await requireAdmin(token);
+    if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
     const supabase = createAdminClient();
 
     // Fetch all admin users

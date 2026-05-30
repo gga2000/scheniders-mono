@@ -1,0 +1,119 @@
+// =====================================================================
+// Section — marquee_strip
+// =====================================================================
+// Slim mid-page scrolling text strip. Distinct from `hero_marquee` —
+// this one is a thin horizontal band suitable between sections, or
+// stacked on top of the cart / checkout. Accepts multiple messages
+// separated by a star glyph in the ticker.
+// =====================================================================
+
+import { z } from "zod";
+import { resolveI18n } from "@scheniders/shared";
+import { i18nStringSchema } from "./_schema";
+import { registerSection } from "./_registry";
+import type { SectionDefinition } from "./_types";
+
+const stripBg = z.enum([
+  "white",
+  "mint",
+  "butter",
+  "lilac",
+  "sky",
+  "pink",
+  "cream",
+]);
+
+const speedScale = z.enum(["slow", "normal", "fast"]);
+
+const schema = z.object({
+  messages_i18n: z.array(i18nStringSchema),
+  bg: stripBg,
+  speed: speedScale,
+});
+
+type Props = z.infer<typeof schema>;
+
+const defaultProps: Props = {
+  messages_i18n: [
+    { en: "Free delivery in Baghdad", ar: "توصيل مجاني في بغداد" },
+    { en: "Cash on delivery", ar: "الدفع عند الاستلام" },
+    { en: "Same-day shipping", ar: "شحن بنفس اليوم" },
+  ],
+  bg: "butter",
+  speed: "normal",
+};
+
+const BG_CLASS: Record<z.infer<typeof stripBg>, string> = {
+  white: "bg-white",
+  mint: "bg-candy-mint",
+  butter: "bg-candy-butter",
+  lilac: "bg-candy-lilac",
+  sky: "bg-candy-sky",
+  pink: "bg-candy-pink text-white",
+  cream: "bg-candy-cream",
+};
+
+function MarqueeStrip({
+  props,
+  ctx,
+}: {
+  props: Props;
+  ctx: import("./_types").SectionRenderContext;
+}) {
+  const locale = ctx.runtime.locale;
+  const messages = props.messages_i18n
+    .map((m) => resolveI18n(m, locale))
+    .filter((m) => m.length > 0);
+
+  if (!messages.length) return null;
+
+  const durationSec =
+    props.speed === "slow" ? 36 : props.speed === "fast" ? 14 : 22;
+
+  // Render the message list twice so the animation loop seam stays
+  // invisible regardless of viewport width.
+  const series = (
+    <span className="inline-flex items-center gap-6 px-6">
+      {messages.map((m, i) => (
+        <span key={i} className="inline-flex items-center gap-6">
+          <span className="font-label font-bold text-xs sm:text-sm uppercase tracking-[0.2em]">
+            {m}
+          </span>
+          <span aria-hidden="true" className="text-candy-pink">
+            ★
+          </span>
+        </span>
+      ))}
+    </span>
+  );
+
+  return (
+    <section className={`${BG_CLASS[props.bg]} border-y-[3px] border-candy-ink py-3 overflow-hidden`}>
+      <div
+        className="inline-flex whitespace-nowrap animate-marquee"
+        style={{ animationDuration: `${durationSec}s` }}
+      >
+        {series}
+        {series}
+      </div>
+    </section>
+  );
+}
+
+const definition: SectionDefinition<Props> = {
+  type: "marquee_strip",
+  category: "content",
+  name: { en: "Marquee strip", ar: "شريط متحرّك" },
+  description: {
+    en: "Slim mid-page scrolling text band for offers and promises.",
+    ar: "شريط نصي متحرك ضيق بين الأقسام للعروض والوعود.",
+  },
+  thumbnail: "/sections/marquee_strip.svg",
+  valid_on: ["home", "cart", "checkout", "product"],
+  schema,
+  defaultProps,
+  render: MarqueeStrip,
+};
+
+registerSection(definition);
+export default definition;

@@ -1,0 +1,43 @@
+/**
+ * Section-system types.
+ *
+ * The package was extracted from `apps/storefront/sections/` where it
+ * referenced `apps/storefront/lib/types.ts` directly. To stay app-agnostic
+ * (so the platform's Builder v2 can render sections inline), we anchor
+ * onto the BASE types in `@scheniders/shared` and additively declare the
+ * fields that sections actually read. Storefront- or platform-only fields
+ * stay optional so neither app has to lie about its data shape.
+ */
+
+import type {
+  BaseTenant,
+  BaseProduct,
+  BaseProductVariant,
+  Category,
+} from "@scheniders/shared";
+
+export type { Category } from "@scheniders/shared";
+
+/** Tenant as sections see it. Sections don't reach into store_config — it's
+ * available to consumers but never read in any built-in section render. */
+export type Tenant = BaseTenant;
+
+/** Product as sections see it. Storefront-only fields are optional and
+ * additive (slug, category_id, display_order, images, etc.) — the storefront
+ * Product extends BaseProduct with the same fields. */
+export interface Product extends BaseProduct {
+  slug?: string | null;
+  is_visible?: boolean;
+  category_id?: string | null;
+  display_order?: number;
+  images?: string[];
+  /** Optional ISO date — used for "newest" sort fallbacks. */
+  created_at?: string;
+  /** Optional variant list — populated on the PDP. */
+  variants?: ProductVariant[];
+}
+
+export interface ProductVariant extends BaseProductVariant {
+  /** Variants always carry a concrete price when rendered. */
+  price: number;
+}

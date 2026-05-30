@@ -8,6 +8,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { PageGuard } from "@/components/auth/role-guard";
 import { TrialBanner } from "@/components/billing/trial-banner";
+import { TenantPausedBanner } from "@/components/billing/tenant-paused-banner";
 
 // Sidebar state context — lets child pages know if the sidebar is expanded
 const SidebarContext = createContext<{ sidebarExpanded: boolean; setMobileMenuOpen?: (open: boolean) => void }>({ sidebarExpanded: false });
@@ -104,6 +105,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                         }}
                     >
                         <TrialBanner />
+                        <TenantPausedBanner />
                         <TopBar
                             onMenuClick={() => handleSetMobileMenuOpen(true)}
                             isMobile={isMobile}

@@ -24,6 +24,7 @@
     "@radix-ui/react-slot": "^1.1.1",
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-toast": "^1.2.5",
+    "@scheniders/sections": "*",
     "@scheniders/shared": "*",
     "@scheniders/supabase": "*",
     "@scheniders/ui": "*",
@@ -83,16 +84,20 @@
     "@storybook/addon-onboarding": "^10.1.11",
     "@storybook/nextjs": "^10.1.11",
     "@tailwindcss/postcss": "^4",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.0.2",
     "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "16.0.10",
     "eslint-plugin-storybook": "^10.1.11",
+    "jsdom": "^29.1.1",
     "storybook": "^10.1.11",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "vitest": "^2.1.9",
     "webpack-bundle-analyzer": "^5.1.0"
   }
 }

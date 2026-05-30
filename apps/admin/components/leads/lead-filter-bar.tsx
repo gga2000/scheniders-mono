@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { useLeadStore } from "@/store/use-lead-store";
+import { useLeadStore, useActiveFilterCount } from "@/store/use-lead-store";
 import { useIndustries } from "@/hooks/use-industries";
 import {
   LEAD_STATUS_CONFIG,
@@ -24,11 +24,10 @@ export function LeadFilterBar() {
     industryFilter, setIndustryFilter,
     searchQuery, setSearchQuery,
     clearFilters,
-    activeFilterCount,
   } = useLeadStore();
 
   const { data: industries } = useIndustries();
-  const filterCount = activeFilterCount();
+  const filterCount = useActiveFilterCount();
 
   return (
     <div className="space-y-3">

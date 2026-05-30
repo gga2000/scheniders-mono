@@ -11,6 +11,7 @@ import {
     Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 // Types
 export interface SavedView {
@@ -82,6 +83,7 @@ export function SavedViews({
     onApplyView,
     className,
 }: SavedViewsProps) {
+    const { t } = useLanguage();
     const { views, addView, deleteView } = useSavedViews();
     const [isAdding, setIsAdding] = useState(false);
     const [newViewName, setNewViewName] = useState("");
@@ -104,10 +106,10 @@ export function SavedViews({
     const getFilterDescription = (filters: SavedView["filters"]) => {
         const parts: string[] = [];
         const timeLabels = {
-            today: "اليوم",
-            week: "الأسبوع",
-            month: "الشهر",
-            all: "الكل",
+            today: t("team.leaderboard.today", "Today"),
+            week: t("team.leaderboard.week", "Week").replace("'s Champions", "").trim(),
+            month: t("team.leaderboard.month", "Month").replace("'s Champions", "").trim(),
+            all: t("team.leaderboard.allTime", "All Time").replace(" Champions", "").trim(),
         };
         parts.push(timeLabels[filters.timeRange]);
         if (filters.actionFilter !== "all") {
@@ -122,14 +124,14 @@ export function SavedViews({
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <Bookmark className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-medium">العروض المحفوظة</span>
+                    <span className="text-sm font-medium">{t("team.savedViews.title", "Saved Views")}</span>
                 </div>
                 <button
                     onClick={() => setIsAdding(true)}
                     className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10 rounded-lg transition-colors"
                 >
                     <BookmarkPlus className="w-3 h-3" />
-                    حفظ
+                    {t("team.savedViews.saveBtn", "Save")}
                 </button>
             </div>
 
@@ -147,7 +149,7 @@ export function SavedViews({
                                 type="text"
                                 value={newViewName}
                                 onChange={(e) => setNewViewName(e.target.value)}
-                                placeholder="اسم العرض..."
+                                placeholder={t("team.savedViews.namePlaceholder", "View name...")}
                                 className="flex-1 px-3 py-2 text-sm bg-background rounded-lg border-0 focus:ring-2 focus:ring-primary/20 outline-none"
                                 autoFocus
                                 onKeyDown={(e) => {
@@ -179,7 +181,7 @@ export function SavedViews({
             {/* Saved views list */}
             {views.length === 0 ? (
                 <p className="text-xs text-muted-foreground text-center py-4">
-                    لا توجد عروض محفوظة
+                    {t("team.savedViews.noViews", "No saved views")}
                 </p>
             ) : (
                 <div className="flex flex-wrap gap-2">

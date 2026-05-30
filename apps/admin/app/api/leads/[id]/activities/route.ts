@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/admin-supabase";
+import { createAdminClient, requireAdmin } from "@/lib/admin-supabase";
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const token = _request.headers.get("authorization")?.replace("Bearer ", "");
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const admin = await requireAdmin(token);
+    if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
     const { id } = await params;
     const supabase = createAdminClient();
 
@@ -30,6 +35,11 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const token = request.headers.get("authorization")?.replace("Bearer ", "");
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const admin = await requireAdmin(token);
+    if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
     const { id } = await params;
     const body = await request.json();
     const supabase = createAdminClient();

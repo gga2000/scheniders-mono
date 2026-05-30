@@ -2,7 +2,7 @@
 
 import { Eye, EyeOff, Tag } from "lucide-react";
 import type { ProductEditorFormData } from "@/hooks/use-product-editor";
-import { useCategoriesQuery } from "@/hooks/use-categories-query";
+import { CategoryCombobox } from "@/components/products/category-combobox";
 import { ProductPerformanceCard } from "./product-performance-card";
 
 interface ProductEditorSidebarProps {
@@ -27,8 +27,6 @@ const TAG_COLORS = [
 ];
 
 export function ProductEditorSidebar({ formData, updateField, mode, timesSold, totalRevenue, profitMargin, averageOrderValue }: ProductEditorSidebarProps) {
-    const { data: categories = [] } = useCategoriesQuery();
-
     return (
         <div className="space-y-6">
             {/* Status */}
@@ -104,18 +102,12 @@ export function ProductEditorSidebar({ formData, updateField, mode, timesSold, t
                         <label className="block text-sm font-medium text-foreground mb-2">
                             Category
                         </label>
-                        <select
-                            value={formData.category_id ?? ""}
-                            onChange={(e) => updateField("category_id", e.target.value || null)}
-                            className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
-                        >
-                            <option value="">-- Uncategorized --</option>
-                            {categories.map((cat) => (
-                                <option key={cat.id} value={cat.id}>
-                                    {cat.name}
-                                </option>
-                            ))}
-                        </select>
+                        <CategoryCombobox
+                            value={formData.category_id ?? null}
+                            onChange={(id) => updateField("category_id", id)}
+                            allowUncategorized
+                            allowCreate
+                        />
                     </div>
 
                     <div>

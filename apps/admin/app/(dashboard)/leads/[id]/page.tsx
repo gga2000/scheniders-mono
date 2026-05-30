@@ -11,7 +11,7 @@ import {
   LEAD_TIER_CONFIG,
   PLATFORM_CONFIG,
 } from "@/types/leads";
-import type { Lead } from "@/types/leads";
+import type { Lead, LeadFormData } from "@/types/leads";
 import {
   ArrowLeft,
   Phone,
@@ -30,10 +30,15 @@ import {
   Store,
   Globe,
   Building2,
+  AlertTriangle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { LeadActivityTimeline } from "@/components/leads/lead-activity-timeline";
 import { LeadFollowUpList } from "@/components/leads/lead-follow-up-list";
+import { LeadBuildStoreDialog } from "@/components/leads/lead-build-store-dialog";
+import { LeadConvertDialog } from "@/components/leads/lead-convert-dialog";
+import { LeadForm } from "@/components/leads/lead-form";
+import { useUpdateLead } from "@/hooks/use-lead-mutations";
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
@@ -90,15 +95,39 @@ const SCORE_KEYS: { key: keyof Lead["score_breakdown"]; label: string; color: st
 
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { data, isLoading } = useLeadDetail(id);
+  const { data, isLoading, isError } = useLeadDetail(id);
   const [activeTab, setActiveTab] = useState<Tab>("Overview");
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [buildStoreOpen, setBuildStoreOpen] = useState(false);
+  const [convertOpen, setConvertOpen] = useState(false);
+  const [editFormOpen, setEditFormOpen] = useState(false);
+  const updateLead = useUpdateLead();
 
   // Loading
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-32">
         <Loader2 className="w-8 h-8 animate-spin text-[var(--muted)]" />
+      </div>
+    );
+  }
+
+  // Error
+  if (isError) {
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <Link
+          href="/leads"
+          className="inline-flex items-center gap-1.5 text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Leads
+        </Link>
+        <div className="flex flex-col items-center justify-center py-20 text-red-400">
+          <AlertTriangle className="w-12 h-12 mb-3" />
+          <p className="text-lg font-semibold">Failed to load lead</p>
+          <p className="text-sm text-[var(--muted)] mt-1">Something went wrong. Please try again later.</p>
+        </div>
       </div>
     );
   }
@@ -234,18 +263,27 @@ export default function LeadDetailPage() {
             {/* Action buttons */}
             <div className="flex flex-wrap items-center gap-2">
               {showBuildStore && (
-                <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#A78BFA] text-white hover:brightness-110 transition-all shadow-sm">
+                <button
+                  onClick={() => setBuildStoreOpen(true)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#A78BFA] text-white hover:brightness-110 transition-all shadow-sm"
+                >
                   <Store className="w-3.5 h-3.5" />
                   Build Store
                 </button>
               )}
               {showConvert && (
-                <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 text-white hover:brightness-110 transition-all shadow-sm">
+                <button
+                  onClick={() => setConvertOpen(true)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 text-white hover:brightness-110 transition-all shadow-sm"
+                >
                   <TrendingUp className="w-3.5 h-3.5" />
                   Convert
                 </button>
               )}
-              <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-[var(--card-border)] text-[var(--foreground)] hover:bg-white/5 transition-all">
+              <button
+                onClick={() => setEditFormOpen(true)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-[var(--card-border)] text-[var(--foreground)] hover:bg-white/5 transition-all"
+              >
                 <Edit3 className="w-3.5 h-3.5" />
                 Edit
               </button>
@@ -469,6 +507,52 @@ export default function LeadDetailPage() {
           {activeTab === "Store" && <StoreContent lead={lead} />}
         </motion.div>
       </AnimatePresence>
+
+      {/* ── Dialogs ─────────────────────────────────────────────── */}
+      <LeadBuildStoreDialog
+        isOpen={buildStoreOpen}
+        onClose={() => setBuildStoreOpen(false)}
+        lead={lead}
+      />
+      <LeadConvertDialog
+        isOpen={convertOpen}
+        onClose={() => setConvertOpen(false)}
+        lead={lead}
+      />
+      <LeadForm
+        open={editFormOpen}
+        onOpenChange={setEditFormOpen}
+        onSubmit={(formData: LeadFormData) => {
+          updateLead.mutate(
+            { id: lead.id, data: formData },
+            { onSuccess: () => setEditFormOpen(false) }
+          );
+        }}
+        initialData={{
+          merchant_name: lead.merchant_name,
+          industry_id: lead.industry_id,
+          platform: lead.platform,
+          platform_url: lead.platform_url ?? "",
+          follower_count: lead.follower_count,
+          management_name: lead.management_name ?? "",
+          management_info: lead.management_info ?? "",
+          page_phone: lead.page_phone ?? "",
+          phone_numbers: lead.phone_numbers,
+          avg_view_count: lead.avg_view_count,
+          avg_like_count: lead.avg_like_count,
+          avg_comments_count: lead.avg_comments_count,
+          avg_order_count: lead.avg_order_count,
+          address: lead.address ?? "",
+          city: lead.city ?? "",
+          governorate_code: lead.governorate_code ?? "",
+          priority: lead.priority,
+          assigned_to: lead.assigned_to,
+          tags: lead.tags,
+          source_campaign: lead.source_campaign ?? "",
+          source_medium: lead.source_medium ?? "",
+        }}
+        isLoading={updateLead.isPending}
+      />
     </div>
   );
 }

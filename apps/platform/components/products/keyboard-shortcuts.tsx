@@ -22,7 +22,10 @@ import {
     Trash2,
     DollarSign,
     HelpCircle,
+    FolderInput,
 } from "lucide-react";
+import { useProductStore } from "@/store/use-product-store";
+import { CategorySwitcherOverlay } from "@/components/products/category-switcher-overlay";
 
 // =============================================
 // TYPES
@@ -189,6 +192,13 @@ const SHORTCUT_DEFS: ShortcutDef[] = [
         category: "actions",
     },
     {
+        keys: ["C"],
+        label: "Categorize selected",
+        labelAr: "تصنيف المحدد",
+        icon: <FolderInput className="w-4 h-4" />,
+        category: "actions",
+    },
+    {
         keys: ["?"],
         label: "Show Shortcuts",
         labelAr: "إظهار الاختصارات",
@@ -223,6 +233,12 @@ export function KeyboardShortcutsProvider({
     selectedCount = 0,
 }: KeyboardShortcutsProviderProps) {
     const [showHelp, setShowHelp] = useState(false);
+    const [categorySwitcherOpen, setCategorySwitcherOpen] = useState(false);
+
+    // Pull live selection from the product store so the overlay can operate
+    // on all currently-selected products regardless of what `selectedCount`
+    // the caller chose to pipe through.
+    const selectedIdsSet = useProductStore((s) => s.selectedIds);
 
     // Chord state: track first key of a two-key chord (e.g. "G" then "L")
     const chordKeyRef = useRef<string | null>(null);
@@ -342,6 +358,13 @@ export function KeyboardShortcutsProvider({
                     }
                     break;
 
+                case "c":
+                    if (selectedIdsSet.size >= 1) {
+                        e.preventDefault();
+                        setCategorySwitcherOpen(true);
+                    }
+                    break;
+
                 case "?":
                     e.preventDefault();
                     setShowHelp((prev) => !prev);
@@ -369,12 +392,18 @@ export function KeyboardShortcutsProvider({
         onBulkPrice,
         clearChord,
         startChord,
+        selectedIdsSet,
     ]);
 
     return (
         <KeyboardShortcutsContext.Provider value={{ showHelp, setShowHelp }}>
             {children}
             <KeyboardShortcutsHelp open={showHelp} onClose={() => setShowHelp(false)} />
+            <CategorySwitcherOverlay
+                open={categorySwitcherOpen}
+                onOpenChange={setCategorySwitcherOpen}
+                selectedIds={[...selectedIdsSet]}
+            />
         </KeyboardShortcutsContext.Provider>
     );
 }

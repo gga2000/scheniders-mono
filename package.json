@@ -29,7 +29,8 @@
   },
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "scripts/*"
   ],
   "packageManager": "npm@11.4.2",
   "engines": {

@@ -14,11 +14,32 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
 
   // Transpile workspace packages
-  transpilePackages: ["@scheniders/shared", "@scheniders/supabase", "@scheniders/ui"],
+  transpilePackages: ["@scheniders/sections", "@scheniders/shared", "@scheniders/supabase", "@scheniders/ui"],
 
   // Externalize pdf-parse and pdfjs-dist from the server bundle
   // so Node.js resolves them natively (avoids Turbopack worker issues)
   serverExternalPackages: ["pdf-parse", "pdfjs-dist", "puppeteer-core", "@sparticuz/chromium"],
+
+  // Image hosts — Supabase Storage serves through a CDN, but we still
+  // want Next's optimizer for avif/webp + responsive sizes. The
+  // remotePatterns wildcard covers both the active project and any
+  // legacy/archived buckets still referenced in DB rows.
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "*.supabase.co",
+        pathname: "/storage/v1/object/public/**",
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+    ],
+    formats: ["image/avif", "image/webp"],
+    deviceSizes: [320, 390, 640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+  },
 
 
   typescript: {

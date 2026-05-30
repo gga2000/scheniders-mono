@@ -20,6 +20,7 @@ import { TimeToFirstOrder } from "@/components/dashboard/time-to-first-order";
 import { MerchantLTV } from "@/components/dashboard/merchant-ltv";
 import { TopUpPatterns } from "@/components/dashboard/topup-patterns";
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
+import { MerchantWatchlistWidget } from "@/components/merchants/merchant-watchlist-widget";
 import { Loader2 } from "lucide-react";
 import { SeedAutomationToggle } from "@/components/dashboard/seed-automation-toggle";
 
@@ -157,8 +158,12 @@ export default function CommandCenterPage() {
           <TopUpPatterns patterns={topUpPatterns} />
         </motion.div>
 
-        {/* Row 9: Activity Feed (full width) */}
-        <motion.div variants={staggerItem}>
+        {/* Row 9: Activity Feed + Watchlist */}
+        <motion.div
+          variants={staggerItem}
+          className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6"
+        >
+          <div className="lg:col-span-2">
           <ActivityFeed
             activities={
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -173,6 +178,8 @@ export default function CommandCenterPage() {
             }
             isLoading={false}
           />
+          </div>
+          <MerchantWatchlistWidget />
         </motion.div>
       </motion.div>
     </div>

@@ -14,8 +14,163 @@ body {
   padding: 0;
   margin: 0;
   font-family: var(--brand-font);
+  -webkit-tap-highlight-color: transparent;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* ===========================
+   Schneiders — Candy Bento
+   =========================== */
+
+.material-symbols-outlined {
+  font-variation-settings: "FILL" 1;
+}
+
+/* The signature chunky-bordered card with hard offset shadow */
+.bento-card {
+  border: 3px solid #1a1a1a;
+  box-shadow: 4px 4px 0px 0px rgba(26, 26, 26, 1);
+  border-radius: 1rem;
+  background: white;
+}
+
+.bento-card-sm {
+  border: 3px solid #1a1a1a;
+  box-shadow: 2px 2px 0px 0px rgba(26, 26, 26, 1);
+  border-radius: 0.75rem;
+  background: white;
+}
+
+.bento-card-lg {
+  border: 3px solid #1a1a1a;
+  box-shadow: 6px 6px 0px 0px rgba(26, 26, 26, 1);
+  border-radius: 1.25rem;
+  background: white;
+}
+
+/* Hand-drawn highlighter scribble underline (used behind section titles) */
+.scribble-underline {
+  position: relative;
+  display: inline-block;
+}
+.scribble-underline::after {
+  content: "";
+  position: absolute;
+  left: -2%;
+  bottom: -6px;
+  width: 104%;
+  height: 0.75rem;
+  background-color: var(--scribble-color, #ffd84a);
+  z-index: -1;
+  border-radius: 9999px;
+  transform: rotate(-1deg);
+  opacity: 0.6;
+}
+
+.zigzag-border {
+  background-image: linear-gradient(135deg, #1a1a1a 25%, transparent 25%),
+    linear-gradient(225deg, #1a1a1a 25%, transparent 25%),
+    linear-gradient(45deg, #1a1a1a 25%, transparent 25%),
+    linear-gradient(315deg, #1a1a1a 25%, transparent 25%);
+  background-position: 10px 0, 10px 0, 0 0, 0 0;
+  background-size: 10px 10px;
+  background-repeat: repeat;
+  background-color: transparent;
+  height: 6px;
+  width: 100%;
+}
+
+/* Hide scrollbar but keep scrollability */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Safe-area helpers for iOS notch / home bar */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* ===========================
+   Desktop "Bold Bento" variants
+   Used by SchneidersDesktopHome.
+   - 4px chunky border + 6px hard shadow
+   - wedge-mask clip-paths for diagonal card edges
+   - wobbly-button with active-state press
+   =========================== */
+
+.bento-card-bold {
+  border: 4px solid #1a1a1a;
+  box-shadow: 6px 6px 0px 0px #1a1a1a;
+  border-radius: 1rem;
+  background: white;
+}
+
+.chunky-border-bold {
+  border: 4px solid #1a1a1a;
+}
+
+.wedge-mask-top {
+  clip-path: polygon(0 0, 100% 0, 100% 85%, 0% 100%);
+}
+.wedge-mask-bottom {
+  clip-path: polygon(0 15%, 100% 0, 100% 100%, 0% 100%);
+}
+.wedge-mask-middle-up {
+  clip-path: polygon(0 15%, 100% 0, 100% 85%, 0% 100%);
+}
+.wedge-mask-middle-down {
+  clip-path: polygon(0 0, 100% 15%, 100% 100%, 0% 85%);
+}
+
+.wobbly-button {
+  border: 3px solid #1a1a1a;
+  box-shadow: 4px 4px 0px 0px #1a1a1a;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.wobbly-button:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 5px 5px 0px 0px #1a1a1a;
+}
+.wobbly-button:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px 0px #1a1a1a;
+}
+
+/* ===========================
+   Brand-kit motion override
+   When the merchant disables motion in the brand kit, the layout sets
+   `data-bk-motion="reduce"` on the root container. We honor that the
+   same way we honor `prefers-reduced-motion` — but force-applied at the
+   tenant scope, regardless of user preference.
+   =========================== */
+[data-bk-motion="reduce"] *,
+[data-bk-motion="reduce"] *::before,
+[data-bk-motion="reduce"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* ===========================
+   Preview-mode click-to-edit highlight
+   The parent editor frame paints its own precise overlay over the
+   currently-hovered section using rects forwarded via postMessage. This
+   fallback outline is just for the (rare) case where the parent fails
+   to paint — the iframe still feels alive to the merchant.
+   =========================== */
+[data-preview="true"] [data-section-id]:hover {
+  outline: 2px dashed rgba(124, 240, 189, 0.5);
+  outline-offset: 4px;
+  cursor: pointer;
 }

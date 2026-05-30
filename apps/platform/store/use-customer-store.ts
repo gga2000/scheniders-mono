@@ -45,6 +45,9 @@ interface CustomerStore {
   voiceRecorderPhone: string | null;
   setVoiceRecorderPhone: (phone: string | null) => void;
 
+  isAddNoteModalOpen: boolean;
+  setAddNoteModalOpen: (val: boolean) => void;
+
   // View mode
   viewMode: 'grid' | 'list';
   setViewMode: (mode: 'grid' | 'list') => void;
@@ -127,6 +130,9 @@ export const useCustomerStore = create<CustomerStore>()(
       setVoiceRecorderModalOpen: (val) => set({ isVoiceRecorderModalOpen: val }),
       voiceRecorderPhone: null,
       setVoiceRecorderPhone: (phone) => set({ voiceRecorderPhone: phone }),
+
+      isAddNoteModalOpen: false,
+      setAddNoteModalOpen: (val) => set({ isAddNoteModalOpen: val }),
 
       // View mode
       viewMode: 'grid' as const,

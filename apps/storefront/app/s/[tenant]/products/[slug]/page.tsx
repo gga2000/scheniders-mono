@@ -1,18 +1,19 @@
 import { notFound } from "next/navigation";
-import Image from "next/image";
-import {
-  getTenantBySlug,
-  getTenantByCustomDomain,
-} from "@/lib/tenant";
+import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
 import {
   getProductBySlug,
   getProductImages,
   getProductVariants,
   listCategories,
+  listProducts,
 } from "@/lib/queries";
 import { StoreHeader } from "@/components/storefront/StoreHeader";
 import { StoreFooter } from "@/components/storefront/StoreFooter";
 import { ProductDetailClient } from "@/components/storefront/ProductDetailClient";
+import { SchneidersPageShell } from "@/components/schneiders/page-shell";
+import { SchneidersProductDetailClient } from "@/components/schneiders/product-detail-client";
+import { SchneidersProductCard } from "@/components/schneiders/product-card";
+import { ScribbleHeading } from "@/components/schneiders/primitives";
 
 interface Props {
   params: Promise<{ tenant: string; slug: string }>;
@@ -37,11 +38,43 @@ export default async function ProductPage({ params }: Props) {
 
   const allImages = images.length > 0 ? images : product.image_url ? [product.image_url] : [];
   const whatsappNumber = tenant.store_config?.contact?.whatsapp_number;
+  const template = tenant.store_config?.template ?? "schneiders";
+
+  if (template === "schneiders") {
+    const related = (await listProducts(tenant.id, { limit: 6 })).filter((p) => p.id !== product.id).slice(0, 4);
+    return (
+      <SchneidersPageShell tenant={tenant} categories={categories} showBack hideBottomBar>
+        <SchneidersProductDetailClient
+          product={product}
+          images={allImages}
+          variants={variants}
+          whatsappNumber={whatsappNumber}
+          schneidersConfig={tenant.store_config?.schneiders ?? null}
+        />
+        {related.slice(0, tenant.store_config?.schneiders?.pdp?.related_products_count ?? 4).length > 0 && (
+          <section className="space-y-4 mt-10">
+            <ScribbleHeading color="lilac">You may also like</ScribbleHeading>
+            <div className="space-y-6">
+              {related
+                .slice(0, tenant.store_config?.schneiders?.pdp?.related_products_count ?? 4)
+                .map((p, i) => (
+                  <SchneidersProductCard
+                    key={p.id}
+                    product={p}
+                    index={i}
+                    saleSticker={tenant.store_config?.schneiders?.sale_sticker}
+                  />
+                ))}
+            </div>
+          </section>
+        )}
+      </SchneidersPageShell>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-zinc-50">
       <StoreHeader tenant={tenant} categories={categories} />
-
       <main className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <ProductDetailClient
           product={product}
@@ -50,7 +83,6 @@ export default async function ProductPage({ params }: Props) {
           whatsappNumber={whatsappNumber}
         />
       </main>
-
       <StoreFooter tenant={tenant} />
     </div>
   );

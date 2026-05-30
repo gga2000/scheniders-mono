@@ -63,6 +63,7 @@ DECLARE
     9000, 25000, 8000, 7000, 5000,
     3000, 5000, 2000, 12000, 8000
   ];
+  priority_rand FLOAT;
 BEGIN
   -- Get current Baghdad hour (UTC+3)
   baghdad_hour := EXTRACT(HOUR FROM NOW() AT TIME ZONE 'Asia/Baghdad')::INT;
@@ -151,13 +152,15 @@ BEGIN
     END LOOP;
 
     rand_delivery_fee := (ARRAY[3000, 5000, 7000, 10000])[1 + floor(random() * 4)::INT];
+    priority_rand := random();
 
-    -- Generate order_id: SEED-AUTO-YYMMDD-XXXX
+    -- Generate order_id: SEED-AUTO-YYMMDD-XXXX (with sequence + random suffix for uniqueness)
     order_prefix := 'SEED-AUTO-' || to_char(NOW(), 'YYMMDD');
-    SELECT COUNT(*) INTO order_count
+    SELECT COUNT(*) + 1 INTO order_count
     FROM orders
     WHERE order_id LIKE order_prefix || '%';
-    generated_order_id := order_prefix || '-' || lpad((order_count + 1)::TEXT, 4, '0');
+    generated_order_id := order_prefix || '-' || lpad(order_count::TEXT, 4, '0')
+      || substr(md5(random()::TEXT), 1, 2);  -- 2-char hex suffix prevents collisions
 
     -- Get next sequence number for this tenant
     SELECT COALESCE(MAX(sequence_number), 0) + 1 INTO seq_num
@@ -184,7 +187,7 @@ BEGIN
       'new',
       rand_source,
       (ARRAY['cod','prepaid','pending'])[1 + floor(random() * 3)::INT],
-      CASE WHEN random() < 0.80 THEN 'normal' WHEN random() < 0.95 THEN 'high' ELSE 'urgent' END,
+      CASE WHEN priority_rand < 0.80 THEN 'normal' WHEN priority_rand < 0.95 THEN 'high' ELSE 'urgent' END,
       seq_num,
       true,
       'Auto Generator'
@@ -226,9 +229,8 @@ SET search_path = public
 AS $$
 DECLARE
   order_rec RECORD;
-  age_minutes INT;
-  charge_result JSONB;
   charge_amount NUMERIC;
+  charge_result JSONB;
 BEGIN
   -- ─────────────────────────────────────────────
   -- A. Progress: new → contacted (after 5-15 min)
@@ -319,12 +321,13 @@ BEGIN
     -- Charge wallet on delivery (platform fee: 500-2000 IQD)
     charge_amount := (ARRAY[500, 750, 1000, 1500, 2000])[1 + floor(random() * 5)::INT];
 
-    PERFORM charge_wallet_atomic(
+    SELECT charge_wallet_atomic(
       order_rec.tenant_id,
       charge_amount,
       'Delivery charge - ' || order_rec.order_id,
       order_rec.order_id
-    );
+    ) INTO charge_result;
+    -- charge_result: {success, new_balance, error?} — failures are non-fatal for seed data
   END LOOP;
 
   -- ─────────────────────────────────────────────
@@ -439,23 +442,20 @@ BEGIN
   -- ─────────────────────────────────────────────
   -- I. Occasional: delivered → completed (batch close old deliveries)
   -- ─────────────────────────────────────────────
-  UPDATE orders SET
-    status = 'completed',
-    updated_at = NOW(),
-    last_status_changed_by_name = 'Auto Progression'
-  WHERE status = 'delivered'
-    AND order_id LIKE 'SEED-%'
-    AND delivered_at < NOW() - INTERVAL '24 hours'
-    AND tenant_id IN (SELECT tenant_id FROM order_generation_config WHERE is_autonomous = true);
-
-  -- Log the completions
+  WITH completed_orders AS (
+    UPDATE orders SET
+      status = 'completed',
+      updated_at = NOW(),
+      last_status_changed_by_name = 'Auto Progression'
+    WHERE status = 'delivered'
+      AND order_id LIKE 'SEED-%'
+      AND delivered_at < NOW() - INTERVAL '24 hours'
+      AND tenant_id IN (SELECT tenant_id FROM order_generation_config WHERE is_autonomous = true)
+    RETURNING id, tenant_id
+  )
   INSERT INTO order_status_history (order_id, tenant_id, from_status, to_status, changed_by, changed_at)
   SELECT id, tenant_id, 'delivered', 'completed', 'Auto Progression', NOW()
-  FROM orders
-  WHERE status = 'completed'
-    AND order_id LIKE 'SEED-%'
-    AND updated_at >= NOW() - INTERVAL '1 minute'
-    AND tenant_id IN (SELECT tenant_id FROM order_generation_config WHERE is_autonomous = true);
+  FROM completed_orders;
 
 END;
 $$;

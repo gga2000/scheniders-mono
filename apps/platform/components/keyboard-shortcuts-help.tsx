@@ -7,6 +7,7 @@ import {
     DEFAULT_SHORTCUT_CATEGORIES,
     formatShortcutKey,
 } from "@/hooks/use-keyboard-shortcuts";
+import { useLanguage } from "@/hooks/use-language";
 
 interface KeyboardShortcutsHelpProps {
     open: boolean;
@@ -19,6 +20,7 @@ export function KeyboardShortcutsHelp({
     onClose,
     shortcuts,
 }: KeyboardShortcutsHelpProps) {
+    const { t } = useLanguage();
     // Group shortcuts by category
     const groupedShortcuts = shortcuts.reduce((acc, shortcut) => {
         const category = shortcut.category || "general";
@@ -66,10 +68,10 @@ export function KeyboardShortcutsHelp({
                                 </div>
                                 <div>
                                     <h2 className="text-lg font-bold text-foreground">
-                                        اختصارات لوحة المفاتيح
+                                        {t("shortcuts.title")}
                                     </h2>
                                     <p className="text-sm text-muted-foreground">
-                                        اضغط <kbd className="px-1.5 py-0.5 rounded bg-surface border border-border text-xs">?</kbd> لفتح هذه القائمة
+                                        {t("shortcuts.subtitle", { key: "?" })}
                                     </p>
                                 </div>
                             </div>
@@ -117,7 +119,7 @@ export function KeyboardShortcutsHelp({
                         {/* Footer */}
                         <div className="p-4 border-t border-border bg-surface/50">
                             <p className="text-xs text-muted-foreground text-center">
-                                الاختصارات لا تعمل عندما تكون في حقل إدخال نصي
+                                {t("shortcuts.footer")}
                             </p>
                         </div>
                     </motion.div>

@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/admin-supabase";
+import { createAdminClient, requireAdmin } from "@/lib/admin-supabase";
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const token = _request.headers.get("authorization")?.replace("Bearer ", "");
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const admin = await requireAdmin(token);
+    if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
     const { id } = await params;
     const supabase = createAdminClient();
 
@@ -88,6 +93,11 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const token = request.headers.get("authorization")?.replace("Bearer ", "");
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const admin = await requireAdmin(token);
+    if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
     const { id } = await params;
     const body = await request.json();
     const supabase = createAdminClient();
@@ -121,8 +131,12 @@ export async function PATCH(
       body.assigned_at = body.assigned_to ? new Date().toISOString() : null;
     }
 
-    // Remove internal fields before update
-    const { _updated_by, ...updateData } = body;
+    // Whitelist allowed fields
+    const ALLOWED_FIELDS = ["merchant_name", "industry_id", "platform", "platform_url", "follower_count", "management_name", "management_info", "page_phone", "phone_numbers", "avg_view_count", "avg_like_count", "avg_comments_count", "avg_order_count", "address", "city", "governorate_code", "status", "priority", "assigned_to", "tags", "source_campaign", "source_medium", "source_referrer", "next_follow_up_at", "custom_fields", "last_contacted_at", "assigned_at"] as const;
+    const updateData: Record<string, unknown> = {};
+    for (const key of ALLOWED_FIELDS) {
+      if (key in body) updateData[key] = body[key];
+    }
 
     const { data: lead, error } = await supabase
       .from("leads")
@@ -145,6 +159,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const token = _request.headers.get("authorization")?.replace("Bearer ", "");
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const admin = await requireAdmin(token);
+    if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
     const { id } = await params;
     const supabase = createAdminClient();
 

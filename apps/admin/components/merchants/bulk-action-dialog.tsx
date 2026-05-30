@@ -1,8 +1,71 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { X, Loader2, AlertTriangle, CheckCircle } from "lucide-react";
+import { X, Loader2, AlertTriangle, CheckCircle, Bell, MessageSquare, Mail, Sparkles } from "lucide-react";
+
+const NOTIFICATION_TEMPLATES: Array<{
+  key: string;
+  label: string;
+  body: string;
+}> = [
+  {
+    key: "trial_reminder",
+    label: "Trial Reminder",
+    body:
+      "Hi! Your trial is ending soon. Upgrade now to keep your store live and avoid any disruption.",
+  },
+  {
+    key: "failed_payment",
+    label: "Failed Payment",
+    body:
+      "Your last payment didn't go through. Please update your billing details to avoid account suspension.",
+  },
+  {
+    key: "welcome_back",
+    label: "Welcome Back",
+    body:
+      "Glad to have you back! Let us know if there's anything we can do to help you get the most out of your store.",
+  },
+  {
+    key: "new_feature",
+    label: "New Feature",
+    body:
+      "We just shipped a new feature we think you'll love — check it out in your dashboard.",
+  },
+  {
+    key: "checkin",
+    label: "Check-in",
+    body:
+      "Hi! Just a quick check-in to see how things are going. Let us know if there's anything we can help with.",
+  },
+];
+
+type Channel = "in_app" | "whatsapp" | "email";
+
+const CHANNELS: Array<{
+  value: Channel;
+  label: string;
+  icon: typeof Bell;
+  available: boolean;
+  hint?: string;
+}> = [
+  { value: "in_app", label: "In-app", icon: Bell, available: true },
+  {
+    value: "whatsapp",
+    label: "WhatsApp",
+    icon: MessageSquare,
+    available: false,
+    hint: "Coming soon",
+  },
+  {
+    value: "email",
+    label: "Email",
+    icon: Mail,
+    available: false,
+    hint: "Coming soon",
+  },
+];
 
 // ---------------------------------------------------------------------------
 // Types
@@ -26,6 +89,7 @@ const PLAN_OPTIONS: { value: PlanOption; label: string }[] = [
 ];
 
 const DAY_PRESETS = [3, 7, 14, 30];
+const TOPUP_PRESETS = [5_000, 10_000, 25_000, 50_000];
 
 const ACTION_TITLES: Record<string, string> = {
   "change-plan": "Change Plan",
@@ -33,6 +97,7 @@ const ACTION_TITLES: Record<string, string> = {
   reactivate: "Reactivate Merchants",
   "extend-trial": "Extend Trial",
   "send-notification": "Send Notification",
+  "top-up": "Top Up Wallets",
 };
 
 // Map the UI action keys (kebab-case) to the API action values (snake_case)
@@ -43,6 +108,7 @@ function toApiAction(action: string): string {
     reactivate: "reactivate",
     "extend-trial": "extend_trial",
     "send-notification": "send_notification",
+    "top-up": "top_up",
   };
   return map[action] ?? action;
 }
@@ -64,7 +130,25 @@ export function BulkActionDialog({
   const [selectedPlan, setSelectedPlan] = useState<PlanOption>("starter");
   const [extensionDays, setExtensionDays] = useState<number>(7);
   const [notificationMessage, setNotificationMessage] = useState("");
+  const [notificationTemplate, setNotificationTemplate] = useState<string | null>(null);
+  const [notificationChannel, setNotificationChannel] = useState<Channel>("in_app");
+  const [topUpAmount, setTopUpAmount] = useState<number>(10_000);
+  const [topUpCustom, setTopUpCustom] = useState("");
+  const [topUpDescription, setTopUpDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  // Reset form state when switching actions
+  useEffect(() => {
+    setSelectedPlan("starter");
+    setExtensionDays(7);
+    setNotificationMessage("");
+    setNotificationTemplate(null);
+    setNotificationChannel("in_app");
+    setTopUpAmount(10_000);
+    setTopUpCustom("");
+    setTopUpDescription("");
+    setError(null);
+  }, [action]);
 
   const mutation = useMutation({
     mutationFn: async (payload: {
@@ -113,8 +197,28 @@ export function BulkActionDialog({
           setError("Message is required");
           return;
         }
-        params = { message: notificationMessage.trim() };
+        params = {
+          message: notificationMessage.trim(),
+          channel: notificationChannel,
+          ...(notificationTemplate && { template: notificationTemplate }),
+        };
         break;
+      case "top-up": {
+        const amount = topUpCustom ? Number(topUpCustom) : topUpAmount;
+        if (!Number.isFinite(amount) || amount < 1000) {
+          setError("Amount must be at least 1,000 IQD");
+          return;
+        }
+        if (amount > 10_000_000) {
+          setError("Amount cannot exceed 10,000,000 IQD");
+          return;
+        }
+        params = {
+          amount_iqd: amount,
+          ...(topUpDescription.trim() && { description: topUpDescription.trim() }),
+        };
+        break;
+      }
       default:
         // suspend / reactivate don't need params
         break;
@@ -131,7 +235,7 @@ export function BulkActionDialog({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm"
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget && !mutation.isPending) onClose();
       }}
     >
       <div className="bg-[var(--card-bg)] rounded-2xl shadow-2xl border border-[var(--card-border)] p-6 w-full max-w-md">
@@ -175,6 +279,61 @@ export function BulkActionDialog({
                     {opt.label}
                   </button>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* ---- Top Up ---- */}
+          {action === "top-up" && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-foreground/70">
+                  Amount (IQD)
+                </label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {TOPUP_PRESETS.map((amt) => (
+                    <button
+                      key={amt}
+                      onClick={() => { setTopUpAmount(amt); setTopUpCustom(""); }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+                        !topUpCustom && topUpAmount === amt
+                          ? "border-[#1E1E1E] bg-[#1E1E1E]/5 text-foreground"
+                          : "border-[var(--card-border)] bg-foreground/5 text-foreground/70 hover:bg-foreground/10 hover:text-foreground"
+                      }`}
+                    >
+                      {new Intl.NumberFormat("en-IQ").format(amt)}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-xs text-foreground/50">Custom:</span>
+                  <input
+                    type="number"
+                    value={topUpCustom}
+                    onChange={(e) => setTopUpCustom(e.target.value)}
+                    placeholder="e.g. 100,000"
+                    min={1000}
+                    max={10_000_000}
+                    className="flex-1 px-3 py-1.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:ring-2 focus:ring-[#1E1E1E]/20 transition-all"
+                  />
+                  <span className="text-xs text-foreground/40">IQD</span>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-foreground/70">
+                  Description <span className="font-normal text-foreground/40">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={topUpDescription}
+                  onChange={(e) => setTopUpDescription(e.target.value)}
+                  placeholder="e.g. Monthly credit bonus"
+                  maxLength={200}
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:ring-2 focus:ring-[#1E1E1E]/20 transition-all"
+                />
+              </div>
+              <div className="px-3 py-2 rounded-xl bg-green-50 dark:bg-green-400/10 border border-green-200 dark:border-green-400/20 text-xs text-green-700 dark:text-green-400">
+                Total: <strong>{new Intl.NumberFormat("en-IQ").format((topUpCustom ? (Number.isFinite(Number(topUpCustom)) ? Number(topUpCustom) : 0) : topUpAmount) * selectedCount)} IQD</strong> across {selectedCount} merchant{selectedCount !== 1 ? "s" : ""}
               </div>
             </div>
           )}
@@ -238,21 +397,112 @@ export function BulkActionDialog({
 
           {/* ---- Send Notification ---- */}
           {action === "send-notification" && (
-            <div className="space-y-3">
-              <label className="text-sm font-semibold text-foreground/70">
-                Message
-              </label>
-              <textarea
-                value={notificationMessage}
-                onChange={(e) => setNotificationMessage(e.target.value)}
-                placeholder="Enter notification message..."
-                rows={4}
-                maxLength={500}
-                className="w-full px-3 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:ring-2 focus:ring-[#1E1E1E]/20 resize-none transition-all"
-              />
-              <p className="text-xs text-foreground/40 text-right">
-                {notificationMessage.length}/500
-              </p>
+            <div className="space-y-4">
+              {/* Channel selector */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.08em] text-foreground/50">
+                  Channel
+                </label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {CHANNELS.map((ch) => {
+                    const ChIcon = ch.icon;
+                    const isSelected = notificationChannel === ch.value;
+                    return (
+                      <button
+                        key={ch.value}
+                        type="button"
+                        onClick={() => ch.available && setNotificationChannel(ch.value)}
+                        disabled={!ch.available}
+                        className={`relative flex flex-col items-center gap-1 px-2 py-2.5 rounded-xl border text-xs font-bold transition-all ${
+                          isSelected
+                            ? "border-violet-500 bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-sm shadow-violet-500/30 ring-1 ring-white/20"
+                            : ch.available
+                              ? "border-[var(--card-border)] bg-foreground/[0.02] text-foreground/70 hover:bg-foreground/[0.06] hover:text-foreground"
+                              : "border-[var(--card-border)] bg-foreground/[0.02] text-foreground/30 cursor-not-allowed"
+                        }`}
+                      >
+                        <ChIcon className="w-4 h-4" />
+                        <span>{ch.label}</span>
+                        {!ch.available && ch.hint && (
+                          <span className="text-[8px] font-medium opacity-70">
+                            {ch.hint}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Template picker */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.08em] text-foreground/50 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" />
+                  Templates
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {NOTIFICATION_TEMPLATES.map((t) => {
+                    const isActive = notificationTemplate === t.key;
+                    return (
+                      <button
+                        key={t.key}
+                        type="button"
+                        onClick={() => {
+                          setNotificationTemplate(t.key);
+                          setNotificationMessage(t.body);
+                        }}
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${
+                          isActive
+                            ? "bg-foreground text-background"
+                            : "bg-foreground/[0.04] text-foreground/70 hover:bg-foreground/[0.08] hover:text-foreground"
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNotificationTemplate(null);
+                      setNotificationMessage("");
+                    }}
+                    className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-foreground/[0.04] text-foreground/55 hover:bg-foreground/[0.08] hover:text-foreground transition-all"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              {/* Message body */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.08em] text-foreground/50">
+                  Message
+                </label>
+                <textarea
+                  value={notificationMessage}
+                  onChange={(e) => {
+                    setNotificationMessage(e.target.value);
+                    if (notificationTemplate) setNotificationTemplate(null);
+                  }}
+                  placeholder="Pick a template above or write your own..."
+                  rows={4}
+                  maxLength={500}
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-none transition-all"
+                />
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] text-foreground/45 font-medium">
+                    Will be sent to{" "}
+                    <span className="font-black text-foreground">
+                      {selectedCount}
+                    </span>{" "}
+                    {selectedCount === 1 ? "merchant" : "merchants"}
+                  </p>
+                  <p className="text-[10px] text-foreground/40 tabular-nums">
+                    {notificationMessage.length}/500
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </div>

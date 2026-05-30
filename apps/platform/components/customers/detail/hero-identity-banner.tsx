@@ -1,11 +1,13 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { MessageCircle, Phone, Edit2, Share2, ShieldCheck } from "lucide-react";
+import { MessageCircle, Phone, Edit2, Share2, ShieldCheck, Star } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { useCustomerStore } from "@/store/use-customer-store";
 import { TRUST_TIER_CONFIG, type TrustTier } from "@/types/customer";
 import { cn } from "@/lib/utils";
+import { PeerComparisonBadge } from "@/components/customers/detail/peer-comparison-badge";
+import { ConfidenceIndicator } from "@/components/customers/shared/confidence-indicator";
 
 interface HeroIdentityBannerProps {
     name: string;
@@ -19,16 +21,16 @@ interface HeroIdentityBannerProps {
     firstOrderDate?: string | null;
 }
 
-const TRUST_SCORE_SUBTITLES: Record<TrustTier, string> = {
-    platinum: "Exceptional reliability",
-    gold: "High probability of success",
-    silver: "Solid track record",
-    bronze: "Building trust",
-    new: "New customer",
-    watch: "Needs monitoring",
-    risky: "Handle with care",
-    critical: "Severe trust deficit",
-    blocked: "Manually blocked",
+const TRUST_SCORE_SUBTITLE_KEY: Record<TrustTier, string> = {
+    platinum: "customers.trust.subtitle.platinum",
+    gold: "customers.trust.subtitle.gold",
+    silver: "customers.trust.subtitle.silver",
+    bronze: "customers.trust.subtitle.bronze",
+    new: "customers.trust.subtitle.new",
+    watch: "customers.trust.subtitle.watch",
+    risky: "customers.trust.subtitle.risky",
+    critical: "customers.trust.subtitle.critical",
+    blocked: "customers.trust.subtitle.blocked",
 };
 
 export function HeroIdentityBanner({
@@ -147,6 +149,12 @@ export function HeroIdentityBanner({
                         </div>
                     )}
 
+                    {/* Peer badges — integrated into hero, not floating below */}
+                    <div className="flex flex-wrap items-center gap-2 mt-3">
+                        <PeerComparisonBadge phone={phone} city={city || null} />
+                        <ConfidenceIndicator orderCount={totalOrders} />
+                    </div>
+
                     {/* Action buttons */}
                     <div className="flex items-center gap-2 mt-4">
                         <motion.button
@@ -187,6 +195,20 @@ export function HeroIdentityBanner({
                         >
                             <Share2 className="w-4 h-4" />
                         </motion.button>
+
+                        <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.96 }}
+                            onClick={() => {
+                                store.setCommunityRatingContext({ phone });
+                                store.setCommunityRatingModalOpen(true);
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500 text-white hover:bg-amber-600 transition-colors text-xs font-bold"
+                            aria-label={t("customers.actions.rate") || "Rate Customer"}
+                        >
+                            <Star className="w-3.5 h-3.5" />
+                            {t("customers.actions.rate") || "Rate"}
+                        </motion.button>
                     </div>
                 </div>
             </div>
@@ -219,7 +241,7 @@ export function HeroIdentityBanner({
                 />
 
                 <p className="text-muted-foreground text-[10px] font-medium italic text-right">
-                    {TRUST_SCORE_SUBTITLES[tier]}
+                    {t(TRUST_SCORE_SUBTITLE_KEY[tier])}
                 </p>
             </motion.button>
         </motion.div>

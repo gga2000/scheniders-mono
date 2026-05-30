@@ -15,6 +15,7 @@ import {
 } from "@scheniders/ui/dialog";
 import { cn } from "@/lib/utils";
 import { getEmojiList, processEmojis } from "@/lib/emoji-shortcodes";
+import { useLanguage } from "@/hooks/use-language";
 
 interface Template {
     id: string;
@@ -37,6 +38,7 @@ export function MessageTemplatesList() {
     const [activeField, setActiveField] = useState<'content' | 'content_ar'>('content_ar');
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const textareaArRef = useRef<HTMLTextAreaElement>(null);
+    const { t } = useLanguage();
 
     useEffect(() => {
         fetchTemplates();
@@ -128,9 +130,9 @@ export function MessageTemplatesList() {
     const getTypeBadge = (type: Template['template_type']) => {
         if (!type) return null;
         const config = {
-            confirmation: { label: 'تأكيد', color: 'bg-emerald-100 text-emerald-700', icon: Phone },
-            reminder: { label: 'تذكير', color: 'bg-amber-100 text-amber-700', icon: Bell },
-            discount: { label: 'عرض', color: 'bg-rose-100 text-rose-700', icon: Gift },
+            confirmation: { label: t('templates.confirmation'), color: 'bg-emerald-100 text-emerald-700', icon: Phone },
+            reminder: { label: t('templates.reminder'), color: 'bg-amber-100 text-amber-700', icon: Bell },
+            discount: { label: t('templates.discount'), color: 'bg-rose-100 text-rose-700', icon: Gift },
         };
         const c = config[type];
         const Icon = c.icon;
@@ -233,9 +235,9 @@ export function MessageTemplatesList() {
                             <div className="flex gap-2">
                                 {[
                                     { value: null, label: 'General' },
-                                    { value: 'confirmation', label: 'تأكيد' },
-                                    { value: 'reminder', label: 'تذكير' },
-                                    { value: 'discount', label: 'عرض' },
+                                    { value: 'confirmation', label: t('templates.confirmation') },
+                                    { value: 'reminder', label: t('templates.reminder') },
+                                    { value: 'discount', label: t('templates.discount') },
                                 ].map(opt => (
                                     <button
                                         key={opt.value || 'none'}

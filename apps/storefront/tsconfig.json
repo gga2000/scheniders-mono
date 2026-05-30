@@ -8,6 +8,8 @@
     ],
     "paths": {
       "@/*": ["./*"],
+      "@scheniders/sections": ["../../packages/sections/src"],
+      "@scheniders/sections/*": ["../../packages/sections/src/*"],
       "@scheniders/shared": ["../../packages/shared/src"],
       "@scheniders/shared/*": ["../../packages/shared/src/*"],
       "@scheniders/supabase": ["../../packages/supabase/src"]

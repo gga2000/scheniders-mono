@@ -199,16 +199,16 @@ export function LeadActivityTimeline({ activities, leadId }: LeadActivityTimelin
                     </p>
 
                     {/* Description */}
-                    {activity.description && (
+                    {activity.description ? (
                       <p className="mt-1 text-sm text-[var(--muted)] leading-relaxed">
-                        {activity.description}
+                        {String(activity.description)}
                       </p>
-                    )}
+                    ) : null}
 
                     {/* Metadata display */}
                     {activity.activity_type === "status_change" &&
-                      activity.metadata?.from &&
-                      activity.metadata?.to && (
+                      activity.metadata?.from != null &&
+                      activity.metadata?.to != null ? (
                         <div className="mt-2 flex items-center gap-2 text-xs">
                           <span className="rounded px-1.5 py-0.5 bg-black/[0.05] dark:bg-white/[0.05] text-[var(--muted)] font-medium">
                             {String(activity.metadata.from)}
@@ -218,11 +218,11 @@ export function LeadActivityTimeline({ activities, leadId }: LeadActivityTimelin
                             {String(activity.metadata.to)}
                           </span>
                         </div>
-                      )}
+                      ) : null}
 
                     {activity.activity_type === "score_change" &&
                       activity.metadata?.old_score != null &&
-                      activity.metadata?.new_score != null && (
+                      activity.metadata?.new_score != null ? (
                         <div className="mt-2 flex items-center gap-2 text-xs">
                           <span className="text-[var(--muted)] font-medium">
                             {String(activity.metadata.old_score)}
@@ -241,7 +241,7 @@ export function LeadActivityTimeline({ activities, leadId }: LeadActivityTimelin
                             {String(activity.metadata.new_score)}
                           </span>
                         </div>
-                      )}
+                      ) : null}
 
                     {/* Footer: time + user */}
                     <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--muted)]">

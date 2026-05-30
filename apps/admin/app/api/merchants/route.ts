@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
+import { requireAdminFromRequest } from "@/lib/api-auth";
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAdminFromRequest(request);
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const { searchParams } = request.nextUrl;
 
@@ -22,19 +26,76 @@ export async function GET(request: NextRequest) {
 
     const supabase = createAdminClient();
 
+    // ── Resolve "attention" filter to a tenant-id allowlist ────────────
+    // "attention" combines status + trial date math + balance threshold,
+    // none of which can be expressed as a single Supabase filter. Compute
+    // the matching ids in Node, then constrain the main query.
+    let attentionIds: string[] | null = null;
+    if (status === "attention") {
+      const { data: lite } = await supabase
+        .from("tenants")
+        .select("id, status, trial_ends_at, wallet(balance_iqd)");
+      if (lite) {
+        const now = Date.now();
+        attentionIds = [];
+        for (const t of lite) {
+          const s = (t as { status?: string }).status;
+          const trialEnd = (t as { trial_ends_at?: string | null }).trial_ends_at;
+          const walletRel = (t as {
+            wallet?: { balance_iqd?: number } | { balance_iqd?: number }[];
+          }).wallet;
+          const bal = Array.isArray(walletRel)
+            ? walletRel[0]?.balance_iqd ?? 0
+            : walletRel?.balance_iqd ?? 0;
+
+          let attn = false;
+          if (s === "suspended" || s === "cancelled") attn = true;
+          if (s === "trial" && trialEnd) {
+            const daysLeft = Math.ceil(
+              (new Date(trialEnd).getTime() - now) / (1000 * 60 * 60 * 24)
+            );
+            if (daysLeft <= 3) attn = true;
+          }
+          if (bal < 5000 && s !== "cancelled") attn = true;
+          if (attn) attentionIds.push(t.id);
+        }
+      } else {
+        attentionIds = [];
+      }
+    }
+
     // ── Main query ─────────────────────────────────────────────────────
     let query = supabase
       .from("tenants")
       .select("*, wallet(*), subscriptions(*)", { count: "exact" });
 
     if (plan) query = query.eq("plan", plan);
-    if (status) query = query.eq("status", status);
+    // "attention" is synthetic — never forward as a column filter.
+    if (status && status !== "attention") query = query.eq("status", status);
     if (city) query = query.eq("city", city);
+    if (attentionIds !== null) {
+      if (attentionIds.length === 0) {
+        // No matches — return empty without a round-trip.
+        return NextResponse.json({ merchants: [], total: 0, page, limit });
+      }
+      query = query.in("id", attentionIds);
+    }
 
     if (search) {
-      query = query.or(
-        `business_name.ilike.%${search}%,slug.ilike.%${search}%,contact_email.ilike.%${search}%`
-      );
+      // If the query looks like a merchant code (digits, optional leading #),
+      // include display_id::text in the OR so server-side search works.
+      const codeQuery = search.trim().replace(/^#/, "");
+      const isCode = /^\d{1,6}$/.test(codeQuery);
+      const escaped = search.replace(/[%,]/g, "");
+      const parts = [
+        `business_name.ilike.%${escaped}%`,
+        `slug.ilike.%${escaped}%`,
+        `contact_email.ilike.%${escaped}%`,
+      ];
+      if (isCode) {
+        parts.push(`display_id::text.ilike.${codeQuery}%`);
+      }
+      query = query.or(parts.join(","));
     }
 
     if (dateFrom) query = query.gte("created_at", dateFrom);
@@ -84,45 +145,70 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Fetch monthly revenue (charges in last 30 days) per tenant
+    // Fetch monthly + daily revenue (charges in last 30 days) per tenant
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const startOfTodayMs = startOfToday.getTime();
     const { data: revenueData } = await supabase
       .from("wallet_transactions")
-      .select("tenant_id, amount_iqd")
+      .select("tenant_id, amount_iqd, created_at")
       .in("tenant_id", tenantIds)
       .eq("type", "charge")
       .gte("created_at", thirtyDaysAgo);
 
     const revenueMap = new Map<string, number>();
+    const dailyRevenueMap = new Map<string, number>();
     if (revenueData) {
       for (const row of revenueData) {
+        const amount = Math.abs(row.amount_iqd);
         revenueMap.set(
           row.tenant_id,
-          (revenueMap.get(row.tenant_id) ?? 0) + Math.abs(row.amount_iqd)
+          (revenueMap.get(row.tenant_id) ?? 0) + amount
         );
+        if (new Date(row.created_at).getTime() >= startOfTodayMs) {
+          dailyRevenueMap.set(
+            row.tenant_id,
+            (dailyRevenueMap.get(row.tenant_id) ?? 0) + amount
+          );
+        }
       }
     }
 
-    // Fetch sparkline data if requested (daily order counts for last 30 days)
+    // Fetch 30-day rolling orders per tenant. Used for:
+    //   - per-card "orders" count (same window as monthly_revenue)
+    //   - sparkline (when requested)
+    //   - last-active fallback when no wallet transactions exist
+    const orders30dMap = new Map<string, number>();
+    const orderLastSeenMap = new Map<string, string>();
     const sparklineMap = new Map<string, number[]>();
-    if (includeSparkline) {
-      const { data: orders } = await supabase
-        .from("orders")
-        .select("tenant_id, created_at")
-        .in("tenant_id", tenantIds)
-        .gte("created_at", thirtyDaysAgo);
 
-      if (orders) {
-        // Group orders by tenant and day
-        const now = new Date();
+    const { data: orderRows } = await supabase
+      .from("orders")
+      .select("tenant_id, created_at")
+      .in("tenant_id", tenantIds)
+      .gte("created_at", thirtyDaysAgo)
+      .order("created_at", { ascending: false });
+
+    if (orderRows) {
+      const now = new Date();
+      if (includeSparkline) {
         for (const tid of tenantIds) {
-          const counts = new Array(30).fill(0);
-          sparklineMap.set(tid, counts);
+          sparklineMap.set(tid, new Array(30).fill(0));
         }
-
-        for (const order of orders) {
+      }
+      for (const order of orderRows) {
+        orders30dMap.set(
+          order.tenant_id,
+          (orders30dMap.get(order.tenant_id) ?? 0) + 1
+        );
+        if (!orderLastSeenMap.has(order.tenant_id)) {
+          orderLastSeenMap.set(order.tenant_id, order.created_at);
+        }
+        if (includeSparkline) {
           const dayDiff = Math.floor(
-            (now.getTime() - new Date(order.created_at).getTime()) / (24 * 60 * 60 * 1000)
+            (now.getTime() - new Date(order.created_at).getTime()) /
+              (24 * 60 * 60 * 1000)
           );
           const idx = 29 - Math.min(dayDiff, 29);
           const arr = sparklineMap.get(order.tenant_id);
@@ -153,15 +239,56 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Fetch pinned notes per tenant (most recent pinned note wins)
+    const { data: pinnedNotes } = await supabase
+      .from("admin_notes")
+      .select("tenant_id, content, updated_at, admin_label")
+      .in("tenant_id", tenantIds)
+      .eq("is_pinned", true)
+      .order("updated_at", { ascending: false });
+
+    const pinnedNoteMap = new Map<
+      string,
+      { content: string; updated_at: string; admin_label: string | null }
+    >();
+    if (pinnedNotes) {
+      for (const note of pinnedNotes) {
+        if (!pinnedNoteMap.has(note.tenant_id)) {
+          pinnedNoteMap.set(note.tenant_id, {
+            content: note.content,
+            updated_at: note.updated_at,
+            admin_label: note.admin_label ?? null,
+          });
+        }
+      }
+    }
+
     // ── Assemble enriched merchants ────────────────────────────────────
-    let merchants = tenants.map((tenant) => ({
-      ...tenant,
-      tags: tenant.tags ?? [],
-      last_active_at: lastActiveMap.get(tenant.id) ?? null,
-      monthly_revenue: revenueMap.get(tenant.id) ?? 0,
-      order_sparkline: sparklineMap.get(tenant.id) ?? [],
-      usage: usageMap.get(tenant.id) ?? null,
-    }));
+    let merchants = tenants.map((tenant) => {
+      // last_active_at = most recent of (latest wallet tx, latest order).
+      // Without this fallback, merchants with orders but no charges yet
+      // show no activity timestamp on the card.
+      const walletLast = lastActiveMap.get(tenant.id);
+      const orderLast = orderLastSeenMap.get(tenant.id);
+      const lastActive =
+        walletLast && orderLast
+          ? walletLast > orderLast
+            ? walletLast
+            : orderLast
+          : walletLast ?? orderLast ?? null;
+
+      return {
+        ...tenant,
+        tags: tenant.tags ?? [],
+        last_active_at: lastActive,
+        monthly_revenue: revenueMap.get(tenant.id) ?? 0,
+        daily_revenue: dailyRevenueMap.get(tenant.id) ?? 0,
+        orders_30d: orders30dMap.get(tenant.id) ?? 0,
+        order_sparkline: sparklineMap.get(tenant.id) ?? [],
+        usage: usageMap.get(tenant.id) ?? null,
+        pinned_note: pinnedNoteMap.get(tenant.id) ?? null,
+      };
+    });
 
     // ── Client-side-like filters that need computed data ────────────────
     if (balance) {

@@ -52,22 +52,120 @@ export async function submitCheckout(
 
   const supabase = createSupabaseServiceClient();
 
-  // Verify tenant is active before creating
-  const { data: tenant, error: tenantErr } = await supabase
+  // Verify tenant status before creating. We pull `restrictions` too, but
+  // cast loosely because the shared DB types haven't been regenerated since
+  // the column / 'limited' enum value were added.
+  const { data: tenantRaw, error: tenantErr } = await supabase
     .from("tenants")
-    .select("id, status")
+    .select("id, status, restrictions")
     .eq("id", payload.tenantId)
     .maybeSingle();
 
-  if (tenantErr || !tenant) {
+  if (tenantErr || !tenantRaw) {
     console.error("[checkout] tenant not found:", tenantErr);
     return { success: false, error: "المتجر غير متاح" };
   }
-  if (tenant.status !== "active" && tenant.status !== "trial") {
+
+  const tenant = tenantRaw as unknown as {
+    id: string;
+    status: string;
+    restrictions: {
+      paused_until?: string | null;
+      reason?: string | null;
+      blocks?: { new_orders?: boolean };
+    } | null;
+  };
+
+  if (
+    tenant.status !== "active" &&
+    tenant.status !== "trial" &&
+    tenant.status !== "limited"
+  ) {
     return { success: false, error: "المتجر غير نشط حالياً" };
   }
 
-  const totalPrice = payload.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  // Tenant pause guard — when admin paused the merchant with new_orders blocked,
+  // refuse the checkout. An expired pause window is treated as inactive.
+  if (tenant.status === "limited") {
+    const restrictions = tenant.restrictions ?? null;
+    const pausedUntil = restrictions?.paused_until
+      ? Date.parse(restrictions.paused_until)
+      : null;
+    const stillPaused =
+      pausedUntil === null || (pausedUntil !== null && pausedUntil > Date.now());
+    if (stillPaused && restrictions?.blocks?.new_orders) {
+      return {
+        success: false,
+        error: restrictions.reason || "المتجر متوقف مؤقتاً عن استقبال الطلبات",
+      };
+    }
+  }
+
+  // Re-fetch canonical prices from the DB — never trust client-supplied amounts.
+  const productIds = Array.from(new Set(payload.items.map((i) => i.product_id)));
+  const { data: products, error: productsErr } = await supabase
+    .from("products")
+    .select("id, tenant_id, price, website_price, is_visible, is_archived")
+    .in("id", productIds)
+    .eq("tenant_id", payload.tenantId);
+
+  if (productsErr || !products || products.length !== productIds.length) {
+    console.error("[checkout] product lookup failed:", productsErr);
+    return { success: false, error: "بعض المنتجات غير متوفرة" };
+  }
+  const productMap = new Map(products.map((p) => [p.id as string, p]));
+  for (const p of products) {
+    if (p.is_archived || !p.is_visible) {
+      return { success: false, error: "بعض المنتجات غير متوفرة" };
+    }
+  }
+
+  const variantIds = payload.items
+    .map((i) => i.variant_id)
+    .filter((v): v is string => !!v);
+  type VariantRow = { id: string; product_id: string; price: number | null; tenant_id: string };
+  const variantMap = new Map<string, VariantRow>();
+  if (variantIds.length > 0) {
+    const { data: variants, error: variantsErr } = await supabase
+      .from("product_variants")
+      .select("id, product_id, price, tenant_id")
+      .in("id", variantIds)
+      .eq("tenant_id", payload.tenantId);
+    if (variantsErr || !variants || variants.length !== variantIds.length) {
+      console.error("[checkout] variant lookup failed:", variantsErr);
+      return { success: false, error: "بعض المنتجات غير متوفرة" };
+    }
+    for (const v of variants as VariantRow[]) variantMap.set(v.id, v);
+  }
+
+  // Rebuild every item with the server-verified price; reject if a variant
+  // doesn't belong to its stated product.
+  const verifiedItems: typeof payload.items = [];
+  for (const i of payload.items) {
+    const product = productMap.get(i.product_id);
+    if (!product) {
+      return { success: false, error: "بعض المنتجات غير متوفرة" };
+    }
+    let unitPrice: number;
+    if (i.variant_id) {
+      const variant = variantMap.get(i.variant_id);
+      if (!variant || variant.product_id !== i.product_id) {
+        return { success: false, error: "بعض المنتجات غير متوفرة" };
+      }
+      unitPrice = Number(variant.price ?? product.website_price ?? product.price) || 0;
+    } else {
+      unitPrice = Number(product.website_price ?? product.price) || 0;
+    }
+    if (unitPrice <= 0 || !Number.isFinite(unitPrice)) {
+      return { success: false, error: "بعض المنتجات غير متوفرة" };
+    }
+    if (!Number.isInteger(i.quantity) || i.quantity <= 0 || i.quantity > 100) {
+      return { success: false, error: "كمية غير صالحة" };
+    }
+    verifiedItems.push({ ...i, price: unitPrice });
+  }
+
+  const totalPrice = verifiedItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
   // Build the order payload in the shape create_order_atomic expects
   const orderData = {
@@ -76,7 +174,7 @@ export async function submitCheckout(
     governorate_code: payload.customer.governorate_code,
     city: payload.customer.city.trim(),
     address_details: payload.customer.address_details.trim(),
-    items: payload.items.map((i) => ({
+    items: verifiedItems.map((i) => ({
       product_id: i.product_id,
       variant_id: i.variant_id,
       name: i.name,

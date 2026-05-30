@@ -19,57 +19,58 @@ import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { ActivityLogEntry } from "@/lib/activity-logger";
+import { useLanguage } from "@/hooks/use-language";
 
 // Action configuration
 const ACTION_CONFIG: Record<string, {
     icon: React.ElementType;
     gradient: string;
-    labelAr: string;
+    labelKey: string;
 }> = {
     "order.create": {
         icon: Package,
         gradient: "from-emerald-500/20 to-emerald-600/10",
-        labelAr: "أنشأ طلب جديد",
+        labelKey: "team.timeline.createdOrder",
     },
     "order.status_change": {
         icon: RefreshCw,
         gradient: "from-amber-500/20 to-amber-600/10",
-        labelAr: "غيّر حالة طلب",
+        labelKey: "team.timeline.changedStatus",
     },
     "order.edit": {
         icon: Edit,
         gradient: "from-violet-500/20 to-violet-600/10",
-        labelAr: "عدّل طلب",
+        labelKey: "team.timeline.editedOrder",
     },
     "order.print": {
         icon: Printer,
         gradient: "from-blue-500/20 to-blue-600/10",
-        labelAr: "طبع طلبات",
+        labelKey: "team.timeline.printedOrders",
     },
     "order.delete": {
         icon: Trash2,
         gradient: "from-rose-500/20 to-rose-600/10",
-        labelAr: "حذف طلب",
+        labelKey: "team.timeline.deletedOrder",
     },
     "order.assign": {
         icon: UserCheck,
         gradient: "from-cyan-500/20 to-cyan-600/10",
-        labelAr: "عيّن طلب",
+        labelKey: "team.timeline.assignedOrder",
     },
     "customer.blacklist": {
         icon: AlertTriangle,
         gradient: "from-red-500/20 to-red-600/10",
-        labelAr: "حظر عميل",
+        labelKey: "team.timeline.blacklistedCustomer",
     },
     "user.login": {
         icon: LogIn,
         gradient: "from-green-500/20 to-green-600/10",
-        labelAr: "سجّل دخول",
+        labelKey: "team.timeline.loggedIn",
     },
     "settings.update": {
         icon: Settings,
         gradient: "from-slate-500/20 to-slate-600/10",
-        labelAr: "حدّث الإعدادات",
+        labelKey: "team.timeline.updatedSettings",
     },
 };
 
@@ -100,10 +101,11 @@ function TimelineItem({
     showUserInfo?: boolean;
     delay?: number;
 }) {
+    const { t, language } = useLanguage();
     const config = ACTION_CONFIG[activity.action] || {
         icon: Activity,
         gradient: "from-zinc-500/20 to-zinc-600/10",
-        labelAr: activity.action,
+        labelKey: activity.action,
     };
     const Icon = config.icon;
     const details = activity.details as Record<string, unknown>;
@@ -143,7 +145,7 @@ function TimelineItem({
                             </span>
                         )}
                         <span className="text-sm text-foreground">
-                            {config.labelAr}
+                            {ACTION_CONFIG[activity.action] ? t(config.labelKey) : config.labelKey}
                         </span>
                         {Boolean(details?.order_id) && (
                             <span className="text-sm font-medium text-primary">
@@ -154,7 +156,7 @@ function TimelineItem({
                     <span className="text-[10px] text-muted-foreground shrink-0">
                         {formatDistanceToNow(new Date(activity.created_at), {
                             addSuffix: true,
-                            locale: ar,
+                            locale: language === "ar" ? ar : undefined,
                         })}
                     </span>
                 </div>
@@ -197,6 +199,7 @@ export function ActivityTimeline({
     isNew,
     className,
 }: ActivityTimelineProps) {
+    const { t, language } = useLanguage();
     // Group activities by time
     const groups = useMemo(() => {
         const result: TimelineGroup[] = [];
@@ -213,7 +216,7 @@ export function ActivityTimeline({
             if (groupBy === "hour") {
                 const hour = date.getHours();
                 key = `${date.toDateString()}-${hour}`;
-                label = date.toLocaleTimeString("ar-IQ", {
+                label = date.toLocaleTimeString(language === "ar" ? "ar-IQ" : "en-US", {
                     hour: "2-digit",
                     minute: "2-digit",
                 }).replace(/:\d{2}$/, ":00");
@@ -233,7 +236,7 @@ export function ActivityTimeline({
         groupMap.forEach((groupActivities, key) => {
             const firstActivity = groupActivities[0];
             const date = new Date(firstActivity.created_at);
-            const timeLabel = date.toLocaleTimeString("ar-IQ", {
+            const timeLabel = date.toLocaleTimeString(language === "ar" ? "ar-IQ" : "en-US", {
                 hour: "2-digit",
                 minute: "2-digit",
             });
@@ -252,7 +255,7 @@ export function ActivityTimeline({
         return (
             <div className="text-center py-12 text-muted-foreground">
                 <Activity className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p>لا توجد نشاطات</p>
+                <p>{t("team.timeline.empty")}</p>
             </div>
         );
     }

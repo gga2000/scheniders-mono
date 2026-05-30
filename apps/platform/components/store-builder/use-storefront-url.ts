@@ -24,6 +24,13 @@ export function useStorefrontUrl(slug: string, tenantId: string | null): string 
 
     const rootDomain = env.NEXT_PUBLIC_STOREFRONT_ROOT_DOMAIN;
 
+    // Dev fallback: when running on localhost, always point at the local
+    // storefront dev server on :3001 — production root domain is unreachable
+    // and would break the iframe preview.
+    if (typeof window !== "undefined" && window.location.hostname === "localhost") {
+        return `http://localhost:3001/s/${slug}`;
+    }
+
     if (customDomain) {
         return `https://${customDomain}`;
     }

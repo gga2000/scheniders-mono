@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
+import { requireAdminPermission } from "@/lib/api-auth";
 
 const ExtendSchema = z.object({
   tenant_id: z.string().min(1),
@@ -8,6 +9,9 @@ const ExtendSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminPermission(request, "extend_trial");
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const body = await request.json();
     const parsed = ExtendSchema.safeParse(body);

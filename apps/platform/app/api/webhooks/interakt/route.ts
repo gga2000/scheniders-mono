@@ -21,10 +21,15 @@ import { formatPhoneToStandard } from "@/lib/order-utils";
  * 3. Any other reply            → No status change (team handles manually)
  */
 
-// Service role client to bypass RLS
+// Service role client to bypass RLS. The previous code silently fell back
+// to the anon key when SUPABASE_SERVICE_ROLE_KEY was missing, which made
+// every write fail under RLS in production. Fail loudly instead.
+if (!env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY is required for the Interakt webhook");
+}
 const supabaseAdmin = createClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
-    env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    env.SUPABASE_SERVICE_ROLE_KEY,
 );
 
 // =============================================
@@ -294,22 +299,25 @@ async function updateOrderStatus(
 
 export async function POST(request: NextRequest) {
     try {
-        // 1. Optional: Verify webhook secret
+        // 1. Verify webhook secret — mandatory.
         const webhookSecret = env.INTERAKT_WEBHOOK_SECRET;
-        if (webhookSecret) {
-            const providedSecret =
-                request.headers.get("x-webhook-secret") ||
-                request.headers.get("x-interakt-secret");
-
-            if (providedSecret && providedSecret !== webhookSecret) {
-                console.error("[Interakt Webhook] Secret mismatch logging headers:", {
-                    providedSecretPrefix: providedSecret ? providedSecret.substring(0, 3) + "***" : "none",
-                    hasWebhookSecret: !!request.headers.get("x-webhook-secret"),
-                    hasInteraktSecret: !!request.headers.get("x-interakt-secret"),
-                    allHeaders: Array.from(request.headers.keys()),
-                });
-                return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-            }
+        if (!webhookSecret) {
+            console.error("[Interakt Webhook] INTERAKT_WEBHOOK_SECRET not configured");
+            return NextResponse.json(
+                { error: "Webhook receiver not configured" },
+                { status: 503 },
+            );
+        }
+        const providedSecret =
+            request.headers.get("x-webhook-secret") ||
+            request.headers.get("x-interakt-secret");
+        if (!providedSecret || providedSecret !== webhookSecret) {
+            console.error("[Interakt Webhook] Secret missing or mismatch:", {
+                providedSecretPrefix: providedSecret ? providedSecret.substring(0, 3) + "***" : "none",
+                hasWebhookSecret: !!request.headers.get("x-webhook-secret"),
+                hasInteraktSecret: !!request.headers.get("x-interakt-secret"),
+            });
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         // 2. Parse payload

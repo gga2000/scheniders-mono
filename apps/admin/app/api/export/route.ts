@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
+import { requireAdminPermission } from "@/lib/api-auth";
 
 const VALID_TYPES = ["merchants", "transactions", "trials"] as const;
 const VALID_FORMATS = ["csv", "json"] as const;
@@ -107,6 +108,9 @@ async function fetchTrials(supabase: ReturnType<typeof createAdminClient>) {
 }
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAdminPermission(request, "export_data");
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const { searchParams } = request.nextUrl;
 

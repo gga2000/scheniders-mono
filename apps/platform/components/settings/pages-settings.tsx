@@ -47,8 +47,8 @@ const PAGE_MAPPINGS = [
     {
         id: "analytics",
         path: "/analytics",
-        title: "Analytics & Financials",
-        description: "Financial reports and charts",
+        title: "Finances",
+        description: "Profit, costs, cash flow, and expenses hub",
         permission: ALL_PERMISSIONS.VIEW_ANALYTICS
     },
     {

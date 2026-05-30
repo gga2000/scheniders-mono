@@ -13,7 +13,10 @@ import {
     useDeleteProductMutation,
     useBulkUpdatePricesMutation,
     useBulkArchiveMutation,
+    useBulkRestoreMutation,
+    useBulkDeleteMutation,
     useBulkUpdateVisibilityMutation,
+    useBulkUpdateDisplayOrderMutation,
     useAddVariantMutation,
     useUpdateVariantMutation,
     useDeleteVariantMutation,
@@ -62,7 +65,10 @@ export function useProductsCrud() {
     const deleteProductMutation = useDeleteProductMutation();
     const bulkUpdatePricesMutation = useBulkUpdatePricesMutation();
     const bulkArchiveMutation = useBulkArchiveMutation();
+    const bulkRestoreMutation = useBulkRestoreMutation();
+    const bulkDeleteMutation = useBulkDeleteMutation();
     const bulkUpdateVisibilityMutation = useBulkUpdateVisibilityMutation();
+    const bulkUpdateDisplayOrderMutation = useBulkUpdateDisplayOrderMutation();
     const addVariantMutation = useAddVariantMutation();
     const updateVariantMutation = useUpdateVariantMutation();
     const deleteVariantMutation = useDeleteVariantMutation();
@@ -189,6 +195,26 @@ export function useProductsCrud() {
         }
     };
 
+    const bulkRestore = async (productIds: string[]): Promise<boolean> => {
+        try {
+            await bulkRestoreMutation.mutateAsync(productIds);
+            return true;
+        } catch (err) {
+            console.error("Error bulk restoring:", err);
+            return false;
+        }
+    };
+
+    const bulkDelete = async (productIds: string[]): Promise<boolean> => {
+        try {
+            await bulkDeleteMutation.mutateAsync(productIds);
+            return true;
+        } catch (err) {
+            console.error("Error bulk deleting:", err);
+            return false;
+        }
+    };
+
     const bulkUpdateVisibility = async (productIds: string[], isVisible: boolean): Promise<boolean> => {
         try {
             await bulkUpdateVisibilityMutation.mutateAsync({ ids: productIds, isVisible });
@@ -228,6 +254,16 @@ export function useProductsCrud() {
             return true;
         } catch (err) {
             console.error("Error deleting variant:", err);
+            return false;
+        }
+    };
+
+    const reorderProducts = async (updates: { id: string; display_order: number }[]): Promise<boolean> => {
+        try {
+            await bulkUpdateDisplayOrderMutation.mutateAsync(updates);
+            return true;
+        } catch (err) {
+            console.error("Error reordering products:", err);
             return false;
         }
     };
@@ -307,7 +343,10 @@ export function useProductsCrud() {
         // Bulk operations
         bulkUpdatePrices,
         bulkArchive,
+        bulkRestore,
+        bulkDelete,
         bulkUpdateVisibility,
+        reorderProducts,
         // Variant operations
         addVariant,
         updateVariant,

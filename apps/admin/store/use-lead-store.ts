@@ -37,8 +37,6 @@ interface LeadStoreState {
   selectAll: (ids: string[]) => void;
   clearSelection: () => void;
 
-  // Active filter count
-  activeFilterCount: () => number;
 }
 
 const DEFAULT_FILTERS = {
@@ -55,7 +53,7 @@ const DEFAULT_FILTERS = {
 
 export const useLeadStore = create<LeadStoreState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       viewMode: "table",
       setViewMode: (mode) => set({ viewMode: mode }),
 
@@ -82,21 +80,6 @@ export const useLeadStore = create<LeadStoreState>()(
         }),
       selectAll: (ids) => set({ selectedLeads: new Set(ids) }),
       clearSelection: () => set({ selectedLeads: new Set() }),
-
-      activeFilterCount: () => {
-        const s = get();
-        let count = 0;
-        if (s.statusFilter) count++;
-        if (s.platformFilter) count++;
-        if (s.priorityFilter) count++;
-        if (s.tierFilter) count++;
-        if (s.industryFilter) count++;
-        if (s.assigneeFilter) count++;
-        if (s.hasStoreFilter !== null) count++;
-        if (s.scoreRange[0] > 0 || s.scoreRange[1] < 100) count++;
-        if (s.searchQuery) count++;
-        return count;
-      },
     }),
     {
       name: "lead-store",
@@ -106,3 +89,19 @@ export const useLeadStore = create<LeadStoreState>()(
     }
   )
 );
+
+export function useActiveFilterCount() {
+  return useLeadStore((s) => {
+    let count = 0;
+    if (s.statusFilter) count++;
+    if (s.platformFilter) count++;
+    if (s.priorityFilter) count++;
+    if (s.tierFilter) count++;
+    if (s.industryFilter) count++;
+    if (s.assigneeFilter) count++;
+    if (s.hasStoreFilter !== null) count++;
+    if (s.scoreRange[0] > 0 || s.scoreRange[1] < 100) count++;
+    if (s.searchQuery) count++;
+    return count;
+  });
+}

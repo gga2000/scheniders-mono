@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { useMerchantDetail } from "@/hooks/use-merchant-detail";
+import { useMerchantDetail, type MerchantDetail } from "@/hooks/use-merchant-detail";
 import { useAdminStore } from "@/store/use-admin-store";
 import {
   Dialog,
@@ -11,43 +11,65 @@ import {
 } from "@scheniders/ui/dialog";
 import {
   Wallet,
-  CreditCard,
+  TrendingUp,
+  Coins,
   ShoppingBag,
   Users,
-  UserCircle,
-  Loader2,
   PanelRight,
   Maximize2,
-  X,
 } from "lucide-react";
-import { EASE_CHROME } from "@/lib/animation-constants";
+import { cn } from "@/lib/utils";
 import { OverviewTab } from "./detail/overview-tab";
 import { BillingTab } from "./detail/billing-tab";
 import { UsageTab } from "./detail/usage-tab";
 import { TeamTab } from "./detail/team-tab";
 import { NotesTab } from "./detail/notes-tab";
+import { MerchantActionBar } from "./detail/merchant-action-bar";
+import { CopyableText } from "@/components/shared/copyable-text";
+import { HealthScoreTooltip } from "./health-score-tooltip";
+import { MerchantAlertFlag } from "./merchant-alert-flag";
+import { DialogStatCard } from "./detail/dialog-stat-card";
+import { DialogQuickActions } from "./detail/dialog-quick-actions";
+import { PinnedNoteStrip } from "./detail/pinned-note-strip";
+import { LimitedBanner } from "./detail/limited-banner";
+import { PlanUtilizationBars } from "./detail/plan-utilization-bars";
+import { RecentOrdersSection } from "./detail/recent-orders-section";
+import { AuditLogTab } from "./detail/audit-log-tab";
+import { LastActorBadge } from "./last-actor-badge";
+import { useLastActor } from "@/hooks/use-last-actors";
+import type { TenantStatus, PlanTier, AdminTenant, TenantRestrictions } from "@/types/admin";
 import { TenantTimeline } from "./tenant-timeline";
 import { OnboardingChecklist } from "./onboarding-checklist";
 import Link from "next/link";
 
 const fmt = (n: number) => new Intl.NumberFormat("en-IQ").format(n);
 
-const tabs = ["Overview", "Billing", "Usage", "Team", "Notes", "Timeline", "Onboarding"] as const;
+const tabs = ["Overview", "Billing", "Usage", "Team", "Notes", "Timeline", "Audit", "Onboarding"] as const;
 type Tab = (typeof tabs)[number];
 
 const statusStyles: Record<string, string> = {
-  active: "bg-green-100 text-green-800",
-  trial: "bg-amber-100 text-amber-800",
-  suspended: "bg-red-100 text-red-800",
-  cancelled: "bg-gray-100 text-gray-600",
+  active:
+    "bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm shadow-emerald-500/30 ring-1 ring-white/20",
+  trial:
+    "bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm shadow-amber-500/30 ring-1 ring-white/20",
+  limited:
+    "bg-gradient-to-br from-amber-300 to-yellow-500 text-white shadow-sm shadow-amber-400/30 ring-1 ring-white/20",
+  suspended:
+    "bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-sm shadow-rose-500/40 ring-1 ring-white/20",
+  cancelled:
+    "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-sm shadow-slate-500/20 ring-1 ring-white/20",
 };
 
 const planStyles: Record<string, string> = {
-  free: "bg-gray-100 text-gray-700",
-  starter: "bg-blue-100 text-blue-800",
-  growth: "bg-purple-100 text-purple-800",
-  professional: "bg-purple-100 text-purple-800",
-  enterprise: "bg-amber-100 text-amber-800",
+  free: "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-sm shadow-slate-500/20 ring-1 ring-white/20",
+  starter:
+    "bg-gradient-to-br from-sky-400 to-cyan-500 text-white shadow-sm shadow-sky-500/30 ring-1 ring-white/20",
+  growth:
+    "bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm shadow-emerald-500/30 ring-1 ring-white/20",
+  professional:
+    "bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-sm shadow-violet-500/30 ring-1 ring-white/20",
+  enterprise:
+    "bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm shadow-amber-500/30 ring-1 ring-white/20",
 };
 
 // ── Skeleton for loading state ──────────────────────────────────────────
@@ -122,6 +144,111 @@ export function MerchantDetailDialog() {
   );
 }
 
+// ── Adapters & helpers ──────────────────────────────────────────────────
+
+function buildAdminTenantShape(data: MerchantDetail): AdminTenant {
+  const totalOrders = data.usage.reduce((sum, u) => sum + (u.orders_count ?? 0), 0);
+  const teamCount = data.team.length;
+  const status = data.tenant.status as TenantStatus;
+  return {
+    id: data.tenant.id,
+    business_name: data.tenant.business_name,
+    slug: data.tenant.slug,
+    plan: data.tenant.plan as PlanTier,
+    status,
+    trial_ends_at: data.tenant.trial_ends_at,
+    branding: {
+      logo_url: data.tenant.branding?.logo_url ?? null,
+      primary_color: data.tenant.branding?.primary_color ?? "#1E1E1E",
+      secondary_color: data.tenant.branding?.secondary_color ?? "#1E1E1E",
+    },
+    settings: {
+      timezone: "Asia/Baghdad",
+      language: "en",
+      currency: "IQD",
+    },
+    contact_email: data.tenant.contact_email,
+    contact_phone: data.tenant.contact_phone,
+    address: data.tenant.address,
+    city: data.tenant.city,
+    created_at: data.tenant.created_at,
+    is_prospect: data.tenant.is_prospect,
+    prospect_lead_id: data.tenant.prospect_lead_id ?? null,
+    tags: [],
+    last_active_at: null,
+    monthly_revenue: data.wallet?.total_charged_iqd ?? 0,
+    order_sparkline: data.usage.map((u) => u.orders_count ?? 0),
+    wallet: data.wallet ?? undefined,
+    usage: {
+      orders_count: totalOrders,
+      orders_charged: data.usage.reduce((s, u) => s + (u.orders_charged ?? 0), 0),
+      team_members_count: teamCount,
+    },
+  } satisfies AdminTenant;
+}
+
+function calculateHealthScore(t: AdminTenant): number {
+  let score = 50;
+  if (t.status === "active") score += 15;
+  else if (t.status === "trial") score += 5;
+  else if (t.status === "suspended") score -= 20;
+  const balance = t.wallet?.balance_iqd ?? 0;
+  if (balance > 50000) score += 15;
+  else if (balance > 10000) score += 5;
+  else score -= 10;
+  const orders = t.usage?.orders_count ?? 0;
+  if (orders > 50) score += 15;
+  else if (orders > 10) score += 10;
+  else if (orders > 0) score += 5;
+  if (t.plan === "enterprise") score += 5;
+  else if (t.plan === "professional") score += 3;
+  return Math.max(0, Math.min(100, score));
+}
+
+function isChurnRisk(t: AdminTenant): boolean {
+  const balance = t.wallet?.balance_iqd ?? 0;
+  const orders = t.usage?.orders_count ?? 0;
+  if (t.status === "suspended") return true;
+  if (balance < 5000 && orders < 5) return true;
+  if (t.status === "trial" && t.trial_ends_at) {
+    const days = Math.ceil(
+      (new Date(t.trial_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+    );
+    if (days <= 3 && orders === 0) return true;
+  }
+  return false;
+}
+
+function buildOrderSparkline(usage: MerchantDetail["usage"]): number[] {
+  return [...usage]
+    .sort((a, b) => (a.year - b.year) || (a.month - b.month))
+    .map((u) => u.orders_count ?? 0)
+    .slice(-12);
+}
+
+function buildChargeSparkline(usage: MerchantDetail["usage"]): number[] {
+  return [...usage]
+    .sort((a, b) => (a.year - b.year) || (a.month - b.month))
+    .map((u) => u.orders_charged ?? 0)
+    .slice(-12);
+}
+
+function buildBalanceSparkline(transactions: MerchantDetail["transactions"]): number[] {
+  if (!transactions.length) return [];
+  return [...transactions]
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    .map((t) => t.balance_after_iqd)
+    .slice(-12);
+}
+
+function pctDelta(arr: number[]): number | null {
+  if (arr.length < 2) return null;
+  const last = arr[arr.length - 1] ?? 0;
+  const prev = arr[arr.length - 2] ?? 0;
+  if (prev === 0) return last === 0 ? 0 : 100;
+  return ((last - prev) / Math.abs(prev)) * 100;
+}
+
 // ── Dialog Body ─────────────────────────────────────────────────────────
 
 function DialogBody({
@@ -134,7 +261,7 @@ function DialogBody({
   onOpenFullscreen,
   merchantId,
 }: {
-  data: NonNullable<ReturnType<typeof useMerchantDetail>["data"]>;
+  data: MerchantDetail;
   activeTab: Tab;
   setActiveTab: (t: Tab) => void;
   noteText: string;
@@ -143,8 +270,32 @@ function DialogBody({
   onOpenFullscreen: () => void;
   merchantId: string;
 }) {
-  const { tenant, wallet, subscription, transactions, usage, team, notes, orderCount } = data;
+  const { tenant, wallet, subscription, transactions, usage, team, notes, orderCount, planLimits } =
+    data;
   const primaryColor = tenant.branding?.primary_color || "#1E1E1E";
+
+  const adapterTenant = useMemo(() => buildAdminTenantShape(data), [data]);
+  const healthScore = useMemo(() => calculateHealthScore(adapterTenant), [adapterTenant]);
+  const churnRisk = useMemo(() => isChurnRisk(adapterTenant), [adapterTenant]);
+
+  const orderSpark = useMemo(() => buildOrderSparkline(usage), [usage]);
+  const chargeSpark = useMemo(() => buildChargeSparkline(usage), [usage]);
+  const balanceSpark = useMemo(() => buildBalanceSparkline(transactions), [transactions]);
+
+  const orderDelta = useMemo(() => pctDelta(orderSpark), [orderSpark]);
+  const chargeDelta = useMemo(() => pctDelta(chargeSpark), [chargeSpark]);
+  const balanceDelta = useMemo(() => pctDelta(balanceSpark), [balanceSpark]);
+
+  // MRR: only when subscription is active and we have plan pricing.
+  const mrr = useMemo(() => {
+    if (!subscription || subscription.status !== "active") return 0;
+    return planLimits?.base_price_iqd ?? 0;
+  }, [subscription, planLimits]);
+  const ltv = wallet?.total_charged_iqd ?? 0;
+
+  const isLimited = tenant.status === "limited";
+  const restrictions = (tenant.restrictions ?? null) as TenantRestrictions | null;
+  const { actor: lastActor } = useLastActor(tenant.id);
 
   return (
     <div className="space-y-5">
@@ -159,30 +310,56 @@ function DialogBody({
           </div>
           <div className="min-w-0">
             <DialogTitle className="text-xl font-bold text-foreground truncate">
-              {tenant.business_name}
+              <CopyableText
+                value={tenant.business_name}
+                className="text-xl font-bold text-foreground"
+              />
             </DialogTitle>
-            <p className="text-sm text-foreground/50">{tenant.slug}</p>
-            <div className="flex items-center gap-1.5 mt-1.5">
+            <CopyableText
+              value={tenant.slug}
+              className="text-sm text-foreground/50"
+            />
+            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
               <span
-                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize ${
-                  statusStyles[tenant.status] ?? "bg-gray-100 text-gray-600"
+                className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                  statusStyles[tenant.status] ?? "bg-foreground/10 text-foreground/70"
                 }`}
               >
                 {tenant.status}
               </span>
               <span
-                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize ${
-                  planStyles[tenant.plan] ?? "bg-gray-100 text-gray-700"
+                className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                  planStyles[tenant.plan] ?? "bg-foreground/10 text-foreground/70"
                 }`}
               >
                 {tenant.plan}
               </span>
+              <HealthScoreTooltip
+                merchant={adapterTenant}
+                score={healthScore}
+                isChurnRisk={churnRisk}
+              />
+              <MerchantAlertFlag merchant={adapterTenant} />
+              {lastActor && (
+                <span className="inline-flex items-center gap-1 px-1 py-0.5 rounded-full bg-foreground/[0.04]">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-foreground/45 ml-1">
+                    Last:
+                  </span>
+                  <LastActorBadge actor={lastActor} size="xs" />
+                </span>
+              )}
             </div>
           </div>
         </div>
 
         {/* Action buttons */}
         <div className="flex items-center gap-1 shrink-0">
+          <DialogQuickActions
+            contactPhone={tenant.contact_phone}
+            contactEmail={tenant.contact_email}
+            slug={tenant.slug}
+            businessName={tenant.business_name}
+          />
           <button
             onClick={onOpenPanel}
             className="p-2 rounded-xl text-foreground/40 hover:text-foreground hover:bg-foreground/5 transition-all"
@@ -192,7 +369,11 @@ function DialogBody({
             <PanelRight className="w-4 h-4" />
           </button>
           <Link
-            href={`/merchants/${merchantId}`}
+            href={
+              activeTab === "Overview"
+                ? `/merchants/${merchantId}`
+                : `/merchants/${merchantId}?tab=${activeTab}`
+            }
             onClick={onOpenFullscreen}
             className="p-2 rounded-xl text-foreground/40 hover:text-foreground hover:bg-foreground/5 transition-all"
             title="Open fullscreen"
@@ -203,76 +384,126 @@ function DialogBody({
         </div>
       </div>
 
+      {/* ── Limited banner ─────────────────────────────────────────── */}
+      {isLimited && <LimitedBanner merchantId={merchantId} restrictions={restrictions} />}
+
+      {/* ── Pinned note strip ──────────────────────────────────────── */}
+      <PinnedNoteStrip notes={notes} onOpenNotes={() => setActiveTab("Notes")} />
+
+      {/* ── Action bar ─────────────────────────────────────────────── */}
+      <MerchantActionBar
+        merchantId={merchantId}
+        status={tenant.status as TenantStatus}
+        plan={tenant.plan as PlanTier}
+        walletBalance={wallet?.balance_iqd ?? 0}
+      />
+
       {/* ── Quick Stats ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="pastel-card p-3 bg-green-50/50 dark:bg-green-400/5">
-          <div className="flex items-center gap-1.5 text-green-700 dark:text-green-400 mb-0.5">
-            <Wallet className="w-3.5 h-3.5" />
-            <span className="text-[10px] font-semibold">Balance</span>
-          </div>
-          <p className="text-sm font-bold text-foreground">
-            {fmt(wallet?.balance_iqd ?? 0)} <span className="text-[10px] font-normal text-foreground/50">IQD</span>
-          </p>
-        </div>
-        <div className="pastel-card p-3 bg-amber-50/50 dark:bg-amber-400/5">
-          <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400 mb-0.5">
-            <CreditCard className="w-3.5 h-3.5" />
-            <span className="text-[10px] font-semibold">Charged</span>
-          </div>
-          <p className="text-sm font-bold text-foreground">
-            {fmt(wallet?.total_charged_iqd ?? 0)} <span className="text-[10px] font-normal text-foreground/50">IQD</span>
-          </p>
-        </div>
-        <div className="pastel-card p-3 bg-blue-50/50 dark:bg-blue-400/5">
-          <div className="flex items-center gap-1.5 text-blue-700 dark:text-blue-400 mb-0.5">
-            <ShoppingBag className="w-3.5 h-3.5" />
-            <span className="text-[10px] font-semibold">Orders</span>
-          </div>
-          <p className="text-sm font-bold text-foreground">{fmt(orderCount)}</p>
-        </div>
-        <div className="pastel-card p-3 bg-purple-50/50 dark:bg-purple-400/5">
-          <div className="flex items-center gap-1.5 text-purple-700 dark:text-purple-400 mb-0.5">
-            <Users className="w-3.5 h-3.5" />
-            <span className="text-[10px] font-semibold">Team</span>
-          </div>
-          <p className="text-sm font-bold text-foreground">{team.length}</p>
-        </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <DialogStatCard
+          icon={Wallet}
+          label="Balance"
+          value={fmt(wallet?.balance_iqd ?? 0)}
+          unit="IQD"
+          tone="green"
+          spark={balanceSpark}
+          delta={balanceDelta !== null ? { value: balanceDelta } : null}
+          onClick={() => setActiveTab("Billing")}
+          title="View billing & wallet history"
+        />
+        <DialogStatCard
+          icon={TrendingUp}
+          label="MRR"
+          value={fmt(mrr)}
+          unit="IQD"
+          tone="rose"
+          onClick={() => setActiveTab("Billing")}
+          title={
+            subscription?.status === "active"
+              ? "Monthly recurring revenue from active subscription"
+              : "No active subscription — MRR is 0"
+          }
+        />
+        <DialogStatCard
+          icon={Coins}
+          label="LTV"
+          value={fmt(ltv)}
+          unit="IQD"
+          tone="amber"
+          spark={chargeSpark}
+          delta={chargeDelta !== null ? { value: chargeDelta } : null}
+          onClick={() => setActiveTab("Billing")}
+          title="Lifetime billed amount"
+        />
+        <DialogStatCard
+          icon={ShoppingBag}
+          label="Orders"
+          value={fmt(orderCount)}
+          tone="blue"
+          spark={orderSpark}
+          delta={orderDelta !== null ? { value: orderDelta } : null}
+          onClick={() => setActiveTab("Usage")}
+          title="View usage & order history"
+        />
+        <DialogStatCard
+          icon={Users}
+          label="Team"
+          value={String(team.length)}
+          tone="purple"
+          onClick={() => setActiveTab("Team")}
+          title="View team members"
+        />
       </div>
 
-      {/* ── Tab Navigation ─────────────────────────────────────────── */}
-      <div className="relative flex gap-0.5 border-b border-[var(--card-border)] overflow-x-auto scrollbar-hide">
-        {tabs.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`relative px-3 py-2 text-xs font-semibold whitespace-nowrap transition-colors ${
-              activeTab === tab
-                ? "text-foreground"
-                : "text-foreground/40 hover:text-foreground/60"
-            }`}
-          >
-            {tab}
-            {activeTab === tab && (
-              <motion.div
-                layoutId="dialogTabIndicator"
-                className="absolute bottom-0 left-0 right-0 h-0.5 bg-foreground rounded-full"
-                transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              />
-            )}
-          </button>
-        ))}
+      {/* ── Plan utilization + recent orders ───────────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <PlanUtilizationBars
+          planLimits={planLimits}
+          usage={usage}
+          team={team}
+          plan={tenant.plan}
+        />
+        <RecentOrdersSection merchantId={merchantId} limit={5} />
+      </div>
+
+      {/* ── Tab Navigation: segmented pill ─────────────────────────── */}
+      <div className="relative inline-flex p-1 rounded-2xl bg-foreground/[0.04] border border-foreground/[0.05] gap-0.5 overflow-x-auto scrollbar-hide max-w-full">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab;
+          return (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={cn(
+                "relative px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors z-10",
+                isActive
+                  ? "text-white dark:text-[#1E1E1E]"
+                  : "text-foreground/55 hover:text-foreground"
+              )}
+            >
+              {isActive && (
+                <motion.div
+                  layoutId="dialogTabIndicator"
+                  className="absolute inset-0 rounded-xl bg-[#1E1E1E] dark:bg-white shadow-sm shadow-black/20 dark:shadow-white/10"
+                  transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                />
+              )}
+              <span className="relative">{tab}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* ── Tab Content ────────────────────────────────────────────── */}
       <div className="min-h-[300px]">
         {activeTab === "Overview" && (
-          <OverviewTab tenant={tenant} subscription={subscription} />
+          <OverviewTab merchantId={merchantId} tenant={tenant} subscription={subscription} />
         )}
         {activeTab === "Billing" && (
           <BillingTab wallet={wallet} transactions={transactions} />
         )}
         {activeTab === "Usage" && <UsageTab usage={usage} />}
-        {activeTab === "Team" && <TeamTab team={team} />}
+        {activeTab === "Team" && <TeamTab team={team} merchantId={merchantId} />}
         {activeTab === "Notes" && (
           <NotesTab notes={notes} noteText={noteText} setNoteText={setNoteText} />
         )}
@@ -284,6 +515,7 @@ function DialogBody({
             tenant={tenant}
           />
         )}
+        {activeTab === "Audit" && <AuditLogTab merchantId={merchantId} />}
         {activeTab === "Onboarding" && (
           <OnboardingChecklist
             tenant={tenant}

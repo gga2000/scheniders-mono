@@ -22,11 +22,9 @@ import { ScoreBreakdownModal } from "@/components/customers/modals/score-breakdo
 import { CommunityRatingModal } from "@/components/customers/modals/community-rating-modal";
 import { LinkCustomersModal } from "@/components/customers/modals/link-customers-modal";
 import { VoiceRecorderModal } from "@/components/customers/modals/voice-recorder-modal";
-import { PeerComparisonBadge } from "@/components/customers/detail/peer-comparison-badge";
 import { LinkedPeopleSection } from "@/components/customers/detail/linked-people-section";
-import { AiSummaryCard } from "@/components/customers/detail/ai-summary-card";
 import { IdentityTimeline } from "@/components/customers/detail/identity-timeline";
-import { ConfidenceIndicator } from "@/components/customers/shared/confidence-indicator";
+import { AddNoteModal } from "@/components/customers/modals/add-note-modal";
 import type { TrustTier } from "@/types/customer";
 
 function useCustomerProfile(phone: string) {
@@ -34,7 +32,9 @@ function useCustomerProfile(phone: string) {
         queryKey: ["customer-profile", phone],
         queryFn: async () => {
             const normalized = trustEngine.normalizePhone(phone);
-            const phoneVariants = [normalized, `0${normalized}`, `+964${normalized}`];
+            // PostgREST `.in()` treats a leading `+` as a special char and 400s,
+            // so skip the `+964` variant — store it as `964` (unprefixed).
+            const phoneVariants = [normalized, `0${normalized}`, `964${normalized}`];
 
             const { data: trust } = await supabase
                 .from("customer_trust")
@@ -67,30 +67,47 @@ function useCustomerProfile(phone: string) {
                 .limit(1);
             const blacklist = blacklistRows?.[0] || null;
 
-            // Fetch orders for the order history table
+            // Fetch orders for the order history table.
+            // NOTE: the orders table column is `phone`, not `customer_phone`.
             const { data: orders } = await supabase
                 .from("orders")
-                .select("id, created_at, items, total_price, status, governorate")
-                .in("customer_phone", phoneVariants)
+                .select("id, created_at, items, price, total_price:price, status, governorate_code")
+                .in("phone", phoneVariants)
                 .order("created_at", { ascending: false })
                 .limit(20);
+
+            // Prefer authoritative trust-engine totals over the aggregate mat-view
+            // (the mv is per-tenant and can lag); fall back to the mv and finally
+            // to the live `orders` array we just fetched so a freshly-created
+            // customer with zero trust/aggregate rows still renders accurate stats.
+            const ordersList = orders || [];
+            const ordersSum = ordersList.reduce((sum, o) => sum + Number(o.price || 0), 0);
+            const resolvedTotalOrders = Number(trust?.total_orders ?? agg?.total_orders ?? ordersList.length ?? 0);
+            const resolvedTotalSpent = Number(trust?.total_spent ?? agg?.total_spent ?? ordersSum ?? 0);
+            const resolvedFirstOrder = trust?.first_order_date ?? agg?.first_order_date ?? ordersList[ordersList.length - 1]?.created_at ?? null;
+            const resolvedLastOrder = trust?.last_order_date ?? agg?.last_order_date ?? ordersList[0]?.created_at ?? null;
 
             return {
                 phone: normalized,
                 name: agg?.latest_name || "Unknown",
                 city: agg?.latest_city,
                 governorate: agg?.latest_governorate,
-                totalOrders: Number(agg?.total_orders || 0),
-                totalSpent: Number(agg?.total_spent || 0),
-                lastOrderDate: agg?.last_order_date,
-                firstOrderDate: agg?.first_order_date,
+                totalOrders: resolvedTotalOrders,
+                totalSpent: resolvedTotalSpent,
+                lastOrderDate: resolvedLastOrder,
+                firstOrderDate: resolvedFirstOrder,
                 trustScore: trust?.trust_score ?? 100,
                 trustTier: (trust?.trust_tier ?? "new") as TrustTier,
                 deliverySuccessRate: Number(trust?.delivery_success_rate ?? 0),
+                // The trust engine computes delivery_success_rate as delivered /
+                // total_orders, so the card subtitle must use the same
+                // denominator to keep the big percent and the "based on N"
+                // subtitle internally consistent.
+                totalCompletedFromTrust: Number(trust?.total_orders ?? 0),
                 isBlacklisted: !!blacklist,
                 notes: notes || [],
                 tags: (tagAssignments || []).map((ta: any) => ta.tag).filter(Boolean),
-                orders: orders || [],
+                orders: ordersList,
             };
         },
         staleTime: 5 * 60 * 1000,
@@ -144,70 +161,74 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                 <span className="text-sm font-medium">{t("customers.title")}</span>
             </motion.button>
 
-            {/* Hero Banner */}
-            <HeroIdentityBanner
-                name={profile.name}
-                phone={profile.phone}
-                city={profile.city}
-                tier={profile.trustTier}
-                trustScore={profile.trustScore}
-                totalOrders={profile.totalOrders}
-                isBlacklisted={profile.isBlacklisted}
-                tags={profile.tags}
-                firstOrderDate={profile.firstOrderDate}
-            />
-
-            {/* Peer badges row */}
-            <div className="flex items-center gap-3 mb-8 -mt-2">
-                <PeerComparisonBadge phone={profile.phone} city={profile.city || null} />
-                <ConfidenceIndicator orderCount={profile.totalOrders} />
+            {/* Hero Banner — peer badges + Rate button now live inside */}
+            <div className="mb-8">
+                <HeroIdentityBanner
+                    name={profile.name}
+                    phone={profile.phone}
+                    city={profile.city}
+                    tier={profile.trustTier}
+                    trustScore={profile.trustScore}
+                    totalOrders={profile.totalOrders}
+                    isBlacklisted={profile.isBlacklisted}
+                    tags={profile.tags}
+                    firstOrderDate={profile.firstOrderDate}
+                />
             </div>
 
             {/* Bento Grid — Stitch Layout */}
             <div className="grid grid-cols-12 gap-6">
                 {/* Row 1: Delivery Success (col-span-4) + Trust History (col-span-8) */}
                 <div className="col-span-12 lg:col-span-4">
-                    <DeliverySuccessCard successRate={profile.deliverySuccessRate} />
+                    <DeliverySuccessCard
+                        successRate={profile.deliverySuccessRate}
+                        recentOrders={profile.orders}
+                        totalCompletedFromTrust={profile.totalCompletedFromTrust}
+                    />
                 </div>
                 <div className="col-span-12 lg:col-span-8">
-                    <TrustHistoryCard data={historyData || []} />
+                    <TrustHistoryCard data={historyData || []} phone={profile.phone} />
                 </div>
 
                 {/* Row 2: Behavioral Patterns (col-span-5) + Dossier Notes (col-span-7) */}
                 <div className="col-span-12 lg:col-span-5">
-                    <BehavioralPatternsCard />
+                    <BehavioralPatternsCard
+                        orders={profile.orders}
+                        firstOrderDate={profile.firstOrderDate}
+                        city={profile.city}
+                        governorate={profile.governorate}
+                        phone={profile.phone}
+                        trustTier={profile.trustTier}
+                    />
                 </div>
                 <div className="col-span-12 lg:col-span-7">
                     <DossierNotesCard
                         notes={profile.notes}
                         voiceNotes={voiceNotes || []}
-                        onAddNote={() => {/* TODO */}}
-                        onPlayVoice={(id) => {/* TODO */}}
+                        phone={profile.phone}
+                        onAddNote={() => store.setAddNoteModalOpen(true)}
+                        onPlayVoice={(_id) => {/* TODO: voice playback */}}
                     />
                 </div>
 
-                {/* Row 3: AI Summary (col-span-12) */}
-                <div className="col-span-12">
-                    <AiSummaryCard phone={profile.phone} />
-                </div>
-
-                {/* Row 4: Summary Stats (col-span-7) + Linked People (col-span-5) */}
+                {/* Row 3: Summary Stats (col-span-7) + Linked People (col-span-5) */}
                 <div className="col-span-12 lg:col-span-7">
                     <SummaryStatsCards
                         totalOrders={profile.totalOrders}
                         totalSpent={profile.totalSpent}
+                        orders={profile.orders}
                     />
                 </div>
                 <div className="col-span-12 lg:col-span-5">
                     <LinkedPeopleSection phone={profile.phone} />
                 </div>
 
-                {/* Row 5: Identity Timeline (col-span-12) */}
+                {/* Row 4: Identity Timeline (col-span-12) */}
                 <div className="col-span-12">
                     <IdentityTimeline phone={profile.phone} />
                 </div>
 
-                {/* Row 6: Order History (col-span-12) */}
+                {/* Row 5: Order History (col-span-12) */}
                 <div className="col-span-12">
                     <div className="bg-(--card-bg) rounded-[3rem] p-8 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.04)] overflow-hidden">
                         <div className="flex justify-between items-center mb-8">
@@ -263,7 +284,7 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                                                     </td>
                                                     <td className="py-6 px-4 text-muted-foreground text-xs">{items}</td>
                                                     <td className="py-6 px-4 font-bold text-sm tabular-nums text-foreground">
-                                                        IQD {Number(order.total_price || 0).toLocaleString("en-US")}
+                                                        IQD {Number(order.price || 0).toLocaleString("en-US")}
                                                     </td>
                                                     <td className="py-6 px-4">
                                                         <OrderStatusBadge status={order.status} />
@@ -302,6 +323,7 @@ function CustomerProfileContent({ phone }: { phone: string }) {
             <CommunityRatingModal />
             <LinkCustomersModal />
             <VoiceRecorderModal />
+            <AddNoteModal phone={profile.phone} />
         </div>
     );
 }

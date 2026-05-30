@@ -2,12 +2,13 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { LeadFollowUp } from "@/types/leads";
+import { adminFetch } from "@/lib/admin-fetch";
 
 export function useLeadFollowUps(leadId: string | null) {
   return useQuery<LeadFollowUp[]>({
     queryKey: ["lead-follow-ups", leadId],
     queryFn: async () => {
-      const res = await fetch(`/api/leads/${leadId}/follow-ups`);
+      const res = await adminFetch(`/api/leads/${leadId}/follow-ups`);
       if (!res.ok) throw new Error("Failed to fetch follow-ups");
       const data = await res.json();
       return data.follow_ups;
@@ -30,7 +31,7 @@ export function useCreateFollowUp() {
       description?: string;
       assigned_to: string;
     }) => {
-      const res = await fetch(`/api/leads/${leadId}/follow-ups`, {
+      const res = await adminFetch(`/api/leads/${leadId}/follow-ups`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -49,7 +50,7 @@ export function useCompleteFollowUp() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ leadId, followUpId }: { leadId: string; followUpId: string }) => {
-      const res = await fetch(`/api/leads/${leadId}/follow-ups/${followUpId}`, {
+      const res = await adminFetch(`/api/leads/${leadId}/follow-ups/${followUpId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ is_completed: true }),
@@ -59,6 +60,7 @@ export function useCompleteFollowUp() {
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["lead-follow-ups", vars.leadId] });
+      qc.invalidateQueries({ queryKey: ["lead", vars.leadId] });
     },
   });
 }

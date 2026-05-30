@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" width="320" height="200">
+  <rect width="320" height="200" fill="#fff7ed"/>
+  <g transform="translate(12 12)">
+    <rect width="296" height="176" rx="14" fill="#ffd84a" stroke="#1a1a1a" stroke-width="4"/>
+    <g text-anchor="middle">
+      <text x="58" y="80" font-family="Impact, sans-serif" font-weight="900" font-size="36" fill="#1a1a1a">10K+</text>
+      <text x="58" y="108" font-family="Inter, sans-serif" font-size="10" font-weight="700" letter-spacing="2" fill="#1a1a1a" opacity="0.7">ORDERS</text>
+      <text x="156" y="80" font-family="Impact, sans-serif" font-weight="900" font-size="36" fill="#1a1a1a">18</text>
+      <text x="156" y="108" font-family="Inter, sans-serif" font-size="10" font-weight="700" letter-spacing="2" fill="#1a1a1a" opacity="0.7">PROVINCES</text>
+      <text x="248" y="80" font-family="Impact, sans-serif" font-weight="900" font-size="32" fill="#1a1a1a">4.9★</text>
+      <text x="248" y="108" font-family="Inter, sans-serif" font-size="10" font-weight="700" letter-spacing="2" fill="#1a1a1a" opacity="0.7">RATING</text>
+    </g>
+    <line x1="100" y1="40" x2="100" y2="120" stroke="#1a1a1a" stroke-dasharray="3 3" opacity="0.3"/>
+    <line x1="198" y1="40" x2="198" y2="120" stroke="#1a1a1a" stroke-dasharray="3 3" opacity="0.3"/>
+  </g>
+  <text x="160" y="194" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#1a1a1a" opacity="0.5">stat_strip</text>
+</svg>

@@ -14,6 +14,7 @@ interface ProductFormModalProps {
     onSubmit: (data: ProductFormData) => Promise<void>;
     product?: Product | null;
     mode: "add" | "edit";
+    defaultIsSupply?: boolean;
 }
 
 export interface ProductFormData {
@@ -53,6 +54,7 @@ export function ProductFormModal({
     onSubmit,
     product,
     mode,
+    defaultIsSupply = false,
 }: ProductFormModalProps) {
     const [loading, setLoading] = useState(false);
     const { data: categories = [] } = useCategoriesQuery();
@@ -119,7 +121,7 @@ export function ProductFormModal({
                 low_stock_threshold: 5,
                 image_url: "",
                 tag_color: "#22c55e",
-                is_supply: false,
+                is_supply: defaultIsSupply,
                 slug: "",
                 is_visible: true,
                 display_order: 0,
@@ -129,7 +131,7 @@ export function ProductFormModal({
                 variants: [],
             });
         }
-    }, [product, mode, isOpen]);
+    }, [product, mode, isOpen, defaultIsSupply]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

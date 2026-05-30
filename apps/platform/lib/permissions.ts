@@ -1,4 +1,4 @@
-export type UserRole = "admin" | "employee" | "viewer";
+export type UserRole = "super_admin" | "admin" | "employee" | "viewer";
 
 export interface Permission {
     id: string;
@@ -6,7 +6,18 @@ export interface Permission {
     description?: string;
 }
 
-export const ROLES: UserRole[] = ["admin", "employee", "viewer"];
+export const ROLES: UserRole[] = ["super_admin", "admin", "employee", "viewer"];
+
+/**
+ * Roles with full administrative access (super_admin is a superset of admin).
+ * Use this rather than checking `role === "admin"` directly so super_admin
+ * users aren't accidentally locked out of admin features.
+ */
+export const ADMIN_LEVEL_ROLES: UserRole[] = ["super_admin", "admin"];
+
+export function isAdminRole(role: UserRole | string | undefined | null): boolean {
+    return role === "admin" || role === "super_admin";
+}
 
 export const PERMISSIONS = {
     // Orders
@@ -32,6 +43,10 @@ export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS];
 
 // Matrix of permissions per role
 export const ROLE_PERMISSIONS: Record<UserRole, PermissionKey[]> = {
+    super_admin: [
+        // Super admin has ALL permissions (same as admin, kept distinct for org hierarchy)
+        ...Object.values(PERMISSIONS),
+    ],
     admin: [
         // Admin has ALL permissions
         ...Object.values(PERMISSIONS),

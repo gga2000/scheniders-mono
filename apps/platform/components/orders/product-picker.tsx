@@ -7,6 +7,7 @@ import { Package, Search, X, Check, Plus, Minus } from "lucide-react";
 import { cn, formatIQD } from "@/lib/utils";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import type { Product } from "@/lib/supabase";
+import { useLanguage } from "@/hooks/use-language";
 
 interface ProductPickerProps {
     open: boolean;
@@ -23,6 +24,7 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
     const { products, loading } = useProductsCrud();
     const [search, setSearch] = useState("");
     const [selectedProducts, setSelectedProducts] = useState<Map<string, SelectedProduct>>(new Map());
+    const { t } = useLanguage();
 
     // Only show active (non-archived) products that are not supplies
     const filteredProducts = useMemo(() => {
@@ -113,8 +115,8 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
                                 <Package className="w-4 h-4 text-green-700" />
                             </div>
                             <div>
-                                <h3 className="font-bold text-foreground">اختر المنتجات</h3>
-                                <p className="text-xs text-muted">{filteredProducts.length} منتج • {totalSelected} محدد</p>
+                                <h3 className="font-bold text-foreground">{t("orders.productPicker.title")}</h3>
+                                <p className="text-xs text-muted">{filteredProducts.length} {t("orders.productPicker.product")} • {totalSelected} {t("orders.productPicker.selected")}</p>
                             </div>
                         </div>
                         <button
@@ -133,7 +135,7 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
                                 type="text"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                placeholder="ابحث عن منتج..."
+                                placeholder={t("orders.productPicker.search")}
                                 className="w-full h-10 pr-10 pl-4 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--pastel-green)] focus:border-transparent"
                                 dir="rtl"
                             />
@@ -149,7 +151,7 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
                         ) : filteredProducts.length === 0 ? (
                             <div className="text-center py-12 text-muted">
                                 <Package className="w-10 h-10 mx-auto mb-2 opacity-40" />
-                                <p className="text-sm">لا توجد منتجات</p>
+                                <p className="text-sm">{t("orders.productPicker.noProducts")}</p>
                             </div>
                         ) : (
                             <div className="p-2 space-y-1.5">
@@ -235,7 +237,7 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
                         <div>
                             {totalSelected > 0 && (
                                 <p className="text-sm">
-                                    <span className="text-muted">{totalSelected} منتج</span>
+                                    <span className="text-muted">{totalSelected} {t("orders.productPicker.product")}</span>
                                     <span className="mx-2">•</span>
                                     <span className="font-bold font-mono text-green-700">{formatIQD(totalValue)}</span>
                                 </p>
@@ -246,7 +248,7 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
                                 onClick={handleClose}
                                 className="px-4 py-2 text-sm font-medium text-muted hover:text-foreground transition-colors"
                             >
-                                إلغاء
+                                {t("orders.productPicker.cancel")}
                             </button>
                             <button
                                 onClick={handleConfirm}
@@ -259,7 +261,7 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
                                 )}
                             >
                                 <Check className="w-4 h-4" />
-                                إضافة ({totalSelected})
+                                {t("orders.productPicker.add", { count: String(totalSelected) })}
                             </button>
                         </div>
                     </div>

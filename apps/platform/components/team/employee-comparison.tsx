@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { AnimatedAvatarRing } from "./animated-avatar-ring";
 import { PastelCard, pastelColors, PastelColor } from "./shared-pastel-components";
+import { useLanguage } from "@/hooks/use-language";
 
 // Types
 interface EmployeeData {
@@ -118,6 +119,7 @@ function EmployeeSelector({
     onSelect: (id: string) => void;
     position: "left" | "right";
 }) {
+    const { t } = useLanguage();
     const selected = employees.find((e) => e.userId === selectedId);
 
     return (
@@ -132,7 +134,7 @@ function EmployeeSelector({
                         "appearance-none cursor-pointer shadow-sm hover:border-[#D6D3D1] dark:hover:border-white/20 transition-all"
                     )}
                 >
-                    <option value="">اختر موظف...</option>
+                    <option value="">{t("team.compare.selectEmployee")}</option>
                     {employees.map((emp) => (
                         <option key={emp.userId} value={emp.userId}>
                             {emp.displayName || emp.email.split("@")[0]}
@@ -182,6 +184,7 @@ export function EmployeeComparison({
     onClose,
     className,
 }: EmployeeComparisonProps) {
+    const { t } = useLanguage();
     const [employee1Id, setEmployee1Id] = useState<string | null>(
         employees[0]?.userId || null
     );
@@ -201,10 +204,10 @@ export function EmployeeComparison({
     const canCompare = employee1 && employee2 && employee1Id !== employee2Id;
 
     const comparisonMetrics: { key: string; icon: any; label: string; color: string; pastelColor: PastelColor }[] = [
-        { icon: Activity, label: "إجمالي النشاطات", key: "totalActions", color: "#F59E0B", pastelColor: "yellow" },
-        { icon: Package, label: "طلبات جديدة", key: "ordersCreated", color: "#10B981", pastelColor: "green" },
-        { icon: RefreshCw, label: "تغييرات الحالة", key: "statusChanges", color: "#6366F1", pastelColor: "mint" },
-        { icon: Printer, label: "طباعة", key: "ordersPrinted", color: "#8B5CF6", pastelColor: "purple" },
+        { icon: Activity, label: t("team.stats.totalActions"), key: "totalActions", color: "#F59E0B", pastelColor: "yellow" },
+        { icon: Package, label: t("team.stats.newOrders"), key: "ordersCreated", color: "#10B981", pastelColor: "green" },
+        { icon: RefreshCw, label: t("team.stats.statusChanges"), key: "statusChanges", color: "#6366F1", pastelColor: "mint" },
+        { icon: Printer, label: t("team.stats.printOps"), key: "ordersPrinted", color: "#8B5CF6", pastelColor: "purple" },
     ];
 
     return (
@@ -221,8 +224,8 @@ export function EmployeeComparison({
                         <GitCompare className="w-6 h-6 text-purple-700 dark:text-purple-400" />
                     </div>
                     <div>
-                        <h2 className="text-2xl font-bold text-[#1E1E1E] dark:text-white">مقارنة الموظفين</h2>
-                        <p className="text-[#6B6B6B] dark:text-gray-400">قارن الأداء وجهاً لوجه</p>
+                        <h2 className="text-2xl font-bold text-[#1E1E1E] dark:text-white">{t("team.compare.title")}</h2>
+                        <p className="text-[#6B6B6B] dark:text-gray-400">{t("team.compare.subtitle")}</p>
                     </div>
                 </div>
                 {onClose && (
@@ -304,7 +307,7 @@ export function EmployeeComparison({
                                             : employee2.displayName || employee2.email.split("@")[0]}
                                     </h3>
                                     <p className="font-medium text-amber-800">
-                                        هو الأكثر نشاطاً بفارق <span className="font-extrabold">{Math.abs(employee1.totalActions - employee2.totalActions)}</span> عملية
+                                        {t("team.compare.mostActiveDiff", { diff: Math.abs(employee1.totalActions - employee2.totalActions).toString() })}
                                     </p>
                                 </div>
                             </motion.div>
@@ -320,7 +323,7 @@ export function EmployeeComparison({
                         <div className="w-20 h-20 mx-auto mb-4 rounded-3xl bg-white dark:bg-[#1A1A1A] border-dashed border-2 border-[#E8E4DC] dark:border-white/10 flex items-center justify-center">
                             <Users className="w-8 h-8 text-[#9A9A9A] dark:text-gray-600" />
                         </div>
-                        <p className="text-[#6B6B6B] dark:text-gray-400 font-medium">اختر موظفين للمقارنة وبدء التحدي</p>
+                        <p className="text-[#6B6B6B] dark:text-gray-400 font-medium">{t("team.compare.selectToCompare")}</p>
                     </motion.div>
                 )}
             </AnimatePresence>

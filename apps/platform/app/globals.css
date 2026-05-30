@@ -207,14 +207,14 @@ body {
   border-color: #3F3F3F !important;
 }
 
-/* Active tab → neon yellow */
-.dark button[class*="bg-"][class*="ink"][class*="rounded-lg"] {
+/* Active tab → neon yellow (only buttons whose background IS --ink, not those that just hover-border it) */
+.dark button[class*="bg-[var(--ink)]"][class*="rounded-lg"] {
   background: #EFFF00 !important;
   color: #000000 !important;
 }
 
-/* Add Expense button */
-.dark button[class*="bg-"][class*="ink"][class*="rounded-xl"] {
+/* Add Expense button (same precise targeting) */
+.dark button[class*="bg-[var(--ink)]"][class*="rounded-xl"] {
   background: #EFFF00 !important;
   color: #000000 !important;
 }
@@ -2922,5 +2922,46 @@ body {
     .customer-modal-surface .waveform-bar {
         transition: none !important;
         animation: none !important;
+    }
+}
+
+/* ─── Print stylesheet ────────────────────────────────────────────── */
+/* Triggered by the Finances page's Print button; renders a clean P&L
+   without app chrome (sidebar, nav, trial banners, dev tools). */
+@media print {
+    body, html {
+        background: #ffffff !important;
+        color: #000000 !important;
+    }
+    /* Strip the sidebar, top nav, search, notification region, dev tools, and
+       the global trial banner so only the page content prints. */
+    aside,
+    nav,
+    [role="search"],
+    [role="region"][aria-label*="Notifications"],
+    [data-nextjs-dev-tools-button],
+    [class*="trial"],
+    [class*="banner"]:not([class*="finance-print-keep"]),
+    .no-print {
+        display: none !important;
+    }
+    /* Let the main content take full width and remove rounded chrome. */
+    main {
+        margin: 0 !important;
+        padding: 0 !important;
+        max-width: none !important;
+    }
+    .max-w-\[1600px\] {
+        max-width: none !important;
+        padding: 1rem !important;
+    }
+    /* Print-friendly cards: drop shadows, keep borders crisp. */
+    .rounded-2xl, .rounded-xl, .rounded-lg {
+        box-shadow: none !important;
+        page-break-inside: avoid;
+    }
+    /* Hide tab buttons since the print captures whichever tab is active. */
+    .scrollbar-hide {
+        display: none !important;
     }
 }

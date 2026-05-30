@@ -1,0 +1,35 @@
+{
+  "name": "@scheniders/sections",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./helpers/format": "./src/helpers/format.ts",
+    "./helpers/primitives": "./src/helpers/primitives.tsx",
+    "./helpers/product-card": "./src/helpers/product-card.tsx",
+    "./helpers/store-context": "./src/helpers/store-context.tsx",
+    "./helpers/cart-store": "./src/helpers/cart-store.ts",
+    "./helpers/utils": "./src/helpers/utils.ts"
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "next": "^16.0.0"
+  },
+  "dependencies": {
+    "@scheniders/shared": "*",
+    "zod": "^4.3.5",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5",
+    "vitest": "^2.1.9"
+  }
+}

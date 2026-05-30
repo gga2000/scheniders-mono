@@ -1,5 +1,10 @@
 import { verifyAccessToken, createSupabaseServiceClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import {
+    assertNotBlocked,
+    blockedResponseBody,
+    TenantBlockedError,
+} from "@/lib/restrictions";
 
 export async function POST(request: Request) {
     try {
@@ -50,6 +55,16 @@ export async function POST(request: Request) {
 
         if (membership?.role !== "admin") {
             return NextResponse.json({ error: "هذا الإجراء مخصص للمسؤولين فقط" }, { status: 403 });
+        }
+
+        // Tenant pause guard — blocks team invites when admin has paused the merchant.
+        try {
+            await assertNotBlocked(resolvedTenantId, "team_invites");
+        } catch (err) {
+            if (err instanceof TenantBlockedError) {
+                return NextResponse.json(blockedResponseBody(err), { status: 423 });
+            }
+            throw err;
         }
 
         const { data, error: createError } = await supabaseAdmin.auth.admin.createUser({

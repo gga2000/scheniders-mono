@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/admin-supabase";
+import { createAdminClient, requireAdmin } from "@/lib/admin-supabase";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const token = request.headers.get("authorization")?.replace("Bearer ", "");
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const admin = await requireAdmin(token);
+    if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
     const { id } = await params;
     const body = await request.json();
     const supabase = createAdminClient();
@@ -60,14 +65,13 @@ export async function POST(
 
     // Create products if provided
     if (body.products && Array.isArray(body.products) && body.products.length > 0) {
-      const products = body.products.map((p: { name: string; price?: number; description?: string; image_url?: string }, idx: number) => ({
+      const products = body.products.map((p: { name: string; price?: number; description?: string; image_url?: string }) => ({
         tenant_id: tenant.id,
         name: p.name,
         price: p.price || 0,
         description: p.description || null,
         image_url: p.image_url || null,
         status: "active",
-        sort_order: idx,
       }));
 
       await supabase.from("products").insert(products);

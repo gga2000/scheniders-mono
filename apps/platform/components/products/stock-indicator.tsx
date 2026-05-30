@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { AlertTriangle, CheckCircle, XCircle, Package } from "lucide-react";
 import { StockStatus } from "@/lib/supabase";
 import { useLanguage } from "@/hooks/use-language";
+import { Tooltip } from "@/components/ui/tooltip";
 
 interface StockIndicatorProps {
     status: StockStatus;
@@ -113,44 +114,61 @@ export function StockIndicator({
         ? Math.max(Math.ceil(threshold + dailySalesRate * 14), threshold * 2)
         : null;
 
-    return (
-        <div className={cn("inline-flex flex-col gap-1", showHoverTooltip && "group relative")}>
-            {showHoverTooltip && (
-                <div className="pointer-events-none absolute z-20 bottom-full left-0 mb-1 w-56 p-3 rounded-xl bg-[var(--ink)] text-white text-[11px] shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity space-y-1.5">
-                    <div className="flex items-center justify-between"><span className="text-white/60">Available</span><span className="font-semibold">{quantity ?? "—"}</span></div>
-                    <div className="flex items-center justify-between"><span className="text-white/60">Reserved</span><span className="font-semibold">{reserved ?? 0}</span></div>
-                    <div className="flex items-center justify-between"><span className="text-white/60">Total</span><span className="font-semibold">{total ?? "—"}</span></div>
-                    <div className="flex items-center justify-between"><span className="text-white/60">Threshold</span><span className="font-semibold">{threshold ?? "—"}</span></div>
-                    {reorderSuggestion !== null && (
-                        <div className="flex items-center justify-between"><span className="text-white/60">Reorder to</span><span className="font-semibold">{reorderSuggestion}</span></div>
-                    )}
-                    {daysToStockout !== null && (
-                        <div className="flex items-center justify-between"><span className="text-white/60">Stockout in</span><span className="font-semibold">{daysToStockout}d</span></div>
-                    )}
-                </div>
+    const tooltipContent = showHoverTooltip ? (
+        <div className="w-56 space-y-1.5">
+            <div className="flex items-center justify-between"><span className="text-white/60">Available</span><span className="font-semibold">{quantity ?? "—"}</span></div>
+            <div className="flex items-center justify-between"><span className="text-white/60">Reserved</span><span className="font-semibold">{reserved ?? 0}</span></div>
+            <div className="flex items-center justify-between"><span className="text-white/60">Total</span><span className="font-semibold">{total ?? "—"}</span></div>
+            <div className="flex items-center justify-between"><span className="text-white/60">Threshold</span><span className="font-semibold">{threshold ?? "—"}</span></div>
+            {reorderSuggestion !== null && (
+                <div className="flex items-center justify-between"><span className="text-white/60">Reorder to</span><span className="font-semibold">{reorderSuggestion}</span></div>
             )}
-            <div
-                className={cn(
-                    "inline-flex items-center gap-1.5 rounded-lg font-medium",
-                    config.bg,
-                    config.text,
-                    sizeStyles.container
-                )}
-                role="status"
-                aria-label={accessibleLabel}
-            >
-                <Icon className={sizeStyles.icon} aria-hidden="true" />
-                {showLabel && (
-                    <span className={sizeStyles.text}>
-                        {t(config.key)}
-                        {quantity !== undefined && threshold ? (
-                            <span className="opacity-75"> {quantity}/{threshold}</span>
-                        ) : quantity !== undefined ? (
-                            <span className="opacity-75"> ({quantity})</span>
-                        ) : null}
-                    </span>
-                )}
-            </div>
+            {daysToStockout !== null && (
+                <div className="flex items-center justify-between"><span className="text-white/60">Stockout in</span><span className="font-semibold">{daysToStockout}d</span></div>
+            )}
+        </div>
+    ) : null;
+
+    const indicator = (
+        <div
+            className={cn(
+                "inline-flex items-center gap-1.5 rounded-lg font-medium",
+                config.bg,
+                config.text,
+                sizeStyles.container
+            )}
+            role="status"
+            aria-label={accessibleLabel}
+            tabIndex={showHoverTooltip ? 0 : undefined}
+        >
+            <Icon className={sizeStyles.icon} aria-hidden="true" />
+            {showLabel && (
+                <span className={sizeStyles.text}>
+                    {t(config.key)}
+                    {quantity !== undefined && threshold ? (
+                        <span className="opacity-75"> {quantity}/{threshold}</span>
+                    ) : quantity !== undefined ? (
+                        <span className="opacity-75"> ({quantity})</span>
+                    ) : null}
+                </span>
+            )}
+        </div>
+    );
+
+    return (
+        <div className="inline-flex flex-col gap-1">
+            {showHoverTooltip ? (
+                <Tooltip
+                    content={tooltipContent}
+                    side="top"
+                    align="start"
+                    contentClassName="rounded-xl bg-[var(--ink)] text-white text-[11px] p-3 shadow-2xl"
+                >
+                    {indicator}
+                </Tooltip>
+            ) : (
+                indicator
+            )}
 
             {/* Optional mini progress bar */}
             {showProgressBar && quantity !== undefined && (

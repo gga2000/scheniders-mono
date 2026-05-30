@@ -1,20 +1,23 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useLeads } from "@/hooks/use-leads";
-import { useCreateLead } from "@/hooks/use-lead-mutations";
+import { useCreateLead, useUpdateLead, useDeleteLead, useBulkLeadAction } from "@/hooks/use-lead-mutations";
 import { useLeadStore } from "@/store/use-lead-store";
 import { LeadFilterBar } from "@/components/leads/lead-filter-bar";
 import { LeadForm } from "@/components/leads/lead-form";
 import { LeadCard } from "@/components/leads/lead-card";
+import { LeadKanban } from "@/components/leads/lead-kanban";
+import { LeadImportDialog } from "@/components/leads/lead-import-dialog";
 import {
   LEAD_STATUS_CONFIG,
   LEAD_PRIORITY_CONFIG,
   PLATFORM_CONFIG,
   LEAD_TIER_CONFIG,
 } from "@/types/leads";
-import type { LeadFormData } from "@/types/leads";
+import type { LeadFormData, LeadStatus } from "@/types/leads";
 import {
   UserPlus,
   Upload,
@@ -23,16 +26,22 @@ import {
   Table2,
   ChevronLeft,
   ChevronRight,
+  AlertTriangle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function LeadsPage() {
+  const router = useRouter();
   const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const { viewMode, setViewMode, selectedLeads, toggleLead, selectAll, clearSelection } = useLeadStore();
-  const { data, isLoading } = useLeads(page, viewMode === "kanban" ? 100 : 20);
+  const { data, isLoading, isError } = useLeads(page, viewMode === "kanban" ? 100 : 20);
   const createLead = useCreateLead();
+  const updateLead = useUpdateLead();
+  const deleteLead = useDeleteLead();
+  const bulkAction = useBulkLeadAction();
 
   const leads = data?.leads ?? [];
   const total = data?.total ?? 0;
@@ -86,6 +95,7 @@ export default function LeadsPage() {
           </div>
 
           <button
+            onClick={() => setImportOpen(true)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[var(--card-border)] text-sm font-medium text-[var(--foreground)] hover:bg-[var(--card-bg)] transition-colors"
           >
             <Upload className="w-4 h-4" />
@@ -116,9 +126,42 @@ export default function LeadsPage() {
           >
             <span className="text-sm font-medium">{selectedLeads.size} selected</span>
             <div className="w-px h-5 bg-white/20" />
-            <button className="text-sm px-3 py-1 rounded-lg hover:bg-white/10 transition-colors">Change Status</button>
-            <button className="text-sm px-3 py-1 rounded-lg hover:bg-white/10 transition-colors">Assign</button>
-            <button className="text-sm px-3 py-1 rounded-lg hover:bg-white/10 transition-colors text-red-400">Delete</button>
+            <button
+              onClick={() => {
+                bulkAction.mutate(
+                  { lead_ids: Array.from(selectedLeads), action: "change_status", payload: { status: "contacted" } },
+                  { onSuccess: () => clearSelection() }
+                );
+              }}
+              disabled={bulkAction.isPending}
+              className="text-sm px-3 py-1 rounded-lg hover:bg-white/10 transition-colors"
+            >
+              Change Status
+            </button>
+            <button
+              onClick={() => {
+                bulkAction.mutate(
+                  { lead_ids: Array.from(selectedLeads), action: "assign" },
+                  { onSuccess: () => clearSelection() }
+                );
+              }}
+              disabled={bulkAction.isPending}
+              className="text-sm px-3 py-1 rounded-lg hover:bg-white/10 transition-colors"
+            >
+              Assign
+            </button>
+            <button
+              onClick={() => {
+                bulkAction.mutate(
+                  { lead_ids: Array.from(selectedLeads), action: "delete" },
+                  { onSuccess: () => clearSelection() }
+                );
+              }}
+              disabled={bulkAction.isPending}
+              className="text-sm px-3 py-1 rounded-lg hover:bg-white/10 transition-colors text-red-400"
+            >
+              Delete
+            </button>
             <div className="w-px h-5 bg-white/20" />
             <button onClick={clearSelection} className="text-sm text-zinc-400 hover:text-white transition-colors">Clear</button>
           </motion.div>
@@ -126,7 +169,23 @@ export default function LeadsPage() {
       </AnimatePresence>
 
       {/* Content */}
-      {isLoading ? (
+      {isError ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mb-4">
+            <AlertTriangle className="w-8 h-8 text-red-400" />
+          </div>
+          <h3 className="text-lg font-bold text-[var(--foreground)] mb-2">Failed to load leads</h3>
+          <p className="text-sm text-[var(--muted)] mb-6 max-w-sm">
+            Something went wrong while fetching leads. Please try again.
+          </p>
+          <button
+            onClick={() => setPage(1)}
+            className="px-6 py-3 rounded-xl bg-[var(--primary)] text-[var(--primary-fg)] text-sm font-bold hover:brightness-110 transition-all"
+          >
+            Retry
+          </button>
+        </div>
+      ) : isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="h-64 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl animate-pulse" />
@@ -159,7 +218,7 @@ export default function LeadsPage() {
                 isSelected={selectedLeads.has(lead.id)}
                 onSelect={() => toggleLead(lead.id)}
                 onClick={() => {
-                  window.location.href = `/leads/${lead.id}`;
+                  router.push(`/leads/${lead.id}`);
                 }}
               />
             ))}
@@ -202,7 +261,7 @@ export default function LeadsPage() {
                 return (
                   <tr
                     key={lead.id}
-                    onClick={() => { window.location.href = `/leads/${lead.id}`; }}
+                    onClick={() => { router.push(`/leads/${lead.id}`); }}
                     className="border-b border-[var(--card-border)] last:border-0 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] cursor-pointer transition-colors"
                   >
                     <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
@@ -257,10 +316,16 @@ export default function LeadsPage() {
           </table>
         </div>
       ) : (
-        /* Kanban View - placeholder for now */
-        <div className="text-center py-20 text-[var(--muted)]">
-          Kanban view coming soon
-        </div>
+        /* Kanban View */
+        <LeadKanban
+          leads={leads}
+          onStatusChange={(leadId, newStatus) => {
+            updateLead.mutate({ id: leadId, data: { status: newStatus } });
+          }}
+          onLeadClick={(leadId) => {
+            router.push(`/leads/${leadId}`);
+          }}
+        />
       )}
 
       {/* Pagination (table/cards only) */}
@@ -295,6 +360,12 @@ export default function LeadsPage() {
         onOpenChange={setFormOpen}
         onSubmit={handleCreateLead}
         isLoading={createLead.isPending}
+      />
+
+      {/* Import Dialog */}
+      <LeadImportDialog
+        isOpen={importOpen}
+        onClose={() => setImportOpen(false)}
       />
     </div>
   );

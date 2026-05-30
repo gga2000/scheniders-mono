@@ -1,13 +1,11 @@
 import { notFound } from "next/navigation";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
-import {
-  getCategoryBySlug,
-  listCategories,
-  listProducts,
-} from "@/lib/queries";
+import { getCategoryBySlug, listCategories, listProducts } from "@/lib/queries";
 import { StoreHeader } from "@/components/storefront/StoreHeader";
 import { StoreFooter } from "@/components/storefront/StoreFooter";
 import { ProductCard } from "@/components/storefront/ProductCard";
+import { SchneidersPageShell } from "@/components/schneiders/page-shell";
+import { SchneidersCategoryView } from "@/components/schneiders/category-view";
 
 interface Props {
   params: Promise<{ tenant: string; slug: string }>;
@@ -29,22 +27,25 @@ export default async function CategoryPage({ params }: Props) {
     listCategories(tenant.id),
   ]);
 
+  const template = tenant.store_config?.template ?? "schneiders";
+  if (template === "schneiders") {
+    return (
+      <SchneidersPageShell tenant={tenant} categories={categories} showBack>
+        <SchneidersCategoryView category={category} products={products} />
+      </SchneidersPageShell>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-zinc-50">
       <StoreHeader tenant={tenant} categories={categories} />
-
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-zinc-900">{category.name}</h1>
-          {category.description && (
-            <p className="text-zinc-600 mt-2">{category.description}</p>
-          )}
+          {category.description && <p className="text-zinc-600 mt-2">{category.description}</p>}
         </div>
-
         {products.length === 0 ? (
-          <div className="text-center py-16 text-zinc-500">
-            لا توجد منتجات في هذا القسم حالياً
-          </div>
+          <div className="text-center py-16 text-zinc-500">لا توجد منتجات في هذا القسم حالياً</div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {products.map((p) => (
@@ -53,7 +54,6 @@ export default async function CategoryPage({ params }: Props) {
           </div>
         )}
       </main>
-
       <StoreFooter tenant={tenant} />
     </div>
   );

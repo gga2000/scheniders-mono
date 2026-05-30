@@ -16,17 +16,23 @@ export function ConfidenceIndicator({
 }: ConfidenceIndicatorProps) {
     const { t } = useLanguage();
 
+    if (orderCount === 0) return null;
+
     const showStores = !!storeCount && storeCount > 1;
 
-    const fullLabel = t("customers.trust.basedOn", {
-        orders: orderCount.toLocaleString("en-US"),
-        stores: showStores ? storeCount.toLocaleString("en-US") : "",
-    });
-
-    // When store count is absent or 1, trim the trailing "from  stores" / "من  متجر" fragment
-    const label = showStores
-        ? fullLabel
-        : fullLabel.replace(/\s+(?:from\s.*|من\s.*)$/u, "");
+    let label: string;
+    if (showStores) {
+        label = t("customers.trust.basedOn", {
+            orders: orderCount.toLocaleString("en-US"),
+            stores: storeCount.toLocaleString("en-US"),
+        });
+    } else if (orderCount === 1) {
+        label = t("customers.trust.basedOnOne");
+    } else {
+        label = t("customers.trust.basedOnMany", {
+            orders: orderCount.toLocaleString("en-US"),
+        });
+    }
 
     return (
         <span

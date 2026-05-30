@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Product, getStockStatus } from "@/lib/supabase";
 import { formatIQD } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -13,18 +13,22 @@ import {
     EyeOff,
     Tag,
     GripVertical,
+    ChevronDown,
 } from "lucide-react";
+import { toast } from "sonner";
 import { StockIndicator } from "./stock-indicator";
 import { QuickActionsMenu } from "./quick-actions-menu";
 import { HealthScoreBadge } from "./health-score-badge";
-import { StockSparkline } from "./stock-sparkline";
+import { CategoryCombobox } from "./category-combobox";
+import { useCategoriesQuery } from "@/hooks/use-categories-query";
+import { useUpdateProductMutation } from "@/hooks/use-products-query";
 import { calculateProductScore, computeDailySalesRate, type ProductScoreInput } from "@/lib/utils/product-scoring";
 
 interface ProductListRowProps {
     product: Product;
     categoryName?: string;
     isSelected: boolean;
-    onToggleSelection: (id: string) => void;
+    onToggleSelection: (id: string, event?: React.MouseEvent) => void;
     onViewDetails: (product: Product) => void;
     onEdit: (product: Product) => void;
     onArchive: (id: string) => void;
@@ -74,6 +78,9 @@ export const ProductListRow = React.memo(function ProductListRow({
         daily_sales_rate: dailyRate,
     };
     const healthScore = calculateProductScore(scoreInput);
+    const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
+    const { data: allCategories = [] } = useCategoriesQuery();
+    const updateProductMutation = useUpdateProductMutation();
 
     return (
         <div
@@ -99,7 +106,7 @@ export const ProductListRow = React.memo(function ProductListRow({
 
                 {/* Selection Checkbox */}
                 <button
-                    onClick={() => onToggleSelection(product.id)}
+                    onClick={(e) => onToggleSelection(product.id, e)}
                     className="p-1 hover:bg-[var(--background)] rounded-lg transition-colors flex-shrink-0"
                     aria-label={isSelected ? t("products.selection.deselectAll") : t("products.selection.selectAll")}
                 >
@@ -131,14 +138,82 @@ export const ProductListRow = React.memo(function ProductListRow({
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                         <h3 className="font-bold text-foreground truncate">{product.name}</h3>
-                        {categoryName && (
-                            <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-[var(--background)] border border-[var(--card-border)] rounded-md flex-shrink-0">
+                        {/* Inline category picker — click chip to change this product's category. */}
+                        <div className="relative flex-shrink-0">
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setCategoryPickerOpen((v) => !v);
+                                }}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onPointerUp={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 bg-[var(--background)] border border-[var(--card-border)] rounded-md hover:bg-[var(--card-border)] cursor-pointer transition-colors group/catchip"
+                                aria-haspopup="listbox"
+                                aria-expanded={categoryPickerOpen}
+                            >
                                 <Tag className="w-3 h-3 text-[var(--foreground-subtle)]" />
-                                <span className="text-[10px] text-[var(--foreground-subtle)] font-medium">
-                                    {categoryName}
+                                <span
+                                    className={cn(
+                                        "text-[10px] font-medium",
+                                        categoryName
+                                            ? "text-[var(--foreground-subtle)]"
+                                            : "text-muted"
+                                    )}
+                                >
+                                    {categoryName ?? t("products.category.uncategorized")}
                                 </span>
-                            </div>
-                        )}
+                                <ChevronDown className="w-3 h-3 text-[var(--foreground-subtle)] opacity-0 group-hover/catchip:opacity-100 transition-opacity" />
+                            </button>
+                            {categoryPickerOpen && (
+                                <>
+                                    <div
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setCategoryPickerOpen(false);
+                                        }}
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        className="fixed inset-0 z-30"
+                                    />
+                                    <div
+                                        className="absolute left-0 top-full mt-1 z-40 min-w-[240px]"
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <CategoryCombobox
+                                            variant="anchored"
+                                            open={categoryPickerOpen}
+                                            onOpenChange={setCategoryPickerOpen}
+                                            value={product.category_id ?? null}
+                                            onChange={(newId) => {
+                                                if (newId === (product.category_id ?? null)) {
+                                                    setCategoryPickerOpen(false);
+                                                    return;
+                                                }
+                                                const targetName =
+                                                    newId
+                                                        ? allCategories.find((c) => c.id === newId)?.name ?? ""
+                                                        : t("products.category.uncategorized");
+                                                updateProductMutation.mutate(
+                                                    { id: product.id, data: { category_id: newId } },
+                                                    {
+                                                        onSuccess: () => {
+                                                            toast.success(
+                                                                t("products.bulkCategory.success", {
+                                                                    count: 1,
+                                                                    targetName,
+                                                                })
+                                                            );
+                                                        },
+                                                    }
+                                                );
+                                                setCategoryPickerOpen(false);
+                                            }}
+                                        />
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </div>
                     <div className="flex items-center gap-3 mt-1">
                         {product.sku && (
@@ -155,21 +230,30 @@ export const ProductListRow = React.memo(function ProductListRow({
                         size="sm"
                     />
                     <div className="h-1 w-16 bg-[var(--background)] rounded-full overflow-hidden">
-                        <div
-                            className={cn(
-                                "h-full rounded-full transition-all",
-                                stockRatio > 1
-                                    ? "bg-blue-400"
-                                    : stockRatio > 0.5
-                                        ? "bg-green-400"
-                                        : stockRatio > 0.25
-                                            ? "bg-amber-400"
-                                            : stockRatio > 0
-                                                ? "bg-red-400"
-                                                : "bg-gray-300"
-                            )}
-                            style={{ width: `${Math.min(stockRatio * 50, 100)}%` }}
-                        />
+                        {availableStock <= 0 ? (
+                            <div
+                                className="h-full w-full rounded-full animate-pulse"
+                                style={{
+                                    backgroundImage:
+                                        "repeating-linear-gradient(45deg, rgba(244,63,94,0.85) 0 5px, rgba(225,29,72,0.85) 5px 10px)",
+                                }}
+                                title={t("products.status.outOfStock")}
+                            />
+                        ) : (
+                            <div
+                                className={cn(
+                                    "h-full rounded-full transition-all",
+                                    stockRatio > 1
+                                        ? "bg-blue-400"
+                                        : stockRatio > 0.5
+                                            ? "bg-green-400"
+                                            : stockRatio > 0.25
+                                                ? "bg-amber-400"
+                                                : "bg-red-400"
+                                )}
+                                style={{ width: `${Math.min(stockRatio * 50, 100)}%` }}
+                            />
+                        )}
                     </div>
                     {hasReserved && (
                         <span className="text-[10px] text-amber-600 font-medium">
@@ -214,15 +298,6 @@ export const ProductListRow = React.memo(function ProductListRow({
                 {/* Health Score */}
                 <div className="hidden xl:flex items-center">
                     <HealthScoreBadge score={healthScore} size="sm" />
-                </div>
-
-                {/* Sparkline */}
-                <div className="hidden xl:flex items-center">
-                    <StockSparkline
-                        stockQuantity={availableStock}
-                        lowStockThreshold={threshold}
-                        dailySalesRate={dailyRate}
-                    />
                 </div>
 
                 {/* Visibility */}

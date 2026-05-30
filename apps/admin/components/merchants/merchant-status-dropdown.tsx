@@ -14,6 +14,7 @@ const STATUS_OPTIONS: Array<{
 }> = [
   { value: "trial", label: "Trial", dot: "bg-amber-500" },
   { value: "active", label: "Active", dot: "bg-green-500" },
+  { value: "limited", label: "Limited", dot: "bg-yellow-500" },
   { value: "suspended", label: "Suspended", dot: "bg-red-500", destructive: true },
   { value: "cancelled", label: "Cancelled", dot: "bg-gray-400", destructive: true },
 ];
@@ -21,6 +22,7 @@ const STATUS_OPTIONS: Array<{
 const statusBadgeStyle: Record<TenantStatus, string> = {
   active: "bg-green-100 text-green-800 dark:bg-green-400/15 dark:text-green-400",
   trial: "bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-400",
+  limited: "bg-yellow-100 text-yellow-800 dark:bg-yellow-400/15 dark:text-yellow-400",
   suspended: "bg-red-100 text-red-800 dark:bg-red-400/15 dark:text-red-400",
   cancelled: "bg-gray-100 text-gray-600 dark:bg-gray-400/15 dark:text-gray-400",
 };

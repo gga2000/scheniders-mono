@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { supabase } from '@/lib/supabase';
+import { useLanguage } from '@/hooks/use-language';
 
 interface RecentTask {
     id: string;
@@ -24,14 +25,15 @@ interface MyActiveDeskProps {
     } | null;
 }
 
-const ACTION_CONFIG: Record<string, { label: string; duty: 'confirmation' | 'fulfillment'; icon: React.ElementType; priority: 'high' | 'medium' | 'low' }> = {
-    'order.create': { label: 'إنشاء طلب', duty: 'confirmation', icon: Package, priority: 'high' },
-    'order.status_change': { label: 'تغيير حالة', duty: 'fulfillment', icon: RefreshCw, priority: 'medium' },
-    'order.edit': { label: 'تعديل طلب', duty: 'confirmation', icon: Edit3, priority: 'medium' },
-    'order.print': { label: 'طباعة طلب', duty: 'fulfillment', icon: Printer, priority: 'low' },
+const ACTION_CONFIG: Record<string, { labelKey: string; duty: 'confirmation' | 'fulfillment'; icon: React.ElementType; priority: 'high' | 'medium' | 'low' }> = {
+    'order.create': { labelKey: 'team.desk.createOrder', duty: 'confirmation', icon: Package, priority: 'high' },
+    'order.status_change': { labelKey: 'team.desk.statusChange', duty: 'fulfillment', icon: RefreshCw, priority: 'medium' },
+    'order.edit': { labelKey: 'team.desk.editOrder', duty: 'confirmation', icon: Edit3, priority: 'medium' },
+    'order.print': { labelKey: 'team.desk.printOrder', duty: 'fulfillment', icon: Printer, priority: 'low' },
 };
 
 export function MyActiveDesk({ profile }: MyActiveDeskProps) {
+    const { t, language } = useLanguage();
     const listRef = useRef<HTMLDivElement>(null);
     const { scrollXProgress } = useScroll({ container: listRef });
     const [tasks, setTasks] = useState<RecentTask[]>([]);
@@ -71,10 +73,10 @@ export function MyActiveDesk({ profile }: MyActiveDeskProps) {
 
     if (!profile) return null;
 
-    const firstName = profile.display_name?.split(' ')[0] || profile.email?.split('@')[0] || 'زميل';
+    const firstName = profile.display_name?.split(' ')[0] || profile.email?.split('@')[0] || t('team.desk.colleague');
 
     const hour = new Date().getHours();
-    const greeting = hour < 12 ? 'صباح الخير' : 'مساء الخير';
+    const greeting = hour < 12 ? t('team.desk.goodMorning') : t('team.desk.goodEvening');
 
     return (
         <div className="mb-10 w-full relative">
@@ -91,11 +93,11 @@ export function MyActiveDesk({ profile }: MyActiveDeskProps) {
                     </div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                         {loading ? (
-                            'جاري التحميل...'
+                            t('team.desk.loading')
                         ) : tasks.length > 0 ? (
-                            <>لديك <strong className="text-gray-900 dark:text-white">{tasks.length} نشاطات</strong> اليوم.</>
+                            <span dangerouslySetInnerHTML={{ __html: t('team.desk.activitiesToday', { count: `<strong class="text-gray-900 dark:text-white">${tasks.length}</strong>` }) }} />
                         ) : (
-                            'لا توجد نشاطات حتى الآن اليوم.'
+                            t('team.desk.noActivitiesYet')
                         )}
                     </p>
                 </div>
@@ -129,7 +131,7 @@ export function MyActiveDesk({ profile }: MyActiveDeskProps) {
                     ) : (
                         <AnimatePresence>
                             {tasks.map((task, index) => (
-                                <TaskCard key={task.id} task={task} index={index} />
+                                <TaskCard key={task.id} task={task} index={index} t={t} language={language} />
                             ))}
                         </AnimatePresence>
                     )}
@@ -140,8 +142,8 @@ export function MyActiveDesk({ profile }: MyActiveDeskProps) {
                             <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4 text-gray-400">
                                 <CheckCircle2 className="w-8 h-8" />
                             </div>
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">مكتبك فارغ!</h3>
-                            <p className="text-sm text-gray-500 max-w-xs">لا توجد لديك نشاطات حالياً اليوم.</p>
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">{t('team.desk.emptyDesk')}</h3>
+                            <p className="text-sm text-gray-500 max-w-xs">{t('team.desk.emptyDeskDesc')}</p>
                         </div>
                     )}
                 </div>
@@ -151,10 +153,11 @@ export function MyActiveDesk({ profile }: MyActiveDeskProps) {
 }
 
 // Internal Task Card Component
-function TaskCard({ task, index }: { task: RecentTask; index: number }) {
-    const config = ACTION_CONFIG[task.action] || { label: task.action, duty: 'confirmation' as const, icon: Activity, priority: 'low' as const };
+function TaskCard({ task, index, t, language }: { task: RecentTask; index: number; t: any; language: string }) {
+    const config = ACTION_CONFIG[task.action] || { labelKey: task.action, duty: 'confirmation' as const, icon: Activity, priority: 'low' as const };
     const isConfirmation = config.duty === 'confirmation';
     const TaskIcon = config.icon;
+    const translatedLabel = t(config.labelKey) !== config.labelKey ? t(config.labelKey) : task.action;
 
     const theme = isConfirmation
         ? {
@@ -194,7 +197,7 @@ function TaskCard({ task, index }: { task: RecentTask; index: number }) {
                     "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
                     theme.bg, theme.text
                 )}>
-                    {config.label}
+                    {translatedLabel}
                 </div>
 
                 {config.priority === 'high' && (
@@ -205,20 +208,20 @@ function TaskCard({ task, index }: { task: RecentTask; index: number }) {
             <div className="mb-5">
                 <div className="flex items-center gap-2 mb-1">
                     <TaskIcon className={cn("w-5 h-5", theme.text)} />
-                    <h4 className="text-lg font-bold text-gray-900 dark:text-white">{config.label}</h4>
+                    <h4 className="text-lg font-bold text-gray-900 dark:text-white">{translatedLabel}</h4>
                 </div>
                 {entityDisplay && (
                     <p className="text-sm text-gray-500 font-mono tracking-tight">{entityDisplay}</p>
                 )}
                 {statusDetail && (
-                    <p className="text-xs text-gray-400 mt-1">الحالة الجديدة: <strong className="text-gray-700 dark:text-gray-300">{statusDetail}</strong></p>
+                    <p className="text-xs text-gray-400 mt-1">{t('team.desk.newStatus')} <strong className="text-gray-700 dark:text-gray-300">{statusDetail}</strong></p>
                 )}
             </div>
 
             <div className="flex items-center justify-between mt-auto border-t border-gray-100 dark:border-white/5 pt-4">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500">
                     <Clock className="w-3.5 h-3.5" />
-                    <span>{formatDistanceToNow(new Date(task.created_at), { addSuffix: true, locale: ar })}</span>
+                    <span>{formatDistanceToNow(new Date(task.created_at), { addSuffix: true, locale: language === 'ar' ? ar : undefined })}</span>
                 </div>
 
                 <div className={cn(

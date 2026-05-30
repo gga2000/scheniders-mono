@@ -91,7 +91,7 @@ export function FinancialMetricRow({
                 </div>
                 <div className="flex items-center gap-2">
                     <span className={cn("text-sm font-semibold tabular-nums", colors.text)}>
-                        IQD {formatIQD(amount)}
+                        {formatIQD(amount)}
                     </span>
                     {showPercentage && percentageValue !== undefined && (
                         <span className="text-[11px] text-muted tabular-nums">

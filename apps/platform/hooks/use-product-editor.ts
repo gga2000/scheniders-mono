@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import type { Product, ProductVariant } from "@/types/product";
+import type { Product, ProductVariant, VariantOptionType, OptionValueMetadata, CostBreakdown } from "@/types/product";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useAutoSave } from "@/hooks/use-auto-save";
 import { productRepository } from "@/lib/repositories/product-repository";
@@ -13,6 +13,8 @@ export interface ProductOptionFormData {
     id?: string;
     name: string;
     values: string[];
+    option_type?: VariantOptionType;
+    values_metadata?: OptionValueMetadata[];
 }
 
 export interface ProductEditorFormData {
@@ -39,6 +41,12 @@ export interface ProductEditorFormData {
     status: 'draft' | 'active' | 'archived';
     is_supply: boolean;
     tag_color: string;
+
+    // Barcode
+    barcode: string;
+
+    // Landed cost
+    cost_breakdown_json: CostBreakdown | null;
 
     // Storefront
     slug: string;
@@ -229,6 +237,8 @@ const DEFAULT_FORM_DATA: ProductEditorFormData = {
     status: "draft",
     is_supply: false,
     tag_color: "#22c55e",
+    barcode: "",
+    cost_breakdown_json: null,
     slug: "",
     is_visible: true,
     display_order: 0,
@@ -320,6 +330,98 @@ function generateVariantCombinations(
     });
 }
 
+export interface VariantDiff {
+    added: VariantFormData[];
+    removed: VariantFormData[];
+    unchanged: VariantFormData[];
+    hasStockAtRisk: boolean;
+    stockAtRiskCount: number;
+}
+
+function calculateVariantDiff(
+    currentVariants: VariantFormData[],
+    newOptions: ProductOptionFormData[],
+    defaultPrice: number,
+    defaultCost: number
+): VariantDiff {
+    const validOptions = newOptions.filter(o => o.name.trim() && o.values.length > 0);
+
+    if (validOptions.length === 0) {
+        return {
+            added: [],
+            removed: currentVariants.length > 0 ? [...currentVariants] : [],
+            unchanged: [],
+            hasStockAtRisk: currentVariants.some(v => v.stock_quantity > 0),
+            stockAtRiskCount: currentVariants.filter(v => v.stock_quantity > 0).length,
+        };
+    }
+
+    // Build new combinations
+    const combinations: Record<string, string>[] = validOptions.reduce<Record<string, string>[]>(
+        (acc, option) => {
+            if (option.values.length === 0) return acc;
+            if (acc.length === 0) {
+                return option.values.map(v => ({ [option.name]: v }));
+            }
+            const result: Record<string, string>[] = [];
+            for (const existing of acc) {
+                for (const value of option.values) {
+                    result.push({ ...existing, [option.name]: value });
+                }
+            }
+            return result;
+        },
+        []
+    );
+
+    const newKeys = new Set(combinations.map(c => JSON.stringify(c)));
+    const existingByKey = new Map<string, VariantFormData>();
+    for (const v of currentVariants) {
+        if (v.option_values) {
+            existingByKey.set(JSON.stringify(v.option_values), v);
+        }
+    }
+
+    const added: VariantFormData[] = [];
+    const unchanged: VariantFormData[] = [];
+
+    for (const combo of combinations) {
+        const key = JSON.stringify(combo);
+        const existing = existingByKey.get(key);
+        if (existing) {
+            unchanged.push(existing);
+        } else {
+            added.push({
+                name: Object.values(combo).join(" / "),
+                price: defaultPrice,
+                cost: defaultCost,
+                stock_quantity: 0,
+                sku: "",
+                option_values: combo,
+                is_enabled: true,
+            });
+        }
+    }
+
+    const removed: VariantFormData[] = [];
+    for (const v of currentVariants) {
+        if (v.option_values) {
+            const key = JSON.stringify(v.option_values);
+            if (!newKeys.has(key)) {
+                removed.push(v);
+            }
+        }
+    }
+
+    return {
+        added,
+        removed,
+        unchanged,
+        hasStockAtRisk: removed.some(v => v.stock_quantity > 0),
+        stockAtRiskCount: removed.filter(v => v.stock_quantity > 0).length,
+    };
+}
+
 function productToFormData(product: Product): ProductEditorFormData {
     return {
         name: product.name,
@@ -336,6 +438,8 @@ function productToFormData(product: Product): ProductEditorFormData {
         status: product.status || (product.is_archived ? "archived" : "active"),
         is_supply: product.is_supply,
         tag_color: product.tag_color || "#22c55e",
+        barcode: product.barcode || "",
+        cost_breakdown_json: product.cost_breakdown_json ?? null,
         slug: product.slug || "",
         is_visible: product.is_visible ?? true,
         display_order: product.display_order ?? 0,
@@ -397,12 +501,20 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
     const [saving, setSaving] = useState(false);
     const initialDataRef = useRef(initialData);
 
-    // Reset form when product changes (e.g., navigating between products)
+    // Reset form only when navigating to a different product — NOT on every
+    // refetch. TanStack invalidation returns a new `products` array reference
+    // on each settled mutation; depending on `product` (object identity) would
+    // wipe in-flight user edits and reset `initialDataRef`, making isDirty go
+    // false after the first successful save.
     useEffect(() => {
         const newData = product ? productToFormData(product) : DEFAULT_FORM_DATA;
         setFormData(newData);
         initialDataRef.current = newData;
-    }, [product]);
+    }, [product?.id]);
+
+    const [pendingVariantDiff, setPendingVariantDiff] = useState<VariantDiff | null>(null);
+    const [pendingOptions, setPendingOptions] = useState<ProductOptionFormData[] | null>(null);
+    const [previousOptions, setPreviousOptions] = useState<ProductOptionFormData[] | null>(null);
 
     // Load related data from separate tables when editing
     const [relatedDataLoaded, setRelatedDataLoaded] = useState(false);
@@ -449,6 +561,8 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                         id: o.id,
                         name: o.name,
                         values: o.values || [],
+                        option_type: o.option_type || 'custom',
+                        values_metadata: o.values_metadata || null,
                     })),
                     tiered_prices: tieredPrices.map((t: any) => ({
                         min_quantity: t.min_quantity,
@@ -541,11 +655,15 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                     })),
                 };
 
-                setFormData((prev) => {
-                    const updated = { ...prev, ...relatedUpdates };
-                    initialDataRef.current = updated;
-                    return updated;
-                });
+                // Baseline for dirty detection is server-loaded data + related
+                // rows. Don't derive it from `prev` — `prev` may contain the
+                // user's in-flight edits, which would incorrectly mark the form
+                // clean.
+                const serverBaseline = product
+                    ? { ...productToFormData(product), ...relatedUpdates }
+                    : { ...DEFAULT_FORM_DATA, ...relatedUpdates };
+                initialDataRef.current = serverBaseline as ProductEditorFormData;
+                setFormData((prev) => ({ ...prev, ...relatedUpdates }));
                 setRelatedDataLoaded(true);
             } catch (error) {
                 console.error("Error loading related product data:", error);
@@ -667,10 +785,28 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
     // Advanced variant option management
     const updateVariantOptions = useCallback((options: ProductOptionFormData[]) => {
         setFormData((prev) => {
-            // Generate variant combinations from options
             const validOptions = options.filter(o => o.name.trim() && o.values.length > 0);
-            const newVariants = generateVariantCombinations(validOptions, prev.variants, prev.price, prev.cost);
-            return { ...prev, variant_options: options, variants: newVariants };
+
+            // If no current variants or all options cleared, apply directly
+            if (prev.variants.length === 0 || validOptions.length === 0) {
+                const newVariants = generateVariantCombinations(validOptions, prev.variants, prev.price, prev.cost);
+                return { ...prev, variant_options: options, variants: newVariants };
+            }
+
+            // Calculate diff
+            const diff = calculateVariantDiff(prev.variants, options, prev.price, prev.cost);
+
+            // If nothing is being removed, apply directly
+            if (diff.removed.length === 0) {
+                const newVariants = generateVariantCombinations(validOptions, prev.variants, prev.price, prev.cost);
+                return { ...prev, variant_options: options, variants: newVariants };
+            }
+
+            // Store diff for confirmation — don't update variants yet, only update options visually
+            setPendingVariantDiff(diff);
+            setPreviousOptions(prev.variant_options);
+            setPendingOptions(options);
+            return { ...prev, variant_options: options };
         });
     }, []);
 
@@ -687,6 +823,52 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
         setFormData((prev) => ({
             ...prev,
             variants: prev.variants.map((v) => ({ ...v, [field]: value })),
+        }));
+    }, []);
+
+    const confirmVariantChanges = useCallback(() => {
+        if (!pendingOptions) return;
+        setFormData((prev) => {
+            const validOptions = pendingOptions.filter(o => o.name.trim() && o.values.length > 0);
+            const newVariants = generateVariantCombinations(validOptions, prev.variants, prev.price, prev.cost);
+            return { ...prev, variant_options: pendingOptions, variants: newVariants };
+        });
+        setPendingVariantDiff(null);
+        setPendingOptions(null);
+        setPreviousOptions(null);
+    }, [pendingOptions]);
+
+    const cancelVariantChanges = useCallback(() => {
+        if (!previousOptions) return;
+        // Revert options to what they were before the pending change
+        setFormData((prev) => ({
+            ...prev,
+            variant_options: previousOptions,
+        }));
+        setPendingVariantDiff(null);
+        setPendingOptions(null);
+        setPreviousOptions(null);
+    }, [previousOptions]);
+
+    const dismissVariantDiff = useCallback(() => {
+        setPendingVariantDiff(null);
+        setPendingOptions(null);
+    }, []);
+
+    const bulkUpdateVariants = useCallback((indices: number[], updates: Partial<VariantFormData>) => {
+        setFormData((prev) => ({
+            ...prev,
+            variants: prev.variants.map((v, i) =>
+                indices.includes(i) ? { ...v, ...updates } : v
+            ),
+        }));
+    }, []);
+
+    const deleteVariants = useCallback((indices: number[]) => {
+        const indexSet = new Set(indices);
+        setFormData((prev) => ({
+            ...prev,
+            variants: prev.variants.filter((_, i) => !indexSet.has(i)),
         }));
     }, []);
 
@@ -717,6 +899,8 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                 name: o.name,
                 values: o.values,
                 display_order: i,
+                option_type: o.option_type || 'custom',
+                values_metadata: o.values_metadata || null,
             })), tenantId),
             productRepository.saveTieredPrices(productId, formData.tiered_prices, tenantId),
             productRepository.saveOrderBumps(productId, formData.order_bumps.map((b) => ({
@@ -842,6 +1026,8 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                     reorder_point: formData.reorder_point,
                     image_url: formData.image_url,
                     tag_color: formData.tag_color,
+                    barcode: formData.barcode || undefined,
+                    cost_breakdown_json: formData.cost_breakdown_json,
                     is_supply: formData.is_supply,
                     slug: formData.slug || undefined,
                     is_visible: formData.is_visible,
@@ -914,6 +1100,8 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                     reorder_point: formData.reorder_point,
                     image_url: formData.image_url,
                     tag_color: formData.tag_color,
+                    barcode: formData.barcode || undefined,
+                    cost_breakdown_json: formData.cost_breakdown_json,
                     is_supply: formData.is_supply,
                     slug: formData.slug || undefined,
                     is_visible: formData.is_visible,
@@ -1132,6 +1320,14 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
         updateVariantOptions,
         updateVariantRow,
         applyToAllVariants,
+        bulkUpdateVariants,
+        deleteVariants,
+
+        // Variant diff/confirmation
+        pendingVariantDiff,
+        confirmVariantChanges,
+        cancelVariantChanges,
+        dismissVariantDiff,
 
         // Calculations
         profitMargin,

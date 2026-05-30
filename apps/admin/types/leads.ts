@@ -120,7 +120,7 @@ export interface Lead {
   status: LeadStatus;
   priority: LeadPriority;
   lead_score: number;
-  score_breakdown: {
+  score_breakdown: Partial<{
     followers: number;
     engagement: number;
     orders: number;
@@ -128,7 +128,7 @@ export interface Lead {
     platform: number;
     responsiveness: number;
     store: number;
-  };
+  }>;
   tier: LeadTier;
 
   assigned_to: string | null;

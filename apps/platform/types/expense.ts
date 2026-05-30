@@ -92,12 +92,20 @@ export interface ProfitSummary {
     totalVialCost: number;
     totalSamplePerfumeCost: number;
     totalSweetsCost: number;
+    /** Cost of Goods Sold — product cost + sample perfume (the actual goods delivered). */
+    totalCOGS: number;
+    /** Operational costs excluding COGS — delivery, packaging, vial, sweets. */
     totalOperationalCost: number;
     marketingCost: number;
     totalCost: number;
+    /** Revenue − COGS. Standard accounting gross profit. */
     grossProfit: number;
+    /** Gross profit − operational (non-COGS) costs. */
+    operatingProfit: number;
+    /** Operating profit − marketing. Fully-loaded net profit. */
     netProfit: number;
     grossProfitMargin: number;
+    operatingProfitMargin: number;
     netProfitMargin: number;
     orderCount: number;
     deliveredCount: number;

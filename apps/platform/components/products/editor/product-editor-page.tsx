@@ -31,6 +31,7 @@ import { StorefrontPreview } from "./storefront-preview";
 import { CollapsibleSection } from "./collapsible-section";
 import { AdvancedOptionsSection } from "./advanced-options-section";
 import { LandedCostSection } from "./landed-cost-section";
+import { RecipeSection } from "./recipe-section";
 import { BarcodeGenerator } from "../barcode/barcode-generator";
 import { TagInput } from "../tags/tag-input";
 import { BatchManager } from "../batch-tracking/batch-manager";
@@ -250,6 +251,12 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
                                     formData={editor.formData}
                                     updateField={editor.updateField}
                                 />
+                                {!editor.formData.is_supply && (
+                                    <RecipeSection
+                                        productId={product?.id ?? null}
+                                        productName={editor.formData.name}
+                                    />
+                                )}
                             </div>
                         )}
 

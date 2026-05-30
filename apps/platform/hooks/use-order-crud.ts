@@ -195,7 +195,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
                             if (status === 'completed' || status === 'delivered') {
                                 engine.fulfillOrder(items);
-                                engine.deductSupplies(items.length);
+                                engine.deductSupplies(items);
                             } else if (status === 'rejected' || status === 'refund_delivered') {
                                 engine.quarantineOrder(orderId, items, rejectionReason || `Changed to ${status}`);
                             } else if (status === 'cancelled' && prevWasActive) {
@@ -437,8 +437,18 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     diag.log(`[Diag:CreateOrder] FRAUD_CHECK_START phone=${cleanOrderData.phone}`);
                     import("@/lib/fraud-detector").then(async ({ fraudDetector }) => {
                         try {
-                            const riskAssessment = await fraudDetector.assessCustomerRisk(cleanOrderData.phone!);
-                            const riskPayload = fraudDetector.getPersistencePayload(riskAssessment);
+                            const riskAssessment = await fraudDetector.assessCustomerTrust(cleanOrderData.phone!);
+                            // Persist the trust assessment as the risk metadata payload — the
+                            // older TrustEngine.getPersistencePayload helper has been removed.
+                            const riskPayload = {
+                                level: riskAssessment.level,
+                                tier: riskAssessment.tier,
+                                score: riskAssessment.score,
+                                deliverySuccessRate: riskAssessment.deliverySuccessRate,
+                                isBlacklisted: riskAssessment.isBlacklisted,
+                                lastOrderDate: riskAssessment.lastOrderDate,
+                                evaluatedAt: new Date().toISOString(),
+                            };
                             diag.log(`[Diag:CreateOrder] FRAUD_CHECK_RESULT level=${riskAssessment.level}`);
 
                             if (riskAssessment.level === 'high' || riskAssessment.level === 'blocked') {
@@ -837,7 +847,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
                     if (status === 'completed' || status === 'delivered') {
                         engine.fulfillOrder(items);
-                        engine.deductSupplies(items.length);
+                        engine.deductSupplies(items);
                     } else if (status === 'rejected' || status === 'refund_delivered') {
                         engine.quarantineOrder(id, items, `Bulk changed to ${status}`);
                     } else if (status === 'cancelled' && prevWasActive) {

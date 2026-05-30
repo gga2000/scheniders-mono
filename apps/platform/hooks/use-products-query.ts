@@ -201,6 +201,70 @@ export function useBulkArchiveMutation() {
     });
 }
 
+export function useBulkRestoreMutation() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (ids: string[]) => {
+            await productRepository.bulkRestore(ids);
+            return ids;
+        },
+        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+    });
+}
+
+export function useBulkDeleteMutation() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (ids: string[]) => {
+            await productRepository.bulkDelete(ids);
+            return ids;
+        },
+        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+    });
+}
+
+interface AdjustStockArgs {
+    productId: string;
+    previousQuantity: number;
+    newQuantity: number;
+    reason: string;
+    notes?: string;
+}
+
+export function useAdjustStockMutation() {
+    const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
+    return useMutation({
+        mutationFn: async ({ productId, previousQuantity, newQuantity, reason, notes }: AdjustStockArgs) => {
+            await productRepository.update(productId, { stock_quantity: newQuantity });
+            await productRepository.addInventoryEntry(
+                productId,
+                {
+                    change_type: reason,
+                    quantity_change: newQuantity - previousQuantity,
+                    quantity_before: previousQuantity,
+                    quantity_after: newQuantity,
+                    notes,
+                },
+                tenantId
+            );
+            return { productId, newQuantity };
+        },
+        onMutate: async ({ productId, newQuantity }) => {
+            await queryClient.cancelQueries({ queryKey: productKeys.lists() });
+            const previousProducts = queryClient.getQueryData<Product[]>(productKeys.lists());
+            queryClient.setQueryData<Product[]>(productKeys.lists(), (old) =>
+                old?.map((p) => (p.id === productId ? { ...p, stock_quantity: newQuantity } : p))
+            );
+            return { previousProducts };
+        },
+        onError: (_err, _vars, context) => {
+            if (context?.previousProducts) queryClient.setQueryData(productKeys.lists(), context.previousProducts);
+        },
+        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+    });
+}
+
 export function useBulkUpdateVisibilityMutation() {
     const queryClient = useQueryClient();
     return useMutation({
@@ -213,6 +277,32 @@ export function useBulkUpdateVisibilityMutation() {
             const previousProducts = queryClient.getQueryData<Product[]>(productKeys.lists());
             queryClient.setQueryData<Product[]>(productKeys.lists(), (old) =>
                 old?.map((p) => (ids.includes(p.id) ? { ...p, is_visible: isVisible } : p))
+            );
+            return { previousProducts };
+        },
+        onError: (_err, _vars, context) => {
+            if (context?.previousProducts) queryClient.setQueryData(productKeys.lists(), context.previousProducts);
+        },
+        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+    });
+}
+
+export function useBulkUpdateDisplayOrderMutation() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (updates: { id: string; display_order: number }[]) => {
+            await productRepository.bulkUpdateDisplayOrder(updates);
+            return updates;
+        },
+        onMutate: async (updates) => {
+            await queryClient.cancelQueries({ queryKey: productKeys.lists() });
+            const previousProducts = queryClient.getQueryData<Product[]>(productKeys.lists());
+            const updateMap = new Map(updates.map((u) => [u.id, u.display_order]));
+            queryClient.setQueryData<Product[]>(productKeys.lists(), (old) =>
+                old?.map((p) => {
+                    const newOrder = updateMap.get(p.id);
+                    return newOrder !== undefined ? { ...p, display_order: newOrder } : p;
+                })
             );
             return { previousProducts };
         },

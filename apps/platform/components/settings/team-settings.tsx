@@ -67,6 +67,12 @@ interface UserPermissionOverride {
 }
 
 const ROLE_CONFIG: Record<UserRole, { label: string; labelAr: string; icon: typeof Shield; color: string }> = {
+    super_admin: {
+        label: "Super Admin",
+        labelAr: "مدير عام",
+        icon: ShieldCheck,
+        color: "text-rose-400 bg-rose-500/20 border-rose-500/30",
+    },
     admin: {
         label: "Admin",
         labelAr: "مسؤول",

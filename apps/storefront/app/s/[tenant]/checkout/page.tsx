@@ -4,6 +4,8 @@ import { listCategories } from "@/lib/queries";
 import { StoreHeader } from "@/components/storefront/StoreHeader";
 import { StoreFooter } from "@/components/storefront/StoreFooter";
 import { CheckoutForm } from "@/components/storefront/CheckoutForm";
+import { SchneidersPageShell } from "@/components/schneiders/page-shell";
+import { SchneidersCheckoutForm } from "@/components/schneiders/checkout-form";
 
 export default async function CheckoutPage({
   params,
@@ -17,6 +19,27 @@ export default async function CheckoutPage({
 
   if (!tenant) notFound();
   const categories = await listCategories(tenant.id);
+  const template = tenant.store_config?.template ?? "schneiders";
+  const wa = tenant.store_config?.contact?.whatsapp_number ?? null;
+
+  if (template === "schneiders") {
+    return (
+      <SchneidersPageShell
+        tenant={tenant}
+        categories={categories}
+        showBack
+        promo="🛡️ Secure checkout • You'll get a call within 30 min"
+        hideBottomBar
+        hideFooter
+      >
+        <SchneidersCheckoutForm
+          tenantId={tenant.id}
+          whatsappNumber={wa}
+          schneidersConfig={tenant.store_config?.schneiders ?? null}
+        />
+      </SchneidersPageShell>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-zinc-50">

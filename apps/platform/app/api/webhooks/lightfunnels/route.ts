@@ -29,16 +29,21 @@ const CHECKOUT_DELAY_MINUTES = 2;
 
 export async function POST(request: NextRequest) {
     try {
-        // 1. Verify webhook secret for security (optional - Lightfunnels may not send one)
-        const secret = request.headers.get("x-webhook-secret");
+        // 1. Verify webhook secret — mandatory.
+        // A misconfigured deployment that's missing LIGHTFUNNELS_WEBHOOK_SECRET
+        // must fail loudly, not silently accept anonymous webhooks.
         const expectedSecret = env.LIGHTFUNNELS_WEBHOOK_SECRET;
-
-        // Verify webhook secret — reject if configured and doesn't match
-        if (expectedSecret) {
-            if (!secret || secret !== expectedSecret) {
-                console.error("[Webhook] Webhook secret missing or mismatch");
-                return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-            }
+        if (!expectedSecret) {
+            console.error("[Webhook] LIGHTFUNNELS_WEBHOOK_SECRET not configured");
+            return NextResponse.json(
+                { error: "Webhook receiver not configured" },
+                { status: 503 },
+            );
+        }
+        const secret = request.headers.get("x-webhook-secret");
+        if (!secret || secret !== expectedSecret) {
+            console.error("[Webhook] Webhook secret missing or mismatch");
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         // 2. Parse request body

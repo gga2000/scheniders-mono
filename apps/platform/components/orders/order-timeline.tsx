@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 import type { OrderStatusHistory, OrderNote } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -35,20 +36,20 @@ interface OrderTimelineProps {
     notes?: OrderNote[];
 }
 
-const statusConfig: Record<string, { icon: typeof Circle; color: string; bgColor: string; label: string; labelAr: string }> = {
-    new: { icon: Package, color: "text-orange-600", bgColor: "bg-orange-100", label: "New Order", labelAr: "طلب جديد" },
-    contacted: { icon: PhoneCall, color: "text-amber-600", bgColor: "bg-amber-100", label: "Contacted", labelAr: "تم التواصل" },
-    confirmed: { icon: CheckCircle, color: "text-emerald-600", bgColor: "bg-emerald-100", label: "Confirmed", labelAr: "مؤكد" },
-    cancelled: { icon: XCircle, color: "text-gray-500", bgColor: "bg-gray-100", label: "Cancelled", labelAr: "ملغي" },
-    in_transit: { icon: Truck, color: "text-blue-600", bgColor: "bg-blue-100", label: "In Transit", labelAr: "قيد التوصيل" },
-    delivered: { icon: Truck, color: "text-teal-600", bgColor: "bg-teal-100", label: "Delivered", labelAr: "تم التوصيل" },
-    rejected: { icon: XCircle, color: "text-rose-600", bgColor: "bg-rose-100", label: "Rejected", labelAr: "مرفوض" },
-    completed: { icon: CheckCircle, color: "text-emerald-700", bgColor: "bg-emerald-200", label: "Completed", labelAr: "طلب تام" },
-    no_response: { icon: PhoneCall, color: "text-slate-500", bgColor: "bg-slate-100", label: "No Response", labelAr: "لم يرد" },
+const statusIcons: Record<string, { icon: typeof Circle; color: string; bgColor: string; statusKey: string }> = {
+    new: { icon: Package, color: "text-orange-600", bgColor: "bg-orange-100", statusKey: "orders.status.new" },
+    contacted: { icon: PhoneCall, color: "text-amber-600", bgColor: "bg-amber-100", statusKey: "orders.status.contacted" },
+    confirmed: { icon: CheckCircle, color: "text-emerald-600", bgColor: "bg-emerald-100", statusKey: "orders.status.confirmed" },
+    cancelled: { icon: XCircle, color: "text-gray-500", bgColor: "bg-gray-100", statusKey: "orders.status.cancelled" },
+    in_transit: { icon: Truck, color: "text-blue-600", bgColor: "bg-blue-100", statusKey: "orders.status.in_transit" },
+    delivered: { icon: Truck, color: "text-teal-600", bgColor: "bg-teal-100", statusKey: "orders.status.delivered" },
+    rejected: { icon: XCircle, color: "text-rose-600", bgColor: "bg-rose-100", statusKey: "orders.status.rejected" },
+    completed: { icon: CheckCircle, color: "text-emerald-700", bgColor: "bg-emerald-200", statusKey: "orders.status.completed" },
+    no_response: { icon: PhoneCall, color: "text-slate-500", bgColor: "bg-slate-100", statusKey: "orders.status.no_response" },
 };
 
 // Get relative time string
-function getRelativeTime(timestamp: string): string {
+function getRelativeTime(timestamp: string, t: (key: string, vars?: Record<string, string>) => string): string {
     const now = new Date();
     const date = new Date(timestamp);
     const diffMs = now.getTime() - date.getTime();
@@ -56,15 +57,16 @@ function getRelativeTime(timestamp: string): string {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays === 1) return "Yesterday";
-    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffMins < 1) return t("orders.timeline.justNow");
+    if (diffMins < 60) return t("orders.timeline.minsAgo", { mins: String(diffMins) });
+    if (diffHours < 24) return t("orders.timeline.hoursAgo", { hours: String(diffHours) });
+    if (diffDays === 1) return t("orders.timeline.yesterday");
+    if (diffDays < 7) return t("orders.timeline.daysAgo", { days: String(diffDays) });
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 export function OrderTimeline({ statusHistory, notes = [] }: OrderTimelineProps) {
+    const { t } = useLanguage();
     // Combine and sort timeline entries
     const entries: TimelineEntry[] = [
         ...statusHistory.map((h) => ({
@@ -98,8 +100,8 @@ export function OrderTimeline({ statusHistory, notes = [] }: OrderTimelineProps)
                 <div className="w-16 h-16 rounded-2xl bg-linear-to-br from-gray-100 to-gray-50 flex items-center justify-center mx-auto mb-4 shadow-inner">
                     <History className="w-8 h-8 text-gray-400" />
                 </div>
-                <p className="text-foreground font-semibold text-lg">No activity yet</p>
-                <p className="text-sm text-muted mt-1">Status changes and notes will appear here</p>
+                <p className="text-foreground font-semibold text-lg">{t("orders.timeline.noActivity")}</p>
+                <p className="text-sm text-muted mt-1">{t("orders.timeline.noActivityDesc")}</p>
             </motion.div>
         );
     }
@@ -115,17 +117,17 @@ export function OrderTimeline({ statusHistory, notes = [] }: OrderTimelineProps)
                     const StatusIcon = entry.is_detail_update
                         ? Edit2
                         : entry.to_status
-                            ? statusConfig[entry.to_status]?.icon || Circle
+                            ? statusIcons[entry.to_status]?.icon || Circle
                             : MessageSquare;
                     const statusColor = entry.is_detail_update
                         ? "text-blue-600"
                         : entry.to_status
-                            ? statusConfig[entry.to_status]?.color || "text-gray-400"
+                            ? statusIcons[entry.to_status]?.color || "text-gray-400"
                             : "text-blue-500";
                     const statusBg = entry.is_detail_update
                         ? "bg-blue-100/50"
                         : entry.to_status
-                            ? statusConfig[entry.to_status]?.bgColor || "bg-gray-100"
+                            ? statusIcons[entry.to_status]?.bgColor || "bg-gray-100"
                             : "bg-blue-50";
 
                     return (
@@ -180,7 +182,7 @@ export function OrderTimeline({ statusHistory, notes = [] }: OrderTimelineProps)
                                                             "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100"
                                                         )}>
                                                             <Edit2 className="w-3 h-3" />
-                                                            تعديل تفاصيل الطلب
+                                                            {t("orders.timeline.editDetails")}
                                                         </span>
                                                     ) : entry.to_status && (
                                                         <span className={cn(
@@ -188,12 +190,12 @@ export function OrderTimeline({ statusHistory, notes = [] }: OrderTimelineProps)
                                                             statusBg, statusColor
                                                         )}>
                                                             <Sparkles className="w-3 h-3" />
-                                                            {statusConfig[entry.to_status]?.labelAr || entry.to_status}
+                                                            {t(statusIcons[entry.to_status]?.statusKey || "orders.status.new") || entry.to_status}
                                                         </span>
                                                     )}
                                                     {!entry.is_detail_update && entry.from_status && (
                                                         <span className="text-xs text-muted">
-                                                            ← من {statusConfig[entry.from_status]?.labelAr || entry.from_status}
+                                                            ← {t("orders.timeline.fromStatus", { status: t(statusIcons[entry.from_status]?.statusKey || "orders.status.new") || entry.from_status })}
                                                         </span>
                                                     )}
                                                 </div>
@@ -211,7 +213,7 @@ export function OrderTimeline({ statusHistory, notes = [] }: OrderTimelineProps)
                                         <div className="flex items-center gap-3 mt-2 text-xs text-muted">
                                             <span className="flex items-center gap-1">
                                                 <Clock className="w-3 h-3" />
-                                                {getRelativeTime(entry.timestamp)}
+                                                {getRelativeTime(entry.timestamp, t)}
                                             </span>
                                             {entry.actor && (
                                                 <span className="flex items-center gap-1">

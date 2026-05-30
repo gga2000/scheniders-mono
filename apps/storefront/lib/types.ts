@@ -3,7 +3,7 @@
  * Base types come from @scheniders/shared; storefront extends them.
  */
 
-import type { BaseTenant, BaseProduct, BaseProductVariant, StoreConfig } from "@scheniders/shared";
+import type { BaseTenant, BaseProduct, BaseProductVariant, StoreConfig, StoreConfigV2 } from "@scheniders/shared";
 
 // Re-export shared types used directly
 export type { Category, CartItem, CheckoutFormData } from "@scheniders/shared";
@@ -12,6 +12,8 @@ export type { TemplateName, StoreConfig, DesignTokens, SectionConfig, SEOConfig,
 
 export interface Tenant extends BaseTenant {
   store_config?: StoreConfig | null;
+  store_config_v2?: StoreConfigV2 | null;
+  store_config_v2_draft?: StoreConfigV2 | null;
   address?: string | null;
 }
 

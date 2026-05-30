@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, XCircle, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 interface CancellationReasonDialogProps {
     open: boolean;
@@ -14,27 +15,27 @@ interface CancellationReasonDialogProps {
     type?: "cancel" | "reject";
 }
 
-const CANCELLATION_REASONS = [
-    { id: "no_reply", label: "لم يرد العميل", labelEn: "Customer didn't reply" },
-    { id: "customer_cancelled", label: "ألغى العميل", labelEn: "Customer cancelled" },
-    { id: "outside_area", label: "خارج منطقة التوصيل", labelEn: "Outside delivery area" },
-    { id: "unavailable", label: "منتج غير متوفر", labelEn: "Product unavailable" },
-    { id: "price_issue", label: "سعر غير مناسب", labelEn: "Price issue" },
-    { id: "duplicate", label: "طلب مكرر", labelEn: "Duplicate order" },
-    { id: "wrong_info", label: "معلومات خاطئة", labelEn: "Wrong information" },
-    { id: "other", label: "سبب آخر", labelEn: "Other" },
+const CANCELLATION_REASON_KEYS = [
+    { id: "no_reply", key: "orders.cancel.reason.noReply" },
+    { id: "customer_cancelled", key: "orders.cancel.reason.customerCancelled" },
+    { id: "outside_area", key: "orders.cancel.reason.outsideArea" },
+    { id: "unavailable", key: "orders.cancel.reason.unavailable" },
+    { id: "price_issue", key: "orders.cancel.reason.priceIssue" },
+    { id: "duplicate", key: "orders.cancel.reason.duplicate" },
+    { id: "wrong_info", key: "orders.cancel.reason.wrongInfo" },
+    { id: "other", key: "orders.cancel.reason.other" },
 ];
 
-const REJECTION_REASONS = [
-    { id: "no_answer", label: "لا يجاوب", labelEn: "No answer" },
-    { id: "wrong_address", label: "عنوان خاطئ", labelEn: "Wrong address" },
-    { id: "customer_refused", label: "رفض العميل", labelEn: "Customer refused" },
-    { id: "price_disagreement", label: "لم يوافق على السعر", labelEn: "Price disagreement" },
-    { id: "postponed", label: "طلب التأجيل", labelEn: "Requested postponement" },
-    { id: "not_available", label: "غير متواجد", labelEn: "Not available" },
-    { id: "phone_off", label: "الهاتف مغلق", labelEn: "Phone off" },
-    { id: "wrong_product", label: "منتج خاطئ", labelEn: "Wrong product" },
-    { id: "other", label: "سبب آخر", labelEn: "Other" },
+const REJECTION_REASON_KEYS = [
+    { id: "no_answer", key: "orders.cancel.reason.noAnswer" },
+    { id: "wrong_address", key: "orders.cancel.reason.wrongAddress" },
+    { id: "customer_refused", key: "orders.cancel.reason.customerRefused" },
+    { id: "price_disagreement", key: "orders.cancel.reason.priceDisagreement" },
+    { id: "postponed", key: "orders.cancel.reason.postponed" },
+    { id: "not_available", key: "orders.cancel.reason.notAvailable" },
+    { id: "phone_off", key: "orders.cancel.reason.phoneOff" },
+    { id: "wrong_product", key: "orders.cancel.reason.wrongProduct" },
+    { id: "other", key: "orders.cancel.reason.other" },
 ];
 
 export function CancellationReasonDialog({
@@ -45,26 +46,27 @@ export function CancellationReasonDialog({
     orderId,
     type = "cancel",
 }: CancellationReasonDialogProps) {
+    const { t } = useLanguage();
     const [selectedReason, setSelectedReason] = useState<string | null>(null);
     const [customReason, setCustomReason] = useState("");
 
     const isReject = type === "reject";
-    const reasons = isReject ? REJECTION_REASONS : CANCELLATION_REASONS;
-    const headerTitle = isReject ? "رفض الطلب" : "إلغاء الطلب";
-    const confirmButtonText = isReject ? "تأكيد الرفض" : "تأكيد الإلغاء";
-    const promptText = isReject ? "اختر سبب الرفض" : "اختر سبب الإلغاء";
-    const customPlaceholder = isReject ? "اكتب سبب الرفض..." : "اكتب سبب الإلغاء...";
+    const reasons = isReject ? REJECTION_REASON_KEYS : CANCELLATION_REASON_KEYS;
+    const headerTitle = isReject ? t("orders.cancel.rejectOrder") : t("orders.cancel.cancelOrder");
+    const confirmButtonText = isReject ? t("orders.cancel.confirmReject") : t("orders.cancel.confirmCancel");
+    const promptText = isReject ? t("orders.cancel.selectRejectReason") : t("orders.cancel.selectCancelReason");
+    const customPlaceholder = isReject ? t("orders.cancel.writeRejectReason") : t("orders.cancel.writeCancelReason");
 
     const handleConfirm = () => {
         if (!selectedReason) return;
-
-        let reason = reasons.find(r => r.id === selectedReason)?.label || selectedReason;
+        let reason = reasons.find(r => r.id === selectedReason);
+        let reasonText = reason ? t(reason.key) : selectedReason || "";
 
         if (selectedReason === "other" && customReason.trim()) {
-            reason = customReason.trim();
+            reasonText = customReason.trim();
         }
 
-        onConfirm(reason);
+        onConfirm(reasonText);
         handleClose();
     };
 
@@ -110,7 +112,7 @@ export function CancellationReasonDialog({
                             <div>
                                 <h3 className="font-bold text-foreground">{headerTitle}</h3>
                                 {orderId && (
-                                    <p className="text-xs text-muted">الطلب #{orderId}</p>
+                                    <p className="text-xs text-muted">{t("orders.cancel.orderNum", { id: orderId })}</p>
                                 )}
                             </div>
                         </div>
@@ -128,7 +130,7 @@ export function CancellationReasonDialog({
                     {/* Content */}
                     <div className="p-5">
                         <p className="text-sm text-muted mb-4">
-                            {promptText} {customerName && `للعميل ${customerName}`}:
+                            {promptText} {customerName && t("orders.cancel.forCustomer", { name: customerName })}:
                         </p>
 
                         {/* Reason Options */}
@@ -160,8 +162,7 @@ export function CancellationReasonDialog({
                                             </div>
                                         )}
                                     </div>
-                                    <span className="flex-1 font-medium">{reason.label}</span>
-                                    <span className="text-xs text-muted">{reason.labelEn}</span>
+                                    <span className="flex-1 font-medium">{t(reason.key)}</span>
                                 </button>
                             ))}
                         </div>
@@ -196,7 +197,7 @@ export function CancellationReasonDialog({
                             onClick={handleClose}
                             className="px-4 py-2.5 text-sm font-medium text-muted hover:text-foreground transition-colors rounded-xl hover:bg-gray-100 dark:hover:bg-white/5"
                         >
-                            إلغاء
+                            {t("orders.cancel.cancel")}
                         </button>
                         <button
                             onClick={handleConfirm}

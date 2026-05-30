@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
+import { requireAdminPermission } from "@/lib/api-auth";
 
 const impersonateSchema = z.object({
   tenant_id: z.string().min(1),
 });
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminPermission(request, "impersonate");
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const body = await request.json();
     const parsed = impersonateSchema.safeParse(body);
@@ -42,11 +46,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Log the impersonation action
+    // Log the impersonation action — record the real admin actor.
     const { error: logError } = await supabase
       .from("admin_activity_logs")
       .insert({
-        admin_id: "system",
+        admin_id: auth.user.id,
         action: "impersonate",
         details: {
           tenant_id,

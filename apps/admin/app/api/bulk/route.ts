@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
+import { requireAdminPermission } from "@/lib/api-auth";
 
 const BulkActionSchema = z.object({
   action: z.enum([
@@ -9,12 +10,16 @@ const BulkActionSchema = z.object({
     "reactivate",
     "send_notification",
     "extend_trial",
+    "top_up",
   ]),
   tenant_ids: z.array(z.string()).min(1).max(100),
   params: z.record(z.string(), z.unknown()).optional(),
 });
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminPermission(request, "bulk_action");
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const body = await request.json();
     const parsed = BulkActionSchema.safeParse(body);
@@ -141,7 +146,83 @@ export async function POST(request: NextRequest) {
       }
 
       // -----------------------------------------------------------------
-      // 5. Send Notification
+      // 5. Top Up Wallets
+      // -----------------------------------------------------------------
+      case "top_up": {
+        const amount = params?.amount_iqd;
+        if (
+          typeof amount !== "number" ||
+          !Number.isFinite(amount) ||
+          amount < 1000 ||
+          amount > 10_000_000
+        ) {
+          return NextResponse.json(
+            { error: "params.amount_iqd is required and must be a number between 1,000 and 10,000,000" },
+            { status: 400 }
+          );
+        }
+
+        const description = typeof params?.description === "string"
+          ? params.description.trim()
+          : "Bulk top-up";
+
+        for (const tid of tenant_ids) {
+          try {
+            // Atomic balance increment (avoids read-then-write race condition)
+            const { error: walletUpdateError } = await supabase.rpc(
+              "increment_wallet_balance",
+              { p_tenant_id: tid, p_amount: amount }
+            ).single();
+
+            // Fallback: if RPC doesn't exist, use direct update
+            if (walletUpdateError?.code === "PGRST202") {
+              const { data: wallet, error: walletFetchError } = await supabase
+                .from("wallets")
+                .select("balance_iqd")
+                .eq("tenant_id", tid)
+                .single();
+
+              if (walletFetchError || !wallet) {
+                console.error(`Failed to fetch wallet for ${tid}:`, walletFetchError);
+                continue;
+              }
+
+              const { error: updateError } = await supabase
+                .from("wallets")
+                .update({ balance_iqd: wallet.balance_iqd + amount })
+                .eq("tenant_id", tid);
+
+              if (updateError) {
+                console.error(`Failed to update wallet for ${tid}:`, updateError);
+                continue;
+              }
+            } else if (walletUpdateError) {
+              console.error(`Failed to update wallet for ${tid}:`, walletUpdateError);
+              continue;
+            }
+
+            // Insert transaction record AFTER successful balance update
+            const { error: txError } = await supabase
+              .from("wallet_transactions")
+              .insert({
+                tenant_id: tid,
+                type: "top_up",
+                amount_iqd: amount,
+                description,
+              });
+
+            if (txError) {
+              console.error(`Failed to insert wallet transaction for ${tid}:`, txError);
+            }
+          } catch (err) {
+            console.error(`Top-up failed for tenant ${tid}:`, err);
+          }
+        }
+        break;
+      }
+
+      // -----------------------------------------------------------------
+      // 6. Send Notification
       // -----------------------------------------------------------------
       case "send_notification": {
         const message = params?.message;
@@ -178,15 +259,18 @@ export async function POST(request: NextRequest) {
 
     // -----------------------------------------------------------------
     // Log all bulk actions to admin_activity_logs
+    // (skip send_notification — it already logs its own entries above)
     // -----------------------------------------------------------------
-    await supabase.from("admin_activity_logs").insert(
-      tenant_ids.map((tid) => ({
-        admin_id: "system",
-        action: `bulk_${action}`,
-        details: { tenant_ids, params },
-        tenant_id: tid,
-      }))
-    );
+    if (action !== "send_notification") {
+      await supabase.from("admin_activity_logs").insert(
+        tenant_ids.map((tid) => ({
+          admin_id: auth.user.id,
+          action: `bulk_${action}`,
+          details: { tenant_ids, params },
+          tenant_id: tid,
+        }))
+      );
+    }
 
     return NextResponse.json({
       success: true,

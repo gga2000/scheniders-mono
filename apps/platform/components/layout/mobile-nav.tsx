@@ -9,12 +9,12 @@ import {
     MoreHorizontal,
     Printer,
     Settings,
-    BarChart3,
     X,
     UsersRound,
     Database,
     Store,
     Layers,
+    Wallet,
 } from "lucide-react";
 import { TransitionLink as Link } from "./transition-link";
 import { usePathname } from "next/navigation";
@@ -30,7 +30,7 @@ const PRIMARY_NAV_ITEMS = [
 ];
 
 const MORE_NAV_ITEMS = [
-    { key: "nav.analytics", icon: BarChart3, href: "/analytics" },
+    { key: "nav.finances", icon: Wallet, href: "/finances" },
     { key: "nav.printing", icon: Printer, href: "/printing" },
     { key: "nav.team", icon: UsersRound, href: "/team" },
     { key: "nav.vault", icon: Database, href: "/vault" },

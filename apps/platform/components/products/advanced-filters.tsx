@@ -113,7 +113,12 @@ export function AdvancedFilters({ onApply, onReset, embedded = false }: Advanced
         addFilterPreset({
             id: crypto.randomUUID(),
             name: presetName.trim(),
-            filters: { ...filters } as any,
+            createdAt: new Date().toISOString(),
+            state: {
+                searchQuery: "",
+                advancedFilters: { ...filters },
+                sortBy: "",
+            },
         });
         setPresetName("");
         setShowSavePreset(false);

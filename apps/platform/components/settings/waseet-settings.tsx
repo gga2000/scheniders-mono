@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useWaseet } from "@/hooks/use-waseet";
 import { useSettings } from "@/hooks/use-settings";
 import { GOVERNORATES } from "@/lib/address-validator";
+import { useLanguage } from "@/hooks/use-language";
 import {
     Truck, CheckCircle, XCircle, Loader2, RefreshCw,
     MapPin, Save, Wifi, WifiOff, Settings2
@@ -26,6 +27,7 @@ export function WaseetSettingsPanel() {
         fetchCityMappings, saveCityMappings, testConnection,
     } = useWaseet();
     const { settings, updateSetting, get } = useSettings();
+    const { t } = useLanguage();
 
     // Connection state
     const [connectionStatus, setConnectionStatus] = useState<"unknown" | "connected" | "failed">("unknown");
@@ -150,13 +152,13 @@ export function WaseetSettingsPanel() {
             }));
 
         if (validMappings.length === 0) {
-            setSaveMessage("لا توجد تعيينات لحفظها");
+            setSaveMessage(t("waseet.noMappings"));
             setSaving(false);
             return;
         }
 
         const result = await saveCityMappings(validMappings);
-        setSaveMessage(result.success ? `تم حفظ ${validMappings.length} تعيين بنجاح` : `فشل: ${result.error}`);
+        setSaveMessage(result.success ? t("waseet.savedSuccess", { count: String(validMappings.length) }) : t("waseet.savedFailed", { error: result.error || "" }));
         setSaving(false);
     };
 
@@ -180,8 +182,8 @@ export function WaseetSettingsPanel() {
                         <Truck className="h-5 w-5 text-cyan-700" />
                     </div>
                     <div>
-                        <h3 className="text-base font-bold">الوسيط (Al-Waseet)</h3>
-                        <p className="text-xs text-muted-foreground">إعدادات شركة التوصيل</p>
+                        <h3 className="text-base font-bold">{t("waseet.title")}</h3>
+                        <p className="text-xs text-muted-foreground">{t("waseet.subtitle")}</p>
                     </div>
                 </div>
 
@@ -189,12 +191,12 @@ export function WaseetSettingsPanel() {
                 <div className="flex items-center gap-2">
                     {connectionStatus === "connected" && (
                         <span className="flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-100 px-2.5 py-1 rounded-full">
-                            <Wifi className="h-3 w-3" /> متصل
+                            <Wifi className="h-3 w-3" /> {t("waseet.connected")}
                         </span>
                     )}
                     {connectionStatus === "failed" && (
                         <span className="flex items-center gap-1 text-xs font-semibold text-red-700 bg-red-100 px-2.5 py-1 rounded-full">
-                            <WifiOff className="h-3 w-3" /> غير متصل
+                            <WifiOff className="h-3 w-3" /> {t("waseet.disconnected")}
                         </span>
                     )}
                     <button
@@ -207,7 +209,7 @@ export function WaseetSettingsPanel() {
                         ) : (
                             <RefreshCw className="h-3.5 w-3.5" />
                         )}
-                        اختبار الاتصال
+                        {t("waseet.testConnection")}
                     </button>
                 </div>
             </div>
@@ -215,8 +217,8 @@ export function WaseetSettingsPanel() {
             {/* Auto-Sync Toggle */}
             <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-200">
                 <div>
-                    <div className="text-sm font-semibold">مزامنة الحالات التلقائية</div>
-                    <div className="text-xs text-muted-foreground">تحديث حالات الطلبات كل 15 دقيقة من الوسيط</div>
+                    <div className="text-sm font-semibold">{t("waseet.autoSync")}</div>
+                    <div className="text-xs text-muted-foreground">{t("waseet.autoSyncDesc")}</div>
                 </div>
                 <button
                     onClick={handleToggleSync}
@@ -235,7 +237,7 @@ export function WaseetSettingsPanel() {
                 <div className="flex items-center justify-between">
                     <h4 className="text-sm font-bold flex items-center gap-1.5">
                         <MapPin className="h-4 w-4 text-cyan-600" />
-                        تعيين المحافظات
+                        {t("waseet.mapGovernorates")}
                     </h4>
                     <button
                         onClick={handleLoadCities}
@@ -247,13 +249,13 @@ export function WaseetSettingsPanel() {
                         ) : (
                             <RefreshCw className="h-3.5 w-3.5" />
                         )}
-                        تحميل مدن الوسيط
+                        {t("waseet.loadCities")}
                     </button>
                 </div>
 
                 {waseetCities.length === 0 ? (
                     <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-700">
-                        اضغط &ldquo;تحميل مدن الوسيط&rdquo; لتحميل قائمة المدن والمناطق من الوسيط أولاً
+                        {t("waseet.loadCitiesHint")}
                     </div>
                 ) : (
                     <div className="space-y-2 max-h-[400px] overflow-y-auto">
@@ -273,7 +275,7 @@ export function WaseetSettingsPanel() {
                                     onChange={(e) => handleCityChange(row.governorate_code, Number(e.target.value))}
                                     className="flex-1 text-xs px-2 py-1.5 rounded-lg border border-gray-200 bg-white"
                                 >
-                                    <option value="">-- اختر المدينة --</option>
+                                    <option value="">{t("waseet.selectCity")}</option>
                                     {waseetCities.map(city => (
                                         <option key={city.id} value={city.id}>{city.city_name}</option>
                                     ))}
@@ -286,7 +288,7 @@ export function WaseetSettingsPanel() {
                                     disabled={!row.regions.length}
                                     className="flex-1 text-xs px-2 py-1.5 rounded-lg border border-gray-200 bg-white disabled:opacity-50"
                                 >
-                                    <option value="">-- المنطقة --</option>
+                                    <option value="">{t("waseet.selectRegion")}</option>
                                     {row.regions.map(region => (
                                         <option key={region.id} value={region.id}>{region.region_name}</option>
                                     ))}
@@ -316,10 +318,10 @@ export function WaseetSettingsPanel() {
                             ) : (
                                 <Save className="h-4 w-4" />
                             )}
-                            حفظ التعيينات
+                            {t("waseet.saveMappings")}
                         </button>
                         {saveMessage && (
-                            <span className={`text-xs font-medium ${saveMessage.includes("بنجاح") ? "text-green-600" : "text-red-600"}`}>
+                            <span className={`text-xs font-medium ${saveMessage.includes(t("waseet.savedSuccess", { count: "" }).slice(0, 5)) ? "text-green-600" : "text-red-600"}`}>
                                 {saveMessage}
                             </span>
                         )}
@@ -333,7 +335,7 @@ export function WaseetSettingsPanel() {
                     <div>
                         <div className="text-sm font-semibold flex items-center gap-1.5">
                             <Settings2 className="h-4 w-4 text-gray-500" />
-                            حجم الطلب الافتراضي
+                            {t("waseet.defaultPackageSize")}
                         </div>
                     </div>
                     <select
@@ -341,7 +343,7 @@ export function WaseetSettingsPanel() {
                         onChange={(e) => handlePackageSizeChange(e.target.value)}
                         className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 bg-white"
                     >
-                        <option value="">-- اختر --</option>
+                        <option value="">{t("waseet.selectSize")}</option>
                         {packageSizes.map(size => (
                             <option key={size.id} value={size.id}>{size.size}</option>
                         ))}

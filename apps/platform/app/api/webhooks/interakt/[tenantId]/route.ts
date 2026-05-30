@@ -10,9 +10,12 @@ import { formatPhoneToStandard } from "@/lib/order-utils";
  * Routes incoming WhatsApp interactions to the correct tenant's orders.
  */
 
+if (!env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY is required for the Interakt tenant webhook");
+}
 const supabaseAdmin = createClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
-    env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    env.SUPABASE_SERVICE_ROLE_KEY,
 );
 
 const CONFIRM_PATTERNS = ["تأكيد", "تاكيد", "confirm", "تأكيد ✅"];

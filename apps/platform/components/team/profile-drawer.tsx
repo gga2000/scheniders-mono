@@ -5,10 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Activity, Package, Printer, RefreshCw, LogIn, Calendar, Clock, Mail, ShieldAlert, Truck, Settings, Edit3, AlertCircle } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { EmployeeStats } from '@/lib/team-types';
 import { ActivityLogEntry } from '@/lib/activity-logger';
+import { useLanguage } from '@/hooks/use-language';
+import { cn } from '@/lib/utils';
 
 interface ProfileDrawerProps {
     employee: EmployeeStats | null;
@@ -17,6 +18,7 @@ interface ProfileDrawerProps {
 }
 
 export function ProfileDrawer({ employee, isOpen, onClose }: ProfileDrawerProps) {
+    const { t, language } = useLanguage();
     const [recentLogs, setRecentLogs] = useState<ActivityLogEntry[]>([]);
     const [loadingLogs, setLoadingLogs] = useState(false);
     const [logsError, setLogsError] = useState(false);
@@ -68,10 +70,10 @@ export function ProfileDrawer({ employee, isOpen, onClose }: ProfileDrawerProps)
 
     const getRoleInfo = (role: string) => {
         switch (role.toLowerCase()) {
-            case 'admin': return { icon: ShieldAlert, color: 'text-amber-500', bg: 'bg-amber-100 dark:bg-amber-500/20', label: 'مسؤول' };
+            case 'admin': return { icon: ShieldAlert, color: 'text-amber-500', bg: 'bg-amber-100 dark:bg-amber-500/20', label: t('team.drawer.adminRole') };
             case 'logistics':
-            case 'delivery': return { icon: Truck, color: 'text-emerald-500', bg: 'bg-emerald-100 dark:bg-emerald-500/20', label: 'لوجستيات' };
-            default: return { icon: Settings, color: 'text-blue-500', bg: 'bg-blue-100 dark:bg-blue-500/20', label: 'دعم' };
+            case 'delivery': return { icon: Truck, color: 'text-emerald-500', bg: 'bg-emerald-100 dark:bg-emerald-500/20', label: t('team.drawer.deliveryRole') };
+            default: return { icon: Settings, color: 'text-blue-500', bg: 'bg-blue-100 dark:bg-blue-500/20', label: t('team.drawer.supportRole') };
         }
     };
 
@@ -107,7 +109,7 @@ export function ProfileDrawer({ employee, isOpen, onClose }: ProfileDrawerProps)
 
                             <button
                                 onClick={onClose}
-                                aria-label="إغلاق"
+                                aria-label={t('common.close', { defaultValue: 'Close' })}
                                 className="absolute top-4 left-4 w-8 h-8 rounded-full bg-black/20 hover:bg-black/40 text-white flex items-center justify-center transition-colors backdrop-blur-md z-10"
                             >
                                 <X className="w-4 h-4" />
@@ -145,12 +147,12 @@ export function ProfileDrawer({ employee, isOpen, onClose }: ProfileDrawerProps)
                                         {isOnline ? (
                                             <>
                                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                                متصل
+                                                {t('team.drawer.online')}
                                             </>
                                         ) : (
                                             <>
                                                 <Clock className="w-3.5 h-3.5" />
-                                                {employee.last_login_at ? formatDistanceToNow(new Date(employee.last_login_at), { addSuffix: true, locale: ar }) : 'غير متصل'}
+                                                {employee.last_login_at ? formatDistanceToNow(new Date(employee.last_login_at), { addSuffix: true, locale: language === 'ar' ? ar : undefined }) : t('team.drawer.offline')}
                                             </>
                                         )}
                                     </div>
@@ -159,7 +161,7 @@ export function ProfileDrawer({ employee, isOpen, onClose }: ProfileDrawerProps)
 
                             {/* Contact Info Card */}
                             <div className="bg-gray-50 dark:bg-[#1A1A1A] rounded-2xl p-4 mb-6 border border-gray-100 dark:border-transparent">
-                                <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-3">معلومات التواصل</h3>
+                                <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-3">{t('team.drawer.contactInfo')}</h3>
                                 <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
                                     <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
                                         <Mail className="w-4 h-4" />
@@ -176,7 +178,7 @@ export function ProfileDrawer({ employee, isOpen, onClose }: ProfileDrawerProps)
                                         <Activity className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                                     </div>
                                     <p className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{employee.total_actions}</p>
-                                    <p className="text-xs text-gray-500 font-medium">إجمالي النشاط</p>
+                                    <p className="text-xs text-gray-500 font-medium">{t('team.stats.totalActions')}</p>
                                 </div>
 
                                 <div className="bg-gray-50 dark:bg-[#1A1A1A] p-4 rounded-2xl border border-gray-100 dark:border-transparent relative overflow-hidden group">
@@ -185,7 +187,7 @@ export function ProfileDrawer({ employee, isOpen, onClose }: ProfileDrawerProps)
                                         <Package className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                                     </div>
                                     <p className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{employee.orders_created}</p>
-                                    <p className="text-xs text-gray-500 font-medium">طلبات جديدة</p>
+                                    <p className="text-xs text-gray-500 font-medium">{t('team.stats.newOrders')}</p>
                                 </div>
 
                                 <div className="bg-gray-50 dark:bg-[#1A1A1A] p-4 rounded-2xl border border-gray-100 dark:border-transparent relative overflow-hidden group">
@@ -194,7 +196,7 @@ export function ProfileDrawer({ employee, isOpen, onClose }: ProfileDrawerProps)
                                         <RefreshCw className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                                     </div>
                                     <p className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{employee.status_changes}</p>
-                                    <p className="text-xs text-gray-500 font-medium">تغيير حالة</p>
+                                    <p className="text-xs text-gray-500 font-medium">{t('team.drawer.statusChange')}</p>
                                 </div>
 
                                 <div className="bg-gray-50 dark:bg-[#1A1A1A] p-4 rounded-2xl border border-gray-100 dark:border-transparent relative overflow-hidden group">
@@ -203,7 +205,7 @@ export function ProfileDrawer({ employee, isOpen, onClose }: ProfileDrawerProps)
                                         <Edit3 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                                     </div>
                                     <p className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{employee.orders_edited}</p>
-                                    <p className="text-xs text-gray-500 font-medium">تعديل طلب</p>
+                                    <p className="text-xs text-gray-500 font-medium">{t('team.drawer.editOrder')}</p>
                                 </div>
                             </div>
 
@@ -211,7 +213,7 @@ export function ProfileDrawer({ employee, isOpen, onClose }: ProfileDrawerProps)
                             <div>
                                 <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                                     <Calendar className="w-4 h-4 text-gray-400" />
-                                    آخر النشاطات
+                                    {t("team.drawer.recentActivities")}
                                 </h3>
 
                                 {loadingLogs ? (
@@ -221,28 +223,28 @@ export function ProfileDrawer({ employee, isOpen, onClose }: ProfileDrawerProps)
                                 ) : logsError ? (
                                     <div className="text-center p-8 bg-rose-50 dark:bg-rose-500/10 rounded-2xl border border-dashed border-rose-200 dark:border-rose-800">
                                         <AlertCircle className="w-8 h-8 text-rose-400 mx-auto mb-2" />
-                                        <p className="text-sm text-rose-600 dark:text-rose-400 font-medium">تعذر تحميل السجلات</p>
+                                        <p className="text-sm text-rose-600 dark:text-rose-400 font-medium">{t("team.drawer.errorLogs")}</p>
                                         <button
                                             onClick={() => employee && fetchUserLogs(employee.user_id)}
                                             className="mt-2 text-xs text-rose-500 hover:text-rose-700 underline"
                                         >
-                                            إعادة المحاولة
+                                            {t("team.drawer.retry")}
                                         </button>
                                     </div>
                                 ) : recentLogs.length === 0 ? (
                                     <div className="text-center p-8 bg-gray-50 dark:bg-[#1A1A1A] rounded-2xl border border-dashed border-gray-200 dark:border-gray-800">
-                                        <p className="text-sm text-gray-500">لا توجد سجلات حديثة</p>
+                                        <p className="text-sm text-gray-500">{t("team.drawer.noLogs")}</p>
                                     </div>
                                 ) : (
                                     <div className="relative border-r-2 border-gray-100 dark:border-gray-800 mr-4 pr-6 space-y-6">
                                         {recentLogs.map((log) => {
                                             const getActionDetails = (action: string) => {
                                                 switch (action) {
-                                                    case 'order.create': return { icon: Package, color: 'text-emerald-500', bg: 'bg-emerald-100 dark:bg-emerald-500/20', label: 'إنشاء طلب' };
-                                                    case 'order.status_change': return { icon: RefreshCw, color: 'text-amber-500', bg: 'bg-amber-100 dark:bg-amber-500/20', label: 'تغيير حالة' };
-                                                    case 'order.edit': return { icon: Edit3, color: 'text-purple-500', bg: 'bg-purple-100 dark:bg-purple-500/20', label: 'تعديل' };
-                                                    case 'order.print': return { icon: Printer, color: 'text-blue-500', bg: 'bg-blue-100 dark:bg-blue-500/20', label: 'طباعة' };
-                                                    case 'user.login': return { icon: LogIn, color: 'text-gray-500', bg: 'bg-gray-100 dark:bg-gray-800', label: 'دخول النظام' };
+                                                    case 'order.create': return { icon: Package, color: 'text-emerald-500', bg: 'bg-emerald-100 dark:bg-emerald-500/20', label: t('team.drawer.actionCreate') };
+                                                    case 'order.status_change': return { icon: RefreshCw, color: 'text-amber-500', bg: 'bg-amber-100 dark:bg-amber-500/20', label: t('team.drawer.actionStatus') };
+                                                    case 'order.edit': return { icon: Edit3, color: 'text-purple-500', bg: 'bg-purple-100 dark:bg-purple-500/20', label: t('team.drawer.actionEdit') };
+                                                    case 'order.print': return { icon: Printer, color: 'text-blue-500', bg: 'bg-blue-100 dark:bg-blue-500/20', label: t('team.drawer.actionPrint') };
+                                                    case 'user.login': return { icon: LogIn, color: 'text-gray-500', bg: 'bg-gray-100 dark:bg-gray-800', label: t('team.drawer.actionLogin') };
                                                     default: return { icon: Activity, color: 'text-gray-500', bg: 'bg-gray-100 dark:bg-gray-800', label: action };
                                                 }
                                             };
@@ -265,17 +267,17 @@ export function ProfileDrawer({ employee, isOpen, onClose }: ProfileDrawerProps)
                                                                 </span>
                                                             </div>
                                                             <span className="text-[10px] text-gray-400">
-                                                                {formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: ar })}
+                                                                {formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: language === 'ar' ? ar : undefined })}
                                                             </span>
                                                         </div>
                                                         {log.details && Object.keys(log.details).length > 0 && (
                                                             <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-black/20 p-2 rounded-xl">
                                                                 {log.action === 'order.status_change' && log.details.newStatus ? (
-                                                                    <span>تغيرت الحالة إلى: <strong className="text-gray-900 dark:text-white">{String(log.details.newStatus)}</strong></span>
+                                                                    <span>{t('team.drawer.statusChangedTo')} <strong className="text-gray-900 dark:text-white">{String(log.details.newStatus)}</strong></span>
                                                                 ) : log.entity_id ? (
-                                                                    <span>معرف الطلب: <strong className="text-gray-900 dark:text-white font-mono break-all">{log.entity_id}</strong></span>
+                                                                    <span>{t('team.drawer.orderId')} <strong className="text-gray-900 dark:text-white font-mono break-all">{log.entity_id}</strong></span>
                                                                 ) : (
-                                                                    <span className="truncate">تفاصيل إضافية مسجلة</span>
+                                                                    <span className="truncate">{t('team.drawer.extraDetails')}</span>
                                                                 )}
                                                             </div>
                                                         )}

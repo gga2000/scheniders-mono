@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 import type { Tenant, Product, Category } from "@/lib/types";
 
+import SchneidersTemplate from "./schneiders/Home";
 import FashionTemplate from "./fashion/Home";
 import BeautyTemplate from "./beauty/Home";
 import ElectronicsTemplate from "./electronics/Home";
@@ -14,6 +15,7 @@ export interface TemplateHomeProps {
 }
 
 const TEMPLATES: Record<string, ComponentType<TemplateHomeProps>> = {
+  schneiders: SchneidersTemplate,
   fashion: FashionTemplate,
   beauty: BeautyTemplate,
   electronics: ElectronicsTemplate,
@@ -22,5 +24,5 @@ const TEMPLATES: Record<string, ComponentType<TemplateHomeProps>> = {
 };
 
 export function getTemplate(name?: string): ComponentType<TemplateHomeProps> {
-  return TEMPLATES[name ?? "general"] ?? GeneralTemplate;
+  return TEMPLATES[name ?? "schneiders"] ?? SchneidersTemplate;
 }

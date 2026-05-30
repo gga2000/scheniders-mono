@@ -1,7 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
+import { requireAdminPermission } from "@/lib/api-auth";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Billing data (wallet balances + transactions) is super_admin only —
+  // financial visibility maps to the `adjust_balance` permission.
+  const auth = await requireAdminPermission(request, "adjust_balance");
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const supabase = createAdminClient();
 

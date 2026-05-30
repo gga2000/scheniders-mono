@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils";
 import { formatIQD, formatDate, getBaseOrderId } from "@/lib/utils";
 import { formatPhoneForDisplay, normalizePhoneForSearch } from "@/lib/order-utils";
 import type { Order } from "@/lib/supabase";
+import { useLanguage } from "@/hooks/use-language";
 
 interface CustomerStats {
     totalOrders: number;
@@ -73,18 +74,18 @@ function getStatusBadgeStyle(status: string): string {
     }
 }
 
-// Status labels in Arabic
-const statusLabels: Record<string, string> = {
-    new: "جديد",
-    contacted: "تم الاتصال",
-    confirmed: "مؤكد",
-    cancelled: "ملغي",
-    in_transit: "قيد التوصيل",
-    delivered: "تم التوصيل",
-    rejected: "مرفوض",
-    completed: "طلب تام",
-    no_response: "لم يرد",
-    return_pending: "قيد الاسترجاع",
+// Status labels map to i18n keys
+const statusKeyMap: Record<string, string> = {
+    new: "orders.status.new",
+    contacted: "orders.status.contacted",
+    confirmed: "orders.status.confirmed",
+    cancelled: "orders.status.cancelled",
+    in_transit: "orders.status.in_transit",
+    delivered: "orders.status.delivered",
+    rejected: "orders.status.rejected",
+    completed: "orders.status.completed",
+    no_response: "orders.status.no_response",
+    return_pending: "orders.status.return_pending",
 };
 
 // Format date in English: 2025/1/5 07:18 PM
@@ -161,6 +162,7 @@ export function DuplicateComparisonModal({
     const [isProcessing, setIsProcessing] = useState(false);
     const [actionType, setActionType] = useState<string | null>(null);
     const [actionNote, setActionNote] = useState("");
+    const { t } = useLanguage();
 
     useEffect(() => {
         if (duplicateOrders.length > 0 && selectedOrderIds.length === 0) {
@@ -356,10 +358,10 @@ export function DuplicateComparisonModal({
                                 </div>
                                 <div>
                                     <h2 className="text-lg font-bold text-[var(--foreground)]">
-                                        طلب مكرر محتمل
+                                        {t("orders.duplicate.title")}
                                     </h2>
                                     <p className="text-xs text-[var(--foreground-muted)]">
-                                        تم العثور على {duplicateOrders.length} طلب مشابه لهذا العميل
+                                        {t("orders.duplicate.foundSimilar", { count: String(duplicateOrders.length) })}
                                     </p>
                                 </div>
                             </div>
@@ -420,14 +422,14 @@ export function DuplicateComparisonModal({
                                 "dark:bg-[rgba(255,80,100,0.08)] dark:border-[rgba(255,80,100,0.3)] dark:text-[#FF8899]"
                             )}>
                                 <ShieldX className="w-4 h-4 flex-shrink-0" />
-                                <span className="font-semibold">⚠️ هذا العميل في القائمة السوداء — يرجى مراجعة السجل</span>
+                                <span className="font-semibold">{t("orders.duplicate.blacklistWarning")}</span>
                             </div>
                         )}
 
                         {/* Order Selector — compact chips inline */}
                         {duplicateOrders.length > 1 && (
                             <div className="flex items-center gap-2 mt-3 flex-wrap">
-                                <span className="text-xs text-[var(--foreground-subtle)]">اختر للمقارنة:</span>
+                                <span className="text-xs text-[var(--foreground-subtle)]">{t("orders.duplicate.selectToCompare")}</span>
                                 {duplicateOrders.map((order) => {
                                     const score = matchScores[order.id];
                                     const isSelected = selectedOrderIds.includes(order.id);
@@ -479,7 +481,7 @@ export function DuplicateComparisonModal({
                                     )}
                                     style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, 1fr)` }}
                                 >
-                                    <div className="text-xs font-bold text-[var(--foreground-muted)]">الحقل</div>
+                                    <div className="text-xs font-bold text-[var(--foreground-muted)]">{t("orders.duplicate.field")}</div>
                                     {allDisplayOrders.map((order, idx) => (
                                         <div key={order.id} className="flex items-center justify-center gap-2">
                                             <span className={cn(
@@ -498,7 +500,7 @@ export function DuplicateComparisonModal({
                                                     "w-1.5 h-1.5 rounded-full animate-pulse",
                                                     "bg-amber-500 dark:bg-[#EFFF00]"
                                                 )} />}
-                                                {idx === 0 ? "الطلب الجديد" : "الطلب السابق"}
+                                                {idx === 0 ? t("orders.duplicate.newOrder") : t("orders.duplicate.previousOrder")}
                                             </span>
                                             <button
                                                 onClick={() => onViewOrder(order)}
@@ -506,7 +508,7 @@ export function DuplicateComparisonModal({
                                                     "w-5 h-5 rounded flex items-center justify-center transition-colors",
                                                     "bg-gray-200 hover:bg-gray-300 dark:bg-[#333333] dark:hover:bg-[#444444]"
                                                 )}
-                                                title="عرض التفاصيل"
+                                                title={t("orders.duplicate.viewDetails")}
                                             >
                                                 <Eye className="w-3 h-3 text-gray-500 dark:text-[#A1A1A1]" />
                                             </button>
@@ -523,7 +525,7 @@ export function DuplicateComparisonModal({
                                     >
                                         <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
                                             <span className="text-[var(--foreground-subtle)] w-4 h-4 flex-shrink-0"><User className="w-3.5 h-3.5" /></span>
-                                            تفاصيل العميل
+                                            {t("orders.duplicate.customerDetails")}
                                         </div>
                                         {allDisplayOrders.map((order) => {
                                             const isCurrent = order.id === currentOrder.id;
@@ -573,11 +575,11 @@ export function DuplicateComparisonModal({
                                             );
                                         })}
                                     </div>
-                                    {compareField("التاريخ", <Calendar className="w-3.5 h-3.5" />,
+                                    {compareField(t("orders.duplicate.date"), <Calendar className="w-3.5 h-3.5" />,
                                         (o) => formatDateEN(o.created_at))}
-                                    {compareField("رقم الهاتف", <Phone className="w-3.5 h-3.5" />,
+                                    {compareField(t("orders.duplicate.phone"), <Phone className="w-3.5 h-3.5" />,
                                         (o) => formatPhoneForDisplay(o.phone))}
-                                    {compareField("المدينة", <Truck className="w-3.5 h-3.5" />,
+                                    {compareField(t("orders.duplicate.city"), <Truck className="w-3.5 h-3.5" />,
                                         (o) => o.city || "—")}
 
                                     {/* Products */}
@@ -587,7 +589,7 @@ export function DuplicateComparisonModal({
                                     >
                                         <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
                                             <Package className="w-3.5 h-3.5 text-[var(--foreground-subtle)]" />
-                                            المنتجات
+                                            {t("orders.duplicate.products")}
                                         </div>
                                         {allDisplayOrders.map((order) => {
                                             const currentOrderItems = currentOrder.items || [];
@@ -657,7 +659,7 @@ export function DuplicateComparisonModal({
                                     >
                                         <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
                                             <Sparkles className="w-3.5 h-3.5 text-[var(--foreground-subtle)]" />
-                                            الحالة
+                                            {t("orders.duplicate.status")}
                                         </div>
                                         {allDisplayOrders.map((order) => (
                                             <div key={order.id} className="text-center">
@@ -665,13 +667,13 @@ export function DuplicateComparisonModal({
                                                     "inline-block px-2.5 py-1 rounded-full text-[11px] font-bold border",
                                                     getStatusBadgeStyle(order.status)
                                                 )}>
-                                                    {statusLabels[order.status] || order.status}
+                                                    {t(statusKeyMap[order.status] || "orders.status.new") || order.status}
                                                 </span>
                                             </div>
                                         ))}
                                     </div>
 
-                                    {compareField("المبلغ", <Clock className="w-3.5 h-3.5" />,
+                                    {compareField(t("orders.duplicate.amount"), <Clock className="w-3.5 h-3.5" />,
                                         (o) => formatIQD(Number(o.price)))}
                                 </div>
 
@@ -684,7 +686,7 @@ export function DuplicateComparisonModal({
                                     )}>
                                         <div className="flex items-center gap-2 mb-2">
                                             <GitMerge className="w-4 h-4 text-purple-600 dark:text-[#00FFFF]" />
-                                            <span className="font-bold text-sm text-purple-800 dark:text-[#00FFFF]">معاينة الدمج</span>
+                                            <span className="font-bold text-sm text-purple-800 dark:text-[#00FFFF]">{t("orders.duplicate.mergePreview")}</span>
                                         </div>
                                         <div className="space-y-1">
                                             {mergedItemsPreview.items.map((item, idx) => (
@@ -694,7 +696,7 @@ export function DuplicateComparisonModal({
                                                 </div>
                                             ))}
                                             <div className="pt-1.5 mt-1.5 border-t border-purple-200/50 dark:border-[rgba(0,255,255,0.12)] flex items-center justify-between">
-                                                <span className="font-bold text-xs text-purple-900 dark:text-[#00FFFF]">المجموع بعد الدمج</span>
+                                                <span className="font-bold text-xs text-purple-900 dark:text-[#00FFFF]">{t("orders.duplicate.totalAfterMerge")}</span>
                                                 <span className="font-bold text-xs font-mono text-purple-900 dark:text-[#EFFF00]">{formatIQD(mergedItemsPreview.total)}</span>
                                             </div>
                                         </div>
@@ -716,7 +718,7 @@ export function DuplicateComparisonModal({
                                     type="text"
                                     value={actionNote}
                                     onChange={(e) => setActionNote(e.target.value)}
-                                    placeholder="أضف ملاحظة (اختياري)..."
+                                    placeholder={t("orders.duplicate.addNote")}
                                     className={cn(
                                         "flex-1 px-3 py-1.5 rounded-lg text-xs transition-all",
                                         "bg-[var(--card-bg)] border border-[var(--card-border)] text-[var(--foreground)]",
@@ -748,7 +750,7 @@ export function DuplicateComparisonModal({
                                     )}
                                 >
                                     <GitMerge className="w-4 h-4" />
-                                    <span>{actionType === "merge" ? "جاري الدمج..." : "دمج الطلبات"}</span>
+                                    <span>{actionType === "merge" ? t("orders.duplicate.merging") : t("orders.duplicate.mergeOrders")}</span>
                                 </button>
 
                                 {/* Same Customer */}
@@ -766,7 +768,7 @@ export function DuplicateComparisonModal({
                                     )}
                                 >
                                     <UserPlus className="w-4 h-4" />
-                                    <span>نفس العميل</span>
+                                    <span>{t("orders.duplicate.sameCustomer")}</span>
                                 </button>
 
                                 {/* Cancel New */}
@@ -784,7 +786,7 @@ export function DuplicateComparisonModal({
                                     )}
                                 >
                                     <XCircle className="w-4 h-4" />
-                                    <span>{actionType === "cancelNew" ? "جاري..." : "إلغاء الجديد"}</span>
+                                    <span>{actionType === "cancelNew" ? t("orders.duplicate.cancelling") : t("orders.duplicate.cancelNew")}</span>
                                 </button>
 
                                 {/* Cancel Old */}
@@ -801,7 +803,7 @@ export function DuplicateComparisonModal({
                                     )}
                                 >
                                     <XCircle className="w-4 h-4" />
-                                    <span>{actionType === "cancelOld" ? "جاري..." : "إلغاء السابق"}</span>
+                                    <span>{actionType === "cancelOld" ? t("orders.duplicate.cancelling") : t("orders.duplicate.cancelOld")}</span>
                                 </button>
 
                                 {/* Spacer */}
@@ -819,7 +821,7 @@ export function DuplicateComparisonModal({
                                         )}
                                     >
                                         <Filter className="w-3.5 h-3.5" />
-                                        <span>عرض الكل</span>
+                                        <span>{t("orders.duplicate.showAll")}</span>
                                     </button>
                                 )}
 
@@ -836,7 +838,7 @@ export function DuplicateComparisonModal({
                                     )}
                                 >
                                     <Ban className="w-4 h-4" />
-                                    <span>ليست مكررة</span>
+                                    <span>{t("orders.duplicate.notDuplicate")}</span>
                                 </button>
                             </div>
                         </div>

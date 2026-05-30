@@ -415,9 +415,9 @@ export function OrderDetailsModal({
                 throw new Error(data.error || "Failed to send template");
             }
 
-            toast.success("تم إرسال رسالة التأكيد بنجاح");
+            toast.success(t("orderDetail.templateSent"));
         } catch (error) {
-            toast.error("فشل في إرسال الرسالة", error instanceof Error ? error.message : "Unknown error");
+            toast.error(t("orderDetail.templateFailed"), error instanceof Error ? error.message : "Unknown error");
         } finally {
             setIsSendingTemplate(false);
         }
@@ -650,16 +650,16 @@ export function OrderDetailsModal({
                                         <button
                                             onClick={() => { setBlacklistDialogMode("remove"); setBlacklistDialogOpen(true); }}
                                             className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-full bg-gray-900 text-white border border-gray-800 hover:bg-gray-700 transition-all"
-                                            title="رفع الحظر"
+                                            title={t("orderDetail.unblacklist")}
                                         >
                                             <Ban className="w-3 h-3" />
-                                            محظور
+                                            {t("orderDetail.blacklisted")}
                                         </button>
                                     ) : (
                                         <button
                                             onClick={() => { setBlacklistDialogMode("add"); setBlacklistDialogOpen(true); }}
                                             className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 text-gray-500 border border-gray-200 hover:bg-red-100 hover:text-red-600 hover:border-red-200 transition-all"
-                                            title="إضافة للقائمة السوداء"
+                                            title={t("orderDetail.addBlacklist")}
                                         >
                                             <Ban className="w-3.5 h-3.5" />
                                         </button>
@@ -679,7 +679,7 @@ export function OrderDetailsModal({
                                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 text-green-600 border border-green-200 hover:bg-green-100 transition-all text-xs font-medium dark:bg-green-950/30 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/40"
                                         >
                                             <PackagePlus className="h-3.5 w-3.5" />
-                                            اعادة طلب
+                                            {t("orderDetail.reorder")}
                                         </button>
                                         {/* Return Button - Only for delivered/completed orders */}
                                         {(order.status === "delivered" || order.status === "completed") && onCreateReturn && !order.is_return && !order.is_replacement && (
@@ -688,7 +688,7 @@ export function OrderDetailsModal({
                                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 transition-all text-xs font-medium"
                                             >
                                                 <RotateCcw className="h-3.5 w-3.5" />
-                                                استرجاع
+                                                {t("orderDetail.return")}
                                             </button>
                                         )}
                                         {/* Replace Button - Only for delivered/completed orders */}
@@ -698,7 +698,7 @@ export function OrderDetailsModal({
                                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-yellow-50 text-yellow-700 border border-yellow-200 hover:bg-yellow-100 transition-all text-xs font-medium dark:bg-yellow-950/30 dark:text-yellow-400 dark:border-yellow-800 dark:hover:bg-yellow-900/40"
                                             >
                                                 <Package className="h-3.5 w-3.5" />
-                                                استبدال
+                                                {t("orderDetail.replace")}
                                             </button>
                                         )}
                                     </div>
@@ -1200,22 +1200,22 @@ export function OrderDetailsModal({
                                     <div className="p-6 border-b border-gray-100">
                                         <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                                             <Package className="w-5 h-5 text-blue-600" />
-                                            إنشاء طلب استبدال
+                                            {t("orderDetail.createReplacement")}
                                         </h3>
                                     </div>
 
                                     <div className="space-y-4 p-6 overflow-y-auto flex-1">
                                         {/* Order Info */}
                                         <div className="bg-gray-50 p-3 rounded-xl text-sm">
-                                            <p className="text-muted">الطلب الأصلي</p>
+                                            <p className="text-muted">{t("orderDetail.originalOrderLabel")}</p>
                                             <p className="font-bold">#{getBaseOrderId(order.order_id)} - {order.customer_name}</p>
-                                            <p className="text-muted">المبلغ: {formatIQD(order.price)}</p>
+                                            <p className="text-muted">{t("orderDetail.amountLabel")} {formatIQD(order.price)}</p>
                                         </div>
 
                                         {/* Old Items */}
                                         <div>
                                             <label className="block text-sm font-medium text-foreground mb-1.5">
-                                                المنتجات القديمة
+                                                {t("orderDetail.oldProducts")}
                                             </label>
                                             <div className="space-y-2">
                                                 {order.items?.map((item, index) => (
@@ -1230,7 +1230,7 @@ export function OrderDetailsModal({
                                         {/* New Items Selection */}
                                         <div>
                                             <label className="block text-sm font-medium text-foreground mb-1.5">
-                                                المنتجات الجديدة
+                                                {t("orderDetail.newProducts")}
                                             </label>
                                             {replacementNewItems.length > 0 ? (
                                                 <div className="space-y-2 mb-2">
@@ -1251,7 +1251,7 @@ export function OrderDetailsModal({
                                                 </div>
                                             ) : (
                                                 <div className="bg-gray-50 p-4 rounded-lg text-center text-sm text-muted mb-2">
-                                                    لم يتم اختيار منتجات جديدة بعد
+                                                    {t("orderDetail.noNewProducts")}
                                                 </div>
                                             )}
                                             <button
@@ -1259,14 +1259,14 @@ export function OrderDetailsModal({
                                                 className="w-full px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-all flex items-center justify-center gap-2"
                                             >
                                                 <PackagePlus className="w-4 h-4" />
-                                                إضافة منتج جديد
+                                                {t("orderDetail.addNewProduct")}
                                             </button>
                                         </div>
 
                                         {/* Price Difference */}
                                         {replacementNewItems.length > 0 && (
                                             <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
-                                                <p className="text-sm text-blue-700 mb-1">فرق السعر</p>
+                                                <p className="text-sm text-blue-700 mb-1">{t("orderDetail.priceDifference")}</p>
                                                 <p className="text-xl font-bold text-blue-900">
                                                     {(() => {
                                                         const oldTotal = order.items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || 0;
@@ -1281,14 +1281,14 @@ export function OrderDetailsModal({
                                         {/* Notes Input - Editable */}
                                         <div>
                                             <label className="block text-sm font-medium text-foreground mb-1.5">
-                                                ملاحظات الاستبدال
+                                                {t("orderDetail.replacementNotes")}
                                             </label>
                                             <textarea
                                                 value={replacementNotes}
                                                 onChange={(e) => setReplacementNotes(e.target.value)}
                                                 rows={5}
                                                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white"
-                                                placeholder="أدخل ملاحظات الاستبدال..."
+                                                placeholder={t("orderDetail.replacementNotesPlaceholder")}
                                             />
                                         </div>
 
@@ -1301,8 +1301,8 @@ export function OrderDetailsModal({
                                                 className="w-5 h-5 rounded border-amber-300 text-amber-600 focus:ring-amber-200"
                                             />
                                             <div>
-                                                <p className="font-medium text-amber-800">خصم رسوم التوصيل (5,000 د.ع)</p>
-                                                <p className="text-xs text-amber-600">سيتم خصم رسوم التوصيل من مبلغ الاستبدال</p>
+                                                <p className="font-medium text-amber-800">{t("orderDetail.deductDeliveryReplacement")}</p>
+                                                <p className="text-xs text-amber-600">{t("orderDetail.deductDeliveryReplacementDesc")}</p>
                                             </div>
                                         </label>
                                     </div>
@@ -1318,16 +1318,16 @@ export function OrderDetailsModal({
                                             }}
                                             className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-all"
                                         >
-                                            إلغاء
+                                            {t("orderDetail.cancelAction")}
                                         </button>
                                         <button
                                             onClick={async () => {
                                                 if (!onCreateReplacement) {
-                                                    toast.error("خطأ", "لا يمكن إنشاء طلب استبدال");
+                                                    toast.error(t("orderDetail.replacementError"), t("orderDetail.noReplacementContext"));
                                                     return;
                                                 }
                                                 if (replacementNewItems.length === 0) {
-                                                    toast.error("خطأ", "الرجاء اختيار المنتجات الجديدة للاستبدال");
+                                                    toast.error(t("orderDetail.replacementError"), t("orderDetail.selectNewProducts"));
                                                     return;
                                                 }
                                                 setIsCreatingReplacement(true);
@@ -1345,13 +1345,13 @@ export function OrderDetailsModal({
                                                         setReplacementNotes("استبدال المنتج القديم بعد التأكد من سلامته وعدم تضرر زجاجة العطر او نقصانها خلافه يمنع الاستبدال قطعاً, ثم إعطاء الزبون المنتج الجديد . 5000 دينار توصيل مقطوعة من الحساب");
                                                         setReplacementNewItems([]);
                                                         onClose();
-                                                        toast.success("تم الإنشاء", "تم إنشاء طلب الاستبدال بنجاح");
+                                                        toast.success(t("orderDetail.replacementCreated"), t("orderDetail.replacementCreated"));
                                                     } else {
-                                                        toast.error("فشل الإنشاء", result.error || "فشل في إنشاء طلب الاستبدال");
+                                                        toast.error(t("orderDetail.replacementFailed"), result.error || t("orderDetail.replacementFailed"));
                                                     }
                                                 } catch (err) {
                                                     setIsCreatingReplacement(false);
-                                                    toast.error("خطأ", `فشل في إنشاء طلب الاستبدال: ${err instanceof Error ? err.message : "Unknown error"}`);
+                                                    toast.error(t("orderDetail.replacementError"), `${t("orderDetail.replacementFailed")}: ${err instanceof Error ? err.message : "Unknown error"}`);
                                                 }
                                             }}
                                             disabled={isCreatingReplacement}
@@ -1362,7 +1362,7 @@ export function OrderDetailsModal({
                                             ) : (
                                                 <Package className="w-4 h-4" />
                                             )}
-                                            إنشاء طلب استبدال
+                                            {t("orderDetail.createReplacementBtn")}
                                         </button>
                                     </div>
                                 </div>
@@ -1539,14 +1539,14 @@ export function OrderDetailsModal({
                                                         ? "bg-gray-300 cursor-not-allowed shadow-none"
                                                         : "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20"
                                                 )}
-                                                title="إرسال رسالة تأكيد (فقط للطلبات الجديدة)"
+                                                title={t("orderDetail.sendConfirmTooltip")}
                                             >
                                                 {isSendingTemplate ? (
                                                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                                                 ) : (
                                                     <Send className="h-4 w-4" />
                                                 )}
-                                                إرسال قالب التأكيد
+                                                {t("orderDetail.sendConfirmTemplate")}
                                             </button>
                                             <button
                                                 onClick={handleWhatsApp}

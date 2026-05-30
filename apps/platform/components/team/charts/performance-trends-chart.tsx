@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import { TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 // Types
 interface DailyMetric {
@@ -34,25 +35,25 @@ interface PerformanceTrendsChartProps {
 const METRIC_CONFIG = {
     totalActions: {
         key: "totalActions",
-        label: "إجمالي النشاطات",
+        labelKey: "team.stats.totalActions",
         color: "#F59E0B",
         gradientId: "totalActionsGradient",
     },
     ordersCreated: {
         key: "ordersCreated",
-        label: "طلبات جديدة",
+        labelKey: "team.stats.newOrders",
         color: "#10B981",
         gradientId: "ordersCreatedGradient",
     },
     statusChanges: {
         key: "statusChanges",
-        label: "تغييرات الحالة",
+        labelKey: "team.stats.statusChanges",
         color: "#6366F1",
         gradientId: "statusChangesGradient",
     },
     ordersPrinted: {
         key: "ordersPrinted",
-        label: "طباعة",
+        labelKey: "team.stats.printOps",
         color: "#8B5CF6",
         gradientId: "ordersPrintedGradient",
     },
@@ -64,11 +65,12 @@ export function PerformanceTrendsChart({
     height = 280,
     className,
 }: PerformanceTrendsChartProps) {
+    const { t, language } = useLanguage();
     // Format dates for display
     const chartData = useMemo(() => {
         return data.map((d) => ({
             ...d,
-            displayDate: new Date(d.date).toLocaleDateString("ar-IQ", {
+            displayDate: new Date(d.date).toLocaleDateString(language === "ar" ? "ar-IQ" : "en-US", {
                 month: "short",
                 day: "numeric",
             }),
@@ -78,7 +80,7 @@ export function PerformanceTrendsChart({
     if (data.length === 0) {
         return (
             <div className="flex items-center justify-center h-64 text-muted-foreground">
-                <p>لا توجد بيانات كافية للعرض</p>
+                <p>{t("team.charts.notEnoughData")}</p>
             </div>
         );
     }
@@ -92,7 +94,7 @@ export function PerformanceTrendsChart({
             {/* Header */}
             <div className="flex items-center gap-2 mb-4">
                 <TrendingUp className="w-5 h-5 text-primary" />
-                <h3 className="font-bold text-foreground">اتجاهات الأداء</h3>
+                <h3 className="font-bold text-foreground">{t("team.charts.performanceTrends")}</h3>
             </div>
 
             {/* Chart */}
@@ -157,7 +159,7 @@ export function PerformanceTrendsChart({
                                 const metric = Object.values(METRIC_CONFIG).find(
                                     (m) => m.key === name
                                 );
-                                return [value, metric?.label || name];
+                                return [value, metric ? t(metric.labelKey) : name];
                             }}
                             labelFormatter={(label) => `${label}`}
                         />
@@ -167,7 +169,7 @@ export function PerformanceTrendsChart({
                                 const metric = Object.values(METRIC_CONFIG).find(
                                     (m) => m.key === value
                                 );
-                                return metric?.label || value;
+                                return metric ? t(metric.labelKey) : value;
                             }}
                             iconType="circle"
                             wrapperStyle={{ fontSize: "12px" }}

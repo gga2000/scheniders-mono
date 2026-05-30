@@ -8,6 +8,7 @@ import { ActivityLogEntry } from "@/lib/activity-logger";
 import { WorkSession, formatSessionDuration, formatSessionTimeRange } from "./hooks/use-work-sessions";
 import { ActivityTimeline } from "./activity-timeline";
 import { useState } from "react";
+import { useLanguage } from "@/hooks/use-language";
 
 interface SessionGroupedActivitiesProps {
     sessions: WorkSession[];
@@ -21,11 +22,15 @@ function SessionCard({
     isExpanded,
     onToggle,
     delay = 0,
+    t,
+    language,
 }: {
     session: WorkSession;
     isExpanded: boolean;
     onToggle: () => void;
     delay?: number;
+    t: (key: string, fallback?: string) => string;
+    language: string;
 }) {
     return (
         <motion.div
@@ -49,10 +54,10 @@ function SessionCard({
                     </div>
                     <div className="text-right">
                         <p className="font-semibold text-foreground">
-                            {formatSessionTimeRange(session)}
+                            {formatSessionTimeRange(session, language)}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                            {new Date(session.startTime).toLocaleDateString("ar-IQ", {
+                            {new Date(session.startTime).toLocaleDateString(language === 'ar' ? "ar-IQ" : "en-US", {
                                 weekday: "short",
                                 month: "short",
                                 day: "numeric",
@@ -70,7 +75,7 @@ function SessionCard({
                         </div>
                         <div className="px-2 py-1 rounded-lg bg-muted">
                             <span className="text-xs font-medium text-muted-foreground">
-                                {formatSessionDuration(session.durationMinutes)}
+                                {formatSessionDuration(session.durationMinutes, t)}
                             </span>
                         </div>
                     </div>
@@ -110,6 +115,7 @@ export function SessionGroupedActivities({
     maxSessions = 10,
     className,
 }: SessionGroupedActivitiesProps) {
+    const { t, language } = useLanguage();
     const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
 
     // Limit sessions
@@ -143,7 +149,7 @@ export function SessionGroupedActivities({
         return (
             <div className="text-center py-12 text-muted-foreground">
                 <Clock className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p>لا توجد جلسات عمل</p>
+                <p>{t("team.sessions.empty")}</p>
             </div>
         );
     }
@@ -154,22 +160,22 @@ export function SessionGroupedActivities({
             <div className="flex items-center justify-between p-4 bg-gradient-to-r from-primary/5 to-primary/10 rounded-2xl">
                 <div className="flex items-center gap-2">
                     <Clock className="w-5 h-5 text-primary" />
-                    <span className="font-bold text-foreground">جلسات العمل</span>
+                    <span className="font-bold text-foreground">{t("team.sessions.title")}</span>
                 </div>
                 <div className="flex items-center gap-4 text-sm">
                     <div className="text-center">
                         <p className="font-bold text-foreground">{totals.sessionCount}</p>
-                        <p className="text-xs text-muted-foreground">جلسة</p>
+                        <p className="text-xs text-muted-foreground">{t("team.stats.sessionLabel")}</p>
                     </div>
                     <div className="text-center">
                         <p className="font-bold text-foreground">{totals.totalActivities}</p>
-                        <p className="text-xs text-muted-foreground">نشاط</p>
+                        <p className="text-xs text-muted-foreground">{t("team.sessions.activity")}</p>
                     </div>
                     <div className="text-center">
                         <p className="font-bold text-foreground">
-                            {formatSessionDuration(totals.totalMinutes)}
+                            {formatSessionDuration(totals.totalMinutes, t)}
                         </p>
-                        <p className="text-xs text-muted-foreground">إجمالي</p>
+                        <p className="text-xs text-muted-foreground">{t("team.stats.total")}</p>
                     </div>
                 </div>
             </div>
@@ -183,6 +189,8 @@ export function SessionGroupedActivities({
                         isExpanded={expandedSessions.has(session.id)}
                         onToggle={() => toggleSession(session.id)}
                         delay={index * 0.05}
+                        t={t}
+                        language={language}
                     />
                 ))}
             </div>
@@ -190,7 +198,7 @@ export function SessionGroupedActivities({
             {/* Show more indicator */}
             {sessions.length > maxSessions && (
                 <p className="text-center text-sm text-muted-foreground">
-                    +{sessions.length - maxSessions} جلسات أخرى
+                    {t("team.sessions.moreSessions", { count: (sessions.length - maxSessions).toString() })}
                 </p>
             )}
         </div>

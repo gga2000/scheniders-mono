@@ -187,27 +187,28 @@ export function useWorkSessions(
 /**
  * Format session duration for display
  */
-export function formatSessionDuration(minutes: number): string {
+export function formatSessionDuration(minutes: number, t: any): string {
     if (minutes < 60) {
-        return `${minutes} دقيقة`;
+        return t("team.stats.minutes", { count: minutes.toString() });
     }
     const hours = Math.floor(minutes / 60);
     const remainingMinutes = minutes % 60;
     if (remainingMinutes === 0) {
-        return `${hours} ساعة`;
+        return t("team.stats.hours", { count: hours.toString() });
     }
-    return `${hours} ساعة و ${remainingMinutes} دقيقة`;
+    return t("team.stats.hoursAndMinutes", { hours: hours.toString(), minutes: remainingMinutes.toString() });
 }
 
 /**
  * Get session time range string
  */
-export function formatSessionTimeRange(session: WorkSession): string {
-    const startTime = session.startTime.toLocaleTimeString("ar-IQ", {
+export function formatSessionTimeRange(session: WorkSession, language?: string): string {
+    const localeString = language === "ar" ? "ar-IQ" : "en-US";
+    const startTime = session.startTime.toLocaleTimeString(localeString, {
         hour: "2-digit",
         minute: "2-digit",
     });
-    const endTime = session.endTime.toLocaleTimeString("ar-IQ", {
+    const endTime = session.endTime.toLocaleTimeString(localeString, {
         hour: "2-digit",
         minute: "2-digit",
     });

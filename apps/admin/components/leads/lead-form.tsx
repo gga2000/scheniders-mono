@@ -5,7 +5,8 @@ import { cn } from "@/lib/utils";
 import { useIndustries } from "@/hooks/use-industries";
 import type { LeadFormData, LeadPhoneNumber, LeadSourcePlatform, LeadPriority } from "@/types/leads";
 import { PLATFORM_CONFIG, LEAD_PRIORITY_CONFIG } from "@/types/leads";
-import { X, Plus, Trash2, TrendingUp } from "lucide-react";
+import { X, Plus, Trash2, TrendingUp, Search, Loader2, Sparkles } from "lucide-react";
+import { adminFetch } from "@/lib/admin-fetch";
 import * as Dialog from "@radix-ui/react-dialog";
 
 interface LeadFormProps {
@@ -42,18 +43,60 @@ const DEFAULT_FORM: LeadFormData = {
   source_medium: "",
 };
 
+const ANALYZABLE_PLATFORMS = new Set(["instagram"]);
+
 export function LeadForm({ open, onOpenChange, onSubmit, initialData, isLoading }: LeadFormProps) {
   const [form, setForm] = useState<LeadFormData>(DEFAULT_FORM);
+  const [analyzeHandle, setAnalyzeHandle] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+  const [analyzeSuccess, setAnalyzeSuccess] = useState(false);
   const { data: industries } = useIndustries();
 
   useEffect(() => {
     if (open) {
       setForm(initialData ? { ...DEFAULT_FORM, ...initialData } : DEFAULT_FORM);
+      setAnalyzeHandle("");
+      setAnalyzeError(null);
+      setAnalyzeSuccess(false);
     }
   }, [open, initialData]);
 
   const update = <K extends keyof LeadFormData>(key: K, value: LeadFormData[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  const handleAnalyze = async () => {
+    if (!analyzeHandle.trim() || !ANALYZABLE_PLATFORMS.has(form.platform)) return;
+    setIsAnalyzing(true);
+    setAnalyzeError(null);
+    setAnalyzeSuccess(false);
+    try {
+      const res = await adminFetch("/api/leads/analyze-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ platform: form.platform, handle: analyzeHandle.trim() }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Analysis failed");
+
+      const p = json.profile;
+      setForm((prev) => ({
+        ...prev,
+        merchant_name: p.merchant_name || prev.merchant_name,
+        follower_count: p.follower_count || prev.follower_count,
+        avg_view_count: p.avg_view_count || prev.avg_view_count,
+        avg_like_count: p.avg_like_count || prev.avg_like_count,
+        avg_comments_count: p.avg_comments_count || prev.avg_comments_count,
+        platform_url: p.platform_url || prev.platform_url,
+        management_info: p.bio ? (prev.management_info ? prev.management_info + "\n" + p.bio : p.bio) : prev.management_info,
+      }));
+      setAnalyzeSuccess(true);
+    } catch (err) {
+      setAnalyzeError(err instanceof Error ? err.message : "Failed to analyze profile");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   const addPhone = () => {
     if (form.phone_numbers.length < 3) {
@@ -169,6 +212,54 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, isLoading 
                   />
                 </div>
               </div>
+
+              {/* Analyze Profile */}
+              {ANALYZABLE_PLATFORMS.has(form.platform) && (
+                <div className="rounded-xl border border-dashed border-[var(--primary)]/40 bg-[var(--primary)]/[0.04] p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[var(--primary)]" />
+                    <span className="text-xs font-bold text-[var(--primary)] uppercase tracking-wider">
+                      Auto-Fill from {PLATFORM_CONFIG[form.platform].label}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={analyzeHandle}
+                      onChange={(e) => { setAnalyzeHandle(e.target.value); setAnalyzeError(null); setAnalyzeSuccess(false); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAnalyze(); } }}
+                      className="flex-1 px-4 py-2.5 rounded-xl bg-[var(--card-bg)] border border-[var(--card-border)] text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
+                      placeholder={form.platform === "facebook" ? "Page name or URL" : "@username or profile URL"}
+                      disabled={isAnalyzing}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAnalyze}
+                      disabled={isAnalyzing || !analyzeHandle.trim()}
+                      className={cn(
+                        "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
+                        "bg-[var(--primary)] text-[var(--primary-fg)] hover:brightness-110",
+                        (isAnalyzing || !analyzeHandle.trim()) && "opacity-50 cursor-not-allowed",
+                      )}
+                    >
+                      {isAnalyzing ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Search className="w-4 h-4" />
+                      )}
+                      {isAnalyzing ? "Analyzing..." : "Analyze"}
+                    </button>
+                  </div>
+                  {analyzeError && (
+                    <p className="text-xs text-red-500 font-medium">{analyzeError}</p>
+                  )}
+                  {analyzeSuccess && (
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                      Profile data loaded! Fields below have been auto-filled.
+                    </p>
+                  )}
+                </div>
+              )}
             </fieldset>
 
             {/* Section 2: Contact Info */}

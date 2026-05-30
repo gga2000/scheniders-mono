@@ -1,0 +1,183 @@
+// =====================================================================
+// Section — pdp_add_to_cart
+// =====================================================================
+// Primary CTA cluster for the PDP: add-to-cart button + optional
+// WhatsApp button + quantity picker. Optionally pins itself to the
+// bottom of the viewport on mobile.
+// =====================================================================
+
+"use client";
+
+import { useState } from "react";
+import { z } from "zod";
+import { resolveI18n } from "@scheniders/shared";
+import {
+  ChunkyButton,
+  MaterialIcon,
+  WhatsAppIcon,
+} from "./helpers/primitives";
+import { useCart } from "./helpers/cart-store";
+import { formatPrice } from "./helpers/format";
+import { i18nStringSchema, i18nStringOptional } from "./_schema";
+import { registerSection } from "./_registry";
+import type { SectionDefinition, SectionRenderContext } from "./_types";
+
+const schema = z.object({
+  primary_label_i18n: i18nStringSchema,
+  whatsapp_label_i18n: i18nStringOptional,
+  show_quantity_picker: z.boolean(),
+  sticky_on_mobile: z.boolean(),
+});
+
+type Props = z.infer<typeof schema>;
+
+const defaultProps: Props = {
+  primary_label_i18n: { en: "Add to cart", ar: "أضف إلى السلة" },
+  whatsapp_label_i18n: { en: "Order on WhatsApp", ar: "اطلب عبر واتساب" },
+  show_quantity_picker: true,
+  sticky_on_mobile: true,
+};
+
+function PdpAddToCartRender({
+  props,
+  ctx,
+}: {
+  props: Props;
+  ctx: SectionRenderContext;
+}) {
+  const product = ctx.product;
+  const locale = ctx.runtime.locale;
+  const addItem = useCart((s) => s.addItem);
+  const [qty, setQty] = useState(1);
+
+  if (!product) return null;
+
+  const primaryLabel = resolveI18n(props.primary_label_i18n, locale);
+  const whatsappLabel = resolveI18n(props.whatsapp_label_i18n, locale);
+  const tenantWhatsapp =
+    (ctx.tenant as unknown as { whatsapp_number?: string | null })
+      .whatsapp_number || null;
+  const whatsappHref = tenantWhatsapp
+    ? `https://wa.me/${tenantWhatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(
+        `${product.name} — ${formatPrice(product.price)}`,
+      )}`
+    : null;
+
+  const oos =
+    (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0) <= 0;
+
+  function handleAdd() {
+    if (oos) return;
+    addItem({
+      product_id: product!.id,
+      variant_id: null,
+      name: product!.name,
+      variant_name: null,
+      price: product!.price,
+      quantity: qty,
+      image_url: product!.image_url ?? null,
+    });
+  }
+
+  const ctaCluster = (
+    <div className="flex flex-col gap-3">
+      {props.show_quantity_picker && (
+        <div className="flex items-center gap-3">
+          <span className="font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70">
+            {locale === "ar" ? "الكمية" : "Qty"}
+          </span>
+          <div className="flex items-center rounded-xl border-[3px] border-candy-ink bg-white shadow-bento-sm">
+            <button
+              type="button"
+              onClick={() => setQty((q) => Math.max(1, q - 1))}
+              aria-label="Decrease quantity"
+              className="w-10 h-10 flex items-center justify-center"
+            >
+              <MaterialIcon name="remove" />
+            </button>
+            <span className="w-10 text-center font-display font-black text-lg">
+              {qty}
+            </span>
+            <button
+              type="button"
+              onClick={() => setQty((q) => q + 1)}
+              aria-label="Increase quantity"
+              className="w-10 h-10 flex items-center justify-center"
+            >
+              <MaterialIcon name="add" />
+            </button>
+          </div>
+        </div>
+      )}
+      <ChunkyButton
+        type="button"
+        bg="pink"
+        size="lg"
+        fullWidth
+        onClick={handleAdd}
+        disabled={oos}
+      >
+        <MaterialIcon name="shopping_bag" />
+        {oos
+          ? locale === "ar"
+            ? "نفد المخزون"
+            : "Out of stock"
+          : primaryLabel}
+      </ChunkyButton>
+      {whatsappHref && (
+        <a href={whatsappHref} target="_blank" rel="noopener noreferrer">
+          <ChunkyButton type="button" bg="mint" size="lg" fullWidth>
+            <WhatsAppIcon className="w-5 h-5" />
+            {whatsappLabel}
+          </ChunkyButton>
+        </a>
+      )}
+    </div>
+  );
+
+  return (
+    <>
+      <section className="px-4 py-4">{ctaCluster}</section>
+      {props.sticky_on_mobile && (
+        <div
+          className="fixed bottom-0 inset-x-0 z-40 sm:hidden bg-white/95 backdrop-blur border-t-[3px] border-candy-ink p-3 shadow-[0_-6px_0_0_rgba(26,26,26,0.06)]"
+          aria-hidden="false"
+        >
+          <ChunkyButton
+            type="button"
+            bg="pink"
+            size="md"
+            fullWidth
+            onClick={handleAdd}
+            disabled={oos}
+          >
+            <MaterialIcon name="shopping_bag" />
+            {oos
+              ? locale === "ar"
+                ? "نفد المخزون"
+                : "Out of stock"
+              : `${primaryLabel} — ${formatPrice(product.price * qty)}`}
+          </ChunkyButton>
+        </div>
+      )}
+    </>
+  );
+}
+
+const definition: SectionDefinition<Props> = {
+  type: "pdp_add_to_cart",
+  category: "page",
+  name: { en: "Add to cart", ar: "إضافة إلى السلة" },
+  description: {
+    en: "Primary PDP CTA: add-to-cart + WhatsApp + quantity picker.",
+    ar: "زر الشراء الرئيسي مع واتساب ومحدّد الكمية.",
+  },
+  thumbnail: "/sections/pdp_add_to_cart.svg",
+  valid_on: ["product"],
+  schema,
+  defaultProps,
+  render: PdpAddToCartRender,
+};
+
+registerSection(definition);
+export default definition;

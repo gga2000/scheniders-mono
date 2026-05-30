@@ -19,6 +19,7 @@ import { ar } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { AnimatedAvatarRing } from "./animated-avatar-ring";
 import { useWorkSessions, formatSessionDuration } from "./hooks/use-work-sessions";
+import { useLanguage } from "@/hooks/use-language";
 import { SessionGroupedActivities } from "./session-grouped-activities";
 import { ActivityTimeline } from "./activity-timeline";
 import { PerformanceTrendsChart } from "./charts/performance-trends-chart";
@@ -63,6 +64,7 @@ export function EmployeeDrawer({
     hasPrev = false,
     hasNext = false,
 }: EmployeeDrawerProps) {
+    const { t, language } = useLanguage();
     const [activeTab, setActiveTab] = useState<TabType>("activity");
 
     // Get employee's activities
@@ -145,9 +147,9 @@ export function EmployeeDrawer({
     }, [isOpen, onClose]);
 
     const tabs: { key: TabType; icon: React.ElementType; label: string }[] = [
-        { key: "activity", icon: Activity, label: "النشاطات" },
-        { key: "sessions", icon: Clock, label: "الجلسات" },
-        { key: "analytics", icon: BarChart3, label: "التحليلات" },
+        { key: "activity", icon: Activity, label: t("team.tabs.activity") },
+        { key: "sessions", icon: Clock, label: t("team.tabs.sessions") },
+        { key: "analytics", icon: BarChart3, label: t("team.tabs.analytics") },
     ];
 
     return (
@@ -241,12 +243,12 @@ export function EmployeeDrawer({
                                                     : "bg-emerald-500/10 text-emerald-600"
                                             )}
                                         >
-                                            {employee.role === "admin" ? "مسؤول" : "موظف"}
+                                            {employee.role === "admin" ? t("team.drawer.adminRole") : t("team.drawer.employeeRole")}
                                         </span>
                                         {employee.isOnline && (
                                             <span className="px-2 py-0.5 rounded-lg text-xs font-medium bg-green-500/10 text-green-600 flex items-center gap-1">
                                                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                                                متصل
+                                                {t("team.drawer.online")}
                                             </span>
                                         )}
                                     </div>
@@ -256,10 +258,10 @@ export function EmployeeDrawer({
                             {/* Quick Stats */}
                             <div className="grid grid-cols-4 gap-3 mt-6">
                                 {[
-                                    { icon: Activity, value: employee.totalActions, label: "إجمالي", color: "text-primary" },
-                                    { icon: Package, value: employee.ordersCreated, label: "طلبات", color: "text-emerald-500" },
-                                    { icon: RefreshCw, value: employee.statusChanges, label: "تغييرات", color: "text-amber-500" },
-                                    { icon: Clock, value: sessionStats.totalHours, label: "ساعات", color: "text-blue-500" },
+                                    { icon: Activity, value: employee.totalActions, label: t("team.stats.total"), color: "text-primary" },
+                                    { icon: Package, value: employee.ordersCreated, label: t("team.stats.orders"), color: "text-emerald-500" },
+                                    { icon: RefreshCw, value: employee.statusChanges, label: t("team.stats.changes"), color: "text-amber-500" },
+                                    { icon: Clock, value: sessionStats.totalHours, label: t("team.stats.hoursLabel"), color: "text-blue-500" },
                                 ].map((stat, i) => (
                                     <div key={i} className="bg-white/50 rounded-xl p-3 text-center backdrop-blur-sm">
                                         <stat.icon className={cn("w-4 h-4 mx-auto mb-1", stat.color)} />
@@ -306,15 +308,15 @@ export function EmployeeDrawer({
                                     <div className="grid grid-cols-3 gap-3">
                                         <div className="bg-muted/30 rounded-xl p-4 text-center">
                                             <p className="text-2xl font-bold">{sessionStats.totalSessions}</p>
-                                            <p className="text-xs text-muted-foreground">جلسة</p>
+                                            <p className="text-xs text-muted-foreground">{t("team.stats.sessionLabel")}</p>
                                         </div>
                                         <div className="bg-muted/30 rounded-xl p-4 text-center">
                                             <p className="text-2xl font-bold">{sessionStats.averageSessionMinutes}</p>
-                                            <p className="text-xs text-muted-foreground">دقيقة/جلسة</p>
+                                            <p className="text-xs text-muted-foreground">{t("team.stats.minPerSession")}</p>
                                         </div>
                                         <div className="bg-muted/30 rounded-xl p-4 text-center">
                                             <p className="text-2xl font-bold">{sessionStats.longestSessionMinutes}</p>
-                                            <p className="text-xs text-muted-foreground">أطول جلسة</p>
+                                            <p className="text-xs text-muted-foreground">{t("team.stats.longestSession")}</p>
                                         </div>
                                     </div>
 
@@ -344,10 +346,10 @@ export function EmployeeDrawer({
                         {employee.lastLoginAt && (
                             <div className="p-4 border-t border-border bg-muted/30">
                                 <p className="text-xs text-muted-foreground text-center">
-                                    آخر نشاط:{" "}
+                                    {t("team.drawer.lastActivity")}
                                     {formatDistanceToNow(new Date(employee.lastLoginAt), {
                                         addSuffix: true,
-                                        locale: ar,
+                                        locale: language === "ar" ? ar : undefined,
                                     })}
                                 </p>
                             </div>

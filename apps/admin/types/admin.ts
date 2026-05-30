@@ -1,10 +1,23 @@
 export type AdminRole = "super_admin" | "support_staff";
 
 export type PlanTier = "starter" | "growth" | "professional" | "enterprise";
-export type TenantStatus = "trial" | "active" | "suspended" | "cancelled";
+export type TenantStatus = "trial" | "active" | "limited" | "suspended" | "cancelled";
+
+export interface TenantRestrictions {
+  paused_until?: string | null;
+  paused_at?: string | null;
+  paused_by?: string | null;
+  reason?: string | null;
+  blocks?: {
+    new_orders?: boolean;
+    new_products?: boolean;
+    team_invites?: boolean;
+    storefront_writes?: boolean;
+  };
+}
 
 export type TableDensity = "compact" | "comfortable" | "spacious";
-export type ViewMode = "cards" | "table" | "sheet";
+export type ViewMode = "cards" | "table" | "sheet" | "map" | "kanban";
 export type DetailViewMode = "dialog" | "panel" | "full";
 
 export interface SortConfig {
@@ -57,6 +70,7 @@ export interface AdminUser {
 
 export interface AdminTenant {
   id: string;
+  display_id?: number | null;
   business_name: string;
   slug: string;
   plan: PlanTier;
@@ -84,7 +98,15 @@ export interface AdminTenant {
   tags: string[];
   last_active_at: string | null;
   monthly_revenue: number;
+  daily_revenue: number;
+  orders_30d?: number;
   order_sparkline: number[];
+  pinned_note?: {
+    content: string;
+    updated_at: string;
+    admin_label: string | null;
+  } | null;
+  restrictions?: TenantRestrictions | null;
   // Joined data
   subscription?: {
     plan: PlanTier;

@@ -19,6 +19,7 @@ import { ActivityHeatmap } from "./charts/activity-heatmap";
 import { PeakHoursHeatmap } from "./charts/peak-hours-heatmap";
 import { ActivityLogEntry } from "@/lib/activity-logger";
 import { PastelCard, StatCard, pastelColors } from "./shared-pastel-components";
+import { useLanguage } from "@/hooks/use-language";
 
 // Types
 interface EmployeeStats {
@@ -44,6 +45,7 @@ export function TeamAnalyticsTab({
     employees,
     className,
 }: TeamAnalyticsTabProps) {
+    const { t } = useLanguage();
     const [activeChart, setActiveChart] = useState<ChartView>("trends");
 
     // Process data for performance trends (last 14 days)
@@ -131,11 +133,11 @@ export function TeamAnalyticsTab({
         };
     }, [employees]);
 
-    const charts: { key: ChartView; icon: React.ElementType; label: string }[] = [
-        { key: "trends", icon: TrendingUp, label: "الاتجاهات العامة" },
-        { key: "breakdown", icon: LayoutGrid, label: "توزيع النشاطات" },
-        { key: "heatmap", icon: Calendar, label: "النشاط السنوي" },
-        { key: "hours", icon: Clock, label: "ساعات الذروة" },
+    const charts: { key: ChartView; icon: React.ElementType; labelKey: string }[] = [
+        { key: "trends", icon: TrendingUp, labelKey: "team.charts.trends" },
+        { key: "breakdown", icon: LayoutGrid, labelKey: "team.charts.breakdown" },
+        { key: "heatmap", icon: Calendar, labelKey: "team.charts.heatmap" },
+        { key: "hours", icon: Clock, labelKey: "team.charts.peakHours" },
     ];
 
     return (
@@ -148,28 +150,28 @@ export function TeamAnalyticsTab({
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard
                     icon={Users}
-                    label="إجمالي الموظفين"
+                    label={t("team.analytics.totalEmployees")}
                     value={teamTotals.totalEmployees}
                     color="purple"
                     delay={0}
                 />
                 <StatCard
                     icon={Activity}
-                    label="إجمالي النشاطات"
+                    label={t("team.analytics.totalActions")}
                     value={teamTotals.totalActions}
                     color="yellow"
                     delay={0.1}
                 />
                 <StatCard
                     icon={Package}
-                    label="طلبات جديدة"
+                    label={t("team.analytics.newOrders")}
                     value={teamTotals.totalOrders}
                     color="green"
                     delay={0.2}
                 />
                 <StatCard
                     icon={BarChart3}
-                    label="متوسط لكل موظف"
+                    label={t("team.analytics.avgPerEmployee")}
                     value={teamTotals.avgPerEmployee}
                     color="mint"
                     delay={0.3}
@@ -184,8 +186,8 @@ export function TeamAnalyticsTab({
                             <BarChart3 className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-[#1E1E1E] dark:text-white">تحليلات الأداء</h2>
-                            <p className="text-sm text-[#6B6B6B] dark:text-gray-400">رؤى تفصيلية حول نشاط الفريق</p>
+                            <h2 className="text-xl font-bold text-[#1E1E1E] dark:text-white">{t("team.analytics.title")}</h2>
+                            <p className="text-sm text-[#6B6B6B] dark:text-gray-400">{t("team.analytics.subtitle")}</p>
                         </div>
                     </div>
 
@@ -202,7 +204,7 @@ export function TeamAnalyticsTab({
                                 )}
                             >
                                 <chart.icon className="w-4 h-4" />
-                                <span>{chart.label}</span>
+                                <span>{t(chart.labelKey)}</span>
                             </button>
                         ))}
                     </div>

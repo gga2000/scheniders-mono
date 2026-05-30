@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { Lead } from "@/types/leads";
 import { useLeadStore } from "@/store/use-lead-store";
+import { adminFetch } from "@/lib/admin-fetch";
 
 interface UseLeadsResponse {
   leads: Lead[];
@@ -55,7 +56,7 @@ export function useLeads(page = 1, limit = 20) {
       if (scoreRange[1] < 100) params.set("score_max", String(scoreRange[1]));
       if (searchQuery) params.set("search", searchQuery);
 
-      const res = await fetch(`/api/leads?${params}`);
+      const res = await adminFetch(`/api/leads?${params}`);
       if (!res.ok) throw new Error("Failed to fetch leads");
       return res.json();
     },

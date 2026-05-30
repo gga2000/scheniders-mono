@@ -1,15 +1,15 @@
 import { useAuth } from "@/hooks/use-auth";
-import { PermissionKey, UserRole } from "@/lib/permissions";
+import { PermissionKey, UserRole, isAdminRole } from "@/lib/permissions";
 
 export function usePermission() {
     const { permissions, role, isLoading } = useAuth();
 
     /**
      * Check if the current user has a specific permission.
-     * Admins always have access (God Mode fallback).
+     * Admin and super_admin always have access (God Mode fallback).
      */
     const can = (permission: PermissionKey): boolean => {
-        if (role === "admin") return true;
+        if (isAdminRole(role)) return true;
         return permissions.includes(permission);
     };
 

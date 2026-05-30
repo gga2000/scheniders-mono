@@ -113,6 +113,7 @@ export function MerchantSearchInput() {
         <input
           ref={inputRef}
           type="text"
+          data-merchant-search
           value={localValue}
           onChange={(e) => handleChange(e.target.value)}
           onFocus={() => setIsFocused(true)}

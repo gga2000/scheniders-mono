@@ -12,9 +12,10 @@ import {
     Calendar,
     Flag,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { PastelCard, pastelColors, PastelButton } from "./shared-pastel-components";
+import { useLanguage } from "@/hooks/use-language";
+import { cn } from "@/lib/utils";
 
 // Types
 export interface Goal {
@@ -44,17 +45,17 @@ interface GoalTrackingProps {
 
 const STORAGE_KEY = "team-goals";
 
-const METRIC_LABELS: Record<Goal["metric"], string> = {
-    totalActions: "إجمالي النشاطات",
-    ordersCreated: "طلبات جديدة",
-    statusChanges: "تغييرات الحالة",
-    ordersPrinted: "طباعة",
+const METRIC_LABEL_KEYS: Record<Goal["metric"], string> = {
+    totalActions: "team.goals.totalActions",
+    ordersCreated: "team.goals.ordersCreated",
+    statusChanges: "team.goals.statusChanges",
+    ordersPrinted: "team.goals.ordersPrinted",
 };
 
-const TYPE_LABELS: Record<Goal["type"], string> = {
-    daily: "يومي",
-    weekly: "أسبوعي",
-    monthly: "شهري",
+const TYPE_LABEL_KEYS: Record<Goal["type"], string> = {
+    daily: "team.goals.daily",
+    weekly: "team.goals.weekly",
+    monthly: "team.goals.monthly",
 };
 
 // Custom hook for goal management
@@ -117,6 +118,7 @@ function GoalCard({
     currentValue: number;
     onDelete: () => void;
 }) {
+    const { t } = useLanguage();
     const [showConfirm, setShowConfirm] = useState(false);
     const progress = Math.min((currentValue / goal.target) * 100, 100);
     const isAchieved = currentValue >= goal.target;
@@ -142,13 +144,13 @@ function GoalCard({
                             onClick={() => { onDelete(); setShowConfirm(false); }}
                             className="px-2.5 py-1 rounded-lg bg-rose-500 text-white text-xs font-bold hover:bg-rose-600 transition-colors"
                         >
-                            حذف
+                            {t("team.goals.delete")}
                         </button>
                         <button
                             onClick={() => setShowConfirm(false)}
                             className="px-2.5 py-1 rounded-lg text-xs font-bold text-[#6B6B6B] dark:text-gray-400 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                         >
-                            إلغاء
+                            {t("team.goals.cancel")}
                         </button>
                     </div>
                 ) : (
@@ -187,11 +189,11 @@ function GoalCard({
                     <div className="flex-1 min-w-0">
                         <p className="font-bold text-[#1E1E1E] dark:text-white truncate text-lg">{goal.employeeName}</p>
                         <div className="flex items-center gap-2 text-xs font-medium text-[#6B6B6B] dark:text-gray-400 mt-0.5">
-                            <span className="bg-black/5 dark:bg-white/10 px-2 py-0.5 rounded-lg">{METRIC_LABELS[goal.metric]}</span>
+                            <span className="bg-black/5 dark:bg-white/10 px-2 py-0.5 rounded-lg">{t(METRIC_LABEL_KEYS[goal.metric])}</span>
                             <span>•</span>
                             <span className="flex items-center gap-1">
                                 <Calendar className="w-3 h-3" />
-                                {TYPE_LABELS[goal.type]}
+                                {t(TYPE_LABEL_KEYS[goal.type])}
                             </span>
                         </div>
                     </div>
@@ -240,6 +242,7 @@ function AddGoalForm({
     onAdd: (goal: Omit<Goal, "id" | "createdAt">) => void;
     onCancel: () => void;
 }) {
+    const { t } = useLanguage();
     const [employeeId, setEmployeeId] = useState("");
     const [type, setType] = useState<Goal["type"]>("daily");
     const [metric, setMetric] = useState<Goal["metric"]>("totalActions");
@@ -268,14 +271,14 @@ function AddGoalForm({
             <PastelCard className="p-6 border-2 border-dashed border-[#E8E4DC] dark:border-white/10 shadow-none bg-[#FAF8F5] dark:!bg-white/5">
                 <div className="flex items-center gap-2 mb-4 text-[#1E1E1E] dark:text-white">
                     <Flag className="w-5 h-5 text-amber-600" />
-                    <h3 className="font-bold">تحديد هدف جديد</h3>
+                    <h3 className="font-bold">{t("team.goals.newGoal")}</h3>
                 </div>
 
                 <div className="space-y-4">
                     {/* Employee selector */}
                     <div>
                         <label className="text-sm font-bold text-[#1E1E1E] dark:text-white mb-2 block">
-                            الموظف
+                            {t("team.goals.employee")}
                         </label>
                         <div className="relative">
                             <select
@@ -283,7 +286,7 @@ function AddGoalForm({
                                 onChange={(e) => setEmployeeId(e.target.value)}
                                 className="w-full px-4 py-3 rounded-xl bg-white dark:bg-[#1A1A1A] border border-[#E8E4DC] dark:border-white/10 text-sm font-medium text-[#1E1E1E] dark:text-white focus:ring-2 focus:ring-[#FBE38E] dark:focus:ring-amber-500/50 outline-none appearance-none"
                             >
-                                <option value="">اختر موظف...</option>
+                                <option value="">{t("team.goals.selectEmployee")}</option>
                                 {employees.map((emp) => (
                                     <option key={emp.userId} value={emp.userId}>
                                         {emp.displayName || emp.email.split("@")[0]}
@@ -297,31 +300,31 @@ function AddGoalForm({
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="text-sm font-bold text-[#1E1E1E] dark:text-white mb-2 block">
-                                التكرار
+                                {t("team.goals.frequency")}
                             </label>
                             <select
                                 value={type}
                                 onChange={(e) => setType(e.target.value as Goal["type"])}
                                 className="w-full px-4 py-3 rounded-xl bg-white dark:bg-[#1A1A1A] border border-[#E8E4DC] dark:border-white/10 text-sm font-medium text-[#1E1E1E] dark:text-white focus:ring-2 focus:ring-[#FBE38E] dark:focus:ring-amber-500/50 outline-none appearance-none"
                             >
-                                <option value="daily">يومي</option>
-                                <option value="weekly">أسبوعي</option>
-                                <option value="monthly">شهري</option>
+                                <option value="daily">{t("team.goals.daily")}</option>
+                                <option value="weekly">{t("team.goals.weekly")}</option>
+                                <option value="monthly">{t("team.goals.monthly")}</option>
                             </select>
                         </div>
                         <div>
                             <label className="text-sm font-bold text-[#1E1E1E] dark:text-white mb-2 block">
-                                نوع النشاط
+                                {t("team.goals.actionType")}
                             </label>
                             <select
                                 value={metric}
                                 onChange={(e) => setMetric(e.target.value as Goal["metric"])}
                                 className="w-full px-4 py-3 rounded-xl bg-white dark:bg-[#1A1A1A] border border-[#E8E4DC] dark:border-white/10 text-sm font-medium text-[#1E1E1E] dark:text-white focus:ring-2 focus:ring-[#FBE38E] dark:focus:ring-amber-500/50 outline-none appearance-none"
                             >
-                                <option value="totalActions">إجمالي النشاطات</option>
-                                <option value="ordersCreated">طلبات جديدة</option>
-                                <option value="statusChanges">تغييرات الحالة</option>
-                                <option value="ordersPrinted">طباعة</option>
+                                <option value="totalActions">{t("team.goals.totalActions")}</option>
+                                <option value="ordersCreated">{t("team.goals.ordersCreated")}</option>
+                                <option value="statusChanges">{t("team.goals.statusChanges")}</option>
+                                <option value="ordersPrinted">{t("team.goals.ordersPrinted")}</option>
                             </select>
                         </div>
                     </div>
@@ -329,7 +332,7 @@ function AddGoalForm({
                     {/* Target */}
                     <div>
                         <label className="text-sm font-bold text-[#1E1E1E] dark:text-white mb-2 block">
-                            القيمة المستهدفة
+                            {t("team.goals.targetValue")}
                         </label>
                         <div className="relative">
                             <input
@@ -340,7 +343,7 @@ function AddGoalForm({
                                 className="w-full px-4 py-3 rounded-xl bg-white dark:bg-[#1A1A1A] border border-[#E8E4DC] dark:border-white/10 text-sm font-bold text-[#1E1E1E] dark:text-white focus:ring-2 focus:ring-[#FBE38E] dark:focus:ring-amber-500/50 outline-none pl-12"
                             />
                             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9A9A9A] text-xs font-bold">
-                                عملية
+                                {t("team.goals.operation")}
                             </div>
                         </div>
                     </div>
@@ -355,7 +358,7 @@ function AddGoalForm({
                         >
                             <span className="flex items-center gap-2">
                                 <Check className="w-4 h-4" />
-                                حفظ الهدف
+                                {t("team.goals.saveGoal")}
                             </span>
                         </PastelButton>
                         <PastelButton
@@ -395,6 +398,7 @@ function getDateFilterForGoalType(type: Goal["type"]): string {
 }
 
 export function GoalTracking({ employees, className }: GoalTrackingProps) {
+    const { t } = useLanguage();
     const { goals, addGoal, deleteGoal } = useGoals();
     const [isAdding, setIsAdding] = useState(false);
     const [periodStats, setPeriodStats] = useState<Record<string, number>>({});
@@ -466,14 +470,14 @@ export function GoalTracking({ employees, className }: GoalTrackingProps) {
                     </div>
                     <div>
                         <div className="flex items-center gap-3">
-                            <h2 className="text-2xl font-bold text-[#1E1E1E] dark:text-white">تتبع الأهداف</h2>
+                            <h2 className="text-2xl font-bold text-[#1E1E1E] dark:text-white">{t("team.goals.title", "Goal Tracking")}</h2>
                             {achievedCount > 0 && (
                                 <span className="px-3 py-1 rounded-lg bg-green-100 text-green-700 text-xs font-bold border border-green-200">
-                                    {achievedCount} هدف محقق!
+                                    {achievedCount} {t("team.goals.achieved", "Goals Achieved!")}
                                 </span>
                             )}
                         </div>
-                        <p className="text-[#6B6B6B] dark:text-gray-400">حدد أهداف للفريق وتابع تقدمهم</p>
+                        <p className="text-[#6B6B6B] dark:text-gray-400">{t("team.goals.subtitle", "Set goals for your team and track their progress")}</p>
                     </div>
                 </div>
 
@@ -481,7 +485,7 @@ export function GoalTracking({ employees, className }: GoalTrackingProps) {
                     <PastelButton onClick={() => setIsAdding(true)} variant="yellow">
                         <span className="flex items-center gap-2">
                             <Plus className="w-5 h-5" />
-                            هدف جديد
+                            {t("team.goals.newBtn", "New Goal")}
                         </span>
                     </PastelButton>
                 )}
@@ -507,10 +511,10 @@ export function GoalTracking({ employees, className }: GoalTrackingProps) {
                     <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-[#FAF8F5] dark:bg-white/5 flex items-center justify-center border-4 border-white dark:border-[#1A1A1A] shadow-sm">
                         <Target className="w-10 h-10 text-[#D6D3D1] dark:text-gray-600" />
                     </div>
-                    <h3 className="text-xl font-bold text-[#1E1E1E] dark:text-white mb-2">لا توجد أهداف حالياً</h3>
-                    <p className="text-[#6B6B6B] dark:text-gray-400 max-w-xs mx-auto mb-8">ابدأ بتحديد أهداف يومية أو أسبوعية للموظفين لرفع الإنتاجية</p>
+                    <h3 className="text-xl font-bold text-[#1E1E1E] dark:text-white mb-2">{t("team.goals.emptyTitle", "No active goals")}</h3>
+                    <p className="text-[#6B6B6B] dark:text-gray-400 max-w-xs mx-auto mb-8">{t("team.goals.emptySubtitle", "Start by setting daily or weekly goals to boost productivity")}</p>
                     <PastelButton onClick={() => setIsAdding(true)} active>
-                        إضافة أول هدف
+                        {t("team.goals.addFirst", "Add First Goal")}
                     </PastelButton>
                 </div>
             ) : (

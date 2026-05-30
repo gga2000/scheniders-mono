@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useMerchantDetail } from "@/hooks/use-merchant-detail";
 import {
@@ -22,15 +22,21 @@ import { BillingTab } from "@/components/merchants/detail/billing-tab";
 import { UsageTab } from "@/components/merchants/detail/usage-tab";
 import { TeamTab } from "@/components/merchants/detail/team-tab";
 import { NotesTab } from "@/components/merchants/detail/notes-tab";
+import { AuditLogTab } from "@/components/merchants/detail/audit-log-tab";
 
-const tabs = ["Overview", "Billing", "Usage", "Team", "Notes", "Timeline", "Onboarding"] as const;
+const tabs = ["Overview", "Billing", "Usage", "Team", "Notes", "Timeline", "Audit", "Onboarding"] as const;
 type Tab = (typeof tabs)[number];
+
+function isTab(value: string | null): value is Tab {
+  return !!value && (tabs as readonly string[]).includes(value);
+}
 
 const fmt = (n: number) => new Intl.NumberFormat("en-IQ").format(n);
 
 const statusStyles: Record<string, string> = {
   active: "bg-green-100 text-green-800",
   trial: "bg-amber-100 text-amber-800",
+  limited: "bg-yellow-100 text-yellow-800",
   suspended: "bg-red-100 text-red-800",
   cancelled: "bg-gray-100 text-gray-600",
 };
@@ -45,10 +51,25 @@ const planStyles: Record<string, string> = {
 
 export default function MerchantDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { data, isLoading } = useMerchantDetail(id);
-  const [activeTab, setActiveTab] = useState<Tab>("Overview");
+  const initialTab = isTab(searchParams.get("tab")) ? (searchParams.get("tab") as Tab) : "Overview";
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [noteText, setNoteText] = useState("");
   const [showComparison, setShowComparison] = useState(false);
+
+  // Keep URL in sync with active tab so deep links and reloads remember the position.
+  useEffect(() => {
+    const current = searchParams.get("tab");
+    if (activeTab === "Overview" && current === null) return;
+    if (current === activeTab) return;
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
+    if (activeTab === "Overview") params.delete("tab");
+    else params.set("tab", activeTab);
+    const qs = params.toString();
+    router.replace(qs ? `?${qs}` : "?", { scroll: false });
+  }, [activeTab, searchParams, router]);
 
   if (isLoading) {
     return (
@@ -89,6 +110,34 @@ export default function MerchantDetailPage() {
         <ArrowLeft className="w-4 h-4" />
         Back to Merchants
       </Link>
+
+      {/* Prospect Banner */}
+      {tenant.is_prospect && (
+        <div className="flex items-center justify-between p-4 rounded-2xl bg-amber-50 dark:bg-amber-400/10 border border-amber-200 dark:border-amber-400/20">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-400/20 flex items-center justify-center">
+              <UserCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">This is a pre-built prospect store</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400/70">Created for a potential merchant. Not yet converted.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {tenant.prospect_lead_id && (
+              <Link
+                href={`/leads/${tenant.prospect_lead_id}`}
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-amber-300 text-amber-700 bg-amber-100 hover:bg-amber-200 dark:border-amber-400/30 dark:text-amber-300 dark:bg-amber-400/15 dark:hover:bg-amber-400/25 transition-all"
+              >
+                View Lead Details
+              </Link>
+            )}
+            <button className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-green-300 text-green-700 bg-green-50 hover:bg-green-100 dark:border-green-400/30 dark:text-green-300 dark:bg-green-400/15 dark:hover:bg-green-400/25 transition-all">
+              Convert to Merchant
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Tenant Header Card */}
       <div className="pastel-card p-5 md:p-6">
@@ -210,13 +259,13 @@ export default function MerchantDetailPage() {
 
       {/* Tab Content */}
       {activeTab === "Overview" && (
-        <OverviewTab tenant={tenant} subscription={subscription} />
+        <OverviewTab merchantId={tenant.id} tenant={tenant} subscription={subscription} />
       )}
       {activeTab === "Billing" && (
         <BillingTab wallet={wallet} transactions={transactions} />
       )}
       {activeTab === "Usage" && <UsageTab usage={usage} />}
-      {activeTab === "Team" && <TeamTab team={team} />}
+      {activeTab === "Team" && <TeamTab team={team} merchantId={tenant.id} />}
       {activeTab === "Notes" && (
         <NotesTab notes={notes} noteText={noteText} setNoteText={setNoteText} />
       )}
@@ -228,6 +277,7 @@ export default function MerchantDetailPage() {
           tenant={tenant}
         />
       )}
+      {activeTab === "Audit" && <AuditLogTab merchantId={tenant.id} />}
       {activeTab === "Onboarding" && (
         <OnboardingChecklist
           tenant={tenant}

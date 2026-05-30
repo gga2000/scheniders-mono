@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { PieChart as PieChartIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 // Types
 interface ActionBreakdown {
@@ -26,16 +27,16 @@ interface ActionBreakdownChartProps {
     className?: string;
 }
 
-const ACTION_CONFIG: Record<string, { label: string; color: string }> = {
-    "order.create": { label: "إنشاء طلب", color: "#10B981" },
-    "order.status_change": { label: "تغيير الحالة", color: "#F59E0B" },
-    "order.edit": { label: "تعديل طلب", color: "#8B5CF6" },
-    "order.print": { label: "طباعة", color: "#3B82F6" },
-    "order.delete": { label: "حذف طلب", color: "#EF4444" },
-    "order.assign": { label: "تعيين طلب", color: "#06B6D4" },
-    "user.login": { label: "تسجيل دخول", color: "#84CC16" },
-    "customer.blacklist": { label: "حظر عميل", color: "#F43F5E" },
-    "settings.update": { label: "تحديث الإعدادات", color: "#6B7280" },
+const ACTION_CONFIG: Record<string, { labelKey: string; color: string }> = {
+    "order.create": { labelKey: "team.drawer.actionCreate", color: "#10B981" },
+    "order.status_change": { labelKey: "team.drawer.actionStatus", color: "#F59E0B" },
+    "order.edit": { labelKey: "team.drawer.actionEdit", color: "#8B5CF6" },
+    "order.print": { labelKey: "team.drawer.actionPrint", color: "#3B82F6" },
+    "order.delete": { labelKey: "team.drawer.actionDelete", color: "#EF4444" },
+    "order.assign": { labelKey: "team.drawer.actionAssign", color: "#06B6D4" },
+    "user.login": { labelKey: "team.drawer.actionLogin", color: "#84CC16" },
+    "customer.blacklist": { labelKey: "team.drawer.actionBlacklist", color: "#F43F5E" },
+    "settings.update": { labelKey: "team.drawer.actionSettings", color: "#6B7280" },
 };
 
 const DEFAULT_COLORS = [
@@ -56,12 +57,13 @@ export function ActionBreakdownChart({
     showLabels = true,
     className,
 }: ActionBreakdownChartProps) {
+    const { t } = useLanguage();
     // Process data with labels and colors
     const chartData = useMemo(() => {
         return data.map((item, index) => {
             const config = ACTION_CONFIG[item.action];
             return {
-                name: config?.label || item.action,
+                name: config ? t(config.labelKey) : item.action,
                 value: item.count,
                 color: config?.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length],
             };
@@ -75,7 +77,7 @@ export function ActionBreakdownChart({
     if (data.length === 0) {
         return (
             <div className="flex items-center justify-center h-64 text-muted-foreground">
-                <p>لا توجد بيانات</p>
+                <p>{t("team.charts.noData")}</p>
             </div>
         );
     }
@@ -89,7 +91,7 @@ export function ActionBreakdownChart({
             {/* Header */}
             <div className="flex items-center gap-2 mb-4">
                 <PieChartIcon className="w-5 h-5 text-primary" />
-                <h3 className="font-bold text-foreground">توزيع النشاطات</h3>
+                <h3 className="font-bold text-foreground">{t("team.charts.actionBreakdown")}</h3>
             </div>
 
             {/* Chart */}
@@ -156,7 +158,7 @@ export function ActionBreakdownChart({
                 {/* Center stat */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                     <span className="text-3xl font-bold text-foreground">{totalCount}</span>
-                    <span className="text-xs text-muted-foreground">إجمالي</span>
+                    <span className="text-xs text-muted-foreground">{t("team.stats.total")}</span>
                 </div>
             </div>
         </motion.div>

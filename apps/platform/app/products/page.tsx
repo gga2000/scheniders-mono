@@ -6,7 +6,7 @@ import { useProductsCrud } from "@/hooks/use-products-crud";
 import { Product, getStockStatus, supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layout/page-transition";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -22,7 +22,9 @@ import {
     Layers,
     Columns3,
     BarChart3,
+    ShoppingCart,
 } from "lucide-react";
+import { DensityToggle } from "@/components/products/density-toggle";
 import { formatIQD } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +43,9 @@ import { exportToCSV, exportToExcel, printProductReport } from "@/lib/export-uti
 import { QCQuarantineTab } from "@/components/products/qc-quarantine-tab";
 import { SuppliesTab } from "@/components/products/supplies-tab";
 import { CategoriesTab } from "@/components/products/categories-tab";
+import { CategoriesTabV2 } from "@/components/categories/v2/categories-tab-v2";
+
+const CATEGORIES_V2_ENABLED = process.env.NEXT_PUBLIC_CATEGORIES_V2 !== "0";
 import { useCategoriesQuery } from "@/hooks/use-categories-query";
 import { useAuth } from "@/components/auth/auth-provider";
 
@@ -119,10 +124,15 @@ function ProductsContent() {
     const setViewMode = useProductStore((s) => s.setViewMode);
     const sortBy = useProductStore((s) => s.sortBy);
     const setSortBy = useProductStore((s) => s.setSortBy);
+    const gridDensity = useProductStore((s) => s.gridDensity);
+    const gridGroupByCategory = useProductStore((s) => s.gridGroupByCategory);
+    const setGridGroupByCategory = useProductStore((s) => s.setGridGroupByCategory);
     const selectedIds = useProductStore((s) => s.selectedIds);
     const toggleSelection = useProductStore((s) => s.toggleSelection);
     const selectAll = useProductStore((s) => s.selectAll);
     const clearSelection = useProductStore((s) => s.clearSelection);
+    const selectRange = useProductStore((s) => s.selectRange);
+    const lastSelectedRef = useRef<string | null>(null);
 
     // Local UI State (not persisted)
     const { t } = useLanguage();
@@ -133,7 +143,20 @@ function ProductsContent() {
     const [timePeriod, setTimePeriod] = useState<TimePeriod>("all");
     const [advancedFilters, setAdvancedFilters] = useState<FilterValues | null>(null);
     const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+    const [isFilterStuck, setIsFilterStuck] = useState(false);
+    const filterSentinelRef = useRef<HTMLDivElement>(null);
     const urlSyncInitialized = useRef(false);
+
+    useEffect(() => {
+        const el = filterSentinelRef.current;
+        if (!el) return;
+        const obs = new IntersectionObserver(
+            ([entry]) => setIsFilterStuck(!entry.isIntersecting),
+            { threshold: 0, rootMargin: "0px 0px 0px 0px" }
+        );
+        obs.observe(el);
+        return () => obs.disconnect();
+    }, [activeTab]);
 
     // Product IDs for the currently selected tag filter
     const { tenantId } = useAuth();
@@ -179,7 +202,8 @@ function ProductsContent() {
     // state → URL sync (viewMode + advancedFilters)
     useEffect(() => {
         if (!urlSyncInitialized.current) return;
-        const params = new URLSearchParams(searchParams?.toString() ?? "");
+        const currentQuery = searchParams?.toString() ?? "";
+        const params = new URLSearchParams(currentQuery);
         if (viewMode && viewMode !== "grid") {
             params.set("view", viewMode);
         } else {
@@ -190,13 +214,15 @@ function ProductsContent() {
         } else {
             params.delete("filters");
         }
-        const query = params.toString();
-        router.replace(query ? `?${query}` : "?", { scroll: false });
+        const targetQuery = params.toString();
+        if (targetQuery === currentQuery) return;
+        router.replace(targetQuery ? `?${targetQuery}` : window.location.pathname, { scroll: false });
     }, [viewMode, advancedFilters, router, searchParams]);
 
     // Modal State
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     const [formModalMode, setFormModalMode] = useState<"add" | "edit">("add");
+    const [formDefaultIsSupply, setFormDefaultIsSupply] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [priceHistory, setPriceHistory] = useState<any[]>([]);
@@ -298,6 +324,14 @@ function ProductsContent() {
     const handleAddProduct = useCallback(() => {
         setSelectedProduct(null);
         setFormModalMode("add");
+        setFormDefaultIsSupply(false);
+        setIsFormModalOpen(true);
+    }, []);
+
+    const handleAddSupply = useCallback(() => {
+        setSelectedProduct(null);
+        setFormModalMode("add");
+        setFormDefaultIsSupply(true);
         setIsFormModalOpen(true);
     }, []);
 
@@ -433,6 +467,22 @@ function ProductsContent() {
             }
         }
     }, [formModalMode, selectedProduct, addProduct, updateProduct, addVariant, updateVariant]);
+
+    // Shift-click range selection over the currently visible filtered list.
+    const handleToggleSelection = useCallback((id: string, event?: React.MouseEvent) => {
+        if (event?.shiftKey && lastSelectedRef.current && lastSelectedRef.current !== id) {
+            const lastIdx = filteredProducts.findIndex((p) => p.id === lastSelectedRef.current);
+            const currIdx = filteredProducts.findIndex((p) => p.id === id);
+            if (lastIdx !== -1 && currIdx !== -1) {
+                const [from, to] = [Math.min(lastIdx, currIdx), Math.max(lastIdx, currIdx)];
+                selectRange(filteredProducts.slice(from, to + 1).map((p) => p.id));
+                lastSelectedRef.current = id;
+                return;
+            }
+        }
+        toggleSelection(id);
+        lastSelectedRef.current = id;
+    }, [filteredProducts, selectRange, toggleSelection]);
 
     // Selection handlers
     const handleSelectAll = useCallback(() => {
@@ -630,14 +680,79 @@ function ProductsContent() {
                         transition={{ duration: 0.4, delay: 0.1 }}
                         className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 lg:gap-6 flex-wrap"
                     >
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1 space-y-3">
                             <h1 className="text-2xl md:text-3xl xl:text-4xl font-bold text-foreground tracking-tight flex items-center gap-3 flex-wrap">
                                 <Package className="w-7 h-7 xl:w-8 xl:h-8 shrink-0" />
                                 <span className="truncate">{t("products.title")}</span>
                             </h1>
-                            <p className="text-muted mt-2 text-base xl:text-lg">
-                                {t("products.subtitle", { total: stats.totalProducts.toString(), sold: stats.totalSold.toString() })}
-                            </p>
+                            <div className="flex items-center gap-4 flex-wrap">
+                                {activeTab === "products" && filteredProducts.length > 0 && (
+                                    <button
+                                        onClick={handleSelectAll}
+                                        className={cn(
+                                            "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-300 flex-shrink-0 group relative overflow-hidden",
+                                            selectedIds.size === filteredProducts.length
+                                                ? "border-transparent text-white"
+                                                : "border-muted-foreground/30 hover:border-primary/50"
+                                        )}
+                                        title={
+                                            selectedIds.size === filteredProducts.length
+                                                ? t("products.selection.deselectAll")
+                                                : t("products.selection.selectAll")
+                                        }
+                                    >
+                                        {selectedIds.size === filteredProducts.length && (
+                                            <div className="absolute inset-0 bg-gradient-to-br from-primary to-violet-600 opacity-100" />
+                                        )}
+                                        <CheckSquare className={cn("w-3.5 h-3.5 z-10 transition-transform duration-300", selectedIds.size > 0 ? "scale-100" : "scale-0")} />
+                                    </button>
+                                )}
+
+                                {/* Count Pill — orders-style glass pill */}
+                                <div className="flex items-center gap-3 pl-2 pr-5 py-2 rounded-full bg-white/40 backdrop-blur-md border border-white/20 ring-1 ring-black/5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] orders-toolbar-pill">
+                                    <div className="p-2 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 dark:!bg-none dark:bg-[var(--primary)] text-white dark:text-black shadow-lg shadow-amber-500/30 dark:shadow-[0_0_12px_rgba(239,255,0,0.4)]">
+                                        <Package className="w-4 h-4" />
+                                    </div>
+                                    <div className="flex items-baseline gap-1.5">
+                                        <span className="text-2xl font-black text-foreground dark:text-white leading-none">
+                                            {stats.totalProducts}
+                                        </span>
+                                        <span className="text-xs font-semibold text-muted-foreground dark:text-[var(--foreground-muted)] uppercase tracking-wide">
+                                            {t("nav.products")}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Units sold pill */}
+                                <div className="flex items-center gap-3 pl-2 pr-5 py-2 rounded-full bg-white/40 backdrop-blur-md border border-white/20 ring-1 ring-black/5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] orders-toolbar-pill">
+                                    <div className="p-2 rounded-full bg-gradient-to-tr from-emerald-400 to-green-500 dark:!bg-none dark:bg-[var(--primary)] text-white dark:text-black shadow-lg shadow-emerald-500/30 dark:shadow-[0_0_12px_rgba(239,255,0,0.4)]">
+                                        <ShoppingCart className="w-4 h-4" />
+                                    </div>
+                                    <div className="flex items-baseline gap-1.5">
+                                        <span className="text-2xl font-black text-foreground dark:text-white leading-none">
+                                            {stats.totalSold}
+                                        </span>
+                                        <span className="text-xs font-semibold text-muted-foreground dark:text-[var(--foreground-muted)] uppercase tracking-wide">
+                                            {t("products.sold")}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Selection Indicator */}
+                                <AnimatePresence>
+                                    {activeTab === "products" && selectedIds.size > 0 && (
+                                        <motion.div
+                                            initial={{ opacity: 0, scale: 0.8, x: -20 }}
+                                            animate={{ opacity: 1, scale: 1, x: 0 }}
+                                            exit={{ opacity: 0, scale: 0.8, x: -20 }}
+                                            className="flex items-center gap-2 px-4 py-2 rounded-full bg-violet-500 text-white shadow-lg shadow-violet-500/25"
+                                        >
+                                            <span className="text-sm font-bold">{selectedIds.size}</span>
+                                            <span className="text-xs font-medium opacity-80">{t("products.selection.selected") ?? "selected"}</span>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
                         </div>
 
                         <div className="flex items-center gap-3 flex-wrap shrink-0">
@@ -674,9 +789,9 @@ function ProductsContent() {
                         ))}
                     </div>
 
-                    {activeTab === "categories" && <CategoriesTab />}
+                    {activeTab === "categories" && (CATEGORIES_V2_ENABLED ? <CategoriesTabV2 /> : <CategoriesTab />)}
                     {activeTab === "quarantine" && <QCQuarantineTab />}
-                    {activeTab === "supplies" && <SuppliesTab onEdit={handleEditProduct} />}
+                    {activeTab === "supplies" && <SuppliesTab onEdit={handleEditProduct} onAdd={handleAddSupply} />}
 
                     {activeTab === "products" && (
                         <div className="space-y-6">
@@ -721,23 +836,30 @@ function ProductsContent() {
                                 />
                             </motion.div>
 
-                            {/* Filters & Search Bar */}
+                            {/* Sentinel — flips isFilterStuck when the sticky filter reaches top */}
+                            <div ref={filterSentinelRef} aria-hidden className="h-px -mb-6" />
+
+                            {/* Filters & Search Bar — sticky primary toolbar (constant height, no layout shift) */}
+                            <div className="sticky top-0 z-50 pt-3 pb-3 bg-background/85 backdrop-blur-md rounded-b-2xl">
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.4, delay: 0.2 }}
-                                className="pastel-card p-6"
+                                className={cn(
+                                    "pastel-card px-5 py-3 transition-shadow duration-200",
+                                    isFilterStuck ? "shadow-xl" : "shadow-none"
+                                )}
                             >
-                                <div className="flex flex-col lg:flex-row gap-4">
+                                <div className="flex flex-col lg:flex-row gap-3">
                                     {/* Search */}
                                     <div className="relative flex-1">
-                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--foreground-subtle)]" />
+                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--foreground-subtle)]" />
                                         <input
                                             type="text"
                                             placeholder={t("products.searchPlaceholder")}
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="w-full pl-12 pr-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all"
+                                            className="w-full pl-12 pr-4 py-2 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all"
                                         />
                                     </div>
 
@@ -756,7 +878,7 @@ function ProductsContent() {
                                         {/* Advanced Filters — mobile bottom sheet trigger */}
                                         <button
                                             onClick={() => setIsMobileFilterOpen(true)}
-                                            className="sm:hidden flex items-center gap-2 px-4 py-3 rounded-xl border bg-[var(--background)] border-[var(--card-border)] text-foreground hover:border-[var(--ink)] transition-all"
+                                            className="sm:hidden flex items-center gap-2 px-4 py-2 rounded-xl border bg-[var(--background)] border-[var(--card-border)] text-foreground hover:border-[var(--ink)] transition-all"
                                         >
                                             <Filter className="w-4 h-4" />
                                             <span className="font-medium">{t("products.filters.title")}</span>
@@ -787,12 +909,33 @@ function ProductsContent() {
                                             ))}
                                         </div>
 
+                                        {/* Density + Group-by-category — card grid only */}
+                                        {viewMode === "grid" && (
+                                            <>
+                                                <DensityToggle />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setGridGroupByCategory(!gridGroupByCategory)}
+                                                    aria-pressed={gridGroupByCategory}
+                                                    title={t("products.groupByCategory")}
+                                                    className={cn(
+                                                        "p-2 rounded-xl border transition-all",
+                                                        gridGroupByCategory
+                                                            ? "bg-[var(--ink)] text-white border-[var(--ink)]"
+                                                            : "bg-[var(--background)] border-[var(--card-border)] text-muted hover:text-foreground"
+                                                    )}
+                                                >
+                                                    <Layers className="w-4 h-4" />
+                                                </button>
+                                            </>
+                                        )}
+
                                         {/* Sort Dropdown */}
                                         <div className="relative">
                                             <select
                                                 value={sortBy}
                                                 onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                                                className="appearance-none px-4 py-3 pr-10 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all cursor-pointer"
+                                                className="appearance-none px-4 py-2 pr-10 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all cursor-pointer"
                                             >
                                                 <option value="sales">{t("products.bestSelling")}</option>
                                                 <option value="revenue">{t("products.highestRevenue")}</option>
@@ -804,37 +947,15 @@ function ProductsContent() {
                                         </div>
                                     </div>
                                 </div>
-
-                                {/* Active Filter Pills */}
-                                <ActiveFilterPills filters={advancedFilters} onChange={setAdvancedFilters} />
-
-                                {/* Bulk Selection Controls */}
-                                {filteredProducts.length > 0 && (
-                                    <div className="flex items-center gap-4 mt-4 pt-4 border-t border-[var(--card-border)]">
-                                        <button
-                                            onClick={handleSelectAll}
-                                            className="flex items-center gap-2 text-sm text-muted hover:text-foreground transition-colors"
-                                        >
-                                            {selectedIds.size === filteredProducts.length ? (
-                                                <CheckSquare className="w-4 h-4" />
-                                            ) : (
-                                                <Square className="w-4 h-4" />
-                                            )}
-                                            {selectedIds.size === filteredProducts.length
-                                                ? t("products.selection.deselectAll")
-                                                : t("products.selection.selectAll")}
-                                        </button>
-                                        {selectedIds.size > 0 && (
-                                            <span className="text-sm text-muted">
-                                                {t("products.selection.selectedCount", {
-                                                    count: selectedIds.size.toString(),
-                                                    total: filteredProducts.length.toString(),
-                                                })}
-                                            </span>
-                                        )}
-                                    </div>
-                                )}
                             </motion.div>
+                            </div>
+
+                            {/* Active filter pills — scroll naturally below sticky filter bar */}
+                            {advancedFilters && (
+                                <div className="-mt-3">
+                                    <ActiveFilterPills filters={advancedFilters} onChange={setAdvancedFilters} />
+                                </div>
+                            )}
 
                             {/* Products Grid/List — Virtualized */}
                             {filteredProducts.length === 0 ? (
@@ -864,7 +985,7 @@ function ProductsContent() {
                                     products={filteredProducts}
                                     selectedIds={selectedIds}
                                     categoriesMap={categoriesMap}
-                                    onToggleSelection={toggleSelection}
+                                    onToggleSelection={handleToggleSelection}
                                     onViewDetails={handleViewDetails}
                                     onEdit={handleEditProduct}
                                     onArchive={handleArchive}
@@ -873,6 +994,9 @@ function ProductsContent() {
                                     onDelete={handleDeleteProduct}
                                     onVisibilityToggle={handleVisibilityToggle}
                                     onReorder={sortBy === "displayOrder" ? handleReorder : undefined}
+                                    density={gridDensity}
+                                    groupByCategory={gridGroupByCategory}
+                                    categories={categories || []}
                                 />
                                 </AbcTierProvider>
                             ) : viewMode === "list" ? (
@@ -881,7 +1005,7 @@ function ProductsContent() {
                                     products={filteredProducts}
                                     selectedIds={selectedIds}
                                     categoriesMap={categoriesMap}
-                                    onToggleSelection={toggleSelection}
+                                    onToggleSelection={handleToggleSelection}
                                     onViewDetails={handleViewDetails}
                                     onEdit={handleEditProduct}
                                     onArchive={handleArchive}
@@ -898,7 +1022,7 @@ function ProductsContent() {
                                     products={filteredProducts}
                                     categories={categories || []}
                                     selectedIds={selectedIds}
-                                    onToggleSelection={toggleSelection}
+                                    onToggleSelection={handleToggleSelection}
                                     onViewDetails={handleViewDetails}
                                     onEdit={handleEditProduct}
                                     onArchive={handleArchive}
@@ -937,6 +1061,7 @@ function ProductsContent() {
                 onSubmit={handleFormSubmit}
                 product={selectedProduct}
                 mode={formModalMode}
+                defaultIsSupply={formDefaultIsSupply}
             />
 
             <ProductDetailModal

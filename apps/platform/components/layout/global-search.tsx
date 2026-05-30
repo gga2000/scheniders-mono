@@ -27,6 +27,7 @@ import { LanguageToggle } from "./language-toggle";
 import { GlobalPresenceIndicator } from "./global-presence-indicator";
 import { NotificationsDropdown } from "./notifications-dropdown";
 import { AutoSendToggle } from "@/components/orders/auto-send-toggle";
+import { MerchantCodeBadge } from "./merchant-code-badge";
 
 type SearchCategory = "all" | "orders" | "customers" | "products";
 
@@ -385,8 +386,9 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
             />
             {/* Header Content */}
             <div className="relative flex items-center justify-between gap-3 md:gap-6 w-full px-4 md:px-6 py-3 md:py-4">
-                {/* Left side spacer */}
+                {/* Left: merchant code badge */}
                 <div className="flex items-center w-auto md:flex-1 md:min-w-[200px]">
+                    <MerchantCodeBadge />
                 </div>
 
                 {/* Global Search Centered - Hidden on mobile */}

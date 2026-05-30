@@ -83,7 +83,7 @@ export function getStatusLabel(status: string, isReturn?: boolean): string {
         no_response: 'لم يرد',
         return_pending: 'استرجاع معلق',
         suspended: 'طلب معلق',
-        pending_checkout: 'سلة متروكة',
+        pending_checkout: 'سلة',
     };
 
     return labels[status as keyof typeof labels] || status;

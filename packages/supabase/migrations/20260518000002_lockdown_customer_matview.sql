@@ -1,0 +1,62 @@
+-- ============================================================================
+-- Lockdown mv_customer_aggregates exposure via API
+-- ============================================================================
+-- Closes (partially) audit finding B-05 (F-05).
+--
+-- CONTEXT — what we found:
+--   * The materialized view `mv_customer_aggregates` already contains a
+--     `tenant_id` column (the original audit assumed it didn't — that was
+--     based on a stale migration in git).
+--   * `public.get_paginated_customers()` already filters
+--     `WHERE c.tenant_id IN (SELECT get_user_tenant_ids())`.
+--   * BUT the matview is granted SELECT to `anon` and `authenticated`,
+--     and 6 client modules in apps/platform call
+--     `.from("mv_customer_aggregates").select(...)` directly via the
+--     Supabase client (i.e. PostgREST → matview, NOT through the RPC).
+--   * Materialized views in Postgres do NOT enforce RLS — direct queries
+--     return all rows regardless of who's asking. So those 6 client calls
+--     either (a) include their own `.eq("tenant_id", ...)` filter, or
+--     (b) leak cross-tenant data.
+--
+-- PREREQUISITE — DO NOT APPLY THIS MIGRATION UNTIL the following platform
+-- code has been audited and (where needed) migrated to use the
+-- `get_paginated_customers` RPC (or another tenant-aware path):
+--
+--   apps/platform/app/customers/[phone]/page.tsx
+--   apps/platform/components/customers/modals/link-customers-modal.tsx
+--   apps/platform/hooks/use-customer-segments.ts
+--   apps/platform/hooks/use-business-metrics.ts
+--   apps/platform/hooks/use-customer-growth.ts
+--   apps/platform/hooks/use-customer-links.ts
+--
+-- For each: confirm the query chains an `.eq("tenant_id", <currentTenantId>)`
+-- filter. If yes, the call is safe per-tenant but still exposes structure
+-- to anon (we still want to revoke). If no, that's a P0 — change to the
+-- RPC path before applying this migration or you will break the page.
+--
+-- ROLLBACK
+--   GRANT SELECT ON public.mv_customer_aggregates TO anon, authenticated;
+-- ============================================================================
+
+-- Step 1: revoke access from public roles. Service-role still bypasses;
+-- the SECURITY DEFINER `get_paginated_customers` and siblings can still
+-- read the view because they run as the function owner.
+REVOKE SELECT ON public.mv_customer_aggregates FROM anon;
+REVOKE SELECT ON public.mv_customer_aggregates FROM authenticated;
+
+-- Step 2: verify the function path still works.
+--   SELECT public.get_paginated_customers(NULL, NULL, NULL, 'last_order_date', true, 5, 0,
+--                                          NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+-- (Run as an authenticated user with a tenant_member row. Expect rows.)
+
+-- Step 3 (manual, post-deploy): re-run advisors.
+--   mcp__supabase__get_advisors(security)
+-- Expect `materialized_view_in_api` count drops from 1 → 0.
+
+-- ----------------------------------------------------------------------------
+-- NOTE: Phase 3.5 (employee_stats views) was REMOVED from the original
+-- plan after discovering those views don't exist in the live DB. The
+-- `employee-tracking-migration.sql` file in
+-- packages/supabase/migrations/ is one of the 17 untimestamped legacy
+-- files that were never applied. No migration needed.
+-- ----------------------------------------------------------------------------

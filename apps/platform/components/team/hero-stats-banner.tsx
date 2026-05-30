@@ -20,12 +20,13 @@ import {
     AreaChart,
     Area,
 } from "recharts";
+import { useLanguage } from "@/hooks/use-language";
 
 // Types
 interface StatData {
     current: number;
     previous: number;
-    trend: number; // percentage change
+    trend: number | null; // null = no comparable baseline (e.g. "all time" or prev period was zero)
 }
 
 interface HeroStatsBannerProps {
@@ -93,12 +94,12 @@ function HeroStatCard({
     icon: React.ElementType;
     label: string;
     value: number;
-    trend: number;
+    trend: number | null;
     color: string;
     sparklineData?: { day: string; value: number }[];
     delay?: number;
 }) {
-    const isPositive = trend >= 0;
+    const isPositive = (trend ?? 0) >= 0;
     const TrendIcon = isPositive ? ArrowUpRight : ArrowDownRight;
 
     return (
@@ -138,7 +139,7 @@ function HeroStatCard({
                         <p className="text-sm text-muted-foreground">{label}</p>
                     </div>
 
-                    {trend !== 0 && (
+                    {trend !== null && trend !== 0 && (
                         <div
                             className={cn(
                                 "flex items-center gap-0.5 px-2 py-1 rounded-full text-xs font-semibold",
@@ -159,6 +160,7 @@ function HeroStatCard({
 
 // Online Avatars Preview
 function OnlineAvatarsPreview({ count, total }: { count: number; total: number }) {
+    const { t } = useLanguage();
     return (
         <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -176,8 +178,8 @@ function OnlineAvatarsPreview({ count, total }: { count: number; total: number }
                 </div>
             </div>
             <div>
-                <p className="text-sm font-semibold text-emerald-800">متصلون الآن</p>
-                <p className="text-xs text-emerald-600">من {total} موظف</p>
+                <p className="text-sm font-semibold text-emerald-800">{t("team.hero.onlineNow")}</p>
+                <p className="text-xs text-emerald-600">{t("team.hero.outOfTotal", { count: total.toString() })}</p>
             </div>
         </motion.div>
     );
@@ -193,6 +195,7 @@ export function HeroStatsBanner({
     sparklineData,
     isLoading = false,
 }: HeroStatsBannerProps) {
+    const { t } = useLanguage();
     // Generate sparkline variants for each stat
     const actionSparkline = useMemo(
         () => sparklineData?.map((d, i) => ({ ...d, value: d.value * (1 + Math.random() * 0.2) })),
@@ -223,7 +226,7 @@ export function HeroStatsBanner({
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 <HeroStatCard
                     icon={Activity}
-                    label="إجمالي النشاطات"
+                    label={t("team.stats.totalActions")}
                     value={totalActions.current}
                     trend={totalActions.trend}
                     color="#F59E0B"
@@ -232,7 +235,7 @@ export function HeroStatsBanner({
                 />
                 <HeroStatCard
                     icon={Package}
-                    label="طلبات جديدة"
+                    label={t("team.stats.newOrders")}
                     value={ordersCreated.current}
                     trend={ordersCreated.trend}
                     color="#10B981"
@@ -241,7 +244,7 @@ export function HeroStatsBanner({
                 />
                 <HeroStatCard
                     icon={RefreshCw}
-                    label="تغييرات الحالة"
+                    label={t("team.stats.statusChanges")}
                     value={statusChanges.current}
                     trend={statusChanges.trend}
                     color="#6366F1"
@@ -249,7 +252,7 @@ export function HeroStatsBanner({
                 />
                 <HeroStatCard
                     icon={Printer}
-                    label="عمليات الطباعة"
+                    label={t("team.stats.printOps")}
                     value={ordersPrinted.current}
                     trend={ordersPrinted.trend}
                     color="#8B5CF6"

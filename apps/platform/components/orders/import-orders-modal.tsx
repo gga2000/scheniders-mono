@@ -10,6 +10,7 @@ import {
     DialogDescription,
 } from "@scheniders/ui/dialog";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 import { parseExcelFile, convertToDbOrder, type ParsedOrder, type ImportResult, type ProductCatalogueItem } from "@/lib/excel-importer";
 import {
     Upload,
@@ -53,6 +54,7 @@ export function ImportOrdersModal({
     const [finalResult, setFinalResult] = useState<{ imported: number; errors: string[] } | null>(null);
     const [dragActive, setDragActive] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const { t } = useLanguage();
 
     const resetState = useCallback(() => {
         setStep("upload");
@@ -115,7 +117,7 @@ export function ImportOrdersModal({
 
             for (const order of result.orders) {
                 if (existingSet.has(order.order_id)) {
-                    order.validation.warnings.push('طلب موجود مسبقاً');
+                    order.validation.warnings.push(t("orders.import.existingOrder"));
                     duplicateCount++;
                 }
             }
@@ -141,7 +143,7 @@ export function ImportOrdersModal({
                 validOrders: 0,
                 errorOrders: 0,
                 duplicateOrders: 0,
-                errors: [{ row: 0, message: `خطأ في قراءة الملف: ${error}` }]
+                errors: [{ row: 0, message: `${t("orders.import.readError")} ${error}` }]
             });
             setStep("preview");
         }
@@ -204,10 +206,10 @@ export function ImportOrdersModal({
                 if (result.success) {
                     imported += result.imported;
                 } else {
-                    errors.push(...(result.errors || ['خطأ غير معروف']));
+                    errors.push(...(result.errors || [t("orders.import.unknownError")]));
                 }
             } catch (error) {
-                errors.push(`خطأ في الدفعة ${Math.floor(i / batchSize) + 1}: ${error}`);
+                errors.push(`${t("orders.import.batchError", { num: String(Math.floor(i / batchSize) + 1) })} ${error}`);
             }
 
             setImportProgress(Math.min(100, Math.round(((i + batchSize) / ordersToImport.length) * 100)));
@@ -224,13 +226,13 @@ export function ImportOrdersModal({
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-xl">
                         <FileSpreadsheet className="w-6 h-6 text-emerald-600" />
-                        استيراد الطلبات من ملف Excel
+                        {t("orders.import.title")}
                     </DialogTitle>
                     <DialogDescription>
-                        {step === "upload" && "اختر ملف Excel أو CSV للاستيراد"}
-                        {step === "preview" && "راجع الطلبات قبل الاستيراد"}
-                        {step === "importing" && "جاري الاستيراد..."}
-                        {step === "done" && "تم الانتهاء"}
+                        {step === "upload" && t("orders.import.uploadStep")}
+                        {step === "preview" && t("orders.import.previewStep")}
+                        {step === "importing" && t("orders.import.importingStep")}
+                        {step === "done" && t("orders.import.doneStep")}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -262,16 +264,16 @@ export function ImportOrdersModal({
                                 dragActive ? "text-emerald-500" : "text-gray-400"
                             )} />
                             <p className="text-lg font-medium text-gray-700 mb-2">
-                                {dragActive ? "أفلت الملف هنا" : "اسحب الملف هنا أو اضغط للاختيار"}
+                                {dragActive ? t("orders.import.dropFile") : t("orders.import.dragOrClick")}
                             </p>
                             <p className="text-sm text-gray-500">
-                                يدعم ملفات Excel (.xlsx, .xls) و CSV
+                                {t("orders.import.fileFormats")}
                             </p>
                         </div>
 
                         {/* Expected format */}
                         <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                            <p className="text-sm font-medium text-blue-800 mb-2">الأعمدة المتوقعة:</p>
+                            <p className="text-sm font-medium text-blue-800 mb-2">{t("orders.import.expectedColumns")}</p>
                             <div className="flex flex-wrap gap-2">
                                 {['رقم الوصل', 'التاريخ', 'اسم المنتج', 'SKU', 'سعر المنتج', 'الكمية', 'اسم الزبون', 'رقم الهاتف الاول', 'رقم الهاتف الثاني', 'العنوان', 'حالة الطلب', 'ملاحظة'].map(col => (
                                     <span key={col} className="px-2 py-1 bg-white rounded-lg text-xs text-blue-700 border border-blue-200">
@@ -290,19 +292,19 @@ export function ImportOrdersModal({
                         <div className="flex gap-4 mb-4">
                             <div className="flex-1 bg-gray-50 rounded-xl p-3 text-center">
                                 <p className="text-2xl font-bold text-gray-800">{importResult.orders.length}</p>
-                                <p className="text-xs text-gray-600">إجمالي الطلبات</p>
+                                <p className="text-xs text-gray-600">{t("orders.import.totalOrders")}</p>
                             </div>
                             <div className="flex-1 bg-emerald-50 rounded-xl p-3 text-center">
                                 <p className="text-2xl font-bold text-emerald-700">{selectedOrders.size}</p>
-                                <p className="text-xs text-emerald-600">محدد للاستيراد</p>
+                                <p className="text-xs text-emerald-600">{t("orders.import.selectedForImport")}</p>
                             </div>
                             <div className="flex-1 bg-yellow-50 rounded-xl p-3 text-center">
                                 <p className="text-2xl font-bold text-yellow-700">{importResult.duplicateOrders}</p>
-                                <p className="text-xs text-yellow-600">مكرر</p>
+                                <p className="text-xs text-yellow-600">{t("orders.import.duplicate")}</p>
                             </div>
                             <div className="flex-1 bg-red-50 rounded-xl p-3 text-center">
                                 <p className="text-2xl font-bold text-red-700">{importResult.errorOrders}</p>
-                                <p className="text-xs text-red-600">خطأ</p>
+                                <p className="text-xs text-red-600">{t("orders.import.error")}</p>
                             </div>
                         </div>
 
@@ -312,13 +314,13 @@ export function ImportOrdersModal({
                                 onClick={selectAll}
                                 className="px-3 py-1.5 text-xs font-medium bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                             >
-                                تحديد الكل
+                                {t("orders.import.selectAll")}
                             </button>
                             <button
                                 onClick={deselectAll}
                                 className="px-3 py-1.5 text-xs font-medium bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                             >
-                                إلغاء التحديد
+                                {t("orders.import.deselectAll")}
                             </button>
                         </div>
 
@@ -327,11 +329,11 @@ export function ImportOrdersModal({
                             {importResult.orders.length === 0 ? (
                                 <div className="p-8 text-center text-gray-500">
                                     <AlertTriangle className="w-12 h-12 mx-auto mb-3 text-yellow-500" />
-                                    <p>لم يتم العثور على طلبات صالحة</p>
+                                    <p>{t("orders.import.noValidOrders")}</p>
                                     {importResult.errors.length > 0 && (
                                         <div className="mt-4 text-sm text-red-600">
                                             {importResult.errors.map((err, i) => (
-                                                <p key={i}>صف {err.row}: {err.message}</p>
+                                                <p key={i}>{t("orders.import.row")} {err.row}: {err.message}</p>
                                             ))}
                                         </div>
                                     )}
@@ -357,7 +359,7 @@ export function ImportOrdersModal({
                 {step === "importing" && (
                     <div className="flex-1 flex flex-col items-center justify-center py-12">
                         <Loader2 className="w-16 h-16 text-emerald-600 animate-spin mb-6" />
-                        <p className="text-lg font-medium text-gray-700 mb-4">جاري استيراد الطلبات...</p>
+                        <p className="text-lg font-medium text-gray-700 mb-4">{t("orders.import.importing")}</p>
                         <div className="w-64 bg-gray-200 rounded-full h-3 overflow-hidden">
                             <div
                                 className="bg-emerald-500 h-full transition-all duration-300"
@@ -377,11 +379,11 @@ export function ImportOrdersModal({
                             <XCircle className="w-20 h-20 text-red-500 mb-6" />
                         )}
                         <p className="text-2xl font-bold text-gray-800 mb-2">
-                            تم استيراد {finalResult.imported} طلب
+                            {t("orders.import.importedCount", { count: String(finalResult.imported) })}
                         </p>
                         {finalResult.errors.length > 0 && (
                             <div className="mt-4 p-4 bg-red-50 rounded-xl max-w-md">
-                                <p className="text-sm font-medium text-red-700 mb-2">أخطاء:</p>
+                                <p className="text-sm font-medium text-red-700 mb-2">{t("orders.import.errors")}</p>
                                 <div className="text-xs text-red-600 max-h-32 overflow-y-auto">
                                     {finalResult.errors.map((err, i) => (
                                         <p key={i}>{err}</p>
@@ -398,7 +400,7 @@ export function ImportOrdersModal({
                             onClick={handleClose}
                             className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                         >
-                            إلغاء
+                            {t("orders.import.cancel")}
                         </button>
                     )}
 
@@ -409,7 +411,7 @@ export function ImportOrdersModal({
                                 className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                             >
                                 <ArrowRight className="w-4 h-4" />
-                                رجوع
+                                {t("orders.import.back")}
                             </button>
                             <button
                                 onClick={handleImport}
@@ -421,7 +423,7 @@ export function ImportOrdersModal({
                                         : "bg-gray-200 text-gray-400 cursor-not-allowed"
                                 )}
                             >
-                                استيراد {selectedOrders.size} طلب
+                                {t("orders.import.importCount", { count: String(selectedOrders.size) })}
                                 <ArrowLeft className="w-4 h-4" />
                             </button>
                         </>
@@ -432,7 +434,7 @@ export function ImportOrdersModal({
                             onClick={handleClose}
                             className="px-6 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg font-medium transition-colors"
                         >
-                            تم
+                            {t("orders.import.done")}
                         </button>
                     )}
                 </DialogFooter>
@@ -456,6 +458,7 @@ function OrderPreviewRow({
     onToggle: () => void;
     isDuplicate: boolean;
 }) {
+    const { t } = useLanguage();
     const hasErrors = !order.validation.isValid;
     const hasWarnings = order.validation.warnings.length > 0;
 
@@ -515,7 +518,7 @@ function OrderPreviewRow({
             <div className="w-32 flex-shrink-0">
                 <div className="flex items-center gap-1">
                     <Package className="w-3.5 h-3.5 text-gray-400" />
-                    <p className="text-xs text-gray-600">{order.items.length} منتج</p>
+                    <p className="text-xs text-gray-600">{order.items.length} {t("orders.import.product")}</p>
                 </div>
                 <p className="text-sm font-bold mt-0.5">{order.price.toLocaleString()} IQD</p>
             </div>
@@ -531,7 +534,7 @@ function OrderPreviewRow({
                 {!hasErrors && isDuplicate && (
                     <div className="flex items-center gap-1 text-yellow-600">
                         <AlertTriangle className="w-4 h-4" />
-                        <span className="text-xs">مكرر</span>
+                        <span className="text-xs">{t("orders.import.duplicate")}</span>
                     </div>
                 )}
                 {!hasErrors && !isDuplicate && hasWarnings && (
@@ -543,7 +546,7 @@ function OrderPreviewRow({
                 {!hasErrors && !isDuplicate && !hasWarnings && (
                     <div className="flex items-center gap-1 text-emerald-600">
                         <CheckCircle className="w-4 h-4" />
-                        <span className="text-xs">جاهز</span>
+                        <span className="text-xs">{t("orders.import.ready")}</span>
                     </div>
                 )}
             </div>

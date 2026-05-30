@@ -1295,17 +1295,17 @@ export const OrderCard = memo(function OrderCard({
 
 
                                         {/* Dynamic History Details: Rejected vs No Response */}
-                                        {((riskAssessment?.historicalData?.rejectedCount ?? 0) > 0) && (
+                                        {((riskAssessment?.historicalData?.rejectedCustomerFaultCount ?? 0) > 0) && (
                                             <span className="inline-flex h-6 items-center gap-1 px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-bold border border-rose-200">
                                                 <XCircle className="w-3 h-3" />
                                                 طلبات سابقة مرفوضة
                                             </span>
                                         )}
                                         {/* Previous Refund - PURPLE */}
-                                        {(riskAssessment?.historicalData?.refundedCount ?? 0) > 0 && (
+                                        {(riskAssessment?.historicalData?.refundCount ?? 0) > 0 && (
                                             <span className="inline-flex h-6 items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200">
                                                 <RotateCcw className="w-3 h-3" />
-                                                طلبات سابقة مسترجعة ({riskAssessment?.historicalData?.refundedCount})
+                                                طلبات سابقة مسترجعة ({riskAssessment?.historicalData?.refundCount})
                                             </span>
                                         )}
 

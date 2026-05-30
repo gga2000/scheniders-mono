@@ -164,19 +164,29 @@ export function useOrderProfits(
             }
         );
 
-        const totalOperationalCost =
+        // COGS = the actual goods delivered (product + sample perfume put in the vial)
+        const totalCOGS =
             breakdown.totalProductCost +
+            breakdown.totalSamplePerfumeCost;
+
+        // Operational = per-order costs that aren't goods (delivery, packaging, vial, sweets)
+        const totalOperationalCost =
             breakdown.totalDeliveryCost +
             breakdown.totalPackagingCost +
             breakdown.totalVialCost +
-            breakdown.totalSamplePerfumeCost +
             breakdown.totalSweetsCost;
 
-        const totalCost = totalOperationalCost + marketingCost;
-        const grossProfit = breakdown.totalRevenue - totalOperationalCost;
-        const netProfit = grossProfit - marketingCost;
+        const totalCost = totalCOGS + totalOperationalCost + marketingCost;
+
+        const grossProfit = breakdown.totalRevenue - totalCOGS;
+        const operatingProfit = grossProfit - totalOperationalCost;
+        const netProfit = operatingProfit - marketingCost;
+
         const grossProfitMargin = breakdown.totalRevenue > 0
             ? (grossProfit / breakdown.totalRevenue) * 100
+            : 0;
+        const operatingProfitMargin = breakdown.totalRevenue > 0
+            ? (operatingProfit / breakdown.totalRevenue) * 100
             : 0;
         const netProfitMargin = breakdown.totalRevenue > 0
             ? (netProfit / breakdown.totalRevenue) * 100
@@ -185,16 +195,19 @@ export function useOrderProfits(
         const orderCount = orderCostBreakdowns.length;
         const deliveredCount = orders.filter(o => o.status === "delivered").length;
         const completedCount = orders.filter(o => o.status === "completed").length;
-        const avgProfitPerOrder = orderCount > 0 ? grossProfit / orderCount : 0;
+        const avgProfitPerOrder = orderCount > 0 ? netProfit / orderCount : 0;
 
         return {
             ...breakdown,
+            totalCOGS,
             totalOperationalCost,
             marketingCost,
             totalCost,
             grossProfit,
+            operatingProfit,
             netProfit,
             grossProfitMargin,
+            operatingProfitMargin,
             netProfitMargin,
             orderCount,
             deliveredCount,

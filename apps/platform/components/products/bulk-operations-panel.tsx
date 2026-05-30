@@ -29,6 +29,8 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useLanguage } from "@/hooks/use-language";
 import { cn, formatIQD } from "@/lib/utils";
+import { CategoryCombobox } from "@/components/products/category-combobox";
+import { BulkCategoryConfirmDialog } from "@/components/products/bulk-category-confirm-dialog";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -108,7 +110,7 @@ export function BulkOperationsPanel({
 
   // -- category state --
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const [clearCategory, setClearCategory] = useState(false);
+  const [categoryConfirmOpen, setCategoryConfirmOpen] = useState(false);
 
   // -- stock state --
   const [stockMode, setStockMode] = useState<StockMode>("add");
@@ -302,20 +304,10 @@ export function BulkOperationsPanel({
     }
   }, [pricingValue, pricingMode, selectedIds, selectedProducts, tenantId, t, invalidate, onComplete]);
 
-  const applyCategory = useCallback(async () => {
-    setOperating(true);
-    try {
-      const update = clearCategory ? { category_id: null } : { category_id: selectedCategoryId };
-      await supabase.from("products").update(update).in("id", selectedIds).eq("tenant_id", tenantId!);
-      toast.success(t("products.bulk.categorySuccess") || `Updated category for ${selectedIds.length} products`);
-      invalidate();
-      onComplete();
-    } catch {
-      toast.error(t("products.bulk.error") || "Operation failed");
-    } finally {
-      setOperating(false);
-    }
-  }, [clearCategory, selectedCategoryId, selectedIds, tenantId, t, invalidate, onComplete]);
+  const openCategoryConfirm = useCallback(() => {
+    if (selectedIds.length === 0) return;
+    setCategoryConfirmOpen(true);
+  }, [selectedIds.length]);
 
   const applyStock = useCallback(async () => {
     const val = parseInt(stockValue, 10);
@@ -506,6 +498,16 @@ export function BulkOperationsPanel({
   const previewNames = selectedProducts.slice(0, 5).map((p) => p.name);
   const moreCount = Math.max(0, selectedIds.length - 5);
 
+  const targetCategoryName = useMemo(() => {
+    if (!selectedCategoryId) {
+      return t("products.category.uncategorized") || "Uncategorized";
+    }
+    const cat = (categories as Array<{ id: string; name: string }>).find(
+      (c) => c.id === selectedCategoryId
+    );
+    return cat?.name ?? (t("products.category.uncategorized") || "Uncategorized");
+  }, [selectedCategoryId, categories, t]);
+
   const renderPricingTab = () => (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-2">
@@ -559,31 +561,14 @@ export function BulkOperationsPanel({
 
   const renderCategoryTab = () => (
     <div className="space-y-4">
-      <select
-        value={clearCategory ? "__clear__" : selectedCategoryId ?? ""}
-        onChange={(e) => {
-          if (e.target.value === "__clear__") {
-            setClearCategory(true);
-            setSelectedCategoryId(null);
-          } else {
-            setClearCategory(false);
-            setSelectedCategoryId(e.target.value || null);
-          }
-        }}
-        disabled={operating}
-        className={cn(INPUT_CLS, "w-full")}
-      >
-        <option value="">{t("products.bulk.selectCategory") || "Select category..."}</option>
-        <option value="__clear__">{t("products.bulk.clearCategory") || "-- Clear category --"}</option>
-        {categories.map((cat: any) => (
-          <option key={cat.id} value={cat.id}>
-            {cat.name}
-          </option>
-        ))}
-      </select>
+      <CategoryCombobox
+        value={selectedCategoryId}
+        onChange={setSelectedCategoryId}
+        allowUncategorized
+      />
       <button
-        onClick={applyCategory}
-        disabled={operating || (!selectedCategoryId && !clearCategory)}
+        onClick={openCategoryConfirm}
+        disabled={operating || selectedIds.length === 0}
         className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-[var(--pastel-yellow)] text-foreground font-semibold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
       >
         {operating && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -1004,6 +989,19 @@ export function BulkOperationsPanel({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Bulk category confirm dialog */}
+      <BulkCategoryConfirmDialog
+        open={categoryConfirmOpen}
+        onOpenChange={setCategoryConfirmOpen}
+        productIds={selectedIds}
+        targetCategoryId={selectedCategoryId}
+        targetCategoryName={targetCategoryName}
+        previewNames={previewNames}
+        onConfirmed={() => {
+          onComplete();
+        }}
+      />
     </>
   );
 }

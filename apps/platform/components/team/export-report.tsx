@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { jsPDF } from "jspdf";
 import * as XLSX from "xlsx";
 import { ActivityLogEntry } from "@/lib/activity-logger";
+import { useLanguage } from "@/hooks/use-language";
 
 // Types
 interface EmployeeData {
@@ -45,6 +46,7 @@ export function ExportReport({
     dateRange,
     className,
 }: ExportReportProps) {
+    const { t } = useLanguage();
     const [format, setFormat] = useState<ExportFormat>("pdf");
     const [status, setStatus] = useState<ExportStatus>("idle");
     const [includeActivities, setIncludeActivities] = useState(true);
@@ -195,13 +197,13 @@ export function ExportReport({
             {/* Header */}
             <div className="flex items-center gap-2">
                 <Download className="w-5 h-5 text-primary" />
-                <h3 className="font-bold text-foreground">تصدير التقرير</h3>
+                <h3 className="font-bold text-foreground">{t("team.export.title")}</h3>
             </div>
 
             {/* Date range display */}
             <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-xl text-sm">
                 <Calendar className="w-4 h-4 text-muted-foreground" />
-                <span className="text-muted-foreground">الفترة:</span>
+                <span className="text-muted-foreground">{t("team.export.period")}</span>
                 <span className="font-medium">{dateRange.from}</span>
                 <span className="text-muted-foreground">-</span>
                 <span className="font-medium">{dateRange.to}</span>
@@ -223,7 +225,7 @@ export function ExportReport({
                     />
                     <div className="text-right">
                         <p className="font-medium">PDF</p>
-                        <p className="text-xs text-muted-foreground">تقرير مرئي</p>
+                        <p className="text-xs text-muted-foreground">{t("team.export.visualReport")}</p>
                     </div>
                 </button>
 
@@ -241,7 +243,7 @@ export function ExportReport({
                     />
                     <div className="text-right">
                         <p className="font-medium">Excel</p>
-                        <p className="text-xs text-muted-foreground">بيانات خام</p>
+                        <p className="text-xs text-muted-foreground">{t("team.export.rawData")}</p>
                     </div>
                 </button>
             </div>
@@ -255,7 +257,7 @@ export function ExportReport({
                         onChange={(e) => setIncludeStats(e.target.checked)}
                         className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
                     />
-                    <span className="text-sm">تضمين إحصائيات الموظفين</span>
+                    <span className="text-sm">{t("team.export.includeStats")}</span>
                 </label>
                 <label className="flex items-center gap-3 p-3 bg-muted/20 rounded-xl cursor-pointer hover:bg-muted/30 transition-colors">
                     <input
@@ -264,13 +266,13 @@ export function ExportReport({
                         onChange={(e) => setIncludeActivities(e.target.checked)}
                         className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
                     />
-                    <span className="text-sm">تضمين سجل النشاطات</span>
+                    <span className="text-sm">{t("team.export.includeLogs")}</span>
                 </label>
             </div>
 
             {/* Summary */}
             <div className="text-xs text-muted-foreground">
-                سيتم تصدير: {targetEmployees.length} موظف • {targetActivities.length} نشاط
+                {t("team.export.exportSummary", { emps: targetEmployees.length.toString(), acts: targetActivities.length.toString() })}
             </div>
 
             {/* Export button */}
@@ -288,17 +290,17 @@ export function ExportReport({
                 {status === "exporting" ? (
                     <>
                         <Loader2 className="w-5 h-5 animate-spin" />
-                        جاري التصدير...
+                        {t("team.export.exporting")}
                     </>
                 ) : status === "success" ? (
                     <>
                         <CheckCircle className="w-5 h-5" />
-                        تم التصدير بنجاح!
+                        {t("team.export.success")}
                     </>
                 ) : (
                     <>
                         <Download className="w-5 h-5" />
-                        تصدير التقرير
+                        {t("team.export.title")}
                     </>
                 )}
             </button>

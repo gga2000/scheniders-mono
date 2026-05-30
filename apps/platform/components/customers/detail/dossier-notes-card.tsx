@@ -1,8 +1,9 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { StickyNote, Plus } from "lucide-react";
+import { StickyNote, Plus, Trash2 } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
+import { useDeleteCustomerNote } from "@/hooks/use-customer-notes";
 import type { CustomerNote, VoiceNote } from "@/types/customer";
 
 type NoteType = "INFO" | "POSITIVE" | "VOICE";
@@ -31,12 +32,14 @@ const typeBadgeClasses: Record<NoteType, string> = {
 interface DossierNotesCardProps {
     notes: CustomerNote[];
     voiceNotes: VoiceNote[];
+    phone: string;
     onAddNote?: () => void;
     onPlayVoice?: (noteId: string) => void;
 }
 
-export function DossierNotesCard({ notes, voiceNotes, onAddNote }: DossierNotesCardProps) {
+export function DossierNotesCard({ notes, voiceNotes, phone, onAddNote }: DossierNotesCardProps) {
     const { t } = useLanguage();
+    const deleteNote = useDeleteCustomerNote(phone);
 
     const allEntries = [
         ...notes.map(n => ({
@@ -89,7 +92,7 @@ export function DossierNotesCard({ notes, voiceNotes, onAddNote }: DossierNotesC
                             initial={{ opacity: 0, x: -8 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: i * 0.05 }}
-                            className="bg-muted/30 p-5 rounded-2xl relative"
+                            className="group/note bg-muted/30 p-5 rounded-2xl relative"
                         >
                             {/* Note header: author + date | type badge */}
                             <div className="flex items-start justify-between gap-3 mb-2">
@@ -103,11 +106,23 @@ export function DossierNotesCard({ notes, voiceNotes, onAddNote }: DossierNotesC
                                     {entry.type === "voice" && ` · ${entry.duration}s`}
                                 </p>
 
-                                <span
-                                    className={`shrink-0 text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg ${typeBadgeClasses[entry.noteType]}`}
-                                >
-                                    {entry.noteType}
-                                </span>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <span
+                                        className={`text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg ${typeBadgeClasses[entry.noteType]}`}
+                                    >
+                                        {entry.noteType}
+                                    </span>
+                                    {entry.type === "text" && (
+                                        <button
+                                            onClick={() => deleteNote.mutate(entry.id)}
+                                            disabled={deleteNote.isPending}
+                                            className="opacity-0 group-hover/note:opacity-100 transition-opacity p-1 rounded-md text-muted-foreground hover:text-rose-600 hover:bg-rose-50 disabled:opacity-30"
+                                            aria-label="Delete note"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
 
                             {/* Content */}

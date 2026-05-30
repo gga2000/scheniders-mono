@@ -28,7 +28,7 @@ export function RBACMatrix() {
                                     <th key={role} className="py-4 px-6 text-center font-semibold text-foreground capitalize min-w-[100px]">
                                         <div className="flex flex-col items-center gap-1">
                                             <span>{role}</span>
-                                            {role === "admin" && (
+                                            {(role === "admin" || role === "super_admin") && (
                                                 <span className="text-[10px] font-normal px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full border border-yellow-200">
                                                     Full Access
                                                 </span>
@@ -55,7 +55,7 @@ export function RBACMatrix() {
                                                 <div className="text-xs text-muted-foreground font-mono mt-0.5">{item.key}</div>
                                             </td>
                                             {ROLES.map((role) => {
-                                                const hasAccess = ROLE_PERMISSIONS[role].includes(item.key) || role === "admin";
+                                                const hasAccess = ROLE_PERMISSIONS[role].includes(item.key) || role === "admin" || role === "super_admin";
                                                 return (
                                                     <td key={`${role}-${item.key}`} className="py-3 px-6 text-center">
                                                         <div className="flex justify-center">

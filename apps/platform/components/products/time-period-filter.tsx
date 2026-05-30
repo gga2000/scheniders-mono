@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 import { Calendar } from "lucide-react";
 
 export type TimePeriod = "today" | "week" | "month" | "all";
@@ -20,22 +20,31 @@ const periods: { value: TimePeriod; label: string }[] = [
 export function TimePeriodFilter({ value, onChange }: TimePeriodFilterProps) {
     return (
         <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-muted" />
-            <div className="flex bg-[var(--background)] rounded-xl p-1 border border-[var(--card-border)]">
-                {periods.map((period) => (
-                    <button
-                        key={period.value}
-                        onClick={() => onChange(period.value)}
-                        className={cn(
-                            "px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
-                            value === period.value
-                                ? "bg-[var(--ink)] text-white"
-                                : "text-muted hover:text-foreground"
-                        )}
-                    >
-                        {period.label}
-                    </button>
-                ))}
+            <Calendar className="w-4 h-4 text-muted-foreground" />
+            <div className="relative flex bg-[var(--background)] rounded-full p-1 border border-[var(--card-border)] h-9">
+                {periods.map((period) => {
+                    const isActive = value === period.value;
+                    return (
+                        <motion.button
+                            key={period.value}
+                            onClick={() => onChange(period.value)}
+                            whileTap={{ scale: 0.96 }}
+                            className="relative px-3.5 rounded-full text-sm font-semibold transition-colors"
+                        >
+                            {/* Sliding thumb — shared layoutId glides between segments */}
+                            {isActive && (
+                                <motion.div
+                                    layoutId="time-period-thumb"
+                                    className="absolute inset-0 rounded-full bg-foreground shadow-[0_2px_8px_-2px_rgba(0,0,0,0.2)]"
+                                    transition={{ type: "spring", stiffness: 500, damping: 38, mass: 0.9 }}
+                                />
+                            )}
+                            <span className={`relative ${isActive ? "text-background" : "text-muted-foreground hover:text-foreground"}`}>
+                                {period.label}
+                            </span>
+                        </motion.button>
+                    );
+                })}
             </div>
         </div>
     );

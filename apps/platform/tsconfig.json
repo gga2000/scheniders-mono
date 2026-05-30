@@ -8,6 +8,8 @@
     ],
     "paths": {
       "@/*": ["./*"],
+      "@scheniders/sections": ["../../packages/sections/src"],
+      "@scheniders/sections/*": ["../../packages/sections/src/*"],
       "@scheniders/shared": ["../../packages/shared/src"],
       "@scheniders/shared/*": ["../../packages/shared/src/*"],
       "@scheniders/supabase": ["../../packages/supabase/src"],
@@ -23,5 +25,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "vitest.config.ts", "vitest.config.mts"]
 }

@@ -87,6 +87,8 @@ const config: Config = {
         "slide-in-up": "slideInUp 0.3s ease-out",
         "slide-in-down": "slideInDown 0.3s ease-out",
         "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        "saved-flash": "savedFlash 1.5s ease-out",
+        "error-flash": "errorFlash 1.5s ease-out",
       },
       keyframes: {
         fadeIn: {
@@ -100,6 +102,14 @@ const config: Config = {
         slideInDown: {
           "0%": { transform: "translateY(-10px)", opacity: "0" },
           "100%": { transform: "translateY(0)", opacity: "1" },
+        },
+        savedFlash: {
+          "0%": { backgroundColor: "rgb(34 197 94 / 0.2)" },
+          "100%": { backgroundColor: "transparent" },
+        },
+        errorFlash: {
+          "0%": { backgroundColor: "rgb(239 68 68 / 0.2)" },
+          "100%": { backgroundColor: "transparent" },
         },
       },
     },

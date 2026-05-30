@@ -14,6 +14,7 @@ import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { cn } from "@/lib/utils";
 import { CommandPalette, useCommandPalette } from "@/components/shared/command-palette";
 import { PageTransition } from "@/components/shared/page-transition";
+import { WatchlistSync } from "@/components/merchants/watchlist-sync";
 
 // ---------------------------------------------------------------------------
 // Sidebar Context
@@ -160,6 +161,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           isOpen={commandPalette.isOpen}
           onClose={commandPalette.close}
         />
+        <WatchlistSync />
       </div>
     </AdminSidebarContext.Provider>
   );

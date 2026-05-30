@@ -14,6 +14,7 @@ import type {
     DesignTokens,
     SectionConfig,
     SEOConfig,
+    SchneidersConfig,
 } from "@scheniders/shared";
 
 // =============================================
@@ -107,6 +108,10 @@ export interface UseStoreBuilderReturn {
     seo: SEOConfig;
     updateSEO: (field: keyof SEOConfig, value: string) => void;
 
+    // ── Schneiders template options ──
+    schneiders: SchneidersConfig;
+    updateSchneiders: (partial: Partial<SchneidersConfig>) => void;
+
     // ── Actions ──
     save: () => Promise<void>;
     publish: () => Promise<void>;
@@ -189,6 +194,7 @@ export function useStoreBuilder({
     const [customCss, setCustomCss] = useState(initialConfig.custom_css || "");
     const [sections, setSections] = useState<SectionConfig[]>(initialConfig.sections || []);
     const [seo, setSEO] = useState<SEOConfig>(initialConfig.seo || {});
+    const [schneiders, setSchneiders] = useState<SchneidersConfig>(initialConfig.schneiders || {});
 
     const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
 
@@ -219,11 +225,12 @@ export function useStoreBuilder({
         custom_css: customCss.trim() || undefined,
         sections: sections.length > 0 ? sections : undefined,
         seo: Object.keys(seo).some(k => seo[k as keyof SEOConfig]) ? seo : undefined,
+        schneiders: Object.keys(schneiders).length > 0 ? schneiders : undefined,
     }), [
         template, heroTitle, heroSubtitle, heroCta, heroImage,
         aboutEnabled, aboutTitle, aboutBody,
         whatsapp, instagram, facebook, tiktok, enableWhatsappOrder,
-        sectionsOrder, designTokens, logoUrl, customCss, sections, seo,
+        sectionsOrder, designTokens, logoUrl, customCss, sections, seo, schneiders,
     ]);
 
     // ── Dirty detection ──
@@ -289,6 +296,7 @@ export function useStoreBuilder({
         setCustomCss(c.custom_css || "");
         setSections(c.sections || []);
         setSEO(c.seo || {});
+        setSchneiders(c.schneiders || {});
     }, []);
 
     const undo = useCallback(() => {
@@ -494,6 +502,10 @@ export function useStoreBuilder({
         setSectionsOrder(ids);
     }, []);
 
+    const updateSchneiders = useCallback((partial: Partial<SchneidersConfig>) => {
+        setSchneiders((prev) => ({ ...prev, ...partial }));
+    }, []);
+
     // ── Completion Score ──
     const completionItems = useMemo<CompletionItem[]>(() => [
         {
@@ -643,6 +655,9 @@ export function useStoreBuilder({
 
         seo,
         updateSEO,
+
+        schneiders,
+        updateSchneiders,
 
         save,
         publish,

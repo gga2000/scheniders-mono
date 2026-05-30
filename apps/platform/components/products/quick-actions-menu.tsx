@@ -16,6 +16,7 @@ import {
 import { Product } from "@/lib/supabase";
 import { useLanguage } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
+import { Tooltip } from "@/components/ui/tooltip";
 
 interface QuickActionsMenuProps {
     product: Product;
@@ -63,13 +64,15 @@ export function QuickActionsMenu({
             onOpenChange={handleOpenChange}
         >
             <DropdownMenu.Trigger asChild>
-                <button
-                    onClick={(e) => e.stopPropagation()}
-                    className="p-2 rounded-lg hover:bg-[var(--background)] transition-colors opacity-60 hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--foreground)] min-w-[44px] min-h-[44px] flex items-center justify-center"
-                    aria-label="Product actions"
-                >
-                    <MoreVertical className="w-4 h-4 text-muted" />
-                </button>
+                <Tooltip content={t("products.actions.menuTooltip") || "Product actions"} side="top" align="center">
+                    <button
+                        onClick={(e) => e.stopPropagation()}
+                        className="p-2 rounded-lg hover:bg-[var(--background)] transition-colors opacity-60 hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--foreground)] min-w-[44px] min-h-[44px] flex items-center justify-center"
+                        aria-label="Product actions"
+                    >
+                        <MoreVertical className="w-4 h-4 text-muted" />
+                    </button>
+                </Tooltip>
             </DropdownMenu.Trigger>
 
             <DropdownMenu.Portal>

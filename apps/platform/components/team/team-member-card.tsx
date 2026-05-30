@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { EmployeeStats } from '@/lib/team-types';
+import { useLanguage } from '@/hooks/use-language';
 
 interface TeamMemberCardProps {
     employee: EmployeeStats;
@@ -19,6 +20,7 @@ interface TeamMemberCardProps {
 }
 
 export function TeamMemberCard({ employee, viewMode, onClick, rank, delay = 0, isActive = false }: TeamMemberCardProps) {
+    const { t, language } = useLanguage();
     const isOnline = isActive || (employee.last_login_at ? new Date(employee.last_login_at).getTime() > Date.now() - 15 * 60 * 1000 : false);
 
     // Role-based theming
@@ -119,15 +121,15 @@ export function TeamMemberCard({ employee, viewMode, onClick, rank, delay = 0, i
                         {/* Quick Stats Grid */}
                         <div className="hidden md:flex items-center gap-6 px-6 border-l border-gray-200 dark:border-gray-800 rtl:border-l-0 rtl:border-r">
                             <div className="text-center">
-                                <p className="text-[10px] text-gray-500 uppercase font-semibold">نشاط</p>
+                                <p className="text-[10px] text-gray-500 uppercase font-semibold">{t("team.stats.actions")}</p>
                                 <p className="text-sm font-bold text-gray-900 dark:text-white">{employee.total_actions}</p>
                             </div>
                             <div className="text-center">
-                                <p className="text-[10px] text-gray-500 uppercase font-semibold">طلبات</p>
+                                <p className="text-[10px] text-gray-500 uppercase font-semibold">{t("team.stats.orders")}</p>
                                 <p className="text-sm font-bold text-gray-900 dark:text-white">{employee.orders_created}</p>
                             </div>
                             <div className="text-center">
-                                <p className="text-[10px] text-gray-500 uppercase font-semibold">حالات</p>
+                                <p className="text-[10px] text-gray-500 uppercase font-semibold">{t("team.stats.statuses")}</p>
                                 <p className="text-sm font-bold text-gray-900 dark:text-white">{employee.status_changes}</p>
                             </div>
                         </div>
@@ -178,11 +180,11 @@ export function TeamMemberCard({ employee, viewMode, onClick, rank, delay = 0, i
                                 "w-1.5 h-1.5 rounded-full bg-emerald-500",
                                 isActive ? "animate-ping" : "animate-pulse"
                             )} />
-                            {isActive ? "نشط الآن" : "مباشر"}
+                            {isActive ? t("team.status.activeNow") : t("team.status.live")}
                         </div>
                     ) : (
                         <div className="text-xs font-semibold text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800/50 px-2 py-1 rounded-full">
-                            {employee.last_login_at ? formatDistanceToNow(new Date(employee.last_login_at), { addSuffix: true, locale: ar }) : 'غير متصل'}
+                            {employee.last_login_at ? formatDistanceToNow(new Date(employee.last_login_at), { addSuffix: true, locale: language === "ar" ? ar : undefined }) : t("team.status.offline")}
                         </div>
                     )}
                 </div>
@@ -217,17 +219,17 @@ export function TeamMemberCard({ employee, viewMode, onClick, rank, delay = 0, i
                         <div className="flex flex-col items-center p-2 rounded-xl hover:bg-white dark:hover:bg-white/5 transition-colors">
                             <Activity className="w-4 h-4 text-blue-500 mb-1" />
                             <span className="text-lg font-bold text-gray-900 dark:text-white">{employee.total_actions}</span>
-                            <span className="text-[9px] text-gray-500 uppercase tracking-wider">نشاط</span>
+                            <span className="text-[9px] text-gray-500 uppercase tracking-wider">{t("team.stats.actions")}</span>
                         </div>
                         <div className="flex flex-col items-center p-2 rounded-xl hover:bg-white dark:hover:bg-white/5 transition-colors">
                             <Package className="w-4 h-4 text-emerald-500 mb-1" />
                             <span className="text-lg font-bold text-gray-900 dark:text-white">{employee.orders_created}</span>
-                            <span className="text-[9px] text-gray-500 uppercase tracking-wider">طلبات</span>
+                            <span className="text-[9px] text-gray-500 uppercase tracking-wider">{t("team.stats.orders")}</span>
                         </div>
                         <div className="flex flex-col items-center p-2 rounded-xl hover:bg-white dark:hover:bg-white/5 transition-colors">
                             <RefreshCw className="w-4 h-4 text-amber-500 mb-1" />
                             <span className="text-lg font-bold text-gray-900 dark:text-white">{employee.status_changes}</span>
-                            <span className="text-[9px] text-gray-500 uppercase tracking-wider">حالات</span>
+                            <span className="text-[9px] text-gray-500 uppercase tracking-wider">{t("team.stats.statuses")}</span>
                         </div>
                     </div>
                 </div>

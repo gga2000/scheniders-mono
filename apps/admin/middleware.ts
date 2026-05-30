@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+const ALLOWED_ROLES = new Set(["super_admin", "support_staff"]);
+
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -25,23 +27,61 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  const path = request.nextUrl.pathname;
+  const isLoginPage = path.startsWith("/login");
+  const isAuthApi = path.startsWith("/api/auth");
+  const isHealthApi = path === "/api/health";
+  const isApi = path.startsWith("/api/");
+
+  // Public surfaces — bypass auth checks entirely.
+  if (isAuthApi || isHealthApi) {
+    return supabaseResponse;
+  }
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isAuthRoute =
-    request.nextUrl.pathname.startsWith("/login") ||
-    request.nextUrl.pathname.startsWith("/api/auth");
-
-  // Redirect unauthenticated users to /login on protected routes
-  if (!user && !isAuthRoute) {
+  // Unauthenticated:
+  //  - APIs → 401 JSON (so fetch/XHR sees the error, not an HTML redirect).
+  //  - Pages → redirect to /login (except /login itself).
+  if (!user) {
+    if (isApi) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (isLoginPage) {
+      return supabaseResponse;
+    }
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  // Redirect authenticated users away from /login
-  if (user && request.nextUrl.pathname === "/login") {
+  // Authenticated — verify admin role. `user_profiles.user_read_own_profile`
+  // RLS policy lets the user read their own row via the anon-authed client.
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  const isAdmin = !!profile?.role && ALLOWED_ROLES.has(profile.role);
+
+  if (!isAdmin) {
+    if (isApi) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (isLoginPage) {
+      return supabaseResponse;
+    }
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("error", "forbidden");
+    return NextResponse.redirect(url);
+  }
+
+  // Signed-in admin landing on /login — bounce to dashboard.
+  if (isLoginPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);

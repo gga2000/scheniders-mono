@@ -112,6 +112,30 @@ export const productRepository = {
         });
     },
 
+    /** Bulk-restore multiple archived products. */
+    async bulkRestore(ids: string[]): Promise<void> {
+        return withRetry('productRepository.bulkRestore', async () => {
+            const { error } = await supabase
+                .from("products")
+                .update({ is_archived: false })
+                .in("id", ids);
+
+            if (error) throw error;
+        });
+    },
+
+    /** Bulk-delete multiple products permanently. */
+    async bulkDelete(ids: string[]): Promise<void> {
+        return withRetry('productRepository.bulkDelete', async () => {
+            const { error } = await supabase
+                .from("products")
+                .delete()
+                .in("id", ids);
+
+            if (error) throw error;
+        });
+    },
+
     /** Bulk-update storefront visibility for multiple products. */
     async bulkUpdateVisibility(ids: string[], isVisible: boolean): Promise<void> {
         return withRetry('productRepository.bulkUpdateVisibility', async () => {
@@ -121,6 +145,35 @@ export const productRepository = {
                 .in("id", ids);
 
             if (error) throw error;
+        });
+    },
+
+    /** Bulk-update category for multiple products. Pass null to clear category. */
+    async bulkUpdateCategory(ids: string[], categoryId: string | null): Promise<void> {
+        return withRetry('productRepository.bulkUpdateCategory', async () => {
+            const { error } = await supabase
+                .from("products")
+                .update({ category_id: categoryId })
+                .in("id", ids);
+
+            if (error) throw error;
+        });
+    },
+
+    /** Bulk-update display_order for multiple products. */
+    async bulkUpdateDisplayOrder(updates: { id: string; display_order: number }[]): Promise<void> {
+        return withRetry('productRepository.bulkUpdateDisplayOrder', async () => {
+            // Supabase doesn't support batch updates with different values per row,
+            // so we run them in parallel with Promise.all
+            const promises = updates.map(({ id, display_order }) =>
+                supabase
+                    .from("products")
+                    .update({ display_order })
+                    .eq("id", id)
+            );
+            const results = await Promise.all(promises);
+            const firstError = results.find((r) => r.error);
+            if (firstError?.error) throw firstError.error;
         });
     },
 
@@ -199,7 +252,7 @@ export const productRepository = {
     },
 
     /** Replace all options for a product (delete existing, insert new). */
-    async saveProductOptions(productId: string, options: { name: string; values: string[]; display_order: number }[], tenantId: string | null): Promise<void> {
+    async saveProductOptions(productId: string, options: { name: string; values: string[]; display_order: number; option_type?: string; values_metadata?: any }[], tenantId: string | null): Promise<void> {
         return withRetry('productRepository.saveProductOptions', async () => {
             const { error: deleteError } = await supabase
                 .from("product_options")

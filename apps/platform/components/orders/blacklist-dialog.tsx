@@ -13,8 +13,15 @@ import { Label } from "@scheniders/ui/label";
 import { Textarea } from "@scheniders/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { BlacklistEntry } from "@/hooks/use-order-auxiliary";
+import { useLanguage } from "@/hooks/use-language";
 
-const REASON_PRESETS = ["تهديد", "طلبات وهمية", "رفض متكرر", "عدم الرد", "أخرى"];
+const REASON_PRESET_KEYS = [
+    "orders.blacklist.reasonPreset.threat",
+    "orders.blacklist.reasonPreset.fakeOrders",
+    "orders.blacklist.reasonPreset.repeatedRefusal",
+    "orders.blacklist.reasonPreset.noResponse",
+    "orders.blacklist.reasonPreset.other",
+];
 
 interface BlacklistDialogProps {
     open: boolean;
@@ -39,8 +46,11 @@ export function BlacklistDialog({
     const [customReason, setCustomReason] = useState("");
     const [notes, setNotes] = useState("");
     const [loading, setLoading] = useState(false);
+    const { t } = useLanguage();
 
-    const finalReason = reason === "أخرى" ? customReason.trim() : reason;
+    const REASON_PRESETS = REASON_PRESET_KEYS.map(k => t(k));
+    const otherLabel = t("orders.blacklist.reasonPreset.other");
+    const finalReason = reason === otherLabel ? customReason.trim() : reason;
 
     async function handleConfirm() {
         if (mode === "add" && !finalReason) return;
@@ -66,14 +76,14 @@ export function BlacklistDialog({
                                 <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
                                     <Ban className="w-4 h-4 text-red-600" />
                                 </div>
-                                <span>إضافة إلى القائمة السوداء</span>
+                                <span>{t("orders.blacklist.addTitle")}</span>
                             </>
                         ) : (
                             <>
                                 <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
                                     <ShieldCheck className="w-4 h-4 text-emerald-600" />
                                 </div>
-                                <span>رفع الحظر</span>
+                                <span>{t("orders.blacklist.removeTitle")}</span>
                             </>
                         )}
                     </DialogTitle>
@@ -90,7 +100,7 @@ export function BlacklistDialog({
                         <>
                             {/* Reason presets */}
                             <div className="space-y-2">
-                                <Label className="text-xs text-muted">السبب <span className="text-red-500">*</span></Label>
+                                <Label className="text-xs text-muted">{t("orders.blacklist.reason")} <span className="text-red-500">{t("orders.blacklist.required")}</span></Label>
                                 <div className="flex flex-wrap gap-2">
                                     {REASON_PRESETS.map((preset) => (
                                         <button
@@ -109,10 +119,10 @@ export function BlacklistDialog({
                                     ))}
                                 </div>
 
-                                {reason === "أخرى" && (
+                                {reason === otherLabel && (
                                     <input
                                         type="text"
-                                        placeholder="اكتب السبب..."
+                                        placeholder={t("orders.blacklist.writeReason")}
                                         value={customReason}
                                         onChange={(e) => setCustomReason(e.target.value)}
                                         className="w-full h-9 rounded-lg border border-[var(--card-border)] bg-[var(--background)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
@@ -122,9 +132,9 @@ export function BlacklistDialog({
 
                             {/* Notes (optional) */}
                             <div className="space-y-1">
-                                <Label className="text-xs text-muted">ملاحظات إضافية (اختياري)</Label>
+                                <Label className="text-xs text-muted">{t("orders.blacklist.additionalNotes")}</Label>
                                 <Textarea
-                                    placeholder="أي تفاصيل إضافية..."
+                                    placeholder={t("orders.blacklist.anyDetails")}
                                     value={notes}
                                     onChange={(e) => setNotes(e.target.value)}
                                     rows={2}
@@ -137,7 +147,7 @@ export function BlacklistDialog({
                                 disabled={!finalReason || loading}
                                 className="w-full bg-red-600 hover:bg-red-700 text-white rounded-xl h-10 font-semibold"
                             >
-                                {loading ? "جاري الحظر..." : "حظر العميل"}
+                                {loading ? t("orders.blacklist.blocking") : t("orders.blacklist.blockCustomer")}
                             </Button>
                         </>
                     ) : (
@@ -153,13 +163,13 @@ export function BlacklistDialog({
                                         <p className="text-red-600/80 dark:text-red-400/80 text-xs pr-5">{existingEntry.notes}</p>
                                     )}
                                     {existingEntry.added_by && (
-                                        <p className="text-muted text-xs pr-5">أضافه: {existingEntry.added_by}</p>
+                                        <p className="text-muted text-xs pr-5">{t("orders.blacklist.addedBy", { name: existingEntry.added_by })}</p>
                                     )}
                                 </div>
                             )}
 
                             <p className="text-sm text-muted">
-                                هل تريد رفع الحظر عن هذا العميل وإتاحة الطلبات مرة أخرى؟
+                                {t("orders.blacklist.unblockConfirm")}
                             </p>
 
                             <Button
@@ -167,7 +177,7 @@ export function BlacklistDialog({
                                 disabled={loading}
                                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-10 font-semibold"
                             >
-                                {loading ? "جاري رفع الحظر..." : "رفع الحظر"}
+                                {loading ? t("orders.blacklist.unblocking") : t("orders.blacklist.unblock")}
                             </Button>
                         </>
                     )}

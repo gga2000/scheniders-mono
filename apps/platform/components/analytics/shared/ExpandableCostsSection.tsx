@@ -45,7 +45,7 @@ export function ExpandableCostsSection({ totalCosts, costs, delay = 0.15 }: Expa
                 </div>
                 <div className="flex items-center gap-2.5">
                     <span className="text-sm font-semibold tabular-nums text-rose-700 dark:text-rose-300">
-                        IQD {formatIQD(totalCosts)}
+                        {formatIQD(totalCosts)}
                     </span>
                     <ChevronDown
                         className={cn(
@@ -112,7 +112,7 @@ export function ExpandableCostsSection({ totalCosts, costs, delay = 0.15 }: Expa
                                         {/* Amount and percentage */}
                                         <div className="text-right min-w-[130px]">
                                             <p className="text-[13px] font-semibold text-foreground tabular-nums">
-                                                IQD {formatIQD(cost.amount)}
+                                                {formatIQD(cost.amount)}
                                             </p>
                                             <p className="text-[11px] text-muted tabular-nums">
                                                 {cost.percentage.toFixed(1)}%

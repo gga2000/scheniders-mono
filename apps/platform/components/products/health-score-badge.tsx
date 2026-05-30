@@ -4,6 +4,7 @@ import React from "react";
 import { AlertTriangle, Moon, Package, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+import { Tooltip } from "@/components/ui/tooltip";
 import type { ProductScore, HealthGrade } from "@/lib/utils/product-scoring";
 
 // =============================================
@@ -59,6 +60,13 @@ const flagIcons = {
     overstock: Package,
 } as const;
 
+const flagColors: Record<keyof typeof flagIcons, string> = {
+    understock: "bg-amber-500/15 text-amber-700 ring-amber-500/30",
+    dead: "bg-rose-500/15 text-rose-700 ring-rose-500/30",
+    slow: "bg-orange-500/15 text-orange-700 ring-orange-500/30",
+    overstock: "bg-blue-500/15 text-blue-700 ring-blue-500/30",
+};
+
 // =============================================
 // TOOLTIP ROW
 // =============================================
@@ -95,8 +103,38 @@ export const HealthScoreBadge = React.memo(function HealthScoreBadge({
     const criticalFlag = getCriticalFlag(score.flags);
     const FlagIcon = criticalFlag ? flagIcons[criticalFlag] : null;
 
-    return (
-        <div className="relative inline-flex items-center gap-1 group">
+    const tooltipContent = (
+        <div className="w-52">
+            <div className="text-xs font-medium text-foreground mb-2">
+                {t("products.health.grade")}: {score.overall} ({score.numericScore}/100)
+            </div>
+            <div className="flex flex-col gap-1.5">
+                <ScoreRow
+                    label={t("products.health.margin")}
+                    value={score.components.marginScore}
+                    max={25}
+                />
+                <ScoreRow
+                    label={t("products.health.velocity")}
+                    value={score.components.velocityScore}
+                    max={25}
+                />
+                <ScoreRow
+                    label={t("products.health.turnover")}
+                    value={score.components.turnoverScore}
+                    max={25}
+                />
+                <ScoreRow
+                    label={t("products.health.supply")}
+                    value={score.components.supplyScore}
+                    max={25}
+                />
+            </div>
+        </div>
+    );
+
+    const body = (
+        <div className="inline-flex items-center gap-1" tabIndex={showTooltip ? 0 : undefined}>
             {/* Badge */}
             <div
                 className={cn(
@@ -109,49 +147,30 @@ export const HealthScoreBadge = React.memo(function HealthScoreBadge({
             </div>
 
             {/* Flag icon */}
-            {FlagIcon && (
-                <FlagIcon className="w-3 h-3 text-muted-foreground shrink-0" />
-            )}
-
-            {/* Tooltip */}
-            {showTooltip && (
+            {FlagIcon && criticalFlag && (
                 <div
                     className={cn(
-                        "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50",
-                        "opacity-0 pointer-events-none scale-95",
-                        "group-hover:opacity-100 group-hover:pointer-events-auto group-hover:scale-100",
-                        "transition-all duration-150",
-                        "bg-[var(--card-bg)] border border-[var(--card-border)] shadow-lg rounded-xl p-3",
-                        "w-52",
+                        "rounded-full ring-1 flex items-center justify-center shrink-0",
+                        flagColors[criticalFlag],
+                        sizeClasses[size],
                     )}
                 >
-                    <div className="text-xs font-medium text-foreground mb-2">
-                        {t("products.health.grade")}: {score.overall} ({score.numericScore}/100)
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                        <ScoreRow
-                            label={t("products.health.margin")}
-                            value={score.components.marginScore}
-                            max={25}
-                        />
-                        <ScoreRow
-                            label={t("products.health.velocity")}
-                            value={score.components.velocityScore}
-                            max={25}
-                        />
-                        <ScoreRow
-                            label={t("products.health.turnover")}
-                            value={score.components.turnoverScore}
-                            max={25}
-                        />
-                        <ScoreRow
-                            label={t("products.health.supply")}
-                            value={score.components.supplyScore}
-                            max={25}
-                        />
-                    </div>
+                    <FlagIcon className="w-3 h-3" />
                 </div>
             )}
         </div>
+    );
+
+    if (!showTooltip) return body;
+
+    return (
+        <Tooltip
+            content={tooltipContent}
+            side="top"
+            align="center"
+            contentClassName="bg-[var(--card-bg)] border border-[var(--card-border)] shadow-lg rounded-xl p-3"
+        >
+            {body}
+        </Tooltip>
     );
 });

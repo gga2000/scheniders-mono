@@ -15,6 +15,7 @@ import {
     TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 // Types
 interface TopPerformer {
@@ -40,7 +41,7 @@ const RANK_CONFIG = {
         color: "from-yellow-400 to-amber-500",
         bgColor: "bg-gradient-to-br from-yellow-50 to-amber-50",
         borderColor: "border-yellow-300",
-        label: "المركز الأول",
+        labelKey: "team.spotlight.firstPlace",
         badge: "🥇",
     },
     2: {
@@ -48,7 +49,7 @@ const RANK_CONFIG = {
         color: "from-slate-300 to-slate-400",
         bgColor: "bg-gradient-to-br from-slate-50 to-gray-50",
         borderColor: "border-slate-300",
-        label: "المركز الثاني",
+        labelKey: "team.spotlight.secondPlace",
         badge: "🥈",
     },
     3: {
@@ -56,7 +57,7 @@ const RANK_CONFIG = {
         color: "from-orange-400 to-amber-600",
         bgColor: "bg-gradient-to-br from-orange-50 to-amber-50",
         borderColor: "border-orange-300",
-        label: "المركز الثالث",
+        labelKey: "team.spotlight.thirdPlace",
         badge: "🥉",
     },
 };
@@ -71,6 +72,7 @@ function PerformerCard({
     isActive: boolean;
     onClick?: () => void;
 }) {
+    const { t } = useLanguage();
     const config = RANK_CONFIG[performer.rank as keyof typeof RANK_CONFIG];
     const Icon = config?.icon || Star;
 
@@ -164,18 +166,18 @@ function PerformerCard({
                     {performer.displayName || performer.email?.split("@")[0]}
                 </h3>
                 <p className="text-xs text-muted-foreground mb-4">
-                    {config?.label || `#${performer.rank}`}
+                    {config?.labelKey ? t(config.labelKey) : `#${performer.rank}`}
                 </p>
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 gap-3">
                     <div className="bg-white/70 rounded-xl p-3">
                         <p className="text-2xl font-bold text-foreground">{performer.totalActions}</p>
-                        <p className="text-[10px] text-muted-foreground">إجمالي النشاطات</p>
+                        <p className="text-[10px] text-muted-foreground">{t("team.spotlight.totalActions")}</p>
                     </div>
                     <div className="bg-white/70 rounded-xl p-3">
                         <p className="text-2xl font-bold text-emerald-600">{performer.ordersCreated}</p>
-                        <p className="text-[10px] text-muted-foreground">طلبات جديدة</p>
+                        <p className="text-[10px] text-muted-foreground">{t("team.spotlight.newOrders")}</p>
                     </div>
                 </div>
             </div>
@@ -188,6 +190,7 @@ export function EmployeeSpotlight({
     autoPlayInterval = 5000,
     onViewDetails,
 }: EmployeeSpotlightProps) {
+    const { t } = useLanguage();
     const [activeIndex, setActiveIndex] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
 
@@ -217,7 +220,7 @@ export function EmployeeSpotlight({
         return (
             <div className="text-center py-8 text-muted-foreground">
                 <Trophy className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p>لا توجد بيانات كافية</p>
+                <p>{t("team.spotlight.noData")}</p>
             </div>
         );
     }
@@ -237,8 +240,8 @@ export function EmployeeSpotlight({
                         <Trophy className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                        <h2 className="text-lg font-bold text-foreground">أبطال الأسبوع</h2>
-                        <p className="text-xs text-muted-foreground">أفضل المؤدين هذا الأسبوع</p>
+                        <h2 className="text-lg font-bold text-foreground">{t("team.spotlight.championsTitle")}</h2>
+                        <p className="text-xs text-muted-foreground">{t("team.spotlight.championsSubtitle")}</p>
                     </div>
                 </div>
 

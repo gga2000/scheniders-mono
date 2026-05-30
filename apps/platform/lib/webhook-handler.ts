@@ -822,10 +822,10 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook, tenan
 
         // Assess customer risk (fraud detection) before creating order
         // This checks for previous rejections and adds attention flags
-        const riskAssessment = await fraudDetector.assessCustomerRisk(formattedPhone);
+        const riskAssessment = await fraudDetector.assessCustomerTrust(formattedPhone);
 
         // Add attention flags for high-risk customers with previous rejections
-        if (riskAssessment.historicalData.rejectedCount > 0) {
+        if (riskAssessment.historicalData.rejectedCustomerFaultCount > 0) {
             attentionReasons.push('previous_rejection');
         }
 

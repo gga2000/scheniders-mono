@@ -1,18 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/admin-supabase";
+import { createAdminClient, requireAdmin } from "@/lib/admin-supabase";
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const token = request.headers.get("authorization")?.replace("Bearer ", "");
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const admin = await requireAdmin(token);
+    if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
     const { id } = await params;
     const body = await request.json();
     const supabase = createAdminClient();
 
+    const ALLOWED_FIELDS = ["name", "name_ar", "icon", "color", "avg_order_value_iqd", "is_active", "sort_order"] as const;
+    const updateData: Record<string, unknown> = {};
+    for (const key of ALLOWED_FIELDS) {
+      if (key in body) updateData[key] = body[key];
+    }
+
     const { data, error } = await supabase
       .from("industries")
-      .update(body)
+      .update(updateData)
       .eq("id", id)
       .select()
       .single();
@@ -31,6 +42,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const token = _request.headers.get("authorization")?.replace("Bearer ", "");
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const admin = await requireAdmin(token);
+    if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
     const { id } = await params;
     const supabase = createAdminClient();
 

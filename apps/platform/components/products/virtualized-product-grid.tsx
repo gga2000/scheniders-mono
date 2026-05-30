@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useCallback, useMemo, useState, useEffect } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useRef, useCallback, useMemo, useState, useEffect, useLayoutEffect } from "react";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import {
     DndContext,
     DragOverlay,
@@ -19,9 +19,18 @@ import {
     useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { FolderOpen } from "lucide-react";
 import { Product } from "@/lib/supabase";
 import { ProductGridCard } from "./product-grid-card";
 import { SwipeableCard } from "./swipeable-card";
+import { computeColumnCount, type GridDensity } from "./density-toggle";
+import { useLanguage } from "@/hooks/use-language";
+
+interface Category {
+    id: string;
+    name: string;
+    image_url?: string | null;
+}
 
 interface VirtualizedProductGridProps {
     products: Product[];
@@ -36,29 +45,23 @@ interface VirtualizedProductGridProps {
     onDelete: (product: Product) => void;
     onVisibilityToggle: (product: Product) => void;
     onReorder?: (updates: { id: string; display_order: number }[]) => void;
+    density?: GridDensity;
+    groupByCategory?: boolean;
+    categories?: Category[];
 }
 
-function computeColumnCount(width: number): number {
-    // Tailwind: sm=640, md=768, lg=1024, xl=1280
-    if (width < 640) return 1;
-    if (width < 768) return 2;
-    if (width < 1024) return 3;
-    if (width < 1280) return 4;
-    return 5;
-}
-
-function useColumnCount() {
+function useColumnCount(density: GridDensity) {
     const [columnCount, setColumnCount] = useState(() =>
-        typeof window === "undefined" ? 5 : computeColumnCount(window.innerWidth)
+        typeof window === "undefined" ? 5 : computeColumnCount(window.innerWidth, density)
     );
 
     useEffect(() => {
         if (typeof window === "undefined") return;
-        const handleResize = () => setColumnCount(computeColumnCount(window.innerWidth));
+        const handleResize = () => setColumnCount(computeColumnCount(window.innerWidth, density));
         handleResize();
         window.addEventListener("resize", handleResize);
         return () => window.removeEventListener("resize", handleResize);
-    }, []);
+    }, [density]);
 
     return columnCount;
 }
@@ -91,6 +94,11 @@ function SortableGridItem({
     );
 }
 
+/** Row item types used when groupByCategory is ON. */
+type HeaderRow = { type: "header"; categoryId: string | null; categoryName: string; count: number };
+type ProductRow = { type: "products"; categoryId: string | null; products: Product[] };
+type VirtualRow = HeaderRow | ProductRow;
+
 export function VirtualizedProductGrid({
     products,
     selectedIds,
@@ -104,10 +112,32 @@ export function VirtualizedProductGrid({
     onDelete,
     onVisibilityToggle,
     onReorder,
+    density = "normal",
+    groupByCategory = false,
+    categories,
 }: VirtualizedProductGridProps) {
     const parentRef = useRef<HTMLDivElement>(null);
-    const columnCount = useColumnCount();
+    const [scrollMargin, setScrollMargin] = useState(0);
+    const columnCount = useColumnCount(density);
     const isMobile = columnCount === 1;
+    const { t } = useLanguage();
+
+    useLayoutEffect(() => {
+        const el = parentRef.current;
+        if (!el) return;
+        const update = () => {
+            const next = el.offsetTop;
+            setScrollMargin((prev) => (prev === next ? prev : next));
+        };
+        update();
+        const ro = new ResizeObserver(update);
+        ro.observe(document.documentElement);
+        window.addEventListener("resize", update);
+        return () => {
+            ro.disconnect();
+            window.removeEventListener("resize", update);
+        };
+    }, []);
 
     const [activeProduct, setActiveProduct] = useState<Product | null>(null);
 
@@ -116,6 +146,10 @@ export function VirtualizedProductGrid({
         useSensor(KeyboardSensor)
     );
 
+    /**
+     * When grouped, reorder is scoped to siblings within the SAME category so dropping
+     * across categories doesn't silently mutate display_order out of range.
+     */
     const handleDragStart = useCallback((event: DragStartEvent) => {
         const product = products.find((p) => p.id === event.active.id);
         if (product) setActiveProduct(product);
@@ -126,44 +160,103 @@ export function VirtualizedProductGrid({
         const { active, over } = event;
         if (!over || active.id === over.id || !onReorder) return;
 
-        const oldIndex = products.findIndex((p) => p.id === active.id);
-        const newIndex = products.findIndex((p) => p.id === over.id);
+        const activeProd = products.find((p) => p.id === active.id);
+        const overProd = products.find((p) => p.id === over.id);
+        if (!activeProd || !overProd) return;
+
+        if (groupByCategory && activeProd.category_id !== overProd.category_id) {
+            // Cross-category drop — ignore; moving categories needs a different mutation.
+            return;
+        }
+
+        const scope = groupByCategory
+            ? products.filter((p) => p.category_id === activeProd.category_id)
+            : products;
+
+        const oldIndex = scope.findIndex((p) => p.id === active.id);
+        const newIndex = scope.findIndex((p) => p.id === over.id);
         if (oldIndex === -1 || newIndex === -1) return;
 
-        // Calculate new display_order values for affected range
         const minIdx = Math.min(oldIndex, newIndex);
         const maxIdx = Math.max(oldIndex, newIndex);
-        const updates: { id: string; display_order: number }[] = [];
-
-        // Create a reordered copy to compute new positions
-        const reordered = [...products];
+        const reordered = [...scope];
         const [moved] = reordered.splice(oldIndex, 1);
         reordered.splice(newIndex, 0, moved);
 
+        // Preserve each scope product's current display_order as its "slot index" so
+        // we don't clobber ordering across the whole list when scoped to a category.
+        const slots = scope.map((p) => p.display_order ?? scope.indexOf(p));
+        const updates: { id: string; display_order: number }[] = [];
         for (let i = minIdx; i <= maxIdx; i++) {
-            updates.push({ id: reordered[i].id, display_order: i });
+            updates.push({ id: reordered[i].id, display_order: slots[i] });
+        }
+        onReorder(updates);
+    }, [products, onReorder, groupByCategory]);
+
+    // ── Row planning ──────────────────────────────────────────────────────────
+    // When grouped: interleave header rows with product rows (chunked by columnCount).
+    // When flat: plain chunked product rows.
+    const rows = useMemo<VirtualRow[]>(() => {
+        if (!groupByCategory) {
+            const result: ProductRow[] = [];
+            for (let i = 0; i < products.length; i += columnCount) {
+                result.push({
+                    type: "products",
+                    categoryId: null,
+                    products: products.slice(i, i + columnCount),
+                });
+            }
+            return result;
         }
 
-        onReorder(updates);
-    }, [products, onReorder]);
+        // Group → Map<categoryId|null, Product[]>, sort desc by count, uncategorized last.
+        const groups = new Map<string | null, Product[]>();
+        for (const p of products) {
+            const key = p.category_id ?? null;
+            const arr = groups.get(key);
+            if (arr) arr.push(p);
+            else groups.set(key, [p]);
+        }
 
-    // Group products into rows based on column count
-    const rows = useMemo(() => {
-        const result: Product[][] = [];
-        for (let i = 0; i < products.length; i += columnCount) {
-            result.push(products.slice(i, i + columnCount));
+        const catName = (id: string | null): string => {
+            if (!id) return t("products.views.category.uncategorized");
+            return categoriesMap.get(id) ?? t("products.views.category.uncategorized");
+        };
+
+        const ordered = Array.from(groups.entries()).sort(([aId, aArr], [bId, bArr]) => {
+            if (aId === null) return 1; // uncategorized last
+            if (bId === null) return -1;
+            return bArr.length - aArr.length;
+        });
+
+        const result: VirtualRow[] = [];
+        for (const [catId, items] of ordered) {
+            result.push({
+                type: "header",
+                categoryId: catId,
+                categoryName: catName(catId),
+                count: items.length,
+            });
+            for (let i = 0; i < items.length; i += columnCount) {
+                result.push({
+                    type: "products",
+                    categoryId: catId,
+                    products: items.slice(i, i + columnCount),
+                });
+            }
         }
         return result;
-    }, [products, columnCount]);
+    }, [products, columnCount, groupByCategory, categoriesMap, t]);
 
     const productIds = useMemo(() => products.map((p) => p.id), [products]);
 
-    const rowVirtualizer = useVirtualizer({
+    const rowVirtualizer = useWindowVirtualizer({
         count: rows.length,
-        getScrollElement: () => parentRef.current,
-        estimateSize: () => 480, // Fallback estimate; actual heights measured dynamically
+        // Headers are ~56px, product rows ~480px — measureElement resolves the truth.
+        estimateSize: (i) => (rows[i]?.type === "header" ? 56 : 480),
         overscan: 3,
         measureElement: (element) => element?.getBoundingClientRect().height ?? 480,
+        scrollMargin,
     });
 
     const getCategoryName = useCallback(
@@ -174,11 +267,82 @@ export function VirtualizedProductGrid({
         [categoriesMap]
     );
 
-    const renderGrid = () => (
+    const renderProductRow = (rowProducts: Product[]) => (
         <div
-            ref={parentRef}
-            className="h-[calc(100vh-320px)] overflow-auto scrollbar-hide"
+            className="grid gap-4 pb-4"
+            style={{
+                gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+            }}
         >
+            {rowProducts.map((product) =>
+                onReorder ? (
+                    <SortableGridItem key={product.id} product={product}>
+                        {({ listeners, isDragging }) => (
+                            <SwipeableCard
+                                disabled={!isMobile}
+                                onSwipeLeft={() => onArchive(product.id)}
+                                onSwipeRight={() => onEdit(product)}
+                            >
+                                <ProductGridCard
+                                    product={product}
+                                    categoryName={getCategoryName(product)}
+                                    isSelected={selectedIds.has(product.id)}
+                                    onToggleSelection={onToggleSelection}
+                                    onViewDetails={onViewDetails}
+                                    onEdit={onEdit}
+                                    onArchive={onArchive}
+                                    onRestore={onRestore}
+                                    onDuplicate={onDuplicate}
+                                    onDelete={onDelete}
+                                    onVisibilityToggle={onVisibilityToggle}
+                                    dragListeners={listeners}
+                                    isDragging={isDragging}
+                                />
+                            </SwipeableCard>
+                        )}
+                    </SortableGridItem>
+                ) : (
+                    <SwipeableCard
+                        key={product.id}
+                        disabled={!isMobile}
+                        onSwipeLeft={() => onArchive(product.id)}
+                        onSwipeRight={() => onEdit(product)}
+                    >
+                        <ProductGridCard
+                            product={product}
+                            categoryName={getCategoryName(product)}
+                            isSelected={selectedIds.has(product.id)}
+                            onToggleSelection={onToggleSelection}
+                            onViewDetails={onViewDetails}
+                            onEdit={onEdit}
+                            onArchive={onArchive}
+                            onRestore={onRestore}
+                            onDuplicate={onDuplicate}
+                            onDelete={onDelete}
+                            onVisibilityToggle={onVisibilityToggle}
+                        />
+                    </SwipeableCard>
+                )
+            )}
+        </div>
+    );
+
+    const renderHeaderRow = (row: HeaderRow) => (
+        <div className="pt-2 pb-3">
+            <div className="flex items-center gap-3 px-1 border-b border-[var(--card-border)] pb-2">
+                <div className="w-7 h-7 rounded-lg bg-[var(--background)] flex items-center justify-center">
+                    <FolderOpen className="w-3.5 h-3.5 text-muted" />
+                </div>
+                <span className="font-semibold text-sm text-[var(--ink)]">{row.categoryName}</span>
+                <span className="text-xs text-muted ml-1">
+                    {t("products.groupByCategory.productCount", { count: row.count.toString() })}
+                </span>
+            </div>
+        </div>
+    );
+
+    const renderGrid = () => (
+        <div ref={parentRef} className="relative">
             <div
                 style={{
                     height: `${rowVirtualizer.getTotalSize()}px`,
@@ -187,7 +351,7 @@ export function VirtualizedProductGrid({
                 }}
             >
                 {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                    const rowProducts = rows[virtualRow.index];
+                    const row = rows[virtualRow.index];
                     return (
                         <div
                             key={virtualRow.key}
@@ -198,72 +362,21 @@ export function VirtualizedProductGrid({
                                 top: 0,
                                 left: 0,
                                 width: "100%",
-                                transform: `translateY(${virtualRow.start}px)`,
+                                transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
                             }}
                         >
-                            <div
-                                className="grid gap-4 pb-4"
-                                style={{
-                                    gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
-                                }}
-                            >
-                                {rowProducts.map((product) =>
-                                    onReorder ? (
-                                        <SortableGridItem key={product.id} product={product}>
-                                            {({ listeners, isDragging }) => (
-                                                <SwipeableCard
-                                                    disabled={!isMobile}
-                                                    onSwipeLeft={() => onArchive(product.id)}
-                                                    onSwipeRight={() => onEdit(product)}
-                                                >
-                                                    <ProductGridCard
-                                                        product={product}
-                                                        categoryName={getCategoryName(product)}
-                                                        isSelected={selectedIds.has(product.id)}
-                                                        onToggleSelection={onToggleSelection}
-                                                        onViewDetails={onViewDetails}
-                                                        onEdit={onEdit}
-                                                        onArchive={onArchive}
-                                                        onRestore={onRestore}
-                                                        onDuplicate={onDuplicate}
-                                                        onDelete={onDelete}
-                                                        onVisibilityToggle={onVisibilityToggle}
-                                                        dragListeners={listeners}
-                                                        isDragging={isDragging}
-                                                    />
-                                                </SwipeableCard>
-                                            )}
-                                        </SortableGridItem>
-                                    ) : (
-                                        <SwipeableCard
-                                            key={product.id}
-                                            disabled={!isMobile}
-                                            onSwipeLeft={() => onArchive(product.id)}
-                                            onSwipeRight={() => onEdit(product)}
-                                        >
-                                            <ProductGridCard
-                                                product={product}
-                                                categoryName={getCategoryName(product)}
-                                                isSelected={selectedIds.has(product.id)}
-                                                onToggleSelection={onToggleSelection}
-                                                onViewDetails={onViewDetails}
-                                                onEdit={onEdit}
-                                                onArchive={onArchive}
-                                                onRestore={onRestore}
-                                                onDuplicate={onDuplicate}
-                                                onDelete={onDelete}
-                                                onVisibilityToggle={onVisibilityToggle}
-                                            />
-                                        </SwipeableCard>
-                                    )
-                                )}
-                            </div>
+                            {row.type === "header"
+                                ? renderHeaderRow(row)
+                                : renderProductRow(row.products)}
                         </div>
                     );
                 })}
             </div>
         </div>
     );
+
+    // Suppress unused param lint while keeping Category import for external API contract.
+    void categories;
 
     if (!onReorder) {
         return renderGrid();

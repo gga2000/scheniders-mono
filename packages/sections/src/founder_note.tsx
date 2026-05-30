@@ -1,0 +1,127 @@
+// =====================================================================
+// Section — founder_note
+// =====================================================================
+// Pull-quote with the founder's photo, name, role, and an optional
+// signature image. Used on About pages to put a face to the brand.
+// =====================================================================
+
+import { z } from "zod";
+import { resolveI18n } from "@scheniders/shared";
+import {
+  BentoCard,
+  Sticker,
+} from "./helpers/primitives";
+import { i18nStringSchema, i18nStringOptional } from "./_schema";
+import { registerSection } from "./_registry";
+import type { SectionDefinition } from "./_types";
+
+const schema = z.object({
+  quote_i18n: i18nStringSchema,
+  founder_name_i18n: i18nStringSchema,
+  founder_role_i18n: i18nStringOptional,
+  photo_url: z.string().describe("image").optional(),
+  signature_image_url: z.string().describe("image").optional(),
+});
+
+type Props = z.infer<typeof schema>;
+
+const defaultProps: Props = {
+  quote_i18n: {
+    en: "Every piece we ship is something I'd wear myself — that's the only rule.",
+    ar: "كل قطعة نشحنها هي قطعة أرتديها أنا — تلك هي القاعدة الوحيدة.",
+  },
+  founder_name_i18n: { en: "Yara Al-Shammari", ar: "يارا الشمري" },
+  founder_role_i18n: { en: "Founder & Creative Director", ar: "المؤسِّسة والمديرة الإبداعية" },
+  photo_url: undefined,
+  signature_image_url: undefined,
+};
+
+function FounderNote({
+  props,
+  ctx,
+}: {
+  props: Props;
+  ctx: import("./_types").SectionRenderContext;
+}) {
+  const locale = ctx.runtime.locale;
+  const quote = resolveI18n(props.quote_i18n, locale);
+  const name = resolveI18n(props.founder_name_i18n, locale);
+  const role = resolveI18n(props.founder_role_i18n, locale);
+
+  if (!quote) return null;
+
+  return (
+    <section className="px-4 py-10">
+      <BentoCard bg="cream" size="lg" className="p-0 overflow-hidden">
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_2fr] items-stretch">
+          <div className="relative min-h-[240px] sm:min-h-[320px] border-b-[3px] sm:border-b-0 sm:border-r-[3px] border-candy-ink">
+            {props.photo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={props.photo_url}
+                alt={name}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-candy-pink/40 via-candy-butter/40 to-candy-mint/40" />
+            )}
+            <div className="absolute top-3 left-3">
+              <Sticker bg="pink" rotate={-5} size="sm">
+                {locale === "ar" ? "كلمة المؤسِّس" : "Founder note"}
+              </Sticker>
+            </div>
+          </div>
+          <div className="p-6 sm:p-10 flex flex-col justify-center">
+            <span
+              className="font-display font-black text-7xl leading-none text-candy-pink/40 select-none"
+              aria-hidden="true"
+            >
+              &ldquo;
+            </span>
+            <blockquote className="font-display font-black text-2xl sm:text-3xl uppercase leading-tight tracking-tight text-candy-ink -mt-4">
+              {quote}
+            </blockquote>
+            <div className="mt-6 flex items-center gap-4">
+              <div>
+                <div className="font-display font-black text-base uppercase text-candy-ink">
+                  {name}
+                </div>
+                {role && (
+                  <div className="font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/60 mt-1">
+                    {role}
+                  </div>
+                )}
+              </div>
+              {props.signature_image_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={props.signature_image_url}
+                  alt={`${name} signature`}
+                  className="h-10 w-auto"
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      </BentoCard>
+    </section>
+  );
+}
+
+const definition: SectionDefinition<Props> = {
+  type: "founder_note",
+  category: "story",
+  name: { en: "Founder note", ar: "كلمة المؤسِّس" },
+  description: {
+    en: "Pull-quote with founder photo, name, role, and optional signature.",
+    ar: "اقتباس مع صورة المؤسس واسمه ودوره وتوقيع اختياري.",
+  },
+  thumbnail: "/sections/founder_note.svg",
+  valid_on: ["about", "home"],
+  schema,
+  defaultProps,
+  render: FounderNote,
+};
+
+registerSection(definition);
+export default definition;

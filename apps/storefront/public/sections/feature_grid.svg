@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" width="320" height="200">
+  <rect width="320" height="200" fill="#fff7ed"/>
+  <g transform="translate(12 12)">
+    <rect width="296" height="176" rx="14" fill="#fff5dd" stroke="#1a1a1a" stroke-width="4"/>
+    <g transform="translate(14 32)">
+      <rect width="86" height="120" rx="10" fill="#7cf0bd" stroke="#1a1a1a" stroke-width="3"/>
+      <rect x="14" y="14" width="32" height="32" rx="8" fill="#ffffff" stroke="#1a1a1a" stroke-width="3"/>
+      <rect x="14" y="56" width="58" height="8" rx="3" fill="#1a1a1a"/>
+      <rect x="14" y="68" width="50" height="6" rx="2" fill="#1a1a1a" opacity="0.5"/>
+      <rect x="14" y="80" width="60" height="6" rx="2" fill="#1a1a1a" opacity="0.5"/>
+      <rect x="14" y="92" width="55" height="6" rx="2" fill="#1a1a1a" opacity="0.5"/>
+    </g>
+    <g transform="translate(105 32)">
+      <rect width="86" height="120" rx="10" fill="#ffd84a" stroke="#1a1a1a" stroke-width="3"/>
+      <rect x="14" y="14" width="32" height="32" rx="8" fill="#ffffff" stroke="#1a1a1a" stroke-width="3"/>
+      <rect x="14" y="56" width="58" height="8" rx="3" fill="#1a1a1a"/>
+      <rect x="14" y="68" width="50" height="6" rx="2" fill="#1a1a1a" opacity="0.5"/>
+      <rect x="14" y="80" width="60" height="6" rx="2" fill="#1a1a1a" opacity="0.5"/>
+      <rect x="14" y="92" width="55" height="6" rx="2" fill="#1a1a1a" opacity="0.5"/>
+    </g>
+    <g transform="translate(196 32)">
+      <rect width="86" height="120" rx="10" fill="#c5b6ff" stroke="#1a1a1a" stroke-width="3"/>
+      <rect x="14" y="14" width="32" height="32" rx="8" fill="#ffffff" stroke="#1a1a1a" stroke-width="3"/>
+      <rect x="14" y="56" width="58" height="8" rx="3" fill="#1a1a1a"/>
+      <rect x="14" y="68" width="50" height="6" rx="2" fill="#1a1a1a" opacity="0.5"/>
+      <rect x="14" y="80" width="60" height="6" rx="2" fill="#1a1a1a" opacity="0.5"/>
+      <rect x="14" y="92" width="55" height="6" rx="2" fill="#1a1a1a" opacity="0.5"/>
+    </g>
+  </g>
+  <text x="160" y="194" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#1a1a1a" opacity="0.5">feature_grid</text>
+</svg>

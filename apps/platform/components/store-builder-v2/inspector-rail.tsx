@@ -1,0 +1,231 @@
+"use client";
+
+// =====================================================================
+// InspectorRail — Schneiders Builder v2
+// =====================================================================
+// The persistent right-hand rail that hosts the editor's primary
+// inspection surfaces: Blocks (page section list with inline property
+// expansion), Style (brand kit), Health (publish-readiness checklist).
+//
+// Replaces the old "swap SectionListPanel for SectionEditPanel" model:
+// editing a section now expands an accordion below its row, so the
+// merchant never loses the rest of the page outline.
+// =====================================================================
+
+import { useMemo, useState } from "react";
+import { Blocks as BlocksIcon, HeartPulse, Palette } from "lucide-react";
+import type {
+    AudienceSegment,
+    BrandKit,
+    Experiment,
+    LocaleCode,
+    PageId,
+    SectionInstance,
+    StoreConfigV2,
+} from "@scheniders/shared";
+import { cn } from "@/lib/utils";
+import { SectionListPanel } from "./section-list-panel";
+import { BrandKitEditor } from "./brand-kit-editor";
+import { HealthChecklistScreen } from "./health-checklist-screen";
+import type { SettingsSectionId } from "./page-tree";
+
+export type InspectorTab = "blocks" | "style" | "health";
+
+export interface InspectorRailProps {
+    /** Currently active tab. */
+    activeTab: InspectorTab;
+    onChangeTab: (tab: InspectorTab) => void;
+
+    /* ── Blocks tab ─────────────────────────────────────────────── */
+    pageId: PageId;
+    pageLabel: string;
+    sections: SectionInstance[];
+    onChangeSections: (next: SectionInstance[]) => void;
+    onAddSection: () => void;
+    selectedSectionId?: string | null;
+    onSelectSection?: (id: string) => void;
+    registerRowRef?: (id: string, el: HTMLElement | null) => void;
+    onStartFromTemplate?: () => void;
+    onSaveAsPreset?: (sectionId: string, name: string) => void;
+    expandedSectionId?: string | null;
+    onToggleExpanded?: (id: string) => void;
+    tenantId?: string;
+    activeLocale?: LocaleCode;
+    /** Active editor breakpoint — drives per-field adornment highlight. */
+    activeBreakpoint?: "mobile" | "tablet" | "desktop";
+    experiments?: Experiment[];
+    segments?: AudienceSegment[];
+    /**
+     * Forwarded to the inline Section Edit Panel — fired when the
+     * merchant clicks a row in the Layers strip.
+     */
+    onEditLayer?: (info: { field?: string; layerId?: string; el: HTMLElement }) => void;
+
+    /* ── Style tab ──────────────────────────────────────────────── */
+    brandKit: BrandKit;
+    onChangeBrandKit: (next: BrandKit) => void;
+
+    /* ── Health tab ─────────────────────────────────────────────── */
+    config: StoreConfigV2;
+    tenantName: string;
+    onJumpToSetting?: (id: SettingsSectionId) => void;
+    onJumpToPage?: (page: PageId) => void;
+    onJumpToSection?: (page: PageId, sectionId: string) => void;
+}
+
+export function InspectorRail(props: InspectorRailProps): React.ReactElement {
+    const {
+        activeTab,
+        onChangeTab,
+        pageId,
+        pageLabel,
+        sections,
+        onChangeSections,
+        onAddSection,
+        selectedSectionId,
+        onSelectSection,
+        registerRowRef,
+        onStartFromTemplate,
+        onSaveAsPreset,
+        expandedSectionId,
+        onToggleExpanded,
+        tenantId,
+        activeLocale,
+        activeBreakpoint,
+        experiments,
+        segments,
+        onEditLayer,
+        brandKit,
+        onChangeBrandKit,
+        config,
+        tenantName,
+        onJumpToSetting,
+        onJumpToPage,
+        onJumpToSection,
+    } = props;
+
+    return (
+        <aside
+            data-testid="inspector-rail"
+            aria-label="Inspector"
+            className="flex w-[380px] shrink-0 flex-col overflow-hidden border-l border-(--card-border) bg-(--card-bg)"
+        >
+            <nav
+                role="tablist"
+                aria-label="Inspector tabs"
+                data-testid="inspector-rail-tabs"
+                className="flex shrink-0 items-stretch border-b border-(--card-border)"
+            >
+                <InspectorTabBtn
+                    icon={<BlocksIcon className="h-3.5 w-3.5" aria-hidden="true" />}
+                    label="Blocks"
+                    testId="inspector-tab-blocks"
+                    active={activeTab === "blocks"}
+                    onClick={() => onChangeTab("blocks")}
+                />
+                <InspectorTabBtn
+                    icon={<Palette className="h-3.5 w-3.5" aria-hidden="true" />}
+                    label="Style"
+                    testId="inspector-tab-style"
+                    active={activeTab === "style"}
+                    onClick={() => onChangeTab("style")}
+                />
+                <InspectorTabBtn
+                    icon={<HeartPulse className="h-3.5 w-3.5" aria-hidden="true" />}
+                    label="Health"
+                    testId="inspector-tab-health"
+                    active={activeTab === "health"}
+                    onClick={() => onChangeTab("health")}
+                />
+            </nav>
+
+            <div className="flex flex-1 overflow-hidden">
+                {activeTab === "blocks" ? (
+                    <SectionListPanel
+                        pageId={pageId}
+                        pageLabel={pageLabel}
+                        sections={sections}
+                        onChange={onChangeSections}
+                        onAdd={onAddSection}
+                        selectedSectionId={selectedSectionId}
+                        onSelectSection={onSelectSection}
+                        registerRowRef={registerRowRef}
+                        onStartFromTemplate={onStartFromTemplate}
+                        onSaveAsPreset={onSaveAsPreset}
+                        expandedSectionId={expandedSectionId}
+                        onToggleExpanded={onToggleExpanded}
+                        tenantId={tenantId}
+                        activeLocale={activeLocale}
+                        activeBreakpoint={activeBreakpoint}
+                        experiments={experiments}
+                        segments={segments}
+                        onEditLayer={onEditLayer}
+                    />
+                ) : activeTab === "style" ? (
+                    <div
+                        data-testid="inspector-style-panel"
+                        className="flex flex-1 flex-col overflow-y-auto"
+                    >
+                        <BrandKitEditor
+                            value={brandKit}
+                            onChange={onChangeBrandKit}
+                            tenantId={tenantId}
+                        />
+                    </div>
+                ) : (
+                    <div
+                        data-testid="inspector-health-panel"
+                        className="flex flex-1 flex-col overflow-y-auto"
+                    >
+                        <HealthChecklistScreen
+                            config={config}
+                            tenantName={tenantName}
+                            onSelectSetting={(id) => {
+                                if (id === "health") return;
+                                onJumpToSetting?.(id);
+                            }}
+                            onSelectPage={(page) => onJumpToPage?.(page)}
+                            onSelectSection={(page, sectionId) =>
+                                onJumpToSection?.(page, sectionId)
+                            }
+                            onClose={() => onChangeTab("blocks")}
+                        />
+                    </div>
+                )}
+            </div>
+        </aside>
+    );
+}
+
+function InspectorTabBtn({
+    icon,
+    label,
+    testId,
+    active,
+    onClick,
+}: {
+    icon: React.ReactNode;
+    label: string;
+    testId: string;
+    active: boolean;
+    onClick: () => void;
+}): React.ReactElement {
+    return (
+        <button
+            type="button"
+            role="tab"
+            aria-selected={active}
+            data-testid={testId}
+            onClick={onClick}
+            className={cn(
+                "flex flex-1 items-center justify-center gap-1.5 px-2 py-2.5 text-xs font-semibold transition-colors border-b-2",
+                active
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-foreground/60 hover:text-foreground",
+            )}
+        >
+            {icon}
+            <span>{label}</span>
+        </button>
+    );
+}

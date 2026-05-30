@@ -161,37 +161,37 @@ export async function removeFromQuarantine(orderId: string) {
     }
 }
 
+export type QCResolution = 'restocked' | 'written_off' | 'returned_to_supplier';
+
 /**
  * Resolves a quarantined item.
- * @param qcItemId The ID in the qc_quarantine table
- * @param resolution 'restocked' or 'written_off'
- * @param productId The ID of the actual product
- * @param quantity How many units
+ * `restocked` — item returned to sellable inventory (no stock change; was never deducted)
+ * `written_off` — item destroyed / lost; physical stock deducted
+ * `returned_to_supplier` — shipped back to supplier; physical stock deducted, RMA recorded
  */
-export async function resolveQuarantine(qcItemId: string, resolution: 'restocked' | 'written_off', productId: string, quantity: number) {
+export async function resolveQuarantine(
+    qcItemId: string,
+    resolution: QCResolution,
+    productId: string,
+    quantity: number,
+    extras?: { rma_number?: string; credit_expected?: number; notes?: string }
+) {
     try {
+        const updatePayload: Record<string, any> = {
+            status: resolution,
+            resolved_at: new Date().toISOString(),
+        };
+        if (extras?.rma_number !== undefined) updatePayload.rma_number = extras.rma_number;
+        if (extras?.credit_expected !== undefined) updatePayload.credit_expected = extras.credit_expected;
+        if (extras?.notes !== undefined) updatePayload.notes = extras.notes;
+
         await supabase
             .from('qc_quarantine')
-            .update({
-                status: resolution,
-                resolved_at: new Date().toISOString()
-            })
+            .update(updatePayload)
             .eq('id', qcItemId);
 
-        // If the item is safe, we don't have to change physical stock,
-        // Wait, physical stock wasn't deducted yet (it's only deducted on fulfillOrder).
-        // Since it was cancelled/rejected and never fulfilled, physical stock is already correct.
-        // Wait, if physical stock is "on the shelf", and the item was sent to the delivery company,
-        // technically it left the shelf. BUT our simple model only drops physical stock upon "Completed/Delivered".
-        // Therefore, if it was Rejected and comes back, the physical stock number hasn't dropped yet.
-        // Wait, let's think: 
-        // 1. Order Placed: Physical (No Math), Reserved (+1)
-        // 2. Order Sent to Delivery: Physical (No Math), Reserved (Remains +1)
-        // 3a. Order Delivered: Physical (-1), Reserved (-1)
-        // 3b. Order Rejected: Reserved (-1). Physical stays identical. 
-        // Wait, if it's discarded later because it's broken (Written Off), we MUST drop physical stock now!
-
-        if (resolution === 'written_off') {
+        const deductsPhysical = resolution === 'written_off' || resolution === 'returned_to_supplier';
+        if (deductsPhysical) {
             const { data: product } = await supabase
                 .from('products')
                 .select('stock_quantity')
@@ -215,15 +215,128 @@ export async function resolveQuarantine(qcItemId: string, resolution: 'restocked
     }
 }
 
+type DeductInput = OrderItem[] | number;
+
+interface BomRule {
+    supply_id: string;
+    quantity: number;
+    unit: 'per_order' | 'per_item' | 'per_unit';
+}
+
 /**
- * BOM Rule: Auto-deducts supplies (Boxes, Sweets, etc) when an order is packed/completed.
- * Rule: 1 item = 1 Box, 1 Sweet, 1 Card, 1 Vial.
- * If 2 items = 2 Boxes, etc.
+ * Auto-deducts internal supplies (boxes, vials, inserts, etc.) when an order
+ * reaches a terminal status (completed/delivered).
+ *
+ * The preferred caller signature passes the full {@link OrderItem}[] so BOM
+ * rules defined in `bom_items` can be applied exactly:
+ *
+ *   - `per_order`: subtract the rule's quantity once per order
+ *   - `per_item` : subtract it once per order line
+ *   - `per_unit` : multiply by the line's ordered quantity
+ *
+ * If no BOM rules exist for any of the order's products, fall back to the
+ * legacy naive rule (1 supply × line count across every active supply) so the
+ * engine keeps working during the BOM rollout. The legacy numeric signature is
+ * still supported for compatibility.
  */
-export async function deductSupplies(orderItemCount: number) {
-    if (orderItemCount <= 0) return { success: true };
+export async function deductSupplies(input: DeductInput) {
+    const items: OrderItem[] = Array.isArray(input)
+        ? input.filter((i) => i.product_id)
+        : [];
+    const legacyItemCount =
+        typeof input === 'number' ? input : items.length;
+
+    if (items.length === 0 && legacyItemCount <= 0) {
+        return { success: true };
+    }
 
     try {
+        // If we have the order items, try the BOM path first.
+        if (items.length > 0) {
+            const productIds = Array.from(
+                new Set(items.map((i) => i.product_id).filter(Boolean) as string[])
+            );
+
+            const { data: rulesData, error: rulesError } = await supabase
+                .from('bom_items')
+                .select('product_id, supply_id, quantity, unit')
+                .in('product_id', productIds);
+
+            if (rulesError) throw rulesError;
+
+            const rulesByProduct = new Map<string, BomRule[]>();
+            for (const r of rulesData ?? []) {
+                const list = rulesByProduct.get(r.product_id) ?? [];
+                list.push({
+                    supply_id: r.supply_id,
+                    quantity: Number(r.quantity),
+                    unit: r.unit,
+                });
+                rulesByProduct.set(r.product_id, list);
+            }
+
+            if (rulesData && rulesData.length > 0) {
+                // Aggregate per supply across the order.
+                const deductions = new Map<string, number>();
+                const perOrderApplied = new Set<string>();
+
+                for (const item of items) {
+                    const pid = item.product_id!;
+                    const qty = Math.max(1, item.quantity ?? 1);
+                    const rules = rulesByProduct.get(pid);
+                    if (!rules) continue;
+
+                    for (const rule of rules) {
+                        let multiplier = 0;
+                        if (rule.unit === 'per_unit') {
+                            multiplier = qty;
+                        } else if (rule.unit === 'per_item') {
+                            multiplier = 1;
+                        } else if (rule.unit === 'per_order') {
+                            const key = `${pid}:${rule.supply_id}`;
+                            if (perOrderApplied.has(key)) continue;
+                            perOrderApplied.add(key);
+                            multiplier = 1;
+                        }
+
+                        const delta = rule.quantity * multiplier;
+                        if (delta <= 0) continue;
+                        deductions.set(
+                            rule.supply_id,
+                            (deductions.get(rule.supply_id) ?? 0) + delta
+                        );
+                    }
+                }
+
+                if (deductions.size > 0) {
+                    const supplyIds = Array.from(deductions.keys());
+                    const { data: supplies } = await supabase
+                        .from('products')
+                        .select('id, stock_quantity')
+                        .in('id', supplyIds);
+
+                    for (const supply of supplies ?? []) {
+                        const delta = deductions.get(supply.id) ?? 0;
+                        if (delta <= 0) continue;
+                        const nextQty = Math.max(
+                            0,
+                            (supply.stock_quantity ?? 0) - Math.ceil(delta)
+                        );
+                        await supabase
+                            .from('products')
+                            .update({ stock_quantity: nextQty })
+                            .eq('id', supply.id);
+                    }
+
+                    return { success: true, via: 'bom' as const };
+                }
+                // Fell through: products had no matching rules; use legacy below.
+            }
+        }
+
+        // Legacy fallback: deduct 1× line count from every active supply.
+        if (legacyItemCount <= 0) return { success: true };
+
         const { data: supplies } = await supabase
             .from('products')
             .select('id, stock_quantity')
@@ -231,18 +344,21 @@ export async function deductSupplies(orderItemCount: number) {
 
         if (!supplies || supplies.length === 0) return { success: true };
 
-        // In a real app we'd map specific supply names/IDs, but per the brainstorm, 
-        // we'll deduct standard quantities from all active supplies
         for (const supply of supplies) {
             await supabase
                 .from('products')
-                .update({ stock_quantity: Math.max(0, supply.stock_quantity - orderItemCount) })
+                .update({
+                    stock_quantity: Math.max(
+                        0,
+                        supply.stock_quantity - legacyItemCount
+                    ),
+                })
                 .eq('id', supply.id);
         }
 
-        return { success: true };
+        return { success: true, via: 'legacy' as const };
     } catch (e: any) {
-        console.error("Failed to deduct supplies:", e);
+        console.error('Failed to deduct supplies:', e);
         return { success: false, error: e.message };
     }
 }

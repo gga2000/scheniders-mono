@@ -2,32 +2,46 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import type { Category } from "@/types/product";
+import type { Category, CategoryStatus } from "@/types/product";
 import { useAuth } from "@/components/auth/auth-provider";
 import { CACHE_PRESETS } from "@/lib/query-config";
 
 export const categoryKeys = {
     all: ["categories"] as const,
     lists: () => [...categoryKeys.all, "list"] as const,
+    list: (filters: CategoriesFilters) =>
+        [...categoryKeys.lists(), filters] as const,
 };
 
-async function fetchCategories(): Promise<Category[]> {
-    const { data, error } = await supabase
+export interface CategoriesFilters {
+    includeArchived?: boolean;
+    statuses?: CategoryStatus[];
+}
+
+async function fetchCategories(filters: CategoriesFilters = {}): Promise<Category[]> {
+    let query = supabase
         .from("categories")
         .select("*")
         .order("display_order", { ascending: true })
         .order("name", { ascending: true });
 
+    if (filters.statuses && filters.statuses.length > 0) {
+        query = query.in("status", filters.statuses);
+    } else if (!filters.includeArchived) {
+        query = query.neq("status", "archived");
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
-    return (data || []) as Category[];
+    return (data || []) as unknown as Category[];
 }
 
-export function useCategoriesQuery() {
+export function useCategoriesQuery(filters: CategoriesFilters = {}) {
     const { session, clientReady } = useAuth();
 
     return useQuery({
-        queryKey: categoryKeys.lists(),
-        queryFn: fetchCategories,
+        queryKey: categoryKeys.list(filters),
+        queryFn: () => fetchCategories(filters),
         enabled: !!session && clientReady,
         staleTime: CACHE_PRESETS.STANDARD.staleTime * 2,
         gcTime: CACHE_PRESETS.STANDARD.gcTime * 2,
@@ -38,17 +52,20 @@ export function useAddCategoryMutation() {
     const queryClient = useQueryClient();
     const { tenantId } = useAuth();
     return useMutation({
-        mutationFn: async (data: Omit<Category, "id" | "tenant_id" | "created_at" | "updated_at">) => {
+        mutationFn: async (
+            data: Partial<Omit<Category, "id" | "tenant_id" | "created_at" | "updated_at">> &
+                Pick<Category, "name" | "slug">,
+        ) => {
             const { data: newCategory, error } = await supabase
                 .from("categories")
-                .insert([{ ...data, tenant_id: tenantId }])
+                .insert([{ ...data, tenant_id: tenantId! } as never])
                 .select()
                 .single();
             if (error) throw error;
-            return newCategory as Category;
+            return newCategory as unknown as Category;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: categoryKeys.lists() });
+            queryClient.invalidateQueries({ queryKey: categoryKeys.all });
         },
     });
 }
@@ -59,13 +76,13 @@ export function useUpdateCategoryMutation() {
         mutationFn: async ({ id, data }: { id: string; data: Partial<Category> }) => {
             const { error } = await supabase
                 .from("categories")
-                .update(data)
+                .update(data as never)
                 .eq("id", id);
             if (error) throw error;
             return { id, data };
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: categoryKeys.lists() });
+            queryClient.invalidateQueries({ queryKey: categoryKeys.all });
         },
     });
 }
@@ -82,7 +99,202 @@ export function useDeleteCategoryMutation() {
             return id;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: categoryKeys.lists() });
+            queryClient.invalidateQueries({ queryKey: categoryKeys.all });
+        },
+    });
+}
+
+// Soft-delete: marks the category as archived with a timestamp so it can be restored
+// within the 30-day grace window handled by a nightly purge job.
+export function useArchiveCategoryMutation() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (id: string) => {
+            const { error } = await supabase
+                .from("categories")
+                .update({
+                    status: "archived",
+                    archived_at: new Date().toISOString(),
+                } as never)
+                .eq("id", id);
+            if (error) throw error;
+            return id;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: categoryKeys.all });
+        },
+    });
+}
+
+export function useRestoreCategoryMutation() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (id: string) => {
+            const { error } = await supabase
+                .from("categories")
+                .update({
+                    status: "published",
+                    archived_at: null,
+                } as never)
+                .eq("id", id);
+            if (error) throw error;
+            return id;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: categoryKeys.all });
+        },
+    });
+}
+
+export interface ReorderEntry {
+    id: string;
+    parent_id: string | null;
+    display_order: number;
+}
+
+// Batches reorder + re-parent into a single round trip per row. Supabase JS client does
+// not expose `UPDATE ... FROM (VALUES ...)` so we fan out with Promise.all; RLS applies
+// per-row. Future optimization: expose an RPC that takes a JSON array.
+export function useReorderCategoriesMutation() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (entries: ReorderEntry[]) => {
+            if (entries.length === 0) return [] as string[];
+            const results = await Promise.all(
+                entries.map((e) =>
+                    supabase
+                        .from("categories")
+                        .update({
+                            parent_id: e.parent_id,
+                            display_order: e.display_order,
+                        } as never)
+                        .eq("id", e.id),
+                ),
+            );
+            const firstError = results.find((r) => r.error)?.error;
+            if (firstError) throw firstError;
+            return entries.map((e) => e.id);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: categoryKeys.all });
+        },
+    });
+}
+
+export function useDuplicateCategoryMutation() {
+    const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
+    return useMutation({
+        mutationFn: async ({
+            id,
+            withProducts,
+        }: {
+            id: string;
+            withProducts: boolean;
+        }) => {
+            const { data: src, error: fetchErr } = await supabase
+                .from("categories")
+                .select("*")
+                .eq("id", id)
+                .single();
+            if (fetchErr) throw fetchErr;
+
+            const source = src as unknown as Category;
+            const copy = {
+                ...source,
+                id: undefined,
+                tenant_id: tenantId!,
+                name: `${source.name} (copy)`,
+                slug: `${source.slug}-copy-${Date.now().toString(36)}`,
+                created_at: undefined,
+                updated_at: undefined,
+            };
+            delete (copy as Partial<Category>).id;
+            delete (copy as Partial<Category>).created_at;
+            delete (copy as Partial<Category>).updated_at;
+
+            const { data: inserted, error: insErr } = await supabase
+                .from("categories")
+                .insert([copy as never])
+                .select()
+                .single();
+            if (insErr) throw insErr;
+            const newCategory = inserted as unknown as Category;
+
+            if (withProducts) {
+                const { data: assignments } = await supabase
+                    .from("product_categories")
+                    .select("product_id, is_featured, featured_order")
+                    .eq("category_id", id);
+                if (assignments && assignments.length > 0) {
+                    const rows = assignments.map((a) => ({
+                        tenant_id: tenantId!,
+                        category_id: newCategory.id,
+                        product_id: a.product_id,
+                        is_primary: false,
+                        is_featured: a.is_featured,
+                        featured_order: a.featured_order,
+                        source: "manual" as const,
+                    }));
+                    await supabase.from("product_categories").insert(rows as never);
+                }
+            }
+            return newCategory;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: categoryKeys.all });
+        },
+    });
+}
+
+// Merge + split are wired to Supabase RPCs shipped in Phase 4. Stubs retained here so
+// callers can depend on stable names; RPC creation happens in
+// 20260414100400_category_redirects.sql (merge) and a later rpc migration (split).
+export function useMergeCategoriesMutation() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({
+            sourceId,
+            targetId,
+        }: {
+            sourceId: string;
+            targetId: string;
+        }) => {
+            const { error } = await supabase.rpc("merge_categories" as never, {
+                source_id: sourceId,
+                target_id: targetId,
+            } as never);
+            if (error) throw error;
+            return { sourceId, targetId };
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: categoryKeys.all });
+        },
+    });
+}
+
+export function useSplitCategoryMutation() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({
+            sourceId,
+            productIds,
+            newCategory,
+        }: {
+            sourceId: string;
+            productIds: string[];
+            newCategory: { name: string; slug: string; parent_id?: string | null };
+        }) => {
+            const { data, error } = await supabase.rpc("split_category" as never, {
+                source_id: sourceId,
+                product_ids: productIds,
+                new_category: newCategory,
+            } as never);
+            if (error) throw error;
+            return data as unknown as { new_category_id: string };
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: categoryKeys.all });
         },
     });
 }
