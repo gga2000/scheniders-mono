@@ -12,7 +12,7 @@ import { useLanguage } from "@/hooks/use-language";
 interface ProductPickerProps {
     open: boolean;
     onClose: () => void;
-    onSelect: (product: { name: string; price: number; quantity: number; image_url?: string; tag_color?: string }) => void;
+    onSelect: (product: { product_id: string; name: string; price: number; quantity: number; image_url?: string; tag_color?: string }) => void;
 }
 
 interface SelectedProduct {
@@ -61,6 +61,7 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
     const handleConfirm = () => {
         selectedProducts.forEach(({ product, quantity }) => {
             onSelect({
+                product_id: product.id,
                 name: product.name,
                 price: product.price,
                 quantity: quantity,

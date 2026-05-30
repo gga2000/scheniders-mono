@@ -290,7 +290,7 @@ export function CreateOrderModal({
         }));
     };
 
-    const handleProductSelect = (product: { name: string; price: number; quantity: number; image_url?: string }) => {
+    const handleProductSelect = (product: { product_id: string; name: string; price: number; quantity: number; image_url?: string }) => {
         setFormData((prev) => ({
             ...prev,
             items: [...prev.items, product],
@@ -424,6 +424,8 @@ export function CreateOrderModal({
         }
         if (formData.items.length === 0) {
             newErrors.items = "أضف منتج واحد على الأقل";
+        } else if (formData.items.some(item => !item.product_id)) {
+            newErrors.items = "كل منتج يجب اختياره من قائمة المنتجات (حتى يُحسب من المخزون)";
         }
 
         if (orderType === "delivery") {

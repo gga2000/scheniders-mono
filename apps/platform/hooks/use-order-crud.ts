@@ -185,32 +185,26 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     });
                     diag.log(`[Diag:StatusUpdate] MUTATION_OK orderId=${orderId} seq=${mySeq} took=${(performance.now() - _tMut).toFixed(1)}ms`);
 
-                    // Handle Advanced Inventory & Supplies based on Status Changes
+                    // Reserved/stock math is owned by the DB trigger on `orders`.
+                    // Here we only fire side-effects the trigger does NOT cover:
+                    //   - supplies/BOM deduction
+                    //   - QC quarantine queue population for returns
                     if (previousOrder && previousOrder.status !== status) {
-                        diag.log(`[Diag:StatusUpdate] INVENTORY_START orderId=${orderId}`);
                         import("@/lib/inventory-engine").then(engine => {
                             const items = previousOrder.items || [];
-                            const prevWasActive = !['completed', 'delivered', 'rejected', 'refund_delivered', 'refund_failed', 'cancelled'].includes(previousOrder.status);
-                            const nowIsActive = !['completed', 'delivered', 'rejected', 'refund_delivered', 'refund_failed', 'cancelled'].includes(status);
+                            const TERMINAL = ['completed', 'delivered', 'rejected', 'refund_delivered', 'refund_failed', 'cancelled'];
+                            const prevWasActive = !TERMINAL.includes(previousOrder.status);
+                            const nowIsActive = !TERMINAL.includes(status);
 
                             if (status === 'completed' || status === 'delivered') {
-                                engine.fulfillOrder(items);
                                 engine.deductSupplies(items);
                             } else if (status === 'rejected' || status === 'refund_delivered') {
                                 engine.quarantineOrder(orderId, items, rejectionReason || `Changed to ${status}`);
-                            } else if (status === 'cancelled' && prevWasActive) {
-                                engine.releaseAllocation(items);
-                            } else if (nowIsActive && !prevWasActive) {
-                                if (previousOrder.status === 'rejected' || previousOrder.status === 'refund_delivered' || previousOrder.status === 'cancelled') {
-                                    engine.removeFromQuarantine(orderId);
-                                }
-                                engine.allocateOrder(items);
+                            } else if (nowIsActive && !prevWasActive &&
+                                       ['rejected', 'refund_delivered', 'cancelled'].includes(previousOrder.status)) {
+                                engine.removeFromQuarantine(orderId);
                             }
-                            diag.log(`[Diag:StatusUpdate] INVENTORY_OK orderId=${orderId}`);
-                        }).catch(err => {
-                            diag.log(`[Diag:StatusUpdate] INVENTORY_ERR orderId=${orderId} err=${err}`);
-                            console.error(err);
-                        });
+                        }).catch(console.error);
                     }
 
                     // Record status change to history table
@@ -496,10 +490,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     });
             }
 
-            // Handle Advanced Inventory
-            import("@/lib/inventory-engine").then(engine => {
-                engine.allocateOrder(cleanOrderData.items || []);
-            }).catch(console.error);
+            // Reserved stock is allocated automatically by the DB trigger on `orders`
+            // (INSERT of a confirmed/active order reserves its linked items).
 
             activityLogger.logOrderCreate(
                 data.id,
@@ -834,29 +826,24 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             const successfulIds = successfulOperations.map((op: { id: string }) => op.id);
 
-            // Handle Advanced Inventory & Supplies for each SUCCESSFUL order
+            // Reserved/stock math handled by the DB trigger. Only supplies + QC-queue side-effects here.
             import("@/lib/inventory-engine").then(engine => {
-                const nowIsActive = !['completed', 'delivered', 'rejected', 'refund_delivered', 'refund_failed', 'cancelled'].includes(status);
-
+                const TERMINAL = ['completed', 'delivered', 'rejected', 'refund_delivered', 'refund_failed', 'cancelled'];
                 successfulOperations.forEach(({ id }: { id: string }) => {
                     const previousOrder = previousOrders.find(o => o.id === id);
                     if (!previousOrder) return;
-                    
+
                     const items = previousOrder.items || [];
-                    const prevWasActive = !['completed', 'delivered', 'rejected', 'refund_delivered', 'refund_failed', 'cancelled'].includes(previousOrder.status);
+                    const prevWasActive = !TERMINAL.includes(previousOrder.status);
+                    const nowIsActive = !TERMINAL.includes(status);
 
                     if (status === 'completed' || status === 'delivered') {
-                        engine.fulfillOrder(items);
                         engine.deductSupplies(items);
                     } else if (status === 'rejected' || status === 'refund_delivered') {
                         engine.quarantineOrder(id, items, `Bulk changed to ${status}`);
-                    } else if (status === 'cancelled' && prevWasActive) {
-                        engine.releaseAllocation(items);
-                    } else if (nowIsActive && !prevWasActive) {
-                        if (['rejected', 'refund_delivered', 'cancelled'].includes(previousOrder.status)) {
-                            engine.removeFromQuarantine(id);
-                        }
-                        engine.allocateOrder(items);
+                    } else if (nowIsActive && !prevWasActive &&
+                               ['rejected', 'refund_delivered', 'cancelled'].includes(previousOrder.status)) {
+                        engine.removeFromQuarantine(id);
                     }
                 });
             }).catch(console.error);

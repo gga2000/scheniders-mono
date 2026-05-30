@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useProductsCrud } from "@/hooks/use-products-crud";
+import { useRecomputeInventoryMutation, useZeroOversoldMutation } from "@/hooks/use-products-query";
 import { Product, getStockStatus, supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layout/page-transition";
@@ -16,6 +17,8 @@ import {
     List,
     ChevronDown,
     Plus,
+    RefreshCw,
+    AlertTriangle,
     CheckSquare,
     Square,
     Filter,
@@ -112,6 +115,8 @@ function ProductsContent() {
         deleteProduct,
         reorderProducts,
     } = useProductsCrud();
+    const recomputeInventory = useRecomputeInventoryMutation();
+    const zeroOversold = useZeroOversoldMutation();
 
     const { data: categories } = useCategoriesQuery();
     const categoriesMap = useMemo(() => {
@@ -761,6 +766,36 @@ function ProductsContent() {
                                 onExportExcel={handleExportExcel}
                                 onPrintReport={handlePrintReport}
                             />
+                            <button
+                                onClick={() => recomputeInventory.mutate(undefined, {
+                                    onSuccess: () => toast.success("تمت إعادة حساب المخزون"),
+                                    onError: () => toast.error("فشلت إعادة حساب المخزون"),
+                                })}
+                                disabled={recomputeInventory.isPending}
+                                className={cn(
+                                    "flex items-center gap-2 px-4 py-3 rounded-xl font-medium border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-all",
+                                    recomputeInventory.isPending && "opacity-50 cursor-not-allowed"
+                                )}
+                                title="إعادة حساب الكميات المحجوزة من الطلبات النشطة"
+                            >
+                                <RefreshCw className={cn("w-4 h-4", recomputeInventory.isPending && "animate-spin")} />
+                                Recalculate
+                            </button>
+                            <button
+                                onClick={() => zeroOversold.mutate(undefined, {
+                                    onSuccess: () => toast.success("تم تصفير الكمية الزائدة"),
+                                    onError: () => toast.error("فشل تصفير الكمية الزائدة"),
+                                })}
+                                disabled={zeroOversold.isPending}
+                                className={cn(
+                                    "flex items-center gap-2 px-4 py-3 rounded-xl font-medium border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-all",
+                                    zeroOversold.isPending && "opacity-50 cursor-not-allowed"
+                                )}
+                                title="Top on-hand up to reserved for oversold products (oversold → 0)"
+                            >
+                                <AlertTriangle className="w-4 h-4" />
+                                Zero oversold
+                            </button>
                             <button
                                 onClick={handleAddProduct}
                                 className="flex items-center gap-2 px-5 py-3 bg-[var(--ink)] text-white rounded-xl font-medium hover:opacity-90 transition-all shadow-lg"
