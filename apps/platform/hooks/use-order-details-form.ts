@@ -139,7 +139,7 @@ export function useOrderDetailsForm({ order, setOrder, onUpdate, t }: UseOrderDe
         setShowProductPicker(true);
     };
 
-    const handleProductSelect = (product: { name: string; price: number; quantity: number; image_url?: string; tag_color?: string }) => {
+    const handleProductSelect = (product: { name: string; price: number; quantity: number; image_url?: string; tag_color?: string; product_id?: string; is_open_box?: boolean }) => {
         if (!order) return;
         setFormData((prev) => {
             const currentItems = [...((prev.items || order.items || []) as OrderItem[])];

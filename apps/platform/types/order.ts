@@ -48,8 +48,10 @@ export interface OrderItem {
     compare_at_price?: number;
     sku?: string;
     product_id?: string;
+    variant_id?: string;
     image_url?: string;
     tag_color?: string;
+    is_open_box?: boolean;
 }
 
 export interface Order {

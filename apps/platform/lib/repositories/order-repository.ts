@@ -172,6 +172,18 @@ export const orderRepository = {
         return data ? normalizeOrder(data) : null;
     },
 
+    /** Fetch a single order by its display order_id (not the uuid). Returns null if none. Tenant-scoped via RLS. */
+    async findByOrderId(orderId: string): Promise<Order | null> {
+        const { data, error } = await supabase
+            .from("v_orders_with_risk")
+            .select("*")
+            .eq("order_id", orderId)
+            .limit(1)
+            .maybeSingle();
+        if (error) throw error;
+        return data ? normalizeOrder(data as unknown as Order) : null;
+    },
+
     /** Update an order by ID. Verifies the write actually affected a row. Supports conflict detection via expectedUpdatedAt. */
     async update(id: string, updates: Partial<Order>, expectedUpdatedAt?: string): Promise<Order> {
         const _t = performance.now();

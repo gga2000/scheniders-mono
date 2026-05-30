@@ -275,7 +275,7 @@ export function CreateOrderModal({
         }
     };
 
-    const updateItem = (index: number, field: keyof OrderItem, value: string | number) => {
+    const updateItem = (index: number, field: keyof OrderItem, value: string | number | boolean) => {
         setFormData((prev) => {
             const newItems = [...prev.items];
             newItems[index] = { ...newItems[index], [field]: value };
@@ -290,7 +290,7 @@ export function CreateOrderModal({
         }));
     };
 
-    const handleProductSelect = (product: { product_id: string; name: string; price: number; quantity: number; image_url?: string }) => {
+    const handleProductSelect = (product: { product_id: string; name: string; price: number; quantity: number; image_url?: string; is_open_box?: boolean }) => {
         setFormData((prev) => ({
             ...prev,
             items: [...prev.items, product],
@@ -1063,7 +1063,22 @@ export function CreateOrderModal({
                                                 </div>
 
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="font-medium text-xs text-foreground truncate">{item.name}</p>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <p className="font-medium text-xs text-foreground truncate">{item.name}</p>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => updateItem(index, "is_open_box", !item.is_open_box)}
+                                                            className={cn(
+                                                                "shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-semibold transition-all",
+                                                                item.is_open_box
+                                                                    ? "bg-amber-100 text-amber-700"
+                                                                    : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                                                            )}
+                                                            title={item.is_open_box ? "علبة مفتوحة" : "جديد"}
+                                                        >
+                                                            {item.is_open_box ? "علبة مفتوحة" : "جديد"}
+                                                        </button>
+                                                    </div>
                                                     {editingPriceIndex === index ? (
                                                         <div className="flex items-center gap-1 mt-0.5">
                                                             <Input
