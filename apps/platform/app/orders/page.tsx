@@ -141,6 +141,7 @@ import {
     PanelRight,
     MessageCircle,
     PackageX,
+    ScanBarcode,
 } from "lucide-react";
 import { extractScannedOrderId } from "@/lib/scan-utils";
 import { cn } from "@/lib/utils";
@@ -157,9 +158,10 @@ interface GlobalSearchFieldProps {
     filters: { searchQuery?: string; searchIncludesArchive?: boolean; dateFrom?: string; dateTo?: string };
     setFilters: React.Dispatch<React.SetStateAction<{ searchQuery?: string; searchIncludesArchive?: boolean; dateFrom?: string; dateTo?: string }>>;
     inputClassName?: string;
+    onScannerOpen?: () => void;
 }
 
-const GlobalSearchField = React.memo(function GlobalSearchField({ filters, setFilters, inputClassName = "w-full pl-10 pr-12 py-2.5 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all" }: GlobalSearchFieldProps) {
+const GlobalSearchField = React.memo(function GlobalSearchField({ filters, setFilters, inputClassName = "w-full pl-10 pr-12 py-2.5 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all", onScannerOpen }: GlobalSearchFieldProps) {
     const localSearchQuery = useOrderStore((s) => s.localSearchQuery);
     const setLocalSearchQuery = useOrderStore((s) => s.setLocalSearchQuery);
     const debouncedSearchQuery = useDebounce(localSearchQuery, 300);
@@ -213,6 +215,19 @@ const GlobalSearchField = React.memo(function GlobalSearchField({ filters, setFi
                 onChange={(e) => setLocalSearchQuery(e.target.value)}
                 className={inputClassName}
             />
+            {/* Scanner button — shifts left when archive button is also visible */}
+            {onScannerOpen && (
+                <button
+                    onClick={onScannerOpen}
+                    title="Scan barcode"
+                    className={cn(
+                        "absolute top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all text-[var(--foreground-subtle)] hover:text-foreground hover:bg-[var(--pastel-yellow)]/30",
+                        localSearchQuery ? "right-9" : "right-2"
+                    )}
+                >
+                    <ScanBarcode className="w-4 h-4" />
+                </button>
+            )}
             {localSearchQuery && (
                 <button
                     onClick={() => setFilters((prev) => ({ ...prev, searchIncludesArchive: !prev.searchIncludesArchive }))}
@@ -273,6 +288,7 @@ export default function OrdersPage() {
         stats,
         availableCities,
         availableProducts,
+        availableProductsInView,
         filters,
         setFilters,
         clearFilters,
@@ -1983,6 +1999,7 @@ export default function OrdersPage() {
                                                                     filters={filters}
                                                                     setFilters={setFilters}
                                                                     statusCounts={statusCounts}
+                                                                    productsInView={availableProductsInView}
                                                                     totalRiskCount={totalRiskCount}
                                                                     showFilters={showFilters}
                                                                     setShowFilters={setShowFilters}

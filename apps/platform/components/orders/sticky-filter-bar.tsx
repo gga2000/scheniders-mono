@@ -1,6 +1,6 @@
 "use client";
 
-import { Filter, Layers, ChevronDown, ShieldCheck, Copy } from "lucide-react";
+import { Filter, Layers, ChevronDown, ShieldCheck, Copy, Package, Check, X, RotateCcw, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Order, OrderStatus, OrderPriority } from "@/lib/supabase";
 import { getStatusBadgeStyle } from "@/lib/order-format-utils";
@@ -13,7 +13,7 @@ import {
 import { useLanguage } from "@/hooks/use-language";
 
 interface FilterState {
-    status?: OrderStatus | "all" | "refunds";
+    status?: OrderStatus | "all" | "refunds" | "refunded" | "refund_pending" | "replacements";
     searchQuery?: string;
     dateFrom?: string;
     dateTo?: string;
@@ -22,12 +22,16 @@ interface FilterState {
     priority?: OrderPriority;
     riskLevel?: 'low' | 'medium' | 'high' | 'blocked' | 'flagged';
     isReturn?: boolean;
+    orderType?: 'refund' | 'replacement';
 }
 
 interface StickyFilterBarProps {
     filters: FilterState;
     setFilters: (filters: FilterState) => void;
     statusCounts: Record<string, number>;
+    /** Products present in the orders matching the current view (every filter
+     *  except the product filter). Drives the contextual product chip row. */
+    productsInView?: { name: string; count: number }[];
     totalRiskCount?: number;
     showFilters: boolean;
     setShowFilters: (show: boolean) => void;
@@ -46,6 +50,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
     filters,
     setFilters,
     statusCounts,
+    productsInView = [],
     totalRiskCount,
     showFilters,
     setShowFilters,
@@ -60,6 +65,21 @@ export const StickyFilterBar = memo(function StickyFilterBar({
     const { t } = useLanguage();
     const [useStatusColors, setUseStatusColors] = useState(true);
 
+    // Contextual product sub-filters: show the most common products in the
+    // current view as chips, with the long tail tucked into a "more" menu.
+    const PRODUCT_CHIP_LIMIT = 8;
+    const visibleProducts = productsInView.slice(0, PRODUCT_CHIP_LIMIT);
+    const overflowProducts = productsInView.slice(PRODUCT_CHIP_LIMIT);
+    const overflowActive = !!filters.product && overflowProducts.some((p) => p.name === filters.product);
+    const toggleProduct = (name: string) =>
+        setFilters({ ...filters, product: filters.product === name ? undefined : name });
+
+    // Refund / replacement sub-filter only makes sense in the Confirmed & All
+    // tabs (other tabs already isolate their own order types).
+    const showOrderTypeFilter = !filters.status || filters.status === "all" || filters.status === "confirmed";
+    const toggleOrderType = (type: 'refund' | 'replacement') =>
+        setFilters({ ...filters, orderType: filters.orderType === type ? undefined : type });
+
     const filterOptions = [
         { id: "all", label: t("orders.status.all"), fullLabel: t("orders.status.all"), count: statusCounts.all },
         { id: "new", label: t("orders.status.new"), count: statusCounts.new || 0 },
@@ -71,8 +91,11 @@ export const StickyFilterBar = memo(function StickyFilterBar({
         { id: "completed", label: t("orders.status.completed"), count: statusCounts.completed || 0 },
         { id: "cancelled", label: t("orders.status.cancelled"), count: statusCounts.cancelled || 0 },
         { id: "rejected", label: t("orders.status.rejected"), count: statusCounts.rejected || 0 },
-        { id: "refunds", label: t("orders.filter.refunds"), count: statusCounts.refunds || 0 },
-        { id: "suspended", label: t("orders.filter.suspended"), count: statusCounts.suspended || 0 },
+        { id: "refunds", label: "المرتجعات", count: statusCounts.refunds || 0 },
+        { id: "refunded", label: "مسترجعة", count: statusCounts.refunded || 0 },
+        { id: "refund_pending", label: "قيد الاسترجاع", count: statusCounts.refund_pending || 0 },
+        { id: "replacements", label: "الاستبدالات", count: statusCounts.replacements || 0 },
+        { id: "suspended", label: "طلب معلق", count: statusCounts.suspended || 0 },
         { id: "no_response", label: t("orders.status.noResponse"), count: statusCounts.no_response || 0 },
     ];
 
@@ -295,6 +318,135 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                     </svg>
                 </button>
             </div>
+
+            {/* Refund / Replacement Sub-Filter — only in Confirmed & All tabs */}
+            {showOrderTypeFilter && (
+                <div className={cn(
+                    "flex items-center gap-2 overflow-x-auto scrollbar-hide",
+                    isMobile ? "px-4 pb-2 -mt-1" : "pl-8 pr-6 pb-3 -mt-3"
+                )}>
+                    <div className="flex items-center gap-1.5 shrink-0 text-muted-foreground/70 pr-1">
+                        <Filter className="w-3.5 h-3.5" />
+                        {!isMobile && (
+                            <span className="text-[10px] font-bold uppercase tracking-widest">{t("orders.toolbar.orderType")}</span>
+                        )}
+                    </div>
+
+                    <button
+                        onClick={() => toggleOrderType("refund")}
+                        className={cn(
+                            "rounded-full whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 border",
+                            isMobile ? "px-4 py-2 text-xs font-semibold" : "px-3 py-1.5 text-xs font-medium",
+                            filters.orderType === "refund"
+                                ? "bg-rose-600 text-white border-rose-600 shadow-sm"
+                                : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95 dark:bg-[#1E1E1E] dark:text-[#A1A1A1] dark:border-[#3F3F3F] dark:hover:text-white dark:hover:bg-[#242424]"
+                        )}
+                    >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>المرتجعات</span>
+                    </button>
+
+                    <button
+                        onClick={() => toggleOrderType("replacement")}
+                        className={cn(
+                            "rounded-full whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 border",
+                            isMobile ? "px-4 py-2 text-xs font-semibold" : "px-3 py-1.5 text-xs font-medium",
+                            filters.orderType === "replacement"
+                                ? "bg-purple-600 text-white border-purple-600 shadow-sm"
+                                : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95 dark:bg-[#1E1E1E] dark:text-[#A1A1A1] dark:border-[#3F3F3F] dark:hover:text-white dark:hover:bg-[#242424]"
+                        )}
+                    >
+                        <Repeat className="w-3.5 h-3.5" />
+                        <span>الاستبدالات</span>
+                    </button>
+                </div>
+            )}
+
+            {/* Contextual Product Sub-Filters — products present in the current view */}
+            {productsInView.length > 0 && (
+                <div className={cn(
+                    "flex items-center gap-2 overflow-x-auto scrollbar-hide snap-x",
+                    showOrderTypeFilter
+                        ? (isMobile ? "px-4 pb-3" : "pl-8 pr-6 pb-5")
+                        : (isMobile ? "px-4 pb-3 -mt-1" : "pl-8 pr-6 pb-5 -mt-3")
+                )}>
+                    <div className="flex items-center gap-1.5 shrink-0 text-muted-foreground/70 pr-1">
+                        <Package className="w-3.5 h-3.5" />
+                        {!isMobile && (
+                            <span className="text-[10px] font-bold uppercase tracking-widest">{t("orders.toolbar.products")}</span>
+                        )}
+                    </div>
+
+                    {visibleProducts.map((product) => {
+                        const isActive = filters.product === product.name;
+                        return (
+                            <button
+                                key={product.name}
+                                onClick={() => toggleProduct(product.name)}
+                                title={product.name}
+                                className={cn(
+                                    "rounded-full whitespace-nowrap transition-all flex items-center gap-1.5 snap-start shrink-0 border",
+                                    isMobile ? "px-4 py-2 text-xs font-semibold" : "px-3 py-1.5 text-xs font-medium",
+                                    isActive
+                                        ? "bg-blue-600 text-white border-blue-600 shadow-sm dark:bg-primary dark:text-black dark:border-primary"
+                                        : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95 dark:bg-[#1E1E1E] dark:text-[#A1A1A1] dark:border-[#3F3F3F] dark:hover:border-[rgba(0,255,255,0.4)] dark:hover:text-white dark:hover:bg-[#242424]"
+                                )}
+                            >
+                                <span className="max-w-[160px] truncate">{product.name}</span>
+                                <span className={cn(
+                                    "px-1.5 py-0.5 rounded-full text-[10px] font-black min-w-[18px] text-center",
+                                    isActive ? "bg-white/25 text-current" : "bg-muted-foreground/15 text-muted-foreground"
+                                )}>
+                                    {product.count}
+                                </span>
+                            </button>
+                        );
+                    })}
+
+                    {overflowProducts.length > 0 && (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button
+                                    className={cn(
+                                        "rounded-full whitespace-nowrap transition-all flex items-center gap-1 shrink-0 border px-3 py-1.5 text-xs font-medium",
+                                        overflowActive
+                                            ? "bg-blue-600 text-white border-blue-600 dark:bg-primary dark:text-black dark:border-primary"
+                                            : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:text-foreground dark:bg-[#1E1E1E] dark:text-[#A1A1A1] dark:border-[#3F3F3F] dark:hover:text-white"
+                                    )}
+                                >
+                                    +{overflowProducts.length} {t("common.more")}
+                                    <ChevronDown className="w-3 h-3 opacity-60" />
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="w-56 max-h-72 overflow-y-auto">
+                                {overflowProducts.map((product) => (
+                                    <DropdownMenuItem
+                                        key={product.name}
+                                        onClick={() => toggleProduct(product.name)}
+                                        className="flex items-center justify-between gap-3"
+                                    >
+                                        <span className="flex items-center gap-2 min-w-0">
+                                            <Check className={cn("w-3.5 h-3.5 shrink-0", filters.product === product.name ? "opacity-100" : "opacity-0")} />
+                                            <span className="truncate">{product.name}</span>
+                                        </span>
+                                        <span className="text-xs text-muted-foreground font-semibold shrink-0">{product.count}</span>
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    )}
+
+                    {filters.product && (
+                        <button
+                            onClick={() => setFilters({ ...filters, product: undefined })}
+                            title="Clear product filter"
+                            className="rounded-full shrink-0 border border-border/50 p-1.5 text-muted-foreground hover:text-rose-600 hover:border-rose-300 transition-all"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                    )}
+                </div>
+            )}
         </div>
     );
 });

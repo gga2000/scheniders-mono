@@ -117,6 +117,7 @@ export function useOrders() {
         filterPresets: filterHook.filterPresets,
         availableCities: filterHook.availableCities,
         availableProducts: filterHook.availableProducts,
+        availableProductsInView: filterHook.availableProductsInView,
 
         // Filters
         filters: filterHook.filters,
