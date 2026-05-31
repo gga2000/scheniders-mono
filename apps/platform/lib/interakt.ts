@@ -393,3 +393,112 @@ export async function sendTemplateMessage(
         error: lastError || "Max retries exceeded",
     };
 }
+
+// =============================================
+// STAFF ALERT TEMPLATE
+//
+// Staff-only template name. Kept in its own constant (not in TemplateType)
+// so the existing customer-facing send path cannot reach it.
+// =============================================
+
+export const STAFF_ALERT_TEMPLATE_NAME = "new_order_alert_staff";
+
+function buildStaffAlertBody(order: Order, staffPhone: string): InteraktTemplateBody {
+    const { countryCode, phoneNumber } = formatPhoneForInterakt(staffPhone);
+
+    const itemsList = order.items
+        .map((item) => (item.quantity > 1 ? `${item.name} × ${item.quantity}` : item.name))
+        .join("، ");
+
+    const totalPrice = `IQD ${order.price.toLocaleString("en-US")}`;
+    const addressParts = [order.city || order.governorate_code, order.address_details].filter(Boolean);
+    const address = addressParts.join(" - ") || "غير محدد";
+
+    const governorate = order.governorate_code || order.city || "غير محدد";
+    const displayPhone = formatPhoneForDisplay(order.phone);
+
+    return {
+        countryCode,
+        phoneNumber,
+        callbackData: `staff_alert:${order.id}`,
+        type: "Template",
+        template: {
+            name: STAFF_ALERT_TEMPLATE_NAME,
+            languageCode: "ar",
+            bodyValues: [
+                order.customer_name || "عميل",  // {{1}} customer name
+                itemsList,                       // {{2}} products
+                order.order_id,                  // {{3}} order id
+                governorate,                     // {{4}} governorate
+                address,                         // {{5}} address
+                displayPhone,                    // {{6}} customer phone
+                totalPrice,                      // {{7}} total price
+            ],
+        },
+    };
+}
+
+/**
+ * Send the new-order staff alert template to a single staff phone.
+ *
+ * SAFETY: Callers must have already verified staffPhone against the
+ * staff allowlist (see lib/staff-alerts.isRegisteredStaffNumber).
+ * This function additionally refuses to send if the phone looks malformed.
+ */
+export async function sendStaffAlertMessage(
+    order: Order,
+    staffPhone: string,
+): Promise<SendTemplateResult> {
+    const apiKey = env.INTERAKT_API_KEY;
+    if (!apiKey) {
+        return { success: false, error: "Interakt API key not configured" };
+    }
+
+    const { countryCode, phoneNumber } = formatPhoneForInterakt(staffPhone);
+    if (!phoneNumber || phoneNumber.length < 8) {
+        return { success: false, error: "Invalid staff phone after normalization" };
+    }
+
+    const body = buildStaffAlertBody(order, staffPhone);
+
+    console.log(
+        `[Interakt:STAFF] Sending "${STAFF_ALERT_TEMPLATE_NAME}" to +${countryCode}${phoneNumber} for order ${order.order_id}`,
+    );
+
+    let lastError: string | undefined;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            const response = await fetch(INTERAKT_API_URL, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Basic ${apiKey}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(body),
+            });
+
+            const result = await response.json().catch(() => ({}));
+            if (response.ok && result?.result === true) {
+                return {
+                    success: true,
+                    messageId: typeof result?.id === "string" ? result.id : undefined,
+                    statusCode: response.status,
+                };
+            }
+
+            lastError = typeof result?.message === "string" ? result.message : `HTTP ${response.status}`;
+            if (response.status === 429 && attempt < MAX_RETRIES) {
+                await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)));
+                continue;
+            }
+            return { success: false, error: lastError, statusCode: response.status };
+        } catch (err) {
+            lastError = err instanceof Error ? err.message : String(err);
+            if (attempt < MAX_RETRIES) {
+                await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)));
+            }
+        }
+    }
+
+    return { success: false, error: lastError || "Max retries exceeded" };
+}
