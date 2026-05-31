@@ -17,10 +17,12 @@ import {
     TrendingDown,
     AlertCircle,
     Star,
+    Send,
 } from "lucide-react";
 import { useSalaryConfig } from "@/hooks/use-salary-config";
 import { useSalaryDeductions } from "@/hooks/use-salary-deductions";
 import { SalaryConfigForm } from "@/components/salary/salary-config-form";
+import { TelegramLinkCard } from "@/components/settings/telegram-link-card";
 import { useAuth } from "@/components/auth/auth-provider";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -61,7 +63,7 @@ interface EmployeeDrawerProps {
     hasNext?: boolean;
 }
 
-type TabType = "activity" | "sessions" | "analytics" | "salary";
+type TabType = "activity" | "sessions" | "analytics" | "salary" | "telegram";
 
 export function EmployeeDrawer({
     employee,
@@ -73,7 +75,7 @@ export function EmployeeDrawer({
     hasNext = false,
 }: EmployeeDrawerProps) {
     const { t, language } = useLanguage();
-    const { role } = useAuth();
+    const { role, profile } = useAuth();
     const isAdmin = role === "admin";
     const [activeTab, setActiveTab] = useState<TabType>("activity");
     const [salaryConfigOpen, setSalaryConfigOpen] = useState(false);
@@ -170,6 +172,7 @@ export function EmployeeDrawer({
         { key: "sessions", icon: Clock, label: t("team.tabs.sessions") },
         { key: "analytics", icon: BarChart3, label: t("team.tabs.analytics") },
         ...(isAdmin ? [{ key: "salary" as TabType, icon: Settings, label: "الراتب" }] : []),
+        ...(isAdmin ? [{ key: "telegram" as TabType, icon: Send, label: "تليكرام" }] : []),
     ];
 
     return (
@@ -449,6 +452,14 @@ export function EmployeeDrawer({
                                         )}
                                     </div>
                                 </div>
+                            )}
+
+                            {activeTab === "telegram" && isAdmin && (
+                                <TelegramLinkCard
+                                    userProfileId={employee.userId}
+                                    currentAdminId={(profile as { id?: string } | null)?.id}
+                                    displayName={employee.displayName || employee.email.split("@")[0]}
+                                />
                             )}
                         </div>
 

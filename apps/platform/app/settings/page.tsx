@@ -14,6 +14,8 @@ import {
     ShieldBan,
     Building2,
     CreditCard,
+    BellRing,
+    PackageX,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GeneralSettings } from "@/components/settings/general-settings";
@@ -27,6 +29,8 @@ import { WaseetSettingsPanel } from "@/components/settings/waseet-settings";
 import { CustomerBlacklist } from "@/components/settings/customer-blacklist";
 import { BusinessSettings } from "@/components/settings/business-settings";
 import { BillingSettings } from "@/components/settings/billing-settings";
+import { StaffAlertsSettings } from "@/components/settings/staff-alerts-settings";
+import { OrderReasonsManager } from "@/components/settings/order-reasons-manager";
 
 function IntegrationsSettings() {
     const [tab, setTab] = useState<"lightfunnels" | "waseet">("lightfunnels");
@@ -129,6 +133,26 @@ const SECTIONS = [
         iconColor: "text-teal-700",
         component: IntegrationsSettings,
         keywords: ["integrations", "lightfunnels", "waseet", "sync", "api", "token", "connect"],
+    },
+    {
+        id: "staff-alerts",
+        title: "Staff Alerts",
+        description: "WhatsApp alerts on new orders",
+        icon: BellRing,
+        colorVar: "--pastel-yellow",
+        iconColor: "text-amber-700",
+        component: StaffAlertsSettings,
+        keywords: ["staff", "alerts", "whatsapp", "notify", "phone", "new order", "interakt"],
+    },
+    {
+        id: "order-reasons",
+        title: "Order Reasons",
+        description: "Manage cancel/reject reasons",
+        icon: PackageX,
+        colorVar: "--pastel-orange",
+        iconColor: "text-orange-700",
+        component: OrderReasonsManager,
+        keywords: ["reasons", "rejection", "cancel", "reject", "labels", "dropdown"],
     },
     {
         id: "blacklist",
