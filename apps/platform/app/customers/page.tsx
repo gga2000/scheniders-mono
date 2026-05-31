@@ -289,6 +289,45 @@ function CustomersPageContent() {
                         </div>
                     </div>
                     <TimePeriodFilter value={timePeriod} onChange={setTimePeriod} />
+                    <button
+                        onClick={() => {
+                            // Export ALL currently-filtered customers as CSV with UTF-8 BOM
+                            // so Excel renders Arabic correctly on first open.
+                            const rows = [
+                                ["الاسم", "الهاتف", "المدينة", "الطلبات", "الإنفاق", "آخر طلب", "أول طلب", "الحالة"],
+                                ...allCustomers.map((c) => [
+                                    c.name,
+                                    c.phone,
+                                    c.governorate || c.city || "",
+                                    String(c.total_orders ?? 0),
+                                    String(c.total_spent ?? 0),
+                                    c.last_order_date || "",
+                                    c.first_order_date || "",
+                                    c.calculated_status,
+                                ]),
+                            ];
+                            const csv = rows
+                                .map((r) => r.map((cell) => {
+                                    const v = String(cell ?? "");
+                                    return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+                                }).join(","))
+                                .join("\n");
+                            const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            const today = new Date().toISOString().slice(0, 10);
+                            a.href = url;
+                            a.download = `customers-${today}.csv`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                        }}
+                        disabled={allCustomers.length === 0}
+                        title="Download all filtered customers as CSV"
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full border border-(--card-border) bg-background text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                        <Download className="w-3.5 h-3.5" />
+                        CSV
+                    </button>
                 </div>
 
                 {/* Row 2: Tier filter chips */}
