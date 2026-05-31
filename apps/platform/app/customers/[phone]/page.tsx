@@ -24,6 +24,7 @@ import { LinkCustomersModal } from "@/components/customers/modals/link-customers
 import { VoiceRecorderModal } from "@/components/customers/modals/voice-recorder-modal";
 import { LinkedPeopleSection } from "@/components/customers/detail/linked-people-section";
 import { IdentityTimeline } from "@/components/customers/detail/identity-timeline";
+import { ActivityLogTimeline } from "@/components/customers/detail/activity-log-timeline";
 import { AddNoteModal } from "@/components/customers/modals/add-note-modal";
 import type { TrustTier } from "@/types/customer";
 
@@ -71,7 +72,7 @@ function useCustomerProfile(phone: string) {
             // NOTE: the orders table column is `phone`, not `customer_phone`.
             const { data: orders } = await supabase
                 .from("orders")
-                .select("id, created_at, items, price, total_price:price, status, governorate_code")
+                .select("id, order_id, created_at, items, price, total_price:price, status, governorate_code")
                 .in("phone", phoneVariants)
                 .order("created_at", { ascending: false })
                 .limit(20);
@@ -239,6 +240,11 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                 {/* Row 4: Identity Timeline (col-span-12) */}
                 <div className="col-span-12">
                     <IdentityTimeline phone={profile.phone} />
+                </div>
+
+                {/* Activity Log — unified chronological feed of orders + notes */}
+                <div className="col-span-12">
+                    <ActivityLogTimeline orders={profile.orders} notes={profile.notes || []} />
                 </div>
 
                 {/* Row 5: Order History (col-span-12) */}
