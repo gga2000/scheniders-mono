@@ -82,11 +82,51 @@ export function useDeliveryHistory() {
         [session, toast, fetchImports]
     );
 
+    const rollbackImport = useCallback(
+        async (importId: string) => {
+            if (!session?.access_token) return;
+
+            try {
+                const response = await fetch("/api/delivery-import/rollback", {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${session.access_token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ importId }),
+                });
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.error || "Failed to roll back import");
+                }
+
+                toast({
+                    variant: "success",
+                    title: "Import Rolled Back",
+                    description: `${result.data.restored} orders restored${result.data.failed > 0 ? `, ${result.data.failed} failed` : ""}`,
+                });
+
+                await fetchImports();
+            } catch (err) {
+                const msg = err instanceof Error ? err.message : "Failed to roll back import";
+                toast({
+                    variant: "error",
+                    title: "Rollback Error",
+                    description: msg,
+                });
+            }
+        },
+        [session, toast, fetchImports]
+    );
+
     return {
         imports,
         isLoading,
         error,
         fetchImports,
         completeImport,
+        rollbackImport,
     };
 }

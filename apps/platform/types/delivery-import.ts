@@ -59,6 +59,7 @@ export interface ParsedDeliveryPDF {
 
 export type MatchCategory =
     | "clean"
+    | "pending_confirmation"
     | "price_changed"
     | "partial_delivery"
     | "amount_mismatch"

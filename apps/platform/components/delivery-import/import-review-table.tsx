@@ -32,6 +32,7 @@ const CATEGORY_CONFIG: Record<
     { icon: typeof CheckCircle; label: string; color: string; group: FilterMode }
 > = {
     clean: { icon: CheckCircle, label: "Clean Match", color: "text-emerald-600", group: "clean" },
+    pending_confirmation: { icon: AlertTriangle, label: "Confirms Pending", color: "text-amber-600", group: "review" },
     price_changed: { icon: AlertTriangle, label: "Price Changed", color: "text-amber-600", group: "review" },
     partial_delivery: { icon: AlertTriangle, label: "Partial Delivery", color: "text-amber-600", group: "review" },
     amount_mismatch: { icon: AlertTriangle, label: "Amount Mismatch", color: "text-amber-600", group: "review" },
