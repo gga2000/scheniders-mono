@@ -3,7 +3,7 @@
 import { use, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, Filter, Eye } from "lucide-react";
+import { ArrowLeft, Filter, Eye, Download } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
@@ -160,6 +160,19 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                 <ArrowLeft className="w-4 h-4" />
                 <span className="text-sm font-medium">{t("customers.title")}</span>
             </motion.button>
+
+            {/* Floating export action (top-right). Lazy-loads customer-data-export to keep this route's bundle lean. */}
+            <button
+                onClick={async () => {
+                    const { customerDataExport } = await import("@/lib/customer-data-export");
+                    await customerDataExport.downloadAsJSON(phone);
+                }}
+                title="Download all customer data as JSON"
+                className="absolute right-6 top-6 z-10 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-background border border-(--card-border) text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+                <Download className="w-3.5 h-3.5" />
+                Export JSON
+            </button>
 
             {/* Hero Banner — peer badges + Rate button now live inside */}
             <div className="mb-8">
