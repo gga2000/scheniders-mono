@@ -78,6 +78,20 @@ export async function createOrderAction(
             });
         }
 
+        // ── 4. Staff WhatsApp alerts (fire-and-forget, tenant-scoped) ──
+        // Reads the tenant's staff_alert_numbers settings and fans out the
+        // new-order template to each registered phone. Failures are logged
+        // but do not affect the order creation result.
+        if (data) {
+            import("@/lib/staff-alerts").then(({ sendNewOrderAlertToStaff }) => {
+                sendNewOrderAlertToStaff(data as Order, tenantId).catch((err) => {
+                    console.error('[createOrderAction] Staff alert fanout failed:', err);
+                });
+            }).catch((err) => {
+                console.error('[createOrderAction] Staff alert module load failed:', err);
+            });
+        }
+
         return { success: true, data: data as Order, warning };
     } catch (err: unknown) {
         // Extract more detailed error information
