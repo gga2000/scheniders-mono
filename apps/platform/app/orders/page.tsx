@@ -1738,6 +1738,14 @@ export default function OrdersPage() {
                                                         <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.actions")}</span>
                                                         <div className="flex items-center gap-2">
                                                             <button
+                                                                onClick={() => setIsReturnsOpen(true)}
+                                                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-orange-500 text-white hover:bg-orange-600 hover:-translate-y-0.5 transition-all duration-300 font-bold text-sm"
+                                                                title="Returns cockpit (scan returned packages)"
+                                                            >
+                                                                <PackageX className="w-4 h-4" />
+                                                                <span className="whitespace-nowrap hidden lg:inline">Returns</span>
+                                                            </button>
+                                                            <button
                                                                 onClick={() => setIsCreateModalOpen(true)}
                                                                 className="group relative px-4 py-2.5 rounded-xl bg-foreground text-background hover:bg-foreground/90 dark:bg-[var(--primary)] dark:text-[var(--primary-fg)] dark:hover:bg-[var(--primary)] dark:shadow-[0_0_15px_rgba(239,255,0,0.3)] dark:hover:shadow-[0_0_20px_rgba(239,255,0,0.5)] hover:-translate-y-0.5 transition-all duration-300 overflow-hidden"
                                                             >
