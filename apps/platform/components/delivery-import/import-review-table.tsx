@@ -10,6 +10,7 @@ import {
     ChevronRight,
     Search,
     Wrench,
+    Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MatchedRow, MatchCategory, RowResolution, ResolutionAction } from "@/types/delivery-import";
@@ -380,6 +381,48 @@ export function ImportReviewTable({
                     className="px-3 py-1.5 text-xs font-medium text-muted bg-[var(--background)] border border-[var(--card-border)] rounded-lg hover:bg-[var(--card-border)] transition-colors"
                 >
                     Deselect All
+                </button>
+                <button
+                    onClick={() => {
+                        // Export the currently filtered view (every filter respected). UTF-8 BOM
+                        // for Excel to render Arabic correctly on first open. RFC-4180 escaping.
+                        const header = [
+                            "row", "category", "order_id", "phone", "customer", "city",
+                            "pdf_amount", "system_amount", "matched", "selected", "resolution",
+                        ];
+                        const rows = filteredMatches.map((m) => [
+                            String(m.pdfRow.rowNumber),
+                            m.category,
+                            m.order?.order_id || m.pdfRow.shipmentNumber || "",
+                            m.pdfRow.phone || "",
+                            m.order?.customer_name || "",
+                            m.order?.city || "",
+                            String(m.pdfRow.netToMerchant ?? m.pdfRow.shipmentAmount ?? 0),
+                            String(m.order?.price ?? ""),
+                            m.order ? "yes" : "no",
+                            selectedRows.has(m.pdfRow.rowNumber) ? "yes" : "no",
+                            resolutions.get(m.pdfRow.rowNumber)?.action || "",
+                        ]);
+                        const csv = [header, ...rows]
+                            .map((r) => r.map((cell) => {
+                                const v = String(cell ?? "");
+                                return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+                            }).join(","))
+                            .join("\n");
+                        const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        const today = new Date().toISOString().slice(0, 10);
+                        a.href = url;
+                        a.download = `delivery-import-review-${today}.csv`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                    }}
+                    title="Download the current filtered view as CSV"
+                    className="px-3 py-1.5 text-xs font-medium text-sky-700 bg-sky-50 border border-sky-200 rounded-lg hover:bg-sky-100 transition-colors dark:bg-sky-900/20 dark:border-sky-900/40 dark:text-sky-400 inline-flex items-center gap-1.5"
+                >
+                    <Download className="w-3.5 h-3.5" />
+                    Export CSV
                 </button>
 
                 <span className="text-sm text-muted">

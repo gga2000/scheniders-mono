@@ -24,6 +24,7 @@ import {
 import { useDeliveryImport, type ImportStep } from "@/hooks/use-delivery-import";
 import { ImportSummaryTab } from "./import-summary-tab";
 import { ImportReviewTable } from "./import-review-table";
+import { ReconciliationBanner } from "./reconciliation-banner";
 import type { RowResolution } from "@/types/delivery-import";
 
 interface DeliveryImportModalProps {
@@ -330,16 +331,25 @@ export function DeliveryImportModal({
                                     existingImport={existingImport}
                                 />
                             ) : (
-                                <ImportReviewTable
-                                    matches={matches}
-                                    selectedRows={selectedRows}
-                                    onToggleRow={handleToggleRow}
-                                    onSelectAllClean={handleSelectAllClean}
-                                    onDeselectAll={handleDeselectAll}
-                                    resolutions={resolutions}
-                                    onResolve={handleResolve}
-                                    onClearResolution={handleClearResolution}
-                                />
+                                <>
+                                    <div className="px-4 pt-3">
+                                        <ReconciliationBanner
+                                            matches={matches}
+                                            selectedRows={selectedRows}
+                                            footerTotal={parsedPDF.footerTotal}
+                                        />
+                                    </div>
+                                    <ImportReviewTable
+                                        matches={matches}
+                                        selectedRows={selectedRows}
+                                        onToggleRow={handleToggleRow}
+                                        onSelectAllClean={handleSelectAllClean}
+                                        onDeselectAll={handleDeselectAll}
+                                        resolutions={resolutions}
+                                        onResolve={handleResolve}
+                                        onClearResolution={handleClearResolution}
+                                    />
+                                </>
                             )}
                         </div>
                     </div>

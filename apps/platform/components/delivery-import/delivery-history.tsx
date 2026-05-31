@@ -10,15 +10,17 @@ import {
     FileText,
     ChevronDown,
     ChevronRight,
+    RotateCcw,
 } from "lucide-react";
 import { cn, formatIQD } from "@/lib/utils";
 import { useDeliveryHistory } from "@/hooks/use-delivery-history";
 import type { DeliveryImport } from "@/types/delivery-import";
 
 export function DeliveryHistory() {
-    const { imports, isLoading, error, completeImport } = useDeliveryHistory();
+    const { imports, isLoading, error, completeImport, rollbackImport } = useDeliveryHistory();
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [completingId, setCompletingId] = useState<string | null>(null);
+    const [rollingBackId, setRollingBackId] = useState<string | null>(null);
     const [actualAmount, setActualAmount] = useState("");
 
     const handleComplete = async (imp: DeliveryImport) => {
@@ -27,6 +29,17 @@ export function DeliveryHistory() {
         await completeImport(imp.id, amount);
         setCompletingId(null);
         setActualAmount("");
+        setExpandedId(null);
+    };
+
+    const handleRollback = async (imp: DeliveryImport) => {
+        const ok = confirm(
+            `Roll back this import?\n\nThis will restore every order it changed to the snapshot taken at confirm time and mark the import "cancelled". Only allowed while the import is still confirmed (not yet completed).`,
+        );
+        if (!ok) return;
+        setRollingBackId(imp.id);
+        await rollbackImport(imp.id);
+        setRollingBackId(null);
         setExpandedId(null);
     };
 
@@ -240,6 +253,25 @@ export function DeliveryHistory() {
                                                 <CheckCircle className="w-4 h-4" />
                                             )}
                                             Mark as Completed
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleRollback(imp);
+                                            }}
+                                            disabled={rollingBackId === imp.id}
+                                            title="Restore every order this import changed to its prior snapshot and mark the import cancelled."
+                                            className={cn(
+                                                "flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all mt-5 border border-rose-300 text-rose-700 hover:bg-rose-50",
+                                                rollingBackId === imp.id && "opacity-60 cursor-not-allowed"
+                                            )}
+                                        >
+                                            {rollingBackId === imp.id ? (
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                                <RotateCcw className="w-4 h-4" />
+                                            )}
+                                            Roll back
                                         </button>
                                     </div>
                                 )}
