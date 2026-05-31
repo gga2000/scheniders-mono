@@ -13,7 +13,15 @@ import {
     Calendar,
     ChevronLeft,
     ChevronRight,
+    Settings,
+    TrendingDown,
+    AlertCircle,
+    Star,
 } from "lucide-react";
+import { useSalaryConfig } from "@/hooks/use-salary-config";
+import { useSalaryDeductions } from "@/hooks/use-salary-deductions";
+import { SalaryConfigForm } from "@/components/salary/salary-config-form";
+import { useAuth } from "@/components/auth/auth-provider";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -53,7 +61,7 @@ interface EmployeeDrawerProps {
     hasNext?: boolean;
 }
 
-type TabType = "activity" | "sessions" | "analytics";
+type TabType = "activity" | "sessions" | "analytics" | "salary";
 
 export function EmployeeDrawer({
     employee,
@@ -65,7 +73,18 @@ export function EmployeeDrawer({
     hasNext = false,
 }: EmployeeDrawerProps) {
     const { t, language } = useLanguage();
+    const { role } = useAuth();
+    const isAdmin = role === "admin";
     const [activeTab, setActiveTab] = useState<TabType>("activity");
+    const [salaryConfigOpen, setSalaryConfigOpen] = useState(false);
+
+    // Salary data (admin-only). The hooks rely on RLS for tenant scoping.
+    const { getEffectiveRate, upsertEmployeeConfig } = useSalaryConfig();
+    const { advances, penalties, bonuses } = useSalaryDeductions();
+    const effectiveRate = getEffectiveRate(employee.userId, employee.role);
+    const pendingAdvances = advances.filter(a => a.employee_id === employee.userId && !a.is_deducted);
+    const pendingPenalties = penalties.filter(p => p.employee_id === employee.userId && !p.is_applied);
+    const pendingBonuses = bonuses.filter(b => b.employee_id === employee.userId && !b.is_applied);
 
     // Get employee's activities
     const employeeActivities = useMemo(() => {
@@ -150,6 +169,7 @@ export function EmployeeDrawer({
         { key: "activity", icon: Activity, label: t("team.tabs.activity") },
         { key: "sessions", icon: Clock, label: t("team.tabs.sessions") },
         { key: "analytics", icon: BarChart3, label: t("team.tabs.analytics") },
+        ...(isAdmin ? [{ key: "salary" as TabType, icon: Settings, label: "الراتب" }] : []),
     ];
 
     return (
@@ -340,6 +360,96 @@ export function EmployeeDrawer({
                                     </div>
                                 </div>
                             )}
+
+                            {activeTab === "salary" && isAdmin && (
+                                <div className="space-y-5">
+                                    {/* Current rates */}
+                                    <div className="p-4 bg-muted/30 rounded-xl space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-sm font-semibold">الراتب الشهري</p>
+                                            <p className="text-sm font-bold">
+                                                {new Intl.NumberFormat("en-IQ").format(effectiveRate.baseMonthlySalary)} IQD
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-sm text-muted-foreground">مكافأة لكل طلب مكتمل</p>
+                                            <p className="text-sm font-medium">
+                                                {new Intl.NumberFormat("en-IQ").format(effectiveRate.perOrderBonus)} IQD
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-xs text-muted-foreground">المصدر</p>
+                                            <span className={cn(
+                                                "text-xs px-2 py-0.5 rounded-full",
+                                                effectiveRate.source === "employee_config"
+                                                    ? "bg-blue-100 text-blue-700"
+                                                    : effectiveRate.source === "role_default"
+                                                    ? "bg-amber-100 text-amber-700"
+                                                    : "bg-muted text-muted-foreground"
+                                            )}>
+                                                {effectiveRate.source === "employee_config"
+                                                    ? "خاص بالموظف"
+                                                    : effectiveRate.source === "role_default"
+                                                    ? "افتراضي الدور"
+                                                    : "غير محدد"}
+                                            </span>
+                                        </div>
+                                        <button
+                                            onClick={() => setSalaryConfigOpen(true)}
+                                            className="w-full mt-2 px-4 py-2 rounded-xl bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-colors flex items-center justify-center gap-2"
+                                        >
+                                            <Settings className="w-4 h-4" />
+                                            تعديل الراتب
+                                        </button>
+                                    </div>
+
+                                    {/* Pending deductions */}
+                                    <div className="space-y-2">
+                                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                            الاستحقاقات المعلقة
+                                        </p>
+                                        {pendingAdvances.length === 0 && pendingPenalties.length === 0 && pendingBonuses.length === 0 ? (
+                                            <p className="text-sm text-muted-foreground text-center py-4">لا توجد استحقاقات معلقة</p>
+                                        ) : (
+                                            <>
+                                                {pendingAdvances.map(a => (
+                                                    <div key={a.id} className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/10 rounded-xl">
+                                                        <TrendingDown className="w-4 h-4 text-amber-600 shrink-0" />
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-xs font-medium">{a.reason ?? "سلفة"}</p>
+                                                        </div>
+                                                        <p className="text-xs font-bold text-amber-700 tabular-nums">
+                                                            −{new Intl.NumberFormat("en-IQ").format(a.amount)} IQD
+                                                        </p>
+                                                    </div>
+                                                ))}
+                                                {pendingPenalties.map(p => (
+                                                    <div key={p.id} className="flex items-center gap-2 p-3 bg-rose-50 dark:bg-rose-900/10 rounded-xl">
+                                                        <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-xs font-medium">{p.reason}</p>
+                                                        </div>
+                                                        <p className="text-xs font-bold text-rose-700 tabular-nums">
+                                                            −{new Intl.NumberFormat("en-IQ").format(p.amount)} IQD
+                                                        </p>
+                                                    </div>
+                                                ))}
+                                                {pendingBonuses.map(b => (
+                                                    <div key={b.id} className="flex items-center gap-2 p-3 bg-violet-50 dark:bg-violet-900/10 rounded-xl">
+                                                        <Star className="w-4 h-4 text-violet-600 shrink-0" />
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-xs font-medium">{b.reason ?? "مكافأة"}</p>
+                                                        </div>
+                                                        <p className="text-xs font-bold text-violet-700 tabular-nums">
+                                                            +{new Intl.NumberFormat("en-IQ").format(b.amount)} IQD
+                                                        </p>
+                                                    </div>
+                                                ))}
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Footer */}
@@ -356,6 +466,20 @@ export function EmployeeDrawer({
                         )}
                     </motion.div>
                 </>
+            )}
+
+            {/* Salary config form (rendered outside drawer to avoid z-index issues) */}
+            {isAdmin && (
+                <SalaryConfigForm
+                    isOpen={salaryConfigOpen}
+                    onClose={() => setSalaryConfigOpen(false)}
+                    employeeName={employee.displayName || employee.email.split("@")[0]}
+                    employeeId={employee.userId}
+                    currentRate={effectiveRate}
+                    onSubmit={async (config) => {
+                        await upsertEmployeeConfig(employee.userId, config);
+                    }}
+                />
             )}
         </AnimatePresence>
     );

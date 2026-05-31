@@ -27,6 +27,10 @@ const ReturnsCockpitModal = dynamic(
     () => import("@/components/returns/returns-cockpit-modal").then(mod => ({ default: mod.ReturnsCockpitModal })),
     { loading: () => null, ssr: false }
 );
+const BarcodeScanner = dynamic(
+    () => import("@/components/products/barcode-scanner").then(mod => ({ default: mod.BarcodeScanner })),
+    { loading: () => null, ssr: false }
+);
 // Dynamic imports for other heavy components
 const FloatingActionBar = dynamic(
     () => import("@/components/orders/floating-action-bar").then(mod => ({ default: mod.FloatingActionBar })),
@@ -266,6 +270,7 @@ export default function OrdersPage() {
 
     const [isMounted, setIsMounted] = useState(false);
     const [isReturnsOpen, setIsReturnsOpen] = useState(false);
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
     useEffect(() => {
         setIsMounted(true);
     }, []);
@@ -1160,7 +1165,7 @@ export default function OrdersPage() {
 
                                                 {/* Center: Quick search */}
                                                 <div className="hidden md:flex items-center gap-2 flex-1 max-w-md">
-                                                    <GlobalSearchField filters={filters} setFilters={setFilters} />
+                                                    <GlobalSearchField filters={filters} setFilters={setFilters} onScannerOpen={() => setIsScannerOpen(true)} />
                                                 </div>
 
                                                 {/* Right: Quick actions + Expand */}
@@ -1997,6 +2002,7 @@ export default function OrdersPage() {
                                                                 <GlobalSearchField
                                                                     filters={filters}
                                                                     setFilters={setFilters}
+                                                                    onScannerOpen={() => setIsScannerOpen(true)}
                                                                     inputClassName="w-full pl-12 pr-14 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all dark:focus:ring-[rgba(0,255,255,0.4)] dark:focus:border-[rgba(0,255,255,0.5)] dark:focus:shadow-[0_0_15px_rgba(0,255,255,0.1)]"
                                                                 />
                                                                 {/* Sort dropdown removed in favor of column sorting */}
@@ -2696,6 +2702,19 @@ export default function OrdersPage() {
                                 setSelectedOrder(order);
                                 setIsModalOpen(true);
                                 setIsReturnsOpen(false);
+                            }}
+                        />
+                    )}
+
+                    {isMounted && (
+                        <BarcodeScanner
+                            isOpen={isScannerOpen}
+                            onClose={() => setIsScannerOpen(false)}
+                            onScan={(code) => {
+                                // Push the scanned code into the search; GlobalSearchField will
+                                // normalize "QR:{id}|PHONE:..." → order id before applying.
+                                useOrderStore.getState().setLocalSearchQuery(code);
+                                setIsScannerOpen(false);
                             }}
                         />
                     )}
