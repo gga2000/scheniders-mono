@@ -26,10 +26,14 @@ import {
     Columns3,
     BarChart3,
     ShoppingCart,
+    DollarSign,
+    TrendingUp,
 } from "lucide-react";
 import { DensityToggle } from "@/components/products/density-toggle";
-import { formatIQD } from "@/lib/utils";
+import { formatIQD, maskIQD } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { useFinancialVisibility } from "@/components/providers/financial-visibility-provider";
+import { RevealToggle } from "@/components/ui/reveal-toggle";
 
 // Import components
 import { ProductFormModal, ProductFormData } from "@/components/products/product-form-modal";
@@ -117,6 +121,7 @@ function ProductsContent() {
     } = useProductsCrud();
     const recomputeInventory = useRecomputeInventoryMutation();
     const zeroOversold = useZeroOversoldMutation();
+    const { revealed: showFinancials } = useFinancialVisibility();
 
     const { data: categories } = useCategoriesQuery();
     const categoriesMap = useMemo(() => {
@@ -741,6 +746,37 @@ function ProductsContent() {
                                         </span>
                                         <span className="text-xs font-semibold text-muted-foreground dark:text-[var(--foreground-muted)] uppercase tracking-wide">
                                             {t("products.sold")}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Total revenue pill (masked via RevealToggle) */}
+                                <div className="flex items-center gap-3 pl-2 pr-5 py-2 rounded-full bg-white/40 backdrop-blur-md border border-white/20 ring-1 ring-black/5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] orders-toolbar-pill">
+                                    <div className="p-2 rounded-full bg-gradient-to-tr from-teal-400 to-cyan-500 dark:!bg-none dark:bg-[var(--primary)] text-white dark:text-black shadow-lg shadow-teal-500/30 dark:shadow-[0_0_12px_rgba(239,255,0,0.4)]">
+                                        <DollarSign className="w-4 h-4" />
+                                    </div>
+                                    <div className="flex items-baseline gap-1.5">
+                                        <span className="text-2xl font-black text-foreground dark:text-white leading-none">
+                                            {maskIQD(stats.totalRevenue, showFinancials)}
+                                        </span>
+                                        <span className="text-xs font-semibold text-muted-foreground dark:text-[var(--foreground-muted)] uppercase tracking-wide">
+                                            {t("products.totalRevenue")}
+                                        </span>
+                                        <RevealToggle className="text-muted-foreground hover:text-foreground" />
+                                    </div>
+                                </div>
+
+                                {/* Avg order value pill (masked via RevealToggle) */}
+                                <div className="flex items-center gap-3 pl-2 pr-5 py-2 rounded-full bg-white/40 backdrop-blur-md border border-white/20 ring-1 ring-black/5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] orders-toolbar-pill">
+                                    <div className="p-2 rounded-full bg-gradient-to-tr from-sky-400 to-blue-500 dark:!bg-none dark:bg-[var(--primary)] text-white dark:text-black shadow-lg shadow-sky-500/30 dark:shadow-[0_0_12px_rgba(239,255,0,0.4)]">
+                                        <TrendingUp className="w-4 h-4" />
+                                    </div>
+                                    <div className="flex items-baseline gap-1.5">
+                                        <span className="text-2xl font-black text-foreground dark:text-white leading-none">
+                                            {maskIQD(stats.averageOrderValue, showFinancials)}
+                                        </span>
+                                        <span className="text-xs font-semibold text-muted-foreground dark:text-[var(--foreground-muted)] uppercase tracking-wide">
+                                            {t("products.avgOrderValue")}
                                         </span>
                                     </div>
                                 </div>

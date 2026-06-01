@@ -12,7 +12,8 @@ import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDashboardMetrics } from "@/hooks/use-dashboard-metrics";
 import { filterOrdersByDateRange, DateRangeKey } from "@/lib/analytics/dashboard-calculations";
 import { useAuth } from "@/hooks/use-auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { useFinancialVisibility } from "@/components/providers/financial-visibility-provider";
+import { RevealToggle } from "@/components/ui/reveal-toggle";
 import { useViewport } from "@/hooks/use-viewport";
 import { MobileDashboardPage } from "@/components/mobile/dashboard/MobileDashboardPage";
 import { DateRangeFilter } from "@/components/dashboard/widgets/date-range-filter";
@@ -48,7 +49,10 @@ export default function Home() {
   const { isMobile } = useViewport();
   const router = useRouter();
 
-  const showFinancials = role === 'admin' || hasPermission(role, PERMISSIONS.VIEW_FINANCIALS);
+  // Sourced from FinancialVisibilityProvider so the RevealToggle can flip
+  // every financial widget at once. canReveal is the static permission gate;
+  // showFinancials is the dynamic per-user state behind the eye icon.
+  const { revealed: showFinancials, canReveal } = useFinancialVisibility();
   const isAdmin = role === 'admin';
 
   const { announcements, loading: announcementsLoading, createAnnouncement, togglePin, deleteAnnouncement } = useAnnouncements();
@@ -123,6 +127,14 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
+            {canReveal && (
+              <div className="inline-flex items-center gap-1.5 px-3 h-12 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] shadow-sm" title={showFinancials ? "Hide financial data" : "Show financial data"}>
+                <RevealToggle size={18} />
+                <span className="text-xs font-semibold text-muted-foreground select-none">
+                  {showFinancials ? "Hide" : "Show"}
+                </span>
+              </div>
+            )}
             <DateRangeFilter value={dateRange} onChange={setDateRange} />
 
             <button className="w-12 h-12 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-foreground hover:bg-[var(--background)] transition-all shadow-sm">
