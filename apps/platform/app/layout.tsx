@@ -11,6 +11,7 @@ import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { LanguageProvider } from "@/components/providers/language-provider";
 import { RoleProvider } from "@/components/providers/role-provider";
+import { FinancialVisibilityProvider } from "@/components/providers/financial-visibility-provider";
 import { DevServiceWorkerCleanup } from "@/components/pwa/dev-service-worker-cleanup";
 import { Toaster } from "@/components/ui/toaster";
 import { ErrorBoundary } from "@scheniders/ui/error-boundary";
@@ -98,11 +99,13 @@ export default function RootLayout({
                     disableTransitionOnChange
                   >
                     <RoleProvider>
-                      <LanguageProvider>
-                        <DashboardLayout>
-                          {children}
-                        </DashboardLayout>
-                      </LanguageProvider>
+                      <FinancialVisibilityProvider>
+                        <LanguageProvider>
+                          <DashboardLayout>
+                            {children}
+                          </DashboardLayout>
+                        </LanguageProvider>
+                      </FinancialVisibilityProvider>
                     </RoleProvider>
                   </ThemeProvider>
                 </PWAProvider>

@@ -3,6 +3,21 @@ import { formatIQD } from "@scheniders/shared";
 export { cn, formatIQD, formatIQDArabic } from "@scheniders/shared";
 
 /**
+ * Mask string shown in place of currency values when the user has hidden
+ * financial data via RevealToggle.
+ */
+export const FINANCIAL_MASK = "*****";
+
+/**
+ * Format an IQD amount conditionally: show the number when `reveal` is true,
+ * otherwise return FINANCIAL_MASK. Paired with useFinancialVisibility() so
+ * any widget can collapse sensitive amounts in one call.
+ */
+export function maskIQD(amount: number, reveal: boolean): string {
+    return reveal ? formatIQD(amount) : FINANCIAL_MASK;
+}
+
+/**
  * Format phone number for WhatsApp link
  */
 export function formatPhoneForWhatsApp(phone: string): string {
