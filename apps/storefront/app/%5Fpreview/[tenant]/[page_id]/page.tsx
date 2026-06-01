@@ -411,7 +411,7 @@ export default async function PreviewPage({
         <StoreBaseProvider base={`/_preview/${tenantParam}`}>
           <LegacyFallbackBanner />
           {bkFontsUrl && (
-            // eslint-disable-next-line @next/next/no-page-custom-font
+             
             <link rel="stylesheet" href={bkFontsUrl} />
           )}
           <div
@@ -461,7 +461,7 @@ export default async function PreviewPage({
   return (
     <StoreBaseProvider base={`/_preview/${tenantParam}`}>
       {bkFontsUrl && (
-        // eslint-disable-next-line @next/next/no-page-custom-font
+         
         <link rel="stylesheet" href={bkFontsUrl} />
       )}
       <div
