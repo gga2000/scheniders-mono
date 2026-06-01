@@ -181,6 +181,18 @@ export async function POST(request: NextRequest) {
             await triggerImmediateConfirmation(result.order.id, result.order.phone);
         }
 
+        // Notify registered staff about the new order. Isolated from the
+        // customer flow: a failure here must not affect the webhook response.
+        if (result.order) {
+            try {
+                const { sendNewOrderAlertToStaff } = await import("@/lib/staff-alerts");
+                const tenantId = (result.order as { tenant_id?: string | null }).tenant_id ?? null;
+                await sendNewOrderAlertToStaff(result.order, tenantId);
+            } catch (alertErr) {
+                console.error("[LightFunnels Webhook] Staff alert fanout failed:", alertErr);
+            }
+        }
+
         // 7. Success response
         return NextResponse.json(
             {
