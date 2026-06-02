@@ -201,11 +201,11 @@ export default async function TenantLayout({ params, children }: Props) {
   return (
     <StoreBaseProvider base={storeBase}>
       {googleFontsUrl && (
-        // eslint-disable-next-line @next/next/no-page-custom-font
+         
         <link rel="stylesheet" href={googleFontsUrl} />
       )}
       {bkFontsUrl && (
-        // eslint-disable-next-line @next/next/no-page-custom-font
+         
         <link rel="stylesheet" href={bkFontsUrl} />
       )}
       {tenant.store_config?.custom_css && (
