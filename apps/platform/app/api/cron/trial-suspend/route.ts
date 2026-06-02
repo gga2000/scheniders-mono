@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
 
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
+const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -24,7 +22,7 @@ export async function GET(request: Request) {
     const now = new Date().toISOString();
 
     // Find and suspend expired trials
-    const { data: expired, error } = await supabaseAdmin
+    const { data: expired, error } = await supabaseAdmin()
         .from("tenants")
         .update({ status: "suspended" })
         .eq("status", "trial")

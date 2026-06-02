@@ -70,6 +70,7 @@ function makeBuilder(
     return {
         config,
         setConfig: noop,
+        patchField: noop,
         active_page: "home" as PageId,
         set_active_page: noop,
         active_breakpoint: "desktop" as Breakpoint,

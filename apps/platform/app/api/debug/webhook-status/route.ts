@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { env } from '@/lib/env';
+import { createSupabaseServiceClient } from '@/lib/supabase-server';
 
-const supabase = createClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+let _supabase: ReturnType<typeof createSupabaseServiceClient> | null = null;
+const supabase = () => (_supabase ??= createSupabaseServiceClient());
 
 /**
  * GET /api/debug/webhook-status
@@ -43,7 +41,7 @@ export async function GET(request: Request) {
 
     // 2. Lightfunnels API Token Check
     try {
-        const { data: tokenData, error: tokenError } = await supabase
+        const { data: tokenData, error: tokenError } = await supabase()
             .from('settings')
             .select('value, updated_at')
             .eq('key', 'lightfunnels_access_token')
@@ -69,20 +67,20 @@ export async function GET(request: Request) {
         const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
         // All orders
-        const { data: allOrders, count: totalCount } = await supabase
+        const { data: allOrders, count: totalCount } = await supabase()
             .from('orders')
             .select('*', { count: 'exact', head: false })
             .gte('created_at', oneDayAgo);
 
         // Lightfunnels orders
-        const { data: lfOrders, count: lfCount } = await supabase
+        const { data: lfOrders, count: lfCount } = await supabase()
             .from('orders')
             .select('*', { count: 'exact', head: false })
             .eq('source', 'lightfunnels')
             .gte('created_at', oneDayAgo);
 
         // Completed orders (not checkouts)
-        const { data: completedOrders, count: completedCount } = await supabase
+        const { data: completedOrders, count: completedCount } = await supabase()
             .from('orders')
             .select('*', { count: 'exact', head: false })
             .eq('source', 'lightfunnels')
@@ -90,7 +88,7 @@ export async function GET(request: Request) {
             .gte('created_at', oneDayAgo);
 
         // Pending checkouts
-        const { data: checkouts, count: checkoutCount } = await supabase
+        const { data: checkouts, count: checkoutCount } = await supabase()
             .from('orders')
             .select('*', { count: 'exact', head: false })
             .eq('source', 'lightfunnels')
@@ -125,12 +123,12 @@ export async function GET(request: Request) {
 
     // 4. Checkout Queue Check
     try {
-        const { data: pending, count: pendingCount } = await supabase
+        const { data: pending, count: pendingCount } = await supabase()
             .from('checkout_queue')
             .select('*', { count: 'exact', head: false })
             .is('processed_at', null);
 
-        const { data: failed } = await supabase
+        const { data: failed } = await supabase()
             .from('checkout_queue')
             .select('*')
             .is('processed_at', null)
@@ -163,7 +161,7 @@ export async function GET(request: Request) {
 
         // Check recently processed
         const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-        const { data: recentProcessed } = await supabase
+        const { data: recentProcessed } = await supabase()
             .from('checkout_queue')
             .select('*')
             .not('processed_at', 'is', null)

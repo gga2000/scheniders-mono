@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { env } from "@/lib/env";
 import { formatPhoneToStandard } from "@/lib/order-utils";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
 
 /**
  * Tenant-specific Interakt Webhook Endpoint
@@ -10,13 +9,8 @@ import { formatPhoneToStandard } from "@/lib/order-utils";
  * Routes incoming WhatsApp interactions to the correct tenant's orders.
  */
 
-if (!env.SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error("SUPABASE_SERVICE_ROLE_KEY is required for the Interakt tenant webhook");
-}
-const supabaseAdmin = createClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.SUPABASE_SERVICE_ROLE_KEY,
-);
+let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
+const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
 
 const CONFIRM_PATTERNS = ["تأكيد", "تاكيد", "confirm", "تأكيد ✅"];
 const CANCEL_PATTERNS = ["إلغاء", "الغاء", "cancel", "إلغاء ❌"];
@@ -70,7 +64,7 @@ export async function POST(
 
     try {
         // Validate tenant has active Interakt integration
-        const { data: integration } = await supabaseAdmin
+        const { data: integration } = await supabaseAdmin()
             .from("tenant_integrations")
             .select("credentials, is_active")
             .eq("tenant_id", tenantId)
@@ -127,7 +121,7 @@ export async function POST(
         let order: { id: string; order_id: string; status: string } | null = null;
 
         if (callbackData) {
-            const { data } = await supabaseAdmin
+            const { data } = await supabaseAdmin()
                 .from("orders").select("id, order_id, status")
                 .eq("id", callbackData).eq("tenant_id", tenantId).single();
             order = data;
@@ -135,7 +129,7 @@ export async function POST(
 
         if (!order && phone) {
             const standardPhone = formatPhoneToStandard(phone);
-            const { data } = await supabaseAdmin
+            const { data } = await supabaseAdmin()
                 .from("orders").select("id, order_id, status")
                 .eq("status", "contacted").eq("tenant_id", tenantId)
                 .or(`phone.eq.${standardPhone},phone.eq.${phone}`)
@@ -152,13 +146,13 @@ export async function POST(
         }
 
         // Update order
-        await supabaseAdmin.from("orders").update({
+        await supabaseAdmin().from("orders").update({
             status: action,
             updated_at: new Date().toISOString(),
             ...(action === "cancelled" ? { cancelled_at: new Date().toISOString() } : {}),
         }).eq("id", order.id);
 
-        await supabaseAdmin.from("order_status_history").insert({
+        await supabaseAdmin().from("order_status_history").insert({
             order_id: order.id,
             from_status: "contacted",
             to_status: action,
