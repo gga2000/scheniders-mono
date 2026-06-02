@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendTemplateMessage, TEMPLATE_NAMES, type TemplateType } from "@/lib/interakt";
-import { createClient } from "@supabase/supabase-js";
-import { env } from "@/lib/env";
 import type { Order } from "@/types/order";
 import { flagOrderForWhatsAppFailure, clearWhatsAppFailureFlags } from "@/lib/whatsapp-error-handler";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
 
-// Service role client to bypass RLS for logging
-const supabaseAdmin = createClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
+const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
 
 export async function POST(request: NextRequest) {
     try {
@@ -34,7 +30,7 @@ export async function POST(request: NextRequest) {
 
         // Log the outbound message to supabase
         try {
-            await supabaseAdmin.from("whatsapp_logs").insert({
+            await supabaseAdmin().from("whatsapp_logs").insert({
                 order_id: order.order_id,
                 order_uuid: order.id,
                 phone: overridePhone || order.phone,
@@ -75,7 +71,7 @@ export async function POST(request: NextRequest) {
             // Update status to "contacted" if not already beyond that stage
             const shouldUpdateStatus = previousStatus !== "contacted" && previousStatus !== "confirmed" && previousStatus !== "cancelled";
 
-            await supabaseAdmin
+            await supabaseAdmin()
                 .from("orders")
                 .update({
                     ...(shouldUpdateStatus ? { status: "contacted" } : {}),
@@ -87,7 +83,7 @@ export async function POST(request: NextRequest) {
 
             // Log status change in order_status_history (only if status changed)
             if (shouldUpdateStatus) {
-                await supabaseAdmin.from("order_status_history").insert({
+                await supabaseAdmin().from("order_status_history").insert({
                     order_id: order.id,
                     from_status: previousStatus,
                     to_status: "contacted",
