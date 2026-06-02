@@ -1,14 +1,10 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import dns from "dns/promises";
-
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
 
 export async function POST(request: Request) {
     try {
+        const supabaseAdmin = createSupabaseServiceClient();
         const { domain_id } = await request.json();
 
         if (!domain_id) {
