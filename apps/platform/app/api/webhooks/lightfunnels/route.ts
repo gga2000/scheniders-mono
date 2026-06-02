@@ -5,18 +5,12 @@ import {
     logWebhookRequest,
 } from "@/lib/webhook-handler";
 import { env } from "@/lib/env";
-import { createClient } from "@supabase/supabase-js";
 import { scheduleCheckoutProcessing } from "@/lib/qstash";
 import { triggerImmediateConfirmation } from "@/lib/whatsapp-dispatcher";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
 
-// Service role client to bypass RLS when writing to checkout_queue
-if (!env.SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error("SUPABASE_SERVICE_ROLE_KEY is required for webhook processing");
-}
-const supabaseAdmin = createClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.SUPABASE_SERVICE_ROLE_KEY
-);
+let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
+const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
 
 // How long to wait before importing (gives customer time to finish filling form)
 const CHECKOUT_DELAY_MINUTES = 2;
@@ -88,7 +82,7 @@ export async function POST(request: NextRequest) {
                 const checkoutId = error.message.replace("fetch_checkout:", "");
                 const processAfter = new Date(Date.now() + CHECKOUT_DELAY_MINUTES * 60 * 1000).toISOString();
 
-                const { error: queueErr } = await supabaseAdmin
+                const { error: queueErr } = await supabaseAdmin()
                     .from('checkout_queue')
                     .upsert(
                         { checkout_id: checkoutId, process_after: processAfter, queued_at: new Date().toISOString() },
