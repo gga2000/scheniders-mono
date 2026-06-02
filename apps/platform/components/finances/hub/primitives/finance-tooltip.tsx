@@ -45,7 +45,7 @@ export function FinanceTooltip({
 }: FinanceTooltipProps) {
     if (!active) return null;
 
-    let derivedTitle = title ?? (label != null ? String(label) : "");
+    const derivedTitle = title ?? (label != null ? String(label) : "");
     let derivedRows: Row[] = rows ?? [];
 
     if ((!rows || rows.length === 0) && payload && payload.length > 0) {

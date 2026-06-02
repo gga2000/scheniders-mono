@@ -3,7 +3,8 @@ import { createSupabaseServiceClient } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
 
-const supabaseAdmin = createSupabaseServiceClient();
+let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
+const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
 
 const SETTINGS_KEY = "whatsapp_auto_send";
 
@@ -13,7 +14,7 @@ const SETTINGS_KEY = "whatsapp_auto_send";
  */
 export async function GET() {
     try {
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await supabaseAdmin()
             .from("app_settings")
             .select("value")
             .eq("key", SETTINGS_KEY)
@@ -42,7 +43,7 @@ export async function PUT(request: NextRequest) {
 
         const value = { enabled, default_discount_percent: defaultDiscount };
 
-        const { error } = await supabaseAdmin
+        const { error } = await supabaseAdmin()
             .from("app_settings")
             .upsert({
                 key: SETTINGS_KEY,

@@ -177,6 +177,10 @@ function buildAdminTenantShape(data: MerchantDetail): AdminTenant {
     tags: [],
     last_active_at: null,
     monthly_revenue: data.wallet?.total_charged_iqd ?? 0,
+    // No daily breakdown available in MerchantDetail's wallet/usage payload;
+    // fall back to 0 so the AdminTenant contract is satisfied. The list-view
+    // adapter computes this from a different source.
+    daily_revenue: 0,
     order_sparkline: data.usage.map((u) => u.orders_count ?? 0),
     wallet: data.wallet ?? undefined,
     usage: {

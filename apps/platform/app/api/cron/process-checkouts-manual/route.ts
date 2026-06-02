@@ -1,14 +1,10 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
 import { fetchCheckoutById, getSavedAccessToken } from '@/lib/lightfunnels-api';
 import { parseCheckoutToWebhook, createOrderFromWebhook } from '@/lib/webhook-handler';
+import { createSupabaseServiceClient } from '@/lib/supabase-server';
 
-// Use service role to bypass RLS for cron job
-const supabase = createClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+let _supabase: ReturnType<typeof createSupabaseServiceClient> | null = null;
+const supabase = () => (_supabase ??= createSupabaseServiceClient());
 
 const MAX_ATTEMPTS = 3;
 const BATCH_SIZE = 50; // Process all pending checkouts
@@ -24,7 +20,7 @@ export async function GET() {
         console.log('[Manual] Processing all pending checkouts...');
 
         // Fetch ALL pending checkout IDs (no time limit)
-        const { data: pending, error: fetchErr } = await supabase
+        const { data: pending, error: fetchErr } = await supabase()
             .from('checkout_queue')
             .select('id, checkout_id, attempts, queued_at, process_after')
             .is('processed_at', null)
@@ -48,7 +44,7 @@ export async function GET() {
         console.log(`[Manual] Found ${pending.length} pending checkout(s)`);
 
         // Get Lightfunnels access token
-        const accessToken = await getSavedAccessToken(supabase);
+        const accessToken = await getSavedAccessToken(supabase());
         if (!accessToken) {
             console.error('[Manual] No Lightfunnels access token configured');
             return NextResponse.json({
@@ -76,7 +72,7 @@ export async function GET() {
                 console.log(`[Manual] Processing checkout ${item.checkout_id}...`);
 
                 // Increment attempt count and claim atomically
-                const { data: claimed, error: claimErr } = await supabase
+                const { data: claimed, error: claimErr } = await supabase()
                     .from('checkout_queue')
                     .update({ attempts: item.attempts + 1 })
                     .eq('id', item.id)
@@ -109,7 +105,7 @@ export async function GET() {
 
                 if (result.success || result.duplicate) {
                     // Mark as processed
-                    await supabase
+                    await supabase()
                         .from('checkout_queue')
                         .update({ processed_at: new Date().toISOString() })
                         .eq('id', item.id);
@@ -128,7 +124,7 @@ export async function GET() {
                 console.error(`[Manual] ❌ Failed to process checkout ${item.checkout_id}:`, errorMsg);
 
                 // Save error for debugging
-                await supabase
+                await supabase()
                     .from('checkout_queue')
                     .update({ last_error: errorMsg })
                     .eq('id', item.id);
