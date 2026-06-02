@@ -23,21 +23,21 @@ const CHECKOUT_DELAY_MINUTES = 2;
 
 export async function POST(request: NextRequest) {
     try {
-        // 1. Verify webhook secret — mandatory.
-        // A misconfigured deployment that's missing LIGHTFUNNELS_WEBHOOK_SECRET
-        // must fail loudly, not silently accept anonymous webhooks.
+        // 1. Verify webhook secret — lenient to match OLD project's behavior.
+        // Lightfunnels' UI has no per-webhook secret field, so it currently sends
+        // no x-webhook-secret header. Reject only when the request DOES send a
+        // secret and it doesn't match the configured one. Accept anonymous POSTs
+        // with a warning log — same posture as old/.../webhooks/lightfunnels.
+        // TODO: switch back to strict once Lightfunnels supports custom headers
+        // OR we move to HMAC-of-body signing.
         const expectedSecret = env.LIGHTFUNNELS_WEBHOOK_SECRET;
-        if (!expectedSecret) {
-            console.error("[Webhook] LIGHTFUNNELS_WEBHOOK_SECRET not configured");
-            return NextResponse.json(
-                { error: "Webhook receiver not configured" },
-                { status: 503 },
-            );
-        }
         const secret = request.headers.get("x-webhook-secret");
-        if (!secret || secret !== expectedSecret) {
-            console.error("[Webhook] Webhook secret missing or mismatch");
+        if (expectedSecret && secret && secret !== expectedSecret) {
+            console.error("[Webhook] Webhook secret mismatch");
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        if (!secret && expectedSecret) {
+            console.warn("[Webhook] No x-webhook-secret header — accepting anyway (parallel-run leniency)");
         }
 
         // 2. Parse request body
