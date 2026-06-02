@@ -1,15 +1,12 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { Receiver } from '@upstash/qstash';
 import { env } from '@/lib/env';
 import { fetchCheckoutById, getSavedAccessToken } from '@/lib/lightfunnels-api';
 import { parseCheckoutToWebhook, createOrderFromWebhook } from '@/lib/webhook-handler';
+import { createSupabaseServiceClient } from '@/lib/supabase-server';
 
-// Use service role to bypass RLS for cron job
-const supabase = createClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+let _supabase: ReturnType<typeof createSupabaseServiceClient> | null = null;
+const supabase = () => (_supabase ??= createSupabaseServiceClient());
 
 const MAX_ATTEMPTS = 3;
 const BATCH_SIZE = 10; // Process up to 10 checkouts per cron run
@@ -22,7 +19,7 @@ async function processCheckoutQueue(): Promise<NextResponse> {
         const now = new Date().toISOString();
 
         // Fetch pending checkout IDs that are ready to process
-        const { data: pending, error: fetchErr } = await supabase
+        const { data: pending, error: fetchErr } = await supabase()
             .from('checkout_queue')
             .select('id, checkout_id, attempts')
             .is('processed_at', null)
@@ -43,7 +40,7 @@ async function processCheckoutQueue(): Promise<NextResponse> {
         console.log(`[Cron] Processing ${pending.length} queued checkout(s)`);
 
         // Get Lightfunnels access token once - pass the service role client
-        const accessToken = await getSavedAccessToken(supabase);
+        const accessToken = await getSavedAccessToken(supabase());
         if (!accessToken) {
             console.error('[Cron] No Lightfunnels access token configured');
             return NextResponse.json({ error: 'No API token configured or internal permission error' }, { status: 500 });
@@ -55,7 +52,7 @@ async function processCheckoutQueue(): Promise<NextResponse> {
         for (const item of pending) {
             try {
                 // Increment attempt count first and claim atomically
-                const { data: claimed, error: claimErr } = await supabase
+                const { data: claimed, error: claimErr } = await supabase()
                     .from('checkout_queue')
                     .update({ attempts: item.attempts + 1 })
                     .eq('id', item.id)
@@ -88,7 +85,7 @@ async function processCheckoutQueue(): Promise<NextResponse> {
 
                 if (result.success || result.duplicate) {
                     // Mark as processed (both success and duplicate are OK)
-                    await supabase
+                    await supabase()
                         .from('checkout_queue')
                         .update({ processed_at: new Date().toISOString() })
                         .eq('id', item.id);
@@ -103,7 +100,7 @@ async function processCheckoutQueue(): Promise<NextResponse> {
                 console.error(`[Cron] Failed to process checkout ${item.checkout_id}:`, errorMsg);
 
                 // Save error for debugging, but don't mark as processed (will retry)
-                await supabase
+                await supabase()
                     .from('checkout_queue')
                     .update({ last_error: errorMsg })
                     .eq('id', item.id);

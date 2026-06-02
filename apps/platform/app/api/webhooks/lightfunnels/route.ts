@@ -5,18 +5,12 @@ import {
     logWebhookRequest,
 } from "@/lib/webhook-handler";
 import { env } from "@/lib/env";
-import { createClient } from "@supabase/supabase-js";
 import { scheduleCheckoutProcessing } from "@/lib/qstash";
 import { triggerImmediateConfirmation } from "@/lib/whatsapp-dispatcher";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
 
-// Service role client to bypass RLS when writing to checkout_queue
-if (!env.SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error("SUPABASE_SERVICE_ROLE_KEY is required for webhook processing");
-}
-const supabaseAdmin = createClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.SUPABASE_SERVICE_ROLE_KEY
-);
+let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
+const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
 
 // How long to wait before importing (gives customer time to finish filling form)
 const CHECKOUT_DELAY_MINUTES = 2;
@@ -29,21 +23,21 @@ const CHECKOUT_DELAY_MINUTES = 2;
 
 export async function POST(request: NextRequest) {
     try {
-        // 1. Verify webhook secret — mandatory.
-        // A misconfigured deployment that's missing LIGHTFUNNELS_WEBHOOK_SECRET
-        // must fail loudly, not silently accept anonymous webhooks.
+        // 1. Verify webhook secret — lenient to match OLD project's behavior.
+        // Lightfunnels' UI has no per-webhook secret field, so it currently sends
+        // no x-webhook-secret header. Reject only when the request DOES send a
+        // secret and it doesn't match the configured one. Accept anonymous POSTs
+        // with a warning log — same posture as old/.../webhooks/lightfunnels.
+        // TODO: switch back to strict once Lightfunnels supports custom headers
+        // OR we move to HMAC-of-body signing.
         const expectedSecret = env.LIGHTFUNNELS_WEBHOOK_SECRET;
-        if (!expectedSecret) {
-            console.error("[Webhook] LIGHTFUNNELS_WEBHOOK_SECRET not configured");
-            return NextResponse.json(
-                { error: "Webhook receiver not configured" },
-                { status: 503 },
-            );
-        }
         const secret = request.headers.get("x-webhook-secret");
-        if (!secret || secret !== expectedSecret) {
-            console.error("[Webhook] Webhook secret missing or mismatch");
+        if (expectedSecret && secret && secret !== expectedSecret) {
+            console.error("[Webhook] Webhook secret mismatch");
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        if (!secret && expectedSecret) {
+            console.warn("[Webhook] No x-webhook-secret header — accepting anyway (parallel-run leniency)");
         }
 
         // 2. Parse request body
@@ -88,7 +82,7 @@ export async function POST(request: NextRequest) {
                 const checkoutId = error.message.replace("fetch_checkout:", "");
                 const processAfter = new Date(Date.now() + CHECKOUT_DELAY_MINUTES * 60 * 1000).toISOString();
 
-                const { error: queueErr } = await supabaseAdmin
+                const { error: queueErr } = await supabaseAdmin()
                     .from('checkout_queue')
                     .upsert(
                         { checkout_id: checkoutId, process_after: processAfter, queued_at: new Date().toISOString() },
@@ -132,8 +126,21 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // 4. Create order from webhook
-        const result = await createOrderFromWebhook(webhookData);
+        // 4. Resolve tenant. During the OLD→NEW parallel-run, every Lightfunnels
+        // webhook is attributed to a single tenant (Scheniders Iraq) via env.
+        // When multiple tenants get their own Lightfunnels accounts, switch to a
+        // shop-id → tenant_id lookup (LightFunnels payload has a shop identifier).
+        const tenantId = env.LIGHTFUNNELS_TENANT_ID;
+        if (!tenantId) {
+            console.error("[Webhook] LIGHTFUNNELS_TENANT_ID not configured");
+            return NextResponse.json(
+                { error: "Webhook receiver not configured (missing LIGHTFUNNELS_TENANT_ID)" },
+                { status: 503 },
+            );
+        }
+
+        // 5. Create order from webhook
+        const result = await createOrderFromWebhook(webhookData, tenantId);
 
         // 5. Log request (for debugging)
         if (env.WEBHOOK_LOGGING_ENABLED === "true") {

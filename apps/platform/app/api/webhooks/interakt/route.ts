@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { env } from "@/lib/env";
 import { formatPhoneToStandard } from "@/lib/order-utils";
+import { env } from "@/lib/env";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
+
+let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
+const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
 
 /**
  * Interakt Inbound Webhook Endpoint
@@ -21,16 +24,6 @@ import { formatPhoneToStandard } from "@/lib/order-utils";
  * 3. Any other reply            → No status change (team handles manually)
  */
 
-// Service role client to bypass RLS. The previous code silently fell back
-// to the anon key when SUPABASE_SERVICE_ROLE_KEY was missing, which made
-// every write fail under RLS in production. Fail loudly instead.
-if (!env.SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error("SUPABASE_SERVICE_ROLE_KEY is required for the Interakt webhook");
-}
-const supabaseAdmin = createClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.SUPABASE_SERVICE_ROLE_KEY,
-);
 
 // =============================================
 // TYPES
@@ -202,7 +195,7 @@ async function findOrder(
 ): Promise<{ id: string; order_id: string; status: string } | null> {
     // Strategy 1: Direct lookup by UUID from callback_data
     if (callbackData) {
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await supabaseAdmin()
             .from("orders")
             .select("id, order_id, status")
             .eq("id", callbackData)
@@ -219,7 +212,7 @@ async function findOrder(
         // Normalize the phone for matching
         const standardPhone = formatPhoneToStandard(phone);
 
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await supabaseAdmin()
             .from("orders")
             .select("id, order_id, status")
             .eq("status", "contacted")
@@ -248,7 +241,7 @@ async function updateOrderStatus(
     payload: InteraktWebhookPayload
 ): Promise<{ success: boolean; error?: string }> {
     // Update the order status
-    const { error: updateError } = await supabaseAdmin
+    const { error: updateError } = await supabaseAdmin()
         .from("orders")
         .update({
             status: newStatus,
@@ -263,7 +256,7 @@ async function updateOrderStatus(
     }
 
     // Log status change in order_status_history
-    await supabaseAdmin.from("order_status_history").insert({
+    await supabaseAdmin().from("order_status_history").insert({
         order_id: orderId,
         from_status: "contacted",
         to_status: newStatus,
@@ -273,7 +266,7 @@ async function updateOrderStatus(
 
     // Log to whatsapp_logs (non-critical — don't fail if logging fails)
     try {
-        await supabaseAdmin.from("whatsapp_logs").insert({
+        await supabaseAdmin().from("whatsapp_logs").insert({
             order_id: orderIdDisplay,
             order_uuid: orderId,
             phone: phone || "unknown",
@@ -356,7 +349,7 @@ export async function POST(request: NextRequest) {
                     payload.callbackData;
 
                 // Log to whatsapp_logs
-                await supabaseAdmin.from("whatsapp_logs").insert({
+                await supabaseAdmin().from("whatsapp_logs").insert({
                     order_id: callbackData || "unknown",
                     phone: phone,
                     template_name: "cod_order_confirm",
@@ -385,7 +378,7 @@ export async function POST(request: NextRequest) {
         ) {
             // Log unrecognized types to database for debugging
             try {
-                await supabaseAdmin.from("whatsapp_logs").insert({
+                await supabaseAdmin().from("whatsapp_logs").insert({
                     order_id: "debug",
                     phone: payload.data?.customer?.phone_number || "unknown",
                     template_name: "cod_order_confirm",
