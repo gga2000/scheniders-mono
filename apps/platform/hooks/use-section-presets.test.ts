@@ -103,7 +103,7 @@ describe("useSectionPresets", () => {
         expect(created!.name).toBe("Big hero");
         expect(created!.section_type).toBe("hero_image");
         // No id in the stored instance — only on the row.
-        expect((created!.instance as Record<string, unknown>).id).toBeUndefined();
+        expect((created!.instance as unknown as Record<string, unknown>).id).toBeUndefined();
         // List reflects the new preset.
         expect(result.current.presets).toHaveLength(1);
         expect(result.current.presets[0].name).toBe("Big hero");
@@ -167,7 +167,7 @@ describe("stripInstanceForPreset", () => {
             label: "Trust",
         };
         const out = stripInstanceForPreset(inst);
-        expect((out as Record<string, unknown>).id).toBeUndefined();
+        expect((out as unknown as Record<string, unknown>).id).toBeUndefined();
         expect(out.type).toBe("trust_strip");
         expect(out.label).toBe("Trust");
     });
