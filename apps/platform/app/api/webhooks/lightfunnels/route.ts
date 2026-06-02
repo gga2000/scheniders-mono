@@ -126,8 +126,21 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // 4. Create order from webhook
-        const result = await createOrderFromWebhook(webhookData);
+        // 4. Resolve tenant. During the OLD→NEW parallel-run, every Lightfunnels
+        // webhook is attributed to a single tenant (Scheniders Iraq) via env.
+        // When multiple tenants get their own Lightfunnels accounts, switch to a
+        // shop-id → tenant_id lookup (LightFunnels payload has a shop identifier).
+        const tenantId = env.LIGHTFUNNELS_TENANT_ID;
+        if (!tenantId) {
+            console.error("[Webhook] LIGHTFUNNELS_TENANT_ID not configured");
+            return NextResponse.json(
+                { error: "Webhook receiver not configured (missing LIGHTFUNNELS_TENANT_ID)" },
+                { status: 503 },
+            );
+        }
+
+        // 5. Create order from webhook
+        const result = await createOrderFromWebhook(webhookData, tenantId);
 
         // 5. Log request (for debugging)
         if (env.WEBHOOK_LOGGING_ENABLED === "true") {
