@@ -108,7 +108,7 @@ async function scrapeInstagram(username: string): Promise<ProfileResult> {
     ? Math.round(allMetrics.reduce((s, p) => s + p.comments, 0) / allMetrics.length)
     : 0;
   const avgViews = viewMetrics.length > 0
-    ? Math.round(viewMetrics.reduce((s, p) => s + p.views, 0) / viewMetrics.length)
+    ? Math.round(viewMetrics.reduce((s: number, p: { views: number }) => s + p.views, 0) / viewMetrics.length)
     : 0;
 
   return {
