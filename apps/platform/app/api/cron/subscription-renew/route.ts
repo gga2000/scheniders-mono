@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
 
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
+const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -38,7 +36,7 @@ export async function GET(request: Request) {
     const results: RenewalResult[] = [];
 
     // 1. Find expired subscriptions
-    const { data: expiredSubs, error: fetchError } = await supabaseAdmin
+    const { data: expiredSubs, error: fetchError } = await supabaseAdmin()
         .from("subscriptions")
         .select("id, tenant_id, plan, status, pending_plan, plan_change_at")
         .in("status", ["active", "trialing"])
@@ -56,7 +54,7 @@ export async function GET(request: Request) {
     console.log(`[subscription-renew] ${expiredSubs.length} subscription(s) due for renewal`);
 
     // 2. Get plan pricing
-    const { data: planLimits } = await supabaseAdmin
+    const { data: planLimits } = await supabaseAdmin()
         .from("plan_limits")
         .select("plan, base_price_iqd");
 
@@ -67,7 +65,7 @@ export async function GET(request: Request) {
 
     // 3. Get tenant names for logging
     const tenantIds = expiredSubs.map(s => s.tenant_id);
-    const { data: tenants } = await supabaseAdmin
+    const { data: tenants } = await supabaseAdmin()
         .from("tenants")
         .select("id, business_name")
         .in("id", tenantIds);
@@ -87,12 +85,12 @@ export async function GET(request: Request) {
                 plan = sub.pending_plan;
                 planChanged = true;
 
-                await supabaseAdmin
+                await supabaseAdmin()
                     .from("subscriptions")
                     .update({ plan, pending_plan: null, plan_change_at: null })
                     .eq("id", sub.id);
 
-                await supabaseAdmin
+                await supabaseAdmin()
                     .from("tenants")
                     .update({ plan })
                     .eq("id", sub.tenant_id);
@@ -105,7 +103,7 @@ export async function GET(request: Request) {
 
             // Charge wallet
             if (price > 0) {
-                const { data: result, error: rpcError } = await supabaseAdmin
+                const { data: result, error: rpcError } = await supabaseAdmin()
                     .rpc("charge_wallet_atomic", {
                         _tenant_id: sub.tenant_id,
                         _amount: price,
@@ -117,12 +115,12 @@ export async function GET(request: Request) {
 
                 if (!result?.success) {
                     // Insufficient balance → suspend
-                    await supabaseAdmin
+                    await supabaseAdmin()
                         .from("subscriptions")
                         .update({ status: "past_due" })
                         .eq("id", sub.id);
 
-                    await supabaseAdmin
+                    await supabaseAdmin()
                         .from("tenants")
                         .update({ status: "suspended" })
                         .eq("id", sub.tenant_id);
@@ -138,7 +136,7 @@ export async function GET(request: Request) {
             const periodEnd = new Date();
             periodEnd.setDate(periodEnd.getDate() + 30);
 
-            await supabaseAdmin
+            await supabaseAdmin()
                 .from("subscriptions")
                 .update({
                     status: "active",
@@ -147,7 +145,7 @@ export async function GET(request: Request) {
                 })
                 .eq("id", sub.id);
 
-            await supabaseAdmin
+            await supabaseAdmin()
                 .from("tenants")
                 .update({ status: "active" })
                 .eq("id", sub.tenant_id);
@@ -156,7 +154,7 @@ export async function GET(request: Request) {
             const year = periodStart.getFullYear();
             const month = periodStart.getMonth() + 1;
 
-            await supabaseAdmin
+            await supabaseAdmin()
                 .from("usage_tracking")
                 .upsert({
                     tenant_id: sub.tenant_id,
