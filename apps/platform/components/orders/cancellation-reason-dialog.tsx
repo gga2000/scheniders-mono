@@ -59,7 +59,7 @@ export function CancellationReasonDialog({
 
     const handleConfirm = () => {
         if (!selectedReason) return;
-        let reason = reasons.find(r => r.id === selectedReason);
+        const reason = reasons.find(r => r.id === selectedReason);
         let reasonText = reason ? t(reason.key) : selectedReason || "";
 
         if (selectedReason === "other" && customReason.trim()) {
