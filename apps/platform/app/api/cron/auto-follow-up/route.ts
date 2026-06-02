@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
 import { Receiver } from "@upstash/qstash";
-import { createClient } from "@supabase/supabase-js";
 import { sendTemplateMessage, type TemplateType } from "@/lib/interakt";
 import { env } from "@/lib/env";
 import { scheduleFollowUp, DISCOUNT_DELAY_HOURS, REMINDER_DELAY_HOURS } from "@/lib/qstash";
 import { flagOrderForWhatsAppFailure } from "@/lib/whatsapp-error-handler";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
 
-const supabaseAdmin = createClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
+const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -53,7 +51,7 @@ export async function POST(request: Request) {
     console.log(`[Auto Follow-up] Processing ${templateType} for order ${orderUuid}`);
 
     // Fetch the order first (to get tenant_id for scoped settings)
-    const { data: order, error: fetchErr } = await supabaseAdmin
+    const { data: order, error: fetchErr } = await supabaseAdmin()
         .from("orders")
         .select("*")
         .eq("id", orderUuid)
@@ -65,7 +63,7 @@ export async function POST(request: Request) {
     }
 
     // Check if auto-send is enabled for this tenant
-    let settingsQuery = supabaseAdmin
+    let settingsQuery = supabaseAdmin()
         .from("app_settings")
         .select("value")
         .eq("key", "whatsapp_auto_send");
@@ -100,7 +98,7 @@ export async function POST(request: Request) {
 
     // 1. Claim the follow-up by incrementing contact_count atomically
     const newContactCount = contactCount + 1;
-    const { data: updatedOrds, error: updateErr } = await supabaseAdmin
+    const { data: updatedOrds, error: updateErr } = await supabaseAdmin()
         .from("orders")
         .update({
             contact_count: newContactCount,
@@ -135,7 +133,7 @@ export async function POST(request: Request) {
         console.error(`[Auto Follow-up] Failed to send ${templateType} for ${order.order_id}:`, result.error);
 
         // 3. Rollback the claim on failure
-        await supabaseAdmin
+        await supabaseAdmin()
             .from("orders")
             .update({ contact_count: contactCount })
             .eq("id", orderUuid);
@@ -147,7 +145,7 @@ export async function POST(request: Request) {
     }
 
     // Log to whatsapp_logs
-    await supabaseAdmin.from("whatsapp_logs").insert({
+    await supabaseAdmin().from("whatsapp_logs").insert({
         order_id: order.order_id,
         order_uuid: order.id,
         phone: order.phone,

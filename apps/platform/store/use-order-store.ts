@@ -233,7 +233,7 @@ export const useOrderStore = create<OrderStore>()(
           if (shiftKey) {
             // Multi-sort: add or toggle this key in the sortConfigs array (max 3)
             const existing = s.sortConfigs.findIndex(sc => sc.key === key);
-            let next = [...s.sortConfigs];
+            const next = [...s.sortConfigs];
             if (existing >= 0) {
               if (next[existing].direction === "asc") {
                 next[existing] = { key, direction: "desc" };

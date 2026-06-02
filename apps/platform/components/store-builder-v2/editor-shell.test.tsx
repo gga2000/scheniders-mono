@@ -99,6 +99,7 @@ function makeBuilder(overrides: Partial<UseStoreBuilderV2Return> = {}): UseStore
     const state: UseStoreBuilderV2Return = {
         config,
         setConfig: noop,
+        patchField: noop,
         active_page: "home" as PageId,
         set_active_page: noop,
         active_breakpoint: "desktop" as Breakpoint,
