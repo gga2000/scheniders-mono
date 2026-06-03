@@ -126,4 +126,33 @@ describe("mapLegacyToV2", () => {
       expect(ids).toContain("policy_terms");
     }
   });
+
+  it("maps contact + whatsapp + custom_css into commerce/custom_css", () => {
+    const v2 = mapLegacyToV2({
+      contact: { whatsapp_number: "+9647", instagram: "ig" },
+      enable_whatsapp_order: true,
+      custom_css: ".x{}",
+    });
+    expect(v2.commerce?.whatsapp_number).toBe("+9647");
+    expect(v2.commerce?.enable_whatsapp_order).toBe(true);
+    expect(v2.commerce?.socials?.instagram).toBe("ig");
+    expect(v2.custom_css).toBe(".x{}");
+  });
+
+  it("synthesizes a footer global from contact socials", () => {
+    const v2 = mapLegacyToV2({ contact: { instagram: "ig", email: "a@b.c" } });
+    expect(v2.globals.footer).toBeTruthy();
+  });
+
+  it("omits commerce sub-objects when legacy has no such data (no empty noise)", () => {
+    const v2 = mapLegacyToV2({});
+    // commerce may be undefined or an object with all-undefined fields; footer must be absent
+    expect(v2.globals.footer).toBeUndefined();
+    expect(v2.commerce).toBeUndefined();
+  });
+
+  it("does not emit delivery_promise when the legacy object is empty", () => {
+    const v2 = mapLegacyToV2({ schneiders: { delivery_promise: {} } });
+    expect(v2.commerce?.delivery_promise).toBeUndefined();
+  });
 });

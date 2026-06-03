@@ -27,6 +27,7 @@ import type {
   BrandKit,
   GlobalSections,
   I18nString,
+  StoreCommerceConfig,
 } from "@scheniders/shared/types";
 // Value imports must resolve to the source module, not a barrel that the
 // node ESM loader can't statically map. Use the resolver module directly.
@@ -322,6 +323,25 @@ function buildNewsletterPopupGlobal(
   };
 }
 
+function buildFooterGlobal(
+  contact: StoreConfig["contact"] | undefined,
+): SectionInstance | undefined {
+  if (!contact) return undefined;
+  const { instagram, facebook, tiktok, email } = contact;
+  if (!instagram && !facebook && !tiktok && !email) return undefined;
+  return {
+    id: stableId(`global:footer:${instagram ?? ""}:${facebook ?? ""}:${tiktok ?? ""}:${email ?? ""}`),
+    type: "footer",
+    enabled: true,
+    base: {
+      ...(instagram ? { instagram } : {}),
+      ...(facebook ? { facebook } : {}),
+      ...(tiktok ? { tiktok } : {}),
+      ...(email ? { email } : {}),
+    },
+  };
+}
+
 function mapGlobals(legacy: StoreConfig): GlobalSections {
   const sch = legacy.schneiders ?? {};
   const globals: GlobalSections = {};
@@ -331,7 +351,89 @@ function mapGlobals(legacy: StoreConfig): GlobalSections {
   if (analytics) globals.analytics_pixels = analytics;
   const popup = buildNewsletterPopupGlobal(sch.newsletter_popup);
   if (popup) globals.newsletter_popup = popup;
+  const footer = buildFooterGlobal(legacy.contact);
+  if (footer) globals.footer = footer;
   return globals;
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* Commerce config mapping                                             */
+/* ─────────────────────────────────────────────────────────────────── */
+
+function mapCommerce(legacy: StoreConfig): StoreCommerceConfig | undefined {
+  const contact = legacy.contact;
+  const sch = legacy.schneiders ?? {};
+
+  // whatsapp_templates: legacy pdp_template → product_inquiry (I18nString),
+  // legacy cart_template → order_confirm (I18nString).
+  // legacy support_template has no v2 counterpart — omitted.
+  const legacyTpl = sch.whatsapp_templates;
+  const order_confirm = en(legacyTpl?.cart_template);
+  const product_inquiry = en(legacyTpl?.pdp_template);
+  const whatsapp_templates =
+    order_confirm || product_inquiry
+      ? {
+          ...(order_confirm ? { order_confirm } : {}),
+          ...(product_inquiry ? { product_inquiry } : {}),
+        }
+      : undefined;
+
+  // returns_policy: window_days maps 1:1.
+  const returns_policy =
+    sch.returns_policy?.window_days !== undefined
+      ? { window_days: sch.returns_policy.window_days }
+      : undefined;
+
+  // delivery_promise: governorates_covered in legacy is string[] (array of
+  // names); v2 expects a count (number). Map .length. Fields map 1:1 otherwise.
+  const legacyDp = sch.delivery_promise;
+  const delivery_promise =
+    legacyDp &&
+    (legacyDp.baghdad_hours !== undefined ||
+      legacyDp.provinces_hours !== undefined ||
+      legacyDp.governorates_covered !== undefined)
+      ? {
+          baghdad_hours: legacyDp.baghdad_hours,
+          provinces_hours: legacyDp.provinces_hours,
+          governorates_covered:
+            legacyDp.governorates_covered !== undefined
+              ? legacyDp.governorates_covered.length
+              : undefined,
+        }
+      : undefined;
+
+  const socials =
+    contact?.instagram !== undefined ||
+    contact?.facebook !== undefined ||
+    contact?.tiktok !== undefined ||
+    contact?.email !== undefined
+      ? {
+          instagram: contact.instagram,
+          facebook: contact.facebook,
+          tiktok: contact.tiktok,
+          email: contact.email,
+        }
+      : undefined;
+
+  // Return undefined if there's truly nothing to carry forward.
+  const hasData =
+    contact?.whatsapp_number !== undefined ||
+    legacy.enable_whatsapp_order !== undefined ||
+    socials !== undefined ||
+    whatsapp_templates !== undefined ||
+    returns_policy !== undefined ||
+    delivery_promise !== undefined;
+
+  if (!hasData) return undefined;
+
+  return {
+    whatsapp_number: contact?.whatsapp_number,
+    enable_whatsapp_order: legacy.enable_whatsapp_order,
+    socials,
+    whatsapp_templates,
+    returns_policy,
+    delivery_promise,
+  };
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -434,6 +536,8 @@ export function mapLegacyToV2(legacy: StoreConfig | null | undefined): StoreConf
   // forget a required field — then overlay our mapped pieces.
   const empty = emptyStoreConfigV2();
 
+  const commerce = mapCommerce(safe);
+
   return {
     ...empty,
     brand_kit: mapBrandKit(safe),
@@ -443,5 +547,7 @@ export function mapLegacyToV2(legacy: StoreConfig | null | undefined): StoreConf
     // additive; the editor will let merchants override this later.
     // (Already handled inside mapBrandKit via identity logo/og only — name
     // intentionally left unset because legacy never stored it.)
+    ...(commerce !== undefined ? { commerce } : {}),
+    ...(safe.custom_css !== undefined ? { custom_css: safe.custom_css } : {}),
   };
 }
