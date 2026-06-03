@@ -49,7 +49,7 @@ import type {
   RuntimeContext,
   StoreConfigV2,
 } from "@scheniders/shared";
-import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
+import { getTenantForPreview, getTenantByCustomDomain } from "@/lib/tenant";
 import {
   listProducts,
   listCategories,
@@ -130,7 +130,8 @@ async function resolveTenant(tenantParam: string): Promise<Tenant | null> {
   if (tenantParam.startsWith("__domain__")) {
     return getTenantByCustomDomain(tenantParam.replace("__domain__", ""));
   }
-  return getTenantBySlug(tenantParam);
+  // Use the draft-inclusive loader so the editor can render unpublished changes.
+  return getTenantForPreview(tenantParam);
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
