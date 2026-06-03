@@ -85,8 +85,8 @@ export interface Order {
     /** Refund financial dimension. Independent of order status. */
     refund_status?: 'none' | 'pending' | 'refunded' | 'failed';
     refunded_at?: string;
-    /** FK to rejection_reasons.id when the cancellation/return reason was picked from the managed list. */
-    rejection_reason_id?: string;
+    /** FK to order_reasons.id when the cancellation/rejection reason was picked from the managed list. */
+    reason_id?: string;
     is_archived: boolean;
     is_pinned?: boolean;
     delivery_slot?: DeliverySlot;
@@ -148,13 +148,19 @@ export interface Blacklist {
 // ORDER ENHANCEMENT TYPES
 // =============================================
 
+/**
+ * Shape of a row from the `order_reasons` table, exposed here for legacy
+ * aux-data consumers that imported `RejectionReason` from this module.
+ * New code should import `OrderReason` from `@/lib/order-reasons`.
+ */
 export interface RejectionReason {
     id: string;
-    label: string;
-    label_ar?: string;
+    kind?: string;
+    label_ar: string;
+    label_en?: string | null;
     sort_order: number;
     is_active: boolean;
-    created_at: string;
+    created_at?: string;
 }
 
 export interface OrderNote {

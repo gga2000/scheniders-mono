@@ -1,7 +1,7 @@
 "use client";
 
 import { Settings, Package, XCircle, MessageSquare } from "lucide-react";
-import { RejectionReasonsList } from "@/components/settings/rejection-reasons-list";
+import { OrderReasonsManager } from "@/components/settings/order-reasons-manager";
 import { DeliveryFeesForm } from "@/components/settings/delivery-fees-form";
 import { WorkflowSettingsForm } from "@/components/settings/workflow-settings-form";
 import { MessageTemplatesList } from "@/components/settings/message-templates-list";
@@ -16,16 +16,16 @@ export function OrderSettings() {
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {/* Rejection Reasons - Takes up 1 column */}
-                <div className="pastel-card p-6 md:col-span-1">
+                {/* Order Reasons - spans 2 cols so the tabbed editor breathes */}
+                <div className="pastel-card p-6 md:col-span-2">
                     <div className="flex items-center gap-2 mb-4">
                         <div className="w-8 h-8 rounded-lg bg-[var(--pastel-pink)] flex items-center justify-center">
                             <XCircle className="h-4 w-4 text-rose-700" />
                         </div>
-                        <h3 className="text-lg font-semibold text-foreground">Rejection Reasons</h3>
+                        <h3 className="text-lg font-semibold text-foreground">Cancel &amp; Reject Reasons</h3>
                     </div>
-                    <p className="text-sm text-muted mb-4">Manage the list of reasons for rejecting orders.</p>
-                    <RejectionReasonsList />
+                    <p className="text-sm text-muted mb-4">Manage the reasons shown in the cancel (before shipping) and reject (after shipping) dialogs.</p>
+                    <OrderReasonsManager />
                 </div>
 
                 {/* Delivery Fees - Takes up 1 column */}

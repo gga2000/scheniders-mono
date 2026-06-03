@@ -2965,3 +2965,44 @@ body {
         display: none !important;
     }
 }
+
+/* ============================================
+   Data Vault — theme-aware "secure" accent
+   Primary CTAs use the brand token (--primary).
+   Emerald is reserved for encryption / key / success cues,
+   and adapts to light & dark so the page follows the theme.
+   ============================================ */
+.vault-page {
+    --vault-accent: #059669;
+    /* emerald-600 */
+    --vault-accent-strong: #047857;
+    /* emerald-700 (hover) */
+    --vault-accent-contrast: #FFFFFF;
+    /* text on a solid accent fill */
+    --vault-soft: rgba(5, 150, 105, 0.08);
+    --vault-border: rgba(5, 150, 105, 0.22);
+    --vault-ring: rgba(5, 150, 105, 0.30);
+    --vault-glow: rgba(5, 150, 105, 0.16);
+
+    /* Atmospheric base: warm paper with a faint emerald aura */
+    background-color: var(--background);
+    background-image:
+        radial-gradient(110% 75% at 100% 0%, var(--vault-soft), transparent 50%),
+        radial-gradient(90% 60% at 0% 100%, var(--vault-soft), transparent 55%);
+    background-attachment: fixed;
+}
+
+.dark .vault-page {
+    --vault-accent: #34D399;
+    /* emerald-400 — bright enough on charcoal */
+    --vault-accent-strong: #6EE7B7;
+    /* emerald-300 (hover) */
+    --vault-accent-contrast: #052E1B;
+    /* deep green-black on neon emerald */
+    --vault-soft: rgba(52, 211, 153, 0.10);
+    --vault-border: rgba(52, 211, 153, 0.24);
+    --vault-ring: rgba(52, 211, 153, 0.34);
+    --vault-glow: rgba(52, 211, 153, 0.22);
+    /* The cyan grid is supplied by `.dark main`; the emerald
+       auras layer beneath it for depth without fighting it. */
+}

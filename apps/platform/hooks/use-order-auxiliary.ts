@@ -47,7 +47,7 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
         async function fetchAll() {
             try {
                 const [reasonsRes, templatesRes, blacklistRes] = await Promise.all([
-                    supabase.from("rejection_reasons").select("*").eq("is_active", true).order("sort_order"),
+                    supabase.from("order_reasons").select("*").eq("is_active", true).eq("kind", "reject").order("sort_order"),
                     supabase.from("message_templates").select("*").eq("is_active", true).order("sort_order"),
                     supabase.from("blacklist").select("phone, reason, notes, added_by")
                 ]);

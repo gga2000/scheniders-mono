@@ -244,9 +244,9 @@ export const orderRepository = {
             (updateData as Record<string, unknown>).rejection_reason = null;
         }
         if (rejectionReasonId !== undefined) {
-            (updateData as Record<string, unknown>).rejection_reason_id = rejectionReasonId || null;
+            (updateData as Record<string, unknown>).reason_id = rejectionReasonId || null;
         } else if (status !== "cancelled" && status !== "rejected") {
-            (updateData as Record<string, unknown>).rejection_reason_id = null;
+            (updateData as Record<string, unknown>).reason_id = null;
         }
         if (status === "delivered") updateData.delivered_at = new Date().toISOString();
         if (status === "cancelled") updateData.cancelled_at = new Date().toISOString();

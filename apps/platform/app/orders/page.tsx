@@ -669,10 +669,10 @@ export default function OrdersPage() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }, [filters, filterDuplicatesOnly]);
 
-    const handleStatusUpdate = async (orderId: string, status: Order["status"], reason?: string) => {
+    const handleStatusUpdate = async (orderId: string, status: Order["status"], reason?: string, reasonId?: string) => {
         setLoadingId(orderId);
         try {
-            const result = await updateOrderStatus(orderId, status, reason);
+            const result = await updateOrderStatus(orderId, status, reason, reasonId);
             if (result?.success || result === undefined) {
                 toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDesc").replace("{status}", String(status)));
             } else if (result?.error) {
@@ -2834,9 +2834,9 @@ export default function OrdersPage() {
                             setCancelDialogOpen(false);
                             setOrderToCancel(null);
                         }}
-                        onConfirm={async (reason) => {
+                        onConfirm={async (reason, reasonId) => {
                             if (orderToCancel) {
-                                await handleStatusUpdate(orderToCancel.id, "cancelled", reason);
+                                await handleStatusUpdate(orderToCancel.id, "cancelled", reason, reasonId);
                             }
                         }}
                         customerName={orderToCancel?.customer_name}
@@ -2851,9 +2851,9 @@ export default function OrdersPage() {
                             setRejectDialogOpen(false);
                             setOrderToReject(null);
                         }}
-                        onConfirm={async (reason) => {
+                        onConfirm={async (reason, reasonId) => {
                             if (orderToReject) {
-                                await handleStatusUpdate(orderToReject.id, "rejected", reason);
+                                await handleStatusUpdate(orderToReject.id, "rejected", reason, reasonId);
                             }
                         }}
                         customerName={orderToReject?.customer_name}

@@ -13,7 +13,7 @@ import type { Order, MessageTemplate } from "@/lib/supabase";
 
 interface ConfirmTabProps {
     orders: Order[];
-    onStatusUpdate: (orderId: string, status: Order["status"], reason?: string) => Promise<{ success: boolean; error?: string }>;
+    onStatusUpdate: (orderId: string, status: Order["status"], reason?: string, reasonId?: string) => Promise<{ success: boolean; error?: string }>;
     onViewDetails: (order: Order) => void;
     isBlacklisted: (phone: string) => boolean;
     messageTemplates?: MessageTemplate[];
@@ -75,11 +75,11 @@ export function ConfirmTab({
         setCancelDialogOpen(true);
     };
 
-    const handleCancelConfirm = async (reason: string) => {
+    const handleCancelConfirm = async (reason: string, reasonId?: string) => {
         if (!orderToCancel) return;
         setLoadingId(orderToCancel.id);
         try {
-            await onStatusUpdate(orderToCancel.id, "cancelled", reason);
+            await onStatusUpdate(orderToCancel.id, "cancelled", reason, reasonId);
         } finally {
             setLoadingId(null);
             setOrderToCancel(null);

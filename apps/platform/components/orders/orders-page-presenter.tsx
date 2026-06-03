@@ -269,7 +269,7 @@ export interface OrdersPagePresenterProps {
     handleBulkNoResponse: () => void;
     handlePrimeExport: () => void;
     handleManualSync: () => void;
-    handleStatusUpdate: (orderId: string, newStatus: string, reason?: string) => Promise<boolean>;
+    handleStatusUpdate: (orderId: string, newStatus: string, reason?: string, reasonId?: string) => Promise<boolean>;
     undoLastAction: () => Promise<void>;
     canUndo: boolean;
     isSyncing: boolean;
@@ -2020,9 +2020,9 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                         setCancelDialogOpen(false);
                         setOrderToCancel(null);
                     }}
-                    onConfirm={async (reason) => {
+                    onConfirm={async (reason, reasonId) => {
                         if (orderToCancel) {
-                            await handleStatusUpdate(orderToCancel.id, "cancelled", reason);
+                            await handleStatusUpdate(orderToCancel.id, "cancelled", reason, reasonId);
                         }
                     }}
                     customerName={orderToCancel?.customer_name}
@@ -2037,9 +2037,9 @@ export function OrdersPagePresenter(props: OrdersPagePresenterProps) {
                         setRejectDialogOpen(false);
                         setOrderToReject(null);
                     }}
-                    onConfirm={async (reason) => {
+                    onConfirm={async (reason, reasonId) => {
                         if (orderToReject) {
-                            await handleStatusUpdate(orderToReject.id, "rejected", reason);
+                            await handleStatusUpdate(orderToReject.id, "rejected", reason, reasonId);
                         }
                     }}
                     customerName={orderToReject?.customer_name}
