@@ -3,7 +3,6 @@
 import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
-import { AiCopyButton } from "../ai-copy-button";
 
 const RichTextEditor = dynamic(
   () => import("@/components/products/editor/rich-text-editor").then((m) => m.RichTextEditor),
@@ -17,9 +16,6 @@ interface AboutEditorProps {
   setAboutTitle: (v: string) => void;
   aboutBody: string;
   setAboutBody: (v: string) => void;
-  businessName?: string;
-  industry?: string;
-  template?: string;
 }
 
 export function AboutEditor({
@@ -29,9 +25,6 @@ export function AboutEditor({
   setAboutTitle,
   aboutBody,
   setAboutBody,
-  businessName = "",
-  industry,
-  template,
 }: AboutEditorProps) {
   return (
     <div data-tour-id="about-editor">
@@ -44,17 +37,7 @@ export function AboutEditor({
           >
             <Info className="w-4 h-4 text-blue-700" />
           </div>
-          <h3 className="text-lg font-semibold flex-1">About Section</h3>
-          <AiCopyButton
-            businessName={businessName}
-            industry={industry}
-            template={template}
-            size="sm"
-            onApply={(copy) => {
-              if (copy.about_title) setAboutTitle(copy.about_title);
-              if (copy.about_body) setAboutBody(copy.about_body);
-            }}
-          />
+          <h3 className="text-lg font-semibold">About Section</h3>
         </div>
 
         {/* Toggle switch */}

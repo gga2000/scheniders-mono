@@ -170,8 +170,6 @@ export function EditorPanel({ builder, tenantId, businessName, storeUrl, slug, c
                         heroImage={builder.heroImage}
                         setHeroImage={builder.setHeroImage}
                         tenantId={tenantId}
-                        businessName={businessName}
-                        template={builder.template}
                     />
                 </CollapsibleSection>
 
@@ -187,8 +185,6 @@ export function EditorPanel({ builder, tenantId, businessName, storeUrl, slug, c
                         setAboutTitle={builder.setAboutTitle}
                         aboutBody={builder.aboutBody}
                         setAboutBody={builder.setAboutBody}
-                        businessName={businessName}
-                        template={builder.template}
                     />
                 </CollapsibleSection>
 
