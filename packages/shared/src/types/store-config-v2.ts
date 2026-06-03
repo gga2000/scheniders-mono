@@ -308,6 +308,20 @@ export interface NamedSnapshot {
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
+/* Commerce config — V1 business fields ported forward                  */
+/* ─────────────────────────────────────────────────────────────────── */
+
+export interface StoreCommerceConfig {
+  whatsapp_number?: string;
+  enable_whatsapp_order?: boolean;
+  /** prefilled WhatsApp message templates (from legacy schneiders.whatsapp_templates) */
+  whatsapp_templates?: { order_confirm?: I18nString; product_inquiry?: I18nString };
+  socials?: { instagram?: string; facebook?: string; tiktok?: string; email?: string };
+  returns_policy?: { window_days?: number };
+  delivery_promise?: { baghdad_hours?: number; provinces_hours?: number; governorates_covered?: number };
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
 /* Root config                                                          */
 /* ─────────────────────────────────────────────────────────────────── */
 
@@ -329,6 +343,10 @@ export interface StoreConfigV2 {
   default_locale: LocaleCode;
   /** Locales the store actively supports. */
   enabled_locales: LocaleCode[];
+  /** V1 business fields: WhatsApp, socials, returns policy, delivery promise. */
+  commerce?: StoreCommerceConfig;   // NEW
+  /** Merchant-supplied CSS injected into the storefront <head>. */
+  custom_css?: string;              // NEW
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
