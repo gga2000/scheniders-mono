@@ -10,7 +10,7 @@ const BLOCK_LABELS: Record<string, string> = {
     storefront_writes: "storefront edits",
 };
 
-function formatRemaining(pausedUntil: string | null): string {
+function formatRemaining(pausedUntil: string | null | undefined): string {
     if (!pausedUntil) return "until further notice";
     const ms = Date.parse(pausedUntil) - Date.now();
     if (Number.isNaN(ms) || ms <= 0) return "expiring shortly";
