@@ -28,6 +28,8 @@ import { supabase } from "@/lib/supabase";
 import { cn, formatDate } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { GoogleInvitesCard } from "@/components/settings/google-invites-card";
+import { LinkMemberGoogleCard } from "@/components/settings/link-member-google-card";
+import { AccessRequestsCard } from "@/components/settings/access-requests-card";
 
 // Types
 type UserRole = "super_admin" | "admin" | "employee" | "viewer";
@@ -487,8 +489,14 @@ export default function TeamSettingsPage() {
                 </div>
             </div>
 
+            {/* Pending access requests (super-admin only; self-hides otherwise) */}
+            <AccessRequestsCard />
+
             {/* Invite by email → Google sign-in */}
             <GoogleInvitesCard />
+
+            {/* Connect an existing member's Google account */}
+            <LinkMemberGoogleCard />
 
             {/* Users Table */}
             <div className="glass-card rounded-2xl border border-border overflow-hidden">

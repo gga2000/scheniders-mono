@@ -45,7 +45,15 @@ export async function provisionInvitedUserIfNeeded(
             .order("created_at", { ascending: false })
             .limit(1)
             .maybeSingle();
-        if (!invite) return { provisioned: false, reason: "no-invite" };
+        if (!invite) {
+            // No invite → log a pending access request for super-admin review.
+            // ignoreDuplicates keeps an existing (incl. rejected) request untouched.
+            await admin.from("access_requests").upsert(
+                { user_id: user.id, email, name: user.name ?? null },
+                { onConflict: "user_id", ignoreDuplicates: true },
+            );
+            return { provisioned: false, reason: "no-invite-logged" };
+        }
 
         const displayName = invite.display_name || user.name || email.split("@")[0];
         const now = new Date().toISOString();
