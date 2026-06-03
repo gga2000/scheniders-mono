@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Hash, Check, Copy } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { getMerchantCode } from "@scheniders/shared";
-import { supabase } from "@/lib/supabase";
+import { useTenant } from "@/hooks/use-tenant";
 import { cn } from "@/lib/utils";
 
 /**
@@ -20,19 +19,7 @@ export function MerchantCodeBadge() {
   const { tenantId } = useAuth();
   const [copied, setCopied] = useState(false);
 
-  const { data: tenantRow } = useQuery({
-    queryKey: ["tenant-display-id", tenantId],
-    enabled: !!tenantId,
-    staleTime: 24 * 60 * 60 * 1000,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("tenants")
-        .select("display_id")
-        .eq("id", tenantId)
-        .maybeSingle();
-      return data as { display_id: number | null } | null;
-    },
-  });
+  const { data: tenantRow } = useTenant();
 
   if (!tenantId) return null;
   const code = getMerchantCode({

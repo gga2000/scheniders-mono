@@ -45,6 +45,9 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
       { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
       { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
@@ -72,9 +75,14 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const supabaseOrigin = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin;
   return (
     <html lang="ar" dir="ltr" suppressHydrationWarning>
       <head>
+        {/* Preconnect to the Supabase origin so DNS + TLS overlap with JS parse
+            on cold loads — the first request (auth/orders/metrics) fires immediately. */}
+        <link rel="preconnect" href={supabaseOrigin} crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href={supabaseOrigin} />
         {/* PWA Meta Tags */}
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />

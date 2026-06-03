@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Save, Store, Bell, Boxes, Volume2 } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
+import { AccountLinkingCard } from "@/components/settings/account-linking-card";
 
 
 export function GeneralSettings() {
@@ -220,6 +221,8 @@ export function GeneralSettings() {
                     </button>
                 </div>
             </div>
+
+            <AccountLinkingCard />
         </div>
     );
 }

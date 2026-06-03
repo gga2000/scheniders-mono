@@ -65,7 +65,7 @@ export function PageGuard({
     allowedRoles?: UserRole[];
     requiredPermission?: PermissionKey
 }) {
-    const { user, role: contextRole, permissions, isLoading, profileLoaded, retryAuth } = useAuth();
+    const { user, role: contextRole, permissions, isLoading, profileLoaded, profileMissing, retryAuth, signOut } = useAuth();
     const router = useRouter();
     const [isRetrying, setIsRetrying] = useState(false);
 
@@ -92,6 +92,33 @@ export function PageGuard({
     // profile fetch to complete (or fail) instead of using a fixed timeout.
     if (user && !role && !profileLoaded) {
         return <>{children}</>;
+    }
+
+    // Invite-only: signed in (e.g. via Google) but no account is provisioned for
+    // this user — show a clear message instead of a generic "access denied".
+    if (user && profileMissing) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
+                <div className="max-w-md w-full text-center bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
+                    <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+                        <span className="text-2xl">✉️</span>
+                    </div>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Account not set up yet</h2>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                        You signed in as <span className="font-medium">{user.email}</span>, but this email isn&apos;t linked to a Schenider account.
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                        Ask an admin to invite you — or, from your existing account&apos;s Settings, link this Google account.
+                    </p>
+                    <button
+                        onClick={() => { void signOut(); }}
+                        className="px-6 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors"
+                    >
+                        Sign out
+                    </button>
+                </div>
+            </div>
+        );
     }
 
     // Handle retry for auth failures

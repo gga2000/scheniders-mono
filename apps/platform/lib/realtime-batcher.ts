@@ -197,6 +197,63 @@ export class RealtimeBatcher {
     }
 
     /**
+     * Apply a batch of already-normalized changed rows (from an incremental
+     * `findChangedSince` delta) directly into the cache, using the SAME merge
+     * rules as flush(): mutation-guard skip, timestamp-aware dedup, archived →
+     * remove, and prepend genuinely-new rows. Used on realtime reconnect /
+     * app-reopen / heartbeat-drift instead of re-pulling the entire table.
+     * Returns the number of rows actually applied.
+     */
+    applyChangedOrders(changed: Order[]): number {
+        if (changed.length === 0) return 0;
+
+        // Prune expired mutation guards (mirror flush()).
+        const now = Date.now();
+        for (const [id, ts] of this.recentMutations) {
+            if (now - ts > RealtimeBatcher.MUTATION_GUARD_MS) this.recentMutations.delete(id);
+        }
+
+        const updates = new Map<string, Order>();
+        const archived = new Set<string>();
+        for (const o of changed) {
+            // Don't clobber an order we just mutated optimistically.
+            if (this.recentMutations.has(o.id)) continue;
+            if (o.is_archived) { archived.add(o.id); continue; }
+            updates.set(o.id, o);
+        }
+
+        let applied = 0;
+        this.queryClient.setQueryData<Order[]>(this.queryKey, (old) => {
+            if (!old) return old;
+
+            const result = old
+                .filter((o) => !archived.has(o.id))
+                .map((o) => {
+                    const updated = updates.get(o.id);
+                    if (!updated) return o;
+                    updates.delete(o.id); // mark applied
+                    // Timestamp-aware dedup: keep cache if it's already newer/equal.
+                    if (o.updated_at && updated.updated_at && updated.updated_at <= o.updated_at) {
+                        return o;
+                    }
+                    applied++;
+                    return updated;
+                });
+
+            // Genuinely-new rows (not already in the list) → prepend (newest-first).
+            const newOnes: Order[] = [];
+            for (const [, order] of updates) {
+                if (!result.some((o) => o.id === order.id)) { newOnes.push(order); applied++; }
+            }
+
+            return newOnes.length ? [...newOnes, ...result] : result;
+        });
+
+        diag.log(`[Diag:Batcher] DELTA_APPLY changed=${changed.length} archived=${archived.size} applied=${applied}`);
+        return applied;
+    }
+
+    /**
      * Cancel pending flush and clear buffer (for cleanup).
      */
     destroy(): void {

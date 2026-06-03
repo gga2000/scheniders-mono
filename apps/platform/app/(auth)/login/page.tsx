@@ -10,7 +10,7 @@ import Link from "next/link";
 function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { signIn, user, isLoading: authLoading } = useAuth();
+    const { signIn, signInWithGoogle, user, isLoading: authLoading } = useAuth();
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -60,6 +60,18 @@ function LoginForm() {
             router.push(returnTo);
         } catch {
             setError("An unexpected error occurred. Please try again.");
+            setIsLoading(false);
+        }
+    };
+
+    const handleGoogle = async () => {
+        setError(null);
+        setIsLoading(true);
+        // signInWithOAuth redirects the browser to Google on success; an error
+        // means the redirect never started (e.g. the provider isn't enabled yet).
+        const { error: oauthError } = await signInWithGoogle(returnTo);
+        if (oauthError) {
+            setError(oauthError.message);
             setIsLoading(false);
         }
     };
@@ -263,6 +275,29 @@ function LoginForm() {
                             )}
                         </button>
                     </motion.div>
+
+                    {/* Divider */}
+                    <div className="flex items-center gap-3 py-1">
+                        <div className="h-px flex-1 bg-[#E8E4DC]" />
+                        <span className="text-xs text-[#9A9A9A]">or</span>
+                        <div className="h-px flex-1 bg-[#E8E4DC]" />
+                    </div>
+
+                    {/* Continue with Google */}
+                    <button
+                        type="button"
+                        onClick={handleGoogle}
+                        disabled={isLoading}
+                        className="w-full h-12 rounded-xl font-semibold text-[#1E1E1E] bg-white border-2 border-[#E8E4DC] hover:bg-[#FAF8F4] hover:border-[#DAD4CC] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-all duration-200"
+                    >
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1Z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.66-2.26 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z"/>
+                            <path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z"/>
+                            <path fill="#EA4335" d="M12 4.75c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 1.46 14.97.5 12 .5A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 6.68 9.14 4.75 12 4.75Z"/>
+                        </svg>
+                        <span>Continue with Google</span>
+                    </button>
                 </form>
 
                 {/* Footer */}

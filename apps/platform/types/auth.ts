@@ -24,12 +24,16 @@ export interface AuthContextType {
     tenantId: string | null;
     isLoading: boolean;
     profileLoaded: boolean;
+    profileMissing: boolean; // signed in, but no user_profiles row (unprovisioned / not invited)
     clientReady: boolean; // Supabase client's internal session ready (not just React state)
     signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
     signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
     signOut: () => Promise<void>;
     resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
     updatePassword: (password: string) => Promise<{ error: AuthError | null }>;
+    signInWithGoogle: (returnTo?: string) => Promise<{ error: AuthError | null }>;
+    linkGoogle: () => Promise<{ error: AuthError | null }>;
+    googleLinked: boolean;
     refreshProfile: () => Promise<void>;
     retryAuth: () => Promise<{ error: any }>;
 }

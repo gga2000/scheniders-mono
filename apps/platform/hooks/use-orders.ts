@@ -3,7 +3,6 @@
 import { useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Order } from "@/lib/supabase";
-import { diag } from "@/lib/diag";
 
 // Decomposed hooks
 import { useOrderFilters } from "@/hooks/use-order-filters";
@@ -17,12 +16,12 @@ import { useRealtimeHeartbeat } from "@/hooks/use-realtime-heartbeat";
 import {
     useOrdersQuery,
     useArchivedOrdersQuery,
-    orderRefetchTriggers,
+    syncOrdersDelta,
     orderKeys,
     setOrderBatcher,
 } from "@/hooks/use-orders-query";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 
 // =============================================
 // ENHANCED ORDERS HOOK (Composition Root)
@@ -41,19 +40,16 @@ export function useOrders() {
     // =============================================
     const queryClient = useQueryClient();
 
-    // Track refetch triggers for app reopen and realtime reconnection
-    const [refetchTrigger, setRefetchTrigger] = useState<string | undefined>();
-
-    // Detect app reopen and trigger refetch (only if we already have data —
-    // if not, the query will fetch automatically when session becomes available)
+    // On app reopen, sync ONLY the delta (rows changed since the cache's
+    // high-water mark) instead of re-pulling the whole ~5.8MB table. Skip when
+    // there's no cache yet — the query fetches on its own once the session is ready.
     useAppLifecycle(() => {
         if (queryClient.getQueryData(orderKeys.lists())) {
-            diag.log("[Diag:Orders] REFETCH_TRIGGER source=appReopen");
-            setRefetchTrigger(orderRefetchTriggers.appReopen + Date.now());
+            void syncOrdersDelta(queryClient, "appReopen");
         }
     });
 
-    const { data: cachedOrders, isLoading: queryLoading, error: queryError } = useOrdersQuery(refetchTrigger);
+    const { data: cachedOrders, isLoading: queryLoading, error: queryError } = useOrdersQuery();
 
     // Single source of truth: React Query cache
     const orders = cachedOrders ?? [];
@@ -74,8 +70,9 @@ export function useOrders() {
     // 2. Realtime — Supabase channel subscription (updates RQ cache directly)
     const { batcherRef } = useOrderRealtime({
         onReconnect: () => {
-            diag.log("[Diag:Orders] REFETCH_TRIGGER source=realtimeReconnect");
-            setRefetchTrigger(orderRefetchTriggers.realtimeReconnect + Date.now());
+            // Reconnect: flush any missed events via an incremental delta sync,
+            // not a full-table refetch.
+            void syncOrdersDelta(queryClient, "realtimeReconnect");
         }
     });
 

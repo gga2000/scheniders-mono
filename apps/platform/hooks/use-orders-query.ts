@@ -1,8 +1,9 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { type Order } from "@/types";
 import { CACHE_PRESETS } from '@/lib/query-config';
 import { diag } from "@/lib/diag";
+import { perfTrace } from "@/lib/perf-trace";
 import { orderRepository } from "@/lib/repositories/order-repository";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "sonner";
@@ -34,6 +35,41 @@ export const orderKeys = {
 let _orderBatcher: RealtimeBatcher | null = null;
 export function setOrderBatcher(b: RealtimeBatcher | null) { _orderBatcher = b; }
 function getOrderBatcher() { return _orderBatcher; }
+
+/**
+ * Incremental delta sync — used on realtime reconnect / app-reopen / heartbeat
+ * drift INSTEAD of re-pulling the entire orders table (~5.8MB / 3k+ rows).
+ * Fetches only rows changed since the cache's high-water mark (max updated_at)
+ * and merges them through the batcher (same rules as live events). Falls back to
+ * a full invalidate when there's no cache/batcher or the delta fetch fails.
+ */
+export async function syncOrdersDelta(queryClient: QueryClient, source: string): Promise<void> {
+    const cached = queryClient.getQueryData<Order[]>(orderKeys.lists());
+    const batcher = getOrderBatcher();
+    if (!cached || cached.length === 0 || !batcher) {
+        diag.log(`[Diag:RQ:Delta] source=${source} — no cache/batcher, full refetch`);
+        queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+        return;
+    }
+    // High-water mark: the newest updated_at currently in cache.
+    let since = '';
+    for (const o of cached) {
+        if (o.updated_at && o.updated_at > since) since = o.updated_at;
+    }
+    if (!since) {
+        queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+        return;
+    }
+    try {
+        const _t = performance.now();
+        const changed = await orderRepository.findChangedSince(since);
+        const applied = batcher.applyChangedOrders(changed);
+        diag.log(`[Diag:RQ:Delta] source=${source} since=${since} fetched=${changed.length} applied=${applied} took=${(performance.now() - _t).toFixed(1)}ms`);
+    } catch (err) {
+        diag.error(`[Diag:RQ:Delta] source=${source} FAILED — full refetch`, err);
+        queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+    }
+}
 
 // Per-order mutation sequence: prevents stale onSuccess/onError from
 // overwriting newer optimistic state when rapid-fire mutations overlap.
@@ -72,7 +108,9 @@ const SWR_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes — discard if older
 
 function writeSwrCache(orders: Order[]): void {
     try {
-        sessionStorage.setItem(SWR_CACHE_KEY, JSON.stringify(orders));
+        // Measure the SYNCHRONOUS main-thread serialization cost + payload size.
+        const serialized = perfTrace.time('swr-stringify', () => JSON.stringify(orders), s => s.length);
+        sessionStorage.setItem(SWR_CACHE_KEY, serialized);
         sessionStorage.setItem(SWR_TS_KEY, String(Date.now()));
     } catch {
         // sessionStorage full or unavailable — non-critical
@@ -85,7 +123,8 @@ function readSwrCache(): Order[] | null {
         if (!ts || Date.now() - Number(ts) > SWR_MAX_AGE_MS) return null;
         const raw = sessionStorage.getItem(SWR_CACHE_KEY);
         if (!raw) return null;
-        return JSON.parse(raw) as Order[];
+        // Measure the SYNCHRONOUS main-thread parse cost (runs during render via initialData).
+        return perfTrace.time('swr-parse', () => JSON.parse(raw) as Order[], () => raw.length);
     } catch {
         return null;
     }
@@ -94,8 +133,10 @@ function readSwrCache(): Order[] | null {
 // Fetch all active orders — auth gating is handled by the `enabled` flag in useOrdersQuery.
 async function fetchOrders(): Promise<Order[]> {
     const _tFetch = performance.now();
+    perfTrace.markRepeat('orders:fetch-start');
     diag.log(`[Diag:RQ:Fetch] fetchOrders START`);
     const result = await orderRepository.findAll();
+    perfTrace.mark('orders:fetch-done', { count: result.length });
     diag.log(`[Diag:RQ:Fetch] fetchOrders OK count=${result.length} took=${(performance.now() - _tFetch).toFixed(1)}ms`);
 
     // Layer 1: Resolve stale "contacted" orders → "no_response" at fetch time.

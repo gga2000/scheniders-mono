@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
 import { env } from '@/lib/env';
 import { diag } from '@/lib/diag';
 
@@ -37,109 +37,43 @@ export function getStoredSupabaseSession(): {
     access_token: string;
     refresh_token: string;
 } | null {
-    try {
-        const url = new URL(env.NEXT_PUBLIC_SUPABASE_URL);
-        const projectRef = url.hostname.split('.')[0];
-        const storageKey = `sb-${projectRef}-auth-token`;
-        const raw = localStorage.getItem(storageKey);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        if (parsed?.user?.id && parsed?.access_token) {
-            return parsed;
-        }
-        return null;
-    } catch {
-        return null;
-    }
-}
-
-/**
- * Get a valid (non-expired) access token from localStorage.
- * Returns null if no token exists or if the token expires within 30 seconds.
- */
-function getValidStoredToken(): string | null {
-    const stored = getStoredSupabaseSession();
-    if (!stored?.access_token) return null;
-    const exp = getJwtExpiry(stored.access_token);
-    if (exp === null) return null;
-    // Only use if token has > 30s remaining
-    if (exp > Math.floor(Date.now() / 1000) + 30) {
-        return stored.access_token;
-    }
+    // Sessions moved from localStorage to cookies (createBrowserClient), so there
+    // is no synchronously-readable token here anymore. Auth now bootstraps via
+    // supabase.auth.onAuthStateChange (INITIAL_SESSION). Kept as a no-op export so
+    // the auth-provider's optional fast-path simply skips and relies on the event.
     return null;
 }
 
 // =============================================
-// CONNECTION PRE-WARM
+// SUPABASE BROWSER CLIENT (cookie-based @supabase/ssr)
 // =============================================
 
-// Detect stale TCP sockets from device sleep BEFORE createClient starts
-// _initialize(). This fires a lightweight HEAD request so the browser's
-// network stack can discover and discard dead connections early.
-if (typeof window !== 'undefined') {
-    const _tPrewarm = performance.now();
-    fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/`, {
-        method: 'HEAD',
-        headers: { 'apikey': env.NEXT_PUBLIC_SUPABASE_ANON_KEY },
-        cache: 'no-store',
-    }).then(() => {
-        diag.log(`[Supabase:Prewarm] OK took=${(performance.now() - _tPrewarm).toFixed(1)}ms`);
-    }).catch(() => {
-        diag.warn(`[Supabase:Prewarm] FAILED took=${(performance.now() - _tPrewarm).toFixed(1)}ms — stale connection detected`);
-    });
-}
+//
+// Cookie-based sessions make the session visible to the Next.js server
+// (middleware, Server Components, Route Handlers), enabling server-side auth +
+// token refresh. supabase-js still attaches the access token as an Authorization
+// header on data requests, so the existing token-based API routes keep working.
+//
+// The old localStorage band-aids were removed with this migration:
+//   • auth-header injection from localStorage (createBrowserClient handles auth)
+//   • the connection pre-warm HEAD (it 401'd and cost ~400ms)
+//   • the /auth/v1/token fast-retry (token refresh now happens server-side in
+//     middleware, off the client's stale socket)
 
-// =============================================
-// SUPABASE CLIENT
-// =============================================
-
-// Global fetch timeout — prevents requests from hanging forever on stale
-// TCP connections after device sleep.
+// Global fetch timeout — still useful to keep a request from hanging forever on
+// a stale TCP connection after device sleep.
 const SUPABASE_FETCH_TIMEOUT_MS = 10_000;
 
-// Fast retry threshold for auth token refresh endpoints.
-// If the first attempt takes longer than this, abort and retry on a fresh connection.
-const AUTH_FAST_RETRY_MS = 2_000;
-
-export const supabase = createClient(
+export const supabase = createBrowserClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
-        auth: {
-            persistSession: true,
-            autoRefreshToken: true,
-            detectSessionInUrl: true,
-        },
         global: {
             fetch: (url, options) => {
                 const _t = performance.now();
                 const urlStr = typeof url === 'string' ? url : (url instanceof Request ? url.url : 'unknown');
                 const shortUrl = urlStr.split('?')[0].replace(/https?:\/\/[^/]+/, '');
-                const isAuthTokenEndpoint = shortUrl.includes('/auth/v1/token');
-                const isAuthEndpoint = shortUrl.includes('/auth/');
 
-                // ── Auth header injection ──
-                // Before _initialize() completes, the Supabase client sends requests
-                // without user auth (only anon key). For non-auth requests (PostgREST,
-                // Storage), inject the user's access token from localStorage so RLS
-                // works immediately on page load.
-                let mergedHeaders: HeadersInit | undefined = options?.headers;
-
-                if (typeof window !== 'undefined' && !isAuthEndpoint) {
-                    const token = getValidStoredToken();
-                    if (token) {
-                        // Check if the client hasn't set a user token yet
-                        const existing = new Headers(options?.headers);
-                        const currentAuth = existing.get('Authorization');
-                        if (!currentAuth || currentAuth === `Bearer ${env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`) {
-                            existing.set('Authorization', `Bearer ${token}`);
-                            mergedHeaders = existing;
-                            diag.log(`[Supabase:Fetch] AUTH_INJECT url=${shortUrl}`);
-                        }
-                    }
-                }
-
-                // ── Abort controller + global timeout ──
                 const controller = new AbortController();
                 const callerSignal = options?.signal;
                 if (callerSignal) {
@@ -153,53 +87,11 @@ export const supabase = createClient(
 
                 diag.log(`[Supabase:Fetch] START url=${shortUrl} method=${options?.method ?? 'GET'}`);
 
-                const doFetch = (signal: AbortSignal, attempt: number) =>
-                    fetch(url, { ...options, headers: mergedHeaders, signal, cache: 'no-store' as RequestCache })
-                        .then(response => {
-                            diag.log(`[Supabase:Fetch] DONE url=${shortUrl} status=${response.status} attempt=${attempt} took=${(performance.now() - _t).toFixed(1)}ms`);
-                            return response;
-                        });
-
-                // ── Fast retry for auth token refresh ──
-                // After device sleep, the first request on a stale TCP connection
-                // hangs for 3-6s while the OS detects the dead socket. If the token
-                // refresh takes > 2s, abort and retry — the browser will use a fresh
-                // connection for the retry.
-                let resultPromise: Promise<Response>;
-
-                if (isAuthTokenEndpoint) {
-                    const firstController = new AbortController();
-                    controller.signal.addEventListener('abort', () => firstController.abort(), { once: true });
-
-                    resultPromise = new Promise<Response>((resolve, reject) => {
-                        let settled = false;
-                        let retryFired = false;
-
-                        doFetch(firstController.signal, 1)
-                            .then(r => { if (!settled) { settled = true; resolve(r); } })
-                            .catch(e => {
-                                if (!settled && !retryFired) { settled = true; reject(e); }
-                            });
-
-                        setTimeout(() => {
-                            if (settled) return;
-                            retryFired = true;
-                            diag.warn(`[Supabase:Fetch] AUTH_FAST_RETRY — first attempt stalled after ${AUTH_FAST_RETRY_MS}ms, retrying`);
-                            firstController.abort();
-
-                            const retryController = new AbortController();
-                            controller.signal.addEventListener('abort', () => retryController.abort(), { once: true });
-
-                            doFetch(retryController.signal, 2)
-                                .then(r => { if (!settled) { settled = true; resolve(r); } })
-                                .catch(e => { if (!settled) { settled = true; reject(e); } });
-                        }, AUTH_FAST_RETRY_MS);
-                    });
-                } else {
-                    resultPromise = doFetch(controller.signal, 1);
-                }
-
-                return resultPromise
+                return fetch(url, { ...options, signal: controller.signal, cache: 'no-store' as RequestCache })
+                    .then(response => {
+                        diag.log(`[Supabase:Fetch] DONE url=${shortUrl} status=${response.status} took=${(performance.now() - _t).toFixed(1)}ms`);
+                        return response;
+                    })
                     .catch(err => {
                         diag.error(`[Supabase:Fetch] FAILED url=${shortUrl} err=${err instanceof Error ? err.message : err} took=${(performance.now() - _t).toFixed(1)}ms`);
                         throw err;

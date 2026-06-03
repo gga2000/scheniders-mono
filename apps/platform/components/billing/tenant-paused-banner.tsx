@@ -1,24 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/components/auth/auth-provider";
-import { supabase } from "@/lib/supabase";
+import { useTenant } from "@/hooks/use-tenant";
 import { PauseCircle } from "lucide-react";
-
-interface TenantRestrictionsRow {
-    status: string;
-    restrictions: {
-        paused_until: string | null;
-        paused_at: string | null;
-        reason: string | null;
-        blocks?: Partial<
-            Record<
-                "new_orders" | "new_products" | "team_invites" | "storefront_writes",
-                boolean
-            >
-        >;
-    } | null;
-}
 
 const BLOCK_LABELS: Record<string, string> = {
     new_orders: "new orders",
@@ -56,23 +39,7 @@ function formatRemaining(pausedUntil: string | null): string {
  * guards in `lib/restrictions.ts` are what actually refuse blocked writes.
  */
 export function TenantPausedBanner() {
-    const { tenantId } = useAuth();
-
-    const { data } = useQuery({
-        queryKey: ["tenant_restrictions", tenantId],
-        queryFn: async () => {
-            const { data, error } = await supabase
-                .from("tenants")
-                .select("status, restrictions")
-                .eq("id", tenantId!)
-                .single();
-            if (error) throw error;
-            return data as TenantRestrictionsRow;
-        },
-        enabled: !!tenantId,
-        staleTime: 30_000,
-        refetchOnWindowFocus: true,
-    });
+    const { data } = useTenant();
 
     if (!data || data.status !== "limited") return null;
 
