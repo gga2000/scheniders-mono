@@ -21,6 +21,9 @@ import { OrderPipeline } from "@/components/dashboard/widgets/order-pipeline";
 import { PageSkeleton } from "@scheniders/ui/skeletons";
 import { useLanguage } from "@/hooks/use-language";
 import { useAnnouncements } from "@/hooks/use-announcements";
+import { perfTrace } from "@/lib/perf-trace";
+import { useDashboardMetricsQuery } from "@/hooks/use-dashboard-metrics-query";
+import { diag } from "@/lib/diag";
 
 // Dynamic imports — all chart + operational widgets
 const Leaderboard = dynamic(() => import("@/components/dashboard/widgets/leaderboard").then(mod => ({ default: mod.Leaderboard })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
@@ -39,10 +42,15 @@ const StaffLeaderboard = dynamic(() => import("@/components/dashboard/widgets/st
 const TeamAnnouncements = dynamic(() => import("@/components/dashboard/widgets/team-announcements").then(mod => ({ default: mod.TeamAnnouncements })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
 
 export default function Home() {
-  const { orders, loading, error, createOrder } = useOrdersContext();
+  const { orders, error, createOrder } = useOrdersContext();
   const { products } = useProductsCrud();
   const stats = useStats(orders);
-  const dashboardMetrics = useDashboardMetrics(orders, products || []);
+  // Server-computed metrics (fast, ~KB) gate first paint instead of the full
+  // 12k-row orders fetch. The client computation is kept as a fallback (if the
+  // RPC errors) and as a dev-only parallel-run drift check.
+  const clientMetrics = useDashboardMetrics(orders, products || []);
+  const { data: serverMetrics } = useDashboardMetricsQuery('all');
+  const dashboardMetrics = serverMetrics ?? clientMetrics;
   const { t } = useLanguage();
   const { profile, role } = useAuth();
   const { isMobile } = useViewport();
@@ -61,15 +69,43 @@ export default function Home() {
     setIsMounted(true); // eslint-disable-line react-hooks/set-state-in-effect -- hydration guard
   }, []);
 
+  // Mark the moment the dashboard's first real (non-skeleton) render commits.
+  // perfTrace.mark is first-wins, so this records only the initial paint and
+  // auto-emits the critical-path summary to the console.
+  useEffect(() => {
+    if (isMounted && dashboardMetrics) {
+      perfTrace.mark('dashboard:first-paint');
+    }
+  }, [isMounted, dashboardMetrics]);
+
   const rangeOrders = useMemo(
     () => filterOrdersByDateRange(orders, dateRange),
     [orders, dateRange]
   );
-  const rangeMetrics = useDashboardMetrics(rangeOrders, products || []);
+  const { data: serverRangeMetrics } = useDashboardMetricsQuery(dateRange);
+  const clientRangeMetrics = useDashboardMetrics(rangeOrders, products || []);
+  const rangeMetrics = serverRangeMetrics ?? clientRangeMetrics;
+
+  // Dev-only parallel-run drift check: once the client has computed metrics from
+  // the loaded orders array, compare key server vs client numbers. Lets us prove
+  // the SQL function matches before fully retiring the client path.
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development' || !serverMetrics || !clientMetrics) return;
+    const cmp: Array<[string, number, number]> = [
+      ['pipeline.new', serverMetrics.pipeline.find(p => p.status === 'new')?.count ?? -1, clientMetrics.pipeline.find(p => p.status === 'new')?.count ?? -1],
+      ['todayStrip.ordersToday', serverMetrics.todayStrip.ordersToday, clientMetrics.todayStrip.ordersToday],
+      ['funnel.total', serverMetrics.funnel[0]?.value ?? -1, clientMetrics.funnel[0]?.value ?? -1],
+      ['deliveryRate.current', serverMetrics.deliveryRate.currentRate, clientMetrics.deliveryRate.currentRate],
+      ['monthForecast.ordersThisMonth', serverMetrics.monthForecast.ordersThisMonth, clientMetrics.monthForecast.ordersThisMonth],
+    ];
+    const drift = cmp.filter(([, s, c]) => s !== c);
+    if (drift.length === 0) diag.log('[Diag:MetricsDrift] OK — server matches client on sampled metrics');
+    else drift.forEach(([k, s, c]) => diag.warn(`[Diag:MetricsDrift] DRIFT ${k}: server=${s} client=${c}`));
+  }, [serverMetrics, clientMetrics]);
 
   const ENABLE_MOBILE = true;
 
-  if (!isMounted || loading || !dashboardMetrics) {
+  if (!isMounted || !dashboardMetrics) {
     return (
       <div className="min-h-screen bg-[var(--background)]">
         <PageSkeleton />

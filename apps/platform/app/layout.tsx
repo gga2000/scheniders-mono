@@ -71,9 +71,14 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const supabaseOrigin = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin;
   return (
     <html lang="ar" dir="ltr" suppressHydrationWarning>
       <head>
+        {/* Preconnect to the Supabase origin so DNS + TLS overlap with JS parse
+            on cold loads — the first request (auth/orders/metrics) fires immediately. */}
+        <link rel="preconnect" href={supabaseOrigin} crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href={supabaseOrigin} />
         {/* PWA Meta Tags */}
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />

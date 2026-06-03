@@ -10,7 +10,7 @@ import Link from "next/link";
 function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { signIn, user, isLoading: authLoading } = useAuth();
+    const { signIn, signInWithGoogle, user, isLoading: authLoading } = useAuth();
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -60,6 +60,18 @@ function LoginForm() {
             router.push(returnTo);
         } catch {
             setError("An unexpected error occurred. Please try again.");
+            setIsLoading(false);
+        }
+    };
+
+    const handleGoogle = async () => {
+        setError(null);
+        setIsLoading(true);
+        // signInWithOAuth redirects the browser to Google on success; an error
+        // means the redirect never started (e.g. the provider isn't enabled yet).
+        const { error: oauthError } = await signInWithGoogle(returnTo);
+        if (oauthError) {
+            setError(oauthError.message);
             setIsLoading(false);
         }
     };

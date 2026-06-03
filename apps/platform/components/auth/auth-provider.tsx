@@ -2,10 +2,11 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { User, Session } from "@supabase/supabase-js";
-import { supabase, getStoredSupabaseSession, getJwtExpiry } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { activityLogger } from "@/lib/activity-logger";
 import type { UserProfile, AuthContextType } from "@/types/auth";
 import { diag } from "@/lib/diag";
+import { perfTrace } from "@/lib/perf-trace";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -65,6 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             });
             setPermissions(Array.from(perms));
             markProfileLoaded(true);
+            perfTrace.mark('auth:profile-loaded', { role: profileData.role, perms: perms.size });
             diag.log(`[Auth] PROFILE_OK userId=${userId} role=${profileData.role} perms=${perms.size}`);
         } catch (err) {
             diag.error(`[Auth] PROFILE_ERR userId=${userId}:`, err);
@@ -108,41 +110,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         let mounted = true;
         const _tInit = performance.now();
+        perfTrace.mark('auth:init');
         diag.log(`[Auth] INIT`);
 
-        // ── PHASE 1: Instant bootstrap from localStorage ──
-        const storedSession = getStoredSupabaseSession();
-        let bootstrapped = false;
+        // Session lives in cookies (createBrowserClient) — onAuthStateChange fires
+        // INITIAL_SESSION with the cookie session on init, so there's no localStorage
+        // bootstrap. createBrowserClient also auto-refreshes the token during init,
+        // so an empty INITIAL_SESSION genuinely means "not authenticated".
 
-        if (storedSession?.user?.id && storedSession.access_token) {
-            const expiry = getJwtExpiry(storedSession.access_token);
-            const nowSec = Math.floor(Date.now() / 1000);
-            const tokenValid = expiry !== null && (expiry - nowSec) > 60;
-
-            setUser(storedSession.user as unknown as User);
-            setSession(storedSession as unknown as Session);
-            currentUserIdRef.current = storedSession.user.id;
-            setIsLoading(false);
-            bootstrapped = true;
-
-            if (tokenValid) {
-                // Token is valid — queries can start immediately.
-                // The fetch wrapper injects auth headers from localStorage.
-                // For valid tokens, _initialize() completes in <10ms (no network call).
-                setClientReady(true);
-                diag.log(`[Auth] BOOTSTRAP — clientReady=true (token valid, expires in ${expiry! - nowSec}s)`);
-
-                // Eagerly fetch profile so role/permissions are available ASAP.
-                // The fetch wrapper injects the stored token, so this works pre-init.
-                fetchProfile(storedSession.user.id);
-            } else {
-                diag.log(`[Auth] BOOTSTRAP — token expired, waiting for refresh`);
+        // Safety net: if no auth event arrives within 15s (e.g. a network failure),
+        // release the loading state so the UI can't get stuck. Cleared the moment
+        // any auth event resolves.
+        let safetyTimeout: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+            if (mounted) {
+                diag.error(`[Auth] SAFETY_TIMEOUT — 15s with no auth event, releasing loading state`);
+                setIsLoading(false);
             }
-        } else {
-            diag.log(`[Auth] BOOTSTRAP_NONE — no stored session`);
-        }
+        }, 15_000);
+        const clearSafety = () => {
+            if (safetyTimeout) { clearTimeout(safetyTimeout); safetyTimeout = null; }
+        };
 
-        // ── PHASE 2: Subscribe to auth events ──
+        // ── Subscribe to auth events ──
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, currentSession) => {
                 if (!mounted) return;
@@ -150,57 +139,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
                     if (!currentSession?.user) {
-                        if (event === 'INITIAL_SESSION') {
-                            // Token may be expired — Supabase will auto-refresh and fire SIGNED_IN.
-                            // Also proactively attempt refresh to speed things up.
-                            diag.warn(`[Auth] INITIAL_SESSION_EMPTY — attempting refresh`);
-                            supabase.auth.refreshSession().catch(() => {});
-
-                            // If no valid session arrives within 10s, clear state
-                            if (deferredLogoutRef.current) clearTimeout(deferredLogoutRef.current);
-                            deferredLogoutRef.current = setTimeout(() => {
-                                if (!mounted) return;
-                                diag.error(`[Auth] DEFERRED_LOGOUT — no session after 10s`);
-                                setSession(null);
-                                setUser(null);
-                                setRole(null);
-                                setProfile(null);
-                                setPermissions([]);
-                                setTenantId(null);
-                                markProfileLoaded(false);
-                                setClientReady(false);
-                                setIsLoading(false);
-                                deferredLogoutRef.current = null;
-                            }, 10_000);
-                            return;
-                        }
-                        // SIGNED_IN/TOKEN_REFRESHED with no session — clear immediately
+                        // No session (cookie absent or expired) = not authenticated.
+                        // createBrowserClient already auto-refreshed during init, so there
+                        // is nothing to wait for — clear state and let the route guard
+                        // redirect to /login immediately (no more 10s deferred-logout wait).
+                        clearSafety();
+                        if (deferredLogoutRef.current) { clearTimeout(deferredLogoutRef.current); deferredLogoutRef.current = null; }
                         setSession(null);
                         setUser(null);
                         setRole(null);
                         setProfile(null);
                         setPermissions([]);
+                        setTenantId(null);
                         markProfileLoaded(false);
+                        setClientReady(false);
                         setIsLoading(false);
                         return;
                     }
 
-                    // Valid session arrived — cancel any deferred logout
+                    // Valid session — cancel the safety timer + any pending deferred logout.
+                    clearSafety();
                     if (deferredLogoutRef.current) {
                         clearTimeout(deferredLogoutRef.current);
                         deferredLogoutRef.current = null;
                     }
 
-                    // Skip redundant profile fetch on token refresh for same user
                     const isSameUser = currentSession.user.id === currentUserIdRef.current;
 
-                    // Update state
                     setUser(currentSession.user);
                     setSession(currentSession);
                     setClientReady(true);
                     currentUserIdRef.current = currentSession.user.id;
                     setIsLoading(false);
 
+                    // Skip the redundant profile refetch when only the token rotated.
                     if (event === 'TOKEN_REFRESHED' && isSameUser && profileLoadedRef.current) {
                         diag.log(`[Auth] TOKEN_REFRESHED — same user, skipping profile fetch`);
                         return;
@@ -222,6 +194,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         });
                     }
                 } else if (event === 'SIGNED_OUT') {
+                    clearSafety();
                     currentUserIdRef.current = null;
                     setUser(null);
                     setSession(null);
@@ -236,17 +209,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
         );
 
-        // Safety: if no bootstrap AND no auth event within 15s, stop loading
-        const safetyTimeout = !bootstrapped ? setTimeout(() => {
-            if (mounted) {
-                diag.error(`[Auth] SAFETY_TIMEOUT — 15s with no auth, setting isLoading=false`);
-                setIsLoading(false);
-            }
-        }, 15_000) : null;
-
         return () => {
             mounted = false;
-            if (safetyTimeout) clearTimeout(safetyTimeout);
+            clearSafety();
             if (deferredLogoutRef.current) clearTimeout(deferredLogoutRef.current);
             subscription.unsubscribe();
         };
@@ -294,6 +259,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error };
     }, []);
 
+    const signInWithGoogle = useCallback(async (returnTo: string = '/') => {
+        // PKCE OAuth → Google → back to /api/auth/callback, which exchanges the
+        // code for a COOKIE session (createServerClient) and forwards to `next`.
+        // Reuses the exact cookie callback the email/password flow already uses.
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(returnTo)}`,
+            },
+        });
+        return { error };
+    }, []);
+
     const retryAuth = useCallback(async () => {
         diag.log('[Auth] MANUAL_RETRY');
         setIsLoading(true);
@@ -334,6 +312,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 signOut,
                 resetPassword,
                 updatePassword,
+                signInWithGoogle,
                 refreshProfile,
                 retryAuth,
             }}

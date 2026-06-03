@@ -6,6 +6,7 @@ import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useStats } from "@/hooks/use-stats";
 import { useDashboardMetrics } from "@/hooks/use-dashboard-metrics";
+import { useDashboardMetricsQuery } from "@/hooks/use-dashboard-metrics-query";
 import { useLanguage } from "@/hooks/use-language";
 import { useAuth } from "@/hooks/use-auth";
 import { PageSkeleton } from "@scheniders/ui/skeletons";
@@ -18,16 +19,19 @@ const UrgencyTriad = dynamic(() => import("@/components/dashboard/widgets/urgenc
 // ProfitPulse removed — data source no longer in useDashboardMetrics
 
 export function MobileDashboardPage() {
-    const { orders, loading, error, createOrder } = useOrdersContext();
+    const { orders, error, createOrder } = useOrdersContext();
     const { products } = useProductsCrud();
     const stats = useStats(orders);
-    const dashboardMetrics = useDashboardMetrics(orders, products || []);
+    // Server metrics gate first paint; client computation is the fallback.
+    const clientMetrics = useDashboardMetrics(orders, products || []);
+    const { data: serverMetrics } = useDashboardMetricsQuery('all');
+    const dashboardMetrics = serverMetrics ?? clientMetrics;
     const { t } = useLanguage();
     const { profile } = useAuth();
 
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-    if (loading || !dashboardMetrics) {
+    if (!dashboardMetrics) {
         return (
             <div className="min-h-screen bg-[var(--background)]">
                 <PageSkeleton />

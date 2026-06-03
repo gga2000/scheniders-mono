@@ -30,6 +30,7 @@ export interface AuthContextType {
     signOut: () => Promise<void>;
     resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
     updatePassword: (password: string) => Promise<{ error: AuthError | null }>;
+    signInWithGoogle: (returnTo?: string) => Promise<{ error: AuthError | null }>;
     refreshProfile: () => Promise<void>;
     retryAuth: () => Promise<{ error: any }>;
 }

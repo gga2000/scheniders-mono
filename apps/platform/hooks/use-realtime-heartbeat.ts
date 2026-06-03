@@ -3,7 +3,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase, Order } from "@/lib/supabase";
-import { orderKeys } from "@/hooks/use-orders-query";
+import { orderKeys, syncOrdersDelta } from "@/hooks/use-orders-query";
 import { diag } from "@/lib/diag";
 
 // =============================================
@@ -76,11 +76,8 @@ export function useRealtimeHeartbeat({
             const drift = serverLatest - clientLatest;
             diag.log(`[Diag:Heartbeat] CHECK drift=${Math.round(drift / 1000)}s serverLatest=${new Date(serverLatest).toISOString()} clientLatest=${new Date(clientLatest).toISOString()}`);
             if (drift > 5_000) {
-                diag.log(`[Diag:Heartbeat] RECONNECT_TRIGGER reason=cacheDrift drift=${Math.round(drift / 1000)}s`);
-                console.warn(
-                    `[Heartbeat] Cache drift detected: ${Math.round(drift / 1000)}s behind server. Triggering refetch.`
-                );
-                queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+                diag.log(`[Diag:Heartbeat] DRIFT reason=cacheDrift drift=${Math.round(drift / 1000)}s — incremental delta sync`);
+                await syncOrdersDelta(queryClient, "heartbeatDrift");
             }
         } catch (err) {
             // Heartbeat failures are non-critical — just log

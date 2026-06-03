@@ -1,5 +1,90 @@
 # Project: scheniders-mono
 
+Multi-tenant e-commerce SaaS for the **Iraq** market. Turborepo monorepo, npm workspaces.
+
+## ⚠️ First, always: check your skills
+
+**Many skills are installed.** At the start of **every** new task or feature — and **every time you pivot** from one task/feature to another, whether in a fresh chat or the same one — STOP and scan the full available-skills list (in the system context) before doing anything else.
+
+- Read the skill names/descriptions thoughtfully and ask: "does one of these fit what I'm about to do?"
+- If a skill plausibly applies, use it (invoke via the Skill tool / `/name`) instead of working ad-hoc — skills encode best practices.
+- When several could apply, pick the most specific. When unsure, mention the candidate skill to the user.
+- This is a hard habit, not a suggestion: treat "did I check skills?" as the first step of any task.
+
+See also [Use these skills](#use-these-skills-dont-reinvent) for the coding/DB/UI skills that map to common work here.
+
+## Stack & architecture
+
+- **Apps** (`apps/*`):
+  - `@scheniders/platform` — primary merchant/admin SaaS app (Next.js 16 App Router, port 3000). Most work happens here.
+  - `@scheniders/storefront` — customer-facing store.
+  - `@scheniders/admin` — internal admin app.
+- **Packages** (`packages/*`):
+  - `ui` — shared React components (Radix + shadcn-style). Check here before building UI.
+  - `sections` — store-builder sections.
+  - `shared` — cross-app utilities (governorates, health rules, merchant codes, preview tokens…).
+  - `supabase` — DB types, migrations, RLS/RBAC policies.
+- **Core stack:** Next.js 16 + React 19, Supabase (SSR + RLS), TanStack Query, Zustand, Tailwind v4, Zod v4, Sentry, Upstash QStash, Storybook, Playwright + Vitest.
+- **Ignore at app roots:** loose scratch files (`check-*.mjs`, `*.py`, `*.txt`, `tmp/`, `output/`, `*_plan.md`, ad-hoc `*.md` notes) are local scratch, **not source of truth**. Don't anchor on them.
+
+## Commands (run from repo root)
+
+- `npm run dev:platform` — main app on :3000 (also `dev:storefront`, `dev:admin`).
+- `npm run lint` / `npm run type-check` — turbo across the workspace.
+- `npm run test:e2e` — Playwright (platform).
+- `npx vitest run <path>` — unit tests (covers `packages/shared`, storefront, platform).
+- `npm run generate-types` — regenerate Supabase TS types.
+- Package manager is **npm** (npm@11.4.2). Never pnpm/yarn, despite any stray refs.
+
+## Engineering principles
+
+- **Fix the root cause. Never ship a workaround.** No swallowed `try/catch`, hardcoded values, sleep/retry hacks, or "temporary" patches.
+- Banned unless explicitly justified in a comment: `any`, `@ts-ignore`, `eslint-disable`, non-null `!` used to silence the compiler, `// TODO fix later`.
+- If a correct fix needs a larger change, say so and propose it — don't hide the problem behind a hack.
+- Type external boundaries (API input, webhooks, env) with Zod and infer the types. `strict` is on for a reason.
+
+## Done means verified
+
+- `npm run type-check` and `npm run lint` pass — both are the CI gate.
+- Run the relevant tests (`npx vitest run <path>` / Playwright). **CI does not run tests** — you must.
+- DB changes: confirm RLS + tenant scoping before declaring done.
+- No "should work." Verify the actual behavior.
+
+## File hygiene
+
+- New code goes in the correct app/package — never in an app root.
+- No one-off scratch in committed dirs (`check-*.mjs`, `*.py`, loose `*_plan.md`). Use a gitignored `tmp/` and delete when done.
+- Prefer editing an existing file over creating a new one. One component per file; colocate.
+- Delete dead code — don't comment it out.
+- Reuse `packages/ui` and `packages/shared` before adding a dependency or writing a util.
+
+## Security defaults (multi-tenant)
+
+- Every query is tenant-scoped. Never trust a client-supplied tenant id.
+- The service-role key is server-only. `NEXT_PUBLIC_*` ships to the browser — never put secrets there.
+- All new tables ship with RLS enabled from day one.
+
+## Conventions
+
+- **LTR only.** Set `<html lang>`, never `<html dir>` — the app stays LTR in every locale, including Arabic.
+- **Iraq market:** currency is **IQD**; there is **no tax/VAT** — skip all tax logic.
+- Don't propose or build keyboard shortcuts or keyboard-a11y sweeps unless explicitly asked.
+
+## Use these skills (don't reinvent)
+
+- React/Next.js work → `next-best-practices`, `vercel-react-best-practices`, `vercel-composition-patterns`.
+- DB / SQL / migrations → `supabase-postgres-best-practices`.
+- UI / new screens → `frontend-design` (or `impeccable`), `web-design-guidelines`.
+- Debugging a failure → `systematic-debugging` before proposing a fix.
+- Before declaring done → `verification-before-completion`.
+
+## Supabase & migrations
+
+- **Two projects exist — do not confuse them.** This repo targets **NEW** `sduvpgqwhxragxtxztur` (wired in `.mcp.json`). The **OLD** project `ibfdugifekivquwprqjc` lives in a separate codebase and is being migrated away from.
+- Migrations live in `packages/supabase/migrations/`, named `YYYYMMDDHHMMSS_description.sql`. Match that timestamp-prefix convention.
+- Everything must be **RLS + tenant-scoped** from creation.
+- Drafted migrations are applied without asking for confirmation (only stop for self-documented prerequisites or truly destructive ops).
+
 ## Knowledge Graph RAG (graphify-out)
 
 A pre-built knowledge graph of this codebase lives at [graphify-out/](graphify-out/). Use it as a RAG system for discovery and reasoning about code structure before falling back to Glob/Grep sweeps.
@@ -17,10 +102,16 @@ A pre-built knowledge graph of this codebase lives at [graphify-out/](graphify-o
 - [graphify-out/index.scip](graphify-out/index.scip) — SCIP code index (binary). For symbol-level precision; only query if needed via scip CLI.
 - [graphify-out/graph.html](graphify-out/graph.html) — visual graph (for the user, not for you).
 - [graphify-out/cache/](graphify-out/cache/) — internal cache, ignore.
+- `apps/platform/graphify-out/` — **stale leftover cache only** (no graph artifacts). Ignore it; it is not a second graph.
 
 **Query workflow:**
 1. Read GRAPH_REPORT.md communities to identify the relevant cluster.
 2. Grep graph.json for specific node names / edge types to get exact file paths and relationships.
 3. Read the resulting source files directly.
 
-**Caveat:** the graph is a snapshot (dated 2026-04-14 in the report). If results mention files/symbols, verify they still exist in the current tree before acting on them — trust the live code over the graph when they conflict.
+**Caveat — freshness:** the graph is a snapshot (dated 2026-04-14 in the report) and drifts as the repo evolves. Always trust live code over the graph when they conflict, and verify referenced files/symbols still exist. If the graph clearly predates recent work, re-run `/graphify` to refresh it.
+
+## Docs & CI
+
+- Standing audits live in [docs/audits/](docs/audits/) (production-readiness, QC matrices, builder audit).
+- CI (`.github/workflows/ci.yml`) runs `turbo lint type-check build` on PRs to `main` — **tests are not in CI**, so run them locally.

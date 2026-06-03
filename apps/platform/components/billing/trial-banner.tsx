@@ -1,17 +1,9 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/components/auth/auth-provider";
-import { supabase } from "@/lib/supabase";
+import { useTenant } from "@/hooks/use-tenant";
 import { useRouter, usePathname } from "next/navigation";
 import { Clock, AlertTriangle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface TenantStatus {
-    status: string;
-    trial_ends_at: string | null;
-    plan: string;
-}
 
 function computeDaysLeft(trialEndsAt: string | null): number | null {
     if (!trialEndsAt) return null;
@@ -19,24 +11,10 @@ function computeDaysLeft(trialEndsAt: string | null): number | null {
 }
 
 export function TrialBanner() {
-    const { tenantId } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
 
-    const { data: tenant } = useQuery({
-        queryKey: ["tenant_status", tenantId],
-        queryFn: async () => {
-            const { data, error } = await supabase
-                .from("tenants")
-                .select("status, trial_ends_at, plan")
-                .eq("id", tenantId!)
-                .single();
-            if (error) throw error;
-            return data as TenantStatus;
-        },
-        enabled: !!tenantId,
-        staleTime: 60_000, // check every minute
-    });
+    const { data: tenant } = useTenant();
 
     if (!tenant) return null;
 
