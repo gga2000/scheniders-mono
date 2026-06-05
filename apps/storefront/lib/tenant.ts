@@ -96,3 +96,26 @@ export const getTenantForPreview = cache(async (slug: string): Promise<Tenant | 
   const supabase = await createSupabaseServerClient();
   return selectTenant(supabase, { kind: "slug", value: slug }, { includeDraft: true });
 });
+
+/**
+ * Resolve a tenant by custom domain for the token-gated editor preview route.
+ * Like `getTenantByCustomDomain` but includes `store_config_v2_draft` so the
+ * editor renders unpublished changes when previewing via a custom-domain URL.
+ * Preview only — never call from public storefront routes.
+ */
+export const getTenantByCustomDomainForPreview = cache(
+  async (domain: string): Promise<Tenant | null> => {
+    if (!domain) return null;
+    const supabase = await createSupabaseServerClient();
+    const { data } = await supabase
+      .from("tenant_domains")
+      .select("tenant_id")
+      .eq("domain", domain)
+      .eq("verified", true)
+      .maybeSingle()
+      .then(r => ({ ...r, data: r.data as Pick<Tables<"tenant_domains">, "tenant_id"> | null }));
+
+    if (!data?.tenant_id) return null;
+    return selectTenant(supabase, { kind: "id", value: data.tenant_id }, { includeDraft: true });
+  },
+);

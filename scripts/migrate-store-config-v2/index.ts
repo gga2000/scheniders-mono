@@ -183,6 +183,7 @@ async function main() {
 
   let okCount = 0;
   let failCount = 0;
+  let skipCount = 0;
   const timings: number[] = [];
 
   for (const tenant of tenants) {
@@ -191,6 +192,15 @@ async function main() {
       const legacy = tenant.store_config ?? {};
       console.log(`\n── ${tenant.slug} (${tenant.id})`);
       console.log(`✓ Loaded legacy config (${summarizeLegacy(legacy)})`);
+
+      // Non-destructive default for WRITE runs: skip tenants that already have a
+      // store_config_v2 BEFORE doing the (non-trivial) mapping. Use --force to overwrite.
+      if (!flags.dryRun && (flags.tenant || flags.all) && tenant.store_config_v2 != null && !flags.force) {
+        console.log("  ↷ skipped — store_config_v2 already exists (pass --force to overwrite)");
+        skipCount++;
+        continue;
+      }
+
       const v2 = mapLegacyToV2(legacy);
       console.log(`✓ Built v2 config (${summarizeV2(v2)})`);
 
@@ -198,14 +208,6 @@ async function main() {
         console.log("Diff preview:");
         console.log(renderDiff(v2));
       } else if (flags.tenant || flags.all) {
-        // Non-destructive default: never clobber a tenant that already has a
-        // store_config_v2 (it may contain V2-editor work). Use --force to override.
-        if (tenant.store_config_v2 != null && !flags.force) {
-          console.log("  ↷ skipped — store_config_v2 already exists (pass --force to overwrite)");
-          okCount++;
-          timings.push(Date.now() - t0);
-          continue;
-        }
         const { error: upErr } = await supabase
           .from("tenants")
           .update({ store_config_v2: v2 })
@@ -234,6 +236,9 @@ async function main() {
       ? Math.round(timings.reduce((s, n) => s + n, 0) / timings.length)
       : 0;
     console.log(`✓ Migrated ${okCount} / ${tenants.length} tenants (avg ${avg}ms each)`);
+    if (skipCount > 0) {
+      console.log(`↷ Skipped ${skipCount} (already had store_config_v2; pass --force to overwrite)`);
+    }
     if (failCount > 0) {
       console.log(`✗ ${failCount} failures`);
       process.exitCode = 1;
