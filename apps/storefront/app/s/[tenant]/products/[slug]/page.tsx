@@ -14,6 +14,8 @@ import { SchneidersPageShell } from "@/components/schneiders/page-shell";
 import { SchneidersProductDetailClient } from "@/components/schneiders/product-detail-client";
 import { SchneidersProductCard } from "@/components/schneiders/product-card";
 import { ScribbleHeading } from "@/components/schneiders/primitives";
+import { pickV2Page, buildRuntimeContext } from "@/lib/storefront-runtime";
+import { V2Page } from "@/components/v2-page";
 
 interface Props {
   params: Promise<{ tenant: string; slug: string }>;
@@ -37,6 +39,28 @@ export default async function ProductPage({ params }: Props) {
   ]);
 
   const allImages = images.length > 0 ? images : product.image_url ? [product.image_url] : [];
+
+  const v2 = tenant.store_config_v2 ?? null;
+  const v2Page = pickV2Page(v2, "product");
+  if (v2 && v2Page) {
+    const runtime = buildRuntimeContext({
+      pageId: "product",
+      locale: v2.default_locale ?? "ar",
+      now: new Date(),
+      productId: product.id,
+    });
+    const hydratedProduct = { ...product, images: allImages, variants };
+    const related = await listProducts(tenant.id, { limit: 24 });
+    return (
+      <V2Page
+        v2={v2}
+        page={v2Page}
+        runtime={runtime}
+        renderCtx={{ tenant, products: related, categories, product: hydratedProduct }}
+      />
+    );
+  }
+
   const whatsappNumber = tenant.store_config?.contact?.whatsapp_number;
   const template = tenant.store_config?.template ?? "schneiders";
 
