@@ -72,7 +72,7 @@ async function testWebhook() {
     } catch (error) {
         console.error("\n💥 Request failed:", error);
         console.log("\n⚠️  Make sure:");
-        console.log("   1. Server is running (npm run dev)");
+        console.log("   1. Server is running (pnpm dev)");
         console.log("   2. LIGHTFUNNELS_WEBHOOK_SECRET is set in .env.local");
         console.log("   3. Supabase is configured");
     }

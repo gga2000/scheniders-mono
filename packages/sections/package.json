@@ -22,7 +22,7 @@
     "next": "^16.0.0"
   },
   "dependencies": {
-    "@scheniders/shared": "*",
+    "@scheniders/shared": "workspace:*",
     "zod": "^4.3.5",
     "zustand": "^5.0.0"
   },

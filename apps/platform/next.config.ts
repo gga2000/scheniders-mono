@@ -79,7 +79,7 @@ const nextConfig: NextConfig = {
   // This silences the warning when webpack config is present but not used
   turbopack: {},
 
-  // Webpack config for optional bundle analysis (use with: npm run analyze)
+  // Webpack config for optional bundle analysis (use with: pnpm analyze)
   // Note: This only runs when ANALYZE=true, otherwise Turbopack handles the build
   webpack: (config, { isServer }) => {
     if (process.env.ANALYZE === "true") {

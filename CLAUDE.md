@@ -1,6 +1,6 @@
 # Project: scheniders-mono
 
-Multi-tenant e-commerce SaaS for the **Iraq** market. Turborepo monorepo, npm workspaces.
+Multi-tenant e-commerce SaaS for the **Iraq** market. Turborepo monorepo, pnpm workspaces.
 
 ## ⚠️ First, always: check your skills
 
@@ -29,12 +29,12 @@ See also [Use these skills](#use-these-skills-dont-reinvent) for the coding/DB/U
 
 ## Commands (run from repo root)
 
-- `npm run dev:platform` — main app on :3000 (also `dev:storefront`, `dev:admin`).
-- `npm run lint` / `npm run type-check` — turbo across the workspace.
-- `npm run test:e2e` — Playwright (platform).
-- `npx vitest run <path>` — unit tests (covers `packages/shared`, storefront, platform).
-- `npm run generate-types` — regenerate Supabase TS types.
-- Package manager is **npm** (npm@11.4.2). Never pnpm/yarn, despite any stray refs.
+- `pnpm dev:platform` — main app on :3000 (also `dev:storefront`, `dev:admin`).
+- `pnpm lint` / `pnpm type-check` — turbo across the workspace.
+- `pnpm test:e2e` — Playwright (platform).
+- `pnpm exec vitest run <path>` — unit tests (covers `packages/shared`, storefront, platform).
+- `pnpm generate-types` — regenerate Supabase TS types.
+- Package manager is **pnpm** (pinned via the `packageManager` field, Corepack-managed). Never npm/yarn — only `pnpm-lock.yaml` is committed. Run `corepack enable` once so the pinned pnpm is used.
 
 ## Engineering principles
 
@@ -45,7 +45,7 @@ See also [Use these skills](#use-these-skills-dont-reinvent) for the coding/DB/U
 
 ## Done means verified
 
-- `npm run type-check` and `npm run lint` pass — both are the CI gate.
+- `pnpm type-check` and `pnpm lint` pass — both are the CI gate.
 - Run the relevant tests (`npx vitest run <path>` / Playwright). **CI does not run tests** — you must.
 - DB changes: confirm RLS + tenant scoping before declaring done.
 - No "should work." Verify the actual behavior.
