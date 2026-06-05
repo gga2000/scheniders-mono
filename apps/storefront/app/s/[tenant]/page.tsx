@@ -3,9 +3,8 @@ import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
 import { listProducts, listCategories } from "@/lib/queries";
 import { getTemplate } from "@/templates/registry";
 import type { TemplateName } from "@/lib/types";
-import { RenderPage } from "@scheniders/sections";
-import { buildRuntimeContext } from "@/lib/storefront-runtime";
-import { StorefrontGlobals } from "@/components/storefront-globals";
+import { buildRuntimeContext, pickV2Page } from "@/lib/storefront-runtime";
+import { V2Page } from "@/components/v2-page";
 
 const TEMPLATE_NAMES = new Set<TemplateName>([
   "schneiders",
@@ -46,7 +45,7 @@ export default async function StorefrontHome({
 
   // Prefer the published v2 section model unless the admin is previewing a legacy template.
   const v2 = tenant.store_config_v2 ?? null;
-  const homePage = !preview ? v2?.pages.find((p) => p.page_id === "home") : undefined;
+  const homePage = preview ? null : pickV2Page(v2, "home");
 
   if (v2 && homePage) {
     const runtime = buildRuntimeContext({
@@ -54,24 +53,7 @@ export default async function StorefrontHome({
       locale: v2.default_locale ?? "ar",
       now: new Date(),
     });
-    const renderCtx = { tenant, products, categories };
-    return (
-      <>
-        <StorefrontGlobals
-          globals={v2.globals}
-          runtime={runtime}
-          renderCtx={renderCtx}
-          slots={["promo_bar", "header"]}
-        />
-        <RenderPage page={homePage} runtime={runtime} renderCtx={renderCtx} />
-        <StorefrontGlobals
-          globals={v2.globals}
-          runtime={runtime}
-          renderCtx={renderCtx}
-          slots={["footer"]}
-        />
-      </>
-    );
+    return <V2Page v2={v2} page={homePage} runtime={runtime} renderCtx={{ tenant, products, categories }} />;
   }
 
   // Legacy fallback (unchanged): un-ported tenants + preview_template override.
