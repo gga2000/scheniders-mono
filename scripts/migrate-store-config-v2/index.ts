@@ -11,6 +11,9 @@
 //   --dry-run          Print diff; do not write.
 //   --tenant=<slug>    Migrate just one tenant.
 //   --all              Migrate every tenant.
+//   --force            Overwrite tenants that ALREADY have store_config_v2.
+//                      Without it, such tenants are SKIPPED (non-destructive
+//                      default) so a re-run never clobbers existing V2 work.
 //
 // Reads SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY from .env.local or .env
 // (process.cwd() resolution).
@@ -52,15 +55,17 @@ interface CliFlags {
   dryRun: boolean;
   tenant?: string;
   all: boolean;
+  force: boolean;
   supabaseUrl?: string;
   supabaseKey?: string;
 }
 
 function parseFlags(argv: string[]): CliFlags {
-  const flags: CliFlags = { dryRun: false, all: false };
+  const flags: CliFlags = { dryRun: false, all: false, force: false };
   for (const arg of argv.slice(2)) {
     if (arg === "--dry-run") flags.dryRun = true;
     else if (arg === "--all") flags.all = true;
+    else if (arg === "--force") flags.force = true;
     else if (arg.startsWith("--tenant=")) flags.tenant = arg.slice("--tenant=".length);
     else if (arg.startsWith("--supabase-url=")) flags.supabaseUrl = arg.slice("--supabase-url=".length);
     else if (arg.startsWith("--supabase-key=")) flags.supabaseKey = arg.slice("--supabase-key=".length);
@@ -132,6 +137,7 @@ interface TenantRow {
   id: string;
   slug: string;
   store_config: StoreConfig | null;
+  store_config_v2: StoreConfigV2 | null;
 }
 
 async function main() {
@@ -160,7 +166,7 @@ async function main() {
   });
 
   // Fetch tenants
-  let query = supabase.from("tenants").select("id, slug, store_config");
+  let query = supabase.from("tenants").select("id, slug, store_config, store_config_v2");
   if (flags.tenant) query = query.eq("slug", flags.tenant);
   const { data, error } = await query;
 
@@ -192,6 +198,14 @@ async function main() {
         console.log("Diff preview:");
         console.log(renderDiff(v2));
       } else if (flags.tenant || flags.all) {
+        // Non-destructive default: never clobber a tenant that already has a
+        // store_config_v2 (it may contain V2-editor work). Use --force to override.
+        if (tenant.store_config_v2 != null && !flags.force) {
+          console.log("  ↷ skipped — store_config_v2 already exists (pass --force to overwrite)");
+          okCount++;
+          timings.push(Date.now() - t0);
+          continue;
+        }
         const { error: upErr } = await supabase
           .from("tenants")
           .update({ store_config_v2: v2 })
