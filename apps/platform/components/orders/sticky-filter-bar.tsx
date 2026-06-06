@@ -40,6 +40,8 @@ interface StickyFilterBarProps {
     setGroupBy: (group: 'none' | 'status' | 'city' | 'verified') => void;
     filterDuplicatesOnly?: boolean;
     setFilterDuplicatesOnly?: (val: boolean) => void;
+    /** When false the contextual sub-filter rows (Type, Products) are collapsed. Owned by the parent so the search-bar toggle can drive it. */
+    showSubFilters?: boolean;
     className?: string;
     isMobile?: boolean;
 }
@@ -59,6 +61,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
     setGroupBy,
     filterDuplicatesOnly,
     setFilterDuplicatesOnly,
+    showSubFilters = false,
     className,
     isMobile = false
 }: StickyFilterBarProps) {
@@ -320,7 +323,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
             </div>
 
             {/* Refund / Replacement Sub-Filter — only in Confirmed & All tabs */}
-            {showOrderTypeFilter && (
+            {showSubFilters && showOrderTypeFilter && (
                 <div className={cn(
                     "flex items-center gap-2 overflow-x-auto scrollbar-hide",
                     isMobile ? "px-4 pb-2 -mt-1" : "pl-8 pr-6 pb-3 -mt-3"
@@ -363,7 +366,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
             )}
 
             {/* Contextual Product Sub-Filters — products present in the current view */}
-            {productsInView.length > 0 && (
+            {showSubFilters && productsInView.length > 0 && (
                 <div className={cn(
                     "flex items-center gap-2 overflow-x-auto scrollbar-hide snap-x",
                     showOrderTypeFilter

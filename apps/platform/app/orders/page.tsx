@@ -83,6 +83,10 @@ const ShipExportConfirmationDialog = dynamic(
     () => import("@/components/orders/ship-export-confirmation-dialog").then(mod => ({ default: mod.ShipExportConfirmationDialog })),
     { loading: () => null, ssr: false }
 );
+const MoveToTransitDialog = dynamic(
+    () => import("@/components/orders/move-to-transit-dialog").then(mod => ({ default: mod.MoveToTransitDialog })),
+    { loading: () => null, ssr: false }
+);
 const StickyFilterBar = dynamic(
     () => import("@/components/orders/sticky-filter-bar").then(mod => ({ default: mod.StickyFilterBar })),
     { ssr: false, loading: () => <div className="w-full h-14 animate-pulse bg-muted/20 rounded-2xl" /> }
@@ -142,10 +146,11 @@ import {
     CheckCircle2,
     Activity,
     AlertTriangle,
-    PanelRight,
     MessageCircle,
     PackageX,
     ScanBarcode,
+    ChevronsDownUp,
+    ChevronsUpDown,
 } from "lucide-react";
 import { extractScannedOrderId } from "@/lib/scan-utils";
 import { cn } from "@/lib/utils";
@@ -163,9 +168,12 @@ interface GlobalSearchFieldProps {
     setFilters: React.Dispatch<React.SetStateAction<{ searchQuery?: string; searchIncludesArchive?: boolean; dateFrom?: string; dateTo?: string }>>;
     inputClassName?: string;
     onScannerOpen?: () => void;
+    /** Optional sub-filters toggle rendered next to the scanner button. When wired, it shows/hides the TYPE+PRODUCTS rows in the sticky filter bar. */
+    subFiltersOpen?: boolean;
+    onToggleSubFilters?: () => void;
 }
 
-const GlobalSearchField = React.memo(function GlobalSearchField({ filters, setFilters, inputClassName = "w-full pl-10 pr-12 py-2.5 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all", onScannerOpen }: GlobalSearchFieldProps) {
+const GlobalSearchField = React.memo(function GlobalSearchField({ filters, setFilters, inputClassName = "w-full pl-10 pr-12 py-2.5 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all", onScannerOpen, subFiltersOpen, onToggleSubFilters }: GlobalSearchFieldProps) {
     const localSearchQuery = useOrderStore((s) => s.localSearchQuery);
     const setLocalSearchQuery = useOrderStore((s) => s.setLocalSearchQuery);
     const debouncedSearchQuery = useDebounce(localSearchQuery, 300);
@@ -219,6 +227,30 @@ const GlobalSearchField = React.memo(function GlobalSearchField({ filters, setFi
                 onChange={(e) => setLocalSearchQuery(e.target.value)}
                 className={inputClassName}
             />
+            {/* Sub-filters toggle — sits to the left of the scanner so the user
+                can show/hide the TYPE + PRODUCTS rows without leaving the search bar. */}
+            {onToggleSubFilters && (
+                <button
+                    onClick={onToggleSubFilters}
+                    title={subFiltersOpen ? "Hide sub-filters" : "Show sub-filters"}
+                    aria-label={subFiltersOpen ? "Hide sub-filters" : "Show sub-filters"}
+                    aria-pressed={!!subFiltersOpen}
+                    className={cn(
+                        "absolute top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all",
+                        subFiltersOpen
+                            ? "bg-blue-100 text-blue-700 dark:bg-blue-400/15 dark:text-blue-200"
+                            : "text-[var(--foreground-subtle)] hover:text-foreground hover:bg-[var(--pastel-yellow)]/30",
+                        // Shift left of the scanner: scanner sits at right-9 (when query) or right-2; place this 9 left of that.
+                        localSearchQuery ? "right-[4.5rem]" : "right-11"
+                    )}
+                >
+                    {subFiltersOpen ? (
+                        <ChevronsDownUp className="w-4 h-4" />
+                    ) : (
+                        <ChevronsUpDown className="w-4 h-4" />
+                    )}
+                </button>
+            )}
             {/* Scanner button — shifts left when archive button is also visible */}
             {onScannerOpen && (
                 <button
@@ -271,6 +303,20 @@ export default function OrdersPage() {
     const [isMounted, setIsMounted] = useState(false);
     const [isReturnsOpen, setIsReturnsOpen] = useState(false);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
+    // Sub-filters (Type + Products rows) are hidden by default — show only when
+    // the merchant clicks the toggle next to the barcode button. Per-device pref.
+    const [showSubFilters, setShowSubFilters] = useState(false);
+    useEffect(() => {
+        const stored = typeof window !== "undefined" ? localStorage.getItem("ordersShowSubFilters") : null;
+        if (stored !== null) setShowSubFilters(stored === "true");
+    }, []);
+    const toggleSubFilters = useCallback(() => {
+        setShowSubFilters((v) => {
+            const next = !v;
+            localStorage.setItem("ordersShowSubFilters", String(next));
+            return next;
+        });
+    }, []);
     useEffect(() => {
         setIsMounted(true);
     }, []);
@@ -358,7 +404,7 @@ export default function OrdersPage() {
         viewMode, setViewMode,
         compactView, setCompactView,
         compactGrid, setCompactGrid,
-        actionDock, setActionDock,
+        actionDock,
         showSearchBar, setShowSearchBar,
         analyticsLevel, setAnalyticsLevel,
         toolbarCollapsed, toggleToolbarCollapse,
@@ -767,12 +813,14 @@ export default function OrdersPage() {
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [deleteCountdown, setDeleteCountdown] = useState(5);
     const [isDeleting, setIsDeleting] = useState(false);
-    const [showShipMenu, setShowShipMenu] = useState(false);
-
     // Ship export confirmation dialog state
     const [shipConfirmOpen, setShipConfirmOpen] = useState(false);
     const [shipConfirmCompany, setShipConfirmCompany] = useState<'prime' | 'waseet'>('prime');
     const [shipConfirmKey, setShipConfirmKey] = useState(0);
+    // Post-export: prompt to move newly-exported orders from Confirmed → In Transit
+    const [moveTransitOpen, setMoveTransitOpen] = useState(false);
+    const [pendingTransitIds, setPendingTransitIds] = useState<string[]>([]);
+    const [pendingTransitPrevStatuses, setPendingTransitPrevStatuses] = useState<{ id: string; status: string }[]>([]);
     const [showMapPanel, setShowMapPanel] = useState(false);
 
     useEffect(() => {
@@ -912,39 +960,15 @@ export default function OrdersPage() {
                 const previousStatuses = ordersToExport.map(o => ({ id: o.id, status: o.status }));
                 setSelectedOrders(new Set());
 
-                toast({
-                    title: "Export successful",
-                    description: `${ids.length} orders exported via ${companyLabel}`,
-                    variant: "success",
-                    duration: 20000,
-                    action: {
-                        label: `Move ${ids.length} → In Transit`,
-                        onClick: async () => {
-                            await bulkUpdateStatus(ids, "in_transit");
-                            toast({
-                                title: `${ids.length} orders moved to In Transit`,
-                                description: "Click undo to restore previous statuses",
-                                variant: "success",
-                                duration: 20000,
-                                action: {
-                                    label: "Undo",
-                                    onClick: async () => {
-                                        const byStatus = new Map<string, string[]>();
-                                        previousStatuses.forEach(({ id, status }) => {
-                                            const group = byStatus.get(status) || [];
-                                            group.push(id);
-                                            byStatus.set(status, group);
-                                        });
-                                        for (const [status, orderIds] of byStatus) {
-                                            await bulkUpdateStatus(orderIds, status as Order["status"]);
-                                        }
-                                        toast.success("Undone", `${ids.length} orders restored to their previous statuses`);
-                                    }
-                                }
-                            });
-                        }
-                    }
-                });
+                toast.success(
+                    "Export successful",
+                    `${ids.length} orders exported via ${companyLabel}`,
+                );
+
+                // Prompt to move the exported orders to In Transit
+                setPendingTransitIds(ids);
+                setPendingTransitPrevStatuses(previousStatuses);
+                setMoveTransitOpen(true);
             } else {
                 throw new Error(batchError || "Failed to create export batch");
             }
@@ -954,6 +978,37 @@ export default function OrdersPage() {
                 err instanceof Error ? err.message : "Could not complete the export process"
             );
         }
+    };
+
+    const handleConfirmMoveToTransit = async () => {
+        const ids = pendingTransitIds;
+        const previousStatuses = pendingTransitPrevStatuses;
+        if (ids.length === 0) return;
+
+        await bulkUpdateStatus(ids, "in_transit");
+        toast({
+            title: `${ids.length} orders moved to In Transit`,
+            description: "Click undo to restore previous statuses",
+            variant: "success",
+            duration: 20000,
+            action: {
+                label: "Undo",
+                onClick: async () => {
+                    const byStatus = new Map<string, string[]>();
+                    previousStatuses.forEach(({ id, status }) => {
+                        const group = byStatus.get(status) || [];
+                        group.push(id);
+                        byStatus.set(status, group);
+                    });
+                    for (const [status, orderIds] of byStatus) {
+                        await bulkUpdateStatus(orderIds, status as Order["status"]);
+                    }
+                    toast.success("Undone", `${ids.length} orders restored to their previous statuses`);
+                }
+            }
+        });
+        setPendingTransitIds([]);
+        setPendingTransitPrevStatuses([]);
     };
 
     // Defer heavy array processing for analytics to keep UI responsive
@@ -1281,7 +1336,7 @@ export default function OrdersPage() {
                                                 </div>
 
                                                 {/* Row 2: Control Groups - Premium Glass Cards */}
-                                                <div className="flex items-start gap-4 overflow-x-auto pb-6 scrollbar-hide -mx-4 px-4 md:mx-0 md:pl-2 md:pr-24 pt-2">
+                                                <div className="flex flex-wrap items-start gap-3 pb-6 md:mx-0 md:px-0 pt-2">
 
                                                     {/* View Group */}
 
@@ -1409,26 +1464,6 @@ export default function OrdersPage() {
                                                                 </button>
                                                             )}
 
-                                                            {/* Action Dock Toggle */}
-                                                            {!workflowMode && (viewMode === "cards" || viewMode === "list") && (
-                                                                <button
-                                                                    onClick={() => {
-                                                                        const newVal = !actionDock;
-                                                                        setActionDock(newVal);
-                                                                        localStorage.setItem("ordersActionDock", String(newVal));
-                                                                    }}
-                                                                    className={cn(
-                                                                        "p-2.5 rounded-xl transition-all duration-300",
-                                                                        actionDock
-                                                                            ? "bg-purple-100 text-purple-700 shadow-sm dark:bg-[var(--primary)] dark:text-black"
-                                                                            : "text-muted-foreground hover:bg-lime-50 dark:hover:bg-[#EFFF00]/10 hover:text-foreground dark:hover:bg-white/5"
-                                                                    )}
-                                                                    title={actionDock ? "Disable Action Dock" : "Enable Action Dock"}
-                                                                >
-                                                                    <PanelRight className="w-4 h-4" />
-                                                                </button>
-                                                            )}
-
                                                             <div className="w-px h-8 bg-black/5 mx-1 orders-toolbar-divider" />
 
                                                             {/* Collapse Toolbar */}
@@ -1452,7 +1487,7 @@ export default function OrdersPage() {
                                                                     ref={dateButtonRef}
                                                                     onClick={() => setShowDatePicker(!showDatePicker)}
                                                                     className={cn(
-                                                                        "px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2 border",
+                                                                        "px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 flex items-center gap-2 border",
                                                                         (filters.dateFrom || filters.dateTo)
                                                                             ? "bg-lime-50 dark:bg-[#EFFF00]/5 border-lime-400 dark:border-[#EFFF00]/40 text-foreground shadow-sm"
                                                                             : "border-[var(--card-border)] dark:border-white/10 text-muted-foreground hover:bg-lime-50 dark:hover:bg-[#EFFF00]/10 hover:text-foreground hover:border-lime-400/40 dark:hover:border-[#EFFF00]/40"
@@ -1577,15 +1612,17 @@ export default function OrdersPage() {
                                                                     }
                                                                     setShowArchived(!showArchived);
                                                                 }}
+                                                                title={showArchived ? t("orders.archived") : t("orders.archive")}
+                                                                aria-label={showArchived ? t("orders.archived") : t("orders.archive")}
+                                                                aria-pressed={showArchived}
                                                                 className={cn(
-                                                                    "px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300 flex items-center gap-2 border",
+                                                                    "p-2.5 rounded-xl transition-all duration-300",
                                                                     showArchived
-                                                                        ? "bg-orange-100/50 text-orange-700 border-orange-200/50 shadow-sm"
-                                                                        : "border-transparent text-muted-foreground hover:bg-amber-100/40 hover:text-foreground"
+                                                                        ? "bg-orange-100/50 text-orange-700 shadow-sm"
+                                                                        : "text-muted-foreground hover:bg-amber-100/40 hover:text-foreground"
                                                                 )}
                                                             >
                                                                 <Archive className="w-4 h-4" />
-                                                                {!sidebarExpanded && <span className="hidden xl:inline">{showArchived ? t("orders.archived") : t("orders.archive")}</span>}
                                                             </button>
                                                         </div>
                                                     </div>
@@ -1694,52 +1731,22 @@ export default function OrdersPage() {
                                                             >
                                                                 <Download className="w-4 h-4" />
                                                             </button>
-                                                            <div className="relative">
-                                                                <button
-                                                                    onClick={() => setShowShipMenu(!showShipMenu)}
-                                                                    className="p-2.5 rounded-xl bg-slate-800 text-white text-sm font-medium hover:bg-slate-700 shadow-lg shadow-slate-900/20 transition-all duration-300 flex items-center gap-1.5"
-                                                                    title="Ship via delivery company"
-                                                                >
-                                                                    <Truck className="w-4 h-4" />
-                                                                    <ChevronDown className="w-3 h-3" />
-                                                                </button>
-                                                                {showShipMenu && (
-                                                                    <>
-                                                                        <div className="fixed inset-0 z-40" onClick={() => setShowShipMenu(false)} />
-                                                                        <div className="absolute top-full mt-1 right-0 z-50 bg-white rounded-xl shadow-lg border border-gray-200 py-1 min-w-[180px]">
-                                                                            <button
-                                                                                onClick={() => {
-                                                                                    setShipConfirmCompany('prime');
-                                                                                    setShipConfirmKey(k => k + 1);
-                                                                                    setShipConfirmOpen(true);
-                                                                                    setShowShipMenu(false);
-                                                                                }}
-                                                                                className="w-full text-right px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
-                                                                            >
-                                                                                <Truck className="h-4 w-4 text-slate-600" />
-                                                                                Prime
-                                                                            </button>
-                                                                            <button
-                                                                                onClick={() => {
-                                                                                    setShipConfirmCompany('waseet');
-                                                                                    setShipConfirmKey(k => k + 1);
-                                                                                    setShipConfirmOpen(true);
-                                                                                    setShowShipMenu(false);
-                                                                                }}
-                                                                                className="w-full text-right px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
-                                                                            >
-                                                                                <Truck className="h-4 w-4 text-slate-600" />
-                                                                                الوسيط (Al-Waseet)
-                                                                            </button>
-                                                                        </div>
-                                                                    </>
-                                                                )}
-                                                            </div>
+                                                            <button
+                                                                onClick={() => {
+                                                                    setShipConfirmCompany('prime');
+                                                                    setShipConfirmKey(k => k + 1);
+                                                                    setShipConfirmOpen(true);
+                                                                }}
+                                                                className="p-2.5 rounded-xl bg-slate-800 text-white text-sm font-medium hover:bg-slate-700 shadow-lg shadow-slate-900/20 transition-all duration-300 flex items-center gap-2"
+                                                                title="Ship via Prime"
+                                                            >
+                                                                <Truck className="w-4 h-4" />
+                                                            </button>
                                                         </div>
                                                     </div>
 
-                                                    {/* Action Group - Moved to End */}
-                                                    <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0 min-w-min">
+                                                    {/* Action Group - Moved to End. ml-auto pushes it flush with the section's right edge below. */}
+                                                    <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0 min-w-min ml-auto">
                                                         <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.actions")}</span>
                                                         <div className="flex items-center gap-2">
                                                             <button
@@ -2003,6 +2010,8 @@ export default function OrdersPage() {
                                                                     filters={filters}
                                                                     setFilters={setFilters}
                                                                     onScannerOpen={() => setIsScannerOpen(true)}
+                                                                    subFiltersOpen={showSubFilters}
+                                                                    onToggleSubFilters={toggleSubFilters}
                                                                     inputClassName="w-full pl-12 pr-14 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all dark:focus:ring-[rgba(0,255,255,0.4)] dark:focus:border-[rgba(0,255,255,0.5)] dark:focus:shadow-[0_0_15px_rgba(0,255,255,0.1)]"
                                                                 />
                                                                 {/* Sort dropdown removed in favor of column sorting */}
@@ -2022,6 +2031,7 @@ export default function OrdersPage() {
                                                                     setGroupBy={setGroupBy}
                                                                     filterDuplicatesOnly={filterDuplicatesOnly}
                                                                     setFilterDuplicatesOnly={setFilterDuplicatesOnly}
+                                                                    showSubFilters={showSubFilters}
                                                                     isMobile={false}
                                                                 />
                                                             )}
@@ -2314,6 +2324,7 @@ export default function OrdersPage() {
                                                     setGroupBy={setGroupBy}
                                                     filterDuplicatesOnly={filterDuplicatesOnly}
                                                     setFilterDuplicatesOnly={setFilterDuplicatesOnly}
+                                                    showSubFilters={showSubFilters}
                                                     isMobile={true}
                                                 />
                                             )}
@@ -2932,6 +2943,14 @@ export default function OrdersPage() {
                         currentTab={filters.status || 'all'}
                         hasSelection={selectedOrders.size > 0}
                         onConfirmExport={() => handleShipExport(shipConfirmCompany)}
+                    />
+
+                    {/* Post-export: prompt to move exported orders to In Transit */}
+                    <MoveToTransitDialog
+                        open={moveTransitOpen}
+                        onOpenChange={setMoveTransitOpen}
+                        count={pendingTransitIds.length}
+                        onConfirm={handleConfirmMoveToTransit}
                     />
 
                 </motion.div>
