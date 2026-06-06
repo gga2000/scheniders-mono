@@ -1,13 +1,25 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { resolveSchneidersConfig } from "@scheniders/shared";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
 import { listCategories } from "@/lib/queries";
-import { pickV2Page, buildRuntimeContext } from "@/lib/storefront-runtime";
+import { pickV2Page, buildRuntimeContext, resolveV2PageMetadata } from "@/lib/storefront-runtime";
 import { V2Page } from "@/components/v2-page";
 import { SchneidersPolicyPage } from "@/components/schneiders/policy-page";
 import { formatPrice } from "@/components/schneiders/format";
 
-export const metadata = { title: "Shipping & Delivery — Schneiders" };
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ tenant: string }>;
+}): Promise<Metadata> {
+  const { tenant: tenantParam } = await params;
+  const tenant = tenantParam.startsWith("__domain__")
+    ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
+    : await getTenantBySlug(tenantParam);
+  const v2 = tenant?.store_config_v2 ?? null;
+  return { title: "Shipping & Delivery — Schneiders", ...resolveV2PageMetadata(v2, "policy_shipping", v2?.default_locale ?? "ar") };
+}
 
 export default async function ShippingPolicy({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: tenantParam } = await params;

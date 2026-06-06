@@ -1,9 +1,10 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
 import { listProducts, listCategories } from "@/lib/queries";
 import { getTemplate } from "@/templates/registry";
 import type { TemplateName } from "@/lib/types";
-import { buildRuntimeContext, pickV2Page } from "@/lib/storefront-runtime";
+import { buildRuntimeContext, pickV2Page, resolveV2PageMetadata } from "@/lib/storefront-runtime";
 import { V2Page } from "@/components/v2-page";
 
 const TEMPLATE_NAMES = new Set<TemplateName>([
@@ -14,6 +15,19 @@ const TEMPLATE_NAMES = new Set<TemplateName>([
   "general",
   "clean",
 ]);
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ tenant: string }>;
+}): Promise<Metadata> {
+  const { tenant: tenantParam } = await params;
+  const tenant = tenantParam.startsWith("__domain__")
+    ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
+    : await getTenantBySlug(tenantParam);
+  const v2 = tenant?.store_config_v2 ?? null;
+  return resolveV2PageMetadata(v2, "home", v2?.default_locale ?? "ar");
+}
 
 export default async function StorefrontHome({
   params,

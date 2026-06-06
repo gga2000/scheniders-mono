@@ -1,11 +1,25 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
 import { listCategories } from "@/lib/queries";
+import { pickV2Page, buildRuntimeContext, resolveV2PageMetadata } from "@/lib/storefront-runtime";
+import { V2Page } from "@/components/v2-page";
 import { SchneidersPageShell } from "@/components/schneiders/page-shell";
 import { PageHeader } from "@/components/schneiders/content-page";
 import { SchneidersTrackForm } from "@/components/schneiders/track-form";
 
-export const metadata = { title: "Track Order — Schneiders" };
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ tenant: string }>;
+}): Promise<Metadata> {
+  const { tenant: tenantParam } = await params;
+  const tenant = tenantParam.startsWith("__domain__")
+    ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
+    : await getTenantBySlug(tenantParam);
+  const v2 = tenant?.store_config_v2 ?? null;
+  return { title: "Track Order — Schneiders", ...resolveV2PageMetadata(v2, "track", v2?.default_locale ?? "ar") };
+}
 
 export default async function TrackPage({
   params,
@@ -20,6 +34,14 @@ export default async function TrackPage({
     ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
     : await getTenantBySlug(tenantParam);
   if (!tenant) notFound();
+
+  const v2 = tenant.store_config_v2 ?? null;
+  const v2Page = pickV2Page(v2, "track");
+  if (v2 && v2Page) {
+    const categories = await listCategories(tenant.id);
+    const runtime = buildRuntimeContext({ pageId: "track", locale: v2.default_locale ?? "ar", now: new Date() });
+    return <V2Page v2={v2} page={v2Page} runtime={runtime} renderCtx={{ tenant, products: [], categories }} />;
+  }
 
   const categories = await listCategories(tenant.id);
   const wa = tenant.store_config?.contact?.whatsapp_number ?? null;
