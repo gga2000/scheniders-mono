@@ -5,6 +5,7 @@ import type { LeadActivityType } from "@/types/leads";
 import { useCreateActivity } from "@/hooks/use-lead-activities";
 import { BottomSheet } from "./bottom-sheet";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { StickyNote, Phone, MessageCircle, Calendar, Loader2 } from "lucide-react";
 
 const TYPES: { type: LeadActivityType; label: string; icon: typeof StickyNote; color: string }[] = [
@@ -33,7 +34,10 @@ export function QuickNoteSheet({ leadId, leadName, onClose }: QuickNoteSheetProp
     const cfg = TYPES.find((t) => t.type === type);
     createActivity.mutate(
       { leadId, activity_type: type, title: `${cfg?.label ?? type} added`, description: trimmed },
-      { onSuccess: () => onClose() },
+      {
+        onSuccess: () => onClose(),
+        onError: () => toast.error("Couldn't save — please try again."),
+      },
     );
   };
 

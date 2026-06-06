@@ -24,10 +24,9 @@ export function LeadMobileRow({ lead, onStatusTap }: LeadMobileRowProps) {
   const priorityColor = LEAD_PRIORITY_UI[lead.priority];
 
   return (
-    <button
-      type="button"
+    <div
       onClick={() => router.push(`/leads/${lead.id}`)}
-      className="flex w-full items-center gap-3 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-3 text-left active:scale-[0.99] transition-transform"
+      className="flex w-full cursor-pointer items-center gap-3 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-3 text-left active:scale-[0.99] transition-transform"
     >
       <div
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-base font-bold"
@@ -44,18 +43,17 @@ export function LeadMobileRow({ lead, onStatusTap }: LeadMobileRowProps) {
         </div>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1.5">
-        <span
-          role="button"
-          tabIndex={0}
+        <button
+          type="button"
           onClick={(e) => { e.stopPropagation(); onStatusTap(lead); }}
           className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold"
           style={{ backgroundColor: statusUi.soft, color: statusUi.solid }}
         >
           <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: statusUi.solid }} />
           {statusCfg.label}
-        </span>
+        </button>
         <span className="h-2 w-2 rounded-full" style={{ backgroundColor: priorityColor }} />
       </div>
-    </button>
+    </div>
   );
 }
