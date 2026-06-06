@@ -9,6 +9,10 @@ interface LeadStoreState {
   viewMode: LeadViewMode;
   setViewMode: (mode: LeadViewMode) => void;
 
+  // Sort (format: "column:dir", e.g. "lead_score:desc")
+  sortBy: string;
+  setSortBy: (v: string) => void;
+
   // Filters
   statusFilter: LeadStatus | null;
   platformFilter: LeadSourcePlatform | null;
@@ -57,6 +61,9 @@ export const useLeadStore = create<LeadStoreState>()(
       viewMode: "table",
       setViewMode: (mode) => set({ viewMode: mode }),
 
+      sortBy: "created_at:desc",
+      setSortBy: (v) => set({ sortBy: v }),
+
       ...DEFAULT_FILTERS,
 
       setStatusFilter: (v) => set({ statusFilter: v }),
@@ -85,6 +92,7 @@ export const useLeadStore = create<LeadStoreState>()(
       name: "lead-store",
       partialize: (state) => ({
         viewMode: state.viewMode,
+        sortBy: state.sortBy,
       }),
     }
   )

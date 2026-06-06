@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import type { Lead } from "@/types/leads";
 import {
   LEAD_STATUS_CONFIG,
+  LEAD_STATUS_UI,
   LEAD_PRIORITY_CONFIG,
   LEAD_TIER_CONFIG,
   PLATFORM_CONFIG,
@@ -21,6 +22,7 @@ import {
   Crown,
   Award,
   Circle,
+  Globe,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -48,6 +50,7 @@ export function LeadCard({
   const tier = lead.tier;
   const tierConfig = LEAD_TIER_CONFIG[tier];
   const statusConfig = LEAD_STATUS_CONFIG[lead.status];
+  const statusUi = LEAD_STATUS_UI[lead.status];
   const priorityConfig = LEAD_PRIORITY_CONFIG[lead.priority];
   const platformConfig = PLATFORM_CONFIG[lead.platform];
   const TierIcon = TIER_ICONS[tier];
@@ -133,28 +136,18 @@ export function LeadCard({
         </>
       )}
 
-      {/* Legendary: holographic + particles + glow */}
+      {/* Legendary: refined pink → violet border + soft glow */}
       {tier === "legendary" && (
         <>
-          {/* Rotating holographic border */}
-          <div className="absolute inset-0 rounded-2xl p-[2.5px] bg-[conic-gradient(from_var(--legendary-angle,0deg),#ff6eff,#efff00,#66ffaa,#60a5fa,#a78bfa,#ff8899,#ff6eff)] animate-border-rotate-fast">
-            <div className="absolute inset-[2.5px] bg-[var(--card-bg)] rounded-[13.5px]" />
+          {/* Gradient border */}
+          <div className="absolute inset-0 rounded-2xl p-[1.5px] bg-gradient-to-br from-[#FF6EFF] via-[#A78BFA] to-[#FF8899]">
+            <div className="absolute inset-[1.5px] bg-[var(--card-bg)] rounded-[14.5px]" />
           </div>
-          {/* Glow aura */}
-          <div className="absolute -inset-1 rounded-3xl opacity-40 group-hover:opacity-70 transition-opacity duration-500 bg-[conic-gradient(from_var(--legendary-angle,0deg),rgba(255,110,255,0.15),rgba(239,255,0,0.15),rgba(102,255,170,0.15),rgba(96,165,250,0.15),rgba(255,110,255,0.15))] animate-border-rotate-fast blur-xl" />
-          {/* Rainbow shimmer overlay */}
-          <div className="absolute inset-0 rounded-2xl opacity-10 group-hover:opacity-25 transition-opacity mix-blend-overlay bg-[linear-gradient(115deg,#ff6eff,#efff00,#66ffaa,#60a5fa,#ff8899)] bg-[length:400%_100%] animate-rainbow" />
-          {/* Star constellation */}
-          <div className="absolute top-3 right-3 w-2 h-2 bg-yellow-300/60 rounded-full animate-sparkle-fast" />
-          <div className="absolute top-5 right-10 w-1.5 h-1.5 bg-pink-400/50 rounded-full animate-sparkle-fast delay-200" />
-          <div className="absolute bottom-4 left-4 w-2 h-2 bg-green-300/50 rounded-full animate-sparkle-fast delay-400" />
-          <div className="absolute bottom-8 right-6 w-1 h-1 bg-blue-300/60 rounded-full animate-sparkle-fast delay-600" />
-          <div className="absolute top-1/2 left-8 w-1.5 h-1.5 bg-purple-300/40 rounded-full animate-sparkle-fast delay-800" />
-          {/* Energy lines on hover */}
-          <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 overflow-hidden">
-            <div className="absolute top-0 left-1/4 w-px h-full bg-gradient-to-b from-transparent via-yellow-300/20 to-transparent animate-energy-line" />
-            <div className="absolute top-0 right-1/3 w-px h-full bg-gradient-to-b from-transparent via-pink-300/20 to-transparent animate-energy-line delay-300" />
-          </div>
+          {/* Soft glow on hover */}
+          <div className="absolute -inset-1 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(ellipse_at_top,rgba(255,110,255,0.18),transparent_65%)] blur-lg" />
+          {/* Two understated sparkles */}
+          <div className="absolute top-3 right-3 w-1.5 h-1.5 rounded-full bg-[#FF6EFF]/40 group-hover:animate-pulse" />
+          <div className="absolute bottom-5 left-5 w-1 h-1 rounded-full bg-[#A78BFA]/40 group-hover:animate-pulse delay-300" />
         </>
       )}
 
@@ -186,17 +179,15 @@ export function LeadCard({
             <div
               className={cn(
                 "flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold",
-                tier === "legendary" && "bg-gradient-to-r from-pink-500/20 via-yellow-500/20 to-green-500/20 text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-yellow-300 to-green-400",
-                tier === "diamond" && "bg-blue-500/10 text-blue-400",
-                tier === "gold" && "bg-amber-500/10 text-amber-500",
-                tier === "silver" && "bg-zinc-500/10 text-zinc-400",
+                tier === "legendary" && "bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400",
+                tier === "diamond" && "bg-blue-500/10 text-blue-500 dark:text-blue-400",
+                tier === "gold" && "bg-amber-500/10 text-amber-600 dark:text-amber-500",
+                tier === "silver" && "bg-zinc-500/10 text-zinc-500 dark:text-zinc-400",
                 tier === "bronze" && "bg-orange-900/10 text-orange-700 dark:text-orange-400"
               )}
             >
               <TierIcon className="w-3 h-3" />
-              <span className={tier === "legendary" ? "bg-gradient-to-r from-pink-400 via-yellow-300 to-green-400 bg-clip-text text-transparent" : ""}>
-                {tierConfig.label}
-              </span>
+              <span>{tierConfig.label}</span>
             </div>
           </div>
 
@@ -230,13 +221,7 @@ export function LeadCard({
         </div>
 
         {/* Business Name */}
-        <h3
-          className={cn(
-            "font-bold text-base mb-1 truncate",
-            tier === "legendary" && "bg-gradient-to-r from-pink-400 via-yellow-300 to-green-400 bg-clip-text text-transparent",
-            tier !== "legendary" && "text-[var(--foreground)]"
-          )}
-        >
+        <h3 className="font-bold text-base mb-1 truncate text-[var(--foreground)]">
           {lead.merchant_name}
         </h3>
 
@@ -283,7 +268,7 @@ export function LeadCard({
         <div className="mb-3">
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] text-[var(--muted)] uppercase tracking-wider">Score</span>
-            <span className="text-xs font-bold" style={{ color: tierConfig.color }}>{lead.lead_score}</span>
+            <span className="text-xs font-bold text-[var(--foreground)]">{lead.lead_score}</span>
           </div>
           <div className="h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
             <motion.div
@@ -293,7 +278,7 @@ export function LeadCard({
               className="h-full rounded-full"
               style={{
                 background: tier === "legendary"
-                  ? "linear-gradient(90deg, #ff6eff, #efff00, #66ffaa, #60a5fa)"
+                  ? "linear-gradient(90deg, #FF6EFF, #A78BFA)"
                   : tier === "diamond"
                     ? "linear-gradient(90deg, #60a5fa, #a78bfa, #06b6d4)"
                     : tier === "gold"
@@ -309,17 +294,31 @@ export function LeadCard({
         {/* Status + Location */}
         <div className="flex items-center justify-between mb-3">
           <span
-            className="px-2.5 py-1 rounded-full text-xs font-semibold"
-            style={{ backgroundColor: statusConfig.bgColor, color: statusConfig.color }}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold"
+            style={{ backgroundColor: statusUi.soft, color: statusUi.solid }}
           >
+            <span
+              className="w-1.5 h-1.5 rounded-full"
+              style={{ backgroundColor: statusUi.solid }}
+            />
             {statusConfig.label}
           </span>
-          {lead.city && (
+          {lead.is_online_only ? (
+            <span className="flex items-center gap-1 text-xs text-[var(--muted)]">
+              <Globe className="w-3 h-3" />
+              Online
+            </span>
+          ) : lead.city || lead.branches?.length ? (
             <span className="flex items-center gap-1 text-xs text-[var(--muted)]">
               <MapPin className="w-3 h-3" />
-              {lead.city}
+              {lead.city || `${lead.branches.length} branch${lead.branches.length > 1 ? "es" : ""}`}
+              {lead.city && lead.branches?.length > 0 && (
+                <span className="text-[10px] text-[var(--muted)]/70">
+                  +{lead.branches.length}
+                </span>
+              )}
             </span>
-          )}
+          ) : null}
         </div>
 
         {/* Contact info */}

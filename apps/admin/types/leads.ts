@@ -33,11 +33,34 @@ export const LEAD_STATUS_CONFIG: Record<LeadStatus, { label: string; color: stri
   lost: { label: "Lost", color: "#94A3B8", bgColor: "rgba(148,163,184,0.15)" },
 };
 
+/**
+ * Accessible, vivid status palette for UI surfaces (chips, badges, columns).
+ * `LEAD_STATUS_CONFIG.color` is the neon brand accent (great on dark charcoal,
+ * unreadable as text on light) — use these mid-dark hues for text + dots so
+ * status reads clearly and vividly in both light and dark mode.
+ */
+export const LEAD_STATUS_UI: Record<LeadStatus, { solid: string; soft: string }> = {
+  new: { solid: "#D97706", soft: "rgba(217,119,6,0.12)" }, // amber-600
+  contacted: { solid: "#0891B2", soft: "rgba(8,145,178,0.12)" }, // cyan-600
+  interested: { solid: "#2563EB", soft: "rgba(37,99,235,0.12)" }, // blue-600
+  store_built: { solid: "#7C3AED", soft: "rgba(124,58,237,0.12)" }, // violet-600
+  converted: { solid: "#16A34A", soft: "rgba(22,163,74,0.12)" }, // green-600
+  lost: { solid: "#64748B", soft: "rgba(100,116,139,0.12)" }, // slate-500
+};
+
 export const LEAD_PRIORITY_CONFIG: Record<LeadPriority, { label: string; color: string }> = {
   low: { label: "Low", color: "#94A3B8" },
   medium: { label: "Medium", color: "#F59E0B" },
   high: { label: "High", color: "#F97316" },
   urgent: { label: "Urgent", color: "#EF4444" },
+};
+
+/** Readable text/dot colors for priority (mirrors LEAD_STATUS_UI rationale). */
+export const LEAD_PRIORITY_UI: Record<LeadPriority, string> = {
+  low: "#64748B", // slate-500
+  medium: "#D97706", // amber-600
+  high: "#EA580C", // orange-600
+  urgent: "#DC2626", // red-600
 };
 
 export const LEAD_TIER_CONFIG: Record<LeadTier, { label: string; minFollowers: number; color: string; icon: string }> = {
@@ -80,6 +103,14 @@ export interface LeadPhoneNumber {
   number: string;
 }
 
+/** An additional physical branch of a multi-location store. */
+export interface LeadBranch {
+  name: string;
+  city: string;
+  address: string;
+  phones: LeadPhoneNumber[];
+}
+
 export interface Industry {
   id: string;
   name: string;
@@ -99,11 +130,18 @@ export interface Lead {
   platform: LeadSourcePlatform;
   platform_url: string | null;
   follower_count: number;
+  post_count: number;
 
   management_name: string | null;
   management_info: string | null;
   page_phone: string | null;
   phone_numbers: LeadPhoneNumber[];
+  /** Page has no phone — reachable strictly via direct messages. */
+  contact_via_dm: boolean;
+  /** Optional standalone shop website (distinct from the social platform_url). */
+  website_url: string | null;
+  /** Optional contact email. */
+  email: string | null;
 
   avg_view_count: number;
   avg_like_count: number;
@@ -116,6 +154,10 @@ export interface Lead {
   address: string | null;
   city: string | null;
   governorate_code: string | null;
+  /** Page has no physical location — online shop only. */
+  is_online_only: boolean;
+  /** Additional store branches, each with its own location + phone(s). */
+  branches: LeadBranch[];
 
   status: LeadStatus;
   priority: LeadPriority;
@@ -340,10 +382,17 @@ export interface LeadFormData {
   platform: LeadSourcePlatform;
   platform_url: string;
   follower_count: number;
+  post_count: number;
   management_name: string;
   management_info: string;
   page_phone: string;
   phone_numbers: LeadPhoneNumber[];
+  /** Page has no phone — reachable strictly via direct messages. */
+  contact_via_dm: boolean;
+  /** Optional standalone shop website (distinct from the social platform_url). */
+  website_url: string;
+  /** Optional contact email. */
+  email: string;
   avg_view_count: number;
   avg_like_count: number;
   avg_comments_count: number;
@@ -351,6 +400,10 @@ export interface LeadFormData {
   address: string;
   city: string;
   governorate_code: string;
+  /** Page has no physical location — online shop only. */
+  is_online_only: boolean;
+  /** Additional store branches, each with its own location + phone(s). */
+  branches: LeadBranch[];
   priority: LeadPriority;
   assigned_to: string | null;
   tags: string[];

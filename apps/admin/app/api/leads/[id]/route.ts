@@ -132,7 +132,7 @@ export async function PATCH(
     }
 
     // Whitelist allowed fields
-    const ALLOWED_FIELDS = ["merchant_name", "industry_id", "platform", "platform_url", "follower_count", "management_name", "management_info", "page_phone", "phone_numbers", "avg_view_count", "avg_like_count", "avg_comments_count", "avg_order_count", "address", "city", "governorate_code", "status", "priority", "assigned_to", "tags", "source_campaign", "source_medium", "source_referrer", "next_follow_up_at", "custom_fields", "last_contacted_at", "assigned_at"] as const;
+    const ALLOWED_FIELDS = ["merchant_name", "industry_id", "platform", "platform_url", "follower_count", "post_count", "management_name", "management_info", "page_phone", "phone_numbers", "contact_via_dm", "website_url", "email", "avg_view_count", "avg_like_count", "avg_comments_count", "avg_order_count", "address", "city", "governorate_code", "is_online_only", "branches", "status", "priority", "assigned_to", "tags", "source_campaign", "source_medium", "source_referrer", "next_follow_up_at", "custom_fields", "last_contacted_at", "assigned_at"] as const;
     const updateData: Record<string, unknown> = {};
     for (const key of ALLOWED_FIELDS) {
       if (key in body) updateData[key] = body[key];
