@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 const VISITOR_COOKIE = "sb_vid";
 /** 1 year in seconds */
 const VISITOR_MAX_AGE = 60 * 60 * 24 * 365;
+/** 30 days in seconds — first-touch traffic source window */
+const TRAFFIC_SOURCE_MAX_AGE = 60 * 60 * 24 * 30;
 
 /**
  * Ensure every storefront request carries a stable first-party visitor key.
@@ -26,6 +28,63 @@ function ensureVisitorCookie(
     // Propagate into request so the current request's server components can
     // immediately read the new value without needing a second request.
     request.cookies.set(VISITOR_COOKIE, visitorId);
+  }
+}
+
+/**
+ * Set on the RESPONSE only (not propagated into request.cookies) so the very
+ * first page render correctly sees "no first-seen cookie" = new visitor.
+ * Subsequent requests will carry the cookie = returning visitor.
+ */
+function ensureFirstSeenCookie(
+  request: NextRequest,
+  response: NextResponse,
+): void {
+  if (!request.cookies.has("sb_first")) {
+    response.cookies.set("sb_first", Date.now().toString(), {
+      maxAge: VISITOR_MAX_AGE,
+      path: "/",
+      sameSite: "lax",
+      httpOnly: true,
+    });
+  }
+}
+
+/**
+ * Buckets the UTM source / referrer into one of the known traffic-source
+ * categories. Returns "direct" when no signal is present.
+ */
+function bucketsTrafficSource(
+  url: URL,
+  referer: string | null,
+): "meta" | "tiktok" | "google" | "whatsapp" | "direct" {
+  const raw = (url.searchParams.get("utm_source") ?? referer ?? "").toLowerCase();
+  if (/facebook|fb|instagram|ig|meta/.test(raw)) return "meta";
+  if (/tiktok|tt/.test(raw)) return "tiktok";
+  if (/google|adwords|gads/.test(raw)) return "google";
+  if (/whatsapp|wa/.test(raw)) return "whatsapp";
+  return "direct";
+}
+
+/**
+ * First-touch traffic source: only recorded once (if absent) on the response.
+ * Not propagated into request.cookies — first-page render stays clean.
+ */
+function ensureTrafficSourceCookie(
+  request: NextRequest,
+  response: NextResponse,
+): void {
+  if (!request.cookies.has("sb_src")) {
+    const source = bucketsTrafficSource(
+      request.nextUrl,
+      request.headers.get("referer"),
+    );
+    response.cookies.set("sb_src", source, {
+      maxAge: TRAFFIC_SOURCE_MAX_AGE,
+      path: "/",
+      sameSite: "lax",
+      httpOnly: true,
+    });
   }
 }
 
@@ -85,6 +144,8 @@ export function proxy(request: NextRequest) {
         requestHeaders.set("x-store-base", `/s/${tenantSlug}`);
         const response = NextResponse.next({ request: { headers: requestHeaders } });
         ensureVisitorCookie(request, response);
+        ensureFirstSeenCookie(request, response);
+        ensureTrafficSourceCookie(request, response);
         return response;
       }
     }
@@ -99,6 +160,8 @@ export function proxy(request: NextRequest) {
   requestHeaders.set("x-store-base", "");
   const response = NextResponse.rewrite(url, { request: { headers: requestHeaders } });
   ensureVisitorCookie(request, response);
+  ensureFirstSeenCookie(request, response);
+  ensureTrafficSourceCookie(request, response);
   return response;
 }
 

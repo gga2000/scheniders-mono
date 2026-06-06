@@ -108,7 +108,19 @@ export async function POST(req: Request): Promise<NextResponse> {
       }
     }
 
-    return NextResponse.json(result, { status: result.success ? 200 : 422 });
+    if (result.success) {
+      // Mark this browser as having placed an order — used by audience-segment
+      // evaluation (has_ordered_before rule) on subsequent storefront renders.
+      const res = NextResponse.json(result, { status: 200 });
+      res.cookies.set("sb_ordered", "1", {
+        maxAge: 60 * 60 * 24 * 365,
+        path: "/",
+        sameSite: "lax",
+        httpOnly: true,
+      });
+      return res;
+    }
+    return NextResponse.json(result, { status: 422 });
   } catch (e) {
     console.error("[api/checkout/orders]", e);
     return NextResponse.json(
