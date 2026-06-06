@@ -3,6 +3,7 @@ import { RenderPage } from "@scheniders/sections";
 import { assignAbArm, evaluateSegments } from "@scheniders/shared";
 import { StorefrontGlobals } from "./storefront-globals";
 import { ExperimentBeacon } from "./experiment-beacon";
+import { CartSignal } from "./cart-signal";
 import type {
   StoreConfigV2,
   PageConfig,
@@ -18,14 +19,13 @@ import type { SectionRenderContext } from "@scheniders/sections";
  *  - per-visitor A/B arm assignments (assignAbArm)
  *  - audience segment membership (evaluateSegments)
  *
- *  Signals collected from cookies: first_visit / returning_visitor,
- *  has_ordered_before, traffic_source (first-touch UTM), and breakpoint.
- *
- *  NOTE — not yet collected (documented follow-up):
- *  - cart_total_iqd / abandoned_cart: cart is client-side state; not available
- *    at SSR. Those rule kinds will never match until a client-driven signal is
- *    relayed (e.g. via a cookie written by the cart hook).
- *  - governorate: geo-IP lookup not yet wired. Those rules never match either. */
+ *  Signals collected from cookies:
+ *  - sb_first: first-visit timestamp (middleware-set); absence = new visitor
+ *  - sb_ordered: set on first order — has_ordered_before signal
+ *  - sb_src: first-touch traffic source
+ *  - sb_cart: cart total + timestamp, written client-side by <CartSignal>
+ *  - sb_gov: governorate from last placed order (set by checkout orders route)
+ *  - breakpoint: from runtime context */
 export async function V2Page({
   v2,
   page,
@@ -63,17 +63,27 @@ export async function V2Page({
     | SegmentEvalContext["traffic_source"]
     | undefined;
 
+  // cart signal (written client-side by <CartSignal>)
+  let cartTotal = 0;
+  let minutesSinceCart = Number.POSITIVE_INFINITY;
+  const cartRaw = c.get("sb_cart")?.value;
+  if (cartRaw) {
+    try {
+      const parsed = JSON.parse(decodeURIComponent(cartRaw)) as { total?: number; ts?: number };
+      if (typeof parsed.total === "number") cartTotal = parsed.total;
+      if (typeof parsed.ts === "number") minutesSinceCart = Math.max(0, Math.floor((Date.now() - parsed.ts) / 60000));
+    } catch { /* malformed cookie — ignore, keep defaults */ }
+  }
+  const govRaw = c.get("sb_gov")?.value;
+
   const segmentCtx: SegmentEvalContext = {
     minutes_since_first_visit: minutesSinceFirst,
     is_returning: isReturning,
     has_ordered_before: Boolean(c.get("sb_ordered")?.value),
-    // cart_total_iqd / minutes_since_cart_activity: cart is client-side state
-    // and not known at SSR time. cart_total and abandoned_cart rule kinds will
-    // never match until a client-written cookie is added (follow-up).
-    cart_total_iqd: 0,
-    minutes_since_cart_activity: Number.POSITIVE_INFINITY,
+    cart_total_iqd: cartTotal,
+    minutes_since_cart_activity: minutesSinceCart,
     traffic_source: trafficSource,
-    // governorate: geo-IP not yet wired; governorate rules never match (follow-up).
+    ...(govRaw ? { governorate: govRaw as SegmentEvalContext["governorate"] } : {}),
     breakpoint: runtime.breakpoint,
   };
 
@@ -87,6 +97,7 @@ export async function V2Page({
 
   return (
     <>
+      <CartSignal />
       {Object.keys(abArms).length > 0 && (
         <ExperimentBeacon tenantId={renderCtx.tenant.id} arms={abArms} />
       )}

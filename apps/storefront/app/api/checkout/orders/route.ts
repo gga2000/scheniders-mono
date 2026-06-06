@@ -118,6 +118,12 @@ export async function POST(req: Request): Promise<NextResponse> {
         sameSite: "lax",
         httpOnly: true,
       });
+      res.cookies.set("sb_gov", parsed.data.governorate_code, {
+        maxAge: 60 * 60 * 24 * 365,
+        path: "/",
+        sameSite: "lax",
+        httpOnly: true,
+      });
       return res;
     }
     return NextResponse.json(result, { status: 422 });
