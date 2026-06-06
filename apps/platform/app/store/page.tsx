@@ -57,7 +57,7 @@ export default function StoreBuilderPage() {
                     </span>
                 </div>
                 <Link
-                    href="/store/v2"
+                    href="/store/edit"
                     className="inline-flex items-center gap-1.5 bg-white text-rose-700 hover:bg-rose-50 transition-colors px-3 py-1.5 rounded-lg text-sm font-bold shrink-0"
                 >
                     Try v2 <ArrowRight className="w-3.5 h-3.5" />

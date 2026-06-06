@@ -4,7 +4,7 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import { Monitor, PenLine } from "lucide-react";
 import { useStoreBuilder } from "@/hooks/use-store-builder";
-import { useStorefrontUrl } from "./use-storefront-url";
+import { useStorefrontUrl } from "@/hooks/use-storefront-url";
 import { StoreBuilderHeader, type PreviewDevice } from "./store-builder-header";
 import { StoreStatusBanner } from "./store-status-banner";
 import { ShareQrDialog } from "./share-qr-dialog";

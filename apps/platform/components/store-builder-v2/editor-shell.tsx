@@ -30,7 +30,7 @@ import {
     type UseStoreBuilderV2Return,
 } from "@/hooks/use-store-builder-v2";
 import { useIframeBridge } from "@/hooks/use-iframe-bridge";
-import { useStorefrontUrl } from "@/components/store-builder/use-storefront-url";
+import { useStorefrontUrl } from "@/hooks/use-storefront-url";
 import { getManifestEntry } from "@/lib/sections-manifest";
 import { PageTree, getPageLabel, type SettingsSectionId } from "./page-tree";
 import { PreviewFrame } from "./preview-frame";
