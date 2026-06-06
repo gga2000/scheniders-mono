@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { z } from "zod";
 import { env } from "@/lib/env";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Field-level autosave PATCH endpoint                                  */
+/* Writes now go through the apply_store_config_v2_patch atomic RPC.   */
 /* ─────────────────────────────────────────────────────────────────── */
 /*
  * POST /api/store-config-v2/patch
@@ -19,19 +21,19 @@ import { env } from "@/lib/env";
  *
  * Applies a single field-level patch to a tenant's store_config_v2_draft
  * (or store_config_v2 when is_draft=false). Auth + tenant membership are
- * verified against the RLS-protected `tenant_members` table.
+ * verified inside the SECURITY DEFINER RPC (advisory-locked, atomic).
  *
  * The hook's full-config debounced autosave still runs as a safety net —
  * this endpoint is the fast path that keeps low-bandwidth (e.g. Iraqi 3G)
  * sessions responsive on a 50–100KB config.
  */
 
-interface PatchBody {
-    tenant_id: string;
-    is_draft: boolean;
-    path: (string | number)[];
-    value: unknown;
-}
+const bodySchema = z.object({
+    tenant_id: z.string().uuid(),
+    is_draft: z.boolean(),
+    path: z.array(z.union([z.string(), z.number().int()])).min(1),
+    value: z.unknown(),
+});
 
 /**
  * Immutable clone-and-set: returns a new root with the value at `path`
@@ -41,6 +43,10 @@ interface PatchBody {
  * next key is a number).
  *
  * Pure function — does not mutate the input root.
+ *
+ * NOTE: The route now applies patches via the `apply_store_config_v2_patch`
+ * RPC (atomic, advisory-locked). `setByPath` is retained here for the
+ * editor's optimistic in-memory updates and its associated tests.
  */
 export function setByPath(
     root: unknown,
@@ -77,16 +83,6 @@ export function setByPath(
     return nextRoot;
 }
 
-function isValidPath(p: unknown): p is (string | number)[] {
-    if (!Array.isArray(p)) return false;
-    if (p.length === 0) return false;
-    for (const seg of p) {
-        if (typeof seg !== "string" && typeof seg !== "number") return false;
-        if (typeof seg === "number" && !Number.isInteger(seg)) return false;
-    }
-    return true;
-}
-
 async function getServerSupabase() {
     const cookieStore = await cookies();
     return createServerClient(
@@ -107,25 +103,19 @@ async function getServerSupabase() {
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
-    let body: PatchBody;
+    let raw: unknown;
     try {
-        body = (await request.json()) as PatchBody;
+        raw = await request.json();
     } catch {
         return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    if (
-        !body ||
-        typeof body.tenant_id !== "string" ||
-        body.tenant_id.length === 0 ||
-        typeof body.is_draft !== "boolean" ||
-        !isValidPath(body.path)
-    ) {
-        return NextResponse.json(
-            { error: "Bad payload: tenant_id, is_draft, path required" },
-            { status: 400 },
-        );
+    const parsed = bodySchema.safeParse(raw);
+    if (!parsed.success) {
+        return NextResponse.json({ error: "Bad payload" }, { status: 400 });
     }
+
+    const { tenant_id, is_draft, path, value } = parsed.data;
 
     const supabase = await getServerSupabase();
 
@@ -136,50 +126,24 @@ export async function POST(request: Request): Promise<NextResponse> {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Membership check — RLS would also block, but a 403 is friendlier
-    // than a 404/empty-row leak.
-    const { data: member, error: memberErr } = await supabase
-        .from("tenant_members")
-        .select("tenant_id")
-        .eq("tenant_id", body.tenant_id)
-        .eq("user_id", user.id)
-        .maybeSingle();
-    if (memberErr || !member) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const { error } = await supabase.rpc("apply_store_config_v2_patch", {
+        p_tenant_id: tenant_id,
+        p_is_draft: is_draft,
+        p_path: path.map(String),
+        p_value: (value ?? null) as never,
+    });
 
-    const column = body.is_draft ? "store_config_v2_draft" : "store_config_v2";
-
-    const { data: tenant, error: fetchErr } = await supabase
-        .from("tenants")
-        .select(`id, ${column}`)
-        .eq("id", body.tenant_id)
-        .maybeSingle();
-    if (fetchErr || !tenant) {
-        return NextResponse.json({ error: "Tenant not found" }, { status: 422 });
-    }
-
-    const current =
-        (tenant as Record<string, unknown>)[column] ??
-        (typeof body.path[0] === "number" ? [] : {});
-    const next = setByPath(current, body.path, body.value);
-
-    const { error: updateErr } = await supabase
-        .from("tenants")
-        .update({
-            [column]: next,
-            updated_at: new Date().toISOString(),
-        })
-        .eq("id", body.tenant_id);
-    if (updateErr) {
+    if (error) {
+        const code = (error as { code?: string }).code;
+        if (code === "42501") {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        console.error("[patch] apply failed:", error);
         return NextResponse.json(
             { error: "Failed to apply patch" },
             { status: 500 },
         );
     }
 
-    return NextResponse.json({
-        ok: true,
-        applied: { path: body.path, value: body.value },
-    });
+    return NextResponse.json({ ok: true, applied: { path, value } });
 }
