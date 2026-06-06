@@ -1,5 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 
+const VISITOR_COOKIE = "sb_vid";
+/** 1 year in seconds */
+const VISITOR_MAX_AGE = 60 * 60 * 24 * 365;
+
+/**
+ * Ensure every storefront request carries a stable first-party visitor key.
+ * The cookie is set httpOnly + secure-in-production so only the server reads it.
+ * It is also written onto `request.cookies` so server components in this same
+ * request can read it via `(await cookies()).get("sb_vid")` without a round-trip.
+ */
+function ensureVisitorCookie(
+  request: NextRequest,
+  response: NextResponse,
+): void {
+  if (!request.cookies.has(VISITOR_COOKIE)) {
+    const visitorId = crypto.randomUUID();
+    response.cookies.set(VISITOR_COOKIE, visitorId, {
+      maxAge: VISITOR_MAX_AGE,
+      path: "/",
+      sameSite: "lax",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+    });
+    // Propagate into request so the current request's server components can
+    // immediately read the new value without needing a second request.
+    request.cookies.set(VISITOR_COOKIE, visitorId);
+  }
+}
+
 const ROOT_DOMAIN =
   process.env.NEXT_PUBLIC_ROOT_DOMAIN ||
   process.env.NEXT_PUBLIC_DEV_ROOT_DOMAIN ||
@@ -54,7 +83,9 @@ export function proxy(request: NextRequest) {
       if (tenantSlug) {
         const requestHeaders = new Headers(request.headers);
         requestHeaders.set("x-store-base", `/s/${tenantSlug}`);
-        return NextResponse.next({ request: { headers: requestHeaders } });
+        const response = NextResponse.next({ request: { headers: requestHeaders } });
+        ensureVisitorCookie(request, response);
+        return response;
       }
     }
     return NextResponse.next();
@@ -66,7 +97,9 @@ export function proxy(request: NextRequest) {
   url.pathname = `/s/${tenantKey}${url.pathname}`;
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-store-base", "");
-  return NextResponse.rewrite(url, { request: { headers: requestHeaders } });
+  const response = NextResponse.rewrite(url, { request: { headers: requestHeaders } });
+  ensureVisitorCookie(request, response);
+  return response;
 }
 
 export const config = {
