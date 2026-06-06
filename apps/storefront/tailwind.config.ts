@@ -5,6 +5,10 @@ const config: Config = {
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./templates/**/*.{js,ts,jsx,tsx,mdx}",
+    // The storefront renders @scheniders/sections — scan their source so
+    // section-only utility classes (e.g. `sm:flex`) are generated, not just
+    // the ones that happen to also appear in app/components/templates.
+    "../../packages/sections/src/**/*.{js,ts,jsx,tsx}",
   ],
   safelist: [
     // Brand-kit color utilities — used dynamically by section render code,

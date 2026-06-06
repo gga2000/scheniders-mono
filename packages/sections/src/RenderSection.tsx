@@ -68,6 +68,8 @@ import "./search_results_grid";
 import "./policy_content";
 import "./exit_intent_offer";
 import "./sticky_cta_bar";
+import "./site_header";
+import "./site_footer";
 
 interface RenderSectionProps {
   instance: SectionInstance;
