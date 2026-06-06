@@ -4,6 +4,8 @@ import { StoreLink } from "@/lib/store-context";
 import { notFound } from "next/navigation";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
 import { listProducts, listCategories } from "@/lib/queries";
+import { pickV2Page, buildRuntimeContext } from "@/lib/storefront-runtime";
+import { V2Page } from "@/components/v2-page";
 import { StoreHeader } from "@/components/storefront/StoreHeader";
 import { StoreFooter } from "@/components/storefront/StoreFooter";
 import { SchneidersPageShell } from "@/components/schneiders/page-shell";
@@ -31,6 +33,14 @@ export default async function CheckoutSuccessPage({ params, searchParams }: Prop
     : await getTenantBySlug(tenantParam);
 
   if (!tenant) notFound();
+
+  const v2 = tenant.store_config_v2 ?? null;
+  const v2Page = pickV2Page(v2, "checkout_success");
+  if (v2 && v2Page) {
+    const categories = await listCategories(tenant.id);
+    const runtime = buildRuntimeContext({ pageId: "checkout_success", locale: v2.default_locale ?? "ar", now: new Date() });
+    return <V2Page v2={v2} page={v2Page} runtime={runtime} renderCtx={{ tenant, products: [], categories }} />;
+  }
 
   const template = tenant.store_config?.template ?? "schneiders";
 
