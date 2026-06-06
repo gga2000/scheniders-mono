@@ -350,27 +350,25 @@ describe("AutoForm", () => {
 
     /* ─ Item 2 (Phase 3c): grouped (Essentials/Style/Logic) renderer ── */
 
-    it("renders Essentials/Style/Logic groups when sectionType matches FIELD_GROUPS", () => {
-        // hero_image has registered metadata in section-field-groups.ts.
+    it("renders Essentials/Style/Logic groups when sectionType is a known section type", () => {
+        // Uses hero_image (a known section type). The schema includes fields
+        // from all three groups so every accordion renders:
+        //   essential → title_i18n  (ends with _i18n)
+        //   style     → align       (exact STYLE_EXACT match)
+        //   logic     → cta_href    (ends with _href)
         const schema = z.object({
             title_i18n: z.object({
                 en: z.string().optional(),
                 ar: z.string().optional(),
                 ku: z.string().optional(),
             }),
-            eyebrow_i18n: z
-                .object({
-                    en: z.string().optional(),
-                    ar: z.string().optional(),
-                    ku: z.string().optional(),
-                })
-                .optional(),
+            align: z.enum(["start", "center"]),
             cta_href: z.string(),
         });
         render(
             <AutoForm
                 schema={schema}
-                value={{ title_i18n: { en: "Hi" }, cta_href: "/x" }}
+                value={{ title_i18n: { en: "Hi" }, align: "start", cta_href: "/x" }}
                 onChange={() => {}}
                 sectionType="hero_image"
             />,

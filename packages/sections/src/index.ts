@@ -42,7 +42,10 @@ import cta_banner from "./cta_banner";
 // PDP-specific page sections
 import pdp_gallery from "./pdp_gallery";
 import pdp_buy_box from "./pdp_buy_box";
+import pdp_info_block from "./pdp_info_block";
 import pdp_info_tabs from "./pdp_info_tabs";
+import pdp_variants from "./pdp_variants";
+import pdp_add_to_cart from "./pdp_add_to_cart";
 import pdp_related_products from "./pdp_related_products";
 
 // Cart / checkout / track page sections
@@ -51,6 +54,7 @@ import cart_summary from "./cart_summary";
 import checkout_form from "./checkout_form";
 import checkout_order_summary from "./checkout_order_summary";
 import track_order_lookup from "./track_order_lookup";
+import order_tracker from "./order_tracker";
 
 // Content variety
 import category_grid from "./category_grid";
@@ -59,6 +63,13 @@ import numbers_stat_strip from "./numbers_stat_strip";
 import instagram_grid from "./instagram_grid";
 import accordion_richtext from "./accordion_richtext";
 import html_embed from "./html_embed";
+import logo_strip from "./logo_strip";
+import search_results_grid from "./search_results_grid";
+import policy_content from "./policy_content";
+
+// Conversion overlays / sticky
+import exit_intent_offer from "./exit_intent_offer";
+import sticky_cta_bar from "./sticky_cta_bar";
 
 export { getSection, listSections, registerSection } from "./_registry";
 export type {
@@ -93,19 +104,28 @@ export const BUILTIN_SECTIONS = [
   cta_banner,
   pdp_gallery,
   pdp_buy_box,
+  pdp_info_block,
   pdp_info_tabs,
+  pdp_variants,
+  pdp_add_to_cart,
   pdp_related_products,
   cart_line_items,
   cart_summary,
   checkout_form,
   checkout_order_summary,
   track_order_lookup,
+  order_tracker,
   category_grid,
   feature_grid,
   numbers_stat_strip,
   instagram_grid,
   accordion_richtext,
   html_embed,
+  logo_strip,
+  search_results_grid,
+  policy_content,
+  exit_intent_offer,
+  sticky_cta_bar,
 ];
 
 export { RenderSection, RenderPage } from "./RenderSection";
