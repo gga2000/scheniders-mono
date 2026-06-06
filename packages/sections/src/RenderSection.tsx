@@ -46,19 +46,28 @@ import "./delivery_promise";
 import "./cta_banner";
 import "./pdp_gallery";
 import "./pdp_buy_box";
+import "./pdp_info_block";
 import "./pdp_info_tabs";
+import "./pdp_variants";
+import "./pdp_add_to_cart";
 import "./pdp_related_products";
 import "./cart_line_items";
 import "./cart_summary";
 import "./checkout_form";
 import "./checkout_order_summary";
 import "./track_order_lookup";
+import "./order_tracker";
 import "./category_grid";
 import "./feature_grid";
 import "./numbers_stat_strip";
 import "./instagram_grid";
 import "./accordion_richtext";
 import "./html_embed";
+import "./logo_strip";
+import "./search_results_grid";
+import "./policy_content";
+import "./exit_intent_offer";
+import "./sticky_cta_bar";
 
 interface RenderSectionProps {
   instance: SectionInstance;

@@ -40,7 +40,10 @@ const EXPECTED_TYPES = [
   // PDP family
   "pdp_gallery",
   "pdp_buy_box",
+  "pdp_info_block",
   "pdp_info_tabs",
+  "pdp_variants",
+  "pdp_add_to_cart",
   "pdp_related_products",
   // Cart / checkout / track
   "cart_line_items",
@@ -48,6 +51,7 @@ const EXPECTED_TYPES = [
   "checkout_form",
   "checkout_order_summary",
   "track_order_lookup",
+  "order_tracker",
   // Content variety
   "category_grid",
   "feature_grid",
@@ -56,12 +60,19 @@ const EXPECTED_TYPES = [
   "accordion_richtext",
   // Escape hatch
   "html_embed",
+  // Content: logos / search / policy
+  "logo_strip",
+  "search_results_grid",
+  "policy_content",
+  // Conversion overlays / sticky
+  "exit_intent_offer",
+  "sticky_cta_bar",
 ];
 
 describe("section registry", () => {
-  it("registers exactly 36 built-in sections", () => {
-    expect(BUILTIN_SECTIONS).toHaveLength(36);
-    expect(listSections()).toHaveLength(36);
+  it("registers exactly 45 built-in sections", () => {
+    expect(BUILTIN_SECTIONS).toHaveLength(45);
+    expect(listSections()).toHaveLength(45);
   });
 
   it("each section's defaultProps validates against its own schema", () => {
