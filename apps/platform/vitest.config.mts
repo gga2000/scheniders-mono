@@ -17,6 +17,10 @@ export default defineConfig({
                 __dirname,
                 "../../packages/shared/src",
             ),
+            "@scheniders/sections": path.resolve(
+                __dirname,
+                "../../packages/sections/src",
+            ),
         },
     },
     test: {
