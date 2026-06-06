@@ -1,14 +1,26 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { resolveSchneidersConfig } from "@scheniders/shared";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
 import { listCategories } from "@/lib/queries";
-import { pickV2Page, buildRuntimeContext } from "@/lib/storefront-runtime";
+import { pickV2Page, buildRuntimeContext, resolveV2PageMetadata } from "@/lib/storefront-runtime";
 import { V2Page } from "@/components/v2-page";
 import { SchneidersPageShell } from "@/components/schneiders/page-shell";
 import { PageHeader } from "@/components/schneiders/content-page";
 import { BentoCard, ChunkyLink, MaterialIcon, WhatsAppIcon } from "@/components/schneiders/primitives";
 
-export const metadata = { title: "Contact — Schneiders" };
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ tenant: string }>;
+}): Promise<Metadata> {
+  const { tenant: tenantParam } = await params;
+  const tenant = tenantParam.startsWith("__domain__")
+    ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
+    : await getTenantBySlug(tenantParam);
+  const v2 = tenant?.store_config_v2 ?? null;
+  return { title: "Contact — Schneiders", ...resolveV2PageMetadata(v2, "contact", v2?.default_locale ?? "ar") };
+}
 
 export default async function ContactPage({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: tenantParam } = await params;

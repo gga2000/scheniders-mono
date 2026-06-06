@@ -1,11 +1,25 @@
+import type { Metadata } from "next";
 import { CheckCircle2 } from "lucide-react";
 import { resolveSchneidersConfig } from "@scheniders/shared";
 import { StoreLink } from "@/lib/store-context";
 import { notFound } from "next/navigation";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
 import { listProducts, listCategories } from "@/lib/queries";
-import { pickV2Page, buildRuntimeContext } from "@/lib/storefront-runtime";
+import { pickV2Page, buildRuntimeContext, resolveV2PageMetadata } from "@/lib/storefront-runtime";
 import { V2Page } from "@/components/v2-page";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ tenant: string }>;
+}): Promise<Metadata> {
+  const { tenant: tenantParam } = await params;
+  const tenant = tenantParam.startsWith("__domain__")
+    ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
+    : await getTenantBySlug(tenantParam);
+  const v2 = tenant?.store_config_v2 ?? null;
+  return resolveV2PageMetadata(v2, "checkout_success", v2?.default_locale ?? "ar");
+}
 import { StoreHeader } from "@/components/storefront/StoreHeader";
 import { StoreFooter } from "@/components/storefront/StoreFooter";
 import { SchneidersPageShell } from "@/components/schneiders/page-shell";
