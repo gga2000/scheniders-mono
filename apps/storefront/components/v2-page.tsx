@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { RenderPage } from "@scheniders/sections";
 import { assignAbArm } from "@scheniders/shared";
 import { StorefrontGlobals } from "./storefront-globals";
+import { ExperimentBeacon } from "./experiment-beacon";
 import type { StoreConfigV2, PageConfig, RuntimeContext } from "@scheniders/shared";
 import type { SectionRenderContext } from "@scheniders/sections";
 
@@ -42,6 +43,9 @@ export async function V2Page({
 
   return (
     <>
+      {Object.keys(abArms).length > 0 && (
+        <ExperimentBeacon tenantId={renderCtx.tenant.id} arms={abArms} />
+      )}
       <StorefrontGlobals
         globals={v2.globals}
         runtime={enrichedRuntime}
