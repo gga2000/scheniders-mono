@@ -25,6 +25,7 @@ import {
   LEAD_TIER_CONFIG,
 } from "@/types/leads";
 import type { LeadFormData, Lead } from "@/types/leads";
+import { leadPhone, toIntlIraqi } from "./lead-phone";
 import { toast } from "sonner";
 import {
   UserPlus,
@@ -56,23 +57,6 @@ function compactIQD(v: number): string {
 }
 
 const countFmt = (n: number) => Math.round(n).toLocaleString();
-
-/** First usable phone for a lead (page phone, else first additional number). */
-function leadPhone(lead: Lead): string | null {
-  return (
-    lead.page_phone?.trim() ||
-    lead.phone_numbers?.find((p) => p.number?.trim())?.number?.trim() ||
-    null
-  );
-}
-
-/** Convert an Iraqi number to international digits (9647XXXXXXXX) for wa.me. */
-function toIntlIraqi(raw: string): string | null {
-  const d = raw.replace(/\D/g, "");
-  if (d.startsWith("964")) return d;
-  const n = d.replace(/^0+/, "");
-  return n.startsWith("7") ? `964${n}` : null;
-}
 
 /** Animated count-up that eases from 0 → value on mount / value change. */
 function CountUp({

@@ -32,15 +32,7 @@ import { LeadActivityTimeline } from "@/components/leads/lead-activity-timeline"
 import { LeadFollowUpList } from "@/components/leads/lead-follow-up-list";
 import { QuickNoteSheet } from "@/components/leads/mobile/quick-note-sheet";
 import { AdvanceStageSheet } from "@/components/leads/mobile/advance-stage-sheet";
-
-// ── Helpers ──────────────────────────────────────────────────────────────
-
-function toIntlIraqi(raw: string): string | null {
-  const d = raw.replace(/\D/g, "");
-  if (d.startsWith("964")) return d;
-  const n = d.replace(/^0+/, "");
-  return n.startsWith("7") ? `964${n}` : null;
-}
+import { leadPhone, toIntlIraqi } from "@/components/leads/lead-phone";
 
 // ── Tabs ─────────────────────────────────────────────────────────────────
 
@@ -112,10 +104,7 @@ export function LeadMobileDetail() {
   const platformCfg = PLATFORM_CONFIG[lead.platform];
 
   // Phone helpers
-  const phone =
-    lead.page_phone?.trim() ||
-    lead.phone_numbers?.find((p) => p.number?.trim())?.number?.trim() ||
-    null;
+  const phone = leadPhone(lead);
   const intl = phone ? toIntlIraqi(phone) : null;
 
   return (
