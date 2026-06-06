@@ -355,52 +355,16 @@ export function useStoreBuilderV2(
         if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
         set_save_state("saving");
         try {
-            const { error } = await supabase
-                .from("tenants")
-                .update({
-                    store_config_v2: config,
-                    store_config_v2_draft: null,
-                    config_version: 2,
-                    updated_at: new Date().toISOString(),
-                })
-                .eq("id", tenantId);
+            // Single atomic RPC: checks membership, asserts schema_version=2,
+            // takes an advisory lock, UPDATEs tenants (store_config_v2,
+            // store_config_v2_draft=NULL, config_version=2), and INSERTs the
+            // version snapshot — all in one transaction. Author is computed
+            // server-side from auth.users.
+            const { error } = await supabase.rpc("publish_store_config_v2", {
+                p_tenant_id: tenantId,
+                p_config: config,
+            });
             if (error) throw error;
-
-            // Snapshot the published config to version history as an
-            // auto-save row (is_named=false). Best-effort: failures here
-            // don't block publish UX.
-            try {
-                let authorName: string | null = null;
-                let userId: string | null = null;
-                const auth = (
-                    supabase as unknown as {
-                        auth?: { getUser?: () => Promise<{ data?: { user?: { id?: string; email?: string; user_metadata?: Record<string, unknown> } | null } }> };
-                    }
-                ).auth;
-                if (auth?.getUser) {
-                    const res = await auth.getUser();
-                    const u = res?.data?.user ?? null;
-                    if (u) {
-                        userId = u.id ?? null;
-                        const meta = u.user_metadata ?? {};
-                        authorName =
-                            (meta as { full_name?: string; name?: string }).full_name ??
-                            (meta as { full_name?: string; name?: string }).name ??
-                            u.email ??
-                            null;
-                    }
-                }
-                await supabase.from("store_config_versions").insert({
-                    tenant_id: tenantId,
-                    label: null,
-                    is_named: false,
-                    config,
-                    created_by: userId,
-                    author_name: authorName,
-                });
-            } catch {
-                /* ignore — best-effort */
-            }
 
             set_save_state("saved");
             set_last_saved_at(new Date());
@@ -416,7 +380,8 @@ export function useStoreBuilderV2(
             setTimeout(() => {
                 set_save_state((prev) => (prev === "saved" ? "idle" : prev));
             }, 3000);
-        } catch {
+        } catch (err) {
+            console.error("[store-builder-v2] publish failed:", err);
             set_save_state("error");
         }
     }, [config, tenantId]);
