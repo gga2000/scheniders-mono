@@ -60,6 +60,8 @@ export function CommandCenter({ tenant, tenantId }: CommandCenterProps) {
                     <SettingsTiles
                         storefrontUrl={storefrontUrl}
                         businessName={tenant.business_name}
+                        tenantId={tenantId}
+                        slug={tenant.slug}
                     />
                 </div>
             </div>

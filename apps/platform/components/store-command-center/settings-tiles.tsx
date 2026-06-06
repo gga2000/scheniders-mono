@@ -4,10 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { Palette, Globe2, Search, LinkIcon, Share2 } from "lucide-react";
 import { ShareDialog } from "./share-dialog";
+import { DomainDialog } from "./domain-dialog";
 
 interface SettingsTilesProps {
     storefrontUrl: string;
     businessName: string;
+    tenantId: string;
+    slug: string;
 }
 
 interface TileProps {
@@ -39,8 +42,9 @@ function Tile({ icon, label, description, onClick, href }: TileProps) {
     );
 }
 
-export function SettingsTiles({ storefrontUrl, businessName }: SettingsTilesProps) {
+export function SettingsTiles({ storefrontUrl, businessName, tenantId, slug }: SettingsTilesProps) {
     const [shareOpen, setShareOpen] = useState(false);
+    const [domainOpen, setDomainOpen] = useState(false);
 
     return (
         <>
@@ -66,7 +70,7 @@ export function SettingsTiles({ storefrontUrl, businessName }: SettingsTilesProp
                         description="Page titles & meta descriptions"
                     />
                     <Tile
-                        href="/store/edit"
+                        onClick={() => setDomainOpen(true)}
                         icon={<LinkIcon className="w-4 h-4" />}
                         label="Custom domain"
                         description="Connect your own domain"
@@ -85,6 +89,14 @@ export function SettingsTiles({ storefrontUrl, businessName }: SettingsTilesProp
                     url={storefrontUrl}
                     businessName={businessName}
                     onClose={() => setShareOpen(false)}
+                />
+            )}
+
+            {domainOpen && (
+                <DomainDialog
+                    tenantId={tenantId}
+                    slug={slug}
+                    onClose={() => setDomainOpen(false)}
                 />
             )}
         </>
