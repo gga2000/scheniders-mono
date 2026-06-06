@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import {
@@ -72,6 +72,17 @@ function PdpBuyBoxRender({
     variants[0]?.id ?? null,
   );
   const [qty, setQty] = useState(1);
+
+  // The WhatsApp message embeds the product URL. The absolute page URL is only
+  // available on the client, so initialise with the SSR-safe relative path —
+  // server and first client render then match (no hydration mismatch) — and
+  // upgrade to the absolute URL after mount.
+  const [pageUrl, setPageUrl] = useState(
+    `/products/${(product as { slug?: string } | undefined)?.slug ?? product?.id ?? ""}`,
+  );
+  useEffect(() => {
+    setPageUrl(window.location.href);
+  }, []);
 
   if (!product) {
     if (process.env.NODE_ENV !== "production") {
@@ -274,10 +285,7 @@ function PdpBuyBoxRender({
             phone,
             {
               name: product.name,
-              url:
-                typeof window !== "undefined"
-                  ? window.location.href
-                  : `/products/${(product as { slug?: string }).slug ?? product.id}`,
+              url: pageUrl,
               price: formatPrice(unitPrice * qty),
             },
             locale,

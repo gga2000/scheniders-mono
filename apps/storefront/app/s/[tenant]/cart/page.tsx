@@ -20,7 +20,8 @@ export async function generateMetadata({
     ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
     : await getTenantBySlug(tenantParam);
   const v2 = tenant?.store_config_v2 ?? null;
-  return resolveV2PageMetadata(v2, "cart", v2?.default_locale ?? "ar");
+  const fallbackTitle = tenant ? `سلة التسوّق — ${tenant.business_name}` : "سلة التسوّق";
+  return { title: fallbackTitle, ...resolveV2PageMetadata(v2, "cart", v2?.default_locale ?? "ar") };
 }
 
 export default async function CartPage({

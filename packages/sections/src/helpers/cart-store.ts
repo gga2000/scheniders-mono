@@ -81,7 +81,15 @@ export const useCart = create<CartState>()(
     {
       name: "scheniders-cart",
       storage: serverSafeStorage,
-      // Cart is per-storefront subdomain — browser already isolates by hostname
+      // Cart is per-storefront subdomain — browser already isolates by hostname.
+      //
+      // skipHydration: the store starts EMPTY on both the server and the first
+      // client render, so cart-rendering sections (cart_summary, line items,
+      // checkout, sticky bar…) match between SSR and hydration — no mismatch.
+      // The persisted cart is loaded from localStorage after mount by the
+      // <CartHydrator> mounted in the storefront layout, which calls
+      // `useCart.persist.rehydrate()`.
+      skipHydration: true,
     },
   ),
 );

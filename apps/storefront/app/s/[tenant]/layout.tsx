@@ -10,6 +10,7 @@ import {
 import type { BrandKit, StoreConfigV2 } from "@scheniders/shared";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
 import { StoreBaseProvider } from "@/lib/store-context";
+import { CartHydrator } from "@/components/cart-hydrator";
 import { SchneidersAnalyticsPixels } from "@/components/schneiders/analytics-pixels";
 import { SchneidersNewsletterPopup } from "@/components/schneiders/newsletter-popup";
 import type { Tenant } from "@/lib/types";
@@ -201,6 +202,7 @@ export default async function TenantLayout({ params, children }: Props) {
 
   return (
     <StoreBaseProvider base={storeBase}>
+      <CartHydrator />
       {googleFontsUrl && (
          
         <link rel="stylesheet" href={googleFontsUrl} />
