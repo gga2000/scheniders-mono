@@ -110,6 +110,7 @@ function OrderTrackerRender({
       const params = new URLSearchParams();
       if (phone) params.set("phone", phone);
       if (orderNumber) params.set("order_number", orderNumber);
+      params.set("tenant_id", ctx.tenant.id);
       const res = await fetch(`/api/orders/lookup?${params.toString()}`);
       if (!res.ok) {
         setStatus("error");
