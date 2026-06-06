@@ -29,6 +29,7 @@ interface SubmitCheckoutResult {
   orderId?: string;
   orderNumber?: string;
   error?: string;
+  total?: number;
 }
 
 /**
@@ -209,5 +210,6 @@ export async function submitCheckout(
     success: true,
     orderId: orderId ?? undefined,
     orderNumber: (orderRow?.order_id as string) ?? undefined,
+    total: totalPrice,
   };
 }

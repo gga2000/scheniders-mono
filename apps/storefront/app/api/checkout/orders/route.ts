@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { cookies } from "next/headers";
 import { submitCheckout } from "@/app/actions/checkout";
+import { createSupabaseServiceClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -30,6 +32,7 @@ export const checkoutOrderBodySchema = z.object({
   // accepted and dropped — not forwarded to the order pipeline
   subtotal: z.number().optional(),
   locale: z.string().optional(),
+  ab_test_arms: z.record(z.string(), z.string()).optional(),
 });
 
 export async function POST(req: Request): Promise<NextResponse> {
@@ -75,6 +78,36 @@ export async function POST(req: Request): Promise<NextResponse> {
     };
 
     const result = await submitCheckout(payload);
+
+    if (result.success) {
+      try {
+        const arms = parsed.data.ab_test_arms ?? {};
+        const visitorKey = (await cookies()).get("sb_vid")?.value;
+        const entries = Object.entries(arms);
+        if (visitorKey && entries.length > 0) {
+          const svc = createSupabaseServiceClient();
+          const rows = entries.map(([experiment_id, arm_id]) => ({
+            tenant_id: parsed.data.tenant_id,
+            experiment_id,
+            arm_id,
+            visitor_key: visitorKey,
+            event_type: "order" as const,
+            revenue_iqd: result.total ?? null,
+          }));
+          const { error: evErr } = await svc
+            .from("store_config_experiment_events")
+            .insert(rows);
+          if (evErr)
+            console.error(
+              "[checkout/orders] experiment event write failed:",
+              evErr,
+            );
+        }
+      } catch (e) {
+        console.error("[checkout/orders] experiment event write threw:", e);
+      }
+    }
+
     return NextResponse.json(result, { status: result.success ? 200 : 422 });
   } catch (e) {
     console.error("[api/checkout/orders]", e);
