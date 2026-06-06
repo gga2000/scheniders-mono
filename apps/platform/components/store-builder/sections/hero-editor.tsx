@@ -5,9 +5,6 @@ import { Image as ImageIcon, Upload, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
-import { AiCopyButton } from "../ai-copy-button";
-import { AiImageSuggestions } from "../ai-image-suggestions";
-
 interface HeroEditorProps {
   heroTitle: string;
   setHeroTitle: (v: string) => void;
@@ -18,9 +15,6 @@ interface HeroEditorProps {
   heroImage: string | null;
   setHeroImage: (v: string | null) => void;
   tenantId: string;
-  businessName?: string;
-  industry?: string;
-  template?: string;
 }
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
@@ -35,9 +29,6 @@ export function HeroEditor({
   heroImage,
   setHeroImage,
   tenantId,
-  businessName = "",
-  industry,
-  template,
 }: HeroEditorProps) {
   const [uploading, setUploading] = useState(false);
 
@@ -86,18 +77,7 @@ export function HeroEditor({
         >
           <ImageIcon className="w-4 h-4 text-rose-700" />
         </div>
-        <h3 className="text-lg font-semibold flex-1">Hero Section</h3>
-        <AiCopyButton
-          businessName={businessName}
-          industry={industry}
-          template={template}
-          size="md"
-          onApply={(copy) => {
-            if (copy.hero_title) setHeroTitle(copy.hero_title);
-            if (copy.hero_subtitle) setHeroSubtitle(copy.hero_subtitle);
-            if (copy.hero_cta) setHeroCta(copy.hero_cta);
-          }}
-        />
+        <h3 className="text-lg font-semibold">Hero Section</h3>
       </div>
 
       <div className="space-y-4">
@@ -203,8 +183,6 @@ export function HeroEditor({
             </label>
           )}
 
-          {/* AI Image Suggestions */}
-          <AiImageSuggestions businessName={businessName} industry={industry} />
         </div>
       </div>
     </div>

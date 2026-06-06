@@ -6,6 +6,8 @@ import { StoreFooter } from "@/components/storefront/StoreFooter";
 import { ProductCard } from "@/components/storefront/ProductCard";
 import { SchneidersPageShell } from "@/components/schneiders/page-shell";
 import { SchneidersCategoryView } from "@/components/schneiders/category-view";
+import { pickV2Page, buildRuntimeContext } from "@/lib/storefront-runtime";
+import { V2Page } from "@/components/v2-page";
 
 interface Props {
   params: Promise<{ tenant: string; slug: string }>;
@@ -26,6 +28,25 @@ export default async function CategoryPage({ params }: Props) {
     listProducts(tenant.id, { categoryId: category.id }),
     listCategories(tenant.id),
   ]);
+
+  const v2 = tenant.store_config_v2 ?? null;
+  const v2Page = pickV2Page(v2, "category");
+  if (v2 && v2Page) {
+    const runtime = buildRuntimeContext({
+      pageId: "category",
+      locale: v2.default_locale ?? "ar",
+      now: new Date(),
+      categoryId: category.id,
+    });
+    return (
+      <V2Page
+        v2={v2}
+        page={v2Page}
+        runtime={runtime}
+        renderCtx={{ tenant, products, categories, category }}
+      />
+    );
+  }
 
   const template = tenant.store_config?.template ?? "schneiders";
   if (template === "schneiders") {

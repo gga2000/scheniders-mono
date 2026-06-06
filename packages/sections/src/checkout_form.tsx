@@ -118,6 +118,7 @@ function CheckoutFormRender({
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          tenant_id: ctx.tenant.id,
           ...form,
           items,
           subtotal,

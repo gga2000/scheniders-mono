@@ -21,8 +21,16 @@ export default defineConfig({
     include: [
       "components/**/*.test.ts",
       "components/**/*.test.tsx",
+      "lib/**/*.test.ts",
+      "lib/**/*.test.tsx",
+      "app/**/*.test.ts",
+      "app/**/*.test.tsx",
       "apps/storefront/components/**/*.test.ts",
       "apps/storefront/components/**/*.test.tsx",
+      "apps/storefront/lib/**/*.test.ts",
+      "apps/storefront/lib/**/*.test.tsx",
+      "apps/storefront/app/**/*.test.ts",
+      "apps/storefront/app/**/*.test.tsx",
     ],
     // Component DOM tests need jsdom; section render-smoke tests use SSR
     // and stay on node. Match by glob so each test gets the right env

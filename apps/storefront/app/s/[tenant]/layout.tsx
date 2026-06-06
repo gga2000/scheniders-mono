@@ -5,6 +5,7 @@ import {
   EMPTY_BRAND_KIT,
   buildBrandKitFontsUrl,
   buildBrandKitVars,
+  sanitizeCustomCss,
 } from "@scheniders/shared";
 import type { BrandKit, StoreConfigV2 } from "@scheniders/shared";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
@@ -208,9 +209,12 @@ export default async function TenantLayout({ params, children }: Props) {
          
         <link rel="stylesheet" href={bkFontsUrl} />
       )}
-      {tenant.store_config?.custom_css && (
-        <style dangerouslySetInnerHTML={{ __html: tenant.store_config.custom_css }} />
-      )}
+      {(() => {
+        const rawCustomCss = v2?.custom_css ?? tenant.store_config?.custom_css;
+        return rawCustomCss ? (
+          <style dangerouslySetInnerHTML={{ __html: sanitizeCustomCss(rawCustomCss) }} />
+        ) : null;
+      })()}
       <SchneidersAnalyticsPixels
         analytics={{
           // V2 takes precedence — the globals.analytics_pixels section is

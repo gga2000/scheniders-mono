@@ -7,21 +7,32 @@ import type { Tenant } from "./types";
 const BASE_TENANT_COLS =
   "id, business_name, slug, plan, status, branding, settings, store_config, contact_email, contact_phone, address, city";
 
-/** Add v2 columns when the migration has been applied. The query gracefully
- *  falls back to the base set if those columns don't exist yet. */
-const V2_TENANT_COLS = `${BASE_TENANT_COLS}, store_config_v2, store_config_v2_draft`;
+/**
+ * Public storefront column set: v2 published config, never the draft.
+ * Anonymous visitors must not receive unpublished merchant changes.
+ */
+export const PUBLIC_TENANT_COLS = `${BASE_TENANT_COLS}, store_config_v2`;
+
+/**
+ * Preview-only column set: includes the draft so the editor can render
+ * unpublished changes. Only used by the token-gated preview route.
+ */
+export const PREVIEW_TENANT_COLS = `${BASE_TENANT_COLS}, store_config_v2, store_config_v2_draft`;
 
 async function selectTenant(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   filter: { kind: "slug"; value: string } | { kind: "id"; value: string },
+  opts?: { includeDraft?: boolean },
 ): Promise<Tenant | null> {
+  const primaryCols = opts?.includeDraft ? PREVIEW_TENANT_COLS : PUBLIC_TENANT_COLS;
+
   const apply = (cols: string) =>
     filter.kind === "slug"
       ? supabase.from("tenants").select(cols).eq("slug", filter.value).maybeSingle()
       : supabase.from("tenants").select(cols).eq("id", filter.value).maybeSingle();
 
   // Try with v2 columns first.
-  const v2 = await apply(V2_TENANT_COLS);
+  const v2 = await apply(primaryCols);
   if (!v2.error) return (v2.data as Tenant | null) ?? null;
 
   // Fallback: legacy schema (v2 columns not yet migrated).
@@ -70,5 +81,41 @@ export const getTenantByCustomDomain = cache(
 
     if (!data?.tenant_id) return null;
     return selectTenant(supabase, { kind: "id", value: data.tenant_id });
+  },
+);
+
+/**
+ * Resolve a tenant for the token-gated editor preview route.
+ *
+ * Unlike `getTenantBySlug`, this includes `store_config_v2_draft` so the
+ * editor can render unpublished changes. Call this ONLY from the preview
+ * route — never from public storefront routes.
+ */
+export const getTenantForPreview = cache(async (slug: string): Promise<Tenant | null> => {
+  if (!slug) return null;
+  const supabase = await createSupabaseServerClient();
+  return selectTenant(supabase, { kind: "slug", value: slug }, { includeDraft: true });
+});
+
+/**
+ * Resolve a tenant by custom domain for the token-gated editor preview route.
+ * Like `getTenantByCustomDomain` but includes `store_config_v2_draft` so the
+ * editor renders unpublished changes when previewing via a custom-domain URL.
+ * Preview only — never call from public storefront routes.
+ */
+export const getTenantByCustomDomainForPreview = cache(
+  async (domain: string): Promise<Tenant | null> => {
+    if (!domain) return null;
+    const supabase = await createSupabaseServerClient();
+    const { data } = await supabase
+      .from("tenant_domains")
+      .select("tenant_id")
+      .eq("domain", domain)
+      .eq("verified", true)
+      .maybeSingle()
+      .then(r => ({ ...r, data: r.data as Pick<Tables<"tenant_domains">, "tenant_id"> | null }));
+
+    if (!data?.tenant_id) return null;
+    return selectTenant(supabase, { kind: "id", value: data.tenant_id }, { includeDraft: true });
   },
 );

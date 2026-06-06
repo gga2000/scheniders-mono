@@ -6,6 +6,8 @@ import { StoreFooter } from "@/components/storefront/StoreFooter";
 import { CartView } from "@/components/storefront/CartView";
 import { SchneidersPageShell } from "@/components/schneiders/page-shell";
 import { SchneidersCartView } from "@/components/schneiders/cart-view";
+import { pickV2Page, buildRuntimeContext } from "@/lib/storefront-runtime";
+import { V2Page } from "@/components/v2-page";
 
 export default async function CartPage({
   params,
@@ -19,6 +21,14 @@ export default async function CartPage({
 
   if (!tenant) notFound();
   const categories = await listCategories(tenant.id);
+
+  const v2 = tenant.store_config_v2 ?? null;
+  const v2Page = pickV2Page(v2, "cart");
+  if (v2 && v2Page) {
+    const runtime = buildRuntimeContext({ pageId: "cart", locale: v2.default_locale ?? "ar", now: new Date() });
+    return <V2Page v2={v2} page={v2Page} runtime={runtime} renderCtx={{ tenant, products: [], categories }} />;
+  }
+
   const template = tenant.store_config?.template ?? "schneiders";
 
   if (template === "schneiders") {

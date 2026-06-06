@@ -3,6 +3,8 @@ import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
 import { listProducts, listCategories } from "@/lib/queries";
 import { getTemplate } from "@/templates/registry";
 import type { TemplateName } from "@/lib/types";
+import { buildRuntimeContext, pickV2Page } from "@/lib/storefront-runtime";
+import { V2Page } from "@/components/v2-page";
 
 const TEMPLATE_NAMES = new Set<TemplateName>([
   "schneiders",
@@ -41,6 +43,20 @@ export default async function StorefrontHome({
       ? (preview_template as TemplateName)
       : undefined;
 
+  // Prefer the published v2 section model unless the admin is previewing a legacy template.
+  const v2 = tenant.store_config_v2 ?? null;
+  const homePage = preview ? null : pickV2Page(v2, "home");
+
+  if (v2 && homePage) {
+    const runtime = buildRuntimeContext({
+      pageId: "home",
+      locale: v2.default_locale ?? "ar",
+      now: new Date(),
+    });
+    return <V2Page v2={v2} page={homePage} runtime={runtime} renderCtx={{ tenant, products, categories }} />;
+  }
+
+  // Legacy fallback (unchanged): un-ported tenants + preview_template override.
   const Template = getTemplate(preview ?? tenant.store_config?.template);
   return <Template tenant={tenant} products={products} categories={categories} />;
 }
