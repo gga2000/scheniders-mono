@@ -1,27 +1,27 @@
 // =====================================================================
 // Section field groups — Schneiders Builder v2
 // =====================================================================
-// Lightweight metadata registry that classifies each section schema's
-// top-level fields into one of three editor groups:
+// Classifies each section schema's top-level fields into one of three
+// editor groups:
 //
-//   - "essential"  → the 1-3 fields the merchant changes 90% of the
-//                    time. Rendered open by default in AutoForm.
-//   - "style"      → visual tweaks (alignment, tints, overlays).
-//   - "logic"      → wiring (CTA hrefs, CTA kinds, analytics tags).
+//   - "essential"  → content the merchant changes 90% of the time:
+//                    localised text (*_i18n), images, repeatable items.
+//   - "style"      → visual tweaks: tints, alignment, density, columns.
+//   - "logic"      → wiring: href targets, kinds, analytics, limits.
 //
-// We keep this in a single sidecar file (instead of stuffing it into
-// every section schema via `.describe()`) because:
-//   1. Adding a tag mechanism to Zod metadata is fragile across
-//      `.optional()` / `.default()` wrappers — strings can vanish.
-//   2. The editor is the only consumer; the storefront doesn't care
-//      what group a field is in.
-//   3. It's trivial to read here, and merchants only ever see groups
-//      for the section types we cover. Unclassified fields fall back
-//      to "style" so we degrade gracefully.
+// Classification is CONVENTION-BASED on the field name alone — no
+// per-section lookup tables. This means every current section and any
+// future section is covered automatically.
 //
-// Field paths are dot-joined top-level keys (e.g. `secondary_cta_kind`).
-// Nested fields inherit their parent's group implicitly through the
-// AutoForm renderer (which currently groups by top-level only).
+// AutoForm calls `hasFieldGroups(sectionType)` to decide whether to
+// render three collapsible accordions or a flat list. It returns true
+// for every known section type (defined in KNOWN_SECTION_TYPES below)
+// so grouping is universal. Callers that pass an unregistered type
+// (e.g. tests that build one-off schemas) continue to get flat render.
+//
+// AutoForm calls `getFieldGroup(sectionType, fieldPath)` — the first
+// arg is accepted for backward compatibility but ignored. Classification
+// is based entirely on the field name (leading segment of fieldPath).
 // =====================================================================
 
 export type FieldGroup = "essential" | "style" | "logic";
@@ -32,158 +32,173 @@ export const FIELD_GROUPS_ORDER: FieldGroup[] = [
     "logic",
 ];
 
-/**
- * Canonical mapping of section-type → field-name → group.
- *
- * Covers the 12 highest-traffic sections in the Builder v2 library.
- * Any section type not in this map renders flat (no groups) — see
- * `hasFieldGroups()`. Any field name not in a section's map defaults
- * to `"style"` — see `getFieldGroup()`.
- */
-export const FIELD_GROUPS: Record<string, Record<string, FieldGroup>> = {
-    hero_image: {
-        title_i18n: "essential",
-        subtitle_i18n: "essential",
-        image_url: "essential",
-        cta_label_i18n: "essential",
-        cta_href: "logic",
-        eyebrow_i18n: "style",
-        secondary_cta_kind: "logic",
-        secondary_cta_value: "logic",
-        secondary_cta_label_i18n: "logic",
-    },
-    trust_strip: {
-        items: "essential",
-        title_i18n: "essential",
-        background_tint: "style",
-        alignment: "style",
-        density: "style",
-    },
-    product_grid: {
-        title_i18n: "essential",
-        source: "essential",
-        product_ids: "essential",
-        category_id: "essential",
-        columns: "style",
-        max_items: "style",
-        show_prices: "style",
-        background_tint: "style",
-        cta_label_i18n: "logic",
-        cta_href: "logic",
-        analytics_tag: "logic",
-    },
-    category_grid: {
-        title_i18n: "essential",
-        items: "essential",
-        columns: "style",
-        background_tint: "style",
-        alignment: "style",
-        link_target: "logic",
-        analytics_tag: "logic",
-    },
-    delivery_promise: {
-        title_i18n: "essential",
-        items: "essential",
-        background_tint: "style",
-        alignment: "style",
-        density: "style",
-        analytics_tag: "logic",
-    },
-    testimonials_carousel: {
-        title_i18n: "essential",
-        items: "essential",
-        background_tint: "style",
-        autoplay: "style",
-        show_avatars: "style",
-        alignment: "style",
-        analytics_tag: "logic",
-    },
-    faq_accordion: {
-        title_i18n: "essential",
-        items: "essential",
-        background_tint: "style",
-        alignment: "style",
-        default_open_index: "style",
-        analytics_tag: "logic",
-    },
-    newsletter_inline: {
-        title_i18n: "essential",
-        subtitle_i18n: "essential",
-        cta_label_i18n: "essential",
-        background_tint: "style",
-        alignment: "style",
-        placeholder_i18n: "style",
-        success_message_i18n: "style",
-        list_id: "logic",
-        analytics_tag: "logic",
-    },
-    cta_banner: {
-        title_i18n: "essential",
-        subtitle_i18n: "essential",
-        cta_label_i18n: "essential",
-        cta_href: "logic",
-        background_tint: "style",
-        alignment: "style",
-        eyebrow_i18n: "style",
-        image_url: "style",
-        secondary_cta_kind: "logic",
-        secondary_cta_value: "logic",
-        secondary_cta_label_i18n: "logic",
-        analytics_tag: "logic",
-    },
-    pdp_buy_box: {
-        show_price: "essential",
-        show_stock: "essential",
-        cta_label_i18n: "essential",
-        background_tint: "style",
-        alignment: "style",
-        show_quantity_picker: "style",
-        show_variant_picker: "style",
-        cta_kind: "logic",
-        whatsapp_number: "logic",
-        analytics_tag: "logic",
-    },
-    pdp_info_tabs: {
-        tabs: "essential",
-        default_tab_index: "style",
-        background_tint: "style",
-        alignment: "style",
-        analytics_tag: "logic",
-    },
-    feature_grid: {
-        title_i18n: "essential",
-        items: "essential",
-        columns: "style",
-        background_tint: "style",
-        alignment: "style",
-        icon_style: "style",
-        analytics_tag: "logic",
-    },
-};
+// ─────────────────────────────────────────────────────────────────────
+// Convention-based classifier
+// ─────────────────────────────────────────────────────────────────────
 
-/** True when the section type has any group metadata registered. */
+/**
+ * Logic patterns — wiring / behaviour / data-source fields.
+ *
+ * A key is "logic" if it:
+ *   - ends with one of the suffixes below, OR
+ *   - is an exact match in LOGIC_EXACT, OR
+ *   - starts with one of the LOGIC_PREFIXES.
+ */
+const LOGIC_SUFFIXES = ["_href", "_kind", "_value", "_id", "_ids"] as const;
+const LOGIC_EXACT = new Set([
+    "mode",
+    "source",
+    "query",
+    "list_id",
+    "analytics_tag",
+    "limit",
+    "max_items",
+    "redirect_path",
+    "discount_code",
+    "triggered_after_seconds",
+    "allow_multiple",
+    "countdown_to_iso",
+    "target_iso",
+    "threshold_iqd",
+    "handle",
+    "layout",
+]);
+const LOGIC_PREFIXES = ["manual_", "pinned_"] as const;
+
+/**
+ * Style patterns — presentation / appearance fields.
+ *
+ * A key is "style" if it:
+ *   - is an exact match in STYLE_EXACT, OR
+ *   - starts with one of the STYLE_PREFIXES, OR
+ *   - ends with one of the STYLE_SUFFIXES.
+ */
+const STYLE_EXACT = new Set([
+    "bg",
+    "bg_tint",
+    "background_tint",
+    "tint",
+    "align",
+    "alignment",
+    "columns",
+    "density",
+    "scale",
+    "autoplay",
+    "rotation",
+    "speed",
+    "image_position",
+    "overlay_opacity",
+    "scribble_color",
+]);
+const STYLE_PREFIXES = ["show_", "bg_", "background_"] as const;
+const STYLE_SUFFIXES = ["_style", "_color", "_intensity", "_opacity"] as const;
+
+function classifyKey(key: string): FieldGroup {
+    // ── Logic ──────────────────────────────────────────────────────────
+    for (const prefix of LOGIC_PREFIXES) {
+        if (key.startsWith(prefix)) return "logic";
+    }
+    for (const suffix of LOGIC_SUFFIXES) {
+        if (key.endsWith(suffix)) return "logic";
+    }
+    if (LOGIC_EXACT.has(key)) return "logic";
+
+    // ── Style ──────────────────────────────────────────────────────────
+    if (STYLE_EXACT.has(key)) return "style";
+    for (const prefix of STYLE_PREFIXES) {
+        if (key.startsWith(prefix)) return "style";
+    }
+    for (const suffix of STYLE_SUFFIXES) {
+        if (key.endsWith(suffix)) return "style";
+    }
+
+    // ── Essential (default) ────────────────────────────────────────────
+    // Catches: *_i18n, items, image_url, video_url, poster_url, logos,
+    //          images, pills, tabs, messages_i18n, paragraphs_i18n,
+    //          governorates_covered, baghdad_hours, provinces_hours, etc.
+    return "essential";
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Known section types — all 45 from packages/sections/src/*.tsx
+// ─────────────────────────────────────────────────────────────────────
+
+const KNOWN_SECTION_TYPES = new Set([
+    "about_block",
+    "accordion_richtext",
+    "brand_story",
+    "cart_line_items",
+    "cart_summary",
+    "category_grid",
+    "checkout_form",
+    "checkout_order_summary",
+    "countdown_card",
+    "cta_banner",
+    "delivery_promise",
+    "exit_intent_offer",
+    "faq_accordion",
+    "feature_grid",
+    "founder_note",
+    "free_gift_strip",
+    "hero_image",
+    "hero_marquee",
+    "hero_split",
+    "hero_video",
+    "html_embed",
+    "image_gallery",
+    "instagram_grid",
+    "logo_strip",
+    "marquee_strip",
+    "newsletter_inline",
+    "numbers_stat_strip",
+    "order_tracker",
+    "pdp_add_to_cart",
+    "pdp_buy_box",
+    "pdp_gallery",
+    "pdp_info_block",
+    "pdp_info_tabs",
+    "pdp_related_products",
+    "pdp_variants",
+    "policy_content",
+    "press_quotes",
+    "product_grid",
+    "promo_banner",
+    "search_results_grid",
+    "sticky_cta_bar",
+    "testimonials_carousel",
+    "track_order_lookup",
+    "trust_strip",
+    "video_block",
+]);
+
+// ─────────────────────────────────────────────────────────────────────
+// Public API (backward-compatible)
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Returns true when the section type is a known Schneiders section,
+ * which means the AutoForm should render grouped accordions.
+ *
+ * Unknown types (one-off test schemas, future externals) get flat render.
+ */
 export function hasFieldGroups(sectionType: string | undefined): boolean {
     if (!sectionType) return false;
-    return Boolean(FIELD_GROUPS[sectionType]);
+    return KNOWN_SECTION_TYPES.has(sectionType);
 }
 
 /**
- * Resolve the group for a given (sectionType, fieldPath).
+ * Resolve the group for a given field path.
  *
- * Falls back to `"style"` when:
- *   - sectionType is not registered, OR
- *   - the field name is not in the section's map.
+ * `sectionType` is accepted for backward compatibility but **ignored** —
+ * classification is purely by field name convention.
  *
- * `fieldPath` is the dot-joined path; we currently only classify the
- * leading segment because the AutoForm groups at top-level only.
+ * `fieldPath` may be dot-joined (e.g. `"title_i18n.en"`); only the
+ * leading segment is classified because AutoForm groups at top-level only.
  */
 export function getFieldGroup(
     sectionType: string | undefined,
     fieldPath: string,
 ): FieldGroup {
-    if (!sectionType) return "style";
-    const entry = FIELD_GROUPS[sectionType];
-    if (!entry) return "style";
-    const top = fieldPath.split(".")[0] ?? fieldPath;
-    return entry[top] ?? "style";
+    const key = fieldPath.split(".")[0] ?? fieldPath;
+    return classifyKey(key);
 }
