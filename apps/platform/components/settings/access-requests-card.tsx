@@ -52,7 +52,10 @@ export function AccessRequestsCard() {
     if (role !== "super_admin") return null;
 
     const setReq = (id: string, patch: Partial<{ tenantId: string; role: string }>) =>
-        setSel((s) => ({ ...s, [id]: { tenantId: "", role: "employee", ...s[id], ...patch } }));
+        setSel((s) => {
+            const prev = s[id] ?? { tenantId: "", role: "employee" };
+            return { ...s, [id]: { ...prev, ...patch } };
+        });
 
     const approve = async (id: string) => {
         const s = sel[id];
