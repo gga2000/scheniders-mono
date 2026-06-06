@@ -57,15 +57,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Authenticated — verify admin role. `user_profiles.user_read_own_profile`
-  // RLS policy lets the user read their own row via the anon-authed client.
-  const { data: profile } = await supabase
-    .from("user_profiles")
-    .select("role")
-    .eq("id", user.id)
+  // Authenticated — verify admin-console access via the dedicated `admin_users`
+  // table (decoupled from the main app's user_profiles.role). The
+  // `admin_users_read_own` RLS policy lets the user read their own row via the
+  // anon-authed client.
+  const { data: adminRow } = await supabase
+    .from("admin_users")
+    .select("admin_role, is_active")
+    .eq("user_id", user.id)
     .single();
 
-  const isAdmin = !!profile?.role && ALLOWED_ROLES.has(profile.role);
+  const isAdmin =
+    !!adminRow?.admin_role && adminRow.is_active === true && ALLOWED_ROLES.has(adminRow.admin_role);
 
   if (!isAdmin) {
     if (isApi) {

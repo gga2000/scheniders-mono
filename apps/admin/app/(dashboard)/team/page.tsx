@@ -2,18 +2,22 @@
 
 import { useState } from "react";
 import { useAdminTeam } from "@/hooks/use-admin-team";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { TeamLeaderboard } from "@/components/team/team-leaderboard";
 import { TeamCommissionDashboard } from "@/components/team/team-commission-dashboard";
 import { TeamAchievementWall } from "@/components/team/team-achievement-wall";
+import { AddEmployeeDialog } from "@/components/team/add-employee-dialog";
 import { cn } from "@/lib/utils";
-import { Users, Loader2 } from "lucide-react";
+import { Users, Loader2, UserPlus } from "lucide-react";
 
 const tabs = ["Leaderboard", "Commissions", "Achievements"] as const;
 type Tab = (typeof tabs)[number];
 
 export default function TeamPage() {
   const { data: employees, isLoading } = useAdminTeam();
+  const { role } = useAdminAuth();
   const [activeTab, setActiveTab] = useState<Tab>("Leaderboard");
+  const [addOpen, setAddOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -28,14 +32,26 @@ export default function TeamPage() {
   return (
     <div className="p-4 md:p-6 space-y-5">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <Users className="w-6 h-6" />
-          Team Management
-        </h1>
-        <p className="text-foreground/50 mt-1">
-          {team.length} employee{team.length !== 1 ? "s" : ""}
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <Users className="w-6 h-6" />
+            Team Management
+          </h1>
+          <p className="text-foreground/50 mt-1">
+            {team.length} employee{team.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+        {role === "super_admin" && (
+          <button
+            type="button"
+            onClick={() => setAddOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-[#1E1E1E] text-white hover:bg-[#2D2D2D] transition-colors shrink-0"
+          >
+            <UserPlus className="w-4 h-4" />
+            Add employee
+          </button>
+        )}
       </div>
 
       {/* Tab Navigation */}
@@ -64,6 +80,8 @@ export default function TeamPage() {
       {activeTab === "Achievements" && (
         <TeamAchievementWall employees={team} />
       )}
+
+      <AddEmployeeDialog isOpen={addOpen} onClose={() => setAddOpen(false)} />
     </div>
   );
 }

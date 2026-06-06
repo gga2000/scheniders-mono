@@ -57,12 +57,11 @@ function makeBrowserClient() {
 }
 
 /**
- * Create a service-role client for fetching user_profiles.role.
- * NOTE: The service role key is a server-only secret. In a pure client
- * component the role check should go through an API route. Here we keep
- * the logic self-contained; if the key is unavailable on the client we
- * fall back to querying via the user's own session (which requires RLS
- * to permit the read).
+ * Resolve the signed-in user's admin-console role from the dedicated
+ * `admin_users` table (decoupled from the main app's user_profiles.role).
+ * Reads the user's own row via their session — the `admin_users_read_own`
+ * RLS policy permits exactly that. Returns null when there's no active admin
+ * row or the role isn't allowed.
  */
 async function fetchAdminRole(
   userId: string,
@@ -70,14 +69,17 @@ async function fetchAdminRole(
   supabase: ReturnType<typeof createBrowserClient<any>>
 ): Promise<AdminRole | null> {
   const { data, error } = await supabase
-    .from("user_profiles")
-    .select("role")
-    .eq("id", userId)
+    .from("admin_users")
+    .select("admin_role, is_active")
+    .eq("user_id", userId)
     .single();
 
   if (error || !data) return null;
 
-  const role = (data as Record<string, unknown>).role as string;
+  const row = data as Record<string, unknown>;
+  if (row.is_active !== true) return null;
+
+  const role = row.admin_role as string;
   return ALLOWED_ROLES.includes(role as AdminRole) ? (role as AdminRole) : null;
 }
 

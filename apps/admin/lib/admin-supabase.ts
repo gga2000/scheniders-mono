@@ -26,12 +26,47 @@ export function createBrowserClient() {
 const ALLOWED_ROLES: AdminRole[] = ["super_admin", "support_staff"];
 
 /**
- * Validate a user's access token and verify they have an admin role.
+ * Given an already-authenticated user id, look up their admin-console access in
+ * the dedicated `admin_users` table (service role — bypasses RLS) and return
+ * the validated role. Throws if there is no active row or the role is not
+ * allowed.
+ *
+ * Transport-agnostic: callers validate the identity (bearer token or cookie
+ * session) first, then hand the resolved user id here for authorization.
+ */
+export async function resolveAdminRole(userId: string): Promise<AdminRole> {
+  const adminClient = createAdminClient();
+  const { data: adminRow, error: adminError } = await adminClient
+    .from("admin_users")
+    .select("admin_role, is_active")
+    .eq("user_id", userId)
+    .single();
+
+  if (adminError || !adminRow) {
+    throw new Error("No admin-console access");
+  }
+
+  if (!adminRow.is_active) {
+    throw new Error("Admin-console access is disabled");
+  }
+
+  const role = adminRow.admin_role as AdminRole;
+
+  if (!ALLOWED_ROLES.includes(role)) {
+    throw new Error(`Unauthorized: role "${role}" is not an admin role`);
+  }
+
+  return role;
+}
+
+/**
+ * Validate a user's access token (bearer transport) and verify they have
+ * admin-console access.
  *
  * 1. Creates a client with the user's access token to validate the JWT
- * 2. Uses the service role client to fetch the user's role from user_profiles
- * 3. Throws if the role is not super_admin or support_staff
- * 4. Returns the validated user and their role
+ * 2. Resolves their admin-console role via `resolveAdminRole` (which reads the
+ *    dedicated `admin_users` access list, decoupled from user_profiles.role)
+ * 3. Returns the validated user and their admin role
  */
 export async function requireAdmin(accessToken: string) {
   // Create a client authenticated as the user to validate the JWT
@@ -56,23 +91,7 @@ export async function requireAdmin(accessToken: string) {
     throw new Error(userError?.message ?? "Invalid access token");
   }
 
-  // Use service role client to fetch the user's role (bypasses RLS)
-  const adminClient = createAdminClient();
-  const { data: profile, error: profileError } = await adminClient
-    .from("user_profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  if (profileError || !profile) {
-    throw new Error("User profile not found");
-  }
-
-  const role = profile.role as AdminRole;
-
-  if (!ALLOWED_ROLES.includes(role)) {
-    throw new Error(`Unauthorized: role "${role}" is not an admin role`);
-  }
+  const role = await resolveAdminRole(user.id);
 
   return { user, role };
 }
