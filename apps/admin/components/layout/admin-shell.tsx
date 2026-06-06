@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { AdminSidebar } from "./admin-sidebar";
 import { AdminTopbar } from "./admin-topbar";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { cn } from "@/lib/utils";
 import { CommandPalette, useCommandPalette } from "@/components/shared/command-palette";
 import { PageTransition } from "@/components/shared/page-transition";
@@ -36,23 +37,6 @@ const AdminSidebarContext = createContext<AdminSidebarContextValue>({
 
 export function useAdminSidebar() {
   return useContext(AdminSidebarContext);
-}
-
-// ---------------------------------------------------------------------------
-// useIsMobile hook
-// ---------------------------------------------------------------------------
-
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-
-  return isMobile;
 }
 
 // ---------------------------------------------------------------------------
