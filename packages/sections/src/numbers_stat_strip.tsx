@@ -11,6 +11,7 @@ import { resolveI18n } from "@scheniders/shared";
 import {
   BentoCard,
   ScribbleHeading,
+  Section,
 } from "./helpers/primitives";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
@@ -66,25 +67,29 @@ function NumbersStatStripRender({
   const heading = resolveI18n(props.heading_i18n, locale);
   const count = Math.min(props.items.length, 4);
 
+  // Static (Tailwind-safe) responsive column classes keyed by stat count:
+  // two-up on mobile, expanding to the full count on sm+.
+  const STAT_COLS: Record<number, string> = {
+    1: "grid-cols-1",
+    2: "grid-cols-2",
+    3: "grid-cols-2 sm:grid-cols-3",
+    4: "grid-cols-2 sm:grid-cols-4",
+  };
+
   return (
-    <section className="px-4 py-8">
+    <Section density="dense">
       <BentoCard
         bg={props.bg}
         size="md"
-        className="p-6 sm:p-8"
+        className="p-bk-lg sm:p-bk-xl"
         style={{ borderRadius: "var(--bk-radius-card, 1.25rem)" }}
       >
         {heading && (
-          <ScribbleHeading color="pink" className="mb-5">
+          <ScribbleHeading color="pink" className="mb-bk-lg">
             {heading}
           </ScribbleHeading>
         )}
-        <div
-          className="grid gap-4"
-          style={{
-            gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))`,
-          }}
-        >
+        <div className={`grid gap-bk-md sm:gap-bk-lg ${STAT_COLS[count]}`}>
           {props.items.slice(0, 4).map((item, i) => {
             const label = resolveI18n(item.label_i18n, locale);
             return (
@@ -98,7 +103,7 @@ function NumbersStatStripRender({
                 >
                   {item.value}
                 </div>
-                <p className="mt-2 font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70">
+                <p className="mt-bk-xs font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
                   {label}
                 </p>
               </div>
@@ -106,7 +111,7 @@ function NumbersStatStripRender({
           })}
         </div>
       </BentoCard>
-    </section>
+    </Section>
   );
 }
 

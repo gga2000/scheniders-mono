@@ -11,7 +11,8 @@ import { resolveI18n } from "@scheniders/shared";
 import {
   BentoCard,
   MaterialIcon,
-  ScribbleHeading,
+  Section,
+  SectionHeader,
 } from "./helpers/primitives";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
@@ -78,18 +79,14 @@ function FeatureGridRender({
       ? "sm:grid-cols-2"
       : props.columns === 4
         ? "sm:grid-cols-2 lg:grid-cols-4"
-        : "sm:grid-cols-3";
+        : "sm:grid-cols-2 lg:grid-cols-3";
 
   const tints = ["mint", "butter", "lilac", "sky"] as const;
 
   return (
-    <section className="px-4 py-8">
-      {heading && (
-        <ScribbleHeading color="pink" className="mb-5">
-          {heading}
-        </ScribbleHeading>
-      )}
-      <div className={`grid grid-cols-1 ${colsClass} gap-4`}>
+    <Section>
+      {heading && <SectionHeader title={heading} color="pink" />}
+      <div className={`grid grid-cols-1 ${colsClass} gap-bk-md`}>
         {props.items.map((item, i) => {
           const title = resolveI18n(item.title_i18n, locale);
           const body = resolveI18n(item.body_i18n, locale);
@@ -102,20 +99,20 @@ function FeatureGridRender({
               rotate={i % 2 === 0 ? -0.5 : 0.5}
               className="p-5 sm:p-6"
             >
-              <div className="w-12 h-12 rounded-xl border-[3px] border-candy-ink bg-white flex items-center justify-center mb-3">
+              <div className="w-12 h-12 rounded-xl border-[3px] border-candy-ink bg-white flex items-center justify-center mb-bk-sm">
                 <MaterialIcon name={item.icon} className="text-2xl" />
               </div>
               <h3 className="font-display font-black text-lg uppercase leading-tight">
                 {title}
               </h3>
-              <p className="mt-2 font-body text-sm text-candy-ink/85 leading-relaxed">
+              <p className="mt-bk-xs font-body text-sm text-bk-ink-soft leading-relaxed">
                 {body}
               </p>
             </BentoCard>
           );
         })}
       </div>
-    </section>
+    </Section>
   );
 }
 

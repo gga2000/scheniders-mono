@@ -6,9 +6,10 @@
 // out (target="_blank").
 // =====================================================================
 
+import Image from "next/image";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
-import { ScribbleHeading } from "./helpers/primitives";
+import { Section, SectionHeader } from "./helpers/primitives";
 import { i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
@@ -49,15 +50,20 @@ function LogoCell({
   href?: string;
 }) {
   const content = image_url ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
+    // Logos come from arbitrary partner/press hosts not in the storefront
+    // image allowlist, so `unoptimized` bypasses the Next optimizer while
+    // still using next/image for layout + lazy-loading semantics.
+    <Image
       src={image_url}
       alt={name}
+      width={160}
+      height={48}
+      unoptimized
+      sizes="160px"
       className="max-h-12 w-auto opacity-80"
-      loading="lazy"
     />
   ) : (
-    <span className="font-display font-black text-lg uppercase text-candy-ink/70">
+    <span className="font-display font-black text-lg uppercase text-bk-ink-soft">
       {name}
     </span>
   );
@@ -89,12 +95,8 @@ function LogoStripRender({
   if (props.logos.length === 0) return null;
 
   return (
-    <section className="px-4 py-8">
-      {heading && (
-        <ScribbleHeading color="sky" className="mb-4">
-          {heading}
-        </ScribbleHeading>
-      )}
+    <Section density="dense">
+      {heading && <SectionHeader title={heading} color="sky" />}
       {props.layout === "scroll" ? (
         <div className="overflow-hidden border-y-[3px] border-candy-ink bg-candy-cream py-3">
           <div className="flex gap-8 whitespace-nowrap animate-marquee">
@@ -109,7 +111,7 @@ function LogoStripRender({
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 items-center">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-bk-md items-center">
           {props.logos.map((logo, i) => (
             <LogoCell
               key={`${i}-${logo.name}`}
@@ -120,7 +122,7 @@ function LogoStripRender({
           ))}
         </div>
       )}
-    </section>
+    </Section>
   );
 }
 

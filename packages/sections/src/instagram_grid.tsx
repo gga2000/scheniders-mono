@@ -6,12 +6,14 @@
 // brand's social proof without needing a live Instagram API.
 // =====================================================================
 
+import Image from "next/image";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import {
   BentoCard,
   MaterialIcon,
   ScribbleHeading,
+  Section,
 } from "./helpers/primitives";
 import { i18nStringOptional, urlString } from "./_schema";
 import { registerSection } from "./_registry";
@@ -56,28 +58,28 @@ function InstagramGridRender({
 
   const colsClass =
     props.columns === 3
-      ? "grid-cols-3"
+      ? "grid-cols-2 sm:grid-cols-3"
       : props.columns === 4
-        ? "grid-cols-3 sm:grid-cols-4"
-        : "grid-cols-3 sm:grid-cols-6";
+        ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
+        : "grid-cols-3 sm:grid-cols-4 lg:grid-cols-6";
 
   return (
-    <section className="px-4 py-8">
-      <div className="flex items-center justify-between mb-5 gap-3">
+    <Section>
+      <div className="flex items-center justify-between mb-bk-lg gap-bk-sm">
         {heading && <ScribbleHeading color="lilac">{heading}</ScribbleHeading>}
         {handle && (
           <a
             href={handleHref ?? "#"}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink"
+            className="inline-flex items-center gap-2 font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink"
           >
             <MaterialIcon name="photo_camera" className="text-base" />
             {handle}
           </a>
         )}
       </div>
-      <div className={`grid ${colsClass} gap-2 sm:gap-3`}>
+      <div className={`grid ${colsClass} gap-bk-xs sm:gap-bk-sm`}>
         {props.items.slice(0, 12).map((item, i) => {
           const href = item.link_url || handleHref || "#";
           return (
@@ -94,18 +96,27 @@ function InstagramGridRender({
                 className="p-0 overflow-hidden aspect-square"
                 style={{ borderRadius: "var(--bk-radius-card, 1rem)" }}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                {/* Instagram media is served from arbitrary CDN hosts not in
+                    the storefront image allowlist, so `unoptimized` bypasses
+                    the Next optimizer while keeping next/image layout. */}
+                <Image
                   src={item.image_url}
                   alt=""
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                  fill
+                  unoptimized
+                  sizes={
+                    props.columns === 6
+                      ? "(max-width: 640px) 33vw, (max-width: 1024px) 25vw, 17vw"
+                      : "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                  }
+                  className="object-cover group-hover:scale-105 transition-transform"
                 />
               </BentoCard>
             </a>
           );
         })}
       </div>
-    </section>
+    </Section>
   );
 }
 
