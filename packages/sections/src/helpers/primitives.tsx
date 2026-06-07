@@ -387,6 +387,72 @@ export function WhatsAppIcon({ className }: { className?: string }) {
   );
 }
 
+type SectionDensity = "default" | "dense" | "generous";
+
+const SECTION_PY: Record<SectionDensity, string> = {
+  default: "py-bk-section",
+  dense: "py-bk-section-dense",
+  generous: "py-bk-section-generous",
+};
+
+/**
+ * Shared section shell. Owns horizontal padding and vertical rhythm (density)
+ * so individual sections stop reinventing `<section className="px-4 py-8">`.
+ * Vertical rhythm uses the fluid `--bk-section-y*` tokens; `density` picks the
+ * step. `bleed` drops horizontal padding for full-width heroes/marquees.
+ * Spreads `...props` so the editor overlay's `data-*` and handlers pass through.
+ */
+export function Section({
+  children,
+  density = "default",
+  bleed = false,
+  className,
+  ...props
+}: HTMLAttributes<HTMLElement> & {
+  density?: SectionDensity;
+  bleed?: boolean;
+}) {
+  return (
+    <section
+      className={cn(!bleed && "px-4", SECTION_PY[density], className)}
+      {...props}
+    >
+      {children}
+    </section>
+  );
+}
+
+/**
+ * Standard section heading row: scribble heading + optional subtitle, with
+ * consistent bottom rhythm. Use at the top of content sections instead of a
+ * bare `<ScribbleHeading>` so heading spacing stays uniform site-wide.
+ */
+export function SectionHeader({
+  title,
+  subtitle,
+  color = "butter",
+  className,
+}: {
+  title: ReactNode;
+  subtitle?: ReactNode;
+  color?: ScribbleColor;
+  className?: string;
+}) {
+  return (
+    <div className={cn("mb-bk-lg", className)}>
+      <ScribbleHeading color={color}>{title}</ScribbleHeading>
+      {subtitle ? (
+        <p
+          className="mt-bk-xs font-body text-base"
+          style={{ color: "var(--bk-ink-soft, rgb(26 26 26 / 0.6))" }}
+        >
+          {subtitle}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export function SectionEyebrow({
   children,
   className,

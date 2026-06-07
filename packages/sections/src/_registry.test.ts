@@ -67,12 +67,15 @@ const EXPECTED_TYPES = [
   // Conversion overlays / sticky
   "exit_intent_offer",
   "sticky_cta_bar",
+  // Site chrome (global header / footer)
+  "site_header",
+  "site_footer",
 ];
 
 describe("section registry", () => {
-  it("registers exactly 45 built-in sections", () => {
-    expect(BUILTIN_SECTIONS).toHaveLength(45);
-    expect(listSections()).toHaveLength(45);
+  it("registers exactly 47 built-in sections", () => {
+    expect(BUILTIN_SECTIONS).toHaveLength(47);
+    expect(listSections()).toHaveLength(47);
   });
 
   it("each section's defaultProps validates against its own schema", () => {
