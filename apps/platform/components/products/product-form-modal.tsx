@@ -7,6 +7,7 @@ import { Product } from "@/lib/supabase";
 import { ProductImageUpload } from "./product-image-upload";
 import { ProductGallerySection } from "./product-gallery-section";
 import { useCategoriesQuery } from "@/hooks/use-categories-query";
+import { slugify } from "@scheniders/shared";
 
 interface ProductFormModalProps {
     isOpen: boolean;
@@ -179,14 +180,6 @@ export function ProductFormModal({
     const profitMargin = formData.cost > 0
         ? (((formData.price - formData.cost) / formData.price) * 100).toFixed(1)
         : null;
-
-    const slugify = (text: string) =>
-        text
-            .toLowerCase()
-            .trim()
-            .replace(/[^a-z0-9\s-]/g, "")
-            .replace(/\s+/g, "-")
-            .replace(/-+/g, "-");
 
     const autoGenerateSlug = () => {
         if (formData.name) {

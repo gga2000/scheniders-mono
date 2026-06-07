@@ -28,12 +28,17 @@ export function formatIQDArabic(amount: number): string {
   return `${formattedNumber} دينار عراقي`;
 }
 
-/** Convert text to a URL-safe slug. */
+/** Convert text to a URL-safe slug. Unicode-aware: keeps letters and digits
+ *  from ANY script (Arabic, Kurdish, …) so non-Latin names produce a
+ *  meaningful slug instead of an empty string. Punctuation, symbols and emoji
+ *  are dropped. Returns "" only when the input has no letters/digits at all —
+ *  callers then fall back to the row id. */
 export function slugify(text: string): string {
   return text
+    .normalize("NFKC")
     .toLowerCase()
     .trim()
-    .replace(/[^\w\s-]/g, "")
+    .replace(/[^\p{L}\p{N}\s-]/gu, "")
     .replace(/[\s_-]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
