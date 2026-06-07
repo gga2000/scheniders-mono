@@ -77,7 +77,7 @@ export default function RootLayout({
 }>) {
   const supabaseOrigin = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin;
   return (
-    <html lang="ar" dir="ltr" suppressHydrationWarning>
+    <html lang="ar" suppressHydrationWarning>
       <head>
         {/* Preconnect to the Supabase origin so DNS + TLS overlap with JS parse
             on cold loads — the first request (auth/orders/metrics) fires immediately. */}
