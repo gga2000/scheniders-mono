@@ -17,6 +17,7 @@ export const listProducts = cache(
       .eq("tenant_id", tenantId)
       .eq("is_visible", true)
       .eq("is_archived", false)
+      .not("is_supply", "is", true) // supplies (packaging, etc.) are never storefront products
       .order("display_order", { ascending: true })
       .order("created_at", { ascending: false });
 
@@ -50,7 +51,8 @@ export const getProductBySlug = cache(
         .select(columns)
         .eq("tenant_id", tenantId)
         .eq("is_visible", true)
-        .eq("is_archived", false);
+        .eq("is_archived", false)
+        .not("is_supply", "is", true); // exclude supplies (packaging, etc.)
 
     const { data: bySlug } = await baseQuery().eq("slug", slugOrId).maybeSingle();
     if (bySlug) return normalizeProduct(bySlug);
@@ -133,7 +135,8 @@ export const listProductsInCategory = cache(
       .eq("category_id", categoryId)
       .eq("tenant_id", tenantId)
       .eq("products.is_visible", true)
-      .eq("products.is_archived", false);
+      .eq("products.is_archived", false)
+      .not("products.is_supply", "is", true); // exclude supplies
 
     if (opts.limit) q = q.limit(opts.limit);
     if (opts.offset)
