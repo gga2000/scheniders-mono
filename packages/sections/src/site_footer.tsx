@@ -12,7 +12,8 @@
 
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
-import { MaterialIcon, TrustPill } from "./helpers/primitives";
+import { cn } from "./helpers/utils";
+import { BrandMark, MaterialIcon, TrustPill } from "./helpers/primitives";
 import { StoreLink } from "./helpers/store-context";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
@@ -80,6 +81,7 @@ function SiteFooterRender({
   const locale = ctx.runtime.locale;
   const t = locale === "ar";
   const name = ctx.tenant.business_name;
+  const logo = ctx.tenant.branding?.logo_url ?? null;
   const tagline = props.tagline_i18n
     ? resolveI18n(props.tagline_i18n, locale)
     : null;
@@ -97,23 +99,16 @@ function SiteFooterRender({
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           {/* Brand block */}
           <div className="space-y-4 lg:col-span-1 sm:col-span-2">
-            <span className="flex items-center gap-2">
-              <span
-                aria-hidden="true"
-                className="inline-block h-4 w-4 -rotate-6"
-                style={{
-                  backgroundColor: "var(--bk-primary, #ff5a8a)",
-                  border: "2px solid #ffffff",
-                  borderRadius: "3px",
-                }}
-              />
-              <span
-                className="font-display font-black text-xl uppercase tracking-tight"
-                style={{ fontFamily: "var(--bk-font-display, inherit)" }}
-              >
-                {name}
-              </span>
-            </span>
+            {/* On the dark ink surface, force the wordmark + square border to
+                white via the BrandMark `--bm-*` override vars so the lockup
+                stays legible (preserves the footer's original white-on-ink
+                styling) without changing BrandMark's API. */}
+            <BrandMark
+              logoUrl={logo}
+              name={name}
+              size="sm"
+              className="[--bm-ink:#ffffff] [--bm-mark-border:#ffffff]"
+            />
             {tagline && (
               <p className="font-body text-sm text-white/70 max-w-xs">{tagline}</p>
             )}
@@ -124,9 +119,18 @@ function SiteFooterRender({
             )}
           </div>
 
-          {/* Link columns */}
+          {/* Link columns. The last column (Policies by default) is the
+              least-critical, so on small screens it drops to the end of the
+              flow; `lg:order-none` restores the natural grid order on the
+              4-col desktop layout so nothing shifts there. */}
           {props.columns.map((col, ci) => (
-            <div key={`col-${ci}`} className="space-y-3">
+            <div
+              key={`col-${ci}`}
+              className={cn(
+                "space-y-3",
+                ci === props.columns.length - 1 && "order-last lg:order-none",
+              )}
+            >
               <h3
                 className="font-label font-bold text-xs uppercase tracking-[0.2em]"
                 style={{ color: "var(--bk-accent, #ffd84a)" }}
@@ -138,7 +142,7 @@ function SiteFooterRender({
                   <li key={`${l.href}-ci${ci}`}>
                     <StoreLink
                       href={l.href}
-                      className="font-body text-sm text-white/75 transition-colors hover:text-white"
+                      className="font-body text-sm text-white/75 transition-colors hover:text-white hover:underline underline-offset-4"
                     >
                       {resolveI18n(l.label_i18n, locale)}
                     </StoreLink>

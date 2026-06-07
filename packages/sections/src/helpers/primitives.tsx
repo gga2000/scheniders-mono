@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { cn } from "./utils";
 import type {
   CSSProperties,
@@ -384,6 +385,74 @@ export function WhatsAppIcon({ className }: { className?: string }) {
     >
       <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86s.274.072.376-.043c.101-.116.433-.506.549-.68.116-.173.231-.145.39-.087s1.011.477 1.184.564.289.13.332.202c.045.072.045.419-.1.824zm-3.423-14.416c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm.029 18.88c-1.161 0-2.305-.292-3.318-.844l-3.677.964.984-3.595c-.607-1.052-.927-2.246-.926-3.468.001-3.825 3.113-6.937 6.937-6.937 3.825.001 6.938 3.113 6.938 6.938-.001 3.825-3.113 6.938-6.938 6.938z" />
     </svg>
+  );
+}
+
+/**
+ * Shared logo / wordmark lockup used by the global site header and footer.
+ *
+ * - When `logoUrl` is set, renders the tenant logo via `next/image`
+ *   (`unoptimized` — tenant logos live on arbitrary hosts not in the
+ *   storefront image allowlist) sized per `size` (sm ≈ 28px, md ≈ 36px).
+ * - When not, renders the rotated-square placeholder + the wordmark text
+ *   (`font-display font-black`). The square fill is bound to `--bk-primary`;
+ *   its border and the wordmark colour are bound to the local `--bm-ink`
+ *   / `--bm-mark-border` vars, which default to `--bk-ink`. A caller on a
+ *   dark surface (the footer) can override those via `className` arbitrary
+ *   properties — e.g. `[--bm-ink:#fff] [--bm-mark-border:#fff]` — to keep
+ *   the lockup legible without changing the API. This preserves the
+ *   footer's original white wordmark + white square border on dark ink.
+ */
+export function BrandMark({
+  logoUrl,
+  name,
+  size = "md",
+  className,
+}: {
+  logoUrl?: string | null;
+  name: string;
+  size?: "sm" | "md";
+  className?: string;
+}) {
+  if (logoUrl) {
+    const px = size === "sm" ? 28 : 36;
+    return (
+      <Image
+        src={logoUrl}
+        alt={name}
+        width={px}
+        height={px}
+        unoptimized
+        sizes={`${px}px`}
+        className={cn("w-auto object-contain", size === "sm" ? "h-7" : "h-9", className)}
+      />
+    );
+  }
+  return (
+    <span className={cn("flex items-center gap-2", className)}>
+      <span
+        aria-hidden="true"
+        className="inline-block h-4 w-4 shrink-0 -rotate-6"
+        style={{
+          backgroundColor: "var(--bk-primary, #ff5a8a)",
+          border:
+            "var(--bk-border-thickness, 3px) solid var(--bm-mark-border, var(--bk-ink, #1a1a1a))",
+          borderRadius: "calc(var(--bk-radius-card, 0.5rem) * 0.35)",
+        }}
+      />
+      <span
+        className={cn(
+          "font-display font-black uppercase tracking-tight truncate",
+          size === "sm" ? "text-xl" : "text-lg sm:text-xl",
+        )}
+        style={{
+          color: "var(--bm-ink, var(--bk-ink, #1a1a1a))",
+          fontFamily: "var(--bk-font-display, inherit)",
+        }}
+      >
+        {name}
+      </span>
+    </span>
   );
 }
 
