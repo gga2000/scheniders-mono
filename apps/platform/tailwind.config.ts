@@ -89,11 +89,16 @@ const config: Config = {
         "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         "saved-flash": "savedFlash 1.5s ease-out",
         "error-flash": "errorFlash 1.5s ease-out",
+        "sticker-pop": "stickerPop 0.3s ease-out both",
       },
       keyframes: {
         fadeIn: {
           "0%": { opacity: "0" },
           "100%": { opacity: "1" },
+        },
+        stickerPop: {
+          "0%": { transform: "scale(0.5)", opacity: "0" },
+          "100%": { transform: "scale(1)", opacity: "1" },
         },
         slideInUp: {
           "0%": { transform: "translateY(10px)", opacity: "0" },

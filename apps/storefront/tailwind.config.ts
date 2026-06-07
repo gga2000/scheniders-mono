@@ -116,11 +116,16 @@ const config: Config = {
       },
       animation: {
         marquee: "marquee 22s linear infinite",
+        "sticker-pop": "stickerPop 0.3s ease-out both",
       },
       keyframes: {
         marquee: {
           "0%": { transform: "translateX(0)" },
           "100%": { transform: "translateX(-50%)" },
+        },
+        stickerPop: {
+          "0%": { transform: "scale(0.5)", opacity: "0" },
+          "100%": { transform: "scale(1)", opacity: "1" },
         },
       },
     },

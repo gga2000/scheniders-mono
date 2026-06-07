@@ -7,12 +7,14 @@
 // governorate (from `ctx.runtime.governorate`) when known.
 // =====================================================================
 
+import type { CSSProperties } from "react";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import {
   BentoCard,
   MaterialIcon,
   ScribbleHeading,
+  Section,
   Sticker,
 } from "./helpers/primitives";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
@@ -88,8 +90,13 @@ function DeliveryPromise({
     visitorGov?.toLowerCase().includes("baghdad") ||
     visitorGov?.toLowerCase() === "bg";
 
+  const statCardStyle: CSSProperties = {
+    border: "var(--bk-border-thickness,3px) solid var(--bk-ink,#1a1a1a)",
+    borderRadius: "var(--bk-radius-card,1rem)",
+  };
+
   return (
-    <section className="px-4 py-8">
+    <Section>
       <BentoCard bg="mint" size="md" className="p-6 sm:p-8">
         <div data-i18n-field="heading_i18n">
           <ScribbleHeading color="pink" className="mb-5">
@@ -99,12 +106,13 @@ function DeliveryPromise({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div
             className={
-              "relative rounded-2xl border-[3px] border-candy-ink bg-white p-5 shadow-bento-sm " +
+              "relative bg-white p-5 shadow-bento-sm " +
               (visitorIsBaghdad ? "ring-4 ring-candy-pink/40" : "")
             }
+            style={statCardStyle}
           >
             {visitorIsBaghdad && (
-              <div className="absolute -top-3 -right-3">
+              <div className="absolute -top-3 -right-3 animate-sticker-pop motion-reduce:animate-none">
                 <Sticker bg="pink" rotate={6} size="xs">
                   {locale === "ar" ? "أنت هنا" : "You're here"}
                 </Sticker>
@@ -112,7 +120,7 @@ function DeliveryPromise({
             )}
             <div className="flex items-center gap-2 mb-1">
               <MaterialIcon name="local_shipping" className="text-xl" />
-              <span className="font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70">
+              <span className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
                 {locale === "ar" ? "بغداد" : "Baghdad"}
               </span>
             </div>
@@ -122,12 +130,13 @@ function DeliveryPromise({
           </div>
           <div
             className={
-              "relative rounded-2xl border-[3px] border-candy-ink bg-white p-5 shadow-bento-sm " +
+              "relative bg-white p-5 shadow-bento-sm " +
               (visitorGov && !visitorIsBaghdad ? "ring-4 ring-candy-pink/40" : "")
             }
+            style={statCardStyle}
           >
             {visitorGov && !visitorIsBaghdad && (
-              <div className="absolute -top-3 -right-3">
+              <div className="absolute -top-3 -right-3 animate-sticker-pop motion-reduce:animate-none">
                 <Sticker bg="pink" rotate={6} size="xs">
                   {locale === "ar" ? "أنت هنا" : "You're here"}
                 </Sticker>
@@ -135,7 +144,7 @@ function DeliveryPromise({
             )}
             <div className="flex items-center gap-2 mb-1">
               <MaterialIcon name="map" className="text-xl" />
-              <span className="font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70">
+              <span className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
                 {locale === "ar" ? "بقية المحافظات" : "Other governorates"}
               </span>
             </div>
@@ -146,7 +155,7 @@ function DeliveryPromise({
         </div>
         {props.governorates_covered.length > 0 && (
           <div className="mt-5">
-            <p className="font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70 mb-2">
+            <p className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft mb-2">
               {locale === "ar" ? "نوصل إلى" : "We ship to"}
             </p>
             <div className="flex flex-wrap gap-2">
@@ -164,14 +173,14 @@ function DeliveryPromise({
         {inspection && (
           <p
             data-i18n-field="inspection_text_i18n"
-            className="mt-5 font-body text-sm sm:text-base text-candy-ink/85 inline-flex items-center gap-2"
+            className="mt-5 font-body text-sm sm:text-base text-bk-ink-soft inline-flex items-center gap-2"
           >
             <MaterialIcon name="verified" className="text-xl text-candy-pink" />
             {inspection}
           </p>
         )}
       </BentoCard>
-    </section>
+    </Section>
   );
 }
 

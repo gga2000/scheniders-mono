@@ -14,6 +14,7 @@ import { StoreLink } from "./helpers/store-context";
 import {
   BentoCard,
   ChunkyButton,
+  Section,
   Sticker,
   WhatsAppIcon,
   MaterialIcon,
@@ -83,7 +84,7 @@ function HeroImageRender({
   const hasImage = !!props.image_url;
 
   return (
-    <section className="px-4 py-6 sm:py-10">
+    <Section bleed className="px-4 py-6 sm:py-10">
       <BentoCard
         bg={hasImage ? "ink" : "butter"}
         size="lg"
@@ -96,6 +97,7 @@ function HeroImageRender({
             data-layer-label="Background image"
             data-layer-kind="image"
             className="absolute inset-0"
+            style={{ backgroundColor: "var(--bk-surface, #fff7ed)" }}
           >
             <Image
               src={props.image_url!}
@@ -122,7 +124,7 @@ function HeroImageRender({
           )}
           <h1
             data-i18n-field="title_i18n"
-            className="font-display font-black text-5xl sm:text-7xl uppercase leading-[0.9] tracking-tight"
+            className="font-display font-black text-bk-hero uppercase leading-[0.9] tracking-tight max-w-[14ch] sm:max-w-2xl"
             style={{
               color: hasImage ? "#ffffff" : "var(--bk-ink, #1a1a1a)",
               transform: "rotate(-2deg)",
@@ -151,7 +153,7 @@ function HeroImageRender({
           data-layer="cta_group"
           data-layer-label="Buttons"
           data-layer-kind="button"
-          className="relative z-10 p-6 sm:p-10 pt-0 flex flex-wrap gap-3 items-center"
+          className="relative z-10 p-6 sm:p-10 pt-0 flex flex-wrap gap-bk-xs sm:gap-bk-sm items-center"
         >
           <StoreLink
             href={props.cta_href}
@@ -189,7 +191,7 @@ function HeroImageRender({
           )}
         </div>
       </BentoCard>
-    </section>
+    </Section>
   );
 }
 
