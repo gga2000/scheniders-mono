@@ -113,6 +113,10 @@ export function ReturnsCockpitModal({
                 onSuccess: () => {
                     toast.success(`#${current.order!.order_id} — return processed`);
                     session.markProcessed(current.orderId);
+                    // Re-fetch so the row's status badge reflects the new 'rejected'
+                    // state right away (stays greyed/handled), instead of showing the
+                    // stale pre-return status until the order is reselected.
+                    void session.refreshItem(current.key);
                     const d = tally(destinations);
                     setSummary((s) => ({ restock: s.restock + d.restock, open_box: s.open_box + d.open_box, write_off: s.write_off + d.write_off }));
                     setLastConfirm({ orderId: current.orderId, deltas: d });
@@ -153,6 +157,7 @@ export function ReturnsCockpitModal({
                 {
                     onSuccess: () => {
                         session.markProcessed(t.orderId);
+                        void session.refreshItem(t.key); // keep the status badge in sync after bulk restock
                         const d = tally(destinations);
                         setSummary((s) => ({ restock: s.restock + d.restock, open_box: s.open_box + d.open_box, write_off: s.write_off + d.write_off }));
                     }
