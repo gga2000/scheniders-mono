@@ -18,7 +18,8 @@ export async function generateMetadata({
     ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
     : await getTenantBySlug(tenantParam);
   const v2 = tenant?.store_config_v2 ?? null;
-  return { title: "Search — Schneiders", ...resolveV2PageMetadata(v2, "search", v2?.default_locale ?? "ar") };
+  const fallbackTitle = tenant ? `بحث — ${tenant.business_name}` : "بحث";
+  return { title: fallbackTitle, ...resolveV2PageMetadata(v2, "search", v2?.default_locale ?? "ar") };
 }
 
 export default async function SearchPage({ params }: { params: Promise<{ tenant: string }> }) {
