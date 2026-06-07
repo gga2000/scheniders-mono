@@ -156,13 +156,8 @@ body {
 /* Lead Card Gamified Tier Animations       */
 /* ======================================== */
 
-/* CSS custom properties for animation angles */
+/* CSS custom property for Diamond border rotation */
 @property --diamond-angle {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
-}
-@property --legendary-angle {
   syntax: "<angle>";
   initial-value: 0deg;
   inherits: false;
@@ -186,46 +181,13 @@ body {
   animation: border-rotate 6s linear infinite;
 }
 
-/* Legendary: fast border rotation */
-@keyframes border-rotate-fast {
-  0% { --legendary-angle: 0deg; }
-  100% { --legendary-angle: 360deg; }
-}
-.animate-border-rotate-fast {
-  animation: border-rotate-fast 3s linear infinite;
-}
-
-/* Rainbow sweep for legendary */
-@keyframes rainbow {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-.animate-rainbow {
-  animation: rainbow 4s ease-in-out infinite;
-}
-
-/* Sparkle animation */
+/* Sparkle animation (Diamond) */
 @keyframes sparkle {
   0%, 100% { opacity: 0.2; transform: scale(1); }
   50% { opacity: 1; transform: scale(1.5); }
 }
 .animate-sparkle {
   animation: sparkle 2.5s ease-in-out infinite;
-}
-.animate-sparkle-fast {
-  animation: sparkle 1.5s ease-in-out infinite;
-}
-
-/* Energy lines for legendary hover */
-@keyframes energy-line {
-  0% { transform: translateY(-100%); opacity: 0; }
-  30% { opacity: 1; }
-  70% { opacity: 1; }
-  100% { transform: translateY(100%); opacity: 0; }
-}
-.animate-energy-line {
-  animation: energy-line 2s ease-in-out infinite;
 }
 
 /* Delay utilities */
@@ -294,3 +256,53 @@ body {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* ======================================== */
+/* Lead Form Modal — entrance + validation  */
+/* ======================================== */
+
+@keyframes lead-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+/* Animate only `scale` + `opacity` (independent properties) so the modal
+   scales up in place — the Tailwind `-translate-x/y-1/2` centering lives on
+   the separate `translate` property and must not be overridden here. */
+@keyframes lead-modal-in {
+  from { opacity: 0; scale: 0.96; }
+  to   { opacity: 1; scale: 1; }
+}
+@keyframes lead-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+
+.lead-overlay-in { animation: lead-overlay-in 0.18s ease-out; }
+.lead-modal-in   { animation: lead-modal-in 0.24s cubic-bezier(0.16, 1, 0.3, 1); }
+.animate-shake   { animation: lead-shake 0.4s ease-in-out; }
+
+@keyframes lead-sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.lead-sheet-in { animation: lead-sheet-up 0.28s cubic-bezier(0.16, 1, 0.3, 1); }
+
+/* Inline field validation styling (mirrors platform create-order-modal) */
+.field-error {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+.dark .field-error {
+  border-color: #f87171 !important;
+}
+.field-error-text {
+  font-size: 11px;
+  line-height: 1.2;
+  color: #ef4444;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.dark .field-error-text { color: #fca5a5; }

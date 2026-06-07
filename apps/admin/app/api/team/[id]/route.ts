@@ -14,13 +14,18 @@ export async function GET(
     const { id } = await params;
     const supabase = createAdminClient();
 
-    const [userResult, leadsResult, actionsResult, commissionsResult, achievementsResult] =
+    const [userResult, adminResult, leadsResult, actionsResult, commissionsResult, achievementsResult] =
       await Promise.all([
         supabase
           .from("user_profiles")
-          .select("id, email, display_name, avatar_url, role, is_active, last_login_at")
+          .select("id, email, display_name, avatar_url, last_login_at")
           .eq("id", id)
           .single(),
+        supabase
+          .from("admin_users")
+          .select("admin_role, is_active")
+          .eq("user_id", id)
+          .maybeSingle(),
         supabase
           .from("leads")
           .select("id, status, prospect_tenant_id")
@@ -51,6 +56,8 @@ export async function GET(
     return NextResponse.json({
       employee: {
         ...userResult.data,
+        role: adminResult.data?.admin_role ?? null,
+        is_active: adminResult.data?.is_active ?? false,
         leads_added: userLeads.length,
         leads_converted: userLeads.filter((l) => l.status === "converted").length,
         stores_built: userLeads.filter((l) => l.prospect_tenant_id).length,

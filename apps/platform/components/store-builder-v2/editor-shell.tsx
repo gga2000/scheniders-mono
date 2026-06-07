@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ExternalLink, Redo2, Undo2 } from "lucide-react";
+import { ChevronLeft, ExternalLink, Redo2, Store, Undo2 } from "lucide-react";
 import {
     DndContext,
     PointerSensor,
@@ -1023,26 +1023,37 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             {/* Top bar */}
             <header
                 data-testid="editor-shell-topbar"
-                className="flex h-14 shrink-0 items-center justify-between border-b border-(--card-border) bg-(--card-bg) px-3"
+                className="sb-glass-bar z-20 flex h-14 shrink-0 items-center justify-between border-b border-(--card-border) px-3 shadow-[0_1px_0_rgba(0,0,0,0.02),0_10px_24px_-18px_rgba(0,0,0,0.25)]"
             >
                 <div className="flex items-center gap-2">
                     <Link
                         href="/store"
                         data-testid="editor-shell-back"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/4 hover:text-foreground"
                         aria-label="Back to store builder"
                     >
                         <ChevronLeft className="h-4 w-4" />
                     </Link>
                     <span
-                        data-testid="editor-shell-tenant-name"
-                        className="text-sm font-semibold tracking-tight text-foreground"
+                        aria-hidden="true"
+                        className="sb-tile sb-tile--page flex h-8 w-8"
                     >
-                        {tenant.business_name}
+                        <Store className="h-4 w-4" />
+                    </span>
+                    <span className="flex min-w-0 flex-col leading-tight">
+                        <span
+                            data-testid="editor-shell-tenant-name"
+                            className="truncate text-sm font-semibold tracking-tight text-foreground"
+                        >
+                            {tenant.business_name}
+                        </span>
+                        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                            Store builder
+                        </span>
                     </span>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5">
                     <LocaleSelect
                         value={builder.active_locale}
                         onChange={builder.set_active_locale}
@@ -1051,9 +1062,13 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                         value={builder.active_breakpoint}
                         onChange={builder.set_active_breakpoint}
                     />
+                    <span
+                        aria-hidden="true"
+                        className="h-5 w-px bg-(--card-border)"
+                    />
                     <div
                         data-testid="undo-redo-group"
-                        className="inline-flex rounded-md border border-(--card-border) bg-(--card-bg) p-0.5"
+                        className="inline-flex items-center gap-0.5 rounded-full border border-(--card-border) bg-(--background-soft) p-1"
                     >
                         <button
                             type="button"
@@ -1067,10 +1082,10 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                             disabled={!builder.can_undo}
                             onClick={() => builder.undo()}
                             className={
-                                "flex h-7 w-7 items-center justify-center rounded-sm transition-colors " +
+                                "flex h-7 w-7 items-center justify-center rounded-full transition-all duration-150 " +
                                 (builder.can_undo
-                                    ? "text-foreground hover:bg-primary/10"
-                                    : "cursor-not-allowed text-muted-foreground/50")
+                                    ? "text-foreground hover:bg-(--card-bg) hover:shadow-(--card-shadow)"
+                                    : "cursor-not-allowed text-muted-foreground/40")
                             }
                         >
                             <Undo2 className="h-4 w-4" />
@@ -1087,15 +1102,19 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                             disabled={!builder.can_redo}
                             onClick={() => builder.redo()}
                             className={
-                                "flex h-7 w-7 items-center justify-center rounded-sm transition-colors " +
+                                "flex h-7 w-7 items-center justify-center rounded-full transition-all duration-150 " +
                                 (builder.can_redo
-                                    ? "text-foreground hover:bg-primary/10"
-                                    : "cursor-not-allowed text-muted-foreground/50")
+                                    ? "text-foreground hover:bg-(--card-bg) hover:shadow-(--card-shadow)"
+                                    : "cursor-not-allowed text-muted-foreground/40")
                             }
                         >
                             <Redo2 className="h-4 w-4" />
                         </button>
                     </div>
+                    <span
+                        aria-hidden="true"
+                        className="h-5 w-px bg-(--card-border)"
+                    />
                     <PreviewAsControls
                         value={preview_as}
                         onChange={set_preview_as}
@@ -1112,14 +1131,14 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                         rel="noopener noreferrer"
                         data-testid="open-in-storefront"
                         title="Open production preview in a new tab"
-                        className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) bg-(--card-bg) px-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                        className="inline-flex h-8 items-center gap-1.5 rounded-full border border-(--card-border) bg-(--background-soft) px-3 text-xs font-medium text-muted-foreground transition-colors hover:border-(--border-hover) hover:text-foreground"
                     >
                         <ExternalLink className="h-3.5 w-3.5" />
                         <span>Open</span>
                     </a>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                     <SaveStatePill
                         state={builder.save_state}
                         lastSavedAt={builder.last_saved_at}
@@ -1193,7 +1212,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                         <>
                             <div
                                 ref={preview_container_ref}
-                                className="relative flex flex-1 flex-col overflow-hidden"
+                                className="sb-canvas relative flex flex-1 flex-col overflow-hidden"
                             >
                                 <FirstRunBanner
                                     tenantId={tenant.id}

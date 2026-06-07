@@ -3,30 +3,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { orderRepository } from "@/lib/repositories/order-repository";
+import { classifyScannedOrder, type ScanResult } from "@/lib/returns/classify-scan";
+import { playScanBeep, playErrorBuzz } from "@/lib/returns/sounds";
 import type { Order } from "@/types/order";
 
-export type ScanResult = "needs_action" | "done" | "anomaly" | "not_found" | "never_shipped";
+export type { ScanResult };
 
 export interface ScannedReturn {
     key: string;            // unique row key
-    orderId: string;        // scanned display order_id
+    orderId: string;        // scanned reference (order_id / sequence number / QR ref)
     order: Order | null;    // resolved order (null if not found)
     result: ScanResult;
     ts: number;
 }
 
-// Terminal = shouldn't be in a fresh return pile.
-// Pre-ship = was never shipped, so a return is suspicious.
-const TERMINAL = ["rejected", "cancelled", "refund_delivered", "refund_failed", "completed", "delivered"];
-const PRESHIP = ["new", "contacted", "pending_checkout", "no_response"];
 const LIST_TTL_MS = 12 * 60 * 60 * 1000; // expire a working list after 12h
-
-function classifyOrder(order: Order | null): ScanResult {
-    if (!order) return "not_found";
-    if (TERMINAL.includes(order.status)) return "anomaly";
-    if (PRESHIP.includes(order.status)) return "never_shipped";
-    return "needs_action";
-}
 
 function makeToken(): string {
     const raw = (typeof crypto !== "undefined" && crypto.randomUUID)
@@ -89,13 +80,16 @@ export function useReturnsSession(open: boolean) {
                 if (!orderId) return;
                 const dup = itemsRef.current.find((i) => i.orderId === orderId);
                 if (dup) {
+                    playErrorBuzz(); // scanned twice
                     channel.send({ type: "broadcast", event: "ack", payload: { order_id: orderId, result: "duplicate", customer: dup.order?.customer_name } });
                     return;
                 }
-                // findByOrderId is tenant-scoped via RLS on v_orders_with_risk.
+                // findByScanRef is tenant-scoped via RLS on v_orders_with_risk and
+                // resolves order_id, the short sequence_number, or the carrier QR id.
                 let order: Order | null = null;
-                try { order = await orderRepository.findByOrderId(orderId); } catch { order = null; }
-                const result = classifyOrder(order);
+                try { order = await orderRepository.findByScanRef(orderId); } catch { order = null; }
+                const result = classifyScannedOrder(order);
+                if (order) playScanBeep(); else playErrorBuzz(); // accepted vs not found
                 const row: ScannedReturn = { key: `${orderId}-${Date.now()}`, orderId, order, result, ts: Date.now() };
                 setItems((prev) => [row, ...prev]);
                 setSelectedKey((cur) => cur ?? row.key);
@@ -115,7 +109,7 @@ export function useReturnsSession(open: boolean) {
     }, []);
 
     const markUnprocessed = useCallback((orderId: string) => {
-        setItems((prev) => prev.map((i) => (i.orderId === orderId ? { ...i, result: classifyOrder(i.order) } : i)));
+        setItems((prev) => prev.map((i) => (i.orderId === orderId ? { ...i, result: classifyScannedOrder(i.order) } : i)));
     }, []);
 
     const removeItem = useCallback((key: string) => {
@@ -128,9 +122,9 @@ export function useReturnsSession(open: boolean) {
         const item = itemsRef.current.find((i) => i.key === key);
         if (!item) return;
         let order: Order | null = null;
-        try { order = await orderRepository.findByOrderId(item.orderId); } catch { return; }
+        try { order = await orderRepository.findByScanRef(item.orderId); } catch { return; }
         setItems((prev) => prev.map((i) => i.key === key
-            ? { ...i, order, result: i.result === "done" ? "done" : classifyOrder(order) }
+            ? { ...i, order, result: i.result === "done" ? "done" : classifyScannedOrder(order) }
             : i));
     }, []);
 
@@ -144,10 +138,11 @@ export function useReturnsSession(open: boolean) {
         const orderId = (orderIdRaw || "").trim();
         if (!orderId) return;
         const existing = itemsRef.current.find((i) => i.orderId === orderId);
-        if (existing) { setSelectedKey(existing.key); return; }
+        if (existing) { playErrorBuzz(); setSelectedKey(existing.key); return; }
         let order: Order | null = null;
-        try { order = await orderRepository.findByOrderId(orderId); } catch { order = null; }
-        const row: ScannedReturn = { key: `${orderId}-${Date.now()}`, orderId, order, result: classifyOrder(order), ts: Date.now() };
+        try { order = await orderRepository.findByScanRef(orderId); } catch { order = null; }
+        if (order) playScanBeep(); else playErrorBuzz();
+        const row: ScannedReturn = { key: `${orderId}-${Date.now()}`, orderId, order, result: classifyScannedOrder(order), ts: Date.now() };
         setItems((prev) => [row, ...prev]);
         setSelectedKey(row.key);
     }, []);

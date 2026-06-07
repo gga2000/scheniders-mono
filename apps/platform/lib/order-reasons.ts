@@ -78,6 +78,26 @@ export function isFallbackReason(reason: Pick<OrderReason, "id">): boolean {
     return reason.id.startsWith("d-cancel-") || reason.id.startsWith("d-reject-");
 }
 
+/**
+ * Collapse reasons that share the same visible Arabic label, keeping the first
+ * occurrence (callers pass a list already ordered by sort_order). Pickers select
+ * by `label_ar`, so two rows with the same label are indistinguishable to the
+ * user — some tenants have such duplicates from overlapping seeds. Used for the
+ * picker only; the reasons editor still sees every row so duplicates stay
+ * manageable.
+ */
+export function dedupeReasonsByLabel<T extends Pick<OrderReason, "label_ar">>(reasons: T[]): T[] {
+    const seen = new Set<string>();
+    const out: T[] = [];
+    for (const r of reasons) {
+        const key = r.label_ar.trim();
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        out.push(r);
+    }
+    return out;
+}
+
 export interface FetchReasonsResult {
     reasons: OrderReason[];
     /** true when we served the hardcoded fallback (no rows for this tenant). */

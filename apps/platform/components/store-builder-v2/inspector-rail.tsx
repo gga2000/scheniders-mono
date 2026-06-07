@@ -108,35 +108,37 @@ export function InspectorRail(props: InspectorRailProps): React.ReactElement {
         <aside
             data-testid="inspector-rail"
             aria-label="Inspector"
-            className="flex w-[380px] shrink-0 flex-col overflow-hidden border-l border-(--card-border) bg-(--card-bg)"
+            className="sb-glass flex w-[380px] shrink-0 flex-col overflow-hidden border-l border-(--card-border)"
         >
             <nav
                 role="tablist"
                 aria-label="Inspector tabs"
                 data-testid="inspector-rail-tabs"
-                className="flex shrink-0 items-stretch border-b border-(--card-border)"
+                className="shrink-0 border-b border-(--card-border) p-2"
             >
-                <InspectorTabBtn
-                    icon={<BlocksIcon className="h-3.5 w-3.5" aria-hidden="true" />}
-                    label="Blocks"
-                    testId="inspector-tab-blocks"
-                    active={activeTab === "blocks"}
-                    onClick={() => onChangeTab("blocks")}
-                />
-                <InspectorTabBtn
-                    icon={<Palette className="h-3.5 w-3.5" aria-hidden="true" />}
-                    label="Style"
-                    testId="inspector-tab-style"
-                    active={activeTab === "style"}
-                    onClick={() => onChangeTab("style")}
-                />
-                <InspectorTabBtn
-                    icon={<HeartPulse className="h-3.5 w-3.5" aria-hidden="true" />}
-                    label="Health"
-                    testId="inspector-tab-health"
-                    active={activeTab === "health"}
-                    onClick={() => onChangeTab("health")}
-                />
+                <div className="grid grid-cols-3 gap-0.5 rounded-full border border-(--card-border) bg-(--background-soft) p-1">
+                    <InspectorTabBtn
+                        icon={<BlocksIcon className="h-3.5 w-3.5" aria-hidden="true" />}
+                        label="Blocks"
+                        testId="inspector-tab-blocks"
+                        active={activeTab === "blocks"}
+                        onClick={() => onChangeTab("blocks")}
+                    />
+                    <InspectorTabBtn
+                        icon={<Palette className="h-3.5 w-3.5" aria-hidden="true" />}
+                        label="Style"
+                        testId="inspector-tab-style"
+                        active={activeTab === "style"}
+                        onClick={() => onChangeTab("style")}
+                    />
+                    <InspectorTabBtn
+                        icon={<HeartPulse className="h-3.5 w-3.5" aria-hidden="true" />}
+                        label="Health"
+                        testId="inspector-tab-health"
+                        active={activeTab === "health"}
+                        onClick={() => onChangeTab("health")}
+                    />
+                </div>
             </nav>
 
             <div className="flex flex-1 overflow-hidden">
@@ -218,10 +220,10 @@ function InspectorTabBtn({
             data-testid={testId}
             onClick={onClick}
             className={cn(
-                "flex flex-1 items-center justify-center gap-1.5 px-2 py-2.5 text-xs font-semibold transition-colors border-b-2",
+                "flex items-center justify-center gap-1.5 rounded-full px-2 py-1.5 text-xs font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
                 active
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-foreground/60 hover:text-foreground",
+                    ? "bg-(--card-bg) text-foreground shadow-(--card-shadow)"
+                    : "text-muted-foreground hover:text-foreground",
             )}
         >
             {icon}

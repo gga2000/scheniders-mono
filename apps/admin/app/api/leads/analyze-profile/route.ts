@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/admin-supabase";
 interface ProfileResult {
   merchant_name: string;
   follower_count: number;
+  post_count: number;
   avg_view_count: number;
   avg_like_count: number;
   avg_comments_count: number;
@@ -17,6 +18,12 @@ interface ProfileResult {
 // ── Helpers ─────────────────────────────────────────────────────────────
 
 const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY ?? "";
+
+/** Coerce API values (which may arrive as numbers or numeric strings) to a non-negative integer. */
+function num(value: unknown): number {
+  const n = typeof value === "string" ? Number(value) : typeof value === "number" ? value : NaN;
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : 0;
+}
 
 function extractUsername(input: string): string {
   // Handle @username, full URLs, or plain username
@@ -38,6 +45,21 @@ function extractUsername(input: string): string {
 
 const IG_HOST = "instagram-scraper-stable-api.p.rapidapi.com";
 
+/** Upstream (RapidAPI) failure, carrying the HTTP status so the route can map it cleanly. */
+class IgApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly detail: string,
+  ) {
+    super(`Instagram API error ${status}: ${detail}`);
+    this.name = "IgApiError";
+  }
+  /** Rate-limit / quota exhaustion (per-second throttle or monthly plan cap). */
+  get isRateLimited(): boolean {
+    return this.status === 429 || /quota|rate ?limit/i.test(this.detail);
+  }
+}
+
 async function igPost(endpoint: string, body: Record<string, string>) {
   const res = await fetch(
     `https://${IG_HOST}/${endpoint}`,
@@ -52,74 +74,76 @@ async function igPost(endpoint: string, body: Record<string, string>) {
     },
   );
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Instagram API error ${res.status}: ${text}`);
+    throw new IgApiError(res.status, await res.text());
   }
   return res.json();
 }
 
+/** Normalize a posts/reels list entry to a single content node (handles `node` and `media` nesting). */
+function contentNode(item: unknown): Record<string, unknown> {
+  const node = (item as { node?: Record<string, unknown> })?.node ?? (item as Record<string, unknown>) ?? {};
+  return (node as { media?: Record<string, unknown> }).media ?? node;
+}
+
+/** Per-item engagement. Photos report no views (view_count is null, no play_count); only videos/reels do. */
+function itemMetrics(item: unknown): { likes: number; comments: number; views: number } {
+  const n = contentNode(item);
+  return {
+    likes: num(n.like_count),
+    comments: num(n.comment_count),
+    views: num(n.play_count ?? n.view_count),
+  };
+}
+
+const mean = (nums: number[]): number =>
+  nums.length > 0 ? Math.round(nums.reduce((s, v) => s + v, 0) / nums.length) : 0;
+
 async function scrapeInstagram(username: string): Promise<ProfileResult> {
-  // Fetch posts and reels in parallel for user info + engagement metrics
-  const [postsJson, reelsJson] = await Promise.all([
-    igPost("get_ig_user_posts.php", { username_or_url: username }),
+  // Profile endpoint is the source of truth for follower/post counts, name, and bio —
+  // the posts/reels endpoints do not carry these. Posts/reels are used only for engagement.
+  const [profileJson, postsJson, reelsJson] = await Promise.all([
+    igPost("ig_get_fb_profile.php", { username_or_url: username }),
+    igPost("get_ig_user_posts.php", { username_or_url: username }).catch(() => ({ posts: [] })),
     igPost("get_ig_user_reels.php", { username_or_url: username }).catch(() => ({ reels: [] })),
   ]);
 
-  const posts = postsJson.posts ?? [];
-  const reels = reelsJson.reels ?? [];
+  // The profile fields sit at the top level of the response; tolerate a `user`/`data` wrapper too.
+  const profile =
+    (profileJson?.follower_count !== undefined ? profileJson : profileJson?.user ?? profileJson?.data) ?? {};
 
-  if (posts.length === 0 && reels.length === 0) {
-    throw new Error("No posts or reels found for this account. The username may be incorrect or the account is private.");
+  if (!profile.username && !profile.follower_count) {
+    throw new Error(
+      "Could not load this Instagram profile. The username may be incorrect, or the account doesn't exist.",
+    );
   }
 
-  // Extract user info from the first post
-  const firstPost = posts[0]?.node ?? posts[0] ?? {};
-  const user = firstPost.user ?? firstPost.owner ?? {};
+  const posts = Array.isArray(postsJson?.posts) ? postsJson.posts : [];
+  const reels = Array.isArray(reelsJson?.reels) ? reelsJson.reels : [];
 
-  // Calculate engagement from posts (likes, comments, views)
-  const postMetrics = posts.slice(0, 12).map((p: Record<string, unknown>) => {
-    const node = (p as { node?: Record<string, unknown> }).node ?? p;
-    return {
-      likes: (node as { like_count?: number }).like_count ?? 0,
-      comments: (node as { comment_count?: number }).comment_count ?? 0,
-      views: (node as { view_count?: number }).view_count ?? (node as { play_count?: number }).play_count ?? 0,
-    };
-  });
+  // Pool recent posts + reels for engagement. Likes/comments are present on every item;
+  // views exist only on videos/reels, so average views over items that actually have them
+  // (averaging in zero-view photos would understate it).
+  const items = [...posts.slice(0, 12), ...reels.slice(0, 12)].map(itemMetrics);
+  const avgLikes = mean(items.map((m) => m.likes));
+  const avgComments = mean(items.map((m) => m.comments));
+  const avgViews = mean(items.map((m) => m.views).filter((v) => v > 0));
 
-  // Calculate engagement from reels (better view counts via play_count)
-  const reelMetrics = reels.slice(0, 12).map((r: Record<string, unknown>) => {
-    const node = (r as { node?: Record<string, unknown> }).node ?? r;
-    const media = (node as { media?: Record<string, unknown> }).media ?? node;
-    return {
-      likes: (media as { like_count?: number }).like_count ?? 0,
-      comments: (media as { comment_count?: number }).comment_count ?? 0,
-      views: (media as { play_count?: number }).play_count ?? (media as { view_count?: number }).view_count ?? 0,
-    };
-  });
-
-  // Combine all metrics (reels are better for views)
-  const allMetrics = [...postMetrics, ...reelMetrics];
-  const viewMetrics = reelMetrics.length > 0 ? reelMetrics : postMetrics; // prefer reels for views
-
-  const avgLikes = allMetrics.length > 0
-    ? Math.round(allMetrics.reduce((s, p) => s + p.likes, 0) / allMetrics.length)
-    : 0;
-  const avgComments = allMetrics.length > 0
-    ? Math.round(allMetrics.reduce((s, p) => s + p.comments, 0) / allMetrics.length)
-    : 0;
-  const avgViews = viewMetrics.length > 0
-    ? Math.round(viewMetrics.reduce((s: number, p: { views: number }) => s + p.views, 0) / viewMetrics.length)
-    : 0;
+  const igUsername = (profile.username as string) ?? username;
+  const profilePic =
+    (profile.hd_profile_pic_url_info as { url?: string })?.url ??
+    (profile.profile_pic_url as string) ??
+    undefined;
 
   return {
-    merchant_name: user.full_name ?? user.username ?? username,
-    follower_count: 0, // not available from this API — employee can enter manually
+    merchant_name: (profile.full_name as string) || igUsername,
+    follower_count: num(profile.follower_count),
+    post_count: num(profile.media_count),
     avg_view_count: avgViews,
     avg_like_count: avgLikes,
     avg_comments_count: avgComments,
-    platform_url: `https://www.instagram.com/${user.username ?? username}/`,
-    bio: "", // not available from this API
-    profile_pic: user.hd_profile_pic_url_info?.url ?? user.profile_pic_url ?? undefined,
+    platform_url: `https://www.instagram.com/${igUsername}/`,
+    bio: (profile.biography as string) ?? "",
+    profile_pic: profilePic,
   };
 }
 
@@ -167,7 +191,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ profile });
   } catch (error) {
     console.error("Analyze profile error:", error);
+
+    // Upstream (RapidAPI) failures: map to a clean message without leaking the vendor URL.
+    if (error instanceof IgApiError) {
+      if (error.isRateLimited) {
+        return NextResponse.json(
+          {
+            error:
+              "Instagram lookup is rate-limited right now (API quota reached). Enter the details manually, or try again later.",
+          },
+          { status: 429 },
+        );
+      }
+      return NextResponse.json(
+        { error: "Instagram lookup is temporarily unavailable. Enter the details manually, or try again later." },
+        { status: 502 },
+      );
+    }
+
+    // Profile-not-found (and other validation errors) carry a user-friendly message already.
     const message = error instanceof Error ? error.message : "Failed to analyze profile";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 422 });
   }
 }

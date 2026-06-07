@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import type { Lead, LeadStatus } from "@/types/leads";
 import {
   LEAD_STATUS_CONFIG,
+  LEAD_STATUS_UI,
   LEAD_PRIORITY_CONFIG,
   LEAD_TIER_CONFIG,
   PLATFORM_CONFIG,
@@ -155,6 +156,7 @@ export function LeadKanbanColumn({
   onDragEnd,
 }: LeadKanbanColumnProps) {
   const config = LEAD_STATUS_CONFIG[status];
+  const ui = LEAD_STATUS_UI[status];
 
   return (
     <div
@@ -166,7 +168,7 @@ export function LeadKanbanColumn({
         isDropTarget && !isValidTarget && "ring-2 ring-red-500 border-red-500"
       )}
       style={{
-        borderTopColor: config.color,
+        borderTopColor: ui.solid,
         borderTopWidth: "3px",
       }}
       onDragOver={onDragOver}
@@ -177,17 +179,14 @@ export function LeadKanbanColumn({
       <div className="flex items-center gap-2 px-3 py-3 border-b border-[var(--card-border)]">
         <div
           className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-          style={{ backgroundColor: config.color }}
+          style={{ backgroundColor: ui.solid }}
         />
         <span className="text-sm font-semibold text-[var(--foreground)] truncate">
           {config.label}
         </span>
         <span
           className="ml-auto flex-shrink-0 min-w-[22px] h-[22px] flex items-center justify-center rounded-full text-[11px] font-bold"
-          style={{
-            backgroundColor: config.bgColor,
-            color: config.color,
-          }}
+          style={{ backgroundColor: ui.soft, color: ui.solid }}
         >
           {leads.length}
         </span>

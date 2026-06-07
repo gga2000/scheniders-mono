@@ -269,14 +269,14 @@ function GroupAccordion(p: GroupAccordionProps): ReactElement {
         <section
             data-testid={`auto-form-group-${p.group}`}
             data-open={open ? "true" : "false"}
-            className="overflow-hidden rounded-md border border-(--card-border) bg-(--card-bg)"
+            className="overflow-hidden rounded-xl border border-(--card-border) bg-(--card-bg)"
         >
             <button
                 type="button"
                 onClick={() => setOpen((v) => !v)}
                 aria-expanded={open}
                 data-testid={`auto-form-group-${p.group}-toggle`}
-                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-muted/30"
+                className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors hover:bg-black/3"
             >
                 <span className="text-xs font-semibold uppercase tracking-wide text-foreground/80">
                     {p.label}
@@ -533,7 +533,7 @@ function FieldRenderer(props: FieldRendererProps): ReactElement {
     if (optional && value === undefined && field.kind !== "i18n_string") {
         return wrap(
             <div
-                className="flex items-center justify-between gap-3 rounded-md border border-dashed border-(--card-border) px-3 py-2"
+                className="flex items-center justify-between gap-3 rounded-xl border border-dashed border-(--card-border) px-3 py-2"
                 data-testid={`${testIdBase}-unset`}
             >
                 <span className="text-sm text-muted-foreground">{label}</span>
@@ -994,7 +994,7 @@ interface BooleanControlProps {
 function BooleanControl(p: BooleanControlProps): ReactElement {
     const on = !!p.value;
     return (
-        <div className="flex items-center justify-between gap-3 rounded-md border border-(--card-border) bg-(--card-bg) px-3 py-2">
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) px-3 py-2">
             <label className="text-sm font-medium">{p.label}</label>
             <button
                 type="button"
@@ -1151,7 +1151,7 @@ function ArrayControl(p: ArrayControlProps): ReactElement {
             {p.value.length === 0 ? (
                 <div
                     data-testid={`${p.testIdBase}-empty`}
-                    className="rounded-md border border-dashed border-(--card-border) px-3 py-4 text-center text-[11px] text-muted-foreground"
+                    className="rounded-xl border border-dashed border-(--card-border) px-3 py-4 text-center text-[11px] text-muted-foreground"
                 >
                     No items yet
                 </div>
@@ -1161,7 +1161,7 @@ function ArrayControl(p: ArrayControlProps): ReactElement {
                         <li
                             key={i}
                             data-testid={`${p.testIdBase}-item-${i}`}
-                            className="rounded-md border border-(--card-border) bg-(--card-bg) p-2"
+                            className="rounded-xl border border-(--card-border) bg-(--card-bg) p-2"
                         >
                             <div className="mb-2 flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1270,7 +1270,7 @@ function ObjectControl(p: ObjectControlProps): ReactElement {
     return (
         <section
             data-testid={`${p.testIdBase}-object`}
-            className="rounded-md border border-(--card-border) bg-(--card-bg)"
+            className="rounded-xl border border-(--card-border) bg-(--card-bg)"
         >
             <button
                 type="button"

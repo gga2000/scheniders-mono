@@ -4,5 +4,6 @@
 export default [
   "apps/storefront/vitest.config.ts",
   "apps/platform/vitest.config.mts",
+  "apps/admin/vitest.config.ts",
   "packages/shared",
 ];

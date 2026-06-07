@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { X, RotateCcw, Trash2, Layers } from "lucide-react";
+import { X, RotateCcw, Trash2, Layers, ChevronDown, ChevronRight } from "lucide-react";
 import QRCode from "qrcode";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@scheniders/ui/dialog";
 import { useAuth } from "@/components/auth/auth-provider";
-import { useReturnsSession } from "@/hooks/use-returns-session";
+import { useReturnsSession, type ScannedReturn } from "@/hooks/use-returns-session";
+import { primeOnFirstGesture } from "@/lib/returns/sounds";
 import { useProcessReturn, useUndoReturn } from "@/hooks/use-process-return";
 import { ReturnDetailPanel } from "./return-detail-panel";
 import { toast } from "@/hooks/use-toast";
@@ -44,6 +45,7 @@ export function ReturnsCockpitModal({
     const [defaultReason, setDefaultReason] = useState("");
     const [summary, setSummary] = useState({ restock: 0, open_box: 0, write_off: 0 });
     const [lastConfirm, setLastConfirm] = useState<{ orderId: string; deltas: { restock: number; open_box: number; write_off: number } } | null>(null);
+    const [handledOpen, setHandledOpen] = useState(false);
 
     const changedByName = profile?.display_name || user?.email || "System";
     const changedByAvatar = (profile as { avatar_url?: string | null } | null)?.avatar_url ?? null;
@@ -53,6 +55,8 @@ export function ReturnsCockpitModal({
         destinations.forEach((x) => { d[x.dest] += 1; });
         return d;
     };
+
+    useEffect(() => { if (open) primeOnFirstGesture(); }, [open]);
 
     useEffect(() => {
         if (open && session.pairingUrl) {
@@ -66,6 +70,39 @@ export function ReturnsCockpitModal({
     }, [open, session.selectedKey]);
 
     const selected = session.items.find((i) => i.key === session.selectedKey) || null;
+    const pending = session.items.filter((i) => i.result !== "done");
+    const handled = session.items.filter((i) => i.result === "done");
+
+    const renderRow = (i: ScannedReturn) => {
+        const isSel = i.key === session.selectedKey;
+        const itemCount = i.order?.items?.length || 0;
+        return (
+            <div key={i.key} onClick={() => session.setSelectedKey(i.key)}
+                className={cn("group w-full flex items-center gap-2 px-3 py-2 rounded-xl mb-1.5 border cursor-pointer",
+                    isSel ? "bg-[var(--ink)] text-white border-[var(--ink)]" : "bg-white border-[var(--card-border)]",
+                    i.result === "done" ? "opacity-60" : "")}>
+                <span style={{ width: 8, height: 8, borderRadius: 9999, background: DOT[i.result], flexShrink: 0 }} />
+                <div className="min-w-0 flex-1">
+                    <div className="text-sm truncate font-medium">
+                        #{i.orderId}{i.order ? ` · ${i.order.customer_name}` : " · not found"}
+                    </div>
+                    {i.order && (
+                        <div className={cn("flex items-center gap-1.5 mt-0.5 text-[10px] flex-wrap", isSel ? "text-white/70" : "text-muted")}>
+                            <span className={cn("px-1.5 py-0.5 rounded-full font-semibold", getStatusBadgeStyle(i.order.status))}>{getStatusLabel(i.order.status, i.order.is_return)}</span>
+                            <span>{itemCount} item{itemCount === 1 ? "" : "s"}</span>
+                            {i.order.city && <span>· {i.order.city}</span>}
+                            <span>· {formatIQD(i.order.price || 0)}</span>
+                        </div>
+                    )}
+                </div>
+                <button type="button" title="Remove from list"
+                    onClick={(e) => { e.stopPropagation(); session.removeItem(i.key); if (session.selectedKey === i.key) session.setSelectedKey(null); }}
+                    className={cn("p-1 rounded-md shrink-0 opacity-0 group-hover:opacity-100 transition-opacity", isSel ? "hover:bg-white/20" : "hover:bg-black/10")}>
+                    <X className="w-3.5 h-3.5" />
+                </button>
+            </div>
+        );
+    };
 
     const confirm = (reasonLabel: string, destinations: ReturnItemDestination[]) => {
         if (!selected?.order) return;
@@ -219,36 +256,27 @@ export function ReturnsCockpitModal({
                 ) : (
                     <div className="flex gap-4 min-h-[360px]">
                         <div className="w-1/3 border-r border-[var(--card-border)] pr-3 overflow-y-auto max-h-[60vh]">
-                            {session.items.map((i) => {
-                                const isSel = i.key === session.selectedKey;
-                                const itemCount = i.order?.items?.length || 0;
-                                return (
-                                    <div key={i.key} onClick={() => session.setSelectedKey(i.key)}
-                                        className={cn("group w-full flex items-center gap-2 px-3 py-2 rounded-xl mb-1.5 border cursor-pointer",
-                                            isSel ? "bg-[var(--ink)] text-white border-[var(--ink)]" : "bg-white border-[var(--card-border)]",
-                                            i.result === "done" ? "opacity-60" : "")}>
-                                        <span style={{ width: 8, height: 8, borderRadius: 9999, background: DOT[i.result], flexShrink: 0 }} />
-                                        <div className="min-w-0 flex-1">
-                                            <div className="text-sm truncate font-medium">
-                                                #{i.orderId}{i.order ? ` · ${i.order.customer_name}` : " · not found"}
-                                            </div>
-                                            {i.order && (
-                                                <div className={cn("flex items-center gap-1.5 mt-0.5 text-[10px] flex-wrap", isSel ? "text-white/70" : "text-muted")}>
-                                                    <span className={cn("px-1.5 py-0.5 rounded-full font-semibold", getStatusBadgeStyle(i.order.status))}>{getStatusLabel(i.order.status, i.order.is_return)}</span>
-                                                    <span>{itemCount} item{itemCount === 1 ? "" : "s"}</span>
-                                                    {i.order.city && <span>· {i.order.city}</span>}
-                                                    <span>· {formatIQD(i.order.price || 0)}</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                        <button type="button" title="Remove from list"
-                                            onClick={(e) => { e.stopPropagation(); session.removeItem(i.key); if (session.selectedKey === i.key) session.setSelectedKey(null); }}
-                                            className={cn("p-1 rounded-md shrink-0 opacity-0 group-hover:opacity-100 transition-opacity", isSel ? "hover:bg-white/20" : "hover:bg-black/10")}>
-                                            <X className="w-3.5 h-3.5" />
-                                        </button>
-                                    </div>
-                                );
-                            })}
+                            <div className="flex items-center justify-between px-1 mb-1.5">
+                                <span className="text-xs font-bold uppercase tracking-wide text-muted">To handle ({pending.length})</span>
+                                <span className="text-[11px] font-semibold text-muted">{session.counts.scanned} scanned</span>
+                            </div>
+                            {pending.length === 0 && (
+                                <div className="text-xs text-muted px-1 py-4 text-center">
+                                    {handled.length > 0 ? "All scanned returns handled 🎉" : "Nothing scanned yet."}
+                                </div>
+                            )}
+                            {pending.map(renderRow)}
+
+                            {handled.length > 0 && (
+                                <div className="mt-2 border-t border-[var(--card-border)] pt-2">
+                                    <button type="button" onClick={() => setHandledOpen((o) => !o)}
+                                        className="w-full flex items-center gap-1.5 px-1 py-1 text-xs font-bold uppercase tracking-wide text-muted hover:text-foreground transition-colors">
+                                        {handledOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                                        Already handled ({handled.length})
+                                    </button>
+                                    {handledOpen && <div className="mt-1">{handled.map(renderRow)}</div>}
+                                </div>
+                            )}
                         </div>
                         <div className="flex-1 min-w-0">
                             {selected?.order ? (

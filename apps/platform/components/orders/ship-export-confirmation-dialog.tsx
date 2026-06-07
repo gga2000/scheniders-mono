@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Truck, AlertTriangle, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getBaseOrderId } from "@/lib/utils";
+import { getStatusBadgeStyle } from "@/lib/order-format-utils";
 import type { Order } from "@/types/order";
 
 const SAFE_EXPORT_TABS = ["confirmed", "in_transit", "return_pending", "refund_delivered", "refund_failed"] as const;
@@ -90,18 +91,18 @@ export function ShipExportConfirmationDialog({
             <DialogContent className="md:max-w-lg" aria-describedby="ship-export-desc">
                 <DialogHeader>
                     <DialogTitle className={cn(
-                        "flex items-center gap-2",
+                        "flex items-center justify-end gap-2",
                         isUnsafeTab ? "text-amber-700" : "text-slate-800"
                     )}>
+                        Export via {companyLabel}
                         <div className={cn(
                             "p-2 rounded-xl",
                             isUnsafeTab ? "bg-amber-100" : "bg-slate-100"
                         )}>
                             <Truck className="h-5 w-5" />
                         </div>
-                        Export via {companyLabel}
                     </DialogTitle>
-                    <DialogDescription id="ship-export-desc">
+                    <DialogDescription id="ship-export-desc" className="text-right">
                         Review the export details before proceeding
                     </DialogDescription>
                 </DialogHeader>
@@ -114,7 +115,7 @@ export function ShipExportConfirmationDialog({
                             ? "bg-amber-50/80 border-amber-200"
                             : "bg-slate-50 border-slate-200"
                     )}>
-                        <div className="flex justify-between items-center">
+                        <div className="flex flex-row-reverse justify-between items-center">
                             <span className="text-sm text-gray-600">Exporting from</span>
                             <span className={cn(
                                 "text-sm font-semibold px-2.5 py-1 rounded-lg",
@@ -125,7 +126,7 @@ export function ShipExportConfirmationDialog({
                                 {tabLabel}
                             </span>
                         </div>
-                        <div className="flex justify-between items-center">
+                        <div className="flex flex-row-reverse justify-between items-center">
                             <span className="text-sm text-gray-600">Orders to export</span>
                             <span className={cn(
                                 "text-lg font-bold tabular-nums",
@@ -135,7 +136,7 @@ export function ShipExportConfirmationDialog({
                             </span>
                         </div>
                         {!hasSelection && (
-                            <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-100/80 px-2.5 py-1.5 rounded-lg">
+                            <div className="flex flex-row-reverse items-center gap-1.5 text-xs text-amber-700 bg-amber-100/80 px-2.5 py-1.5 rounded-lg text-right">
                                 <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
                                 No orders selected — exporting all {orders.length} visible orders
                             </div>
@@ -143,11 +144,18 @@ export function ShipExportConfirmationDialog({
                         {/* Status breakdown for mixed statuses */}
                         {statusBreakdown.length > 1 && (
                             <div className="pt-2 border-t border-gray-200/60">
-                                <p className="text-xs text-gray-500 mb-1.5">Status breakdown:</p>
-                                <div className="flex flex-wrap gap-1.5">
+                                <p className="text-xs text-gray-500 mb-1.5 text-right">Status breakdown:</p>
+                                <div className="flex flex-wrap justify-end gap-1.5">
                                     {statusBreakdown.map(([status, count]) => (
-                                        <span key={status} className="text-xs px-2 py-0.5 rounded-md bg-white border border-gray-200 text-gray-600">
-                                            {STATUS_LABELS[status] || status} <span className="font-semibold">{count}</span>
+                                        <span
+                                            key={status}
+                                            className={cn(
+                                                "text-xs px-2 py-0.5 rounded-md",
+                                                getStatusBadgeStyle(status as Order["status"]),
+                                            )}
+                                        >
+                                            {STATUS_LABELS[status] || status}{" "}
+                                            <span className="font-semibold">{count}</span>
                                         </span>
                                     ))}
                                 </div>
@@ -204,14 +212,15 @@ export function ShipExportConfirmationDialog({
                     <div className="max-h-40 overflow-y-auto p-3 bg-gray-50 rounded-xl border border-gray-100">
                         <ul className="space-y-1.5">
                             {orders.slice(0, 50).map(order => (
-                                <li key={order.id} className="text-sm text-gray-700 flex justify-between items-center bg-white/70 px-2.5 py-1.5 rounded-lg border border-gray-100/50">
+                                <li
+                                    key={order.id}
+                                    className="text-sm text-gray-700 flex flex-row-reverse justify-between items-center bg-white/70 px-2.5 py-1.5 rounded-lg border border-gray-100/50"
+                                >
                                     <span className="font-medium truncate max-w-[200px]">{order.customer_name}</span>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex flex-row-reverse items-center gap-2">
                                         <span className={cn(
                                             "text-[10px] px-1.5 py-0.5 rounded",
-                                            order.status === "confirmed" ? "bg-green-100 text-green-700" :
-                                            order.status === "in_transit" ? "bg-blue-100 text-blue-700" :
-                                            "bg-gray-100 text-gray-600"
+                                            getStatusBadgeStyle(order.status),
                                         )}>
                                             {STATUS_LABELS[order.status] || order.status}
                                         </span>

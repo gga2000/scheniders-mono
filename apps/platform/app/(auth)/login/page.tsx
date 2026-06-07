@@ -7,6 +7,41 @@ import { Eye, EyeOff, Mail, Lock, Loader2, AlertCircle, CheckCircle2, Sparkles }
 import { useAuth } from "@/hooks/use-auth";
 import Link from "next/link";
 
+/** Smooth two-tone ring spinner — replaces the default Loader2 for a more premium feel. */
+function ButtonSpinner() {
+    return (
+        <motion.svg
+            className="w-[18px] h-[18px]"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden
+            animate={{ rotate: 360 }}
+            transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+        >
+            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
+            <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+        </motion.svg>
+    );
+}
+
+/** Checkmark that draws itself in on success. */
+function SuccessCheck() {
+    return (
+        <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <motion.path
+                d="M20 6 9 17l-5-5"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                initial={{ pathLength: 0 }}
+                animate={{ pathLength: 1 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+            />
+        </svg>
+    );
+}
+
 function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -257,22 +292,82 @@ function LoginForm() {
                         <button
                             type="submit"
                             disabled={isLoading || !isFormValid}
-                            className="w-full h-12 rounded-xl font-semibold text-white
+                            className={`group relative w-full h-12 rounded-xl font-semibold text-white overflow-hidden
                                      bg-gradient-to-r from-[#1E1E1E] to-[#3D3D3D]
                                      hover:from-[#2D2D2D] hover:to-[#4D4D4D]
-                                     disabled:opacity-50 disabled:cursor-not-allowed
-                                     shadow-lg hover:shadow-xl
-                                     transform hover:scale-[1.02] active:scale-[0.98]
-                                     transition-all duration-200"
+                                     shadow-lg transition-all duration-200 ${
+                                         isLoading || success
+                                             ? "cursor-default"
+                                             : isFormValid
+                                                 ? "hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                                                 : "opacity-50 cursor-not-allowed"
+                                     }`}
                         >
-                            {isLoading ? (
-                                <>
-                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                    <span>Signing in...</span>
-                                </>
-                            ) : (
-                                <span>Sign In</span>
+                            {/* Success: wash the button to green */}
+                            <AnimatePresence>
+                                {success && (
+                                    <motion.span
+                                        key="success-bg"
+                                        aria-hidden
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ duration: 0.3 }}
+                                        className="absolute inset-0 bg-gradient-to-r from-[#3E9B5F] to-[#4FB06E]"
+                                    />
+                                )}
+                            </AnimatePresence>
+
+                            {/* Loading: light sweeps across the button to signal progress */}
+                            {isLoading && !success && (
+                                <motion.span
+                                    aria-hidden
+                                    className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/25 to-transparent"
+                                    initial={{ x: "-150%" }}
+                                    animate={{ x: "450%" }}
+                                    transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
+                                />
                             )}
+
+                            {/* Content morphs between the three states */}
+                            <span className="relative flex items-center justify-center gap-2">
+                                <AnimatePresence mode="wait" initial={false}>
+                                    {success ? (
+                                        <motion.span
+                                            key="success"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ type: "spring", stiffness: 320, damping: 22 }}
+                                            className="flex items-center gap-2"
+                                        >
+                                            <SuccessCheck />
+                                            <span>Welcome back</span>
+                                        </motion.span>
+                                    ) : isLoading ? (
+                                        <motion.span
+                                            key="loading"
+                                            initial={{ opacity: 0, y: 8 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -8 }}
+                                            transition={{ duration: 0.2 }}
+                                            className="flex items-center gap-2"
+                                        >
+                                            <ButtonSpinner />
+                                            <span>Signing in</span>
+                                        </motion.span>
+                                    ) : (
+                                        <motion.span
+                                            key="idle"
+                                            initial={{ opacity: 0, y: 8 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            Sign In
+                                        </motion.span>
+                                    )}
+                                </AnimatePresence>
+                            </span>
                         </button>
                     </motion.div>
 

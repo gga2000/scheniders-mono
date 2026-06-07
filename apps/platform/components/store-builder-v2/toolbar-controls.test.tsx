@@ -22,7 +22,7 @@ beforeEach(() => {
 });
 
 describe("SaveStatePill — green pulse + retry", () => {
-    it("shows 'Saved ✓' with the success pulse for 1.5s on saving → saved transition", () => {
+    it("shows the success pulse for 1.5s on saving → saved transition", () => {
         const { rerender } = render(
             <SaveStatePill state="saving" lastSavedAt={null} />,
         );
@@ -30,13 +30,15 @@ describe("SaveStatePill — green pulse + retry", () => {
         expect(pill.getAttribute("data-state")).toBe("saving");
         expect(pill.getAttribute("data-pulse")).toBe("false");
 
-        // Transition to saved → pulse window opens.
+        // Transition to saved → pulse window opens. The pill shows the
+        // bare "Saved" label (success is conveyed by the check icon, not
+        // a text glyph) and reports data-pulse="true".
         rerender(
             <SaveStatePill state="saved" lastSavedAt={new Date()} />,
         );
         const pillAfter = screen.getByTestId("save-state-pill");
         expect(pillAfter.getAttribute("data-pulse")).toBe("true");
-        expect(pillAfter.textContent).toContain("Saved ✓");
+        expect(pillAfter.textContent).toContain("Saved");
 
         // After 1.5s the pulse fades and the relative-time form returns.
         act(() => {
@@ -45,7 +47,6 @@ describe("SaveStatePill — green pulse + retry", () => {
         const pillFinal = screen.getByTestId("save-state-pill");
         expect(pillFinal.getAttribute("data-pulse")).toBe("false");
         expect(pillFinal.textContent).toContain("Saved");
-        expect(pillFinal.textContent).not.toContain("✓");
     });
 
     it("does not pulse when state goes idle → saved (only on a true saving transition)", () => {

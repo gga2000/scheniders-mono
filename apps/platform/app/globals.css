@@ -21,6 +21,168 @@ body {
 @variant dark (&:where(.dark, .dark *));
 
 /* ============================================
+   Store Builder v2 — "Elevated Light Glass" chrome
+   Scoped design layer for the visual editor (/store/edit).
+   Light-first; dark mode degrades gracefully via base tokens.
+   All selectors are `sb-` prefixed to avoid collisions.
+   ============================================ */
+
+/* Frosted, layered panel surfaces that float over the warm canvas. */
+.sb-glass {
+  background: color-mix(in srgb, var(--card-bg) 80%, transparent);
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+}
+.sb-glass-bar {
+  background: color-mix(in srgb, var(--card-bg) 70%, transparent);
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+}
+
+/* Recessed design canvas: warm surface + faint dot grid, like a pro design tool. */
+.sb-canvas {
+  background-color: var(--background);
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--foreground) 7%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 22px 22px;
+  background-position: -1px -1px;
+}
+.dark .sb-canvas {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+}
+
+/* The previewed storefront floats as a device card on the canvas. */
+.sb-stage {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 18px 40px -16px rgba(0, 0, 0, 0.22),
+    0 0 0 1px color-mix(in srgb, var(--foreground) 6%, transparent);
+}
+
+/* Category icon tiles — soft tints keyed to section type. */
+.sb-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  transition: transform 160ms ease;
+}
+.sb-tile--hero       { background: rgba(166, 200, 255, 0.32); color: #2563EB; }
+.sb-tile--trust      { background: rgba(150, 219, 130, 0.34); color: #15803D; }
+.sb-tile--products   { background: rgba(228, 193, 249, 0.42); color: #9333EA; }
+.sb-tile--story      { background: rgba(244, 199, 207, 0.52); color: #DB2777; }
+.sb-tile--content    { background: rgba(160, 225, 215, 0.46); color: #0E7490; }
+.sb-tile--conversion { background: rgba(251, 227, 142, 0.55); color: #B45309; }
+.sb-tile--page       { background: rgba(148, 163, 184, 0.24); color: #475569; }
+.sb-tile--unknown    { background: rgba(148, 163, 184, 0.24); color: #475569; }
+
+/* Brighter glyphs so tiles stay legible on the charcoal dark surface. */
+.dark .sb-tile--hero       { background: rgba(37, 99, 235, 0.18);  color: #93C5FD; }
+.dark .sb-tile--trust      { background: rgba(21, 128, 61, 0.20);  color: #86EFAC; }
+.dark .sb-tile--products   { background: rgba(147, 51, 234, 0.20); color: #D8B4FE; }
+.dark .sb-tile--story      { background: rgba(219, 39, 119, 0.20); color: #F9A8D4; }
+.dark .sb-tile--content    { background: rgba(14, 116, 144, 0.22); color: #67E8F9; }
+.dark .sb-tile--conversion { background: rgba(180, 83, 9, 0.22);   color: #FCD34D; }
+.dark .sb-tile--page,
+.dark .sb-tile--unknown    { background: rgba(148, 163, 184, 0.18); color: #CBD5E1; }
+
+/* Premium draggable row card. */
+.sb-row {
+  transition:
+    transform 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+.sb-row:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--card-shadow-hover);
+  border-color: var(--border-hover);
+}
+.sb-row:hover .sb-tile { transform: translateY(-1px); }
+
+/* Selection ring (matches the canvas overlay's pink) — composes with the
+   hover elevation instead of being clobbered by it. */
+.sb-row[data-selected="true"] {
+  border-color: rgba(244, 114, 182, 0.55);
+  box-shadow: 0 0 0 2px rgba(244, 114, 182, 0.55), var(--card-shadow);
+}
+.sb-row[data-selected="true"]:hover {
+  border-color: rgba(244, 114, 182, 0.7);
+  box-shadow: 0 0 0 2px rgba(244, 114, 182, 0.7), var(--card-shadow-hover);
+}
+.sb-row[data-dragging="true"] {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--primary) 40%, transparent),
+    var(--card-shadow-hover);
+}
+
+/* Reveal the grip only on hover/focus — calmer at rest. */
+.sb-grip { opacity: 0; transition: opacity 140ms ease; }
+.sb-row:hover .sb-grip,
+.sb-row:focus-within .sb-grip { opacity: 1; }
+
+/* Soft accent bar for the active page/section row. */
+.sb-active-bar { position: relative; }
+.sb-active-bar::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 56%;
+  width: 3px;
+  transform: translateY(-50%);
+  border-radius: 0 3px 3px 0;
+  background: var(--primary);
+}
+
+/* Publish button — subtle sheen + lift. */
+.sb-publish {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--primary) 88%, #ffffff) 0%,
+    var(--primary) 100%
+  );
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.18),
+    0 6px 16px -6px color-mix(in srgb, var(--primary) 55%, transparent);
+  transition: transform 150ms ease, box-shadow 150ms ease, opacity 150ms ease;
+}
+.sb-publish:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.2),
+    0 12px 24px -8px color-mix(in srgb, var(--primary) 60%, transparent);
+}
+.sb-publish:not(:disabled):active { transform: translateY(0); }
+
+/* Pulsing dot to signal unpublished changes. */
+.sb-pulse-dot { position: relative; }
+.sb-pulse-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: inherit;
+  animation: sb-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@keyframes sb-ping {
+  0% { transform: scale(1); opacity: 0.55; }
+  75%, 100% { transform: scale(2.6); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sb-row,
+  .sb-tile,
+  .sb-publish { transition: none; }
+  .sb-row:hover,
+  .sb-row:hover .sb-tile { transform: none; }
+  .sb-pulse-dot::after { animation: none; }
+}
+
+/* ============================================
    Analytics / Stats Pages — Dark Mode
    ============================================ */
 

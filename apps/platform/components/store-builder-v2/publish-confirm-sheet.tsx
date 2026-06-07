@@ -19,6 +19,7 @@ import {
     Minus,
     Pencil,
     Plus,
+    Rocket,
     Sparkles,
     X,
 } from "lucide-react";
@@ -91,36 +92,44 @@ export function PublishConfirmSheet({
             role="dialog"
             aria-modal="true"
             aria-label={t(STRINGS.publish.confirm_title, locale)}
-            className="fixed inset-0 z-50 flex justify-end bg-black/40"
+            className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm"
             onClick={onClose}
         >
             <div
-                className="relative flex h-full w-full max-w-md flex-col overflow-hidden border-l border-(--card-border) bg-(--card-bg) shadow-2xl"
+                className="relative flex h-full w-full max-w-md flex-col overflow-hidden rounded-l-2xl border-l border-(--card-border) bg-(--card-bg) shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)]"
                 onClick={(e) => e.stopPropagation()}
             >
-                <header className="flex shrink-0 items-start justify-between gap-3 border-b border-(--card-border) px-4 py-4">
-                    <div className="min-w-0 flex-1">
-                        <h2 className="text-base font-bold text-foreground">
-                            {t(STRINGS.publish.confirm_title, locale)}
-                        </h2>
-                        <p className="mt-0.5 text-xs text-foreground/80">
-                            {blockingChecks.length === 0
-                                ? t(STRINGS.publish.confirm_all_clear, locale)
-                                : tFormat(
-                                      blockingChecks.length === 1
-                                          ? STRINGS.publish.confirm_subtitle_one
-                                          : STRINGS.publish.confirm_subtitle_many,
-                                      locale,
-                                      { n: blockingChecks.length },
-                                  )}
-                        </p>
+                <header className="flex shrink-0 items-start justify-between gap-3 border-b border-(--card-border) px-5 py-4">
+                    <div className="flex min-w-0 flex-1 items-start gap-3">
+                        <span
+                            aria-hidden="true"
+                            className="sb-tile sb-tile--conversion flex h-9 w-9 shrink-0"
+                        >
+                            <Rocket className="h-5 w-5" />
+                        </span>
+                        <div className="min-w-0">
+                            <h2 className="text-base font-bold text-foreground">
+                                {t(STRINGS.publish.confirm_title, locale)}
+                            </h2>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                                {blockingChecks.length === 0
+                                    ? t(STRINGS.publish.confirm_all_clear, locale)
+                                    : tFormat(
+                                          blockingChecks.length === 1
+                                              ? STRINGS.publish.confirm_subtitle_one
+                                              : STRINGS.publish.confirm_subtitle_many,
+                                          locale,
+                                          { n: blockingChecks.length },
+                                      )}
+                            </p>
+                        </div>
                     </div>
                     <button
                         type="button"
                         onClick={onClose}
                         aria-label={t(STRINGS.common.close, locale)}
                         data-testid="publish-confirm-sheet-close"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-foreground/70 hover:bg-muted/40 hover:text-foreground"
+                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-foreground/70 transition-colors hover:bg-black/5 hover:text-foreground"
                     >
                         <X className="h-4 w-4" aria-hidden="true" />
                     </button>
@@ -143,7 +152,7 @@ export function PublishConfirmSheet({
                         {blockingChecks.length === 0 ? (
                             <div
                                 data-testid="publish-confirm-sheet-no-warnings"
-                                className="rounded-md border border-dashed border-(--card-border) p-6 text-center text-sm text-foreground/80"
+                                className="rounded-xl border border-dashed border-(--card-border) p-6 text-center text-sm text-foreground/80"
                             >
                                 {t(STRINGS.publish.confirm_all_clear, locale)}
                             </div>
@@ -157,7 +166,7 @@ export function PublishConfirmSheet({
                                         <li
                                             key={check.id}
                                             data-testid={`publish-confirm-sheet-item-${check.id}`}
-                                            className="flex flex-col gap-2 rounded-md border border-(--card-border) bg-background p-3"
+                                            className="flex flex-col gap-2 rounded-xl border border-(--card-border) bg-background p-3"
                                         >
                                             <div className="flex items-start gap-2">
                                                 <AlertTriangle
@@ -201,12 +210,12 @@ export function PublishConfirmSheet({
                     </section>
                 </div>
 
-                <footer className="flex shrink-0 items-center justify-end gap-2 border-t border-(--card-border) px-3 py-3">
+                <footer className="flex shrink-0 items-center justify-end gap-2 border-t border-(--card-border) px-4 py-3">
                     <button
                         type="button"
                         onClick={onClose}
                         data-testid="publish-confirm-sheet-cancel"
-                        className="inline-flex h-9 items-center rounded-md border border-(--card-border) bg-(--card-bg) px-3 text-sm font-medium text-foreground/80 hover:text-foreground"
+                        className="inline-flex h-9 items-center rounded-lg border border-(--card-border) bg-(--card-bg) px-3.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-black/5 hover:text-foreground"
                     >
                         {t(STRINGS.publish.cancel, locale)}
                     </button>
@@ -215,8 +224,9 @@ export function PublishConfirmSheet({
                         onClick={onPublishAnyway}
                         disabled={busy}
                         data-testid="publish-confirm-sheet-publish-anyway"
-                        className="inline-flex h-9 items-center rounded-md border border-primary bg-(--card-bg) px-3 text-sm font-semibold text-primary hover:bg-primary/10 disabled:opacity-50"
+                        className="sb-publish inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
                     >
+                        <Rocket className="h-3.5 w-3.5" aria-hidden="true" />
                         {busy ? t(STRINGS.publish.publishing, locale) : t(STRINGS.publish.publish_anyway, locale)}
                     </button>
                 </footer>
@@ -235,7 +245,7 @@ function PublishDiffSection({ diff }: { diff: PublishDiff }): React.ReactElement
             <section
                 data-testid="publish-diff"
                 data-first-publish="true"
-                className="rounded-md border border-(--card-border) bg-background p-3"
+                className="rounded-xl border border-(--card-border) bg-background p-3"
             >
                 <h3 className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-foreground">
                     <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
@@ -256,7 +266,7 @@ function PublishDiffSection({ diff }: { diff: PublishDiff }): React.ReactElement
             <section
                 data-testid="publish-diff"
                 data-empty="true"
-                className="rounded-md border border-dashed border-(--card-border) p-3"
+                className="rounded-xl border border-dashed border-(--card-border) p-3"
             >
                 <h3 className="mb-1 text-sm font-semibold text-foreground">
                     Changes since last publish
@@ -271,7 +281,7 @@ function PublishDiffSection({ diff }: { diff: PublishDiff }): React.ReactElement
     return (
         <section
             data-testid="publish-diff"
-            className="rounded-md border border-(--card-border) bg-background"
+            className="rounded-xl border border-(--card-border) bg-background"
         >
             <header className="border-b border-(--card-border) px-3 py-2">
                 <h3 className="text-sm font-semibold text-foreground">

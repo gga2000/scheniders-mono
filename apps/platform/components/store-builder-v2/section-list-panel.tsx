@@ -163,6 +163,28 @@ function CategoryIcon({
     }
 }
 
+/** Maps a section category to its tinted icon-tile class (see globals.css). */
+function categoryTileClass(category: SectionCategory | "unknown"): string {
+    switch (category) {
+        case "hero":
+            return "sb-tile--hero";
+        case "trust":
+            return "sb-tile--trust";
+        case "products":
+            return "sb-tile--products";
+        case "story":
+            return "sb-tile--story";
+        case "content":
+            return "sb-tile--content";
+        case "conversion":
+            return "sb-tile--conversion";
+        case "page":
+            return "sb-tile--page";
+        default:
+            return "sb-tile--unknown";
+    }
+}
+
 /* ─────────────────────────────────────────────────────────────────── */
 /* Row                                                                  */
 /* ─────────────────────────────────────────────────────────────────── */
@@ -244,11 +266,11 @@ function SectionRow({
             data-testid={`section-row-${section.id}`}
             data-selected={selected ? "true" : "false"}
             data-expanded={expanded ? "true" : "false"}
+            data-dragging={isDragging ? "true" : "false"}
             className={cn(
-                "rounded-md border border-(--card-border) bg-(--card-bg) transition-colors",
-                isDragging && "ring-2 ring-primary/60 shadow-lg",
-                !section.enabled && "opacity-60",
-                selected && "ring-2 ring-pink-500/70",
+                "sb-row rounded-xl border border-(--card-border) bg-(--card-bg) shadow-(--card-shadow)",
+                isDragging && "relative z-10",
+                !section.enabled && "opacity-55",
             )}
         >
             <div
@@ -257,14 +279,14 @@ function SectionRow({
                     onSelect?.(section.id);
                     onEdit(section.id);
                 }}
-                className="group flex items-center gap-2 px-2 py-2 text-sm"
+                className="flex cursor-pointer items-center gap-2 px-2 py-2 text-sm"
             >
                 {/* Drag handle */}
                 <button
                     type="button"
                     aria-label={t(STRINGS.section_list.row_drag, locale)}
                     data-testid={`section-row-${section.id}-handle`}
-                    className="flex h-7 w-5 cursor-grab touch-none items-center justify-center rounded text-foreground/60 hover:text-foreground"
+                    className="sb-grip -mr-1 flex h-7 w-4 cursor-grab touch-none items-center justify-center rounded text-foreground/40 hover:text-foreground"
                     {...attributes}
                     {...listeners}
                 >
@@ -278,29 +300,30 @@ function SectionRow({
                     aria-expanded={expanded}
                     data-testid={`section-row-${section.id}-chevron`}
                     onClick={() => onEdit(section.id)}
-                    className="flex h-7 w-5 items-center justify-center rounded text-foreground/60 hover:text-foreground"
+                    className="flex h-7 w-4 items-center justify-center rounded text-foreground/50 transition-colors hover:text-foreground"
                 >
                     {expanded ? (
-                        <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+                        <ChevronDown className="h-4 w-4" aria-hidden="true" />
                     ) : (
-                        <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+                        <ChevronRight className="h-4 w-4" aria-hidden="true" />
                     )}
                 </button>
 
-                {/* Category icon */}
-                <CategoryIcon category={category} className="text-foreground/70" />
+                {/* Category icon tile */}
+                <span
+                    aria-hidden="true"
+                    className={cn("sb-tile flex h-8 w-8 shrink-0", categoryTileClass(category))}
+                >
+                    <CategoryIcon category={category} className="h-4 w-4" />
+                </span>
 
-                {/* Name + tag */}
+                {/* Name + category */}
                 <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                        <span className="truncate font-medium text-foreground/80">
-                            {displayLabel}
-                        </span>
-                    </div>
+                    <span className="block truncate font-semibold leading-tight text-foreground">
+                        {displayLabel}
+                    </span>
                     <span
-                        className={cn(
-                            "inline-flex items-center rounded-full bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground",
-                        )}
+                        className="mt-0.5 block truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
                         data-testid={`section-row-${section.id}-category`}
                     >
                         {categoryLabel}
@@ -316,7 +339,12 @@ function SectionRow({
                         e.stopPropagation();
                         onToggleEnabled(section.id);
                     }}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded text-foreground/70 transition-colors hover:bg-muted/40 hover:text-foreground"
+                    className={cn(
+                        "inline-flex h-7 w-7 items-center justify-center rounded-lg transition-colors hover:bg-black/5",
+                        section.enabled
+                            ? "text-foreground/60 hover:text-foreground"
+                            : "text-amber-600 hover:text-amber-700",
+                    )}
                 >
                     {section.enabled ? (
                         <Eye className="h-4 w-4" aria-hidden="true" />
@@ -337,7 +365,7 @@ function SectionRow({
                             e.stopPropagation();
                             setMenuOpen((v) => !v);
                         }}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded text-foreground/70 transition-colors hover:bg-muted/40 hover:text-foreground"
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-foreground/60 transition-colors hover:bg-black/5 hover:text-foreground"
                     >
                         <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
                     </button>
@@ -354,7 +382,7 @@ function SectionRow({
                             <div
                                 role="menu"
                                 data-testid={`section-row-${section.id}-menu`}
-                                className="absolute right-0 top-full z-50 mt-1 w-40 overflow-hidden rounded-md border border-(--card-border) bg-(--card-bg) shadow-lg"
+                                className="absolute right-0 top-full z-50 mt-1.5 w-44 overflow-hidden rounded-xl border border-(--card-border) bg-(--card-bg) p-1 shadow-(--card-shadow-hover)"
                             >
                                 <button
                                     type="button"
@@ -364,7 +392,7 @@ function SectionRow({
                                         closeMenu();
                                         onEdit(section.id);
                                     }}
-                                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-foreground hover:bg-muted/40"
+                                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-black/5"
                                 >
                                     {expanded ? (
                                         <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
@@ -381,7 +409,7 @@ function SectionRow({
                                         closeMenu();
                                         onDuplicate(section.id);
                                     }}
-                                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-foreground hover:bg-muted/40"
+                                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-black/5"
                                 >
                                     <Copy className="h-3.5 w-3.5" aria-hidden="true" />
                                     {t(STRINGS.section_list.row_duplicate, locale)}
@@ -395,7 +423,7 @@ function SectionRow({
                                             closeMenu();
                                             onSaveAsPreset(section.id);
                                         }}
-                                        className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-foreground hover:bg-muted/40"
+                                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-black/5"
                                     >
                                         <Bookmark className="h-3.5 w-3.5" aria-hidden="true" />
                                         {t(STRINGS.section_list.row_save_preset, locale)}
@@ -406,7 +434,7 @@ function SectionRow({
                                     role="menuitem"
                                     data-testid={`section-row-${section.id}-delete`}
                                     onClick={handleDelete}
-                                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10"
+                                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm text-destructive transition-colors hover:bg-destructive/10"
                                 >
                                     <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                                     {t(STRINGS.section_list.row_delete, locale)}
@@ -421,7 +449,7 @@ function SectionRow({
             {expanded && inlineBody ? (
                 <div
                     data-testid={`section-row-${section.id}-inline-body`}
-                    className="border-t border-(--card-border) bg-background/60"
+                    className="overflow-hidden rounded-b-xl border-t border-(--card-border) bg-background/50"
                 >
                     {inlineBody}
                 </div>
@@ -632,7 +660,7 @@ export function SectionListPanel(props: SectionListPanelProps): React.ReactEleme
                             data-testid="section-list-templates"
                             onClick={onStartFromTemplate}
                             title={t(STRINGS.section_list.templates_title, locale)}
-                            className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) bg-(--card-bg) px-2 text-xs font-semibold text-foreground/80 transition-colors hover:text-foreground"
+                            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-(--card-border) bg-(--background-soft) px-3 text-xs font-semibold text-foreground/80 transition-colors hover:border-(--border-hover) hover:text-foreground"
                         >
                             <LayoutTemplate className="h-3.5 w-3.5" aria-hidden="true" />
                             {t(STRINGS.section_list.templates_button, locale)}
@@ -718,7 +746,7 @@ export function SectionListPanel(props: SectionListPanelProps): React.ReactEleme
                             <ul
                                 data-testid="section-list-items"
                                 data-page-id={pageId}
-                                className="flex flex-col gap-1.5"
+                                className="flex flex-col gap-2"
                             >
                                 {sections.map((s) => {
                                     const expanded = expandedSectionId === s.id;
@@ -781,7 +809,7 @@ export function SectionListPanel(props: SectionListPanelProps): React.ReactEleme
                     type="button"
                     data-testid="section-list-add"
                     onClick={onAdd}
-                    className="inline-flex h-9 w-full items-center justify-center gap-1 rounded-md bg-primary px-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                    className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-2.5 text-sm font-semibold text-primary-foreground shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                 >
                     <Plus className="h-4 w-4" aria-hidden="true" />
                     {t(STRINGS.section_list.add_button, locale)}

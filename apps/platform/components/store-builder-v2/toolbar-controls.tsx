@@ -1,14 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Smartphone, Tablet, Monitor, RefreshCw, Languages } from "lucide-react";
+import {
+    Smartphone,
+    Tablet,
+    Monitor,
+    RefreshCw,
+    Globe,
+    ChevronDown,
+    Check,
+    CloudOff,
+    Loader2,
+    Rocket,
+} from "lucide-react";
 import type { Breakpoint, LocaleCode } from "@scheniders/shared";
 import { SUPPORTED_LOCALES, LOCALE_LABELS } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 import type { SaveStateV2 } from "@/hooks/use-store-builder-v2";
 
 /* ─────────────────────────────────────────────────────────────────── */
-/* Breakpoint toggle                                                    */
+/* Breakpoint toggle — segmented control                                */
 /* ─────────────────────────────────────────────────────────────────── */
 
 const BREAKPOINTS: Array<{ id: Breakpoint; icon: typeof Smartphone; label: string }> = [
@@ -28,7 +39,7 @@ export function BreakpointToggle({ value, onChange }: BreakpointToggleProps) {
             role="radiogroup"
             aria-label="Preview breakpoint"
             data-testid="breakpoint-toggle"
-            className="inline-flex rounded-md border border-(--card-border) bg-(--card-bg) p-0.5"
+            className="inline-flex items-center gap-0.5 rounded-full border border-(--card-border) bg-(--background-soft) p-1"
         >
             {BREAKPOINTS.map(({ id, icon: Icon, label }) => {
                 const isActive = id === value;
@@ -39,16 +50,17 @@ export function BreakpointToggle({ value, onChange }: BreakpointToggleProps) {
                         role="radio"
                         aria-checked={isActive}
                         aria-label={label}
+                        title={label}
                         data-testid={`breakpoint-${id}`}
                         onClick={() => onChange(id)}
                         className={cn(
-                            "flex h-7 w-9 items-center justify-center rounded-sm transition-colors",
+                            "flex h-7 w-9 items-center justify-center rounded-full transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
                             isActive
-                                ? "bg-primary/10 text-foreground"
-                                : "text-muted-foreground hover:text-foreground",
+                                ? "bg-(--card-bg) text-foreground shadow-(--card-shadow)"
+                                : "text-muted-foreground hover:bg-black/3 hover:text-foreground",
                         )}
                     >
-                        <Icon className="h-4 w-4" />
+                        <Icon className="h-4 w-4" aria-hidden="true" />
                     </button>
                 );
             })}
@@ -57,7 +69,7 @@ export function BreakpointToggle({ value, onChange }: BreakpointToggleProps) {
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
-/* Locale select                                                        */
+/* Locale select — pill                                                 */
 /* ─────────────────────────────────────────────────────────────────── */
 
 export interface LocaleSelectProps {
@@ -67,17 +79,17 @@ export interface LocaleSelectProps {
 
 export function LocaleSelect({ value, onChange }: LocaleSelectProps) {
     return (
-        <label className="inline-flex items-center gap-1.5 text-sm">
-            <Languages
+        <div className="relative inline-flex items-center">
+            <Globe
                 aria-hidden="true"
-                className="h-3.5 w-3.5 text-muted-foreground"
+                className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-muted-foreground"
             />
             <select
                 aria-label="Preview locale"
                 data-testid="locale-select"
                 value={value}
                 onChange={(e) => onChange(e.target.value as LocaleCode)}
-                className="rounded-md border border-(--card-border) bg-(--card-bg) px-2 py-1 text-sm"
+                className="cursor-pointer appearance-none rounded-full border border-(--card-border) bg-(--background-soft) py-1.5 pl-7 pr-7 text-sm font-medium text-foreground transition-colors hover:border-(--border-hover) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
             >
                 {SUPPORTED_LOCALES.map((locale) => (
                     <option key={locale} value={locale}>
@@ -85,7 +97,11 @@ export function LocaleSelect({ value, onChange }: LocaleSelectProps) {
                     </option>
                 ))}
             </select>
-        </label>
+            <ChevronDown
+                aria-hidden="true"
+                className="pointer-events-none absolute right-2 h-3.5 w-3.5 text-muted-foreground"
+            />
+        </div>
     );
 }
 
@@ -152,29 +168,42 @@ export function SaveStatePill({
 
     let label: string;
     let tone: string;
+    let icon: React.ReactNode;
     let style: React.CSSProperties | undefined;
     switch (state) {
         case "saving":
             label = "Saving…";
             tone = "text-muted-foreground";
+            icon = <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />;
             break;
         case "error":
             label = "Save failed";
             tone = "text-destructive";
+            icon = <CloudOff className="h-3.5 w-3.5" aria-hidden="true" />;
             break;
         case "saved":
         case "idle":
         default:
             if (showSavedPulse) {
-                label = "Saved ✓";
+                label = "Saved";
                 tone = "text-white border-transparent";
                 style = { backgroundColor: "var(--bk-success, #10b981)" };
+                icon = <Check className="h-3.5 w-3.5" aria-hidden="true" />;
             } else if (lastSavedAt) {
                 label = `Saved ${formatRelative(lastSavedAt, now)}`;
                 tone = "text-muted-foreground";
+                icon = (
+                    <Check className="h-3.5 w-3.5 text-emerald-500" aria-hidden="true" />
+                );
             } else {
                 label = "Not saved";
                 tone = "text-muted-foreground";
+                icon = (
+                    <span
+                        aria-hidden="true"
+                        className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50"
+                    />
+                );
             }
             break;
     }
@@ -186,11 +215,12 @@ export function SaveStatePill({
             data-state={state}
             data-pulse={showSavedPulse ? "true" : "false"}
             className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border border-(--card-border) bg-(--card-bg) px-2.5 py-1 text-xs font-medium transition-colors",
+                "inline-flex items-center gap-1.5 rounded-full border border-(--card-border) bg-(--background-soft) px-2.5 py-1 text-xs font-medium tabular-nums transition-colors",
                 tone,
             )}
             style={style}
         >
+            {icon}
             <span>{label}</span>
             {isError && onRetry ? (
                 <button
@@ -221,6 +251,10 @@ export interface PublishButtonProps {
 }
 
 export function PublishButton({ onPublish, disabled, busy, title }: PublishButtonProps) {
+    // `disabled` means "no unpublished changes". When the button is
+    // active and not mid-publish there ARE pending changes worth shipping,
+    // so we surface a gentle pulse to draw the eye.
+    const hasChanges = !disabled && !busy;
     return (
         <button
             type="button"
@@ -229,11 +263,24 @@ export function PublishButton({ onPublish, disabled, busy, title }: PublishButto
             disabled={disabled || busy}
             title={title}
             className={cn(
-                "inline-flex h-8 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-opacity",
-                (disabled || busy) && "cursor-not-allowed opacity-50",
+                "inline-flex h-8 items-center gap-1.5 rounded-lg px-3.5 text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                hasChanges
+                    ? "sb-publish"
+                    : "cursor-not-allowed bg-foreground/25 text-primary-foreground/80",
             )}
         >
-            {busy ? "Publishing…" : "Publish"}
+            {busy ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+            ) : (
+                <Rocket className="h-3.5 w-3.5" aria-hidden="true" />
+            )}
+            <span>{busy ? "Publishing…" : "Publish"}</span>
+            {hasChanges ? (
+                <span
+                    aria-hidden="true"
+                    className="sb-pulse-dot ml-0.5 h-1.5 w-1.5 rounded-full bg-primary-foreground"
+                />
+            ) : null}
         </button>
     );
 }

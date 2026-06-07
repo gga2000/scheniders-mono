@@ -14,7 +14,7 @@
 // =====================================================================
 
 import { useEffect, useMemo, useState } from "react";
-import { Bookmark, Search, Trash2, X } from "lucide-react";
+import { Bookmark, Plus, Search, Trash2, X } from "lucide-react";
 import { useDraggable } from "@dnd-kit/core";
 import type { PageId, SectionInstance } from "@scheniders/shared";
 import {
@@ -98,6 +98,12 @@ function buildInstance(entry: SectionManifestEntry): SectionInstance {
     };
 }
 
+/** Tinted-badge class for a category (sets only bg+color, composes with
+ *  Tailwind radius/padding utilities — see `.sb-tile--*` in globals.css). */
+function categoryTintClass(category: SectionCategory): string {
+    return `sb-tile--${category}`;
+}
+
 /* ─────────────────────────────────────────────────────────────────── */
 /* Picker                                                               */
 /* ─────────────────────────────────────────────────────────────────── */
@@ -167,7 +173,7 @@ export function SectionPicker(props: SectionPickerProps): React.ReactElement | n
             role="dialog"
             aria-modal="true"
             aria-label={t(STRINGS.section_picker.title_default, locale)}
-            className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/40 lg:items-center lg:p-4"
+            className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/40 backdrop-blur-sm lg:items-center lg:p-4"
         >
             {/* Backdrop click closes */}
             <button
@@ -181,27 +187,35 @@ export function SectionPicker(props: SectionPickerProps): React.ReactElement | n
 
             {/* Card — full-screen on mobile, centered modal on desktop */}
             <div
-                className="relative z-10 flex h-full max-h-screen w-full flex-col overflow-hidden border-(--card-border) bg-(--card-bg) shadow-xl lg:h-auto lg:max-h-[85vh] lg:max-w-3xl lg:rounded-lg lg:border"
+                className="relative z-10 flex h-full max-h-screen w-full flex-col overflow-hidden border-(--card-border) bg-(--card-bg) shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)] lg:h-auto lg:max-h-[85vh] lg:max-w-4xl lg:rounded-2xl lg:border"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="flex items-start justify-between gap-3 border-b border-(--card-border) px-4 py-3">
-                    <div className="min-w-0 flex-1">
-                        <h2 className="text-sm font-semibold tracking-tight">
-                            {pageLabel
-                                ? tFormat(STRINGS.section_picker.title_with_page, locale, { page: pageLabel })
-                                : t(STRINGS.section_picker.title_default, locale)}
-                        </h2>
-                        <p className="mt-0.5 text-xs text-foreground/80">
-                            {t(STRINGS.section_picker.subtitle, locale)}
-                        </p>
+                <div className="flex items-start justify-between gap-3 border-b border-(--card-border) px-5 py-4">
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                        <span
+                            aria-hidden="true"
+                            className="sb-tile sb-tile--products flex h-9 w-9 shrink-0"
+                        >
+                            <Plus className="h-5 w-5" />
+                        </span>
+                        <div className="min-w-0">
+                            <h2 className="truncate text-base font-semibold tracking-tight">
+                                {pageLabel
+                                    ? tFormat(STRINGS.section_picker.title_with_page, locale, { page: pageLabel })
+                                    : t(STRINGS.section_picker.title_default, locale)}
+                            </h2>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                                {t(STRINGS.section_picker.subtitle, locale)}
+                            </p>
+                        </div>
                     </div>
                     <button
                         type="button"
                         onClick={onClose}
                         aria-label={t(STRINGS.section_picker.close, locale)}
                         data-testid="section-picker-close"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                     >
                         <X className="h-4 w-4" aria-hidden="true" />
                     </button>
@@ -210,33 +224,35 @@ export function SectionPicker(props: SectionPickerProps): React.ReactElement | n
                 {/* Tab strip — Library / Saved presets */}
                 <div
                     data-testid="section-picker-tabs"
-                    className="flex items-center gap-1 border-b border-(--card-border) px-3 pt-2"
+                    className="border-b border-(--card-border) px-5 py-3"
                 >
-                    <PickerTabBtn
-                        label={t(STRINGS.section_picker.tab_library, locale)}
-                        active={tab === "library"}
-                        onClick={() => setTab("library")}
-                        testId="section-picker-tab-library"
-                    />
-                    <PickerTabBtn
-                        label={
-                            presets?.length
-                                ? tFormat(STRINGS.section_picker.tab_presets, locale, { count: presets.length })
-                                : t(STRINGS.section_picker.tab_presets_zero, locale)
-                        }
-                        active={tab === "presets"}
-                        onClick={() => setTab("presets")}
-                        testId="section-picker-tab-presets"
-                    />
+                    <div className="inline-flex items-center gap-0.5 rounded-full border border-(--card-border) bg-(--background-soft) p-1">
+                        <PickerTabBtn
+                            label={t(STRINGS.section_picker.tab_library, locale)}
+                            active={tab === "library"}
+                            onClick={() => setTab("library")}
+                            testId="section-picker-tab-library"
+                        />
+                        <PickerTabBtn
+                            label={
+                                presets?.length
+                                    ? tFormat(STRINGS.section_picker.tab_presets, locale, { count: presets.length })
+                                    : t(STRINGS.section_picker.tab_presets_zero, locale)
+                            }
+                            active={tab === "presets"}
+                            onClick={() => setTab("presets")}
+                            testId="section-picker-tab-presets"
+                        />
+                    </div>
                 </div>
 
                 {tab === "library" ? (
                 <>
                 {/* Search + category chips */}
-                <div className="flex flex-col gap-2 border-b border-(--card-border) px-4 py-3">
+                <div className="flex flex-col gap-2.5 border-b border-(--card-border) px-5 py-3.5">
                     <div className="relative">
                         <Search
-                            className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
                             aria-hidden="true"
                         />
                         <input
@@ -246,7 +262,7 @@ export function SectionPicker(props: SectionPickerProps): React.ReactElement | n
                             placeholder={t(STRINGS.section_picker.search_placeholder, locale)}
                             data-testid="section-picker-search"
                             aria-label={t(STRINGS.section_picker.search_placeholder, locale)}
-                            className="h-9 w-full rounded-md border border-(--card-border) bg-background pl-8 pr-3 text-sm outline-none focus:border-primary"
+                            className="h-10 w-full rounded-xl border border-(--card-border) bg-(--background-soft) pl-9 pr-3 text-sm outline-none transition-shadow focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/25"
                         />
                     </div>
                     <div
@@ -276,7 +292,7 @@ export function SectionPicker(props: SectionPickerProps): React.ReactElement | n
                     {filtered.length === 0 ? (
                         <div
                             data-testid="section-picker-empty"
-                            className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-(--card-border) px-4 py-12 text-center"
+                            className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-(--card-border) px-4 py-12 text-center"
                         >
                             <p className="text-sm text-foreground/80">
                                 {t(STRINGS.section_picker.empty_search, locale)}
@@ -311,12 +327,12 @@ export function SectionPicker(props: SectionPickerProps): React.ReactElement | n
                 ) : (
                     <div
                         data-testid="section-picker-presets-body"
-                        className="flex-1 overflow-y-auto p-4"
+                        className="flex-1 overflow-y-auto p-5"
                     >
                         {!presets || presets.length === 0 ? (
                             <div
                                 data-testid="section-picker-presets-empty"
-                                className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-(--card-border) px-4 py-12 text-center"
+                                className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-(--card-border) px-4 py-12 text-center"
                             >
                                 <Bookmark
                                     className="h-6 w-6 text-muted-foreground/60"
@@ -332,7 +348,7 @@ export function SectionPicker(props: SectionPickerProps): React.ReactElement | n
                         ) : (
                             <ul
                                 data-testid="section-picker-presets-list"
-                                className="flex flex-col gap-1.5"
+                                className="flex flex-col gap-2"
                             >
                                 {presets.map((p) => (
                                     <PresetRow
@@ -380,10 +396,10 @@ function PickerTabBtn({
             onClick={onClick}
             aria-pressed={active}
             className={cn(
-                "inline-flex h-8 items-center rounded-t-md border-b-2 px-3 text-xs font-semibold transition-colors",
+                "inline-flex h-7 items-center rounded-full px-3.5 text-xs font-semibold transition-all duration-150",
                 active
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
+                    ? "bg-(--card-bg) text-foreground shadow-(--card-shadow)"
+                    : "text-muted-foreground hover:text-foreground",
             )}
         >
             {label}
@@ -409,15 +425,21 @@ function PresetRow({
     return (
         <li
             data-testid={`section-picker-preset-${preset.id}`}
-            className="group relative flex items-center gap-2 rounded-md border border-(--card-border) bg-background p-2.5 transition-colors hover:border-primary/60"
+            className="sb-row group relative flex items-center gap-2.5 rounded-xl border border-(--card-border) bg-(--card-bg) p-2.5 shadow-(--card-shadow)"
         >
+            <span
+                aria-hidden="true"
+                className="sb-tile sb-tile--page flex h-9 w-9 shrink-0"
+            >
+                <Bookmark className="h-4 w-4" />
+            </span>
             <button
                 type="button"
                 data-testid={`section-picker-preset-${preset.id}-pick`}
                 onClick={onPick}
-                className="flex flex-1 flex-col items-start text-left"
+                className="flex min-w-0 flex-1 flex-col items-start text-left"
             >
-                <span className="truncate text-sm font-semibold text-foreground">
+                <span className="w-full truncate text-sm font-semibold text-foreground">
                     {preset.name}
                 </span>
                 <span className="text-[11px] text-muted-foreground">
@@ -505,10 +527,10 @@ function CategoryChip({
             onClick={onClick}
             aria-pressed={active}
             className={cn(
-                "inline-flex h-7 items-center rounded-full px-2.5 text-xs font-medium transition-colors",
+                "inline-flex h-7 items-center rounded-full px-3 text-xs font-medium transition-all duration-150",
                 active
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted/50 text-muted-foreground hover:bg-muted/80 hover:text-foreground",
+                    ? "bg-primary text-primary-foreground shadow-(--card-shadow)"
+                    : "border border-(--card-border) bg-(--background-soft) text-muted-foreground hover:border-(--border-hover) hover:text-foreground",
             )}
         >
             {label}
@@ -565,14 +587,14 @@ function SectionCard({
             {...listeners}
             {...dndAttributes}
             className={cn(
-                "group relative flex flex-col overflow-hidden rounded-md border border-(--card-border) bg-background text-left transition-colors",
+                "group relative flex flex-col overflow-hidden rounded-xl border border-(--card-border) bg-(--card-bg) text-left shadow-(--card-shadow) transition-all duration-150",
                 valid
-                    ? "cursor-pointer hover:border-primary/60 hover:shadow-sm"
+                    ? "cursor-pointer hover:-translate-y-0.5 hover:border-(--border-hover) hover:shadow-(--card-shadow-hover)"
                     : "cursor-not-allowed opacity-50",
-                isDragging && "opacity-60 ring-2 ring-primary",
+                isDragging && "opacity-70 outline-2 outline-primary/50",
             )}
         >
-            <div className="aspect-[16/10] w-full overflow-hidden bg-muted/30">
+            <div className="aspect-[16/10] w-full overflow-hidden border-b border-(--card-border) bg-muted/30">
                 {/* Storefront serves a real SVG; if anything fails we hide the broken img frame. */}
                 <img
                     src={src}
@@ -586,10 +608,15 @@ function SectionCard({
             </div>
             <div className="flex flex-1 flex-col gap-1 p-2.5">
                 <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-sm font-medium text-foreground">
+                    <span className="truncate text-sm font-semibold text-foreground">
                         {entry.name.en}
                     </span>
-                    <span className="inline-flex items-center rounded-full bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    <span
+                        className={cn(
+                            "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                            categoryTintClass(entry.category),
+                        )}
+                    >
                         {SECTION_CATEGORY_LABELS[entry.category]}
                     </span>
                 </div>
@@ -599,13 +626,14 @@ function SectionCard({
                 <div className="mt-1">
                     {valid ? (
                         <span
-                            className="inline-flex h-6 items-center rounded-md bg-primary px-2 text-[11px] font-semibold text-primary-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                            className="inline-flex h-6 items-center gap-1 rounded-full bg-primary px-2.5 text-[11px] font-semibold text-primary-foreground opacity-0 shadow-(--card-shadow) transition-opacity group-hover:opacity-100"
                             data-testid={`section-picker-card-${entry.type}-add`}
                         >
+                            <Plus className="h-3 w-3" aria-hidden="true" />
                             {t(STRINGS.section_picker.add_chip, locale)}
                         </span>
                     ) : (
-                        <span className="inline-flex h-6 items-center rounded-md bg-muted/60 px-2 text-[11px] font-medium text-muted-foreground">
+                        <span className="inline-flex h-6 items-center rounded-full bg-black/5 px-2.5 text-[11px] font-medium text-muted-foreground">
                             {t(STRINGS.section_picker.not_for_page, locale)}
                         </span>
                     )}

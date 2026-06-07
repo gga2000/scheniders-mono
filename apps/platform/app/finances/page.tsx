@@ -141,17 +141,17 @@ const CollectionByCity = dynamic(
     { loading: () => <div className="h-[320px] rounded-2xl bg-[var(--card-bg)] animate-pulse" /> }
 );
 
-const ActionRequiredTab = dynamic(
-    () => import("@/components/finances/action-required-tab").then((m) => ({ default: m.ActionRequiredTab })),
-    { loading: () => <div className="h-[480px] rounded-2xl bg-[var(--card-bg)] animate-pulse" /> }
-);
 const SalariesTab = dynamic(
     () => import("@/components/salary/salaries-tab").then((m) => ({ default: m.SalariesTab })),
     { loading: () => <div className="h-[480px] rounded-2xl bg-[var(--card-bg)] animate-pulse" /> }
 );
+const ProfitAnalysisTab = dynamic(
+    () => import("@/components/finances/hub/profit-analysis/profit-analysis-tab").then((m) => ({ default: m.ProfitAnalysisTab })),
+    { loading: () => <div className="h-[480px] rounded-2xl bg-[var(--card-bg)] animate-pulse" /> }
+);
 
 const VALID_TABS: FinanceTabId[] = [
-    "action_required", "overview", "revenue", "cash", "expenses", "payouts",
+    "overview", "revenue", "profit_analysis", "cash", "expenses", "payouts",
     "invoices", "refunds", "customers", "products", "print",
     "forecasts", "reports", "salaries",
 ];
@@ -353,8 +353,8 @@ function FinancesContent() {
                     <ReportsTab period={period} dateRangeStrings={dateRangeStrings} />
                 )}
 
-                {activeTab === "action_required" && (
-                    <ActionRequiredTab orders={orders} products={products} marketingCost={0} />
+                {activeTab === "profit_analysis" && (
+                    <ProfitAnalysisTab orders={orders} products={products} expenses={expenses} period={period} />
                 )}
 
                 {activeTab === "salaries" && <SalariesTab />}

@@ -23,6 +23,7 @@ export function useLeads(page = 1, limit = 20) {
     hasStoreFilter,
     scoreRange,
     searchQuery,
+    sortBy,
   } = useLeadStore();
 
   return useQuery<UseLeadsResponse>({
@@ -39,6 +40,7 @@ export function useLeads(page = 1, limit = 20) {
       hasStoreFilter,
       scoreRange,
       searchQuery,
+      sortBy,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -55,6 +57,7 @@ export function useLeads(page = 1, limit = 20) {
       if (scoreRange[0] > 0) params.set("score_min", String(scoreRange[0]));
       if (scoreRange[1] < 100) params.set("score_max", String(scoreRange[1]));
       if (searchQuery) params.set("search", searchQuery);
+      if (sortBy) params.set("sort", sortBy);
 
       const res = await adminFetch(`/api/leads?${params}`);
       if (!res.ok) throw new Error("Failed to fetch leads");
