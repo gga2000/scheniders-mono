@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { orderRepository } from "@/lib/repositories/order-repository";
 import { classifyScannedOrder, type ScanResult } from "@/lib/returns/classify-scan";
+import { playScanBeep, playErrorBuzz } from "@/lib/returns/sounds";
 import type { Order } from "@/types/order";
 
 export type { ScanResult };
@@ -79,6 +80,7 @@ export function useReturnsSession(open: boolean) {
                 if (!orderId) return;
                 const dup = itemsRef.current.find((i) => i.orderId === orderId);
                 if (dup) {
+                    playErrorBuzz(); // scanned twice
                     channel.send({ type: "broadcast", event: "ack", payload: { order_id: orderId, result: "duplicate", customer: dup.order?.customer_name } });
                     return;
                 }
@@ -87,6 +89,7 @@ export function useReturnsSession(open: boolean) {
                 let order: Order | null = null;
                 try { order = await orderRepository.findByScanRef(orderId); } catch { order = null; }
                 const result = classifyScannedOrder(order);
+                if (order) playScanBeep(); else playErrorBuzz(); // accepted vs not found
                 const row: ScannedReturn = { key: `${orderId}-${Date.now()}`, orderId, order, result, ts: Date.now() };
                 setItems((prev) => [row, ...prev]);
                 setSelectedKey((cur) => cur ?? row.key);
@@ -135,9 +138,10 @@ export function useReturnsSession(open: boolean) {
         const orderId = (orderIdRaw || "").trim();
         if (!orderId) return;
         const existing = itemsRef.current.find((i) => i.orderId === orderId);
-        if (existing) { setSelectedKey(existing.key); return; }
+        if (existing) { playErrorBuzz(); setSelectedKey(existing.key); return; }
         let order: Order | null = null;
         try { order = await orderRepository.findByScanRef(orderId); } catch { order = null; }
+        if (order) playScanBeep(); else playErrorBuzz();
         const row: ScannedReturn = { key: `${orderId}-${Date.now()}`, orderId, order, result: classifyScannedOrder(order), ts: Date.now() };
         setItems((prev) => [row, ...prev]);
         setSelectedKey(row.key);

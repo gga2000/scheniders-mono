@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useContinuousScanner } from "@/hooks/use-continuous-scanner";
 import { extractScannedOrderId } from "@/lib/scan-utils";
+import { playScanBeep, playErrorBuzz, primeOnFirstGesture } from "@/lib/returns/sounds";
 
 const overlay: React.CSSProperties = {
     position: "absolute", inset: 0, display: "flex", alignItems: "center",
@@ -21,12 +22,15 @@ function ReturnsScanInner() {
     const [last, setLast] = useState<{ text: string; warn: boolean } | null>(null);
     const lastSentRef = useRef<{ id: string; ts: number } | null>(null);
 
+    useEffect(() => { primeOnFirstGesture(); }, []);
+
     useEffect(() => {
         if (!token) return;
         const channel = supabase.channel(`returns:${token}`, { config: { presence: { key: "scanner" } } });
         channel
             .on("broadcast", { event: "ack" }, ({ payload }) => {
                 const r = payload?.result as string;
+                const warn = r === "duplicate" || r === "not_found" || r === "anomaly";
                 if (r === "duplicate") setLast({ text: `${payload.order_id} — already scanned`, warn: true });
                 else if (r === "not_found") setLast({ text: `${payload.order_id} — not found`, warn: true });
                 else if (r === "anomaly") setLast({ text: `${payload.order_id} — flagged on laptop`, warn: true });
@@ -34,8 +38,9 @@ function ReturnsScanInner() {
                     setLast({ text: `${payload.order_id}${payload.customer ? " · " + payload.customer : ""} added`, warn: false });
                     setCount((c) => c + 1);
                 }
+                if (warn) playErrorBuzz(); else playScanBeep();
                 if (typeof navigator !== "undefined" && navigator.vibrate) {
-                    navigator.vibrate(r && r !== "added" ? [40, 40, 40] : 60);
+                    navigator.vibrate(warn ? [40, 40, 40] : 60);
                 }
             })
             .subscribe(async (status) => {

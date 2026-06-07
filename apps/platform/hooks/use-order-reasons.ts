@@ -11,6 +11,7 @@ import {
     updateOrderReason,
     deleteOrderReason,
     reorderOrderReasons,
+    dedupeReasonsByLabel,
 } from "@/lib/order-reasons";
 import { useAuth } from "@/components/auth/auth-provider";
 
@@ -38,7 +39,9 @@ export function useOrderReasons(
 
     const reasons = useMemo(() => {
         const all = query.data?.reasons ?? [];
-        return opts?.enabledOnly ? all.filter((r) => r.is_active) : all;
+        // Picker view: active rows, and collapse same-label duplicates so a reason
+        // never shows up twice. Editor view (enabledOnly=false) keeps every row.
+        return opts?.enabledOnly ? dedupeReasonsByLabel(all.filter((r) => r.is_active)) : all;
     }, [query.data, opts?.enabledOnly]);
 
     return {
