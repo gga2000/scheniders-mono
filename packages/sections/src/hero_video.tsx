@@ -13,6 +13,7 @@ import { StoreLink } from "./helpers/store-context";
 import {
   BentoCard,
   ChunkyButton,
+  Section,
 } from "./helpers/primitives";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
@@ -60,7 +61,7 @@ function HeroVideo({
   const opacity = Math.max(0, Math.min(1, props.overlay_opacity));
 
   return (
-    <section className="px-4 py-6 sm:py-10">
+    <Section bleed className="px-4 py-6 sm:py-10">
       <BentoCard
         bg="ink"
         size="lg"
@@ -86,15 +87,15 @@ function HeroVideo({
           aria-hidden="true"
         />
         <div className="relative z-10 px-6 sm:px-10 py-12 sm:py-20 flex flex-col items-start max-w-xl">
-          <h1 className="font-display font-black text-4xl sm:text-6xl uppercase leading-[0.95] tracking-tight text-white drop-shadow-[2px_2px_0_#1a1a1a]">
+          <h1 className="font-display font-black text-bk-hero uppercase leading-[0.95] tracking-tight text-white drop-shadow-[2px_2px_0_#1a1a1a] max-w-[14ch] sm:max-w-2xl">
             {title}
           </h1>
           {subtitle && (
-            <p className="mt-4 font-body text-base sm:text-lg text-white/90 max-w-md">
+            <p className="mt-bk-sm font-body text-base sm:text-lg text-white/90 max-w-md">
               {subtitle}
             </p>
           )}
-          <div className="mt-6">
+          <div className="mt-bk-md">
             <StoreLink href={props.cta_href} aria-label={ctaLabel}>
               <ChunkyButton bg="pink" size="lg">
                 {ctaLabel}
@@ -103,7 +104,7 @@ function HeroVideo({
           </div>
         </div>
       </BentoCard>
-    </section>
+    </Section>
   );
 }
 

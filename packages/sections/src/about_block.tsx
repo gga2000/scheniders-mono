@@ -7,11 +7,13 @@
 // those instances after the v2 cutover.
 // =====================================================================
 
+import Image from "next/image";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import {
   BentoCard,
   ScribbleHeading,
+  Section,
   Sticker,
 } from "./helpers/primitives";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
@@ -54,39 +56,40 @@ function AboutBlock({
   const reverse = props.image_position === "left";
 
   return (
-    <section className="px-4 py-8">
+    <Section>
       <div
         className={
-          "grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 items-stretch " +
+          "grid grid-cols-1 sm:grid-cols-2 gap-bk-sm sm:gap-bk-md items-stretch " +
           (reverse ? "sm:[&>*:first-child]:order-2" : "")
         }
       >
         <BentoCard bg="cream" size="md" className="p-6 sm:p-8">
           {eyebrow && (
-            <div className="mb-3">
+            <div className="mb-bk-xs">
               <Sticker bg="butter" rotate={-3} size="sm">
                 {eyebrow}
               </Sticker>
             </div>
           )}
           <div data-i18n-field="title_i18n">
-            <ScribbleHeading color="pink" className="mb-4">
+            <ScribbleHeading color="pink" className="mb-bk-sm">
               {title}
             </ScribbleHeading>
           </div>
           <p
             data-i18n-field="body_i18n"
-            className="font-body text-base sm:text-lg leading-relaxed text-candy-ink/85 whitespace-pre-line"
+            className="font-body text-base sm:text-lg leading-relaxed text-bk-ink-soft whitespace-pre-line"
           >
             {body}
           </p>
         </BentoCard>
         <BentoCard bg="white" size="md" className="relative overflow-hidden p-0 min-h-[240px]">
           {props.image_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
               src={props.image_url}
               alt=""
+              fill
+              sizes="(max-width: 640px) 100vw, 50vw"
               className="absolute inset-0 w-full h-full object-cover"
             />
           ) : (
@@ -94,7 +97,7 @@ function AboutBlock({
           )}
         </BentoCard>
       </div>
-    </section>
+    </Section>
   );
 }
 
