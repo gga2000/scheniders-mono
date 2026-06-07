@@ -14,7 +14,9 @@ import { resolveI18n } from "@scheniders/shared";
 import {
   BentoCard,
   ChunkyButton,
+  MaterialIcon,
   ScribbleHeading,
+  Section,
   Sticker,
 } from "./helpers/primitives";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
@@ -22,6 +24,11 @@ import { registerSection } from "./_registry";
 import type { SectionDefinition } from "./_types";
 
 const tint = z.enum(["white", "mint", "butter", "lilac", "sky", "pink"]);
+
+/** Client-side email validation for the inline signup field. */
+const emailSchema = z.email();
+const isValidEmail = (value: string): boolean =>
+  emailSchema.safeParse(value.trim()).success;
 
 const schema = z.object({
   heading_i18n: i18nStringSchema,
@@ -61,42 +68,61 @@ function NewsletterInlineRender({
     "idle",
   );
   const [email, setEmail] = useState("");
+  // Only surface the invalid state once the visitor has interacted with the
+  // field (blurred or attempted submit) — avoids yelling at an empty input.
+  const [touched, setTouched] = useState(false);
+
+  const emailValid = isValidEmail(email);
+  const showInvalid = touched && !emailValid;
+  const submitting = status === "submitting";
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!email || status === "submitting") return;
+    if (submitting) return;
+    // Gate the request on client-side validation; never POST a bad address.
+    if (!emailValid) {
+      setTouched(true);
+      return;
+    }
     setStatus("submitting");
     try {
       const res = await fetch("/api/newsletter", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email, locale }),
+        body: JSON.stringify({ email: email.trim(), locale }),
       });
       setStatus(res.ok ? "ok" : "error");
-      if (res.ok) setEmail("");
+      if (res.ok) {
+        setEmail("");
+        setTouched(false);
+      }
     } catch {
       setStatus("error");
     }
   }
 
+  // The input border turns danger-red when the email is invalid (after touch)
+  // or the last submit errored; otherwise it stays the brand ink border.
+  const inputErrored = showInvalid || status === "error";
+
   return (
-    <section className="px-4 py-8">
-      <BentoCard bg={props.bg ?? "butter"} size="md" className="p-6 sm:p-8 relative">
+    <Section>
+      <BentoCard bg={props.bg ?? "butter"} size="md" className="p-bk-lg sm:p-bk-xl relative">
         <div className="absolute -top-3 -right-3">
           <Sticker bg="pink" rotate={6} size="sm">
             ✱ news
           </Sticker>
         </div>
         <div className="max-w-xl">
-          <ScribbleHeading color="lilac" className="mb-2">
+          <ScribbleHeading color="lilac" className="mb-bk-2xs">
             {heading}
           </ScribbleHeading>
           {body && (
-            <p className="font-body text-sm sm:text-base text-candy-ink/80 mb-4">
+            <p className="font-body text-sm sm:text-base text-bk-ink-soft mb-bk-sm">
               {body}
             </p>
           )}
-          <form onSubmit={onSubmit} className="flex flex-col sm:flex-row gap-3">
+          <form onSubmit={onSubmit} className="flex flex-col sm:flex-row gap-bk-xs">
             <label className="sr-only" htmlFor="newsletter-email-input">
               {placeholder}
             </label>
@@ -108,39 +134,67 @@ function NewsletterInlineRender({
               inputMode="email"
               placeholder={placeholder}
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="flex-1 bg-white px-4 py-3 font-body text-base placeholder:text-candy-ink/40 focus:outline-none focus:ring-0"
+              onChange={(e) => {
+                setEmail(e.target.value);
+                // Clear a prior server error as soon as the visitor edits.
+                if (status === "error") setStatus("idle");
+              }}
+              onBlur={() => setTouched(true)}
+              aria-invalid={inputErrored || undefined}
+              className="flex-1 bg-white px-4 py-3 font-body text-base placeholder:text-bk-ink-faint focus:outline-none focus:ring-0"
               style={{
-                border:
-                  "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+                border: `var(--bk-border-thickness, 3px) solid ${
+                  inputErrored
+                    ? "var(--bk-danger, #e5484d)"
+                    : "var(--bk-ink, #1a1a1a)"
+                }`,
                 borderRadius: "var(--bk-radius-input, 0.75rem)",
                 color: "var(--bk-ink, #1a1a1a)",
                 fontFamily: "var(--bk-font-body, inherit)",
               }}
-              disabled={status === "submitting"}
+              disabled={submitting}
             />
             <ChunkyButton
               type="submit"
               bg="pink"
               size="md"
-              disabled={status === "submitting"}
+              disabled={submitting}
+              aria-busy={submitting || undefined}
+              style={
+                submitting
+                  ? {
+                      backgroundColor:
+                        "var(--bk-primary-disabled, var(--bk-primary, #ff5a8a))",
+                      cursor: "not-allowed",
+                    }
+                  : undefined
+              }
             >
-              {status === "submitting" ? "…" : ctaLabel}
+              {submitting ? (
+                <MaterialIcon name="progress_activity" className="animate-spin" />
+              ) : status === "ok" ? (
+                <>
+                  <MaterialIcon name="check" />
+                  {ctaLabel}
+                </>
+              ) : (
+                ctaLabel
+              )}
             </ChunkyButton>
           </form>
           {status === "ok" && (
-            <p className="mt-3 font-label font-bold text-sm text-candy-ink">
+            <p className="mt-bk-xs font-label font-bold text-sm text-bk-ink">
               {locale === "ar" ? "تم! تحقق من بريدك." : "You're in — check your inbox."}
             </p>
           )}
           {status === "error" && (
-            <p className="mt-3 font-label font-bold text-sm text-candy-pink">
+            <p className="mt-bk-xs font-label font-bold text-sm text-bk-danger">
               {locale === "ar" ? "حدث خطأ. حاول مرة أخرى." : "Something went wrong. Try again."}
             </p>
           )}
         </div>
       </BentoCard>
-    </section>
+    </Section>
   );
 }
 

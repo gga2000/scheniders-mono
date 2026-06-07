@@ -15,6 +15,7 @@ import { resolveI18n } from "@scheniders/shared";
 import {
   BentoCard,
   ScribbleHeading,
+  Section,
 } from "./helpers/primitives";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
@@ -83,26 +84,26 @@ function CountdownCard({
   const segments = [tick.days, tick.hours, tick.minutes, tick.seconds];
 
   return (
-    <section className="px-4 py-8">
-      <BentoCard bg="lilac" size="md" className="p-6 sm:p-8">
-        <ScribbleHeading color="pink" className="mb-5">
+    <Section>
+      <BentoCard bg="lilac" size="md" className="p-bk-lg sm:p-bk-xl">
+        <ScribbleHeading color="pink" className="mb-bk-md">
           {heading}
         </ScribbleHeading>
         {tick.done ? (
-          <p className="font-display font-black text-2xl uppercase text-candy-ink">
+          <p className="font-display font-black text-2xl uppercase text-bk-ink">
             {expired || (locale === "ar" ? "انتهى" : "Closed")}
           </p>
         ) : (
-          <div className="grid grid-cols-4 gap-2 sm:gap-3 max-w-lg">
+          <div className="grid grid-cols-4 gap-bk-2xs sm:gap-bk-xs max-w-lg">
             {segments.map((value, i) => (
               <div
                 key={i}
-                className="bg-white border-[3px] border-candy-ink rounded-xl shadow-bento-sm p-3 sm:p-4 text-center"
+                className="bg-white border-[3px] border-candy-ink rounded-xl shadow-bento-sm p-bk-sm sm:p-bk-md text-center"
               >
                 <div className="font-display font-black text-3xl sm:text-5xl leading-none tabular-nums">
                   {String(value).padStart(2, "0")}
                 </div>
-                <div className="mt-1 font-label font-bold text-[10px] sm:text-xs uppercase tracking-[0.2em] text-candy-ink/70">
+                <div className="mt-bk-2xs font-label font-bold text-[10px] sm:text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
                   {labels[i]}
                 </div>
               </div>
@@ -110,7 +111,7 @@ function CountdownCard({
           </div>
         )}
       </BentoCard>
-    </section>
+    </Section>
   );
 }
 
