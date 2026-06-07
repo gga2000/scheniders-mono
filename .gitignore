@@ -38,6 +38,7 @@ playwright-report/
 # AI tooling
 .agents/
 .claude/skills/
+.claude/worktrees/
 .kiro/
 skills/
 skills-lock.json

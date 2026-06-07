@@ -59,7 +59,6 @@ const NAV_ITEMS = [
         icon: AnimatedFinancesIcon,
         href: "/finances",
         subItems: [
-            { key: "nav.financesActionRequired", label: "Action Required", href: "/finances?tab=action_required", tab: "action_required" },
             { key: "nav.financesOverview", label: "Overview", href: "/finances", tab: "overview" },
             { key: "nav.financesRevenue", label: "Revenue & Profit", href: "/finances?tab=revenue", tab: "revenue" },
             { key: "nav.financesCash", label: "Cash & COD", href: "/finances?tab=cash", tab: "cash" },

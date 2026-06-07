@@ -4,15 +4,15 @@ import { motion } from "framer-motion";
 import {
     LayoutDashboard, TrendingUp, Landmark, Receipt, Truck,
     FileText, Users, Package, Target, FileSpreadsheet, Printer,
-    Undo2, AlertTriangle, Banknote,
+    Undo2, Banknote, BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 
 export type FinanceTabId =
-    | "action_required"
     | "overview"
     | "revenue"
+    | "profit_analysis"
     | "cash"
     | "expenses"
     | "payouts"
@@ -33,9 +33,9 @@ interface Tab {
 }
 
 const TABS: Tab[] = [
-    { id: "action_required", label: "Action Required", icon: AlertTriangle },
     { id: "overview", label: "Overview", icon: LayoutDashboard },
     { id: "revenue", label: "Revenue & Profit", icon: TrendingUp },
+    { id: "profit_analysis", label: "Profit Analysis", icon: BarChart3 },
     { id: "cash", label: "Cash & COD", icon: Landmark },
     { id: "expenses", label: "Expenses", icon: Receipt },
     { id: "payouts", label: "Payouts", icon: Truck },

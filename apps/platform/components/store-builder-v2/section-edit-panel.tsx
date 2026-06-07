@@ -272,7 +272,7 @@ export function SectionEditPanel(props: SectionEditPanelProps): ReactElement {
                         </p>
                     </div>
 
-                    <div className="flex items-center justify-between gap-3 rounded-md border border-(--card-border) bg-(--card-bg) px-3 py-2">
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) px-3 py-2.5">
                         <div>
                             <label className="text-sm font-medium" htmlFor="section-edit-panel-enabled">
                                 {t(STRINGS.section_edit.enabled_field, locale)}
@@ -338,7 +338,7 @@ export function SectionEditPanel(props: SectionEditPanelProps): ReactElement {
                     ) : (
                         <div
                             data-testid="section-edit-panel-missing-schema"
-                            className="rounded-md border border-dashed border-(--card-border) p-3 text-[11px] text-muted-foreground"
+                            className="rounded-xl border border-dashed border-(--card-border) p-3 text-[11px] text-muted-foreground"
                         >
                             {tFormat(STRINGS.section_edit.missing_schema, locale, { type: instance.type })}
                         </div>
@@ -355,7 +355,7 @@ export function SectionEditPanel(props: SectionEditPanelProps): ReactElement {
                     {(instance.visibility?.length ?? 0) === 0 ? (
                         <p
                             data-testid="section-edit-panel-visibility-empty"
-                            className="rounded-md border border-dashed border-(--card-border) p-3 text-[11px] text-muted-foreground"
+                            className="rounded-xl border border-dashed border-(--card-border) p-3 text-[11px] text-muted-foreground"
                         >
                             {t(STRINGS.section_edit.visibility_empty, locale)}
                         </p>

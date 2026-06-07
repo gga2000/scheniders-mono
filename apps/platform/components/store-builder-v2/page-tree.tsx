@@ -227,10 +227,10 @@ export function PageTree({
                     type="button"
                     data-testid={`page-tree-setting-${item.id}`}
                     onClick={() => handleSetting(item.id)}
-                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-foreground/80 transition-colors hover:bg-muted/40 hover:text-foreground"
+                    className="group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-foreground/75 transition-all duration-150 hover:bg-black/3 hover:text-foreground"
                 >
                     <Icon
-                        className="h-3.5 w-3.5 text-current"
+                        className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground"
                         aria-hidden="true"
                     />
                     <span className="truncate">{t(STRINGS.page_tree[item.labelKey], locale)}</span>
@@ -248,12 +248,12 @@ export function PageTree({
         <nav
             aria-label={t(STRINGS.page_tree.aria_label, locale)}
             data-testid="page-tree"
-            className="flex w-[260px] shrink-0 flex-col overflow-y-auto border-r border-(--card-border) bg-(--card-bg) text-sm"
+            className="sb-glass flex w-[264px] shrink-0 flex-col overflow-y-auto border-r border-(--card-border) text-sm"
         >
             <div className="p-3">
                 {TREE.map((group) => (
                     <div key={group.group} className="mb-4">
-                        <div className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wider text-foreground/80">
+                        <div className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                             {t(STRINGS.page_tree[group.groupKey], locale)}
                         </div>
                         <ul className="space-y-0.5">
@@ -268,15 +268,20 @@ export function PageTree({
                                             data-testid={`page-tree-item-${item.id}`}
                                             onClick={() => onSelect(item.id)}
                                             className={cn(
-                                                "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors",
+                                                "group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all duration-150",
                                                 isActive
-                                                    ? "bg-primary/10 font-medium text-foreground"
-                                                    : "text-foreground/80 hover:bg-muted/40 hover:text-foreground",
+                                                    ? "sb-active-bar bg-background font-semibold text-foreground shadow-(--card-shadow)"
+                                                    : "text-foreground/75 hover:bg-black/3 hover:text-foreground",
                                             )}
                                             aria-current={isActive ? "page" : undefined}
                                         >
                                             <Icon
-                                                className="h-3.5 w-3.5 text-current"
+                                                className={cn(
+                                                    "h-4 w-4 shrink-0 transition-colors",
+                                                    isActive
+                                                        ? "text-foreground"
+                                                        : "text-muted-foreground group-hover:text-foreground",
+                                                )}
                                                 aria-hidden="true"
                                             />
                                             <span className="truncate">{t(STRINGS.page_tree[item.labelKey], locale)}</span>
@@ -284,10 +289,10 @@ export function PageTree({
                                                 <span
                                                     data-testid={`page-tree-count-${item.id}`}
                                                     className={cn(
-                                                        "ml-auto inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none tabular-nums",
+                                                        "ml-auto inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none tabular-nums transition-colors",
                                                         isActive
-                                                            ? "bg-primary/20 text-primary"
-                                                            : "bg-muted/60 text-muted-foreground",
+                                                            ? "bg-primary text-primary-foreground"
+                                                            : "bg-black/5 text-muted-foreground group-hover:bg-black/10",
                                                     )}
                                                 >
                                                     {count}
@@ -316,7 +321,7 @@ export function PageTree({
                             data-testid="page-tree-advanced-toggle"
                             aria-expanded={advancedOpen}
                             onClick={toggleAdvanced}
-                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-foreground/70 transition-colors hover:bg-muted/40 hover:text-foreground"
+                            className="group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-foreground/70 transition-all duration-150 hover:bg-black/3 hover:text-foreground"
                         >
                             {advancedOpen ? (
                                 <ChevronDown

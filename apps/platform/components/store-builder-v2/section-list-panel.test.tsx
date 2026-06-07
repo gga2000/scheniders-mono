@@ -5,9 +5,18 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import type { SectionInstance } from "@scheniders/shared";
 import { SectionListPanel } from "./section-list-panel";
+import { toast } from "@/hooks/use-toast";
+
+// Delete is optimistic + undoable via a toast (no native confirm), so we
+// mock the toast hook to inspect the undo action it exposes.
+vi.mock("@/hooks/use-toast", () => ({
+    toast: vi.fn(),
+    useToast: () => ({ toast: vi.fn(), dismiss: vi.fn(), toasts: [] }),
+}));
 
 afterEach(() => {
     cleanup();
+    vi.clearAllMocks();
 });
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -93,9 +102,8 @@ describe("SectionListPanel", () => {
         expect(next.find((s) => s.id === "sec-1")?.enabled).toBe(true);
     });
 
-    it("deletes a section after confirmation", () => {
+    it("deletes a section immediately (optimistic, no native confirm)", () => {
         const onChange = vi.fn();
-        const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
 
         render(
             <SectionListPanel
@@ -109,17 +117,14 @@ describe("SectionListPanel", () => {
         fireEvent.click(screen.getByTestId("section-row-sec-2-menu-trigger"));
         fireEvent.click(screen.getByTestId("section-row-sec-2-delete"));
 
-        expect(confirmSpy).toHaveBeenCalled();
         expect(onChange).toHaveBeenCalledTimes(1);
         const next = onChange.mock.calls[0][0] as SectionInstance[];
         expect(next.map((s) => s.id)).toEqual(["sec-1", "sec-3"]);
-
-        confirmSpy.mockRestore();
     });
 
-    it("does NOT delete when the confirmation is declined", () => {
+    it("offers an undo toast that restores the deleted section at its index", () => {
         const onChange = vi.fn();
-        const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+        const toastMock = vi.mocked(toast);
         render(
             <SectionListPanel
                 pageId="home"
@@ -131,8 +136,22 @@ describe("SectionListPanel", () => {
         );
         fireEvent.click(screen.getByTestId("section-row-sec-2-menu-trigger"));
         fireEvent.click(screen.getByTestId("section-row-sec-2-delete"));
-        expect(onChange).not.toHaveBeenCalled();
-        confirmSpy.mockRestore();
+
+        // Optimistic delete fired first.
+        expect(onChange).toHaveBeenCalledTimes(1);
+        expect(
+            (onChange.mock.calls[0][0] as SectionInstance[]).map((s) => s.id),
+        ).toEqual(["sec-1", "sec-3"]);
+
+        // The toast exposes an Undo action that restores sec-2 in place.
+        expect(toastMock).toHaveBeenCalledTimes(1);
+        const action = toastMock.mock.calls[0][0].action;
+        expect(action).toBeTruthy();
+        action?.onClick();
+        expect(onChange).toHaveBeenCalledTimes(2);
+        expect(
+            (onChange.mock.calls[1][0] as SectionInstance[]).map((s) => s.id),
+        ).toEqual(["sec-1", "sec-2", "sec-3"]);
     });
 
     it("duplicates a section with a fresh id", () => {

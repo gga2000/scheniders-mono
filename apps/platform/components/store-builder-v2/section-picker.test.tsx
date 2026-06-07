@@ -42,8 +42,10 @@ describe("SectionPicker", () => {
                 screen.getByTestId(`section-picker-card-${entry.type}`),
             ).toBeTruthy();
         }
-        // 21 known sections (5 original + 15 prebuilt families + html_embed).
-        expect(SECTIONS_MANIFEST.length).toBe(21);
+        // Sanity: the manifest is populated (started at 21; grows as new
+        // section families ship). The loop above is the real assertion —
+        // every manifest entry must render a card.
+        expect(SECTIONS_MANIFEST.length).toBeGreaterThanOrEqual(21);
     });
 
     it("filters by category chip", () => {

@@ -1338,8 +1338,8 @@ export default function OrdersPage() {
                                                 {/* Row 2: Control Groups - Premium Glass Cards */}
                                                 <div className="flex flex-wrap items-start gap-3 pb-6 md:mx-0 md:px-0 pt-2">
 
-                                                    {/* View Group */}
-
+                                                    {/* Left cluster: View / Filter / Tools / Export. flex-1 lets it absorb the slack and wrap internally so the Actions group stays pinned right instead of floating onto its own line. */}
+                                                    <div className="flex flex-wrap items-start gap-3 flex-1 min-w-0">
 
                                                     {/* View Group */}
                                                     <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0 min-w-min">
@@ -1745,8 +1745,10 @@ export default function OrdersPage() {
                                                         </div>
                                                     </div>
 
-                                                    {/* Action Group - Moved to End. ml-auto pushes it flush with the section's right edge below. */}
-                                                    <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0 min-w-min ml-auto">
+                                                    </div>
+
+                                                    {/* Action Group — pinned to the right edge. The left cluster (flex-1) absorbs the slack, so this stays on the same row instead of wrapping onto its own line. */}
+                                                    <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0 min-w-min">
                                                         <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.actions")}</span>
                                                         <div className="flex items-center gap-2">
                                                             <button
