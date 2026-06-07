@@ -22,7 +22,7 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 // The storefront URL hook reaches react-query + supabase; stub it to a fixed value.
-vi.mock("@/components/store-builder/use-storefront-url", () => ({
+vi.mock("@/hooks/use-storefront-url", () => ({
     useStorefrontUrl: () => "http://localhost:3001/s/test-store",
 }));
 

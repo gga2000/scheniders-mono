@@ -29,6 +29,7 @@ interface SubmitCheckoutResult {
   orderId?: string;
   orderNumber?: string;
   error?: string;
+  total?: number;
 }
 
 /**
@@ -105,7 +106,7 @@ export async function submitCheckout(
   const productIds = Array.from(new Set(payload.items.map((i) => i.product_id)));
   const { data: products, error: productsErr } = await supabase
     .from("products")
-    .select("id, tenant_id, price, website_price, is_visible, is_archived")
+    .select("id, tenant_id, price, website_price, is_visible, is_archived, is_supply")
     .in("id", productIds)
     .eq("tenant_id", payload.tenantId);
 
@@ -115,7 +116,8 @@ export async function submitCheckout(
   }
   const productMap = new Map(products.map((p) => [p.id as string, p]));
   for (const p of products) {
-    if (p.is_archived || !p.is_visible) {
+    // Reject hidden, archived, or supply (packaging/internal) items — never orderable on the storefront.
+    if (p.is_archived || !p.is_visible || (p as { is_supply?: boolean }).is_supply) {
       return { success: false, error: "بعض المنتجات غير متوفرة" };
     }
   }
@@ -209,5 +211,6 @@ export async function submitCheckout(
     success: true,
     orderId: orderId ?? undefined,
     orderNumber: (orderRow?.order_id as string) ?? undefined,
+    total: totalPrice,
   };
 }

@@ -123,6 +123,7 @@ function CheckoutFormRender({
           items,
           subtotal,
           locale,
+          ab_test_arms: ctx.runtime.ab_test_arms,
         }),
       });
       if (res.ok) {

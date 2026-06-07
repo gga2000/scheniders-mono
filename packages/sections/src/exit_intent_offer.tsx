@@ -149,9 +149,11 @@ function ExitIntentOfferRender({
           >
             <MaterialIcon name="close" />
           </button>
-          <ScribbleHeading color="pink" className="mb-3" id="exit-intent-heading">
-            {heading}
-          </ScribbleHeading>
+          <div id="exit-intent-heading">
+            <ScribbleHeading color="pink" className="mb-3">
+              {heading}
+            </ScribbleHeading>
+          </div>
           <p className="font-body text-base text-candy-ink/85 mb-4">{body}</p>
           {props.discount_code && (
             <button

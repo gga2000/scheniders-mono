@@ -4,24 +4,17 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Mock @supabase/ssr + next/headers before importing the route.        */
+/* POST handler now calls supabase.rpc() — mocked below.               */
 /* ─────────────────────────────────────────────────────────────────── */
-
-interface Tenant {
-    id: string;
-    store_config_v2: Record<string, unknown> | null;
-    store_config_v2_draft: Record<string, unknown> | null;
-}
 
 interface FakeState {
     user: { id: string } | null;
-    members: Array<{ tenant_id: string; user_id: string }>;
-    tenants: Tenant[];
+    rpcError: { code?: string; message?: string } | null;
 }
 
 const state: FakeState = {
     user: null,
-    members: [],
-    tenants: [],
+    rpcError: null,
 };
 
 function makeFakeSupabase() {
@@ -29,67 +22,8 @@ function makeFakeSupabase() {
         auth: {
             getUser: async () => ({ data: { user: state.user } }),
         },
-        from(table: string) {
-            if (table === "tenant_members") {
-                const filters: Record<string, string> = {};
-                const chain = {
-                    select(_cols: string) {
-                        return chain;
-                    },
-                    eq(col: string, val: string) {
-                        filters[col] = val;
-                        return chain;
-                    },
-                    maybeSingle() {
-                        const row = state.members.find(
-                            (m) =>
-                                m.tenant_id === filters.tenant_id &&
-                                m.user_id === filters.user_id,
-                        );
-                        return Promise.resolve({
-                            data: row ?? null,
-                            error: null,
-                        });
-                    },
-                };
-                return chain;
-            }
-            if (table === "tenants") {
-                const filters: Record<string, string> = {};
-                let updateValues: Record<string, unknown> | null = null;
-                const chain = {
-                    select(_cols: string) {
-                        return chain;
-                    },
-                    update(values: Record<string, unknown>) {
-                        updateValues = values;
-                        return chain;
-                    },
-                    eq(col: string, val: string) {
-                        filters[col] = val;
-                        if (updateValues) {
-                            // Apply update on terminal eq for update path.
-                            const t = state.tenants.find(
-                                (x) => x.id === filters.id,
-                            );
-                            if (t && updateValues) {
-                                Object.assign(t, updateValues);
-                            }
-                            return Promise.resolve({ data: null, error: null });
-                        }
-                        return chain;
-                    },
-                    maybeSingle() {
-                        const row = state.tenants.find((x) => x.id === filters.id);
-                        return Promise.resolve({
-                            data: row ?? null,
-                            error: null,
-                        });
-                    },
-                };
-                return chain;
-            }
-            throw new Error(`Unexpected table: ${table}`);
+        rpc(_fn: string, _args: unknown) {
+            return Promise.resolve({ error: state.rpcError });
         },
     };
 }
@@ -113,6 +47,9 @@ vi.mock("@/lib/env", () => ({
 
 import { POST, setByPath } from "./route";
 
+/** A valid RFC-4122 v4 UUID that passes Zod's strict uuid() validator. */
+const TENANT_UUID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
+
 function makeRequest(body: unknown): Request {
     return new Request("http://localhost/api/store-config-v2/patch", {
         method: "POST",
@@ -123,8 +60,7 @@ function makeRequest(body: unknown): Request {
 
 beforeEach(() => {
     state.user = null;
-    state.members = [];
-    state.tenants = [];
+    state.rpcError = null;
 });
 
 describe("setByPath", () => {
@@ -159,11 +95,31 @@ describe("setByPath", () => {
 });
 
 describe("POST /api/store-config-v2/patch", () => {
+    it("returns 400 on bad payload — empty path", async () => {
+        state.user = { id: "u1" };
+        const res = await POST(
+            makeRequest({ tenant_id: TENANT_UUID, is_draft: true, path: [], value: 1 }),
+        );
+        expect(res.status).toBe(400);
+        const json = (await res.json()) as { error: string };
+        expect(json.error).toBe("Bad payload");
+    });
+
+    it("returns 400 on bad payload — non-uuid tenant_id", async () => {
+        state.user = { id: "u1" };
+        const res = await POST(
+            makeRequest({ tenant_id: "not-a-uuid", is_draft: true, path: ["x"], value: 1 }),
+        );
+        expect(res.status).toBe(400);
+        const json = (await res.json()) as { error: string };
+        expect(json.error).toBe("Bad payload");
+    });
+
     it("returns 401 when no auth", async () => {
         state.user = null;
         const res = await POST(
             makeRequest({
-                tenant_id: "t1",
+                tenant_id: TENANT_UUID,
                 is_draft: true,
                 path: ["pages", 0],
                 value: "x",
@@ -172,73 +128,53 @@ describe("POST /api/store-config-v2/patch", () => {
         expect(res.status).toBe(401);
     });
 
-    it("returns 403 when user is not a member of the tenant", async () => {
+    it("returns 403 when RPC returns a 42501 permission-denied error", async () => {
         state.user = { id: "u1" };
-        state.tenants = [
-            { id: "t1", store_config_v2: null, store_config_v2_draft: {} },
-        ];
-        // No matching membership row.
-        state.members = [{ tenant_id: "t2", user_id: "u1" }];
+        state.rpcError = { code: "42501", message: "permission denied" };
         const res = await POST(
             makeRequest({
-                tenant_id: "t1",
+                tenant_id: TENANT_UUID,
                 is_draft: true,
                 path: ["pages", 0],
                 value: "x",
             }),
         );
         expect(res.status).toBe(403);
+        const json = (await res.json()) as { error: string };
+        expect(json.error).toBe("Forbidden");
     });
 
-    it("returns 200 and applies patch to draft when is_draft=true", async () => {
+    it("returns 500 when RPC returns a generic error", async () => {
         state.user = { id: "u1" };
-        state.members = [{ tenant_id: "t1", user_id: "u1" }];
-        state.tenants = [
-            {
-                id: "t1",
-                store_config_v2: null,
-                store_config_v2_draft: {
-                    pages: [{ title: "old" }],
-                },
-            },
-        ];
+        state.rpcError = { code: "23505", message: "some db error" };
         const res = await POST(
             makeRequest({
-                tenant_id: "t1",
-                is_draft: true,
-                path: ["pages", 0, "title"],
-                value: "new",
-            }),
-        );
-        expect(res.status).toBe(200);
-        const json = (await res.json()) as { ok: boolean; applied: unknown };
-        expect(json.ok).toBe(true);
-        const t = state.tenants[0];
-        expect(
-            (t.store_config_v2_draft as { pages: Array<{ title: string }> })
-                .pages[0].title,
-        ).toBe("new");
-    });
-
-    it("returns 422 when tenant is not found", async () => {
-        state.user = { id: "u1" };
-        state.members = [{ tenant_id: "t-missing", user_id: "u1" }];
-        state.tenants = [];
-        const res = await POST(
-            makeRequest({
-                tenant_id: "t-missing",
+                tenant_id: TENANT_UUID,
                 is_draft: true,
                 path: ["pages", 0],
                 value: "x",
             }),
         );
-        expect(res.status).toBe(422);
+        expect(res.status).toBe(500);
+        const json = (await res.json()) as { error: string };
+        expect(json.error).toBe("Failed to apply patch");
     });
 
-    it("returns 400 on bad payload", async () => {
+    it("returns 200 and echoes back applied patch on success", async () => {
+        state.user = { id: "u1" };
+        state.rpcError = null;
         const res = await POST(
-            makeRequest({ tenant_id: "", is_draft: true, path: [], value: 1 }),
+            makeRequest({
+                tenant_id: TENANT_UUID,
+                is_draft: true,
+                path: ["pages", 0, "title"],
+                value: "new title",
+            }),
         );
-        expect(res.status).toBe(400);
+        expect(res.status).toBe(200);
+        const json = (await res.json()) as { ok: boolean; applied: { path: unknown[]; value: unknown } };
+        expect(json.ok).toBe(true);
+        expect(json.applied.path).toEqual(["pages", 0, "title"]);
+        expect(json.applied.value).toBe("new title");
     });
 });

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
 import {
@@ -19,6 +20,33 @@ import { V2Page } from "@/components/v2-page";
 
 interface Props {
   params: Promise<{ tenant: string; slug: string }>;
+}
+
+// A product page must carry a product-specific title — without this it inherits
+// the tenant-level layout metadata (the store's generic SEO title), which is wrong
+// for SEO and link previews. getTenantBySlug / getProductBySlug are React-cached,
+// so this shares the same fetches as the page body (no extra DB round-trips).
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { tenant: tenantParam, slug } = await params;
+  const tenant = tenantParam.startsWith("__domain__")
+    ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
+    : await getTenantBySlug(tenantParam);
+  if (!tenant) return { title: "Store not found" };
+
+  const product = await getProductBySlug(tenant.id, slug);
+  if (!product) return {}; // let the layout title apply; the page renders notFound()
+
+  const title = `${product.name} — ${tenant.business_name}`;
+  const description = product.description ?? undefined;
+  return {
+    title,
+    ...(description ? { description } : {}),
+    openGraph: {
+      title,
+      ...(description ? { description } : {}),
+      ...(product.image_url ? { images: [{ url: product.image_url }] } : {}),
+    },
+  };
 }
 
 export default async function ProductPage({ params }: Props) {

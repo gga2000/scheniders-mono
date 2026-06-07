@@ -17,6 +17,7 @@ export const listProducts = cache(
       .eq("tenant_id", tenantId)
       .eq("is_visible", true)
       .eq("is_archived", false)
+      .not("is_supply", "is", true) // supplies (packaging, etc.) are never storefront products
       .order("display_order", { ascending: true })
       .order("created_at", { ascending: false });
 
@@ -36,11 +37,28 @@ export const listProducts = cache(
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** Decode a route param that may still be percent-encoded. A no-op for plain
+ *  ASCII (no "%"). try/catch is deliberate — a malformed sequence from a junk
+ *  URL falls back to the raw value, which simply won't match (→ 404). */
+function decodeSlugParam(value: string): string {
+  if (!value.includes("%")) return value;
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 export const getProductBySlug = cache(
   async (tenantId: string, slugOrId: string): Promise<Product | null> => {
     const supabase = await createSupabaseServerClient();
     const columns =
       "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id";
+
+    // The dynamic route param can arrive still percent-encoded, so a non-ASCII
+    // slug (e.g. an Arabic slug like "ويفر") comes through as "%D9%88..." and
+    // would never match the stored value. Decode before matching.
+    const key = decodeSlugParam(slugOrId);
 
     // ProductCard links to /products/{slug ?? id}, so the route param can be
     // either a slug or a UUID. Try both paths so slug-less products still work.
@@ -50,13 +68,14 @@ export const getProductBySlug = cache(
         .select(columns)
         .eq("tenant_id", tenantId)
         .eq("is_visible", true)
-        .eq("is_archived", false);
+        .eq("is_archived", false)
+        .not("is_supply", "is", true); // exclude supplies (packaging, etc.)
 
-    const { data: bySlug } = await baseQuery().eq("slug", slugOrId).maybeSingle();
+    const { data: bySlug } = await baseQuery().eq("slug", key).maybeSingle();
     if (bySlug) return normalizeProduct(bySlug);
 
-    if (UUID_RE.test(slugOrId)) {
-      const { data: byId } = await baseQuery().eq("id", slugOrId).maybeSingle();
+    if (UUID_RE.test(key)) {
+      const { data: byId } = await baseQuery().eq("id", key).maybeSingle();
       if (byId) return normalizeProduct(byId);
     }
 
@@ -133,7 +152,8 @@ export const listProductsInCategory = cache(
       .eq("category_id", categoryId)
       .eq("tenant_id", tenantId)
       .eq("products.is_visible", true)
-      .eq("products.is_archived", false);
+      .eq("products.is_archived", false)
+      .not("products.is_supply", "is", true); // exclude supplies
 
     if (opts.limit) q = q.limit(opts.limit);
     if (opts.offset)
