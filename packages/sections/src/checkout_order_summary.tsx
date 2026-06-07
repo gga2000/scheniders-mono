@@ -8,6 +8,7 @@
 
 "use client";
 
+import Image from "next/image";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import {
@@ -64,50 +65,60 @@ function CheckoutOrderSummaryRender({
   const total = subtotal + delivery;
 
   return (
-    <section className="px-4 py-6">
+    <section className="px-4 py-bk-section-dense">
       <div className={props.sticky ? "lg:sticky lg:top-24" : undefined}>
-        <BentoCard bg="cream" size="md" className="p-5 sm:p-6">
-          <ScribbleHeading color="pink" className="mb-4">
+        <BentoCard bg="cream" size="md" className="p-bk-lg sm:p-bk-xl">
+          <ScribbleHeading color="pink" className="mb-bk-md">
             {heading}
           </ScribbleHeading>
 
           {items.length === 0 ? (
-            <p className="font-body text-sm text-candy-ink/60">
+            <p className="font-body text-sm text-bk-ink-soft">
               {t ? "السلة فارغة." : "Your cart is empty."}
             </p>
           ) : (
-            <ul className="space-y-3 mb-4">
+            <ul className="space-y-bk-sm mb-bk-md">
               {items.map((item) => (
                 <li
                   key={`${item.product_id}-${item.variant_id ?? "default"}`}
-                  className="flex items-center gap-3"
+                  className="flex items-center gap-bk-sm"
                 >
                   {props.show_thumbnails && (
-                    <div className="w-12 h-12 rounded-xl border-[3px] border-candy-ink bg-white overflow-hidden shrink-0">
+                    <div
+                      className="relative w-12 h-12 bg-white overflow-hidden shrink-0"
+                      style={{
+                        border:
+                          "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+                        borderRadius: "var(--bk-radius-input, 0.75rem)",
+                      }}
+                    >
                       {item.image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
+                        // Supabase-hosted product thumbnails — Next's optimizer
+                        // can transcode them.
+                        <Image
                           src={item.image_url}
                           alt=""
-                          className="w-full h-full object-cover"
+                          fill
+                          sizes="48px"
+                          className="object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-candy-ink/40">
+                        <div className="w-full h-full flex items-center justify-center text-bk-ink-faint">
                           <MaterialIcon name="image" className="text-lg" />
                         </div>
                       )}
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="font-display font-black text-xs uppercase truncate">
+                    <p className="font-display font-black text-xs uppercase truncate text-bk-ink">
                       {item.name}
                     </p>
-                    <p className="font-label text-[11px] uppercase tracking-[0.15em] text-candy-ink/60">
+                    <p className="font-label text-[11px] uppercase tracking-[0.15em] text-bk-ink-soft">
                       {t ? "كمية" : "Qty"} {item.quantity}
                       {item.variant_name ? ` · ${item.variant_name}` : ""}
                     </p>
                   </div>
-                  <span className="font-display font-black text-sm shrink-0">
+                  <span className="font-display font-black text-sm shrink-0 text-bk-ink">
                     {formatPrice(item.price * item.quantity)}
                   </span>
                 </li>
@@ -115,20 +126,20 @@ function CheckoutOrderSummaryRender({
             </ul>
           )}
 
-          <dl className="space-y-2 font-body text-sm border-t-[3px] border-dashed border-candy-ink/15 pt-3">
+          <dl className="space-y-bk-xs font-body text-sm border-t-[3px] border-dashed border-bk-divider pt-bk-sm">
             <div className="flex justify-between">
-              <dt className="text-candy-ink/70">
+              <dt className="text-bk-ink-soft">
                 {t ? "المجموع الفرعي" : "Subtotal"}
               </dt>
-              <dd className="font-display font-black">
+              <dd className="font-display font-black text-bk-ink">
                 {formatPrice(subtotal)}
               </dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-candy-ink/70">
+              <dt className="text-bk-ink-soft">
                 {t ? "التوصيل" : "Delivery"}
               </dt>
-              <dd className="font-display font-black">
+              <dd className="font-display font-black text-bk-ink">
                 {delivery === 0
                   ? t
                     ? "مجاني"
@@ -136,8 +147,8 @@ function CheckoutOrderSummaryRender({
                   : formatPrice(delivery)}
               </dd>
             </div>
-            <div className="flex justify-between pt-2 border-t-[3px] border-dashed border-candy-ink/15">
-              <dt className="font-display font-black uppercase">
+            <div className="flex justify-between pt-bk-xs border-t-[3px] border-dashed border-bk-divider">
+              <dt className="font-display font-black uppercase text-bk-ink">
                 {t ? "المجموع" : "Total"}
               </dt>
               <dd
@@ -150,10 +161,10 @@ function CheckoutOrderSummaryRender({
           </dl>
 
           {codNote && (
-            <p className="mt-4 font-body text-xs text-candy-ink/75 inline-flex items-center gap-2">
+            <p className="mt-bk-md font-body text-xs text-bk-ink-soft inline-flex items-center gap-2">
               <MaterialIcon
                 name="verified"
-                className="text-lg text-candy-pink"
+                className="text-lg text-bk-primary"
               />
               {codNote}
             </p>

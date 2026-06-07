@@ -12,7 +12,8 @@ import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import {
   BentoCard,
-  ScribbleHeading,
+  Section,
+  SectionHeader,
 } from "./helpers/primitives";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
@@ -60,7 +61,7 @@ function renderMarkdown(md: string): React.ReactNode {
       out.push(
         <p
           key={`p-${out.length}`}
-          className="font-body text-base leading-relaxed text-candy-ink/90"
+          className="font-body text-base leading-relaxed text-bk-ink-soft"
         >
           {renderInline(text)}
         </p>,
@@ -73,7 +74,7 @@ function renderMarkdown(md: string): React.ReactNode {
     out.push(
       <ul
         key={`ul-${out.length}`}
-        className="list-disc pl-6 space-y-1 font-body text-base text-candy-ink/90"
+        className="list-disc pl-6 space-y-bk-2xs font-body text-base text-bk-ink-soft"
       >
         {listBuffer.map((item, i) => (
           <li key={i}>{renderInline(item)}</li>
@@ -91,7 +92,7 @@ function renderMarkdown(md: string): React.ReactNode {
       out.push(
         <h3
           key={`h-${out.length}`}
-          className="font-display font-black text-xl uppercase mt-6 first:mt-0"
+          className="font-display font-black text-xl uppercase text-bk-ink mt-bk-lg first:mt-0"
         >
           {renderInline(line.slice(3).trim())}
         </h3>,
@@ -130,19 +131,17 @@ function PolicyContentRender({
   if (!body) return null;
 
   return (
-    <section className="px-4 py-8">
-      <BentoCard bg="white" size="md" className="p-6 sm:p-8">
-        <ScribbleHeading color="butter" className="mb-4">
-          {heading}
-        </ScribbleHeading>
-        <div className="space-y-3">{renderMarkdown(body)}</div>
+    <Section>
+      <SectionHeader title={heading} color="butter" />
+      <BentoCard bg="white" size="md" className="p-bk-lg sm:p-bk-xl">
+        <div className="space-y-bk-sm">{renderMarkdown(body)}</div>
         {lastUpdated && (
-          <p className="mt-6 font-label text-xs uppercase tracking-[0.2em] text-candy-ink/50">
+          <p className="mt-bk-lg font-label text-xs uppercase tracking-[0.2em] text-bk-ink-faint">
             {lastUpdated}
           </p>
         )}
       </BentoCard>
-    </section>
+    </Section>
   );
 }
 

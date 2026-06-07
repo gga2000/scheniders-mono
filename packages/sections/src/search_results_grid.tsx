@@ -12,7 +12,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
-import { BentoCard } from "./helpers/primitives";
+import { BentoCard, Section } from "./helpers/primitives";
 import { SchneidersProductCard } from "./helpers/product-card";
 import { i18nStringSchema } from "./_schema";
 import { registerSection } from "./_registry";
@@ -88,36 +88,36 @@ function SearchResultsGridRender({
 
   if (results.length === 0) {
     return (
-      <section className="px-4 py-8">
-        <BentoCard bg="cream" size="md" className="p-8 text-center">
-          <p className="font-display font-black text-xl uppercase text-candy-ink">
+      <Section density="dense">
+        <BentoCard bg="cream" size="md" className="p-bk-xl text-center">
+          <p className="font-display font-black text-xl uppercase text-bk-ink">
             {emptyMessage}
           </p>
           {query && (
-            <p className="mt-2 font-body text-sm text-candy-ink/70">
+            <p className="mt-bk-xs font-body text-sm text-bk-ink-soft">
               {locale === "ar" ? `بحثت عن: "${query}"` : `Searched for: "${query}"`}
             </p>
           )}
         </BentoCard>
-      </section>
+      </Section>
     );
   }
 
   return (
-    <section className="px-4 py-6">
+    <Section density="dense">
       {query && (
-        <p className="mb-4 font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70">
+        <p className="mb-bk-md font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
           {locale === "ar"
             ? `${results.length} نتيجة لـ "${query}"`
             : `${results.length} results for "${query}"`}
         </p>
       )}
-      <div className={`grid ${mobileCols} ${desktopCols} gap-3 sm:gap-4`}>
+      <div className={`grid ${mobileCols} ${desktopCols} gap-bk-sm sm:gap-bk-md`}>
         {results.map((p, i) => (
           <SchneidersProductCard key={p.id} product={p} index={i} />
         ))}
       </div>
-    </section>
+    </Section>
   );
 }
 

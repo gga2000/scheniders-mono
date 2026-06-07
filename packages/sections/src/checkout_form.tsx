@@ -138,18 +138,27 @@ function CheckoutFormRender({
   }
 
   const inputCls =
-    "w-full rounded-xl border-[3px] border-candy-ink bg-white px-3 py-3 font-body text-base focus:outline-none";
+    "w-full bg-white px-3 py-3 font-body text-base focus:outline-none";
+  const inputStyle: React.CSSProperties = {
+    border:
+      "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+    borderRadius: "var(--bk-radius-input, 0.75rem)",
+    color: "var(--bk-ink, #1a1a1a)",
+    fontFamily: "var(--bk-font-body, inherit)",
+  };
+  const labelCls =
+    "block font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft mb-bk-2xs";
 
   return (
-    <section className="px-4 py-6">
-      <BentoCard bg="cream" size="md" className="p-5 sm:p-6">
-        <ScribbleHeading color="pink" className="mb-4">
+    <section className="px-4 py-bk-section-dense">
+      <BentoCard bg="cream" size="md" className="p-bk-lg sm:p-bk-xl">
+        <ScribbleHeading color="pink" className="mb-bk-md">
           {t ? "تفاصيل الطلب" : "Your details"}
         </ScribbleHeading>
-        <form onSubmit={onSubmit} className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <form onSubmit={onSubmit} className="space-y-bk-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-bk-sm">
             <label className="block">
-              <span className="block font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70 mb-1">
+              <span className={labelCls}>
                 {t ? "الاسم الكامل" : "Full name"}
               </span>
               <input
@@ -158,10 +167,11 @@ function CheckoutFormRender({
                 value={form.customer_name}
                 onChange={(e) => set("customer_name", e.target.value)}
                 className={inputCls}
+                style={inputStyle}
               />
             </label>
             <label className="block">
-              <span className="block font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70 mb-1">
+              <span className={labelCls}>
                 {t ? "رقم الهاتف" : "Phone"}
               </span>
               <input
@@ -171,12 +181,13 @@ function CheckoutFormRender({
                 value={form.phone}
                 onChange={(e) => set("phone", e.target.value)}
                 className={inputCls}
+                style={inputStyle}
               />
             </label>
           </div>
           {props.require_email && (
             <label className="block">
-              <span className="block font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70 mb-1">
+              <span className={labelCls}>
                 {t ? "البريد الإلكتروني" : "Email"}
               </span>
               <input
@@ -185,12 +196,13 @@ function CheckoutFormRender({
                 value={form.email}
                 onChange={(e) => set("email", e.target.value)}
                 className={inputCls}
+                style={inputStyle}
               />
             </label>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-bk-sm">
             <label className="block">
-              <span className="block font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70 mb-1">
+              <span className={labelCls}>
                 {t ? "المحافظة" : "Governorate"}
               </span>
               <select
@@ -198,6 +210,7 @@ function CheckoutFormRender({
                 value={form.governorate_code}
                 onChange={(e) => set("governorate_code", e.target.value)}
                 className={inputCls}
+                style={inputStyle}
               >
                 {GOVERNORATES.map((g) => (
                   <option key={g} value={g}>
@@ -207,7 +220,7 @@ function CheckoutFormRender({
               </select>
             </label>
             <label className="block">
-              <span className="block font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70 mb-1">
+              <span className={labelCls}>
                 {t ? "المنطقة" : "Area"}
               </span>
               <input
@@ -216,11 +229,12 @@ function CheckoutFormRender({
                 value={form.city}
                 onChange={(e) => set("city", e.target.value)}
                 className={inputCls}
+                style={inputStyle}
               />
             </label>
           </div>
           <label className="block">
-            <span className="block font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70 mb-1">
+            <span className={labelCls}>
               {t ? "العنوان بالتفصيل" : "Address details"}
             </span>
             <textarea
@@ -229,14 +243,15 @@ function CheckoutFormRender({
               value={form.address_details}
               onChange={(e) => set("address_details", e.target.value)}
               className={inputCls + " resize-y"}
+              style={inputStyle}
             />
           </label>
           {(props.require_notes || form.notes) && (
             <label className="block">
-              <span className="block font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70 mb-1">
+              <span className={labelCls}>
                 {t ? "ملاحظات" : "Notes"}{" "}
                 {!props.require_notes && (
-                  <span className="text-candy-ink/40 normal-case">
+                  <span className="text-bk-ink-faint normal-case">
                     {t ? "(اختياري)" : "(optional)"}
                   </span>
                 )}
@@ -247,15 +262,16 @@ function CheckoutFormRender({
                 value={form.notes}
                 onChange={(e) => set("notes", e.target.value)}
                 className={inputCls + " resize-y"}
+                style={inputStyle}
               />
             </label>
           )}
           {props.payment_methods.length > 1 && (
             <fieldset>
-              <legend className="font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70 mb-2">
+              <legend className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft mb-bk-xs">
                 {t ? "طريقة الدفع" : "Payment method"}
               </legend>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-bk-xs">
                 {props.payment_methods.map((m) => {
                   const isSelected = form.payment_method === m;
                   return (
@@ -264,10 +280,21 @@ function CheckoutFormRender({
                       key={m}
                       onClick={() => set("payment_method", m)}
                       aria-pressed={isSelected}
-                      className={
-                        "inline-flex items-center gap-2 px-4 py-2 rounded-xl border-[3px] border-candy-ink font-display font-black text-sm uppercase shadow-bento-sm " +
-                        (isSelected ? "bg-candy-pink text-white" : "bg-white")
-                      }
+                      className="inline-flex items-center gap-2 px-4 py-2 font-display font-black text-sm uppercase"
+                      style={{
+                        backgroundColor: isSelected
+                          ? "var(--bk-primary, #ff5a8a)"
+                          : "#ffffff",
+                        color: isSelected
+                          ? "var(--bk-on-primary, #ffffff)"
+                          : "var(--bk-ink, #1a1a1a)",
+                        border:
+                          "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+                        borderRadius: "var(--bk-radius-input, 0.75rem)",
+                        boxShadow:
+                          "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
+                        fontFamily: "var(--bk-font-display, inherit)",
+                      }}
                     >
                       <MaterialIcon
                         name={PAYMENT_LABEL[m].icon}
@@ -281,10 +308,10 @@ function CheckoutFormRender({
             </fieldset>
           )}
           {reassurance && (
-            <p className="font-body text-sm text-candy-ink/80 inline-flex items-center gap-2">
+            <p className="font-body text-sm text-bk-ink-soft inline-flex items-center gap-2">
               <MaterialIcon
                 name="verified"
-                className="text-xl text-candy-pink"
+                className="text-xl text-bk-primary"
               />
               {reassurance}
             </p>
@@ -303,12 +330,12 @@ function CheckoutFormRender({
                 : "Place order"}
           </ChunkyButton>
           {status === "ok" && (
-            <p className="font-label font-bold text-sm text-candy-ink">
+            <p className="font-label font-bold text-sm text-bk-success">
               {t ? "تم استلام طلبك!" : "Order received!"}
             </p>
           )}
           {status === "error" && (
-            <p className="font-label font-bold text-sm text-candy-pink">
+            <p className="font-label font-bold text-sm text-bk-danger">
               {t ? "حدث خطأ. حاول مرة أخرى." : "Something went wrong. Try again."}
             </p>
           )}
