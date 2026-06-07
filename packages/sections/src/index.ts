@@ -71,6 +71,10 @@ import policy_content from "./policy_content";
 import exit_intent_offer from "./exit_intent_offer";
 import sticky_cta_bar from "./sticky_cta_bar";
 
+// Global chrome (live in globals.header / globals.footer)
+import site_header from "./site_header";
+import site_footer from "./site_footer";
+
 export { getSection, listSections, registerSection } from "./_registry";
 export type {
   SectionDefinition,
@@ -126,6 +130,8 @@ export const BUILTIN_SECTIONS = [
   policy_content,
   exit_intent_offer,
   sticky_cta_bar,
+  site_header,
+  site_footer,
 ];
 
 export { RenderSection, RenderPage } from "./RenderSection";
