@@ -80,22 +80,34 @@ function PdpAddToCartRender({
   }
 
   const ctaCluster = (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-bk-sm">
       {props.show_quantity_picker && (
-        <div className="flex items-center gap-3">
-          <span className="font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70">
+        <div className="flex items-center gap-bk-sm">
+          <span className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
             {locale === "ar" ? "الكمية" : "Qty"}
           </span>
-          <div className="flex items-center rounded-xl border-[3px] border-candy-ink bg-white shadow-bento-sm">
+          <div
+            className="flex items-center bg-white"
+            style={{
+              border:
+                "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+              borderRadius: "var(--bk-radius-input, 0.75rem)",
+              boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
+            }}
+          >
             <button
               type="button"
               onClick={() => setQty((q) => Math.max(1, q - 1))}
               aria-label="Decrease quantity"
               className="w-10 h-10 flex items-center justify-center"
+              style={{ color: "var(--bk-ink, #1a1a1a)" }}
             >
               <MaterialIcon name="remove" />
             </button>
-            <span className="w-10 text-center font-display font-black text-lg">
+            <span
+              className="w-10 text-center font-display font-black text-lg"
+              style={{ color: "var(--bk-ink, #1a1a1a)" }}
+            >
               {qty}
             </span>
             <button
@@ -103,6 +115,7 @@ function PdpAddToCartRender({
               onClick={() => setQty((q) => q + 1)}
               aria-label="Increase quantity"
               className="w-10 h-10 flex items-center justify-center"
+              style={{ color: "var(--bk-ink, #1a1a1a)" }}
             >
               <MaterialIcon name="add" />
             </button>
@@ -140,7 +153,11 @@ function PdpAddToCartRender({
       <section className="px-4 py-4">{ctaCluster}</section>
       {props.sticky_on_mobile && (
         <div
-          className="fixed bottom-0 inset-x-0 z-40 sm:hidden bg-white/95 backdrop-blur border-t-[3px] border-candy-ink p-3 shadow-[0_-6px_0_0_rgba(26,26,26,0.06)]"
+          className="fixed bottom-0 inset-x-0 z-40 sm:hidden bg-white/95 backdrop-blur p-bk-sm shadow-[0_-6px_0_0_rgba(26,26,26,0.06)]"
+          style={{
+            borderTop:
+              "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+          }}
           aria-hidden="false"
         >
           <ChunkyButton

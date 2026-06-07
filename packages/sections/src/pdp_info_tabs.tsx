@@ -12,7 +12,7 @@
 import { useState } from "react";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
-import { BentoCard } from "./helpers/primitives";
+import { BentoCard, Section } from "./helpers/primitives";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
@@ -118,11 +118,16 @@ function PdpInfoTabsRender({
   const body = explicitBody || fallback;
 
   return (
-    <section className="px-4 py-6">
+    <Section>
       <BentoCard bg="white" size="md" className="p-0 overflow-hidden">
         <div
           role="tablist"
-          className="flex gap-1 overflow-x-auto border-b-[3px] border-candy-ink bg-candy-cream p-2 scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex gap-bk-2xs overflow-x-auto bg-candy-cream p-bk-xs scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          style={{
+            backgroundColor: "var(--bk-surface, #fff7ed)",
+            borderBottom:
+              "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+          }}
         >
           {props.tabs.map((tab, i) => {
             const label = resolveI18n(tab.label_i18n, locale);
@@ -134,11 +139,26 @@ function PdpInfoTabsRender({
                 type="button"
                 aria-selected={isActive}
                 onClick={() => setActive(i)}
-                className={
-                  "px-4 py-2 rounded-xl font-display font-black text-sm uppercase whitespace-nowrap " +
-                  (isActive
-                    ? "bg-candy-pink text-white border-[3px] border-candy-ink shadow-bento-sm"
-                    : "bg-white border-[3px] border-transparent text-candy-ink/70")
+                className="px-4 py-2 font-display font-black text-sm uppercase whitespace-nowrap"
+                style={
+                  isActive
+                    ? {
+                        backgroundColor: "var(--bk-primary, #ff5a8a)",
+                        color: "var(--bk-on-primary, #ffffff)",
+                        border:
+                          "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+                        borderRadius: "var(--bk-radius-input, 0.75rem)",
+                        boxShadow:
+                          "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
+                        fontFamily: "var(--bk-font-display, inherit)",
+                      }
+                    : {
+                        backgroundColor: "#ffffff",
+                        color: "var(--bk-ink-soft, rgb(26 26 26 / 0.7))",
+                        border: "var(--bk-border-thickness, 3px) solid transparent",
+                        borderRadius: "var(--bk-radius-input, 0.75rem)",
+                        fontFamily: "var(--bk-font-display, inherit)",
+                      }
                 }
               >
                 {label}
@@ -146,17 +166,24 @@ function PdpInfoTabsRender({
             );
           })}
         </div>
-        <div role="tabpanel" className="p-5 sm:p-6 text-candy-ink/85">
+        <div
+          role="tabpanel"
+          className="p-bk-lg sm:p-bk-xl"
+          style={{ color: "var(--bk-ink, #1a1a1a)" }}
+        >
           {body ? (
             renderRich(body)
           ) : (
-            <p className="font-body text-sm text-candy-ink/50 italic">
+            <p
+              className="font-body text-sm italic"
+              style={{ color: "var(--bk-ink-faint, rgb(26 26 26 / 0.4))" }}
+            >
               {locale === "ar" ? "لا توجد تفاصيل بعد." : "No details yet."}
             </p>
           )}
         </div>
       </BentoCard>
-    </section>
+    </Section>
   );
 }
 

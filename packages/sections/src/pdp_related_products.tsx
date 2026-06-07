@@ -9,7 +9,7 @@
 
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
-import { ScribbleHeading } from "./helpers/primitives";
+import { Section, SectionHeader } from "./helpers/primitives";
 import { SchneidersProductCard } from "./helpers/product-card";
 import type { Product } from "./types";
 import { i18nStringSchema } from "./_schema";
@@ -64,43 +64,46 @@ function PdpRelatedProductsRender({
 
   if (props.layout === "grid") {
     return (
-      <section className="px-4 py-8">
-        {heading && (
-          <ScribbleHeading color="lilac" className="mb-5">
-            {heading}
-          </ScribbleHeading>
-        )}
-        <div className="grid grid-cols-2 gap-3 sm:gap-4">
+      <Section>
+        {heading && <SectionHeader title={heading} color="lilac" />}
+        <div className="grid grid-cols-2 gap-bk-sm sm:gap-bk-md md:grid-cols-3 lg:grid-cols-4">
           {items.map((product, i) => (
             <SchneidersProductCard
               key={product.id}
               product={product}
               index={i}
+              priority={i < 4}
+              locale={locale}
             />
           ))}
         </div>
-      </section>
+      </Section>
     );
   }
 
   return (
-    <section className="py-8">
+    <Section bleed className="py-bk-section">
       {heading && (
-        <div className="px-4 mb-5">
-          <ScribbleHeading color="lilac">{heading}</ScribbleHeading>
+        <div className="px-4">
+          <SectionHeader title={heading} color="lilac" />
         </div>
       )}
-      <div className="flex gap-3 overflow-x-auto px-4 snap-x snap-mandatory scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex gap-bk-sm overflow-x-auto px-4 snap-x snap-mandatory scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {items.map((product, i) => (
           <div
             key={product.id}
-            className="shrink-0 snap-start w-[60%] sm:w-[40%] md:w-[30%]"
+            className="shrink-0 snap-start w-[60%] sm:w-[40%] md:w-[30%] lg:w-[22%]"
           >
-            <SchneidersProductCard product={product} index={i} />
+            <SchneidersProductCard
+              product={product}
+              index={i}
+              priority={i < 4}
+              locale={locale}
+            />
           </div>
         ))}
       </div>
-    </section>
+    </Section>
   );
 }
 
