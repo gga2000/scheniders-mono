@@ -184,6 +184,54 @@ export const orderRepository = {
         return data ? normalizeOrder(data as unknown as Order) : null;
     },
 
+    /**
+     * Resolve an order from a scanned or typed reference, for the returns flow.
+     *
+     * Printed labels and staff use several identifiers interchangeably, so a
+     * single `order_id` lookup misses common cases (notably refund/returned
+     * orders, which staff type by their short UI number). Tries, in priority:
+     *   1. the canonical `order_id` (shipping-label barcode / QR),
+     *   2. the short per-tenant `sequence_number` — the number shown in the UI
+     *      and on invoices, so the one people type when a label won't scan,
+     *   3. the delivery company's `waseet_qr_id` printed on its own label.
+     * First exact match wins (deterministic; order_id takes precedence over a
+     * colliding sequence_number). All lookups are tenant-scoped via RLS on
+     * v_orders_with_risk. Returns null only when nothing matches.
+     */
+    async findByScanRef(ref: string): Promise<Order | null> {
+        const value = (ref ?? "").trim();
+        if (!value) return null;
+
+        // 1. Canonical order_id (exact). Most labels carry this.
+        const byOrderId = await this.findByOrderId(value);
+        if (byOrderId) return byOrderId;
+
+        // 2. Short per-tenant sequence_number — only attempt for a pure integer.
+        if (/^\d+$/.test(value)) {
+            const seq = Number(value);
+            if (Number.isSafeInteger(seq)) {
+                const { data, error } = await supabase
+                    .from("v_orders_with_risk")
+                    .select("*")
+                    .eq("sequence_number", seq)
+                    .limit(1)
+                    .maybeSingle();
+                if (error) throw error;
+                if (data) return normalizeOrder(data as unknown as Order);
+            }
+        }
+
+        // 3. Delivery-company QR id printed on the carrier's own label.
+        const { data, error } = await supabase
+            .from("v_orders_with_risk")
+            .select("*")
+            .eq("waseet_qr_id", value)
+            .limit(1)
+            .maybeSingle();
+        if (error) throw error;
+        return data ? normalizeOrder(data as unknown as Order) : null;
+    },
+
     /** Update an order by ID. Verifies the write actually affected a row. Supports conflict detection via expectedUpdatedAt. */
     async update(id: string, updates: Partial<Order>, expectedUpdatedAt?: string): Promise<Order> {
         const _t = performance.now();
