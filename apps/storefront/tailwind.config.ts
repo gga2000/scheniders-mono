@@ -18,10 +18,30 @@ const config: Config = {
     { pattern: /^border-bk-(primary|secondary|accent|surface|surface-alt|ink|success|danger|divider)$/ },
     { pattern: /^(rounded|shadow)-bk-(card|button|input|pill)$/ },
     { pattern: /^ring-bk-focus$/ },
+    { pattern: /^(px|py|p|gap|gap-x|gap-y|space-y|space-x|mb|mt)-bk-(2xs|xs|sm|md|lg|xl|2xl|section|section-dense|section-generous)$/ },
+    { pattern: /^text-bk-(hero|h1|h2|h3)$/ },
     { pattern: /^font-(bk-display|bk-body)$/ },
   ],
   theme: {
     extend: {
+      spacing: {
+        "bk-2xs": "var(--bk-space-2xs)",
+        "bk-xs": "var(--bk-space-xs)",
+        "bk-sm": "var(--bk-space-sm)",
+        "bk-md": "var(--bk-space-md)",
+        "bk-lg": "var(--bk-space-lg)",
+        "bk-xl": "var(--bk-space-xl)",
+        "bk-2xl": "var(--bk-space-2xl)",
+        "bk-section": "var(--bk-section-y)",
+        "bk-section-dense": "var(--bk-section-y-dense)",
+        "bk-section-generous": "var(--bk-section-y-generous)",
+      },
+      fontSize: {
+        "bk-hero": ["var(--bk-text-hero)", { lineHeight: "1.0" }],
+        "bk-h1": ["var(--bk-text-h1)", { lineHeight: "1.1" }],
+        "bk-h2": ["var(--bk-text-h2)", { lineHeight: "1.15" }],
+        "bk-h3": ["var(--bk-text-h3)", { lineHeight: "1.25" }],
+      },
       colors: {
         // Tenant-customizable colors driven by CSS variables (legacy).
         brand: {

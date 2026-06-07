@@ -7,6 +7,33 @@
   --brand-secondary: #8b5cf6;
   --brand-accent: #f59e0b;
   --brand-font: system-ui, -apple-system, sans-serif;
+
+  /* ---- Static design-system tokens (NOT per-tenant) ----
+     Per-tenant visual identity lives in --bk-* emitted by buildBrandKitVars.
+     These are global design constants (spacing/opacity/fluid type) shared by
+     every tenant. Keep names in sync with apps/platform/app/globals.css. */
+  /* Spacing scale (8px base) */
+  --bk-space-2xs: 0.25rem;
+  --bk-space-xs: 0.5rem;
+  --bk-space-sm: 0.75rem;
+  --bk-space-md: 1rem;
+  --bk-space-lg: 1.5rem;
+  --bk-space-xl: 2rem;
+  --bk-space-2xl: 3rem;
+  /* Vertical section rhythm — fluid, density-aware */
+  --bk-section-y: clamp(2rem, 5vw, 4rem);
+  --bk-section-y-dense: clamp(1rem, 3vw, 1.75rem);
+  --bk-section-y-generous: clamp(3rem, 8vw, 6rem);
+  /* Opacity scale */
+  --bk-opacity-subtle: 0.08;
+  --bk-opacity-soft: 0.3;
+  --bk-opacity-medium: 0.6;
+  --bk-opacity-strong: 0.85;
+  /* Fluid type steps (display/headline) */
+  --bk-text-hero: clamp(2.5rem, 7vw, 4.5rem);
+  --bk-text-h1: clamp(2rem, 5vw, 3rem);
+  --bk-text-h2: clamp(1.5rem, 3.5vw, 2.25rem);
+  --bk-text-h3: clamp(1.125rem, 2.5vw, 1.5rem);
 }
 
 html,
