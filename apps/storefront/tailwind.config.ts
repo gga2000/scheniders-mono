@@ -13,10 +13,11 @@ const config: Config = {
   safelist: [
     // Brand-kit color utilities — used dynamically by section render code,
     // so safelist them by pattern.
-    { pattern: /^bg-bk-(primary|secondary|accent|surface|surface-alt|ink|success|danger)$/ },
-    { pattern: /^text-bk-(primary|secondary|accent|surface|surface-alt|ink|success|danger|on-primary|on-secondary|on-accent|ink-soft|ink-faint)$/ },
+    { pattern: /^bg-bk-(primary|secondary|accent|surface|surface-alt|ink|success|danger|primary-hover|primary-active|primary-soft|primary-disabled)$/ },
+    { pattern: /^text-bk-(primary|secondary|accent|surface|surface-alt|ink|success|danger|on-primary|on-secondary|on-accent|ink-soft|ink-faint|primary-active|primary-disabled)$/ },
     { pattern: /^border-bk-(primary|secondary|accent|surface|surface-alt|ink|success|danger|divider)$/ },
     { pattern: /^(rounded|shadow)-bk-(card|button|input|pill)$/ },
+    { pattern: /^ring-bk-focus$/ },
     { pattern: /^font-(bk-display|bk-body)$/ },
   ],
   theme: {
@@ -54,7 +55,9 @@ const config: Config = {
           "on-secondary": "var(--bk-on-secondary)",
           "on-accent": "var(--bk-on-accent)",
           "primary-hover": "var(--bk-primary-hover)",
+          "primary-active": "var(--bk-primary-active)",
           "primary-soft": "var(--bk-primary-soft)",
+          "primary-disabled": "var(--bk-primary-disabled)",
           "ink-soft": "var(--bk-ink-soft)",
           "ink-faint": "var(--bk-ink-faint)",
           divider: "var(--bk-divider)",
@@ -79,6 +82,9 @@ const config: Config = {
         "bk-card": "var(--bk-radius-card)",
         "bk-input": "var(--bk-radius-input)",
         "bk-pill": "var(--bk-radius-pill)",
+      },
+      ringColor: {
+        "bk-focus": "var(--bk-focus-ring)",
       },
       boxShadow: {
         bento: "4px 4px 0px 0px rgba(26, 26, 26, 1)",
