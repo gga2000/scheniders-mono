@@ -129,13 +129,14 @@ function TestimonialsCarousel({
               <p className="font-body text-sm sm:text-base leading-relaxed text-bk-ink-soft flex-1 line-clamp-4">
                 &ldquo;{quote}&rdquo;
               </p>
-              <div className="flex items-center gap-3 pt-2 border-t-[3px] border-dashed border-bk-ink/10">
+              <div className="flex items-center gap-3 pt-2 border-t-[3px] border-dashed border-bk-divider">
                 {item.avatar_url ? (
                   <Image
                     src={item.avatar_url}
                     alt={item.author_name}
                     width={48}
                     height={48}
+                    unoptimized
                     className="w-12 h-12 rounded-full border-[3px] border-candy-ink object-cover"
                   />
                 ) : (

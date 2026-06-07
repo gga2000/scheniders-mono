@@ -65,6 +65,7 @@ function FounderNote({
                 src={props.photo_url}
                 alt={name}
                 fill
+                unoptimized
                 sizes="(max-width: 640px) 100vw, 33vw"
                 className="absolute inset-0 w-full h-full object-cover"
               />
@@ -104,6 +105,7 @@ function FounderNote({
                   alt={`${name} signature`}
                   width={120}
                   height={40}
+                  unoptimized
                   className="h-10 w-auto"
                 />
               )}

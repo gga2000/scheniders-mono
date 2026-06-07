@@ -85,6 +85,7 @@ function ImageGallery({
             alt={caption}
             fill
             priority={index === 0}
+            unoptimized
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             className="absolute inset-0 w-full h-full object-cover"
           />

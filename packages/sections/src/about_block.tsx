@@ -89,6 +89,7 @@ function AboutBlock({
               src={props.image_url}
               alt=""
               fill
+              unoptimized
               sizes="(max-width: 640px) 100vw, 50vw"
               className="absolute inset-0 w-full h-full object-cover"
             />

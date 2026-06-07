@@ -120,6 +120,7 @@ function HeroSplit({
                 alt=""
                 fill
                 priority
+                unoptimized
                 sizes="(max-width: 1024px) 100vw, 50vw"
                 className="absolute inset-0 w-full h-full object-cover"
               />

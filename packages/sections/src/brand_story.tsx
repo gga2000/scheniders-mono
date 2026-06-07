@@ -115,6 +115,7 @@ function BrandStory({
               src={props.accent_image_url}
               alt=""
               fill
+              unoptimized
               sizes="(max-width: 1024px) 100vw, 40vw"
               className="absolute inset-0 w-full h-full object-cover"
             />
