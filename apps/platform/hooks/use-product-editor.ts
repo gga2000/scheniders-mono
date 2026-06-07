@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { Product, ProductVariant, VariantOptionType, OptionValueMetadata, CostBreakdown } from "@/types/product";
+import { slugify } from "@scheniders/shared";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useAutoSave } from "@/hooks/use-auto-save";
 import { productRepository } from "@/lib/repositories/product-repository";
@@ -716,22 +717,13 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
         setFormData((prev) => ({ ...prev, ...updates }));
     }, []);
 
-    // Slug generation
-    const slugify = useCallback((text: string) =>
-        text
-            .toLowerCase()
-            .trim()
-            .replace(/[^a-z0-9\s-]/g, "")
-            .replace(/\s+/g, "-")
-            .replace(/-+/g, "-"),
-        []
-    );
-
+    // Slug generation — uses the shared Unicode-aware slugify so Arabic /
+    // Kurdish product names produce a real slug instead of an empty string.
     const autoGenerateSlug = useCallback(() => {
         if (formData.name) {
             setFormData((prev) => ({ ...prev, slug: slugify(formData.name) }));
         }
-    }, [formData.name, slugify]);
+    }, [formData.name]);
 
     // Profit calculations
     const profitMargin = useMemo(() => {

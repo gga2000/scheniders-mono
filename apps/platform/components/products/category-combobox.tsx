@@ -26,6 +26,7 @@ import {
 } from "@/hooks/use-categories-query";
 import { useLanguage } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
+import { slugify } from "@scheniders/shared";
 import type { Category } from "@/types/product";
 
 export interface CategoryComboboxProps {
@@ -46,15 +47,6 @@ type ListRow =
     | { kind: "uncategorized" }
     | { kind: "category"; category: Category; depth: number }
     | { kind: "create"; query: string };
-
-function slugify(name: string): string {
-    return name
-        .toLowerCase()
-        .trim()
-        .replace(/[^\w\s-]/g, "")
-        .replace(/\s+/g, "-")
-        .replace(/-+/g, "-");
-}
 
 function buildTreeRows(categories: Category[]): ListRow[] {
     const byParent = new Map<string | null, Category[]>();

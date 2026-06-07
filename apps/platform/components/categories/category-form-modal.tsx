@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Layers, Eye, EyeOff } from "lucide-react";
 import type { Category } from "@/types/product";
+import { slugify } from "@scheniders/shared";
 
 interface CategoryFormModalProps {
     isOpen: boolean;
@@ -22,15 +23,6 @@ export interface CategoryFormData {
     parent_id: string | null;
     display_order: number;
     is_visible: boolean;
-}
-
-function slugify(text: string) {
-    return text
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9\s-]/g, "")
-        .replace(/\s+/g, "-")
-        .replace(/-+/g, "-");
 }
 
 function getDescendantIds(categoryId: string, allCategories: Category[]): Set<string> {
