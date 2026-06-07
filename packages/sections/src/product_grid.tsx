@@ -9,9 +9,7 @@
 
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
-import {
-  ScribbleHeading,
-} from "./helpers/primitives";
+import { Section, SectionHeader } from "./helpers/primitives";
 import { SchneidersProductCard } from "./helpers/product-card";
 import type { Product } from "./types";
 import { i18nStringOptional } from "./_schema";
@@ -114,22 +112,21 @@ function ProductGridRender({
   if (items.length === 0) return null;
 
   return (
-    <section className="px-4 py-8">
+    <Section>
       {heading && (
-        <ScribbleHeading color={props.scribble_color ?? "butter"} className="mb-5">
-          {heading}
-        </ScribbleHeading>
+        <SectionHeader title={heading} color={props.scribble_color ?? "butter"} />
       )}
       <div
         data-layer="cards"
         data-layer-label="Product cards"
-        className="grid grid-cols-2 gap-3 sm:gap-4"
+        className="grid grid-cols-2 gap-bk-sm sm:gap-bk-md md:grid-cols-3 lg:grid-cols-4"
       >
         {items.map((product, i) => (
           <SchneidersProductCard
             key={product.id}
             product={product}
             index={i}
+            priority={i < 4}
             whatsappPhone={
               (ctx.tenant as { contact_phone?: string | null } | undefined)
                 ?.contact_phone ?? null
@@ -138,7 +135,7 @@ function ProductGridRender({
           />
         ))}
       </div>
-    </section>
+    </Section>
   );
 }
 
