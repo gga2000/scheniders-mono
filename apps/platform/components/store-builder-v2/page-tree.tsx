@@ -153,6 +153,34 @@ const ADVANCED_SETTINGS: SettingsNode[] = [
 
 const ADVANCED_OPEN_KEY = "schneiders.builder.advanced.open";
 
+/* Group + setting → tinted icon-tile class (see `.sb-tile--*` in globals.css).
+ * Coloring nav icons by store-area makes the rail scannable and mirrors the
+ * inspector's tile language for left/right symmetry. */
+function groupTintClass(group: string): string {
+    switch (group) {
+        case "Storefront":
+            return "sb-tile--hero";
+        case "Shop":
+            return "sb-tile--products";
+        case "Order":
+            return "sb-tile--trust";
+        case "Pages":
+            return "sb-tile--content";
+        default:
+            return "sb-tile--page";
+    }
+}
+
+const SETTING_TINT: Record<SettingsSectionId, string> = {
+    brand_kit: "sb-tile--products",
+    health: "sb-tile--story",
+    i18n: "sb-tile--hero",
+    segments: "sb-tile--trust",
+    experiments: "sb-tile--conversion",
+    scheduled: "sb-tile--content",
+    versions: "sb-tile--page",
+};
+
 /* ─────────────────────────────────────────────────────────────────── */
 /* Component                                                            */
 /* ─────────────────────────────────────────────────────────────────── */
@@ -229,10 +257,12 @@ export function PageTree({
                     onClick={() => handleSetting(item.id)}
                     className="group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-foreground/75 transition-all duration-150 hover:bg-black/3 hover:text-foreground"
                 >
-                    <Icon
-                        className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground"
+                    <span
                         aria-hidden="true"
-                    />
+                        className={cn("sb-tile flex h-7 w-7 shrink-0", SETTING_TINT[item.id])}
+                    >
+                        <Icon className="h-4 w-4" />
+                    </span>
                     <span className="truncate">{t(STRINGS.page_tree[item.labelKey], locale)}</span>
                     {comingSoon === item.id && (
                         <span className="ml-auto text-[9px] uppercase tracking-wide text-muted-foreground/70">
@@ -275,15 +305,15 @@ export function PageTree({
                                             )}
                                             aria-current={isActive ? "page" : undefined}
                                         >
-                                            <Icon
-                                                className={cn(
-                                                    "h-4 w-4 shrink-0 transition-colors",
-                                                    isActive
-                                                        ? "text-foreground"
-                                                        : "text-muted-foreground group-hover:text-foreground",
-                                                )}
+                                            <span
                                                 aria-hidden="true"
-                                            />
+                                                className={cn(
+                                                    "sb-tile flex h-7 w-7 shrink-0",
+                                                    groupTintClass(group.group),
+                                                )}
+                                            >
+                                                <Icon className="h-4 w-4" />
+                                            </span>
                                             <span className="truncate">{t(STRINGS.page_tree[item.labelKey], locale)}</span>
                                             {typeof count === "number" && count > 0 && (
                                                 <span
@@ -291,7 +321,7 @@ export function PageTree({
                                                     className={cn(
                                                         "ml-auto inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none tabular-nums transition-colors",
                                                         isActive
-                                                            ? "bg-primary text-primary-foreground"
+                                                            ? "bg-foreground/10 text-foreground"
                                                             : "bg-black/5 text-muted-foreground group-hover:bg-black/10",
                                                     )}
                                                 >

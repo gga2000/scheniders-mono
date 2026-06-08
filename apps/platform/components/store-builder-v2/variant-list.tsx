@@ -652,7 +652,7 @@ export function VariantList(props: VariantListProps): React.ReactElement {
                     type="button"
                     data-testid="variant-list-add"
                     onClick={onAdd}
-                    className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                    className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                 >
                     <Plus className="h-3 w-3" aria-hidden="true" />
                     {t(STRINGS.variant.add, locale)}

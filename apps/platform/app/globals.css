@@ -182,6 +182,20 @@ body {
   .sb-pulse-dot::after { animation: none; }
 }
 
+/* Dark mode: the light-first chrome uses bg-black/N for hovers, wells, and
+   chips — invisible on charcoal. Flip them to subtle white tints. Scoped to
+   the editor root so other pages keep their own dark treatments. */
+.dark [data-testid="editor-shell-v2"] .hover\:bg-black\/3:hover,
+.dark [data-testid="editor-shell-v2"] .hover\:bg-black\/4:hover,
+.dark [data-testid="editor-shell-v2"] .hover\:bg-black\/5:hover,
+.dark [data-testid="editor-shell-v2"] .bg-black\/5 {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+.dark [data-testid="editor-shell-v2"] .hover\:bg-black\/10:hover,
+.dark [data-testid="editor-shell-v2"] .group:hover .group-hover\:bg-black\/10 {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
 /* ============================================
    Analytics / Stats Pages — Dark Mode
    ============================================ */

@@ -10,7 +10,7 @@
 // =====================================================================
 
 import { useMemo, useState } from "react";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Languages } from "lucide-react";
 import type {
     LocaleCode,
     PageId,
@@ -69,24 +69,30 @@ export function I18nScreen({
             className="flex flex-1 flex-col overflow-hidden bg-background"
         >
             {/* Header */}
-            <header className="flex h-12 items-center justify-between border-b border-(--card-border) bg-(--card-bg) px-4">
-                <div className="flex items-center gap-2">
+            <header className="flex h-14 items-center justify-between border-b border-(--card-border) bg-(--card-bg) px-5">
+                <div className="flex items-center gap-2.5">
                     {onClose && (
                         <button
                             type="button"
                             data-testid="i18n-screen-back"
                             onClick={onClose}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                             aria-label="Back to preview"
                         >
                             <ChevronLeft className="h-4 w-4" />
                         </button>
                     )}
-                    <h2 className="text-sm font-semibold tracking-tight">
+                    <span
+                        aria-hidden="true"
+                        className="sb-tile sb-tile--hero flex h-8 w-8 shrink-0"
+                    >
+                        <Languages className="h-4 w-4" />
+                    </span>
+                    <h2 className="text-base font-semibold tracking-tight">
                         Translation coverage
                     </h2>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                     {enabled.map((loc) => {
                         const c = result.perLocale[loc];
                         return (
@@ -96,10 +102,10 @@ export function I18nScreen({
                                 onClick={() => setFocusLocale(loc)}
                                 data-testid={`i18n-summary-pill-${loc}`}
                                 className={cn(
-                                    "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors",
+                                    "inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-150",
                                     focusLocale === loc
-                                        ? "bg-primary text-primary-foreground"
-                                        : "bg-muted/40 text-muted-foreground hover:bg-muted/70",
+                                        ? "bg-primary text-primary-foreground shadow-(--card-shadow)"
+                                        : "border border-(--card-border) bg-(--background-soft) text-muted-foreground hover:border-(--border-hover) hover:text-foreground",
                                 )}
                             >
                                 <span>{LOCALE_LABEL[loc]}</span>
@@ -138,7 +144,7 @@ export function I18nScreen({
                             <div
                                 key={`${page.page_id}-${labelPage}`}
                                 data-testid={`i18n-page-${page.page_id}`}
-                                className="rounded-lg border border-(--card-border) bg-(--card-bg) p-4"
+                                className="rounded-xl border border-(--card-border) bg-(--card-bg) p-4 shadow-(--card-shadow)"
                             >
                                 <div className="mb-3 flex items-center justify-between gap-3">
                                     <button
@@ -174,7 +180,7 @@ export function I18nScreen({
                                         {missing.slice(0, 8).map((m, i) => (
                                             <li
                                                 key={`${m.section_id}-${m.path}-${i}`}
-                                                className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-muted/30"
+                                                className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-xs transition-colors hover:bg-black/5"
                                             >
                                                 <div className="min-w-0 flex-1">
                                                     <div className="truncate font-medium">
@@ -195,7 +201,7 @@ export function I18nScreen({
                                                                 m.section_id,
                                                             )
                                                         }
-                                                        className="shrink-0 rounded-md bg-muted/60 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide hover:bg-muted"
+                                                        className="shrink-0 rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-primary transition-colors hover:bg-primary/15"
                                                     >
                                                         Translate
                                                     </button>
@@ -236,9 +242,9 @@ export function I18nToolbarPill({ config, onClick }: I18nToolbarPillProps) {
             data-testid="i18n-toolbar-pill"
             onClick={onClick}
             title="View translation coverage"
-            className="inline-flex h-7 items-center gap-1.5 rounded-md border border-(--card-border) bg-(--card-bg) px-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-(--card-border) bg-(--background-soft) px-3 text-xs font-medium text-muted-foreground transition-colors hover:border-(--border-hover) hover:text-foreground"
         >
-            <span aria-hidden="true">🌐</span>
+            <Languages aria-hidden="true" className="h-3.5 w-3.5" />
             {enabled.map((loc, i) => {
                 const c = result.perLocale[loc];
                 return (

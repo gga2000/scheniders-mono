@@ -203,7 +203,7 @@ export function HealthChecklistScreen(
                         type="button"
                         onClick={onClose}
                         data-testid="health-close"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                         aria-label="Close health screen"
                     >
                         <ChevronLeft className="h-4 w-4" />
@@ -220,7 +220,7 @@ export function HealthChecklistScreen(
             {/* Score card + categories */}
             <section className="grid gap-6 px-6 py-6 lg:grid-cols-[auto_1fr]">
                 <div
-                    className="flex flex-col items-center justify-center rounded-2xl border border-(--card-border) bg-background p-6"
+                    className="flex flex-col items-center justify-center rounded-2xl border border-(--card-border) bg-background p-6 shadow-(--card-shadow)"
                     data-testid="health-score-card"
                 >
                     <ScoreDonut score={report.score} />
@@ -277,13 +277,13 @@ export function HealthChecklistScreen(
             {blocking.length > 0 ? (
                 <div
                     data-testid="health-blocks-publish"
-                    className="sticky top-0 z-10 mx-6 mb-3 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700"
+                    className="sticky top-0 z-10 mx-6 mb-3 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
                 >
                     <AlertTriangle className="h-4 w-4" />
                     <span className="font-semibold">
                         Blocks publish ({blocking.length})
                     </span>
-                    <span className="text-red-600/80">
+                    <span className="text-red-600/80 dark:text-red-300/70">
                         — fix these before you can publish.
                     </span>
                 </div>
@@ -298,10 +298,10 @@ export function HealthChecklistScreen(
                         data-testid={`health-filter-${f}`}
                         onClick={() => setFilter(f)}
                         className={cn(
-                            "rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors",
+                            "rounded-full border px-3 py-1.5 text-xs font-medium capitalize transition-all duration-150",
                             filter === f
-                                ? "border-primary bg-primary/10 text-primary"
-                                : "border-(--card-border) text-muted-foreground hover:bg-muted/40",
+                                ? "border-transparent bg-primary text-primary-foreground shadow-(--card-shadow)"
+                                : "border-(--card-border) bg-(--background-soft) text-muted-foreground hover:border-(--border-hover) hover:text-foreground",
                         )}
                     >
                         {f === "failing" ? "Failing + Warn" : f}
@@ -355,7 +355,7 @@ function HealthCheckRow({
         <li
             data-testid={`health-check-row-${check.id}`}
             data-status={check.status}
-            className="flex items-start gap-3 px-6 py-3"
+            className="flex items-start gap-3 px-6 py-3 transition-colors hover:bg-black/2"
         >
             <span
                 aria-hidden="true"
@@ -368,7 +368,7 @@ function HealthCheckRow({
                         {CATEGORY_LABEL[check.category]}
                     </span>
                     {check.blocks_publish && check.status === "fail" ? (
-                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-700">
+                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-700 dark:bg-red-500/15 dark:text-red-300">
                             Blocks publish
                         </span>
                     ) : null}
@@ -382,7 +382,7 @@ function HealthCheckRow({
                     type="button"
                     data-testid={`health-fix-${check.id}`}
                     onClick={() => onFix(check.fix_action!)}
-                    className="shrink-0 inline-flex items-center gap-1 rounded-md border border-(--card-border) px-3 py-1.5 text-xs font-medium hover:bg-muted/40"
+                    className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-(--card-border) bg-(--background-soft) px-3 py-1.5 text-xs font-medium transition-colors hover:border-(--border-hover) hover:text-foreground"
                 >
                     {check.fix_action.label}
                     {check.fix_action.go_to.kind === "external" ? (

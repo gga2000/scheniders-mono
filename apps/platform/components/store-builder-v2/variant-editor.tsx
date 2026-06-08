@@ -242,7 +242,7 @@ export function VariantEditor(props: VariantEditorProps): ReactElement | null {
             role="dialog"
             aria-modal="true"
             aria-label={`Edit variant ${variant.label}`}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
         >
             <button
                 type="button"
@@ -253,7 +253,7 @@ export function VariantEditor(props: VariantEditorProps): ReactElement | null {
                 className="absolute inset-0 cursor-default"
             />
             <div
-                className="relative z-10 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-(--card-border) bg-(--card-bg) shadow-xl"
+                className="relative z-10 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-(--card-border) bg-(--card-bg) shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)]"
                 onClick={(e) => e.stopPropagation()}
             >
                 <header className="flex items-center justify-between gap-3 border-b border-(--card-border) px-4 py-3">
@@ -267,7 +267,7 @@ export function VariantEditor(props: VariantEditorProps): ReactElement | null {
                         onClick={onClose}
                         aria-label={t(STRINGS.variant.editor_close, locale)}
                         data-testid="variant-editor-close"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                     >
                         <X className="h-4 w-4" aria-hidden="true" />
                     </button>
@@ -445,7 +445,7 @@ export function VariantEditor(props: VariantEditorProps): ReactElement | null {
                         type="button"
                         data-testid="variant-editor-done"
                         onClick={onClose}
-                        className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                        className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                     >
                         Done
                     </button>
@@ -518,7 +518,7 @@ function ConditionAddMenu({
                     <div
                         role="menu"
                         data-testid="variant-editor-add-condition-menu"
-                        className="absolute right-0 top-full z-50 mt-1 w-52 overflow-hidden rounded-md border border-(--card-border) bg-(--card-bg) shadow-lg"
+                        className="absolute right-0 top-full z-50 mt-1 w-52 overflow-hidden rounded-xl border border-(--card-border) bg-(--card-bg) shadow-(--card-shadow-hover)"
                     >
                         {KINDS.map((k) => (
                             <button
@@ -588,7 +588,7 @@ function OverrideFieldPicker(p: OverrideFieldPickerProps): ReactElement {
                     <div
                         role="menu"
                         data-testid="variant-editor-add-override-menu"
-                        className="absolute right-0 top-full z-50 mt-1 max-h-72 w-64 overflow-y-auto rounded-md border border-(--card-border) bg-(--card-bg) shadow-lg"
+                        className="absolute right-0 top-full z-50 mt-1 max-h-72 w-64 overflow-y-auto rounded-xl border border-(--card-border) bg-(--card-bg) shadow-(--card-shadow-hover)"
                     >
                         {p.paths.map((opt) => (
                             <button

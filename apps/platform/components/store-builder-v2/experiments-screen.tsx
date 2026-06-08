@@ -317,7 +317,7 @@ export function ExperimentsScreen({
                         onClick={onClose}
                         data-testid="experiments-back"
                         aria-label="Back"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                     >
                         <ChevronLeft className="h-4 w-4" />
                     </button>
@@ -334,7 +334,7 @@ export function ExperimentsScreen({
                     type="button"
                     onClick={handleCreate}
                     data-testid="experiments-new"
-                    className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-3 text-[12px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                    className="inline-flex h-8 items-center gap-1 rounded-lg bg-primary px-3 text-[12px] font-semibold text-primary-foreground shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)"
                 >
                     <Plus className="h-3.5 w-3.5" />
                     <ExpNewLabel />
@@ -357,7 +357,7 @@ export function ExperimentsScreen({
                             type="button"
                             onClick={handleCreate}
                             data-testid="experiments-empty-new"
-                            className="mt-4 inline-flex h-8 items-center gap-1 rounded-md bg-primary px-3 text-[12px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                            className="mt-4 inline-flex h-8 items-center gap-1 rounded-lg bg-primary px-3 text-[12px] font-semibold text-primary-foreground shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)"
                         >
                             <Plus className="h-3.5 w-3.5" />
                             Create your first experiment
@@ -550,7 +550,7 @@ function ExperimentRow({
                     type="button"
                     onClick={onView}
                     data-testid={`experiment-row-${experiment.id}-view`}
-                    className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-muted/40"
+                    className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-black/5"
                 >
                     <Eye className="h-3 w-3" />
                     View
@@ -559,7 +559,7 @@ function ExperimentRow({
                     type="button"
                     onClick={onEdit}
                     data-testid={`experiment-row-${experiment.id}-edit`}
-                    className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-muted/40"
+                    className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-black/5"
                 >
                     Edit
                 </button>
@@ -737,7 +737,7 @@ function ExperimentEditor({
                         onClick={onClose}
                         data-testid="experiment-editor-close"
                         aria-label="Close"
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-black/5 hover:text-foreground"
                     >
                         <X className="h-4 w-4" />
                     </button>
@@ -815,7 +815,7 @@ function ExperimentEditor({
                                 disabled={experiment.arms.length >= MAX_ARMS}
                                 data-testid="experiment-editor-add-arm"
                                 className={cn(
-                                    "inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-muted/40",
+                                    "inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-black/5",
                                     experiment.arms.length >= MAX_ARMS && "opacity-50",
                                 )}
                             >
@@ -936,7 +936,7 @@ function ExperimentEditor({
                         type="button"
                         onClick={onClose}
                         data-testid="experiment-editor-done"
-                        className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-3 text-[12px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                        className="inline-flex h-9 items-center gap-1 rounded-lg bg-primary px-3 text-[12px] font-semibold text-primary-foreground shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)"
                     >
                         <Check className="h-3.5 w-3.5" />
                         Done
@@ -1010,7 +1010,7 @@ function ExperimentViewer({
                             onClick={() => void refresh()}
                             data-testid="experiment-viewer-refresh"
                             aria-label="Refresh"
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-black/5 hover:text-foreground"
                         >
                             <RefreshCw
                                 className={cn("h-3.5 w-3.5", loading && "animate-spin")}
@@ -1021,7 +1021,7 @@ function ExperimentViewer({
                             onClick={onClose}
                             data-testid="experiment-viewer-close"
                             aria-label="Close"
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-black/5 hover:text-foreground"
                         >
                             <X className="h-4 w-4" />
                         </button>
@@ -1283,7 +1283,7 @@ function DeleteConfirm({
                         onClick={onCancel}
                         data-testid="experiment-delete-cancel"
                         aria-label="Cancel"
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-black/5 hover:text-foreground"
                     >
                         <X className="h-4 w-4" />
                     </button>
@@ -1319,7 +1319,7 @@ function DeleteConfirm({
                         type="button"
                         onClick={onCancel}
                         data-testid="experiment-delete-cancel-btn"
-                        className="inline-flex h-9 items-center rounded-md px-3 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                        className="inline-flex h-9 items-center rounded-md px-3 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                     >
                         Cancel
                     </button>

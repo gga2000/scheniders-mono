@@ -181,7 +181,7 @@ export function PublishConfirmSheet({
                                                         <span
                                                             className={cn(
                                                                 "inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase",
-                                                                "bg-amber-500/15 text-amber-600",
+                                                                "bg-amber-500/15 text-amber-600 dark:text-amber-300",
                                                             )}
                                                         >
                                                             {t(STRINGS.publish.blocks_chip, locale)}
@@ -310,7 +310,7 @@ function PublishDiffSection({ diff }: { diff: PublishDiff }): React.ReactElement
                         {diff.globalsChanged.map((slot) => (
                             <span
                                 key={slot}
-                                className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700"
+                                className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300"
                             >
                                 {humaniseFieldName(slot)}
                             </span>
@@ -352,7 +352,7 @@ function PageGroup({ page }: { page: PageDiff }): React.ReactElement {
                     {counts.added > 0 && (
                         <span
                             data-testid={`publish-diff-page-${page.page_id}-added-count`}
-                            className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700"
+                            className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300"
                         >
                             <Plus className="h-3 w-3" aria-hidden="true" />
                             {counts.added}
@@ -361,7 +361,7 @@ function PageGroup({ page }: { page: PageDiff }): React.ReactElement {
                     {counts.removed > 0 && (
                         <span
                             data-testid={`publish-diff-page-${page.page_id}-removed-count`}
-                            className="inline-flex items-center gap-0.5 rounded-full bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-bold text-rose-700"
+                            className="inline-flex items-center gap-0.5 rounded-full bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 dark:text-rose-300"
                         >
                             <Minus className="h-3 w-3" aria-hidden="true" />
                             {counts.removed}
@@ -370,7 +370,7 @@ function PageGroup({ page }: { page: PageDiff }): React.ReactElement {
                     {counts.modified > 0 && (
                         <span
                             data-testid={`publish-diff-page-${page.page_id}-modified-count`}
-                            className="inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-700"
+                            className="inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300"
                         >
                             <Pencil className="h-3 w-3" aria-hidden="true" />
                             {counts.modified}
@@ -407,10 +407,10 @@ function SectionChangeRow({
               : Pencil;
     const iconClass =
         change.kind === "added"
-            ? "text-emerald-600"
+            ? "text-emerald-600 dark:text-emerald-400"
             : change.kind === "removed"
-              ? "text-rose-600"
-              : "text-amber-600";
+              ? "text-rose-600 dark:text-rose-400"
+              : "text-amber-600 dark:text-amber-400";
 
     return (
         <li
@@ -466,9 +466,9 @@ function FieldDeltaRow({ delta }: { delta: FieldDelta }): React.ReactElement {
                 <span className="text-muted-foreground">changed</span>
             ) : (
                 <span className="font-mono text-[10px] text-muted-foreground">
-                    <span className="line-through text-rose-700/80">{stringifyPreview(delta.before)}</span>
+                    <span className="line-through text-rose-700/80 dark:text-rose-300/80">{stringifyPreview(delta.before)}</span>
                     <span className="mx-1">→</span>
-                    <span className="text-emerald-700/90">{stringifyPreview(delta.after)}</span>
+                    <span className="text-emerald-700/90 dark:text-emerald-300/90">{stringifyPreview(delta.after)}</span>
                 </span>
             )}
         </div>

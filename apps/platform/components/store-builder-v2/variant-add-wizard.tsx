@@ -562,7 +562,7 @@ export function VariantAddWizard(props: VariantAddWizardProps): ReactElement | n
             role="dialog"
             aria-modal="true"
             aria-label="Add a variant"
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
         >
             <button
                 type="button"
@@ -573,7 +573,7 @@ export function VariantAddWizard(props: VariantAddWizardProps): ReactElement | n
                 className="absolute inset-0 cursor-default"
             />
             <div
-                className="relative z-10 flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-(--card-border) bg-(--card-bg) shadow-xl"
+                className="relative z-10 flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-(--card-border) bg-(--card-bg) shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)]"
                 onClick={(e) => e.stopPropagation()}
             >
                 <header className="flex items-start justify-between gap-3 border-b border-(--card-border) px-4 py-3">
@@ -598,7 +598,7 @@ export function VariantAddWizard(props: VariantAddWizardProps): ReactElement | n
                         onClick={onClose}
                         aria-label={t(STRINGS.variant.wizard_close, locale)}
                         data-testid="variant-add-wizard-close"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                     >
                         <X className="h-4 w-4" aria-hidden="true" />
                     </button>
@@ -655,7 +655,7 @@ export function VariantAddWizard(props: VariantAddWizardProps): ReactElement | n
                                 data-testid="variant-add-wizard-next"
                                 onClick={() => setStep(3)}
                                 className={cn(
-                                    "inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors",
+                                    "inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors",
                                     canAdvance ? "hover:bg-primary/90" : "cursor-not-allowed opacity-50",
                                 )}
                             >
@@ -670,7 +670,7 @@ export function VariantAddWizard(props: VariantAddWizardProps): ReactElement | n
                                 data-testid="variant-add-wizard-submit"
                                 onClick={handleSubmit}
                                 className={cn(
-                                    "inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors",
+                                    "inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors",
                                     canAdvance ? "hover:bg-primary/90" : "cursor-not-allowed opacity-50",
                                 )}
                             >

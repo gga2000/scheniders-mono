@@ -221,7 +221,7 @@ export function SegmentsScreen({
                         onClick={onClose}
                         data-testid="segments-back"
                         aria-label="Back"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                     >
                         <ChevronLeft className="h-4 w-4" />
                     </button>
@@ -238,7 +238,7 @@ export function SegmentsScreen({
                     type="button"
                     onClick={handleCreate}
                     data-testid="segments-new"
-                    className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-3 text-[12px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                    className="inline-flex h-8 items-center gap-1 rounded-lg bg-primary px-3 text-[12px] font-semibold text-primary-foreground shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)"
                 >
                     <Plus className="h-3.5 w-3.5" />
                     {t(STRINGS.segment.new, locale)}
@@ -263,7 +263,7 @@ export function SegmentsScreen({
                             type="button"
                             onClick={handleCreate}
                             data-testid="segments-empty-new"
-                            className="mt-4 inline-flex h-8 items-center gap-1 rounded-md bg-primary px-3 text-[12px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                            className="mt-4 inline-flex h-8 items-center gap-1 rounded-lg bg-primary px-3 text-[12px] font-semibold text-primary-foreground shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)"
                         >
                             <Plus className="h-3.5 w-3.5" />
                             {t(STRINGS.segment.empty_new, locale)}
@@ -291,7 +291,7 @@ export function SegmentsScreen({
                                             "flex w-full flex-col items-start gap-1 rounded-md border px-3 py-2 text-left transition-colors",
                                             s.id === selectedId
                                                 ? "border-primary/40 bg-primary/5"
-                                                : "border-transparent hover:bg-muted/40",
+                                                : "border-transparent hover:bg-black/5",
                                         )}
                                     >
                                         <div className="flex w-full items-center justify-between gap-2">
@@ -471,7 +471,7 @@ function SegmentEditor({
                             type="button"
                             onClick={onToggleAddRule}
                             data-testid="segment-editor-add-rule"
-                            className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-muted/40"
+                            className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-black/5"
                         >
                             <Plus className="h-3 w-3" />
                             Add rule
@@ -487,7 +487,7 @@ function SegmentEditor({
                                         type="button"
                                         onClick={() => onAddRule(k)}
                                         data-testid={`segment-editor-add-rule-${k}`}
-                                        className="block w-full rounded px-2 py-1.5 text-left text-[12px] hover:bg-muted/40"
+                                        className="block w-full rounded px-2 py-1.5 text-left text-[12px] hover:bg-black/5"
                                     >
                                         {RULE_KIND_LABELS[k]}
                                     </button>
@@ -655,7 +655,7 @@ function RuleConfig({ rule, index, onChange }: RuleConfigProps): ReactElement | 
                                     "rounded-full border px-2 py-0.5 text-[11px] transition-colors",
                                     selected
                                         ? "border-primary/40 bg-primary/10 text-primary"
-                                        : "border-(--card-border) text-muted-foreground hover:bg-muted/40",
+                                        : "border-(--card-border) text-muted-foreground hover:bg-black/5",
                                 )}
                             >
                                 {g.code}
@@ -757,7 +757,7 @@ function DeleteConfirm({
                         onClick={onCancel}
                         data-testid="segment-delete-cancel"
                         aria-label="Cancel"
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-black/5 hover:text-foreground"
                     >
                         <X className="h-4 w-4" />
                     </button>
@@ -793,7 +793,7 @@ function DeleteConfirm({
                         type="button"
                         onClick={onCancel}
                         data-testid="segment-delete-cancel-btn"
-                        className="inline-flex h-9 items-center rounded-md px-3 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                        className="inline-flex h-9 items-center rounded-md px-3 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                     >
                         Cancel
                     </button>
