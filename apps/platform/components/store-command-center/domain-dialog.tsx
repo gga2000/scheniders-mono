@@ -118,7 +118,7 @@ export function DomainDialog({ tenantId, slug, onClose }: DomainDialogProps) {
                 className="absolute inset-0 bg-black/40 backdrop-blur-sm"
                 onClick={onClose}
             />
-            <div className="relative glass-card rounded-2xl border border-border p-6 w-full max-w-sm shadow-2xl">
+            <div className="relative rounded-2xl border border-border bg-(--card-bg) p-6 w-full max-w-sm shadow-2xl">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-base font-semibold text-foreground">Custom domain</h3>

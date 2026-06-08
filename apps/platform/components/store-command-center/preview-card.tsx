@@ -15,7 +15,7 @@ export function PreviewCard({ storefrontUrl }: PreviewCardProps) {
     const [loaded, setLoaded] = useState(false);
 
     return (
-        <div className="glass-card rounded-2xl border border-border overflow-hidden">
+        <div className="rounded-2xl border border-border bg-(--card-bg) shadow-(--card-shadow) overflow-hidden">
             {/* Card header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/40">
                 <div className="flex items-center gap-2">

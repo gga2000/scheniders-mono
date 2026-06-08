@@ -51,14 +51,14 @@ export function HeaderBar({ businessName, status, storefrontUrl }: HeaderBarProp
                     href={storefrontUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-(--card-bg) px-3 py-2 text-sm font-medium text-muted-foreground shadow-(--card-shadow) transition-colors hover:border-(--border-hover) hover:text-foreground"
                 >
                     <ExternalLink className="w-3.5 h-3.5" />
                     Visit store
                 </a>
                 <Link
                     href="/store/edit"
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-foreground text-background text-sm font-semibold hover:bg-foreground/90 transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-4 py-2 text-sm font-semibold text-background shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)"
                 >
                     <Pencil className="w-3.5 h-3.5" />
                     Customize

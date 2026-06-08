@@ -23,8 +23,8 @@ interface TileProps {
 
 function Tile({ icon, label, description, onClick, href }: TileProps) {
     const inner = (
-        <div className="glass-card rounded-2xl border border-border p-4 flex flex-col gap-2 hover:bg-muted/20 transition-colors cursor-pointer group h-full">
-            <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground group-hover:text-foreground transition-colors">
+        <div className="flex h-full cursor-pointer flex-col gap-2 rounded-2xl border border-border bg-(--card-bg) p-4 shadow-(--card-shadow) transition-all duration-150 group hover:-translate-y-0.5 hover:border-(--border-hover) hover:shadow-(--card-shadow-hover)">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors group-hover:bg-foreground group-hover:text-background">
                 {icon}
             </div>
             <p className="text-sm font-semibold text-foreground">{label}</p>
@@ -48,7 +48,7 @@ export function SettingsTiles({ storefrontUrl, businessName, tenantId, slug }: S
 
     return (
         <>
-            <div className="glass-card rounded-2xl border border-border p-6">
+            <div className="rounded-2xl border border-border bg-(--card-bg) shadow-(--card-shadow) p-6">
                 <h3 className="text-base font-semibold text-foreground mb-4">Quick settings</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     <Tile
