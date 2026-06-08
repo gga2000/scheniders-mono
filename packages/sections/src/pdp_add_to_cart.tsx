@@ -153,28 +153,32 @@ function PdpAddToCartRender({
       <section className="px-4 py-4">{ctaCluster}</section>
       {props.sticky_on_mobile && (
         <div
-          className="fixed bottom-0 inset-x-0 z-40 sm:hidden bg-white/95 backdrop-blur p-bk-sm shadow-[0_-6px_0_0_rgba(26,26,26,0.06)]"
+          className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur p-bk-sm shadow-[0_-6px_0_0_rgba(26,26,26,0.06)]"
           style={{
             borderTop:
               "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
           }}
-          aria-hidden="false"
         >
-          <ChunkyButton
-            type="button"
-            bg="pink"
-            size="md"
-            fullWidth
-            onClick={handleAdd}
-            disabled={oos}
-          >
-            <MaterialIcon name="shopping_bag" />
-            {oos
-              ? locale === "ar"
-                ? "نفد المخزون"
-                : "Out of stock"
-              : `${primaryLabel} — ${formatPrice(product.price * qty)}`}
-          </ChunkyButton>
+          {/* Full-width on mobile; a centered, contained CTA on desktop so the
+              add-to-cart stays reachable on long product pages without a giant
+              full-bleed slab. */}
+          <div className="mx-auto sm:max-w-md">
+            <ChunkyButton
+              type="button"
+              bg="pink"
+              size="md"
+              fullWidth
+              onClick={handleAdd}
+              disabled={oos}
+            >
+              <MaterialIcon name="shopping_bag" />
+              {oos
+                ? locale === "ar"
+                  ? "نفد المخزون"
+                  : "Out of stock"
+                : `${primaryLabel} — ${formatPrice(product.price * qty)}`}
+            </ChunkyButton>
+          </div>
         </div>
       )}
     </>
