@@ -241,6 +241,7 @@ body {
 /* Dark mode: the light-first chrome uses bg-black/N for hovers, wells, and
    chips — invisible on charcoal. Flip them to subtle white tints. Scoped to
    the editor root so other pages keep their own dark treatments. */
+.dark [data-testid="editor-shell-v2"] .hover\:bg-black\/2:hover,
 .dark [data-testid="editor-shell-v2"] .hover\:bg-black\/3:hover,
 .dark [data-testid="editor-shell-v2"] .hover\:bg-black\/4:hover,
 .dark [data-testid="editor-shell-v2"] .hover\:bg-black\/5:hover,
