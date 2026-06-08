@@ -1,12 +1,16 @@
--- Add deleted_at column for soft deletes
-ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "deleted_at" TIMESTAMP WITH TIME ZONE DEFAULT NULL;
+-- Soft-delete orders: deleted_at column + index + risk view filter.
+--
+-- The view must be rebuilt with DROP + CREATE (not CREATE OR REPLACE):
+-- v_orders_with_risk selects `o.*`, so adding the deleted_at column changes the
+-- view's output columns, and CREATE OR REPLACE VIEW cannot add/rename columns.
+-- DROP + CREATE is the only replay-safe way to fold the new column in.
 
--- Add an index for the cleanup cron and queries
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "deleted_at" TIMESTAMP WITH TIME ZONE DEFAULT NULL;
 CREATE INDEX IF NOT EXISTS idx_orders_deleted_at ON "orders" ("deleted_at");
 
--- Update the main view to automatically filter out soft-deleted orders
--- This automatically applies the soft-delete filter to all frontend queries
-CREATE OR REPLACE VIEW v_orders_with_risk WITH (security_invoker = true) AS
+DROP VIEW IF EXISTS public.v_orders_with_risk;
+
+CREATE VIEW public.v_orders_with_risk WITH (security_invoker = true) AS
 SELECT
     o.*,
     COALESCE(
