@@ -16,6 +16,10 @@
         {
             "path": "/api/cron/subscription-renew",
             "schedule": "0 3 * * *"
+        },
+        {
+            "path": "/api/cron/cleanup-deleted-orders",
+            "schedule": "0 1 * * *"
         }
     ]
 }

@@ -188,7 +188,7 @@ function FinancesContent() {
     // Data sources
     const { orders, loading: ordersLoading, error: ordersError } = useOrdersContext();
     const { products } = useProductsCrud();
-    const { expenses } = useExpenses({
+    const { expenses, addExpense } = useExpenses({
         startDate: dateRangeStrings.startDate,
         endDate: dateRangeStrings.endDate,
     });
@@ -354,7 +354,14 @@ function FinancesContent() {
                 )}
 
                 {activeTab === "profit_analysis" && (
-                    <ProfitAnalysisTab orders={orders} products={products} expenses={expenses} period={period} />
+                    <ProfitAnalysisTab
+                        orders={orders}
+                        products={products}
+                        expenses={expenses}
+                        period={period}
+                        dateRange={dateRangeStrings}
+                        addExpense={addExpense}
+                    />
                 )}
 
                 {activeTab === "salaries" && <SalariesTab />}

@@ -931,11 +931,11 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook, tenan
                     }
                 }
 
-                // Delete matched abandoned checkouts
-                if (abandonedCheckouts.length > 0) {
-                    const checkoutIds = abandonedCheckouts.map(c => c.id);
-                    await supabase.from('orders').delete().in('id', checkoutIds);
-                    console.log(`[Cleanup] Deleted ${abandonedCheckouts.length} abandoned checkout(s) via ${cleanupMethod}:`,
+                // Soft-delete matched abandoned checkouts
+                const checkoutIds = abandonedCheckouts.map(c => c.id);
+                if (checkoutIds.length > 0) {
+                    await supabase.from('orders').update({ deleted_at: new Date().toISOString() }).in('id', checkoutIds);
+                    console.log(`[Cleanup] Soft-deleted ${abandonedCheckouts.length} abandoned checkout(s) via ${cleanupMethod}:`,
                         abandonedCheckouts.map(c => c.order_id).join(', '));
                 } else {
                     console.log(`[Cleanup] No abandoned checkouts found to clean up for order ${webhook.order_number}`);

@@ -105,6 +105,23 @@ export function DeliveryImportModal({
         }
     }, []);
 
+    const handleBulkResolve = useCallback((bulk: RowResolution[]) => {
+        if (bulk.length === 0) return;
+        setResolutions((prev) => {
+            const next = new Map(prev);
+            for (const r of bulk) next.set(r.rowNumber, r);
+            return next;
+        });
+        setSelectedRows((prev) => {
+            const next = new Set(prev);
+            for (const r of bulk) {
+                if (r.action === "skip") next.delete(r.rowNumber);
+                else next.add(r.rowNumber);
+            }
+            return next;
+        });
+    }, []);
+
     const handleClearResolution = useCallback((rowNumber: number) => {
         setResolutions((prev) => {
             const next = new Map(prev);
@@ -200,7 +217,7 @@ export function DeliveryImportModal({
 
     return (
         <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
-            <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogContent className="md:max-w-[1400px] md:max-h-[92vh] overflow-hidden flex flex-col">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-xl">
                         <Truck className="w-6 h-6 text-teal-600" />
@@ -348,6 +365,7 @@ export function DeliveryImportModal({
                                         resolutions={resolutions}
                                         onResolve={handleResolve}
                                         onClearResolution={handleClearResolution}
+                                        onBulkResolve={handleBulkResolve}
                                     />
                                 </>
                             )}

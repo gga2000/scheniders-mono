@@ -5,19 +5,15 @@ import type {
     MatchCategory,
     DeliveryImportSummary,
 } from "@/types/delivery-import";
+import { normalizePhoneForSearch } from "@/lib/order-utils";
 
-/** Normalize phone to 07XXXXXXXXX format for comparison */
+/**
+ * Canonicalize a phone for comparison/matching: converts Arabic digits, strips
+ * the +964 country code AND any leading zero, so "07708784809" === "7708784809".
+ * Mirrors the DB-side `normalize_phone` SQL function used everywhere else.
+ */
 function normalizePhone(phone: string): string {
-    const digits = phone.replace(/\D/g, "");
-    // +964 → 0
-    if (digits.startsWith("964") && digits.length === 13) {
-        return "0" + digits.slice(3);
-    }
-    // Already 07... format
-    if (digits.startsWith("0") && digits.length === 11) {
-        return digits;
-    }
-    return digits;
+    return normalizePhoneForSearch(phone);
 }
 
 /** Try to match a PDF shipment number against order_id values */

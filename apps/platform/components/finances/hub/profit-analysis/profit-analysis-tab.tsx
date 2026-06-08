@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
-import { Target, TrendingUp, ListChecks } from "lucide-react";
+import { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
+import { Target, TrendingUp, ListChecks, Truck } from "lucide-react";
 import { OverviewCards } from "@/components/analytics/overview-cards";
 import { PipelineSummaryCard } from "@/components/analytics/pipeline-summary-card";
 import { ProfitSummaryCards } from "@/components/analytics/profit-summary-cards";
@@ -13,12 +14,24 @@ import { useLanguage } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
 import type { Order, Product } from "@/lib/supabase";
 import type { Expense } from "@/types/expense";
+import type { useExpenses } from "@/hooks/use-expenses";
+
+const MarketingExpenseModal = dynamic(
+    () => import("@/components/analytics/marketing-expense-modal").then((m) => ({ default: m.MarketingExpenseModal })),
+    { ssr: false }
+);
+const DeliveryImportModal = dynamic(
+    () => import("@/components/delivery-import/delivery-import-modal").then((m) => ({ default: m.DeliveryImportModal })),
+    { ssr: false }
+);
 
 interface ProfitAnalysisTabProps {
     orders: Order[];
     products: Product[];
     expenses: Expense[];
     period: { start: Date; end: Date };
+    dateRange: { startDate: string; endDate: string };
+    addExpense: ReturnType<typeof useExpenses>["addExpense"];
 }
 
 /**
@@ -26,8 +39,20 @@ interface ProfitAnalysisTabProps {
  * Mirrors the legacy /analytics "profit" view but driven by the Finances page period
  * so it stays consistent with the other tabs and keeps the tab bar in place.
  */
-export function ProfitAnalysisTab({ orders, products, expenses, period }: ProfitAnalysisTabProps) {
+export function ProfitAnalysisTab({ orders, products, expenses, period, dateRange, addExpense }: ProfitAnalysisTabProps) {
     const { t } = useLanguage();
+
+    const [isDeliveryImportOpen, setIsDeliveryImportOpen] = useState(false);
+    const [isMarketingModalOpen, setIsMarketingModalOpen] = useState(false);
+
+    const handleAddMarketingExpense = async (data: { amount: number; notes?: string; date: string }) => {
+        await addExpense({
+            amount: data.amount,
+            category: "marketing",
+            expense_date: data.date,
+            notes: data.notes,
+        });
+    };
 
     const marketingCost = useMemo(
         () => expenses.filter((e) => e.category === "marketing").reduce((sum, e) => sum + e.amount, 0),
@@ -53,6 +78,24 @@ export function ProfitAnalysisTab({ orders, products, expenses, period }: Profit
 
     return (
         <div className="space-y-6">
+            {/* Quick actions — parity with the legacy Analytics & Finances header */}
+            <div className="flex items-center justify-end gap-2 flex-wrap">
+                <button
+                    onClick={() => setIsDeliveryImportOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition-colors shadow-sm"
+                >
+                    <Truck className="w-4 h-4" />
+                    {t("analytics.importDelivery")}
+                </button>
+                <button
+                    onClick={() => setIsMarketingModalOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 transition-colors shadow-sm"
+                >
+                    <Target className="w-4 h-4" />
+                    {t("analytics.marketing")}
+                </button>
+            </div>
+
             {/* Overview cards — full width at top */}
             <OverviewCards profitSummary={profitSummary} pipelineSummary={pipelineSummary} />
 
@@ -152,6 +195,18 @@ export function ProfitAnalysisTab({ orders, products, expenses, period }: Profit
                 </h3>
                 <ProfitBreakdownTable breakdowns={orderCostBreakdowns} />
             </div>
+
+            {/* Modals */}
+            <MarketingExpenseModal
+                isOpen={isMarketingModalOpen}
+                onClose={() => setIsMarketingModalOpen(false)}
+                onSubmit={handleAddMarketingExpense}
+                dateRange={dateRange}
+            />
+            <DeliveryImportModal
+                open={isDeliveryImportOpen}
+                onClose={() => setIsDeliveryImportOpen(false)}
+            />
         </div>
     );
 }

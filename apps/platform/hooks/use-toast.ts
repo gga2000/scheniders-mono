@@ -224,6 +224,8 @@ export function dismissToast(id?: string) {
     dispatch({ type: "REMOVE_TOAST", id });
 }
 
+toast.dismiss = dismissToast;
+
 // Hook for components that need to read toasts (i.e., the Toaster)
 export function useToast() {
     const [state, setState] = React.useState<ToastState>(memoryState);
