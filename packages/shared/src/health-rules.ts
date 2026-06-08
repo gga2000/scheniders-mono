@@ -11,7 +11,8 @@
 //    the Publish button on `blocks_publish` failures)
 // =====================================================================
 
-import type { PageId, SectionInstance, StoreConfigV2 } from "./types/store-config-v2";
+import type { LocaleCode, PageId, SectionInstance, StoreConfigV2 } from "./types/store-config-v2";
+import { SUPPORTED_LOCALES } from "./types/store-config-v2";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Public types                                                        */
@@ -163,6 +164,56 @@ function findKey(value: unknown, predicate: (key: string) => boolean): unknown {
         }
     }
     return undefined;
+}
+
+const LOCALE_LABEL: Record<LocaleCode, string> = {
+    ar: "Arabic",
+    en: "English",
+    ku: "Kurdish",
+};
+
+const LOCALE_KEY_SET = new Set<string>(SUPPORTED_LOCALES);
+
+/** A translatable field: a plain object keyed ONLY by locale codes (e.g.
+ *  `{ en, ar }`), with at least one string value. The all-keys-are-locales
+ *  guard avoids false positives on ordinary objects that merely have an
+ *  `en`/`ar` property. */
+function isI18nObject(v: unknown): v is Record<string, unknown> {
+    if (!v || typeof v !== "object" || Array.isArray(v)) return false;
+    const keys = Object.keys(v as Record<string, unknown>);
+    if (keys.length === 0 || !keys.every((k) => LOCALE_KEY_SET.has(k))) {
+        return false;
+    }
+    return Object.values(v as Record<string, unknown>).some(
+        (x) => typeof x === "string",
+    );
+}
+
+/** Walk a props tree; for every i18n field, tally how many of `locales`
+ *  have non-empty content. Does not recurse into an i18n leaf. */
+function tallyI18n(
+    value: unknown,
+    locales: LocaleCode[],
+    acc: { total: number; filled: Record<string, number> },
+): void {
+    if (value == null || typeof value !== "object") return;
+    if (Array.isArray(value)) {
+        for (const v of value) tallyI18n(v, locales, acc);
+        return;
+    }
+    if (isI18nObject(value)) {
+        acc.total += 1;
+        for (const l of locales) {
+            const cell = (value as Record<string, unknown>)[l];
+            if (typeof cell === "string" && cell.trim().length > 0) {
+                acc.filled[l] += 1;
+            }
+        }
+        return;
+    }
+    for (const v of Object.values(value as Record<string, unknown>)) {
+        tallyI18n(v, locales, acc);
+    }
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -562,6 +613,42 @@ export const HEALTH_CHECKS: HealthCheck[] = [
                     };
                 }
             }
+        }
+        return { status: "pass" };
+    }),
+    check("translations_complete", "content", 1, (cfg) => {
+        // Warn (never block) when a merchant has ENABLED a secondary locale
+        // but left it largely untranslated — those visitors would silently
+        // get fallback text. The default locale is excluded (it's the source).
+        const enabled =
+            cfg.enabled_locales && cfg.enabled_locales.length > 0
+                ? cfg.enabled_locales
+                : SUPPORTED_LOCALES;
+        const others = enabled.filter((l) => l !== cfg.default_locale);
+        if (others.length === 0) return { status: "pass" };
+
+        const acc = {
+            total: 0,
+            filled: Object.fromEntries(others.map((l) => [l, 0])) as Record<string, number>,
+        };
+        for (const s of allEnabledSections(cfg)) tallyI18n(s.base, others, acc);
+        if (acc.total === 0) return { status: "pass" };
+
+        const THRESHOLD = 0.6;
+        let worst: LocaleCode | null = null;
+        let worstPct = 1;
+        for (const l of others) {
+            const pct = acc.filled[l] / acc.total;
+            if (pct < worstPct) {
+                worstPct = pct;
+                worst = l;
+            }
+        }
+        if (worst && worstPct < THRESHOLD) {
+            return {
+                status: "warn",
+                message: `${LOCALE_LABEL[worst]} content is only ${Math.round(worstPct * 100)}% translated — enabled-locale visitors see fallback text.`,
+            };
         }
         return { status: "pass" };
     }),
