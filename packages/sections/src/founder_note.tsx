@@ -5,10 +5,12 @@
 // signature image. Used on About pages to put a face to the brand.
 // =====================================================================
 
+import Image from "next/image";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import {
   BentoCard,
+  Section,
   Sticker,
 } from "./helpers/primitives";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
@@ -51,15 +53,20 @@ function FounderNote({
   if (!quote) return null;
 
   return (
-    <section className="px-4 py-10">
+    <Section>
       <BentoCard bg="cream" size="lg" className="p-0 overflow-hidden">
         <div className="grid grid-cols-1 sm:grid-cols-[1fr_2fr] items-stretch">
-          <div className="relative min-h-[240px] sm:min-h-[320px] border-b-[3px] sm:border-b-0 sm:border-r-[3px] border-candy-ink">
+          <div
+            className="relative min-h-[240px] sm:min-h-[320px] border-b-[3px] sm:border-b-0 sm:border-r-[3px] border-candy-ink"
+            style={{ backgroundColor: "var(--bk-surface,#fff7ed)" }}
+          >
             {props.photo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <Image
                 src={props.photo_url}
                 alt={name}
+                fill
+                unoptimized
+                sizes="(max-width: 640px) 100vw, 33vw"
                 className="absolute inset-0 w-full h-full object-cover"
               />
             ) : (
@@ -78,25 +85,27 @@ function FounderNote({
             >
               &ldquo;
             </span>
-            <blockquote className="font-display font-black text-2xl sm:text-3xl uppercase leading-tight tracking-tight text-candy-ink -mt-4">
+            <blockquote className="font-display font-black text-2xl sm:text-3xl uppercase leading-tight tracking-tight text-bk-ink -mt-4">
               {quote}
             </blockquote>
-            <div className="mt-6 flex items-center gap-4">
+            <div className="mt-bk-md flex items-center gap-bk-sm">
               <div>
-                <div className="font-display font-black text-base uppercase text-candy-ink">
+                <div className="font-display font-black text-base uppercase text-bk-ink">
                   {name}
                 </div>
                 {role && (
-                  <div className="font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/60 mt-1">
+                  <div className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft mt-bk-2xs">
                     {role}
                   </div>
                 )}
               </div>
               {props.signature_image_url && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <Image
                   src={props.signature_image_url}
                   alt={`${name} signature`}
+                  width={120}
+                  height={40}
+                  unoptimized
                   className="h-10 w-auto"
                 />
               )}
@@ -104,7 +113,7 @@ function FounderNote({
           </div>
         </div>
       </BentoCard>
-    </section>
+    </Section>
   );
 }
 

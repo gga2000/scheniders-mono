@@ -15,6 +15,7 @@ import { StoreLink } from "./helpers/store-context";
 import {
   BentoCard,
   ChunkyButton,
+  Section,
   Sticker,
 } from "./helpers/primitives";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
@@ -100,25 +101,25 @@ function PromoBanner({
   }, [props.countdown_to_iso]);
 
   return (
-    <section className="px-4 py-6">
-      <BentoCard bg={props.bg} size="md" className="p-6 sm:p-8 relative overflow-hidden">
+    <Section bleed className="px-4">
+      <BentoCard bg={props.bg} size="md" className="p-bk-lg sm:p-bk-xl relative overflow-hidden">
         <div className="absolute -top-2 -right-2">
           <Sticker bg="white" rotate={6} size="xs">
             ✱ promo
           </Sticker>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] items-center gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] items-center gap-bk-sm">
           <div className="max-w-2xl">
-            <h2 className="font-display font-black text-2xl sm:text-4xl uppercase tracking-tight leading-tight">
+            <h2 className="font-display font-black text-bk-h2 uppercase tracking-tight leading-tight">
               {heading}
             </h2>
             {body && (
-              <p className="mt-2 font-body text-sm sm:text-base text-candy-ink/85">
+              <p className="mt-bk-2xs font-body text-sm sm:text-base text-bk-ink-soft">
                 {body}
               </p>
             )}
             {tick && !tick.done && (
-              <div className="mt-4 flex items-center gap-2 font-label font-bold text-xs sm:text-sm uppercase tracking-[0.18em]">
+              <div className="mt-bk-sm flex items-center gap-bk-2xs font-label font-bold text-xs sm:text-sm uppercase tracking-[0.18em]">
                 {[
                   { v: tick.days, l: locale === "ar" ? "ي" : "d" },
                   { v: tick.hours, l: locale === "ar" ? "س" : "h" },
@@ -127,7 +128,7 @@ function PromoBanner({
                 ].map((seg, i) => (
                   <span
                     key={i}
-                    className="inline-flex items-baseline gap-1 bg-white/80 border-[3px] border-candy-ink rounded-lg px-2 py-1 text-candy-ink"
+                    className="inline-flex items-baseline gap-1 bg-white/80 border-[3px] border-candy-ink rounded-lg px-2 py-1 text-bk-ink"
                   >
                     <span className="font-display font-black text-base sm:text-lg">
                       {String(seg.v).padStart(2, "0")}
@@ -149,7 +150,7 @@ function PromoBanner({
           )}
         </div>
       </BentoCard>
-    </section>
+    </Section>
   );
 }
 

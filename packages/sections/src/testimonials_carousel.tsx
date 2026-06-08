@@ -6,11 +6,13 @@
 // badge. Scroll snaps on mobile; flex row on desktop.
 // =====================================================================
 
+import Image from "next/image";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import {
   BentoCard,
-  ScribbleHeading,
+  Section,
+  SectionHeader,
   Sticker,
 } from "./helpers/primitives";
 import { i18nStringSchema } from "./_schema";
@@ -79,7 +81,7 @@ function Stars({ rating }: { rating: number }) {
         <span
           key={i}
           className={
-            i < rating ? "text-candy-pink" : "text-candy-ink/20"
+            i < rating ? "text-candy-pink" : "text-bk-ink-faint"
           }
           aria-hidden="true"
         >
@@ -103,13 +105,9 @@ function TestimonialsCarousel({
   if (!props.items.length) return null;
 
   return (
-    <section className="py-8">
-      {heading && (
-        <div className="px-4 mb-5">
-          <ScribbleHeading color="mint">{heading}</ScribbleHeading>
-        </div>
-      )}
-      <div className="flex gap-4 overflow-x-auto px-4 pb-2 snap-x snap-mandatory scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <Section>
+      {heading && <SectionHeader title={heading} color="mint" />}
+      <div className="flex gap-bk-md overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:grid lg:grid-cols-3 lg:overflow-visible">
         {props.items.map((item, i) => {
           const quote = resolveI18n(item.quote_i18n, locale);
           return (
@@ -118,7 +116,7 @@ function TestimonialsCarousel({
               bg="white"
               size="sm"
               rotate={i % 2 === 0 ? -0.5 : 0.5}
-              className="p-5 min-w-[260px] sm:min-w-[320px] max-w-[340px] snap-start flex flex-col gap-3"
+              className="p-5 min-w-[80%] sm:min-w-[340px] lg:min-w-0 snap-start flex flex-col gap-3"
             >
               <div className="flex items-center justify-between gap-2">
                 <Stars rating={item.rating} />
@@ -128,28 +126,30 @@ function TestimonialsCarousel({
                   </Sticker>
                 )}
               </div>
-              <p className="font-body text-sm sm:text-base leading-relaxed text-candy-ink/85 flex-1">
+              <p className="font-body text-sm sm:text-base leading-relaxed text-bk-ink-soft flex-1 line-clamp-4">
                 &ldquo;{quote}&rdquo;
               </p>
-              <div className="flex items-center gap-3 pt-2 border-t-[3px] border-dashed border-candy-ink/10">
+              <div className="flex items-center gap-3 pt-2 border-t-[3px] border-dashed border-bk-divider">
                 {item.avatar_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <Image
                     src={item.avatar_url}
                     alt={item.author_name}
-                    className="w-10 h-10 rounded-full border-[3px] border-candy-ink object-cover"
+                    width={48}
+                    height={48}
+                    unoptimized
+                    className="w-12 h-12 rounded-full border-[3px] border-candy-ink object-cover"
                   />
                 ) : (
-                  <div className="w-10 h-10 rounded-full border-[3px] border-candy-ink bg-candy-butter flex items-center justify-center font-display font-black text-base">
+                  <div className="w-12 h-12 rounded-full border-[3px] border-candy-ink bg-candy-butter flex items-center justify-center font-display font-black text-lg">
                     {item.author_name.charAt(0)}
                   </div>
                 )}
                 <div>
-                  <div className="font-display font-black text-sm uppercase text-candy-ink">
+                  <div className="font-display font-black text-sm uppercase text-bk-ink">
                     {item.author_name}
                   </div>
                   {item.author_city && (
-                    <div className="font-label font-bold text-[11px] uppercase tracking-[0.2em] text-candy-ink/60">
+                    <div className="font-label font-bold text-[11px] uppercase tracking-[0.2em] text-bk-ink-soft">
                       {item.author_city}
                     </div>
                   )}
@@ -159,7 +159,21 @@ function TestimonialsCarousel({
           );
         })}
       </div>
-    </section>
+      {props.items.length > 1 && (
+        <div
+          className="mt-bk-sm flex justify-center gap-2 lg:hidden"
+          aria-hidden="true"
+        >
+          {props.items.map((_, i) => (
+            <span
+              key={i}
+              className="w-2 h-2 rounded-full bg-candy-ink/25"
+              style={{ backgroundColor: "var(--bk-ink-faint, rgb(26 26 26 / 0.25))" }}
+            />
+          ))}
+        </div>
+      )}
+    </Section>
   );
 }
 

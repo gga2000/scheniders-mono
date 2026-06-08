@@ -16,7 +16,8 @@ import { cn } from "./helpers/utils";
 import {
   BentoCard,
   MaterialIcon,
-  ScribbleHeading,
+  Section,
+  SectionHeader,
 } from "./helpers/primitives";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
@@ -99,13 +100,9 @@ function AccordionRichtextRender({
   const tints = ["mint", "butter", "sky", "lilac", "cream"] as const;
 
   return (
-    <section className="px-4 py-8">
-      {heading && (
-        <ScribbleHeading color="butter" className="mb-5">
-          {heading}
-        </ScribbleHeading>
-      )}
-      <div className="space-y-3">
+    <Section>
+      {heading && <SectionHeader title={heading} color="butter" />}
+      <div className="space-y-bk-sm">
         {props.items.map((item, i) => {
           const title = resolveI18n(item.title_i18n, locale);
           const body = resolveI18n(item.body_i18n, locale);
@@ -139,7 +136,7 @@ function AccordionRichtextRender({
                 </span>
               </button>
               {open && (
-                <div className="px-4 pb-4 text-candy-ink/90 border-t-[3px] border-dashed border-candy-ink/10 pt-3">
+                <div className="px-4 pb-4 text-bk-ink-soft border-t-[3px] border-dashed border-candy-ink/10 pt-3">
                   {renderParagraphs(body)}
                 </div>
               )}
@@ -147,7 +144,7 @@ function AccordionRichtextRender({
           );
         })}
       </div>
-    </section>
+    </Section>
   );
 }
 

@@ -71,6 +71,34 @@ import "./sticky_cta_bar";
 import "./site_header";
 import "./site_footer";
 
+/**
+ * Surface a silently-dropped section. In dev we warn to the console (as
+ * before); in prod we report to Sentry IF the host app has put it on the
+ * global — sections is a framework-neutral shared lib, so we avoid a hard
+ * `@sentry/*` dependency. Behavior is otherwise unchanged: the caller still
+ * degrades to `null`.
+ */
+function reportSectionDrop(
+  reason: "unknown_type" | "schema_invalid",
+  type: string,
+  detail?: unknown,
+): void {
+  if (process.env.NODE_ENV !== "production") {
+    // eslint-disable-next-line no-console
+    console.warn(`[sections] dropped "${type}": ${reason}`, detail ?? "");
+    return;
+  }
+  const sentry = (
+    globalThis as {
+      Sentry?: { captureMessage?: (m: string, c?: unknown) => void };
+    }
+  ).Sentry;
+  sentry?.captureMessage?.(`section_dropped:${reason}`, {
+    level: "warning",
+    extra: { type, detail },
+  });
+}
+
 interface RenderSectionProps {
   instance: SectionInstance;
   runtime: RuntimeContext;
@@ -84,23 +112,14 @@ export function RenderSection({
 }: RenderSectionProps) {
   const def = getSection(instance.type);
   if (!def) {
-    if (process.env.NODE_ENV !== "production") {
-      // eslint-disable-next-line no-console
-      console.warn(`No section registered for type "${instance.type}"`);
-    }
+    reportSectionDrop("unknown_type", instance.type);
     return null;
   }
 
   const resolved = resolveSection<Record<string, unknown>>(instance, runtime);
   const parsed = def.schema.safeParse(resolved);
   if (!parsed.success) {
-    if (process.env.NODE_ENV !== "production") {
-      // eslint-disable-next-line no-console
-      console.warn(
-        `Section "${instance.type}" failed schema validation`,
-        parsed.error.format(),
-      );
-    }
+    reportSectionDrop("schema_invalid", instance.type, parsed.error.format());
     return null;
   }
 

@@ -9,6 +9,7 @@
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import {
+  Section,
   TrustPill,
   MaterialIcon,
 } from "./helpers/primitives";
@@ -64,29 +65,40 @@ function TrustStripRender({
 }) {
   const locale = ctx.runtime.locale;
   return (
-    <section className="py-4">
-      <div className="flex gap-3 overflow-x-auto px-4 scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {props.pills.map((pill, i) => (
-          <span
-            key={`${i}-${resolveI18n(pill.label_i18n, "en")}`}
-            data-i18n-field={`pills[${i}].label_i18n`}
-            className="inline-flex"
-          >
-            <TrustPill
-              bg={pill.bg ?? "mint"}
-              rotate={i % 2 === 0 ? -1 : 1}
-              icon={
-                pill.icon ? (
-                  <MaterialIcon name={pill.icon} className="text-base" />
-                ) : undefined
-              }
+    <Section density="dense" bleed className="text-bk-ink">
+      <div className="relative">
+        <div className="flex gap-3 overflow-x-auto px-4 scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {props.pills.map((pill, i) => (
+            <span
+              key={`${i}-${resolveI18n(pill.label_i18n, "en")}`}
+              data-i18n-field={`pills[${i}].label_i18n`}
+              className="inline-flex active:scale-95 transition-transform"
             >
-              {resolveI18n(pill.label_i18n, locale)}
-            </TrustPill>
-          </span>
-        ))}
+              <TrustPill
+                bg={pill.bg ?? "mint"}
+                rotate={i % 2 === 0 ? -1 : 1}
+                icon={
+                  pill.icon ? (
+                    <MaterialIcon name={pill.icon} className="text-base" />
+                  ) : undefined
+                }
+              >
+                {resolveI18n(pill.label_i18n, locale)}
+              </TrustPill>
+            </span>
+          ))}
+        </div>
+        {/* Right-edge scroll-fade affordance — signals more pills to the right. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 right-0 w-8"
+          style={{
+            background:
+              "linear-gradient(to right, transparent, var(--bk-surface, #fff7ed))",
+          }}
+        />
       </div>
-    </section>
+    </Section>
   );
 }
 

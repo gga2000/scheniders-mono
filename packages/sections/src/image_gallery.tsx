@@ -12,10 +12,8 @@ import Image from "next/image";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import { StoreLink } from "./helpers/store-context";
-import {
-  ScribbleHeading,
-} from "./helpers/primitives";
-import { i18nStringSchema, i18nStringOptional } from "./_schema";
+import { Section, SectionHeader } from "./helpers/primitives";
+import { i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition } from "./_types";
 
@@ -86,18 +84,24 @@ function ImageGallery({
             src={img.url}
             alt={caption}
             fill
-            sizes="(max-width: 768px) 50vw, 33vw"
+            priority={index === 0}
+            unoptimized
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             className="absolute inset-0 w-full h-full object-cover"
           />
         ) : (
           <div className={`absolute inset-0 bg-gradient-to-br ${tint}`} />
         )}
         {caption && (
-          <div className="absolute bottom-2 left-2 right-2">
-            <span className="inline-block font-label font-bold text-[11px] uppercase tracking-[0.2em] bg-candy-ink/85 text-white px-2 py-1 rounded-md">
-              {caption}
-            </span>
-          </div>
+          <>
+            {/* Gradient scrim keeps caption text legible over any image. */}
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-candy-ink/70 to-transparent" />
+            <div className="absolute bottom-2 left-2 right-2">
+              <span className="inline-block font-label font-bold text-[11px] uppercase tracking-[0.2em] text-white drop-shadow">
+                {caption}
+              </span>
+            </div>
+          </>
         )}
       </div>
     );
@@ -111,14 +115,10 @@ function ImageGallery({
   }
 
   return (
-    <section className="px-4 py-8">
-      {heading && (
-        <ScribbleHeading color="lilac" className="mb-5">
-          {heading}
-        </ScribbleHeading>
-      )}
+    <Section>
+      {heading && <SectionHeader title={heading} color="lilac" />}
       {props.layout === "masonry" && (
-        <div className="columns-2 sm:columns-3 gap-3 sm:gap-4 [column-fill:_balance]">
+        <div className="columns-2 sm:columns-3 lg:columns-4 gap-bk-sm sm:gap-bk-md [column-fill:_balance]">
           {props.images.map((img, i) => {
             const aspectChoices = [
               "aspect-[3/4]",
@@ -128,7 +128,7 @@ function ImageGallery({
             ];
             const aspect = aspectChoices[i % aspectChoices.length];
             return (
-              <div key={i} className="mb-3 sm:mb-4 break-inside-avoid">
+              <div key={i} className="mb-bk-sm sm:mb-bk-md break-inside-avoid">
                 <ImgCard img={img} index={i} aspect={aspect} />
               </div>
             );
@@ -136,14 +136,14 @@ function ImageGallery({
         </div>
       )}
       {props.layout === "grid" && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-bk-sm sm:gap-bk-md">
           {props.images.map((img, i) => (
             <ImgCard key={i} img={img} index={i} aspect="aspect-square" />
           ))}
         </div>
       )}
       {props.layout === "carousel" && (
-        <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 px-4">
+        <div className="flex gap-bk-md overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 px-4">
           {props.images.map((img, i) => (
             <div key={i} className="min-w-[220px] sm:min-w-[280px] snap-start">
               <ImgCard img={img} index={i} aspect="aspect-[3/4]" />
@@ -151,7 +151,7 @@ function ImageGallery({
           ))}
         </div>
       )}
-    </section>
+    </Section>
   );
 }
 

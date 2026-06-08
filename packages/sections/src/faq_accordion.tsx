@@ -15,6 +15,7 @@ import {
   BentoCard,
   MaterialIcon,
   ScribbleHeading,
+  Section,
 } from "./helpers/primitives";
 import { i18nStringSchema } from "./_schema";
 import { registerSection } from "./_registry";
@@ -88,15 +89,13 @@ function FaqAccordionRender({
   const heading = resolveI18n(props.heading_i18n, locale);
 
   return (
-    <section className="px-4 py-8">
+    <Section>
       {heading && (
-        <div data-i18n-field="heading_i18n">
-          <ScribbleHeading color="mint" className="mb-5">
-            {heading}
-          </ScribbleHeading>
+        <div data-i18n-field="heading_i18n" className="mb-bk-lg">
+          <ScribbleHeading color="mint">{heading}</ScribbleHeading>
         </div>
       )}
-      <div className="space-y-3">
+      <div className="space-y-bk-sm">
         {props.items.map((item, i) => {
           const q = resolveI18n(item.q_i18n, locale);
           const a = resolveI18n(item.a_i18n, locale);
@@ -142,7 +141,7 @@ function FaqAccordionRender({
               {open && (
                 <div
                   data-i18n-field={`items[${i}].a_i18n`}
-                  className="px-4 pb-4 font-body text-sm leading-relaxed text-candy-ink/90 border-t-[3px] border-dashed border-candy-ink/10 pt-3"
+                  className="px-4 pb-4 font-body text-sm leading-relaxed text-bk-ink-soft border-t-[3px] border-dashed border-candy-ink/10 pt-3"
                 >
                   {a}
                 </div>
@@ -151,7 +150,7 @@ function FaqAccordionRender({
           );
         })}
       </div>
-    </section>
+    </Section>
   );
 }
 

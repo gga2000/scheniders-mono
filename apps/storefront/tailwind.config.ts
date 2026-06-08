@@ -13,14 +13,35 @@ const config: Config = {
   safelist: [
     // Brand-kit color utilities — used dynamically by section render code,
     // so safelist them by pattern.
-    { pattern: /^bg-bk-(primary|secondary|accent|surface|surface-alt|ink|success|danger)$/ },
-    { pattern: /^text-bk-(primary|secondary|accent|surface|surface-alt|ink|success|danger|on-primary|on-secondary|on-accent|ink-soft|ink-faint)$/ },
+    { pattern: /^bg-bk-(primary|secondary|accent|surface|surface-alt|ink|success|danger|primary-hover|primary-active|primary-soft|primary-disabled)$/ },
+    { pattern: /^text-bk-(primary|secondary|accent|surface|surface-alt|ink|success|danger|on-primary|on-secondary|on-accent|ink-soft|ink-faint|primary-active|primary-disabled)$/ },
     { pattern: /^border-bk-(primary|secondary|accent|surface|surface-alt|ink|success|danger|divider)$/ },
     { pattern: /^(rounded|shadow)-bk-(card|button|input|pill)$/ },
+    { pattern: /^ring-bk-focus$/ },
+    { pattern: /^(px|py|p|gap|gap-x|gap-y|space-y|space-x|mb|mt)-bk-(2xs|xs|sm|md|lg|xl|2xl|section|section-dense|section-generous)$/ },
+    { pattern: /^text-bk-(hero|h1|h2|h3)$/ },
     { pattern: /^font-(bk-display|bk-body)$/ },
   ],
   theme: {
     extend: {
+      spacing: {
+        "bk-2xs": "var(--bk-space-2xs)",
+        "bk-xs": "var(--bk-space-xs)",
+        "bk-sm": "var(--bk-space-sm)",
+        "bk-md": "var(--bk-space-md)",
+        "bk-lg": "var(--bk-space-lg)",
+        "bk-xl": "var(--bk-space-xl)",
+        "bk-2xl": "var(--bk-space-2xl)",
+        "bk-section": "var(--bk-section-y)",
+        "bk-section-dense": "var(--bk-section-y-dense)",
+        "bk-section-generous": "var(--bk-section-y-generous)",
+      },
+      fontSize: {
+        "bk-hero": ["var(--bk-text-hero)", { lineHeight: "1.0" }],
+        "bk-h1": ["var(--bk-text-h1)", { lineHeight: "1.1" }],
+        "bk-h2": ["var(--bk-text-h2)", { lineHeight: "1.15" }],
+        "bk-h3": ["var(--bk-text-h3)", { lineHeight: "1.25" }],
+      },
       colors: {
         // Tenant-customizable colors driven by CSS variables (legacy).
         brand: {
@@ -54,7 +75,9 @@ const config: Config = {
           "on-secondary": "var(--bk-on-secondary)",
           "on-accent": "var(--bk-on-accent)",
           "primary-hover": "var(--bk-primary-hover)",
+          "primary-active": "var(--bk-primary-active)",
           "primary-soft": "var(--bk-primary-soft)",
+          "primary-disabled": "var(--bk-primary-disabled)",
           "ink-soft": "var(--bk-ink-soft)",
           "ink-faint": "var(--bk-ink-faint)",
           divider: "var(--bk-divider)",
@@ -80,6 +103,9 @@ const config: Config = {
         "bk-input": "var(--bk-radius-input)",
         "bk-pill": "var(--bk-radius-pill)",
       },
+      ringColor: {
+        "bk-focus": "var(--bk-focus-ring)",
+      },
       boxShadow: {
         bento: "4px 4px 0px 0px rgba(26, 26, 26, 1)",
         "bento-sm": "2px 2px 0px 0px rgba(26, 26, 26, 1)",
@@ -90,11 +116,16 @@ const config: Config = {
       },
       animation: {
         marquee: "marquee 22s linear infinite",
+        "sticker-pop": "stickerPop 0.3s ease-out both",
       },
       keyframes: {
         marquee: {
           "0%": { transform: "translateX(0)" },
           "100%": { transform: "translateX(-50%)" },
+        },
+        stickerPop: {
+          "0%": { transform: "scale(0.5)", opacity: "0" },
+          "100%": { transform: "scale(1)", opacity: "1" },
         },
       },
     },

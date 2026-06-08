@@ -141,10 +141,10 @@ function PdpBuyBoxRender({
       <BentoCard
         bg="white"
         size="md"
-        className="p-5 sm:p-6 space-y-4"
+        className="p-bk-lg sm:p-bk-xl space-y-bk-md"
         style={{ borderRadius: "var(--bk-radius-card, 1.25rem)" }}
       >
-        <div className="flex items-start gap-3 flex-wrap">
+        <div className="flex items-start gap-bk-sm flex-wrap">
           <h1
             className="font-display font-black text-2xl sm:text-3xl uppercase leading-tight flex-1 min-w-0"
             style={{ color: "var(--bk-ink, #1a1a1a)" }}
@@ -158,7 +158,7 @@ function PdpBuyBoxRender({
           )}
         </div>
 
-        <div className="flex items-baseline gap-3 flex-wrap">
+        <div className="flex items-baseline gap-bk-sm flex-wrap">
           <span
             className="font-display font-black text-3xl sm:text-4xl"
             style={{ color: "var(--bk-primary, #ff4081)" }}
@@ -168,12 +168,12 @@ function PdpBuyBoxRender({
           {props.show_compare_price &&
             onSale &&
             product.compare_at_price != null && (
-              <span className="font-body text-lg text-candy-ink/50 line-through">
+              <span className="font-body text-lg text-bk-ink-faint line-through">
                 {formatPrice(product.compare_at_price)}
               </span>
             )}
           {savings && (
-            <span className="font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-pink">
+            <span className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-primary">
               {t ? `وفّر ${savings}` : `Save ${savings}`}
             </span>
           )}
@@ -181,10 +181,10 @@ function PdpBuyBoxRender({
 
         {props.show_variant_picker && variants.length > 0 && (
           <div data-layer="variants" data-layer-label="Variant pills">
-            <p className="font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70 mb-2">
+            <p className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft mb-bk-xs">
               {t ? "الخيارات" : "Options"}
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-bk-xs">
               {variants.map((v) => {
                 const isActive = (variantId ?? variants[0]?.id) === v.id;
                 return (
@@ -216,8 +216,8 @@ function PdpBuyBoxRender({
         )}
 
         {props.show_qty_stepper && (
-          <div data-layer="qty" data-layer-label="Quantity stepper" className="flex items-center gap-3">
-            <span className="font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70">
+          <div data-layer="qty" data-layer-label="Quantity stepper" className="flex items-center gap-bk-sm">
+            <span className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
               {t ? "الكمية" : "Qty"}
             </span>
             <div

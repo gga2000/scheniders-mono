@@ -7,8 +7,8 @@
 // root `<div>`; downstream components consume the tokens via the
 // `bk-*` Tailwind theme tokens or by reading the vars directly.
 //
-// 40 variables emitted, namespaced `--bk-*`:
-//   - 16 colors (8 base + 8 derived)
+// 34 variables emitted, namespaced `--bk-*`:
+//   - 19 colors (8 base + 11 derived)
 //   -  4 typography
 //   -  7 shape (radius, borders, shadows)
 //   -  3 motion
@@ -204,12 +204,15 @@ export const BK_VAR_NAMES = [
   "--bk-ink",
   "--bk-success",
   "--bk-danger",
-  // Colors — derived (8)
+  // Colors — derived (11)
   "--bk-on-primary",
   "--bk-on-secondary",
   "--bk-on-accent",
   "--bk-primary-hover",
+  "--bk-primary-active",
   "--bk-primary-soft",
+  "--bk-primary-disabled",
+  "--bk-focus-ring",
   "--bk-ink-soft",
   "--bk-ink-faint",
   "--bk-divider",
@@ -246,9 +249,8 @@ export type BkVarName = (typeof BK_VAR_NAMES)[number];
  * never throws — malformed colour inputs silently fall back to the
  * corresponding `EMPTY_BRAND_KIT.colors` value.
  *
- * Emits exactly the variables listed in `BK_VAR_NAMES` (33 entries
- * grouped into the documented 40-token surface — some derived tokens
- * share a name with the base they derive from for resilience).
+ * Emits exactly the variables listed in `BK_VAR_NAMES` (34 entries
+ * grouped into the documented colour/typography/shape/motion surface).
  */
 export function buildBrandKitVars(kit: BrandKit): React.CSSProperties {
   const defaults = EMPTY_BRAND_KIT.colors;
@@ -272,7 +274,10 @@ export function buildBrandKitVars(kit: BrandKit): React.CSSProperties {
   const onColor = (c: Rgb): string => (luminance(c) < 0.5 ? "#ffffff" : inkHex);
 
   const primaryHoverHex = toHex(mix(primary, ink, 0.1));
+  const primaryActiveHex = toHex(mix(primary, ink, 0.18));
   const primarySoft = rgba(primary, 0.12);
+  const primaryDisabled = rgba(primary, 0.4);
+  const focusRing = rgba(primary, 0.5);
   const inkSoft = rgba(ink, 0.6);
   const inkFaint = rgba(ink, 0.25);
   const divider = rgba(ink, 0.1);
@@ -318,7 +323,10 @@ export function buildBrandKitVars(kit: BrandKit): React.CSSProperties {
     "--bk-on-secondary": onColor(secondary),
     "--bk-on-accent": onColor(accent),
     "--bk-primary-hover": primaryHoverHex,
+    "--bk-primary-active": primaryActiveHex,
     "--bk-primary-soft": primarySoft,
+    "--bk-primary-disabled": primaryDisabled,
+    "--bk-focus-ring": focusRing,
     "--bk-ink-soft": inkSoft,
     "--bk-ink-faint": inkFaint,
     "--bk-divider": divider,

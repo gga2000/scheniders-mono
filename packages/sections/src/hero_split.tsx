@@ -6,12 +6,14 @@
 // merchant can flip the layout per page.
 // =====================================================================
 
+import Image from "next/image";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import { StoreLink } from "./helpers/store-context";
 import {
   BentoCard,
   ChunkyButton,
+  Section,
   Sticker,
 } from "./helpers/primitives";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
@@ -74,7 +76,7 @@ function HeroSplit({
   const reverse = props.image_position === "left";
 
   return (
-    <section className="px-4 py-6 sm:py-10">
+    <Section bleed className="px-4 py-6 sm:py-10">
       <BentoCard
         bg={props.bg}
         size="lg"
@@ -82,25 +84,25 @@ function HeroSplit({
       >
         <div
           className={
-            "grid grid-cols-1 sm:grid-cols-2 gap-0 " +
-            (reverse ? "sm:[&>*:first-child]:order-2" : "")
+            "grid grid-cols-1 lg:grid-cols-2 gap-0 " +
+            (reverse ? "lg:[&>*:first-child]:order-2" : "")
           }
         >
           <div className="p-6 sm:p-10 flex flex-col justify-center">
             {eyebrow && (
-              <div className="mb-4">
+              <div className="mb-bk-sm">
                 <Sticker bg="pink" rotate={-3} size="sm">
                   {eyebrow}
                 </Sticker>
               </div>
             )}
-            <h1 className="font-display font-black text-4xl sm:text-5xl uppercase leading-[0.95] tracking-tight text-candy-ink">
+            <h1 className="font-display font-black text-bk-hero uppercase leading-[0.95] tracking-tight text-bk-ink max-w-[16ch] sm:max-w-2xl">
               {title}
             </h1>
-            <p className="mt-4 font-body text-base sm:text-lg text-candy-ink/80 max-w-md">
+            <p className="mt-bk-sm font-body text-base sm:text-lg text-bk-ink-soft max-w-md">
               {subtitle}
             </p>
-            <div className="mt-6">
+            <div className="mt-bk-md">
               <StoreLink href={props.cta_href} aria-label={ctaLabel}>
                 <ChunkyButton bg="pink" size="lg">
                   {ctaLabel}
@@ -108,12 +110,18 @@ function HeroSplit({
               </StoreLink>
             </div>
           </div>
-          <div className="relative min-h-[260px] sm:min-h-[420px] border-t-[3px] sm:border-t-0 sm:border-l-[3px] border-candy-ink">
+          <div
+            className="relative min-h-[260px] lg:min-h-[420px] border-t-[3px] lg:border-t-0 lg:border-l-[3px] border-candy-ink"
+            style={{ backgroundColor: "var(--bk-surface,#fff7ed)" }}
+          >
             {props.image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <Image
                 src={props.image_url}
                 alt=""
+                fill
+                priority
+                unoptimized
+                sizes="(max-width: 1024px) 100vw, 50vw"
                 className="absolute inset-0 w-full h-full object-cover"
               />
             ) : (
@@ -122,7 +130,7 @@ function HeroSplit({
           </div>
         </div>
       </BentoCard>
-    </section>
+    </Section>
   );
 }
 

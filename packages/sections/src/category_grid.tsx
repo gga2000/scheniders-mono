@@ -11,7 +11,8 @@ import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import {
   BentoCard,
-  ScribbleHeading,
+  Section,
+  SectionHeader,
 } from "./helpers/primitives";
 import { StoreLink } from "./helpers/store-context";
 import { i18nStringOptional } from "./_schema";
@@ -96,21 +97,17 @@ function CategoryGridRender({
 
   const colsClass =
     props.columns === 2
-      ? "grid-cols-2"
+      ? "grid-cols-2 lg:grid-cols-3"
       : props.columns === 4
-        ? "grid-cols-2 sm:grid-cols-4"
-        : "grid-cols-2 sm:grid-cols-3";
+        ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
+        : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4";
 
   const tints = ["mint", "butter", "lilac", "sky", "cream"] as const;
 
   return (
-    <section className="px-4 py-8">
-      {heading && (
-        <ScribbleHeading color="mint" className="mb-5">
-          {heading}
-        </ScribbleHeading>
-      )}
-      <div className={`grid ${colsClass} gap-3 sm:gap-4`}>
+    <Section>
+      {heading && <SectionHeader title={heading} color="mint" />}
+      <div className={`grid ${colsClass} gap-bk-sm sm:gap-bk-md`}>
         {items.map((c, i) => {
           const tint = tints[i % tints.length];
           const name = pickName(c, locale);
@@ -132,12 +129,13 @@ function CategoryGridRender({
                     src={c.image_url}
                     alt=""
                     fill
+                    priority={i < props.columns}
                     sizes={
                       props.columns === 4
-                        ? "(max-width: 640px) 50vw, 25vw"
+                        ? "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                         : props.columns === 2
-                          ? "50vw"
-                          : "(max-width: 640px) 50vw, 33vw"
+                          ? "(max-width: 1024px) 50vw, 33vw"
+                          : "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                     }
                     className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform"
                   />
@@ -153,7 +151,7 @@ function CategoryGridRender({
           );
         })}
       </div>
-    </section>
+    </Section>
   );
 }
 

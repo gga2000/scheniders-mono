@@ -11,6 +11,7 @@ import { resolveI18n } from "@scheniders/shared";
 import {
   BentoCard,
   ChunkyButton,
+  Section,
   Sticker,
 } from "./helpers/primitives";
 import { StoreLink } from "./helpers/store-context";
@@ -71,7 +72,7 @@ function CtaBannerRender({
     props.align === "center" ? "text-center items-center" : "text-left items-start";
 
   return (
-    <section className="px-4 py-8">
+    <Section>
       <BentoCard
         bg={props.bg_tint}
         size="lg"
@@ -96,7 +97,7 @@ function CtaBannerRender({
         )}
         <div
           className={
-            "relative z-10 p-8 sm:p-12 flex flex-col gap-4 " + alignClass
+            "relative z-10 p-bk-xl sm:p-bk-2xl flex flex-col gap-bk-sm " + alignClass
           }
           style={{
             color: props.background_image_url ? "white" : undefined,
@@ -109,7 +110,7 @@ function CtaBannerRender({
           )}
           <h2
             data-i18n-field="heading_i18n"
-            className="font-display font-black text-3xl sm:text-5xl uppercase leading-[0.95] tracking-tight max-w-2xl"
+            className="font-display font-black text-bk-h2 uppercase leading-[0.95] tracking-tight max-w-2xl"
             style={{
               fontFamily: "var(--bk-font-display, inherit)",
             }}
@@ -124,16 +125,16 @@ function CtaBannerRender({
               {sub}
             </p>
           )}
-          <div className="mt-2">
+          <div className="mt-bk-2xs">
             <StoreLink href={props.cta_href} data-i18n-field="cta_label_i18n">
-              <ChunkyButton bg="white" size="lg">
+              <ChunkyButton bg="pink" size="lg">
                 {ctaLabel}
               </ChunkyButton>
             </StoreLink>
           </div>
         </div>
       </BentoCard>
-    </section>
+    </Section>
   );
 }
 

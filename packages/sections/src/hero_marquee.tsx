@@ -12,6 +12,7 @@ import { StoreLink } from "./helpers/store-context";
 import {
   BentoCard,
   ChunkyButton,
+  Section,
 } from "./helpers/primitives";
 import { i18nStringSchema } from "./_schema";
 import { registerSection } from "./_registry";
@@ -60,11 +61,11 @@ function HeroMarquee({
   if (!text) return null;
 
   return (
-    <section className="px-4 py-6 sm:py-10">
+    <Section bleed className="px-4 py-6 sm:py-10">
       <BentoCard bg={props.bg} size="lg" className="p-0 overflow-hidden">
         <div className="py-8 sm:py-12">
           <div className="overflow-hidden whitespace-nowrap">
-            <div className="inline-block animate-marquee font-display font-black uppercase text-5xl sm:text-7xl leading-none tracking-tight">
+            <div className="inline-block animate-marquee font-display font-black uppercase text-bk-hero leading-none tracking-tight">
               {Array.from({ length: 3 }).map((_, i) => (
                 <span key={i} className="px-6">
                   {text}
@@ -72,7 +73,7 @@ function HeroMarquee({
               ))}
             </div>
           </div>
-          <div className="mt-8 flex justify-center">
+          <div className="mt-bk-lg flex justify-center">
             <StoreLink href={props.cta_href} aria-label={ctaLabel}>
               <ChunkyButton bg="white" size="lg">
                 {ctaLabel}
@@ -81,7 +82,7 @@ function HeroMarquee({
           </div>
         </div>
       </BentoCard>
-    </section>
+    </Section>
   );
 }
 

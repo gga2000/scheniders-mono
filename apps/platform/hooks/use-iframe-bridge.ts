@@ -11,17 +11,26 @@
 //
 // SECURITY NOTE
 // -------------
-// Origin checks are intentionally permissive in dev — the editor accepts
-// inbound messages from any origin and posts outbound with `"*"`. For
-// production hardening, allow-list the storefront origin via
-// `process.env.NEXT_PUBLIC_STOREFRONT_ORIGIN` and switch outbound `"*"`
-// to that origin so a malicious page hosted at the iframe URL can't
-// impersonate the storefront.
+// Both directions are pinned to the storefront origin (`STOREFRONT_ORIGIN`):
+// outbound `postMessage` targets it, and inbound messages from any other
+// origin are dropped. This stops a page hosted at the iframe URL from
+// impersonating the storefront. Deployed environments MUST set
+// `NEXT_PUBLIC_STOREFRONT_ORIGIN`; the dev fallback is the local storefront.
 // =====================================================================
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 import type { PageConfig, RuntimeContext } from "@scheniders/shared";
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* Trusted storefront origin                                            */
+/* ─────────────────────────────────────────────────────────────────── */
+
+// The preview iframe is served by the storefront app (port 3001 in dev).
+// In prod this MUST be set to the canonical storefront origin; the dev
+// fallback keeps the local preview working.
+const STOREFRONT_ORIGIN =
+    process.env.NEXT_PUBLIC_STOREFRONT_ORIGIN ?? "http://localhost:3001";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Types                                                                */
@@ -139,8 +148,7 @@ export function useIframeBridge(
             const win = iframeRef.current?.contentWindow;
             if (!win) return;
             try {
-                // TODO(prod): replace "*" with `process.env.NEXT_PUBLIC_STOREFRONT_ORIGIN`.
-                win.postMessage(msg, "*");
+                win.postMessage(msg, STOREFRONT_ORIGIN);
             } catch {
                 /* cross-origin send is best-effort */
             }
@@ -241,8 +249,8 @@ export function useIframeBridge(
         if (typeof window === "undefined") return;
 
         function onMessage(e: MessageEvent): void {
-            // TODO(prod): tighten with
-            //   if (!SAFE_STOREFRONT_ORIGINS.has(e.origin)) return;
+            // Only trust messages from the storefront preview origin.
+            if (e.origin !== STOREFRONT_ORIGIN) return;
             const data = e.data as { source?: string; type?: string } | null;
             if (!data || data.source !== "schn-preview") return;
             switch (data.type) {

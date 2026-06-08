@@ -14,7 +14,7 @@ import { useEffect, useState } from "react";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import { cn } from "./helpers/utils";
-import { MaterialIcon } from "./helpers/primitives";
+import { BrandMark, MaterialIcon } from "./helpers/primitives";
 import { StoreLink } from "./helpers/store-context";
 import { useCart } from "./helpers/cart-store";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
@@ -89,31 +89,7 @@ function SiteHeaderRender({
       className="flex items-center gap-2 min-w-0"
       onClick={() => setOpen(false)}
     >
-      {logo ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={logo} alt={wordmark} className="h-9 w-auto object-contain" />
-      ) : (
-        <span className="flex items-center gap-2">
-          <span
-            aria-hidden="true"
-            className="inline-block h-4 w-4 shrink-0 -rotate-6"
-            style={{
-              backgroundColor: "var(--bk-primary, #ff5a8a)",
-              border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
-              borderRadius: "calc(var(--bk-radius-card, 0.5rem) * 0.35)",
-            }}
-          />
-          <span
-            className="font-display font-black text-lg sm:text-xl uppercase tracking-tight truncate"
-            style={{
-              color: "var(--bk-ink, #1a1a1a)",
-              fontFamily: "var(--bk-font-display, inherit)",
-            }}
-          >
-            {wordmark}
-          </span>
-        </span>
-      )}
+      <BrandMark logoUrl={logo} name={wordmark} size="md" />
     </StoreLink>
   );
 
@@ -126,7 +102,7 @@ function SiteHeaderRender({
           "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
       }}
     >
-      <div className="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between gap-3">
+      <div className="mx-auto max-w-6xl px-4 min-h-16 flex items-center justify-between gap-3">
         {/* Left: mobile toggle + wordmark */}
         <div className="flex items-center gap-1 min-w-0">
           {navLinks.length > 0 && (
@@ -155,7 +131,7 @@ function SiteHeaderRender({
               {l.label}
               <span
                 aria-hidden="true"
-                className="absolute -bottom-1 left-0 h-[3px] w-0 transition-all duration-200 group-hover:w-full"
+                className="absolute -bottom-1 left-0 h-[var(--bk-border-thickness,3px)] w-0 transition-all duration-200 group-hover:w-full"
                 style={{ backgroundColor: "var(--bk-primary, #ff5a8a)" }}
               />
             </StoreLink>

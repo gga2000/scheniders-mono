@@ -9,6 +9,7 @@
 
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
+import { Section } from "./helpers/primitives";
 import { i18nStringSchema } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition } from "./_types";
@@ -88,7 +89,11 @@ function MarqueeStrip({
   );
 
   return (
-    <section className={`${BG_CLASS[props.bg]} border-y-[3px] border-candy-ink py-3 overflow-hidden`}>
+    <Section
+      bleed
+      density="dense"
+      className={`${BG_CLASS[props.bg]} border-y-[3px] border-candy-ink overflow-hidden`}
+    >
       <div
         className="inline-flex whitespace-nowrap animate-marquee"
         style={{ animationDuration: `${durationSec}s` }}
@@ -96,7 +101,7 @@ function MarqueeStrip({
         {series}
         {series}
       </div>
-    </section>
+    </Section>
   );
 }
 

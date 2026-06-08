@@ -14,6 +14,7 @@ import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import {
   BentoCard,
+  Section,
 } from "./helpers/primitives";
 import { formatPrice } from "./helpers/format";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
@@ -87,9 +88,9 @@ function FreeGiftStrip({
   );
 
   return (
-    <section className="px-4 py-4">
-      <BentoCard bg={unlocked ? "mint" : "butter"} size="sm" className="p-4 sm:p-5">
-        <div className="flex items-center gap-4">
+    <Section density="dense">
+      <BentoCard bg={unlocked ? "mint" : "butter"} size="sm" className="p-bk-sm sm:p-bk-md">
+        <div className="flex items-center gap-bk-sm">
           <div
             className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl border-[3px] border-candy-ink shrink-0 bg-white overflow-hidden"
             aria-hidden="true"
@@ -111,16 +112,19 @@ function FreeGiftStrip({
             <p className="font-display font-black text-sm sm:text-base uppercase leading-tight">
               {unlocked ? unlockedLabel : headingResolved}
             </p>
-            <div className="mt-2 h-2.5 rounded-full bg-white border-[3px] border-candy-ink overflow-hidden">
+            <div className="mt-bk-2xs h-2.5 rounded-full bg-white border-[3px] border-candy-ink overflow-hidden">
               <div
                 className="h-full bg-candy-pink transition-[width] duration-500"
-                style={{ width: `${pct}%` }}
+                style={{
+                  width: `${pct}%`,
+                  backgroundColor: "var(--bk-primary, #ff5a8a)",
+                }}
               />
             </div>
           </div>
         </div>
       </BentoCard>
-    </section>
+    </Section>
   );
 }
 

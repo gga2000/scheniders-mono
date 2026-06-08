@@ -7,6 +7,7 @@
 // straight into the editor.
 // =====================================================================
 
+import Image from "next/image";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import { StoreLink } from "./helpers/store-context";
@@ -14,6 +15,7 @@ import {
   BentoCard,
   ChunkyButton,
   ScribbleHeading,
+  Section,
   Sticker,
 } from "./helpers/primitives";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
@@ -69,31 +71,31 @@ function BrandStory({
   if (paragraphs.length === 0) return null;
 
   return (
-    <section className="px-4 py-10">
-      <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6 items-start">
+    <Section>
+      <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-bk-md items-start">
         <div className="max-w-2xl">
           {eyebrow && (
-            <div className="mb-4">
+            <div className="mb-bk-sm">
               <Sticker bg="mint" rotate={-2} size="sm">
                 {eyebrow}
               </Sticker>
             </div>
           )}
-          <ScribbleHeading color="butter" className="mb-6">
+          <ScribbleHeading color="butter" className="mb-bk-md">
             {title}
           </ScribbleHeading>
-          <div className="space-y-4">
+          <div className="space-y-bk-sm">
             {paragraphs.map((p, i) => (
               <p
                 key={i}
-                className="font-body text-base sm:text-lg leading-relaxed text-candy-ink/85"
+                className="font-body text-base sm:text-lg leading-relaxed text-bk-ink-soft"
               >
                 {p}
               </p>
             ))}
           </div>
           {linkLabel && props.link_href && (
-            <div className="mt-6">
+            <div className="mt-bk-md">
               <StoreLink href={props.link_href} aria-label={linkLabel}>
                 <ChunkyButton bg="pink" size="md">
                   {linkLabel}
@@ -109,10 +111,12 @@ function BrandStory({
           className="relative overflow-hidden p-0 min-h-[280px]"
         >
           {props.accent_image_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
               src={props.accent_image_url}
               alt=""
+              fill
+              unoptimized
+              sizes="(max-width: 1024px) 100vw, 40vw"
               className="absolute inset-0 w-full h-full object-cover"
             />
           ) : (
@@ -120,7 +124,7 @@ function BrandStory({
           )}
         </BentoCard>
       </div>
-    </section>
+    </Section>
   );
 }
 

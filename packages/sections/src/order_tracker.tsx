@@ -125,18 +125,27 @@ function OrderTrackerRender({
   }
 
   const inputCls =
-    "w-full rounded-xl border-[3px] border-candy-ink bg-white px-3 py-3 font-body text-base focus:outline-none";
+    "w-full bg-white px-3 py-3 font-body text-base focus:outline-none";
+  const inputStyle: React.CSSProperties = {
+    border:
+      "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+    borderRadius: "var(--bk-radius-input, 0.75rem)",
+    color: "var(--bk-ink, #1a1a1a)",
+    fontFamily: "var(--bk-font-body, inherit)",
+  };
+  const labelCls =
+    "block font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft mb-bk-2xs";
 
   return (
-    <section className="px-4 py-6">
-      <BentoCard bg="butter" size="md" className="p-5 sm:p-6">
-        <ScribbleHeading color="pink" className="mb-4">
+    <section className="px-4 py-bk-section-dense">
+      <BentoCard bg="butter" size="md" className="p-bk-lg sm:p-bk-xl">
+        <ScribbleHeading color="pink" className="mb-bk-md">
           {heading}
         </ScribbleHeading>
-        <form onSubmit={onSubmit} className="space-y-3">
+        <form onSubmit={onSubmit} className="space-y-bk-sm">
           {(props.lookup_method === "phone" || props.lookup_method === "both") && (
             <label className="block">
-              <span className="block font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70 mb-1">
+              <span className={labelCls}>
                 {t ? "رقم الهاتف" : "Phone"}
               </span>
               <input
@@ -145,6 +154,7 @@ function OrderTrackerRender({
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className={inputCls}
+                style={inputStyle}
                 required={props.lookup_method === "phone"}
               />
             </label>
@@ -152,7 +162,7 @@ function OrderTrackerRender({
           {(props.lookup_method === "order_number" ||
             props.lookup_method === "both") && (
             <label className="block">
-              <span className="block font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70 mb-1">
+              <span className={labelCls}>
                 {t ? "رقم الطلب" : "Order number"}
               </span>
               <input
@@ -160,6 +170,7 @@ function OrderTrackerRender({
                 value={orderNumber}
                 onChange={(e) => setOrderNumber(e.target.value)}
                 className={inputCls}
+                style={inputStyle}
                 required={props.lookup_method === "order_number"}
               />
             </label>
@@ -178,40 +189,50 @@ function OrderTrackerRender({
                 : "Find order"}
           </ChunkyButton>
           {status === "error" && (
-            <p className="font-label font-bold text-sm text-candy-pink">
+            <p className="font-label font-bold text-sm text-bk-danger">
               {t ? "لم نجد الطلب." : "We couldn't find that order."}
             </p>
           )}
         </form>
 
         {order && status === "ok" && (
-          <div className="mt-5 pt-5 border-t-[3px] border-dashed border-candy-ink/15">
-            <p className="font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70">
+          <div className="mt-bk-lg pt-bk-lg border-t-[3px] border-dashed border-bk-divider">
+            <p className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
               {t ? "رقم الطلب" : "Order"}
             </p>
-            <p className="font-display font-black text-xl">{order.order_number}</p>
+            <p className="font-display font-black text-xl text-bk-ink">{order.order_number}</p>
             {order.customer_name && (
-              <p className="font-body text-sm text-candy-ink/80 mt-1">
+              <p className="font-body text-sm text-bk-ink-soft mt-bk-2xs">
                 {order.customer_name}
                 {order.governorate ? ` — ${order.governorate}` : ""}
               </p>
             )}
             {props.show_timeline && (
-              <ol className="mt-4 space-y-2">
+              <ol className="mt-bk-md space-y-bk-xs">
                 {STATUS_STEPS.map((step, i) => {
                   const reached = i <= statusIndex(order.status);
                   const isCurrent = i === statusIndex(order.status);
                   return (
                     <li
                       key={step}
-                      className="flex items-center gap-3"
+                      className="flex items-center gap-bk-sm"
                       aria-current={isCurrent ? "step" : undefined}
                     >
                       <span
-                        className={
-                          "w-9 h-9 rounded-xl border-[3px] border-candy-ink flex items-center justify-center shrink-0 " +
-                          (reached ? "bg-candy-pink text-white" : "bg-white")
-                        }
+                        className="w-9 h-9 flex items-center justify-center shrink-0"
+                        style={{
+                          backgroundColor: isCurrent
+                            ? "var(--bk-primary, #ff5a8a)"
+                            : reached
+                              ? "var(--bk-success, #7cf0bd)"
+                              : "#ffffff",
+                          color: isCurrent
+                            ? "var(--bk-on-primary, #ffffff)"
+                            : "var(--bk-ink, #1a1a1a)",
+                          border:
+                            "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+                          borderRadius: "var(--bk-radius-input, 0.75rem)",
+                        }}
                       >
                         <MaterialIcon
                           name={reached ? STATUS_LABEL[step].icon : "circle"}
@@ -221,7 +242,7 @@ function OrderTrackerRender({
                       <span
                         className={
                           "font-display font-black uppercase text-sm " +
-                          (reached ? "text-candy-ink" : "text-candy-ink/40")
+                          (reached ? "text-bk-ink" : "text-bk-ink-faint")
                         }
                       >
                         {t ? STATUS_LABEL[step].ar : STATUS_LABEL[step].en}

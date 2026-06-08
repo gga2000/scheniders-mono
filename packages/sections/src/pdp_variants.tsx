@@ -85,13 +85,19 @@ function PdpVariantsRender({
     return (
       <section className="px-4 py-4">
         <label className="block">
-          <span className="block font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70 mb-2">
+          <span className="block font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft mb-bk-xs">
             {labelText}
           </span>
           <select
             value={selected ?? ""}
             onChange={(e) => setSelected(e.target.value || null)}
-            className="w-full rounded-xl border-[3px] border-candy-ink bg-white px-4 py-3 font-body text-base focus:outline-none focus:ring-0"
+            className="w-full bg-white px-4 py-3 font-body text-base focus:outline-none focus:ring-0"
+            style={{
+              color: "var(--bk-ink, #1a1a1a)",
+              border:
+                "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+              borderRadius: "var(--bk-radius-input, 0.75rem)",
+            }}
           >
             {visible.map((v) => {
               const oos = (v.stock_quantity ?? 1) <= 0;
@@ -115,13 +121,14 @@ function PdpVariantsRender({
   if (props.layout === "swatches") {
     return (
       <section className="px-4 py-4">
-        <p className="font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70 mb-2">
+        <p className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft mb-bk-xs">
           {labelText}
         </p>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-bk-sm">
           {visible.map((v) => {
             const oos = (v.stock_quantity ?? 1) <= 0;
             const colour = v.swatch_hex || labelToColour(v.name);
+            const isSelected = selected === v.id;
             return (
               <button
                 key={v.id}
@@ -130,16 +137,25 @@ function PdpVariantsRender({
                 onClick={() => setSelected(v.id)}
                 title={v.name}
                 aria-label={v.name}
-                aria-pressed={selected === v.id}
+                aria-pressed={isSelected}
                 className={cn(
-                  "w-12 h-12 rounded-full border-[3px] border-candy-ink shadow-bento-sm relative",
-                  selected === v.id && "ring-4 ring-candy-pink/40",
+                  "w-12 h-12 rounded-full relative",
                   oos && "opacity-50 line-through",
                 )}
-                style={{ background: colour }}
+                style={{
+                  background: colour,
+                  border:
+                    "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+                  boxShadow: isSelected
+                    ? "0 0 0 4px color-mix(in srgb, var(--bk-primary, #ff5a8a) 40%, transparent), var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)"
+                    : "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
+                }}
               >
                 {oos && (
-                  <span className="absolute inset-0 flex items-center justify-center font-display font-black text-[10px] text-candy-ink uppercase">
+                  <span
+                    className="absolute inset-0 flex items-center justify-center font-display font-black text-[10px] uppercase"
+                    style={{ color: "var(--bk-ink, #1a1a1a)" }}
+                  >
                     ✕
                   </span>
                 )}
@@ -154,10 +170,10 @@ function PdpVariantsRender({
   // Buttons (default)
   return (
     <section className="px-4 py-4">
-      <p className="font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70 mb-2">
+      <p className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft mb-bk-xs">
         {labelText}
       </p>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-bk-xs">
         {visible.map((v) => {
           const oos = (v.stock_quantity ?? 1) <= 0;
           const isSelected = selected === v.id;
@@ -169,10 +185,22 @@ function PdpVariantsRender({
               onClick={() => setSelected(v.id)}
               aria-pressed={isSelected}
               className={cn(
-                "px-4 py-2 rounded-xl border-[3px] border-candy-ink font-display font-black text-sm uppercase shadow-bento-sm transition-all",
-                isSelected ? "bg-candy-pink text-white" : "bg-white",
+                "px-4 py-2 font-display font-black text-sm uppercase transition-all",
                 oos && "opacity-50 line-through",
               )}
+              style={{
+                backgroundColor: isSelected
+                  ? "var(--bk-primary, #ff5a8a)"
+                  : "#ffffff",
+                color: isSelected
+                  ? "var(--bk-on-primary, #ffffff)"
+                  : "var(--bk-ink, #1a1a1a)",
+                border:
+                  "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+                borderRadius: "var(--bk-radius-input, 0.75rem)",
+                boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
+                fontFamily: "var(--bk-font-display, inherit)",
+              }}
             >
               {v.name}
             </button>

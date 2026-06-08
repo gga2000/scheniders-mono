@@ -82,22 +82,31 @@ function TrackOrderLookupRender({
   }
 
   const inputCls =
-    "w-full rounded-xl border-[3px] border-candy-ink bg-white px-3 py-3 font-body text-base focus:outline-none";
+    "w-full bg-white px-3 py-3 font-body text-base focus:outline-none";
+  const inputStyle: React.CSSProperties = {
+    border:
+      "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+    borderRadius: "var(--bk-radius-input, 0.75rem)",
+    color: "var(--bk-ink, #1a1a1a)",
+    fontFamily: "var(--bk-font-body, inherit)",
+  };
+  const labelCls =
+    "block font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft mb-bk-2xs";
 
   return (
-    <section className="px-4 py-6">
-      <BentoCard bg="sky" size="md" className="p-5 sm:p-6">
-        <ScribbleHeading color="pink" className="mb-2">
+    <section className="px-4 py-bk-section-dense">
+      <BentoCard bg="sky" size="md" className="p-bk-lg sm:p-bk-xl">
+        <ScribbleHeading color="pink" className="mb-bk-xs">
           {heading}
         </ScribbleHeading>
         {subheading && (
-          <p className="font-body text-sm text-candy-ink/80 mb-4">
+          <p className="font-body text-sm text-bk-ink-soft mb-bk-md">
             {subheading}
           </p>
         )}
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-bk-sm">
           <label className="block">
-            <span className="block font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70 mb-1">
+            <span className={labelCls}>
               {t ? "رقم الهاتف" : "Phone"}
             </span>
             <input
@@ -106,11 +115,12 @@ function TrackOrderLookupRender({
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               className={inputCls}
+              style={inputStyle}
               required
             />
           </label>
           <label className="block">
-            <span className="block font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70 mb-1">
+            <span className={labelCls}>
               {t ? "رقم الطلب" : "Order number"}
             </span>
             <input
@@ -118,6 +128,7 @@ function TrackOrderLookupRender({
               value={orderNumber}
               onChange={(e) => setOrderNumber(e.target.value)}
               className={inputCls}
+              style={inputStyle}
               required
             />
           </label>

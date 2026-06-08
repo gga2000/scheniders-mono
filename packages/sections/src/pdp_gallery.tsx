@@ -69,7 +69,7 @@ function PdpGalleryRender({
   if (props.layout === "grid") {
     return (
       <section className="px-4 py-6">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-bk-sm md:gap-bk-md">
           {images.slice(0, 6).map((src, i) => (
             <BentoCard
               key={`${i}-${src}`}
@@ -94,19 +94,19 @@ function PdpGalleryRender({
   if (props.layout === "carousel") {
     return (
       <section className="py-6">
-        <div className="flex gap-3 overflow-x-auto px-4 snap-x snap-mandatory scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex gap-bk-sm overflow-x-auto px-4 snap-x snap-mandatory scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {images.map((src, i) => (
             <BentoCard
               key={`${i}-${src}`}
               bg="white"
               size="md"
-              className="p-0 overflow-hidden shrink-0 snap-center w-[85%] aspect-square relative"
+              className="p-0 overflow-hidden shrink-0 snap-center w-[85%] md:w-[55%] lg:w-[45%] aspect-square relative"
             >
               <Image
                 src={src}
                 alt={productName}
                 fill
-                sizes="85vw"
+                sizes="(max-width: 768px) 85vw, 45vw"
                 className="object-cover"
               />
             </BentoCard>
@@ -142,13 +142,13 @@ function PdpGalleryRender({
         </button>
       </BentoCard>
       {props.show_thumbnails && images.length > 1 && (
-        <div className="mt-3 flex gap-2 overflow-x-auto scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="mt-bk-sm flex gap-bk-xs overflow-x-auto scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {images.map((src, i) => (
             <button
               key={`${i}-${src}`}
               type="button"
               onClick={() => setActive(i)}
-              className="shrink-0 w-16 h-16 overflow-hidden relative"
+              className="shrink-0 w-16 h-16 md:w-20 md:h-20 overflow-hidden relative"
               style={{
                 border:
                   "var(--bk-border-thickness, 3px) solid " +
@@ -168,7 +168,7 @@ function PdpGalleryRender({
                 src={src}
                 alt=""
                 fill
-                sizes="64px"
+                sizes="(max-width: 768px) 64px, 80px"
                 className="object-cover"
               />
             </button>

@@ -1313,7 +1313,15 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
     const setOgImage = (v: string | undefined): void => patch("identity", { og_image_url: v });
 
     /* ── Colors helpers ───────────────────────────────────────────── */
-    const setColor = (k: keyof BrandColors, v: string): void => patch("colors", { [k]: v } as Partial<BrandColors>);
+    const setColor = (k: keyof BrandColors, v: string): void => {
+        // Guard the data sink: never persist a malformed hex. Otherwise an
+        // invalid value round-trips to Supabase and then renders as the candy
+        // default on reload (silent colour loss). Inputs already normalize on
+        // their own, but this keeps the invariant true for every caller.
+        const hex = v.trim().toLowerCase();
+        if (!isValidHex(hex)) return;
+        patch("colors", { [k]: hex } as Partial<BrandColors>);
+    };
     const setAllColors = (next: BrandColors): void => onChange({ ...value, colors: next });
 
     /* ── Typography helpers ───────────────────────────────────────── */

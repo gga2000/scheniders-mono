@@ -84,8 +84,8 @@ describe("runHealthChecks — empty config", () => {
     const empty = freshEmpty();
     const report = runHealthChecks(empty);
 
-    it("evaluates 30 checks", () => {
-        expect(report.checks).toHaveLength(30);
+    it("evaluates 31 checks", () => {
+        expect(report.checks).toHaveLength(31);
     });
 
     it("scores below 30", () => {
@@ -175,6 +175,51 @@ describe("runHealthChecks — hero image content rule", () => {
         const r = runHealthChecks(cfg);
         const c = r.checks.find((c) => c.id === "at_least_one_image_per_hero");
         expect(c?.status).toBe("warn");
+    });
+});
+
+describe("runHealthChecks — translation completeness rule", () => {
+    it("passes when only the default locale is enabled (no secondary to translate)", () => {
+        const cfg = fullyPopulatedConfig(); // en-only, enabled=[en]
+        const c = runHealthChecks(cfg).checks.find(
+            (c) => c.id === "translations_complete",
+        );
+        expect(c?.status).toBe("pass");
+    });
+
+    it("warns (without blocking) when an enabled secondary locale is mostly untranslated", () => {
+        const cfg = fullyPopulatedConfig();
+        cfg.default_locale = "ar";
+        cfg.enabled_locales = ["ar", "en"];
+        // Home has Arabic i18n content but English is missing.
+        setPage(cfg, "home", [
+            s("hero_image", {
+                title_i18n: { ar: "مرحبا بكم" },
+                subtitle_i18n: { ar: "تسوّق الآن" },
+                image_url: "https://cdn/hero.jpg",
+            }),
+        ]);
+        const c = runHealthChecks(cfg).checks.find(
+            (c) => c.id === "translations_complete",
+        );
+        expect(c?.status).toBe("warn");
+        expect(c?.blocks_publish).not.toBe(true);
+    });
+
+    it("passes when every enabled locale is fully translated", () => {
+        const cfg = fullyPopulatedConfig();
+        cfg.default_locale = "ar";
+        cfg.enabled_locales = ["ar", "en"];
+        setPage(cfg, "home", [
+            s("hero_image", {
+                title_i18n: { ar: "مرحبا", en: "Welcome" },
+                image_url: "https://cdn/hero.jpg",
+            }),
+        ]);
+        const c = runHealthChecks(cfg).checks.find(
+            (c) => c.id === "translations_complete",
+        );
+        expect(c?.status).toBe("pass");
     });
 });
 

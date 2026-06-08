@@ -140,26 +140,36 @@ function ExitIntentOfferRender({
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-md"
       >
-        <BentoCard bg="butter" size="md" className="p-6 relative">
+        <BentoCard bg="butter" size="md" className="p-bk-lg relative">
           <button
             type="button"
             onClick={dismiss}
             aria-label={locale === "ar" ? "إغلاق" : "Close"}
-            className="absolute top-3 right-3 w-9 h-9 rounded-xl border-[3px] border-candy-ink bg-white flex items-center justify-center"
+            className="absolute top-3 right-3 w-9 h-9 bg-white flex items-center justify-center"
+            style={{
+              border:
+                "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+              borderRadius: "var(--bk-radius-input, 0.75rem)",
+            }}
           >
             <MaterialIcon name="close" />
           </button>
           <div id="exit-intent-heading">
-            <ScribbleHeading color="pink" className="mb-3">
+            <ScribbleHeading color="pink" className="mb-bk-xs">
               {heading}
             </ScribbleHeading>
           </div>
-          <p className="font-body text-base text-candy-ink/85 mb-4">{body}</p>
+          <p className="font-body text-base text-bk-ink-soft mb-bk-sm">{body}</p>
           {props.discount_code && (
             <button
               type="button"
               onClick={copyCode}
-              className="w-full mb-4 rounded-xl border-[3px] border-dashed border-candy-ink bg-white px-4 py-3 text-center font-display font-black text-2xl uppercase tracking-widest"
+              className="w-full mb-bk-sm bg-white px-4 py-3 text-center font-display font-black text-2xl uppercase tracking-widest"
+              style={{
+                border:
+                  "var(--bk-border-thickness, 3px) dashed var(--bk-ink, #1a1a1a)",
+                borderRadius: "var(--bk-radius-input, 0.75rem)",
+              }}
               aria-label={
                 locale === "ar"
                   ? `انسخ الكود ${props.discount_code}`
@@ -167,7 +177,7 @@ function ExitIntentOfferRender({
               }
             >
               {props.discount_code}
-              <span className="ml-2 font-label font-bold text-xs text-candy-ink/60 normal-case">
+              <span className="ml-2 font-label font-bold text-xs text-bk-ink-faint normal-case">
                 {copied
                   ? locale === "ar"
                     ? "تم النسخ"

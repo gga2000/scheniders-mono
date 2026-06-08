@@ -36,6 +36,8 @@ interface Props {
   storeOrigin?: string;
   /** Active locale — switches the WhatsApp template language. */
   locale?: LocaleCode;
+  /** Eager-load the image (above-the-fold cards) to improve LCP. */
+  priority?: boolean;
 }
 
 const TINTS: Tint[] = ["mint", "lilac", "butter", "sky"];
@@ -49,6 +51,7 @@ export function SchneidersProductCard({
   whatsappPhone,
   storeOrigin,
   locale = "en",
+  priority = false,
 }: Props) {
   const resolvedTint = tint ?? TINTS[index % TINTS.length];
   const onSale =
@@ -94,11 +97,15 @@ export function SchneidersProductCard({
             src={product.image_url}
             alt={product.name}
             fill
-            sizes="(max-width: 768px) 50vw, 25vw"
-            className="object-cover mix-blend-multiply"
+            priority={priority}
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            className={cn(
+              "object-cover mix-blend-multiply",
+              !inStock && "opacity-60 grayscale",
+            )}
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-candy-ink/40 font-display font-bold text-sm uppercase">
+          <div className="absolute inset-0 flex items-center justify-center text-bk-ink-faint font-display font-bold text-sm uppercase">
             No image
           </div>
         )}
@@ -112,7 +119,7 @@ export function SchneidersProductCard({
       </StoreLink>
 
       <StoreLink href={`/products/${product.slug ?? product.id}`} className="block mb-3">
-        <h3 className="font-body font-bold text-base text-candy-ink line-clamp-2 leading-tight">
+        <h3 className="font-body font-bold text-base text-bk-ink line-clamp-2 leading-tight">
           {product.name}
         </h3>
       </StoreLink>
@@ -120,11 +127,11 @@ export function SchneidersProductCard({
       <div className="flex items-end justify-between mb-3 mt-auto">
         <div>
           {onSale && (
-            <div className="font-body font-medium text-xs text-candy-ink/40 line-through">
+            <div className="font-body font-medium text-xs text-bk-ink-faint line-through">
               {formatPrice(product.compare_at_price!)}
             </div>
           )}
-          <div className="font-display font-black text-xl text-candy-ink">
+          <div className="font-display font-black text-xl text-bk-ink">
             {formatPrice(product.price)}
           </div>
         </div>

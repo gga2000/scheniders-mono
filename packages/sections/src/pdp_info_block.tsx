@@ -9,6 +9,7 @@ import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import {
   ScribbleHeading,
+  Section,
   Sticker,
   MaterialIcon,
 } from "./helpers/primitives";
@@ -59,9 +60,9 @@ function PdpInfoBlockRender({
   const lowStock = available > 0 && available <= 5 ? available : null;
 
   return (
-    <section className="px-4 py-6">
-      <div className="space-y-3">
-        <div className="flex items-start gap-3 flex-wrap">
+    <Section>
+      <div className="space-y-bk-sm">
+        <div className="flex items-start gap-bk-sm flex-wrap">
           <ScribbleHeading color="pink" as="h1" className="flex-1 min-w-0">
             {product.name}
           </ScribbleHeading>
@@ -73,28 +74,28 @@ function PdpInfoBlockRender({
         </div>
         {props.show_5_star_rating && (
           <div
-            className="flex items-center gap-1 text-candy-pink"
+            className="flex items-center gap-1 text-bk-primary"
             aria-label="5 star rating"
           >
             {[0, 1, 2, 3, 4].map((i) => (
               <MaterialIcon key={i} name="star" className="text-xl" />
             ))}
-            <span className="ml-1 font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70">
+            <span className="ml-1 font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
               {locale === "ar" ? "5.0 من 5" : "5.0 / 5"}
             </span>
           </div>
         )}
-        <div className="flex items-baseline gap-3 flex-wrap">
-          <span className="font-display font-black text-3xl sm:text-4xl text-candy-ink">
+        <div className="flex items-baseline gap-bk-sm flex-wrap">
+          <span className="font-display font-black text-3xl sm:text-4xl text-bk-ink">
             {formatPrice(product.price)}
           </span>
           {onSale && product.compare_at_price != null && (
-            <span className="font-body text-lg text-candy-ink/50 line-through">
+            <span className="font-body text-lg text-bk-ink-faint line-through">
               {formatPrice(product.compare_at_price)}
             </span>
           )}
           {savings && (
-            <span className="font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-pink">
+            <span className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-primary">
               {locale === "ar"
                 ? `وفّر ${savings}`
                 : `Save ${savings}`}
@@ -102,7 +103,7 @@ function PdpInfoBlockRender({
           )}
         </div>
         {props.show_stock_urgency && lowStock != null && (
-          <p className="font-label font-bold text-sm uppercase tracking-[0.15em] text-candy-pink inline-flex items-center gap-2">
+          <p className="font-label font-bold text-sm uppercase tracking-[0.15em] text-bk-primary inline-flex items-center gap-bk-xs">
             <MaterialIcon name="local_fire_department" className="text-xl" />
             {locale === "ar"
               ? `بقي ${lowStock} فقط`
@@ -110,12 +111,12 @@ function PdpInfoBlockRender({
           </p>
         )}
         {props.show_sku && product.sku && (
-          <p className="font-label text-xs uppercase tracking-[0.2em] text-candy-ink/60">
+          <p className="font-label text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
             {locale === "ar" ? "الرمز" : "SKU"}: {product.sku}
           </p>
         )}
       </div>
-    </section>
+    </Section>
   );
 }
 

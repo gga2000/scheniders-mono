@@ -68,25 +68,25 @@ function CartSummaryRender({
   const total = subtotal + delivery;
 
   return (
-    <section className="px-4 py-6">
-      <BentoCard bg="white" size="md" className="p-5 sm:p-6">
-        <ScribbleHeading color="lilac" className="mb-4">
+    <section className="px-4 py-bk-section-dense">
+      <BentoCard bg="white" size="md" className="p-bk-lg sm:p-bk-xl">
+        <ScribbleHeading color="lilac" className="mb-bk-md">
           {heading}
         </ScribbleHeading>
-        <dl className="space-y-2 font-body text-sm">
+        <dl className="space-y-bk-xs font-body text-sm">
           <div className="flex justify-between">
-            <dt className="text-candy-ink/70">
+            <dt className="text-bk-ink-soft">
               {locale === "ar" ? "المجموع الفرعي" : "Subtotal"}
             </dt>
-            <dd className="font-display font-black">
+            <dd className="font-display font-black text-bk-ink">
               {formatPrice(subtotal)}
             </dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-candy-ink/70">
+            <dt className="text-bk-ink-soft">
               {locale === "ar" ? "التوصيل" : "Delivery"}
             </dt>
-            <dd className="font-display font-black">
+            <dd className="font-display font-black text-bk-ink">
               {delivery === 0
                 ? locale === "ar"
                   ? "مجاني"
@@ -94,8 +94,10 @@ function CartSummaryRender({
                 : formatPrice(delivery)}
             </dd>
           </div>
-          <div className="flex justify-between pt-2 border-t-[3px] border-dashed border-candy-ink/15">
-            <dt className="font-display font-black uppercase">
+          <div
+            className="flex justify-between pt-bk-xs border-t-[3px] border-dashed border-bk-divider"
+          >
+            <dt className="font-display font-black uppercase text-bk-ink">
               {locale === "ar" ? "المجموع" : "Total"}
             </dt>
             <dd
@@ -110,14 +112,14 @@ function CartSummaryRender({
           </div>
         </dl>
         {props.show_promo_input && (
-          <div className="mt-4 space-y-2">
+          <div className="mt-bk-md space-y-bk-xs">
             <label
               htmlFor="cart-promo-input"
-              className="block font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/70"
+              className="block font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft"
             >
               {locale === "ar" ? "كود الخصم" : "Promo code"}
             </label>
-            <div className="flex gap-2">
+            <div className="flex gap-bk-xs">
               <input
                 id="cart-promo-input"
                 type="text"
@@ -148,20 +150,20 @@ function CartSummaryRender({
               </ChunkyButton>
             </div>
             {promoStatus === "invalid" && (
-              <p className="font-label font-bold text-xs text-candy-pink">
+              <p className="font-label font-bold text-xs text-bk-danger">
                 {locale === "ar"
                   ? "الكود غير صالح"
                   : "Code not valid"}
               </p>
             )}
             {promoStatus === "applied" && (
-              <p className="font-label font-bold text-xs text-candy-ink">
+              <p className="font-label font-bold text-xs text-bk-ink">
                 {locale === "ar" ? "تم تطبيق الكود" : "Code applied"}
               </p>
             )}
           </div>
         )}
-        <div className="mt-5">
+        <div className="mt-bk-lg">
           <StoreLink href="/checkout">
             <ChunkyButton bg="pink" size="lg" fullWidth disabled={empty}>
               {checkoutLabel}

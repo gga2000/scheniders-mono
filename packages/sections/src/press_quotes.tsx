@@ -5,11 +5,13 @@
 // on mobile, evenly-spaced grid on desktop.
 // =====================================================================
 
+import Image from "next/image";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import {
   BentoCard,
-  ScribbleHeading,
+  Section,
+  SectionHeader,
 } from "./helpers/primitives";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
@@ -71,13 +73,9 @@ function PressQuotes({
   if (!props.items.length) return null;
 
   return (
-    <section className="px-4 py-8">
-      {heading && (
-        <ScribbleHeading color="sky" className="mb-6">
-          {heading}
-        </ScribbleHeading>
-      )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <Section>
+      {heading && <SectionHeader title={heading} color="sky" />}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-bk-sm">
         {props.items.map((item, i) => {
           const quote = resolveI18n(item.quote_i18n, locale);
           return (
@@ -86,30 +84,35 @@ function PressQuotes({
               bg="white"
               size="sm"
               rotate={i % 2 === 0 ? -0.5 : 0.5}
-              className="p-5 flex flex-col gap-3"
+              className="p-5 flex flex-col gap-bk-xs"
             >
-              <div className="flex items-center gap-3 min-h-[28px]">
+              <div className="flex items-center gap-bk-xs min-h-[28px]">
                 {item.logo_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  // Press logos come from arbitrary outlet hosts not in the
+                  // storefront image allowlist, so `unoptimized` bypasses the
+                  // Next optimizer while keeping next/image layout semantics.
+                  <Image
                     src={item.logo_url}
                     alt={item.outlet_name}
+                    width={120}
+                    height={24}
+                    unoptimized
                     className="h-6 w-auto"
                   />
                 ) : (
-                  <div className="font-display font-black text-sm uppercase tracking-wide text-candy-ink/70">
+                  <div className="font-display font-black text-sm uppercase tracking-wide text-bk-ink-soft">
                     {item.outlet_name}
                   </div>
                 )}
               </div>
-              <p className="font-body text-sm sm:text-base leading-relaxed text-candy-ink/85">
+              <p className="font-body text-sm sm:text-base leading-relaxed text-bk-ink-soft">
                 &ldquo;{quote}&rdquo;
               </p>
             </BentoCard>
           );
         })}
       </div>
-    </section>
+    </Section>
   );
 }
 

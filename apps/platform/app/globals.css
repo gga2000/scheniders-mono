@@ -1,6 +1,9 @@
 @import "tailwindcss";
 
 @source "../../../packages/ui/src/**/*.{ts,tsx}";
+/* The store-builder live preview renders @scheniders/sections inline, so scan
+   their source to generate section-only utility classes (e.g. py-bk-section). */
+@source "../../../packages/sections/src/**/*.{ts,tsx}";
 
 @plugin "tailwindcss-animate";
 
@@ -19,6 +22,59 @@ body {
 /* Override Tailwind v4 dark mode to use class-based selector
    instead of prefers-color-scheme, matching our ThemeProvider config */
 @variant dark (&:where(.dark, .dark *));
+
+/* ---- Static design-system tokens (NOT per-tenant) ----
+   Mirror of apps/storefront/app/globals.css. The store-builder live preview
+   renders @scheniders/sections inline, so these must resolve identically here.
+   Per-tenant identity lives in --bk-* emitted by buildBrandKitVars. */
+:root {
+  /* Spacing scale (8px base) */
+  --bk-space-2xs: 0.25rem;
+  --bk-space-xs: 0.5rem;
+  --bk-space-sm: 0.75rem;
+  --bk-space-md: 1rem;
+  --bk-space-lg: 1.5rem;
+  --bk-space-xl: 2rem;
+  --bk-space-2xl: 3rem;
+  /* Vertical section rhythm — fluid, density-aware */
+  --bk-section-y: clamp(2rem, 5vw, 4rem);
+  --bk-section-y-dense: clamp(1rem, 3vw, 1.75rem);
+  --bk-section-y-generous: clamp(3rem, 8vw, 6rem);
+  /* Opacity scale */
+  --bk-opacity-subtle: 0.08;
+  --bk-opacity-soft: 0.3;
+  --bk-opacity-medium: 0.6;
+  --bk-opacity-strong: 0.85;
+  /* Fluid type steps (display/headline) */
+  --bk-text-hero: clamp(2.5rem, 7vw, 4.5rem);
+  --bk-text-h1: clamp(2rem, 5vw, 3rem);
+  --bk-text-h2: clamp(1.5rem, 3.5vw, 2.25rem);
+  --bk-text-h3: clamp(1.125rem, 2.5vw, 1.5rem);
+}
+
+/* Generate the bk-* spacing/type utilities (v4 CSS-first). `inline` makes each
+   utility resolve the raw --bk-* var directly, keeping one token surface shared
+   with the storefront's JS-config equivalents (same class names). */
+@theme inline {
+  --spacing-bk-2xs: var(--bk-space-2xs);
+  --spacing-bk-xs: var(--bk-space-xs);
+  --spacing-bk-sm: var(--bk-space-sm);
+  --spacing-bk-md: var(--bk-space-md);
+  --spacing-bk-lg: var(--bk-space-lg);
+  --spacing-bk-xl: var(--bk-space-xl);
+  --spacing-bk-2xl: var(--bk-space-2xl);
+  --spacing-bk-section: var(--bk-section-y);
+  --spacing-bk-section-dense: var(--bk-section-y-dense);
+  --spacing-bk-section-generous: var(--bk-section-y-generous);
+  --text-bk-hero: var(--bk-text-hero);
+  --text-bk-hero--line-height: 1;
+  --text-bk-h1: var(--bk-text-h1);
+  --text-bk-h1--line-height: 1.1;
+  --text-bk-h2: var(--bk-text-h2);
+  --text-bk-h2--line-height: 1.15;
+  --text-bk-h3: var(--bk-text-h3);
+  --text-bk-h3--line-height: 1.25;
+}
 
 /* ============================================
    Store Builder v2 — "Elevated Light Glass" chrome
@@ -3181,4 +3237,30 @@ body {
     --vault-glow: rgba(52, 211, 153, 0.22);
     /* The cyan grid is supplied by `.dark main`; the emerald
        auras layer beneath it for depth without fighting it. */
+}
+
+/* ===========================
+   Scroll-reveal motion (mirror of apps/storefront/app/globals.css)
+   Sections fade + rise as they scroll into view. Pure CSS scroll-driven
+   animation: degrades to "always visible" where unsupported, respects OS
+   reduced-motion, and only runs under a [data-bk-motion="auto"] root.
+   =========================== */
+@keyframes schn-reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    [data-bk-motion="auto"] .schn-section {
+      animation: schn-reveal-up linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 25%;
+    }
+  }
 }

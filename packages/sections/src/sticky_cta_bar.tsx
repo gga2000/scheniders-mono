@@ -75,13 +75,17 @@ function StickyCtaBarRender({
 
   return (
     <div
-      className="fixed bottom-0 inset-x-0 z-40 sm:hidden bg-white/95 backdrop-blur border-t-[3px] border-candy-ink p-3 flex items-center gap-3 shadow-[0_-6px_0_0_rgba(26,26,26,0.06)]"
+      className="fixed bottom-0 inset-x-0 z-40 sm:hidden bg-white/95 backdrop-blur p-bk-xs flex items-center gap-bk-xs shadow-[0_-6px_0_0_rgba(26,26,26,0.06)]"
+      style={{
+        borderTop:
+          "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+      }}
       role="region"
       aria-label={locale === "ar" ? "إجراءات سريعة" : "Quick actions"}
     >
       {props.show_total && (
         <div className="flex flex-col leading-tight pl-1">
-          <span className="font-label font-bold text-[10px] uppercase tracking-[0.2em] text-candy-ink/60">
+          <span className="font-label font-bold text-[10px] uppercase tracking-[0.2em] text-bk-ink-faint">
             {locale === "ar"
               ? `${itemCount} عنصر`
               : `${itemCount} item${itemCount === 1 ? "" : "s"}`}

@@ -8,6 +8,7 @@
 
 "use client";
 
+import Image from "next/image";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import {
@@ -50,13 +51,13 @@ function CartLineItemsRender({
 
   if (items.length === 0) {
     return (
-      <section className="px-4 py-8">
-        <BentoCard bg="cream" size="md" className="p-8 text-center">
+      <section className="px-4 py-bk-section">
+        <BentoCard bg="cream" size="md" className="p-bk-xl text-center">
           <MaterialIcon
             name="shopping_bag"
-            className="text-5xl text-candy-ink/40"
+            className="text-5xl text-bk-ink-faint"
           />
-          <p className="mt-3 font-display font-black text-xl uppercase text-candy-ink">
+          <p className="mt-bk-sm font-display font-black text-xl uppercase text-bk-ink">
             {emptyMessage}
           </p>
         </BentoCard>
@@ -65,49 +66,72 @@ function CartLineItemsRender({
   }
 
   return (
-    <section className="px-4 py-6">
-      <ul className="space-y-3">
+    <section className="px-4 py-bk-section-dense">
+      <ul className="space-y-bk-sm">
         {items.map((item) => {
           const lineTotal = item.price * item.quantity;
           return (
             <li
               key={`${item.product_id}-${item.variant_id ?? "default"}`}
-              className="rounded-2xl border-[3px] border-candy-ink bg-white shadow-bento-sm p-3 flex gap-3 items-center"
+              className="bg-white p-bk-sm flex gap-bk-sm items-center"
+              style={{
+                border:
+                  "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+                borderRadius: "var(--bk-radius-card, 1rem)",
+                boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
+              }}
             >
               {props.show_thumbnails && (
-                <div className="w-16 h-16 rounded-xl border-[3px] border-candy-ink bg-candy-cream overflow-hidden shrink-0">
+                <div
+                  className="relative w-16 h-16 bg-candy-cream overflow-hidden shrink-0"
+                  style={{
+                    border:
+                      "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+                    borderRadius: "var(--bk-radius-input, 0.75rem)",
+                  }}
+                >
                   {item.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    // Cart thumbnails are Supabase-hosted product images, so
+                    // Next's optimizer can transcode them.
+                    <Image
                       src={item.image_url}
                       alt=""
-                      className="w-full h-full object-cover"
+                      fill
+                      sizes="64px"
+                      className="object-cover"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <MaterialIcon
                         name="image"
-                        className="text-2xl text-candy-ink/40"
+                        className="text-2xl text-bk-ink-faint"
                       />
                     </div>
                   )}
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="font-display font-black text-sm uppercase leading-tight truncate">
+                <p className="font-display font-black text-sm uppercase leading-tight truncate text-bk-ink">
                   {item.name}
                 </p>
                 {item.variant_name && (
-                  <p className="font-label text-xs uppercase tracking-[0.15em] text-candy-ink/60 truncate">
+                  <p className="font-label text-xs uppercase tracking-[0.15em] text-bk-ink-soft truncate">
                     {item.variant_name}
                   </p>
                 )}
-                <p className="mt-1 font-display font-black text-sm text-candy-pink">
+                <p className="mt-bk-2xs font-display font-black text-sm text-bk-primary">
                   {formatPrice(lineTotal)}
                 </p>
               </div>
-              <div className="flex flex-col items-end gap-2">
-                <div className="flex items-center rounded-lg border-[3px] border-candy-ink bg-white">
+              <div className="flex flex-col items-end gap-bk-xs">
+                <div
+                  className="flex items-center bg-white"
+                  style={{
+                    border:
+                      "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+                    borderRadius: "var(--bk-radius-input, 0.5rem)",
+                  }}
+                >
                   <button
                     type="button"
                     onClick={() =>
@@ -143,7 +167,7 @@ function CartLineItemsRender({
                 <button
                   type="button"
                   onClick={() => removeItem(item.product_id, item.variant_id)}
-                  className="font-label font-bold text-[11px] uppercase tracking-[0.15em] text-candy-ink/60 hover:text-candy-pink"
+                  className="font-label font-bold text-[11px] uppercase tracking-[0.15em] text-bk-ink-soft hover:text-bk-primary"
                 >
                   {locale === "ar" ? "إزالة" : "Remove"}
                 </button>

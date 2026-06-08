@@ -9,7 +9,8 @@ import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import {
   BentoCard,
-  ScribbleHeading,
+  Section,
+  SectionHeader,
 } from "./helpers/primitives";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
@@ -93,12 +94,8 @@ function VideoBlock({
       : "";
 
   return (
-    <section className="px-4 py-8">
-      {heading && (
-        <ScribbleHeading color="pink" className="mb-5">
-          {heading}
-        </ScribbleHeading>
-      )}
+    <Section>
+      {heading && <SectionHeader title={heading} color="pink" />}
       <BentoCard bg="ink" size="md" className="p-0 overflow-hidden">
         <div className="relative w-full aspect-video bg-black">
           {parsed.kind === "youtube" || parsed.kind === "vimeo" ? (
@@ -125,11 +122,11 @@ function VideoBlock({
         </div>
       </BentoCard>
       {body && (
-        <p className="mt-4 font-body text-sm sm:text-base text-candy-ink/80 max-w-2xl">
+        <p className="mt-bk-md font-body text-sm sm:text-base text-bk-ink-soft max-w-2xl">
           {body}
         </p>
       )}
-    </section>
+    </Section>
   );
 }
 

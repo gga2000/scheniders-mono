@@ -26,6 +26,7 @@ describe("buildBrandKitVars — default snapshot", () => {
         "--bk-divider": "rgb(26 26 26 / 0.1)",
         "--bk-duration-base": "250ms",
         "--bk-duration-fast": "150ms",
+        "--bk-focus-ring": "rgb(255 90 138 / 0.5)",
         "--bk-font-body": "'DM Sans', 'DM Sans', sans-serif",
         "--bk-font-display": "'Bricolage Grotesque', 'Bricolage Grotesque', sans-serif",
         "--bk-ink": "#1a1a1a",
@@ -36,6 +37,8 @@ describe("buildBrandKitVars — default snapshot", () => {
         "--bk-on-primary": "#ffffff",
         "--bk-on-secondary": "#1a1a1a",
         "--bk-primary": "#ff5a8a",
+        "--bk-primary-active": "#d64e76",
+        "--bk-primary-disabled": "rgb(255 90 138 / 0.4)",
         "--bk-primary-hover": "#e8547f",
         "--bk-primary-soft": "rgb(255 90 138 / 0.12)",
         "--bk-radius-card": "16px",
@@ -182,6 +185,29 @@ describe("buildBrandKitVars — motion", () => {
     const v = buildBrandKitVars(k) as Record<string, string>;
     expect(v["--bk-duration-fast"]).toBe(fast);
     expect(v["--bk-duration-base"]).toBe(base);
+  });
+});
+
+describe("buildBrandKitVars — interaction-state tokens", () => {
+  it("emits primary-active, primary-disabled, and focus-ring", () => {
+    const vars = buildBrandKitVars(EMPTY_BRAND_KIT) as Record<string, string>;
+    expect(vars["--bk-primary-active"]).toBeDefined();
+    expect(vars["--bk-primary-disabled"]).toBeDefined();
+    expect(vars["--bk-focus-ring"]).toBeDefined();
+    expect(BK_VAR_NAMES).toContain("--bk-primary-active");
+    expect(BK_VAR_NAMES).toContain("--bk-primary-disabled");
+    expect(BK_VAR_NAMES).toContain("--bk-focus-ring");
+  });
+
+  it("derives primary-active as a darker mix and disabled/focus as primary alphas", () => {
+    const k = cloneKit();
+    k.colors.primary = "#ff0000";
+    k.colors.ink = "#000000";
+    const v = buildBrandKitVars(k) as Record<string, string>;
+    // mix(#ff0000, #000000, 0.18) → 209 → #d10000
+    expect(v["--bk-primary-active"]).toBe("#d10000");
+    expect(v["--bk-primary-disabled"]).toBe("rgb(255 0 0 / 0.4)");
+    expect(v["--bk-focus-ring"]).toBe("rgb(255 0 0 / 0.5)");
   });
 });
 
