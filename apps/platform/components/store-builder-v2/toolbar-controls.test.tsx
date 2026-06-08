@@ -38,7 +38,9 @@ describe("SaveStatePill — green pulse + retry", () => {
         );
         const pillAfter = screen.getByTestId("save-state-pill");
         expect(pillAfter.getAttribute("data-pulse")).toBe("true");
-        expect(pillAfter.textContent).toContain("Saved");
+        // During the pulse the label is the bare "Saved" (success is the
+        // check icon, which contributes no text).
+        expect(pillAfter.textContent?.trim()).toBe("Saved");
 
         // After 1.5s the pulse fades and the relative-time form returns.
         act(() => {
@@ -46,7 +48,10 @@ describe("SaveStatePill — green pulse + retry", () => {
         });
         const pillFinal = screen.getByTestId("save-state-pill");
         expect(pillFinal.getAttribute("data-pulse")).toBe("false");
+        // Label reverted to the relative-time form ("Saved <n> ago" /
+        // "Saved just now") — no longer the bare pulse label.
         expect(pillFinal.textContent).toContain("Saved");
+        expect(pillFinal.textContent?.trim()).not.toBe("Saved");
     });
 
     it("does not pulse when state goes idle → saved (only on a true saving transition)", () => {
