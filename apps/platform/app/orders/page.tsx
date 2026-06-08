@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
 import { useProductsCrud } from "@/hooks/use-products-crud";
@@ -158,7 +159,7 @@ import { formatIQD } from "@/lib/utils";
 import { notificationService } from "@/lib/notification-service";
 import { mockAssignmentRules } from "@/lib/team-types";
 import { exportOrdersToPrimeCSV, exportOrdersToWaseetXLSX } from "@/lib/export-utils";
-import { toast } from "@/hooks/use-toast";
+import { toast, dismissToast } from "@/hooks/use-toast";
 
 import { ErrorBoundary } from "@scheniders/ui/error-boundary";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@scheniders/ui/dialog";
@@ -750,63 +751,100 @@ export default function OrdersPage() {
         }
     }, [filteredOrders]);
 
+    const [isBulkProcessing, setIsBulkProcessing] = useState(false);
+
+    const withProcessing = async (
+        action: () => Promise<{ success: boolean; error?: string } | undefined>,
+        fallbackMsg: string,
+        successMsg: string,
+        onSuccess?: () => void
+    ) => {
+        if (isBulkProcessing) return;
+        setIsBulkProcessing(true);
+        const pt = t("orders.processing");
+        const loadingMsg = (pt && pt !== "orders.processing") ? pt : fallbackMsg;
+        const toastId = toast.loading(loadingMsg);
+        try {
+            const result = await action();
+            dismissToast(toastId);
+            if (result?.success || result === undefined) {
+                toast.success(successMsg);
+                if (onSuccess) onSuccess();
+            } else {
+                toast.error(t("toast.updateFailed"), result?.error || "Unknown error");
+            }
+        } catch (error) {
+            dismissToast(toastId);
+            toast.error(t("toast.updateFailed"), String(error));
+        } finally {
+            setIsBulkProcessing(false);
+        }
+    };
+
     // Handle bulk actions
     const handleBulkConfirm = async () => {
         const ids = Array.from(selectedOrders);
-        const result = await bulkUpdateStatus(ids, "confirmed");
-        if (result?.success || result === undefined) {
-            toast.success(t("toast.ordersConfirmed"), t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)));
-            setSelectedOrders(new Set());
-        } else if (result?.error) {
-            toast.error(t("toast.updateFailed"), result.error);
-        }
+        withProcessing(
+            () => bulkUpdateStatus(ids, "confirmed"),
+            `Updating ${ids.length} orders...`,
+            t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)),
+            () => setSelectedOrders(new Set())
+        );
     };
 
     const handleBulkDeliver = async () => {
         const ids = Array.from(selectedOrders);
-        const result = await bulkUpdateStatus(ids, "delivered");
-        if (result?.success || result === undefined) {
-            toast.success(t("toast.ordersDelivered"), t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)));
-            setSelectedOrders(new Set());
-        } else if (result?.error) {
-            toast.error(t("toast.updateFailed"), result.error);
-        }
+        withProcessing(
+            () => bulkUpdateStatus(ids, "delivered"),
+            `Updating ${ids.length} orders...`,
+            t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)),
+            () => setSelectedOrders(new Set())
+        );
     };
 
     const handleBulkReject = async () => {
         const ids = Array.from(selectedOrders);
-        const result = await bulkUpdateStatus(ids, "rejected");
-        if (result?.success || result === undefined) {
-            toast.success(t("toast.ordersRejected"), t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)));
-            setSelectedOrders(new Set());
-        } else if (result?.error) {
-            toast.error(t("toast.updateFailed"), result.error);
-        }
+        withProcessing(
+            () => bulkUpdateStatus(ids, "rejected"),
+            `Updating ${ids.length} orders...`,
+            t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)),
+            () => setSelectedOrders(new Set())
+        );
     };
 
     const handleBulkArchive = async () => {
+        if (isBulkProcessing) return;
         const ids = Array.from(selectedOrders);
-        const result = await bulkArchive(ids);
-        if (result?.success || result === undefined) {
-            setSelectedOrders(new Set());
-            toast({
-                title: t("toast.ordersArchived"),
-                description: t("toast.ordersArchivedDesc").replace("{count}", String(ids.length)),
-                variant: "success",
-                action: {
-                    label: t("toast.undo") || "Undo",
-                    onClick: async () => {
-                        const undoRes = await bulkUnarchive(ids);
-                        if (undoRes.success) {
-                            toast.success(t("toast.ordersRestored") || "Restored", t("toast.ordersRestoredDesc") || "Orders returned to the active list");
-                        } else {
-                            toast.error(t("toast.updateFailed"), undoRes.error);
+        setIsBulkProcessing(true);
+        const pt = t("orders.processing");
+        const loadingMsg = (pt && pt !== "orders.processing") ? pt : `Archiving ${ids.length} orders...`;
+        const toastId = toast.loading(loadingMsg);
+        try {
+            const result = await bulkArchive(ids);
+            dismissToast(toastId);
+            if (result?.success || result === undefined) {
+                setSelectedOrders(new Set());
+                toast({
+                    title: t("toast.ordersArchived"),
+                    description: t("toast.ordersArchivedDesc").replace("{count}", String(ids.length)),
+                    variant: "success",
+                    action: {
+                        label: t("toast.undo") || "Undo",
+                        onClick: async () => {
+                            const undoRes = await bulkUnarchive(ids);
+                            if (undoRes.success) {
+                                toast.success(t("toast.ordersRestored") || "Restored", t("toast.ordersRestoredDesc") || "Orders returned to the active list");
+                            } else {
+                                toast.error(t("toast.updateFailed"), undoRes.error);
+                            }
                         }
                     }
-                }
-            });
+                });
+            }
+            else if (result?.error) toast.error(t("toast.archiveFailed"), result.error);
+        } finally {
+            setIsBulkProcessing(false);
         }
-        else if (result?.error) toast.error(t("toast.archiveFailed"), result.error);
     };
 
     // Delete confirmation dialog state
@@ -839,7 +877,9 @@ export default function OrdersPage() {
     const executeDelete = async () => {
         setIsDeleting(true);
         const ids = Array.from(selectedOrders);
+        const toastId = toast.loading(`Deleting ${ids.length} orders...`);
         const result = await bulkDelete(ids);
+        dismissToast(toastId);
         setIsDeleting(false);
         setDeleteConfirmOpen(false);
         setDeleteCountdown(5);
@@ -866,59 +906,55 @@ export default function OrdersPage() {
     };
 
     // Additional bulk status handlers
+    // Additional bulk status handlers
     const handleBulkNew = async () => {
         const ids = Array.from(selectedOrders);
-        const result = await bulkUpdateStatus(ids, "new");
-        if (result?.success || result === undefined) {
-            toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "New"));
-            setSelectedOrders(new Set());
-        } else if (result?.error) {
-            toast.error(t("toast.updateFailed"), result.error);
-        }
+        withProcessing(
+            () => bulkUpdateStatus(ids, "new"),
+            `Updating ${ids.length} orders...`,
+            t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "New"),
+            () => setSelectedOrders(new Set())
+        );
     };
 
     const handleBulkContacted = async () => {
         const ids = Array.from(selectedOrders);
-        const result = await bulkUpdateStatus(ids, "contacted");
-        if (result?.success || result === undefined) {
-            toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "Contacted"));
-            setSelectedOrders(new Set());
-        } else if (result?.error) {
-            toast.error(t("toast.updateFailed"), result.error);
-        }
+        withProcessing(
+            () => bulkUpdateStatus(ids, "contacted"),
+            `Updating ${ids.length} orders...`,
+            t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "Contacted"),
+            () => setSelectedOrders(new Set())
+        );
     };
 
     const handleBulkInTransit = async () => {
         const ids = Array.from(selectedOrders);
-        const result = await bulkUpdateStatus(ids, "in_transit");
-        if (result?.success || result === undefined) {
-            toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "In Transit"));
-            setSelectedOrders(new Set());
-        } else if (result?.error) {
-            toast.error(t("toast.updateFailed"), result.error);
-        }
+        withProcessing(
+            () => bulkUpdateStatus(ids, "in_transit"),
+            `Updating ${ids.length} orders...`,
+            t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "In Transit"),
+            () => setSelectedOrders(new Set())
+        );
     };
 
     const handleBulkCompleted = async () => {
         const ids = Array.from(selectedOrders);
-        const result = await bulkUpdateStatus(ids, "completed");
-        if (result?.success || result === undefined) {
-            toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "Completed"));
-            setSelectedOrders(new Set());
-        } else if (result?.error) {
-            toast.error(t("toast.updateFailed"), result.error);
-        }
+        withProcessing(
+            () => bulkUpdateStatus(ids, "completed"),
+            `Updating ${ids.length} orders...`,
+            t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "Completed"),
+            () => setSelectedOrders(new Set())
+        );
     };
 
     const handleBulkNoResponse = async () => {
         const ids = Array.from(selectedOrders);
-        const result = await bulkUpdateStatus(ids, "no_response");
-        if (result?.success || result === undefined) {
-            toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "No Response"));
-            setSelectedOrders(new Set());
-        } else if (result?.error) {
-            toast.error(t("toast.updateFailed"), result.error);
-        }
+        withProcessing(
+            () => bulkUpdateStatus(ids, "no_response"),
+            `Updating ${ids.length} orders...`,
+            t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "No Response"),
+            () => setSelectedOrders(new Set())
+        );
     };
 
     const handleShipExport = async (company: 'prime' | 'waseet') => {
@@ -1336,10 +1372,7 @@ export default function OrdersPage() {
                                                 </div>
 
                                                 {/* Row 2: Control Groups - Premium Glass Cards */}
-                                                <div className="flex flex-wrap items-start gap-3 pb-6 md:mx-0 md:px-0 pt-2">
-
-                                                    {/* Left cluster: View / Filter / Tools / Export. flex-1 lets it absorb the slack and wrap internally so the Actions group stays pinned right instead of floating onto its own line. */}
-                                                    <div className="flex flex-wrap items-start gap-3 flex-1 min-w-0">
+                                                <div className="flex items-start justify-between gap-3 pb-6 md:mx-0 md:px-0 pt-2 w-full overflow-x-auto scrollbar-hide flex-nowrap">
 
                                                     {/* View Group */}
                                                     <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0 min-w-min">
@@ -1624,6 +1657,16 @@ export default function OrdersPage() {
                                                             >
                                                                 <Archive className="w-4 h-4" />
                                                             </button>
+
+                                                            {/* Trash Page Button */}
+                                                            <Link
+                                                                href="/orders/trash"
+                                                                title="Trash"
+                                                                aria-label="View soft-deleted orders"
+                                                                className="p-2.5 rounded-xl transition-all duration-300 text-muted-foreground hover:bg-red-100/40 hover:text-red-600 flex items-center justify-center"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </Link>
                                                         </div>
                                                     </div>
 
@@ -1717,13 +1760,7 @@ export default function OrdersPage() {
                                                     <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
                                                         <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.export")}</span>
                                                         <div className="flex items-center gap-2">
-                                                            <button
-                                                                onClick={() => setIsImportModalOpen(true)}
-                                                                className="p-2.5 rounded-xl text-muted-foreground hover:bg-amber-200/60 hover:text-foreground transition-all duration-300"
-                                                                title="Import"
-                                                            >
-                                                                <Upload className="w-4 h-4" />
-                                                            </button>
+
                                                             <button
                                                                 onClick={() => setIsExportModalOpen(true)}
                                                                 className="p-2.5 rounded-xl text-muted-foreground hover:bg-amber-200/60 hover:text-foreground transition-all duration-300"
@@ -1745,10 +1782,8 @@ export default function OrdersPage() {
                                                         </div>
                                                     </div>
 
-                                                    </div>
-
-                                                    {/* Action Group — pinned to the right edge. The left cluster (flex-1) absorbs the slack, so this stays on the same row instead of wrapping onto its own line. */}
-                                                    <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0 min-w-min">
+                                                    {/* Action Group — pinned to the right edge via sticky */}
+                                                    <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0 min-w-min sticky right-0 z-10">
                                                         <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.actions")}</span>
                                                         <div className="flex items-center gap-2">
                                                             <button
@@ -2212,7 +2247,7 @@ export default function OrdersPage() {
                                                                         initial={{ opacity: 0, height: 0 }}
                                                                         animate={{ opacity: 1, height: "auto" }}
                                                                         exit={{ opacity: 0, height: 0 }}
-                                                                        className="flex items-center gap-3 pt-4 border-t border-[var(--card-border)] overflow-x-auto scrollbar-hide"
+                                                                        className={cn("flex items-center gap-3 pt-4 border-t border-[var(--card-border)] overflow-x-auto scrollbar-hide", isBulkProcessing && "pointer-events-none opacity-50")}
                                                                     >
                                                                         <span className="text-sm text-muted whitespace-nowrap">{selectedOrders.size} {t("orders.selected")}</span>
 
@@ -2281,7 +2316,13 @@ export default function OrdersPage() {
                                                                         </button>
                                                                         <button
                                                                             onClick={() => {
-                                                                                selectedOrders.forEach(id => updateOrderStatus(id, "suspended", "Bulk action"));
+                                                                                const ids = Array.from(selectedOrders);
+                                                                                withProcessing(
+                                                                                    () => bulkUpdateStatus(ids, "suspended"),
+                                                                                    `Updating ${ids.length} orders...`,
+                                                                                    t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "Suspended"),
+                                                                                    () => setSelectedOrders(new Set())
+                                                                                );
                                                                             }}
                                                                             className="px-3 py-1.5 rounded-lg bg-orange-100 text-orange-700 text-sm font-medium hover:bg-orange-200 transition-all whitespace-nowrap"
                                                                         >
@@ -2809,8 +2850,46 @@ export default function OrdersPage() {
                         onReject={handleBulkReject}
                         onArchive={handleBulkArchive}
                         onDelete={handleBulkDelete}
+                        disabled={isBulkProcessing}
                     />
 
+
+                    {/* Bulk Processing Overlay */}
+                    <AnimatePresence>
+                        {isBulkProcessing && (
+                            <motion.div
+                                initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
+                                animate={{ opacity: 1, backdropFilter: "blur(8px)" }}
+                                exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
+                                className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/20 pointer-events-none"
+                            >
+                                <motion.div
+                                    initial={{ scale: 0.9, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    exit={{ scale: 0.9, opacity: 0 }}
+                                    className="bg-white/90 dark:bg-black/90 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border border-white/50 dark:border-white/10 flex flex-col items-center gap-6"
+                                >
+                                    <div className="relative">
+                                        <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full" />
+                                        <div className="relative bg-white dark:bg-gray-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+                                            <svg className="w-10 h-10 text-blue-600 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <div className="text-center space-y-1">
+                                        <h3 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                                            {t("orders.processing") !== "orders.processing" ? t("orders.processing") : "Processing..."}
+                                        </h3>
+                                        <p className="text-sm font-medium text-muted-foreground">
+                                            Please wait while we update your orders
+                                        </p>
+                                    </div>
+                                </motion.div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     {/* Scroll to Top Button */}
                     <ScrollToTopButton />

@@ -769,7 +769,7 @@ export async function importOrder(lfOrder: LightfunnelsOrder): Promise<OrderImpo
                     .single();
 
                 if (exactMatch) {
-                    await supabase.from('orders').delete().eq('id', exactMatch.id);
+                    await supabase.from('orders').update({ deleted_at: new Date().toISOString() }).eq('id', exactMatch.id);
                     console.log(`Cleaned up abandoned checkout (exact match via notes): ${exactMatch.order_id}`);
                     cleaned = true;
                 }
@@ -794,7 +794,7 @@ export async function importOrder(lfOrder: LightfunnelsOrder): Promise<OrderImpo
                         .lte('created_at', windowEnd);
 
                     if (phoneMatches && phoneMatches.length > 0) {
-                        await supabase.from('orders').delete().in('id', phoneMatches.map(c => c.id));
+                        await supabase.from('orders').update({ deleted_at: new Date().toISOString() }).in('id', phoneMatches.map(c => c.id));
                         console.log(`Cleaned up ${phoneMatches.length} abandoned checkout(s) by phone+time:`,
                             phoneMatches.map(c => c.order_id).join(', '));
                     }

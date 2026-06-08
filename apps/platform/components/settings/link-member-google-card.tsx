@@ -68,7 +68,7 @@ export function LinkMemberGoogleCard() {
     };
 
     return (
-        <div className="glass-card rounded-2xl border border-border p-6">
+        <div className="rounded-2xl border border-border bg-(--card-bg) shadow-(--card-shadow) p-6">
             <div className="flex items-center gap-2.5 mb-1">
                 <div className="w-8 h-8 rounded-lg bg-[var(--pastel-blue)] flex items-center justify-center">
                     <Link2 className="h-4 w-4 text-blue-700" />

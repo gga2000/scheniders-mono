@@ -433,7 +433,7 @@ export function useDeleteOrderMutation() {
 
     return useMutation({
         mutationFn: async (orderId: string) => {
-            await orderRepository.delete(orderId);
+            await orderRepository.update(orderId, { deleted_at: new Date().toISOString() } as any);
             return orderId;
         },
         onMutate: async (orderId) => {

@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
         // 1. Create the delivery_imports audit record
         const { data: importRecord, error: importError } = await supabaseAdmin
             .from("delivery_imports")
-            .upsert(
+            .insert(
                 {
                     receipt_number: parsedPDF.header.receiptNumber,
                     payment_date: parsedPDF.header.paymentDate,
@@ -81,8 +81,7 @@ export async function POST(request: NextRequest) {
                     confirmed_at: new Date().toISOString(),
                     pdf_filename: filename,
                     raw_data: parsedPDF,
-                },
-                { onConflict: "receipt_number" }
+                }
             )
             .select()
             .single();

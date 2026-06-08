@@ -47,7 +47,7 @@ export function ShareDialog({ url, businessName, onClose }: ShareDialogProps) {
             />
             <div
                 ref={dialogRef}
-                className="relative glass-card rounded-2xl border border-border p-6 w-full max-w-sm shadow-2xl"
+                className="relative rounded-2xl border border-border bg-(--card-bg) p-6 w-full max-w-sm shadow-2xl"
             >
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-base font-semibold text-foreground">Share your store</h3>

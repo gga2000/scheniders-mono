@@ -320,7 +320,7 @@ export function ScheduledChangesScreen({
                         onClick={onClose}
                         data-testid="scheduled-changes-back"
                         aria-label="Back"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                     >
                         <ChevronLeft className="h-4 w-4" />
                     </button>
@@ -336,7 +336,7 @@ export function ScheduledChangesScreen({
                         type="button"
                         onClick={() => void refresh()}
                         data-testid="scheduled-changes-refresh"
-                        className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                        className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                     >
                         <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
                         Refresh
@@ -345,7 +345,7 @@ export function ScheduledChangesScreen({
                         type="button"
                         onClick={() => setCreatorOpen(true)}
                         data-testid="scheduled-changes-new"
-                        className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-3 text-[12px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                        className="inline-flex h-8 items-center gap-1 rounded-lg bg-primary px-3 text-[12px] font-semibold text-primary-foreground shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)"
                     >
                         <Plus className="h-3.5 w-3.5" />
                         New schedule
@@ -702,7 +702,7 @@ function ScheduleRow({
                     type="button"
                     onClick={onView}
                     data-testid={`schedule-row-${schedule.id}-view`}
-                    className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-muted/40"
+                    className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-black/5"
                 >
                     <Eye className="h-3 w-3" />
                     View
@@ -725,7 +725,7 @@ function ScheduleRow({
                         onClick={onEditStart}
                         disabled={busy}
                         data-testid={`schedule-row-${schedule.id}-edit`}
-                        className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-muted/40"
+                        className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-black/5"
                     >
                         <Pencil className="h-3 w-3" />
                         Edit start
@@ -789,7 +789,7 @@ function TargetsViewer({ schedule, builder, onClose }: TargetsViewerProps): Reac
                         onClick={onClose}
                         data-testid="schedule-targets-viewer-close"
                         aria-label="Close"
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-black/5 hover:text-foreground"
                     >
                         <X className="h-4 w-4" />
                     </button>
@@ -1021,7 +1021,7 @@ function ScheduleCreatorModal({
                         onClick={onClose}
                         data-testid="schedule-creator-close"
                         aria-label="Close"
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-black/5 hover:text-foreground"
                     >
                         <X className="h-4 w-4" />
                     </button>
@@ -1177,7 +1177,7 @@ function ScheduleCreatorModal({
                         type="button"
                         onClick={onClose}
                         data-testid="schedule-creator-cancel"
-                        className="inline-flex h-9 items-center rounded-md px-3 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                        className="inline-flex h-9 items-center rounded-md px-3 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                     >
                         Cancel
                     </button>
@@ -1189,7 +1189,7 @@ function ScheduleCreatorModal({
                         disabled={submitting}
                         data-testid="schedule-creator-submit"
                         className={cn(
-                            "inline-flex h-9 items-center gap-1 rounded-md bg-primary px-3 text-[12px] font-semibold text-primary-foreground transition-opacity hover:opacity-90",
+                            "inline-flex h-9 items-center gap-1 rounded-lg bg-primary px-3 text-[12px] font-semibold text-primary-foreground shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)",
                             submitting && "opacity-60",
                         )}
                     >

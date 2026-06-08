@@ -66,7 +66,7 @@ export function HealthCard({ config }: HealthCardProps) {
         .slice(0, 4);
 
     return (
-        <div className="glass-card rounded-2xl border border-border p-6">
+        <div className="rounded-2xl border border-border bg-(--card-bg) shadow-(--card-shadow) p-6">
             <div className="flex items-center gap-2.5 mb-4">
                 <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
                     <HeartPulse className="w-4 h-4 text-emerald-700" />
@@ -100,7 +100,7 @@ export function HealthCard({ config }: HealthCardProps) {
                             <p className="text-xs text-foreground flex-1">{check.message ?? check.id}</p>
                             <Link
                                 href="/store/edit"
-                                className="text-[10px] font-semibold text-muted-foreground hover:text-foreground shrink-0 transition-colors"
+                                className="shrink-0 rounded-lg bg-(--background-soft) px-2 py-1 text-[10px] font-semibold text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                             >
                                 Fix
                             </Link>

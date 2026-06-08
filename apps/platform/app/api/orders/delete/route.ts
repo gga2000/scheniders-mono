@@ -44,9 +44,9 @@ export async function POST(request: NextRequest) {
         const t4 = performance.now();
         console.log(`[Perf] Admin role check took: ${(t4 - t3).toFixed(2)}ms`);
 
-        if (profile?.role !== 'admin') {
+        if (profile?.role === 'viewer') {
             return NextResponse.json(
-                { success: false, error: 'Admin access required' },
+                { success: false, error: 'Viewers cannot delete orders' },
                 { status: 403 }
             );
         }
@@ -84,11 +84,11 @@ export async function POST(request: NextRequest) {
         const t10 = performance.now();
         console.log(`[Perf] FK unlink update took: ${(t10 - t9).toFixed(2)}ms`);
 
+        // Soft-delete the orders by setting deleted_at
         const t11 = performance.now();
-        // Delete the orders
         const { data: deletedRows, error: deleteError } = await supabaseAdmin
             .from('orders')
-            .delete()
+            .update({ deleted_at: new Date().toISOString() })
             .in('id', ids)
             .select('id');
         const t12 = performance.now();

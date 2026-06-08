@@ -31,7 +31,7 @@ export function PagesCard({ config }: PagesCardProps) {
     const pages = config?.pages ?? [];
 
     return (
-        <div className="glass-card rounded-2xl border border-border p-6">
+        <div className="rounded-2xl border border-border bg-(--card-bg) shadow-(--card-shadow) p-6">
             <div className="flex items-center gap-2.5 mb-4">
                 <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
                     <LayoutGrid className="w-4 h-4 text-violet-700" />

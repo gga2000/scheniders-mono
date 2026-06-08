@@ -11,6 +11,7 @@ import {
     Search,
     Wrench,
     Download,
+    Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MatchedRow, MatchCategory, RowResolution, ResolutionAction } from "@/types/delivery-import";
@@ -24,13 +25,30 @@ interface ImportReviewTableProps {
     resolutions: Map<number, RowResolution>;
     onResolve: (resolution: RowResolution) => void;
     onClearResolution: (rowNumber: number) => void;
+    onBulkResolve: (resolutions: RowResolution[]) => void;
 }
 
-type FilterMode = "all" | "clean" | "review" | "critical";
+/**
+ * Recommended action applied when an issue category is bulk-resolved.
+ * Picked to be safe: mismatches trust the delivery PDF, refunds / not-found
+ * default to skip (they need a human decision).
+ */
+const BULK_DEFAULT_ACTION: Partial<Record<MatchCategory, ResolutionAction>> = {
+    already_delivered: "skip",
+    phone_mismatch: "process_with_system_price",
+    price_changed: "process_with_pdf_price",
+    amount_mismatch: "process_with_pdf_price",
+    partial_delivery: "process_with_system_price",
+    wrong_status: "skip",
+    negative_refund: "skip",
+    not_found: "skip",
+};
+
+type FilterMode = "all" | "clean" | "review" | "critical" | "handled";
 
 const CATEGORY_CONFIG: Record<
     MatchCategory,
-    { icon: typeof CheckCircle; label: string; color: string; group: FilterMode }
+    { icon: typeof CheckCircle | typeof AlertTriangle | typeof XCircle | typeof Info; label: string; color: string; group: FilterMode }
 > = {
     clean: { icon: CheckCircle, label: "Clean Match", color: "text-emerald-600", group: "clean" },
     pending_confirmation: { icon: AlertTriangle, label: "Confirms Pending", color: "text-amber-600", group: "review" },
@@ -40,7 +58,7 @@ const CATEGORY_CONFIG: Record<
     phone_mismatch: { icon: AlertTriangle, label: "Phone Mismatch", color: "text-amber-600", group: "review" },
     negative_refund: { icon: XCircle, label: "Negative/Refund", color: "text-rose-600", group: "critical" },
     not_found: { icon: XCircle, label: "Not Found", color: "text-rose-600", group: "critical" },
-    already_delivered: { icon: XCircle, label: "Already Delivered", color: "text-rose-600", group: "critical" },
+    already_delivered: { icon: CheckCircle, label: "Already Handled", color: "text-emerald-600", group: "handled" },
     wrong_status: { icon: XCircle, label: "Wrong Status", color: "text-rose-600", group: "critical" },
     reorder: { icon: Info, label: "Reorder", color: "text-blue-600", group: "clean" },
 };
@@ -272,6 +290,107 @@ function getResolutionOptions(
     }
 }
 
+/** Bulk-resolve bar — apply a resolution to whole categories of issues at once. */
+function BulkResolveBar({
+    matches,
+    resolutions,
+    onBulkResolve,
+}: {
+    matches: MatchedRow[];
+    resolutions: Map<number, RowResolution>;
+    onBulkResolve: (resolutions: RowResolution[]) => void;
+}) {
+    const issueRows = useMemo(
+        () =>
+            matches.filter(
+                (m) => m.category !== "clean" && m.category !== "reorder" && getResolutionOptions(m).length > 0
+            ),
+        [matches]
+    );
+
+    if (issueRows.length === 0) return null;
+
+    const alreadyDelivered = issueRows.filter((m) => m.category === "already_delivered");
+    const otherIssues = issueRows.filter((m) => m.category !== "already_delivered");
+    const resolvedCount = issueRows.filter((m) => resolutions.has(m.pdfRow.rowNumber)).length;
+
+    const apply = (rows: MatchedRow[], action: ResolutionAction) =>
+        onBulkResolve(rows.map((m) => ({ rowNumber: m.pdfRow.rowNumber, action })));
+
+    const applyRecommended = (rows: MatchedRow[]) =>
+        onBulkResolve(
+            rows.map((m) => ({
+                rowNumber: m.pdfRow.rowNumber,
+                action: BULK_DEFAULT_ACTION[m.category] ?? "skip",
+            }))
+        );
+
+    // Group "other issues" by category for per-category chips
+    const otherByCategory = new Map<MatchCategory, MatchedRow[]>();
+    for (const m of otherIssues) {
+        const arr = otherByCategory.get(m.category) || [];
+        arr.push(m);
+        otherByCategory.set(m.category, arr);
+    }
+
+    return (
+        <div className="border border-[var(--card-border)] rounded-xl p-3 bg-[var(--background)] space-y-3">
+            <div className="flex items-center gap-1.5">
+                <Zap className="w-4 h-4 text-amber-500" />
+                <span className="text-xs font-semibold text-foreground">Bulk resolve issues</span>
+                <span className="text-[11px] text-muted">
+                    {resolvedCount}/{issueRows.length} resolved
+                </span>
+            </div>
+
+            {alreadyDelivered.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-muted min-w-[110px]">
+                        Already delivered ({alreadyDelivered.length})
+                    </span>
+                    <button
+                        onClick={() => apply(alreadyDelivered, "skip")}
+                        className="px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--card-border)] text-foreground hover:bg-[var(--card-border)]/30 transition-all"
+                    >
+                        Skip all (already handled)
+                    </button>
+                    <button
+                        onClick={() => apply(alreadyDelivered, "force_deliver")}
+                        className="px-3 py-1.5 text-xs font-medium rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/20 transition-all"
+                    >
+                        Re-confirm all delivery
+                    </button>
+                </div>
+            )}
+
+            {otherIssues.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-muted min-w-[110px]">
+                        Other issues ({otherIssues.length})
+                    </span>
+                    {[...otherByCategory.entries()].map(([cat, rows]) => (
+                        <button
+                            key={cat}
+                            onClick={() => apply(rows, BULK_DEFAULT_ACTION[cat] ?? "skip")}
+                            title={`Apply the recommended action to all ${rows.length} "${CATEGORY_CONFIG[cat].label}" rows`}
+                            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--card-border)] text-foreground hover:bg-[var(--card-border)]/30 transition-all"
+                        >
+                            {CATEGORY_CONFIG[cat].label} ({rows.length})
+                        </button>
+                    ))}
+                    <button
+                        onClick={() => applyRecommended(otherIssues)}
+                        title="Use the PDF price for price/amount mismatches, process phone mismatches, mark partial deliveries delivered, and skip refunds / not-found rows"
+                        className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--ink)] text-white hover:opacity-90 transition-all"
+                    >
+                        Resolve all (recommended)
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+}
+
 export function ImportReviewTable({
     matches,
     selectedRows,
@@ -281,10 +400,12 @@ export function ImportReviewTable({
     resolutions,
     onResolve,
     onClearResolution,
+    onBulkResolve,
 }: ImportReviewTableProps) {
     const [filter, setFilter] = useState<FilterMode>("all");
     const [search, setSearch] = useState("");
     const [expandedRow, setExpandedRow] = useState<number | null>(null);
+    const [showHandled, setShowHandled] = useState(false);
 
     const filteredMatches = useMemo(() => {
         let filtered = matches;
@@ -309,12 +430,13 @@ export function ImportReviewTable({
             );
         }
 
-        // Sort: critical first, then review, then clean
+        // Sort: critical first, then review, then clean, then handled
         const groupOrder: Record<FilterMode, number> = {
             critical: 0,
             review: 1,
             clean: 2,
             all: 3,
+            handled: 4,
         };
 
         return [...filtered].sort((a, b) => {
@@ -353,7 +475,7 @@ export function ImportReviewTable({
 
                 {/* Filter tabs */}
                 <div className="flex bg-[var(--background)] rounded-xl p-1 border border-[var(--card-border)]">
-                    {(["all", "clean", "review", "critical"] as FilterMode[]).map((f) => (
+                    {(["all", "clean", "review", "critical", "handled"] as FilterMode[]).map((f) => (
                         <button
                             key={f}
                             onClick={() => setFilter(f)}
@@ -430,6 +552,13 @@ export function ImportReviewTable({
                 </span>
             </div>
 
+            {/* Bulk resolution */}
+            <BulkResolveBar
+                matches={matches}
+                resolutions={resolutions}
+                onBulkResolve={onBulkResolve}
+            />
+
             {/* Table */}
             <div className="border border-[var(--card-border)] rounded-xl overflow-hidden">
                 <div className="overflow-x-auto">
@@ -451,16 +580,42 @@ export function ImportReviewTable({
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredMatches.map((match) => {
-                                const config = CATEGORY_CONFIG[match.category];
-                                const Icon = config.icon;
-                                const isExpanded = expandedRow === match.pdfRow.rowNumber;
-                                const isSelected = selectedRows.has(match.pdfRow.rowNumber);
-                                const selectable = canSelect(match);
+                            {(() => {
+                                const handledCount = filteredMatches.filter(m => CATEGORY_CONFIG[m.category]?.group === "handled").length;
+                                const firstHandledIndex = filteredMatches.findIndex(m => CATEGORY_CONFIG[m.category]?.group === "handled");
+                                
+                                return filteredMatches.map((match, index) => {
+                                    const config = CATEGORY_CONFIG[match.category];
+                                    const isHandled = config?.group === "handled";
+                                    const isFirstHandled = index === firstHandledIndex;
+                                    
+                                    const toggleRow = (isFirstHandled && filter !== "handled") ? (
+                                        <tr key="handled-toggle" className="bg-[var(--background)] hover:bg-[var(--background)]">
+                                            <td colSpan={10} className="p-0 border-b border-[var(--card-border)]">
+                                                <button
+                                                    onClick={() => setShowHandled(!showHandled)}
+                                                    className="w-full px-3 py-3 flex items-center justify-center gap-2 text-xs font-medium text-muted hover:text-foreground transition-colors"
+                                                >
+                                                    {showHandled ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                                                    {showHandled ? "Hide" : "Show"} {handledCount} Handled Rows
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ) : null;
 
-                                return (
-                                    <Fragment key={match.pdfRow.rowNumber}>
-                                        <tr
+                                    if (isHandled && filter !== "handled" && !showHandled) {
+                                        return toggleRow;
+                                    }
+
+                                    const Icon = config.icon;
+                                    const isExpanded = expandedRow === match.pdfRow.rowNumber;
+                                    const isSelected = selectedRows.has(match.pdfRow.rowNumber);
+                                    const selectable = canSelect(match);
+
+                                    return (
+                                        <Fragment key={match.pdfRow.rowNumber}>
+                                            {toggleRow}
+                                            <tr
                                             className={cn(
                                                 "border-b border-[var(--card-border)] transition-colors cursor-pointer hover:bg-[var(--background)]",
                                                 isSelected && "bg-blue-50/60 dark:bg-blue-900/10",
@@ -678,7 +833,8 @@ export function ImportReviewTable({
                                         )}
                                     </Fragment>
                                 );
-                            })}
+                            });
+                            })()}
                         </tbody>
                     </table>
                 </div>

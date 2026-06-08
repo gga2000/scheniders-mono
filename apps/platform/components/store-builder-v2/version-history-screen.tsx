@@ -242,7 +242,7 @@ export function VersionHistoryScreen({
                         onClick={onClose}
                         data-testid="version-history-back"
                         aria-label="Back"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                     >
                         <ChevronLeft className="h-4 w-4" />
                     </button>
@@ -259,7 +259,7 @@ export function VersionHistoryScreen({
                         type="button"
                         onClick={() => void refresh()}
                         data-testid="version-history-refresh"
-                        className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                        className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                     >
                         <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
                         Refresh
@@ -268,7 +268,7 @@ export function VersionHistoryScreen({
                         type="button"
                         onClick={() => setShowSnapshotForm((v) => !v)}
                         data-testid="version-history-new"
-                        className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-3 text-[12px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                        className="inline-flex h-8 items-center gap-1 rounded-lg bg-primary px-3 text-[12px] font-semibold text-primary-foreground shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)"
                     >
                         <Plus className="h-3.5 w-3.5" />
                         Save snapshot
@@ -313,7 +313,7 @@ export function VersionHistoryScreen({
                             setSnapshotLabel("");
                         }}
                         data-testid="version-history-snapshot-cancel"
-                        className="inline-flex h-8 items-center rounded-md px-3 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                        className="inline-flex h-8 items-center rounded-md px-3 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                     >
                         Cancel
                     </button>
@@ -366,7 +366,7 @@ export function VersionHistoryScreen({
                                                 "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors",
                                                 isSelected
                                                     ? "bg-primary/10"
-                                                    : "hover:bg-muted/40",
+                                                    : "hover:bg-black/5",
                                             )}
                                             aria-current={isSelected ? "true" : undefined}
                                         >
@@ -478,7 +478,7 @@ export function VersionHistoryScreen({
                                             setPromoteLabel("");
                                         }}
                                         data-testid="version-history-promote-button"
-                                        className="inline-flex items-center gap-1 rounded-md border border-(--card-border) px-3 py-1.5 text-[12px] font-semibold transition-colors hover:bg-muted/40"
+                                        className="inline-flex items-center gap-1 rounded-md border border-(--card-border) px-3 py-1.5 text-[12px] font-semibold transition-colors hover:bg-black/5"
                                     >
                                         <Star className="h-3.5 w-3.5" />
                                         Save as named snapshot
@@ -516,7 +516,7 @@ export function VersionHistoryScreen({
                                 type="button"
                                 onClick={() => setConfirmRestore(null)}
                                 data-testid="version-history-restore-cancel"
-                                className="inline-flex h-9 items-center rounded-md px-3 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                                className="inline-flex h-9 items-center rounded-md px-3 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                             >
                                 Cancel
                             </button>
@@ -528,7 +528,7 @@ export function VersionHistoryScreen({
                                 disabled={restoring}
                                 data-testid="version-history-restore-confirm"
                                 className={cn(
-                                    "inline-flex h-9 items-center gap-1 rounded-md bg-primary px-3 text-[12px] font-semibold text-primary-foreground transition-opacity hover:opacity-90",
+                                    "inline-flex h-9 items-center gap-1 rounded-lg bg-primary px-3 text-[12px] font-semibold text-primary-foreground shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)",
                                     restoring && "opacity-60",
                                 )}
                             >
@@ -570,7 +570,7 @@ export function VersionHistoryScreen({
                                     setPromoteLabel("");
                                 }}
                                 data-testid="version-history-promote-cancel"
-                                className="inline-flex h-9 items-center rounded-md px-3 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                                className="inline-flex h-9 items-center rounded-md px-3 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                             >
                                 Cancel
                             </button>
@@ -582,7 +582,7 @@ export function VersionHistoryScreen({
                                 disabled={!promoteLabel.trim() || snapshotBusy}
                                 data-testid="version-history-promote-submit"
                                 className={cn(
-                                    "inline-flex h-9 items-center gap-1 rounded-md bg-primary px-3 text-[12px] font-semibold text-primary-foreground transition-opacity hover:opacity-90",
+                                    "inline-flex h-9 items-center gap-1 rounded-lg bg-primary px-3 text-[12px] font-semibold text-primary-foreground shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)",
                                     (!promoteLabel.trim() || snapshotBusy) && "opacity-60",
                                 )}
                             >

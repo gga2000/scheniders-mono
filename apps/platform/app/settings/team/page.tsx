@@ -52,25 +52,25 @@ const ROLE_CONFIG: Record<UserRole, { label: string; labelAr: string; icon: type
         label: "Super Admin",
         labelAr: "مدير عام",
         icon: ShieldCheck,
-        color: "text-rose-400 bg-rose-500/20 border-rose-500/30",
+        color: "text-rose-700 bg-rose-500/10 border-rose-500/20 dark:text-rose-400 dark:bg-rose-500/20 dark:border-rose-500/30",
     },
     admin: {
         label: "Admin",
         labelAr: "مسؤول",
         icon: ShieldCheck,
-        color: "text-amber-400 bg-amber-500/20 border-amber-500/30",
+        color: "text-amber-700 bg-amber-500/10 border-amber-500/20 dark:text-amber-400 dark:bg-amber-500/20 dark:border-amber-500/30",
     },
     employee: {
         label: "Employee",
         labelAr: "موظف",
         icon: Shield,
-        color: "text-emerald-400 bg-emerald-500/20 border-emerald-500/30",
+        color: "text-emerald-700 bg-emerald-500/10 border-emerald-500/20 dark:text-emerald-400 dark:bg-emerald-500/20 dark:border-emerald-500/30",
     },
     viewer: {
         label: "Viewer",
         labelAr: "مشاهد",
         icon: Eye,
-        color: "text-blue-400 bg-blue-500/20 border-blue-500/30",
+        color: "text-blue-700 bg-blue-500/10 border-blue-500/20 dark:text-blue-400 dark:bg-blue-500/20 dark:border-blue-500/30",
     },
 };
 
@@ -168,7 +168,7 @@ function InviteUserModal({ onClose, onUserCreated }: InviteUserModalProps) {
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: "auto" }}
                             exit={{ opacity: 0, height: 0 }}
-                            className="flex items-center gap-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 mb-4 overflow-hidden"
+                            className="flex items-center gap-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:border-rose-500/30 dark:text-rose-400 mb-4 overflow-hidden"
                         >
                             <AlertCircle className="w-5 h-5 flex-shrink-0" />
                             <span className="text-sm">{error}</span>
@@ -465,25 +465,25 @@ export default function TeamSettingsPage() {
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="glass-card p-4 rounded-xl border border-border">
+                <div className="p-4 rounded-xl border border-border bg-(--card-bg) shadow-(--card-shadow)">
                     <p className="text-sm text-muted-foreground">إجمالي المستخدمين</p>
                     <p className="text-2xl font-bold text-foreground">{users.length}</p>
                 </div>
-                <div className="glass-card p-4 rounded-xl border border-border">
+                <div className="p-4 rounded-xl border border-border bg-(--card-bg) shadow-(--card-shadow)">
                     <p className="text-sm text-muted-foreground">المسؤولين</p>
-                    <p className="text-2xl font-bold text-amber-400">
+                    <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
                         {users.filter(u => u.role === "admin" || u.role === "super_admin").length}
                     </p>
                 </div>
-                <div className="glass-card p-4 rounded-xl border border-border">
+                <div className="p-4 rounded-xl border border-border bg-(--card-bg) shadow-(--card-shadow)">
                     <p className="text-sm text-muted-foreground">نشط</p>
-                    <p className="text-2xl font-bold text-emerald-400">
+                    <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                         {users.filter(u => u.is_active).length}
                     </p>
                 </div>
-                <div className="glass-card p-4 rounded-xl border border-border">
+                <div className="p-4 rounded-xl border border-border bg-(--card-bg) shadow-(--card-shadow)">
                     <p className="text-sm text-muted-foreground">غير نشط</p>
-                    <p className="text-2xl font-bold text-rose-400">
+                    <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">
                         {users.filter(u => !u.is_active).length}
                     </p>
                 </div>
@@ -499,7 +499,7 @@ export default function TeamSettingsPage() {
             <LinkMemberGoogleCard />
 
             {/* Users Table */}
-            <div className="glass-card rounded-2xl border border-border overflow-hidden">
+            <div className="rounded-2xl border border-border bg-(--card-bg) shadow-(--card-shadow) overflow-hidden">
                 {loading ? (
                     <div className="flex items-center justify-center p-12">
                         <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
@@ -585,8 +585,8 @@ export default function TeamSettingsPage() {
                                                     className={cn(
                                                         "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
                                                         user.is_active
-                                                            ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
-                                                            : "bg-rose-500/20 text-rose-400 hover:bg-rose-500/30"
+                                                            ? "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:bg-emerald-500/20 dark:text-emerald-400 dark:hover:bg-emerald-500/30"
+                                                            : "bg-rose-500/10 text-rose-700 hover:bg-rose-500/20 dark:bg-rose-500/20 dark:text-rose-400 dark:hover:bg-rose-500/30"
                                                     )}
                                                 >
                                                     {user.is_active ? (
