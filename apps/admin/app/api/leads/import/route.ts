@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const body = await request.json();
-    const { leads: importLeads, created_by } = body;
+    const { leads: importLeads } = body;
 
     if (!importLeads || !Array.isArray(importLeads)) {
       return NextResponse.json({ error: "leads array required" }, { status: 400 });
@@ -45,7 +45,8 @@ export async function POST(request: NextRequest) {
           city: lead.city || null,
           industry_id: lead.industry_id || null,
           priority: lead.priority || "medium",
-          created_by: created_by || null,
+          // Attribute every imported lead to the admin running the import.
+          created_by: admin.user.id,
         });
 
         if (error) {

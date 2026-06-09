@@ -20,6 +20,8 @@ import {
   MaterialIcon,
 } from "./helpers/primitives";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
+import { isPlausiblePhone } from "./helpers/whatsapp";
+import { isOptimizableImageHost } from "./helpers/image";
 import { registerSection } from "./_registry";
 import type { SectionDefinition } from "./_types";
 
@@ -69,10 +71,16 @@ function HeroImageRender({
   const secondaryLabel = resolveI18n(props.secondary_cta_label_i18n, locale);
 
   const secondaryHref = (() => {
-    if (props.secondary_cta_kind === "whatsapp" && props.secondary_cta_value) {
-      return `https://wa.me/${props.secondary_cta_value.replace(/\D/g, "")}`;
+    if (
+      props.secondary_cta_kind === "whatsapp" &&
+      isPlausiblePhone(props.secondary_cta_value)
+    ) {
+      return `https://wa.me/${props.secondary_cta_value!.replace(/\D/g, "")}`;
     }
-    if (props.secondary_cta_kind === "call" && props.secondary_cta_value) {
+    if (
+      props.secondary_cta_kind === "call" &&
+      isPlausiblePhone(props.secondary_cta_value)
+    ) {
       return `tel:${props.secondary_cta_value}`;
     }
     if (props.secondary_cta_kind === "category_link" && props.secondary_cta_value) {
@@ -104,7 +112,9 @@ function HeroImageRender({
               alt=""
               fill
               priority
-              unoptimized
+              // Optimize (AVIF/WebP + srcset) when the host is allowlisted —
+              // the hero is the LCP element. Off-allowlist URLs stay raw.
+              unoptimized={!isOptimizableImageHost(props.image_url)}
               sizes="(max-width: 768px) 100vw, 80vw"
               className="absolute inset-0 w-full h-full object-cover"
             />

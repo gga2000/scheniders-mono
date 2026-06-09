@@ -278,8 +278,11 @@ export function buildBrandKitVars(kit: BrandKit): React.CSSProperties {
   const primarySoft = rgba(primary, 0.12);
   const primaryDisabled = rgba(primary, 0.4);
   const focusRing = rgba(primary, 0.5);
-  const inkSoft = rgba(ink, 0.6);
-  const inkFaint = rgba(ink, 0.25);
+  // 0.7 clears WCAG AA (4.5:1) for secondary text on the cream/white
+  // surfaces; 0.25 failed badly so faint is bumped for de-emphasised labels
+  // (placeholders, decorative) while real text uses ink-soft.
+  const inkSoft = rgba(ink, 0.7);
+  const inkFaint = rgba(ink, 0.38);
   const divider = rgba(ink, 0.1);
 
   // Typography

@@ -149,6 +149,36 @@ export function RenderSection({
   );
 }
 
+/**
+ * Pre-render height estimates (px) for `content-visibility` reservation,
+ * keyed by section type. Only the FIRST paint uses these — `contain-intrinsic-
+ * size: auto` then remembers each section's real height. Rough is fine; the
+ * goal is a believable initial scrollbar (no phantom void, no big jump).
+ */
+const SECTION_INTRINSIC_PX: Record<string, number> = {
+  product_grid: 1100,
+  search_results_grid: 1100,
+  pdp_related_products: 700,
+  image_gallery: 620,
+  instagram_grid: 620,
+  category_grid: 520,
+  delivery_promise: 520,
+  faq_accordion: 520,
+  feature_grid: 480,
+  brand_story: 460,
+  testimonials_carousel: 440,
+  about_block: 440,
+  newsletter_inline: 340,
+  cta_banner: 320,
+  site_footer: 360,
+  trust_strip: 120,
+  marquee_strip: 90,
+};
+
+function estimateSectionHeight(type: string): number {
+  return SECTION_INTRINSIC_PX[type] ?? 600;
+}
+
 interface RenderPageProps {
   page: PageConfig;
   runtime: RuntimeContext;
@@ -179,7 +209,11 @@ export function RenderPage({ page, runtime, renderCtx }: RenderPageProps) {
           return <div key={s.id}>{node}</div>;
         }
         return (
-          <LazySection key={s.id} sectionId={s.id}>
+          <LazySection
+            key={s.id}
+            sectionId={s.id}
+            intrinsicSize={`auto ${estimateSectionHeight(s.type)}px`}
+          >
             {node}
           </LazySection>
         );

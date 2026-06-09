@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { AddedByAvatar } from "@/components/leads/added-by-avatar";
 import type { Lead } from "@/types/leads";
 import {
   LEAD_STATUS_CONFIG,
@@ -221,9 +222,14 @@ export function LeadCard({
         </div>
 
         {/* Business Name */}
-        <h3 className="font-bold text-base mb-1 truncate text-[var(--foreground)]">
-          {lead.merchant_name}
-        </h3>
+        <div className="flex items-center gap-1.5 mb-1">
+          <h3 className="font-bold text-base truncate text-[var(--foreground)]">
+            {lead.merchant_name}
+          </h3>
+          <span onClick={(e) => e.stopPropagation()}>
+            <AddedByAvatar user={lead.created_by_user} addedAt={lead.created_at} />
+          </span>
+        </div>
 
         {/* Platform + Industry */}
         <div className="flex items-center gap-2 mb-3 text-sm text-[var(--muted)]">

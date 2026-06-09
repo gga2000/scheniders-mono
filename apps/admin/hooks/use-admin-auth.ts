@@ -17,9 +17,16 @@ import type { AdminRole } from "@/types/admin";
 // Types
 // ---------------------------------------------------------------------------
 
+/** The signed-in user's display fields, sourced from `user_profiles`. */
+interface AdminProfile {
+  display_name: string | null;
+  avatar_url: string | null;
+}
+
 interface AdminAuthState {
   user: User | null;
   role: AdminRole | null;
+  profile: AdminProfile | null;
   isLoading: boolean;
   error: string | null;
 }
@@ -83,6 +90,32 @@ async function fetchAdminRole(
   return ALLOWED_ROLES.includes(role as AdminRole) ? (role as AdminRole) : null;
 }
 
+/**
+ * Fetch the signed-in user's own profile (name + avatar) from `user_profiles`.
+ * The `user_read_own_profile` RLS policy (`id = auth.uid()`) permits this read.
+ * Returns null if the row is missing or unreadable — callers fall back to the
+ * email initial.
+ */
+async function fetchProfile(
+  userId: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: ReturnType<typeof createBrowserClient<any>>
+): Promise<AdminProfile | null> {
+  const { data, error } = await supabase
+    .from("user_profiles")
+    .select("display_name, avatar_url")
+    .eq("id", userId)
+    .single();
+
+  if (error || !data) return null;
+
+  const row = data as Record<string, unknown>;
+  return {
+    display_name: (row.display_name as string | null) ?? null,
+    avatar_url: (row.avatar_url as string | null) ?? null,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Provider
 // ---------------------------------------------------------------------------
@@ -90,6 +123,7 @@ async function fetchAdminRole(
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<AdminRole | null>(null);
+  const [profile, setProfile] = useState<AdminProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -104,11 +138,15 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
       if (!sessionUser) {
         setUser(null);
         setRole(null);
+        setProfile(null);
         setIsLoading(false);
         return;
       }
 
-      const adminRole = await fetchAdminRole(sessionUser.id, supabase);
+      const [adminRole, profileRow] = await Promise.all([
+        fetchAdminRole(sessionUser.id, supabase),
+        fetchProfile(sessionUser.id, supabase),
+      ]);
 
       if (!mounted) return;
 
@@ -118,12 +156,14 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         await supabase.auth.signOut();
         setUser(null);
         setRole(null);
+        setProfile(null);
         setIsLoading(false);
         return;
       }
 
       setUser(sessionUser);
       setRole(adminRole);
+      setProfile(profileRow);
       setError(null);
       setIsLoading(false);
     }
@@ -141,6 +181,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
       if (_event === "SIGNED_OUT") {
         setUser(null);
         setRole(null);
+        setProfile(null);
         setIsLoading(false);
         return;
       }
@@ -180,6 +221,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setUser(null);
     setRole(null);
+    setProfile(null);
     setError(null);
     setIsLoading(false);
   }, [supabase]);
@@ -187,6 +229,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const value: AdminAuthContextValue = {
     user,
     role,
+    profile,
     isLoading,
     error,
     signIn,

@@ -41,18 +41,33 @@ function formatPrice(price: WhatsappProductInfo["price"]): string {
 }
 
 /**
+ * True when `phone` is a usable number. Rejects empty, too-short, and
+ * obviously-placeholder values — e.g. a seed like `9647700000000` whose
+ * long run of zeros marks it as fake. Conservative: only < 8 digits or a
+ * run of 6+ identical digits is treated as a placeholder, so real numbers
+ * are never dropped. Use this before rendering any WhatsApp/call CTA so it
+ * never deep-links to a dead number.
+ */
+export function isPlausiblePhone(phone: string | null | undefined): boolean {
+  if (!phone) return false;
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 8) return false;
+  if (/(\d)\1{5,}/.test(digits)) return false;
+  return true;
+}
+
+/**
  * Returns a `https://wa.me/...` URL with a pre-filled order message.
- * Returns `null` when no phone number is provided (caller should not
- * render the button in that case).
+ * Returns `null` when no usable phone number is provided (caller should
+ * not render the button in that case).
  */
 export function whatsappOrderLink(
   phone: string | null | undefined,
   product: WhatsappProductInfo,
   locale: LocaleCode,
 ): string | null {
-  if (!phone) return null;
-  const digits = phone.replace(/\D/g, "");
-  if (digits.length === 0) return null;
+  if (!isPlausiblePhone(phone)) return null;
+  const digits = phone!.replace(/\D/g, "");
 
   const template = pickTemplate(locale);
   const message = template

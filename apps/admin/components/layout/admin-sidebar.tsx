@@ -46,7 +46,7 @@ interface AdminSidebarProps {
   isMobile?: boolean;
   mobileMenuOpen?: boolean;
   setMobileMenuOpen?: (v: boolean) => void;
-  user: { email: string; full_name: string | null } | null;
+  user: { email: string; full_name: string | null; avatar_url: string | null } | null;
   onSignOut: () => void;
 }
 
@@ -227,9 +227,17 @@ export function AdminSidebar({
               )}
             >
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#FBE38E] to-[#F4C7CF] flex items-center justify-center flex-shrink-0 overflow-hidden">
-                <span className="text-[#1E1E1E] font-semibold text-sm">
-                  {(user.full_name || user.email)?.charAt(0).toUpperCase()}
-                </span>
+                {user.avatar_url ? (
+                  <img
+                    src={user.avatar_url}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-[#1E1E1E] font-semibold text-sm">
+                    {(user.full_name || user.email)?.charAt(0).toUpperCase()}
+                  </span>
+                )}
               </div>
               {!collapsed && (
                 <div className="flex-1 min-w-0">
@@ -365,9 +373,17 @@ export function AdminSidebar({
               <div className="mt-auto border-t border-white/10 p-4">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FBE38E] to-[#F4C7CF] flex items-center justify-center flex-shrink-0 overflow-hidden">
-                    <span className="text-[#1E1E1E] font-semibold text-base">
-                      {(user.full_name || user.email)?.charAt(0).toUpperCase()}
-                    </span>
+                    {user.avatar_url ? (
+                      <img
+                        src={user.avatar_url}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-[#1E1E1E] font-semibold text-base">
+                        {(user.full_name || user.email)?.charAt(0).toUpperCase()}
+                      </span>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-white text-base font-medium truncate">

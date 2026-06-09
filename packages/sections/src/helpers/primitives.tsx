@@ -147,6 +147,11 @@ const BG_MAP: Record<CardBg, string> = {
 /** Brand-kit CSS variable override per surface tint. `undefined` means
  *  "no override — the Tailwind candy class wins". */
 const BG_VAR: Partial<Record<CardBg, { bg: string; fg?: string }>> = {
+  // White surfaces must pin their foreground to ink. Without this, a
+  // `bg="white"` button/card inherits its parent's text colour — on a dark
+  // hero overlay (text = #fff) that yields white-on-white (invisible). See
+  // the hero secondary WhatsApp CTA.
+  white: { bg: "#ffffff", fg: "var(--bk-ink, #1a1a1a)" },
   pink: { bg: "var(--bk-primary, #ff5a8a)", fg: "var(--bk-on-primary, #fff)" },
   mint: { bg: "var(--bk-success, #7cf0bd)", fg: "var(--bk-ink, #1a1a1a)" },
   butter: { bg: "var(--bk-accent, #ffd84a)", fg: "var(--bk-ink, #1a1a1a)" },

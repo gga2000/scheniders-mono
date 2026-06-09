@@ -46,7 +46,7 @@ const defaultProps: Props = {
     en: "Subscribe for restocks and first-look launches.",
     ar: "اشترك ليصلك كل جديد وإعادة التوفير.",
   },
-  placeholder_i18n: { en: "you@email.com", ar: "your@email.com" },
+  placeholder_i18n: { en: "you@email.com", ar: "بريدك الإلكتروني" },
   cta_label_i18n: { en: "Sign me up", ar: "اشترك" },
   bg: "butter",
 };
@@ -110,7 +110,7 @@ function NewsletterInlineRender({
       <BentoCard bg={props.bg ?? "butter"} size="md" className="p-bk-lg sm:p-bk-xl relative">
         <div className="absolute -top-3 -right-3">
           <Sticker bg="pink" rotate={6} size="sm">
-            ✱ news
+            {locale === "ar" ? "✱ النشرة" : "✱ news"}
           </Sticker>
         </div>
         <div className="max-w-xl">

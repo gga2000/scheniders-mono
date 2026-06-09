@@ -11,9 +11,40 @@ import type { AnalyticsConfig } from "@scheniders/shared";
  * If `gtm_container_id` is set, individual pixels are skipped (the merchant
  * is presumed to be loading them through Tag Manager instead).
  */
+/**
+ * Rejects empty, placeholder, and malformed pixel IDs so a misconfigured
+ * tenant never ships a live-but-broken pixel (e.g. the seed placeholder
+ * `CABCDEF`, which fires real requests and logs "Invalid pixel ID"). Rules
+ * are lenient — they only catch obvious junk, never a plausibly-real ID.
+ */
+function isPlausiblePixelId(
+  provider: "meta" | "tiktok" | "ga" | "snap" | "gtm",
+  raw: string,
+): boolean {
+  const v = raw.trim();
+  if (v.length < 6) return false;
+  if (/^(x+|0+|test|demo|your|sample|placeholder|change[-_ ]?me|abc(def)?|cabcdef)$/i.test(v))
+    return false;
+  switch (provider) {
+    case "meta":
+      return /^\d{10,}$/.test(v); // 15–16 digit numeric pixel id
+    case "tiktok":
+      return /^[A-Z0-9]{12,}$/i.test(v); // ~20-char alnum (CABCDEF = 7 → rejected)
+    case "ga":
+      return /^(G-[A-Z0-9]{6,}|UA-\d{4,}-\d+|AW-\d{6,})$/i.test(v);
+    case "snap":
+      return v.length >= 12;
+    case "gtm":
+      return /^GTM-[A-Z0-9]{5,}$/i.test(v);
+    default:
+      return true;
+  }
+}
+
 export function SchneidersAnalyticsPixels({ analytics }: { analytics?: AnalyticsConfig | null }) {
   if (!analytics) return null;
-  const gtm = analytics.gtm_container_id?.trim();
+  const gtmRaw = analytics.gtm_container_id?.trim();
+  const gtm = gtmRaw && isPlausiblePixelId("gtm", gtmRaw) ? gtmRaw : undefined;
   if (gtm) {
     return (
       <>
@@ -42,10 +73,14 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     );
   }
 
-  const meta = analytics.meta_pixel_id?.trim();
-  const tiktok = analytics.tiktok_pixel_id?.trim();
-  const ga = analytics.google_analytics_id?.trim();
-  const snap = analytics.snapchat_pixel_id?.trim();
+  const metaRaw = analytics.meta_pixel_id?.trim();
+  const tiktokRaw = analytics.tiktok_pixel_id?.trim();
+  const gaRaw = analytics.google_analytics_id?.trim();
+  const snapRaw = analytics.snapchat_pixel_id?.trim();
+  const meta = metaRaw && isPlausiblePixelId("meta", metaRaw) ? metaRaw : undefined;
+  const tiktok = tiktokRaw && isPlausiblePixelId("tiktok", tiktokRaw) ? tiktokRaw : undefined;
+  const ga = gaRaw && isPlausiblePixelId("ga", gaRaw) ? gaRaw : undefined;
+  const snap = snapRaw && isPlausiblePixelId("snap", snapRaw) ? snapRaw : undefined;
 
   return (
     <>

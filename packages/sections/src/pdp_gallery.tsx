@@ -123,7 +123,7 @@ function PdpGalleryRender({
       <BentoCard
         bg="white"
         size="md"
-        className="p-0 overflow-hidden aspect-square relative"
+        className="p-0 overflow-hidden aspect-square relative mx-auto w-full max-w-xl"
       >
         <button
           type="button"
@@ -131,12 +131,15 @@ function PdpGalleryRender({
           className="block w-full h-full relative"
           aria-label={props.show_zoom ? "Zoom image" : undefined}
         >
+          {/* object-contain so portrait/landscape product shots show in full
+              (no crop) on the white card; sizes matches the constrained slot
+              so next/image fetches a sharp asset rather than under-fetching. */}
           <Image
             src={mainSrc}
             alt={productName}
             fill
-            sizes="(max-width: 768px) 100vw, 50vw"
-            className="object-cover"
+            sizes="(max-width: 640px) 100vw, 576px"
+            className="object-contain"
             priority
           />
         </button>

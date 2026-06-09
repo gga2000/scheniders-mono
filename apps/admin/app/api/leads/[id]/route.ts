@@ -65,7 +65,7 @@ export async function GET(
     if (leadResult.data.created_by) {
       const { data: user } = await supabase
         .from("user_profiles")
-        .select("id, display_name, email")
+        .select("id, display_name, email, avatar_url")
         .eq("id", leadResult.data.created_by)
         .single();
       created_by_user = user;

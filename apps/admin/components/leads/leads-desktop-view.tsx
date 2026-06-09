@@ -11,11 +11,13 @@ import {
   useBulkLeadAction,
 } from "@/hooks/use-lead-mutations";
 import { useLeadStore } from "@/store/use-lead-store";
+import { usePageHeader } from "@/store/use-page-header";
 import { LeadFilterBar } from "@/components/leads/lead-filter-bar";
 import { LeadForm } from "@/components/leads/lead-form";
 import { LeadCard } from "@/components/leads/lead-card";
 import { LeadKanban } from "@/components/leads/lead-kanban";
 import { LeadImportDialog } from "@/components/leads/lead-import-dialog";
+import { AddedByAvatar } from "@/components/leads/added-by-avatar";
 import {
   LEAD_STATUS_CONFIG,
   LEAD_STATUS_UI,
@@ -23,6 +25,7 @@ import {
   LEAD_PRIORITY_UI,
   PLATFORM_CONFIG,
   LEAD_TIER_CONFIG,
+  LEAD_TIER_UI,
 } from "@/types/leads";
 import type { LeadFormData, Lead } from "@/types/leads";
 import { leadPhone, toIntlIraqi } from "./lead-phone";
@@ -118,6 +121,17 @@ export function LeadsDesktopView() {
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / 20);
 
+  // Publish the page header (title + live pipeline count) to the global topbar.
+  const setPageHeader = usePageHeader((s) => s.setHeader);
+  const clearPageHeader = usePageHeader((s) => s.clearHeader);
+  useEffect(() => {
+    setPageHeader({
+      title: "Prospects",
+      subtitle: `${total.toLocaleString()} ${total === 1 ? "prospect" : "prospects"} in pipeline`,
+    });
+    return () => clearPageHeader();
+  }, [total, setPageHeader, clearPageHeader]);
+
   const handleCreateLead = (formData: LeadFormData) =>
     new Promise<boolean>((resolve) => {
       createLead.mutate(formData, {
@@ -153,26 +167,8 @@ export function LeadsDesktopView() {
 
   return (
     <div className="space-y-5 p-5 sm:p-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-[var(--foreground)] flex items-center gap-3">
-            <div className="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-[#FF8899]/25 to-[#A78BFA]/25 flex items-center justify-center shadow-[0_0_22px_-4px_rgba(255,136,153,0.45)]">
-              <span className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/20" />
-              <UserPlus className="w-5 h-5 text-[#FF8899]" />
-            </div>
-            Potential Merchants
-          </h1>
-          <p className="text-sm text-[var(--muted)] mt-1.5 flex items-center gap-2">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
-            </span>
-            <span className="tabular-nums">{total.toLocaleString()}</span> prospect
-            {total !== 1 ? "s" : ""} in pipeline
-          </p>
-        </div>
-
+      {/* Toolbar — title + "prospects in pipeline" now live in the global topbar */}
+      <div className="flex items-center justify-end gap-4">
         <div className="flex items-center gap-2.5">
           {/* View Toggle */}
           <div className="flex items-center bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-1">
@@ -387,6 +383,9 @@ export function LeadsDesktopView() {
                     Merchant
                   </th>
                   <th className="py-2.5 px-4 text-left text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider">
+                    Added by
+                  </th>
+                  <th className="py-2.5 px-4 text-left text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider">
                     Platform
                   </th>
                   <th className="py-2.5 px-4 text-left text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider">
@@ -415,6 +414,7 @@ export function LeadsDesktopView() {
                   const priorityColor = LEAD_PRIORITY_UI[lead.priority];
                   const platformCfg = PLATFORM_CONFIG[lead.platform];
                   const tierCfg = LEAD_TIER_CONFIG[lead.tier];
+                  const tierUi = LEAD_TIER_UI[lead.tier];
                   const isWhale = lead.tier === "legendary" || lead.tier === "diamond";
 
                   return (
@@ -446,27 +446,37 @@ export function LeadsDesktopView() {
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
                           <div
-                            className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold shrink-0 border transition-transform group-hover:scale-105"
+                            className="relative w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold text-white shrink-0 transition-transform group-hover:scale-105"
                             style={{
-                              backgroundColor: `${tierCfg.color}1A`,
-                              color: tierCfg.color,
-                              borderColor: `${tierCfg.color}40`,
-                              boxShadow: isWhale ? `0 0 12px -2px ${tierCfg.color}66` : undefined,
+                              backgroundImage: tierUi.gradient,
+                              boxShadow: isWhale
+                                ? `0 4px 14px -3px ${tierCfg.color}, inset 0 1px 0 rgba(255,255,255,0.45)`
+                                : "0 2px 6px -2px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.4)",
+                              textShadow: "0 1px 2px rgba(0,0,0,0.35)",
                             }}
                           >
-                            {lead.merchant_name.trim().charAt(0).toUpperCase() || "?"}
+                            <span className="absolute inset-0 rounded-xl ring-1 ring-inset ring-white/25" />
+                            <span className="relative">
+                              {lead.merchant_name.trim().charAt(0).toUpperCase() || "?"}
+                            </span>
                           </div>
                           <div className="min-w-0">
-                            <div className="font-semibold text-[var(--foreground)] truncate max-w-[200px]">
+                            <div className="font-semibold text-[var(--foreground)] truncate max-w-[220px]">
                               {lead.merchant_name}
                             </div>
                             {lead.management_name && (
-                              <div className="text-xs text-[var(--muted)] truncate max-w-[200px]">
+                              <div className="text-xs text-[var(--muted)] truncate max-w-[220px]">
                                 {lead.management_name}
                               </div>
                             )}
                           </div>
                         </div>
+                      </td>
+                      <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+                        <AddedByAvatar
+                          user={lead.created_by_user}
+                          addedAt={lead.created_at}
+                        />
                       </td>
                       <td className="py-3 px-4">
                         <span
@@ -486,10 +496,14 @@ export function LeadsDesktopView() {
                             {lead.follower_count.toLocaleString()}
                           </span>
                           <span
-                            className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                            style={{ backgroundColor: `${tierCfg.color}15`, color: tierCfg.color }}
+                            className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md"
+                            style={{ backgroundColor: tierUi.soft, color: tierUi.solid }}
                             title={`${tierCfg.label} tier · ${tierCfg.minFollowers.toLocaleString()}+ followers`}
                           >
+                            <span
+                              className="w-1.5 h-1.5 rounded-full"
+                              style={{ backgroundColor: tierUi.solid }}
+                            />
                             {tierCfg.label}
                           </span>
                         </div>

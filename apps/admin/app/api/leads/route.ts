@@ -30,7 +30,10 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("leads")
-      .select("*, industry:industries(*)", { count: "exact" });
+      .select(
+        "*, industry:industries(*), created_by_user:user_profiles!leads_created_by_fkey(id, display_name, email, avatar_url)",
+        { count: "exact" }
+      );
 
     if (status) query = query.eq("status", status);
     if (platform) query = query.eq("platform", platform);
@@ -117,9 +120,12 @@ export async function POST(request: NextRequest) {
         tags: body.tags || [],
         source_campaign: body.source_campaign || null,
         source_medium: body.source_medium || null,
-        created_by: body.created_by || null,
+        // Attribute the lead to the authenticated admin who added it (who, not client-supplied).
+        created_by: admin.user.id,
       })
-      .select("*, industry:industries(*)")
+      .select(
+        "*, industry:industries(*), created_by_user:user_profiles!leads_created_by_fkey(id, display_name, email, avatar_url)"
+      )
       .single();
 
     if (error) throw error;

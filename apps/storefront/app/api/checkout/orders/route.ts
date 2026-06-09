@@ -1,17 +1,25 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { cookies } from "next/headers";
+import { IRAQ_GOVERNORATES, type GovernorateCode } from "@scheniders/shared";
 import { submitCheckout } from "@/app/actions/checkout";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+// Only canonical OMS governorate codes (BG/BA/…) are accepted — never the
+// human-readable name. Guards the order pipeline against malformed input.
+const GOVERNORATE_CODES = IRAQ_GOVERNORATES.map((g) => g.code) as [
+  GovernorateCode,
+  ...GovernorateCode[],
+];
+
 export const checkoutOrderBodySchema = z.object({
   tenant_id: z.string().uuid(),
   customer_name: z.string().min(1),
   phone: z.string().min(1),
-  governorate_code: z.string().min(1),
+  governorate_code: z.enum(GOVERNORATE_CODES),
   city: z.string().min(1),
   address_details: z.string().min(1),
   email: z.string().email().optional(),

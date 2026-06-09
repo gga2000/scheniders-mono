@@ -204,29 +204,27 @@ body {
 
 /* ===========================
    Scroll-reveal motion
-   Sections fade + rise as they scroll into the viewport. Pure CSS
-   scroll-driven animation (no JS): degrades to "always visible" where
-   `animation-timeline` is unsupported, respects the OS reduced-motion
-   setting, and only runs under a [data-bk-motion="auto"] root — so the
-   tenant's brand-kit motion toggle gates it and the editor preview (which
-   has no such root) stays still.
+   Sections rise + fade in ONCE as they enter the viewport, driven one-way
+   by <SectionReveal/> (IntersectionObserver). This is deliberately NOT a
+   scroll-linked `animation-timeline: view()` animation — that ties opacity
+   to scroll position, so scrolling back up re-hides sections and any
+   section whose range never completes stays stuck at opacity 0.
+
+   Default state is fully visible: the `reveal-init` / `reveal-in` classes
+   are only ever added by the observer, so with no JS, under OS/tenant
+   reduced-motion, or in the editor preview, every section just shows.
    =========================== */
-@keyframes schn-reveal-up {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 @media (prefers-reduced-motion: no-preference) {
-  @supports (animation-timeline: view()) {
-    [data-bk-motion="auto"] .schn-section {
-      animation: schn-reveal-up linear both;
-      animation-timeline: view();
-      animation-range: entry 0% cover 25%;
-    }
+  .schn-section.reveal-init {
+    opacity: 0;
+    transform: translateY(28px);
+    will-change: opacity, transform;
+  }
+  .schn-section.reveal-in {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
   }
 }

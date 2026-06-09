@@ -45,7 +45,7 @@ export function useAdminSidebar() {
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { user, signOut } = useAdminAuth();
+  const { user, profile, role, signOut } = useAdminAuth();
   const commandPalette = useCommandPalette();
 
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -92,14 +92,21 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   };
 
   const sidebarUser = user
-    ? { email: user.email ?? "", full_name: (user as any).full_name ?? null }
+    ? {
+        email: user.email ?? "",
+        full_name: profile?.display_name ?? (user as any).full_name ?? null,
+        avatar_url: profile?.avatar_url ?? null,
+      }
     : null;
 
   const topbarUser = user
     ? {
         email: user.email ?? "",
-        full_name: (user as any).full_name ?? null,
-        role: (user as any).role ?? "admin",
+        full_name: profile?.display_name ?? (user as any).full_name ?? null,
+        avatar_url: profile?.avatar_url ?? null,
+        // The real admin-console role (super_admin / support_staff), NOT the
+        // Supabase JWT role which is always "authenticated".
+        role: role ?? "",
       }
     : null;
 

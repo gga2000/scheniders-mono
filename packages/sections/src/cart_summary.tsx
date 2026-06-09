@@ -136,7 +136,7 @@ function CartSummaryRender({
                   color: "var(--bk-ink, #1a1a1a)",
                   fontFamily: "var(--bk-font-body, inherit)",
                 }}
-                placeholder={locale === "ar" ? "CODE2025" : "CODE2025"}
+                placeholder={locale === "ar" ? "أدخل الكود" : "Enter code"}
               />
               <ChunkyButton
                 type="button"
