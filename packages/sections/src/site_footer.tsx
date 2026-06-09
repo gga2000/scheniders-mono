@@ -137,12 +137,12 @@ function SiteFooterRender({
               >
                 {resolveI18n(col.heading_i18n, locale)}
               </h3>
-              <ul className="space-y-2">
+              <ul className="space-y-0.5">
                 {col.links.map((l) => (
                   <li key={`${l.href}-ci${ci}`}>
                     <StoreLink
                       href={l.href}
-                      className="font-body text-sm text-white/75 transition-colors hover:text-white hover:underline underline-offset-4"
+                      className="inline-flex min-h-[44px] items-center font-body text-sm text-white/75 transition-colors hover:text-white hover:underline underline-offset-4"
                     >
                       {resolveI18n(l.label_i18n, locale)}
                     </StoreLink>

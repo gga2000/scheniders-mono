@@ -27,9 +27,20 @@ export default function RootLayout({
   return (
     <html lang="ar" className={`${bricolage.variable} ${dmSans.variable}`}>
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        {/* Pin the variable icon font to the one instance actually used
+            (wght 400, FILL 1 — see globals.css) rather than the full
+            100..700 / 0..1 axis ranges; far smaller download. The preconnect
+            above warms the connection so this render-blocking stylesheet
+            resolves fast (font is then ready by first paint). */}
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@400,1&display=swap"
         />
       </head>
       <body>{children}</body>

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useInfiniteLeads } from "@/hooks/use-infinite-leads";
 import { useLeadAnalytics } from "@/hooks/use-lead-analytics";
 import { useCreateLead } from "@/hooks/use-lead-mutations";
 import { useLeadStore } from "@/store/use-lead-store";
+import { usePageHeader } from "@/store/use-page-header";
 import { LEAD_STATUS_CONFIG, LEAD_STATUS_UI } from "@/types/leads";
 import type { Lead, LeadFormData, LeadStatus } from "@/types/leads";
 import { LeadMobileRow } from "./lead-mobile-row";
@@ -36,6 +37,17 @@ export function LeadsMobileView() {
   const leads = data?.pages.flatMap((p) => p.leads) ?? [];
   const total = data?.pages[0]?.total ?? 0;
 
+  // Publish the page header (title + live count) to the global topbar.
+  const setPageHeader = usePageHeader((s) => s.setHeader);
+  const clearPageHeader = usePageHeader((s) => s.clearHeader);
+  useEffect(() => {
+    setPageHeader({
+      title: "Prospects",
+      subtitle: `${total.toLocaleString()} ${total === 1 ? "prospect" : "prospects"} in pipeline`,
+    });
+    return () => clearPageHeader();
+  }, [total, setPageHeader, clearPageHeader]);
+
   const { searchQuery, setSearchQuery, statusFilter, setStatusFilter } =
     useLeadStore();
 
@@ -53,27 +65,7 @@ export function LeadsMobileView() {
 
   return (
     <div className="p-4 space-y-4 pb-24">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#FF8899]/25 to-[#A78BFA]/25 shadow-[0_0_18px_-4px_rgba(255,136,153,0.4)]">
-          <span className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/20" />
-          <UserPlus className="h-5 w-5 text-[#FF8899]" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-[var(--foreground)]">
-            Potential Merchants
-          </h1>
-          <p className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            </span>
-            <span className="tabular-nums">{total.toLocaleString()}</span>
-            {" prospect"}
-            {total !== 1 ? "s" : ""} in pipeline
-          </p>
-        </div>
-      </div>
+      {/* Title + count live in the global topbar (see usePageHeader) */}
 
       {/* Sticky search */}
       <div className="sticky top-0 z-20 -mx-4 bg-[var(--background)]/85 px-4 py-2 backdrop-blur">

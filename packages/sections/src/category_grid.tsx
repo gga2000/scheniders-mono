@@ -11,6 +11,7 @@ import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import {
   BentoCard,
+  MaterialIcon,
   Section,
   SectionHeader,
 } from "./helpers/primitives";
@@ -97,10 +98,10 @@ function CategoryGridRender({
 
   const colsClass =
     props.columns === 2
-      ? "grid-cols-2 lg:grid-cols-3"
+      ? "grid-cols-1 sm:grid-cols-2"
       : props.columns === 4
         ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
-        : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4";
+        : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-3";
 
   const tints = ["mint", "butter", "lilac", "sky", "cream"] as const;
 
@@ -125,27 +126,60 @@ function CategoryGridRender({
                 style={{ borderRadius: "var(--bk-radius-card, 1.25rem)" }}
               >
                 {c.image_url ? (
-                  <Image
-                    src={c.image_url}
-                    alt=""
-                    fill
-                    priority={i < props.columns}
-                    sizes={
-                      props.columns === 4
-                        ? "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                        : props.columns === 2
-                          ? "(max-width: 1024px) 50vw, 33vw"
-                          : "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                    }
-                    className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform"
-                  />
-                ) : null}
-                <div className="absolute inset-0 bg-gradient-to-t from-candy-ink/60 via-transparent to-transparent" />
-                <div className="absolute inset-x-0 bottom-0 p-3">
-                  <p className="font-display font-black text-base sm:text-lg uppercase leading-tight text-white drop-shadow">
-                    {name}
-                  </p>
-                </div>
+                  <>
+                    <Image
+                      src={c.image_url}
+                      alt=""
+                      fill
+                      priority={i < props.columns}
+                      sizes={
+                        props.columns === 4
+                          ? "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                          : props.columns === 2
+                            ? "(max-width: 1024px) 50vw, 33vw"
+                            : "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      }
+                      className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-candy-ink/65 via-candy-ink/10 to-transparent" />
+                    <div className="absolute inset-x-0 bottom-0 p-3">
+                      <p className="font-display font-black text-base sm:text-lg uppercase leading-tight text-white drop-shadow">
+                        {name}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  /* No category image: a designed placeholder (bordered icon
+                     chip + ink name + shop hint) rather than an empty pastel
+                     block. Ink text reads with strong contrast on the pastel. */
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 text-center">
+                    <span
+                      className="flex h-12 w-12 items-center justify-center transition-transform group-hover:-translate-y-0.5 sm:h-14 sm:w-14"
+                      style={{
+                        backgroundColor: "var(--bk-surface, #ffffff)",
+                        color: "var(--bk-ink, #1a1a1a)",
+                        border:
+                          "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+                        borderRadius: "var(--bk-radius-pill, 9999px)",
+                        boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
+                      }}
+                    >
+                      <MaterialIcon name="storefront" className="text-2xl" />
+                    </span>
+                    <p
+                      className="font-display font-black text-base uppercase leading-tight sm:text-lg"
+                      style={{ color: "var(--bk-ink, #1a1a1a)" }}
+                    >
+                      {name}
+                    </p>
+                    <span
+                      className="font-label font-bold text-[10px] uppercase tracking-[0.2em]"
+                      style={{ color: "var(--bk-ink-soft, rgba(26,26,26,0.55))" }}
+                    >
+                      {locale === "ar" ? "تسوّق الفئة" : "Shop"}
+                    </span>
+                  </div>
+                )}
               </BentoCard>
             </StoreLink>
           );

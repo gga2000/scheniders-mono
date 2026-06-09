@@ -4,6 +4,7 @@ import { assignAbArm, evaluateSegments } from "@scheniders/shared";
 import { StorefrontGlobals } from "./storefront-globals";
 import { ExperimentBeacon } from "./experiment-beacon";
 import { CartSignal } from "./cart-signal";
+import { SectionReveal } from "./section-reveal";
 import type {
   StoreConfigV2,
   PageConfig,
@@ -98,6 +99,7 @@ export async function V2Page({
   return (
     <>
       <CartSignal />
+      <SectionReveal />
       {Object.keys(abArms).length > 0 && (
         <ExperimentBeacon tenantId={renderCtx.tenant.id} arms={abArms} />
       )}

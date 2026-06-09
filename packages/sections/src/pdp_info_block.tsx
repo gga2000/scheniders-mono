@@ -90,7 +90,7 @@ function PdpInfoBlockRender({
             {formatPrice(product.price)}
           </span>
           {onSale && product.compare_at_price != null && (
-            <span className="font-body text-lg text-bk-ink-faint line-through">
+            <span className="font-body text-lg text-bk-ink-soft line-through">
               {formatPrice(product.compare_at_price)}
             </span>
           )}

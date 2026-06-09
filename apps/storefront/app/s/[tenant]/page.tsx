@@ -6,6 +6,12 @@ import { getTemplate } from "@/templates/registry";
 import type { TemplateName } from "@/lib/types";
 import { buildRuntimeContext, pickV2Page, resolveV2PageMetadata } from "@/lib/storefront-runtime";
 import { V2Page } from "@/components/v2-page";
+import { JsonLd } from "@/components/json-ld";
+import {
+  getStorefrontBase,
+  organizationJsonLd,
+  websiteJsonLd,
+} from "@/lib/seo";
 
 const TEMPLATE_NAMES = new Set<TemplateName>([
   "schneiders",
@@ -26,7 +32,21 @@ export async function generateMetadata({
     ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
     : await getTenantBySlug(tenantParam);
   const v2 = tenant?.store_config_v2 ?? null;
-  return resolveV2PageMetadata(v2, "home", v2?.default_locale ?? "ar");
+  const base = resolveV2PageMetadata(v2, "home", v2?.default_locale ?? "ar");
+  const { baseUrl } = await getStorefrontBase(tenantParam);
+  // A page-level openGraph replaces (not merges) the layout's, so re-apply the
+  // og defaults (type/locale/siteName) here, keeping the page's title/image.
+  return {
+    ...base,
+    ...(baseUrl ? { alternates: { canonical: baseUrl } } : {}),
+    openGraph: {
+      type: "website",
+      locale: "ar_IQ",
+      ...(tenant ? { siteName: tenant.business_name } : {}),
+      ...(base.openGraph ?? {}),
+      ...(baseUrl ? { url: baseUrl } : {}),
+    },
+  };
 }
 
 export default async function StorefrontHome({
@@ -67,7 +87,26 @@ export default async function StorefrontHome({
       locale: v2.default_locale ?? "ar",
       now: new Date(),
     });
-    return <V2Page v2={v2} page={homePage} runtime={runtime} renderCtx={{ tenant, products, categories }} />;
+    const { baseUrl, origin } = await getStorefrontBase(tenantParam);
+    const orgUrl = baseUrl || origin || "/";
+    const logo =
+      tenant.store_config?.logo_url ?? tenant.branding?.logo_url ?? null;
+    return (
+      <>
+        <JsonLd
+          data={[
+            organizationJsonLd({
+              name: tenant.business_name,
+              url: orgUrl,
+              logo,
+              phone: tenant.contact_phone ?? null,
+            }),
+            websiteJsonLd({ name: tenant.business_name, url: orgUrl }),
+          ]}
+        />
+        <V2Page v2={v2} page={homePage} runtime={runtime} renderCtx={{ tenant, products, categories }} />
+      </>
+    );
   }
 
   // Legacy fallback (unchanged): un-ported tenants + preview_template override.

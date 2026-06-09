@@ -9,6 +9,7 @@ import {
 } from "@scheniders/shared";
 import type { BrandKit, StoreConfigV2 } from "@scheniders/shared";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
+import { getRequestOrigin } from "@/lib/seo";
 import { StoreBaseProvider } from "@/lib/store-context";
 import { CartHydrator } from "@/components/cart-hydrator";
 import { SchneidersAnalyticsPixels } from "@/components/schneiders/analytics-pixels";
@@ -248,15 +249,32 @@ export async function generateMetadata({ params }: { params: Promise<{ tenant: s
 
   const seo = tenant.store_config?.seo;
   const logoUrl = tenant.store_config?.logo_url || tenant.branding?.logo_url;
+  const title = seo?.meta_title || tenant.business_name;
+  const description =
+    seo?.meta_description ||
+    `${tenant.business_name} — اطلب الآن من أفضل المنتجات`;
+  const origin = await getRequestOrigin();
+  const ogImage = seo?.og_image_url;
 
   return {
-    title: seo?.meta_title || tenant.business_name,
-    description: seo?.meta_description || `${tenant.business_name} — اطلب الآن من أفضل المنتجات`,
+    // metadataBase lets Next resolve relative OG/canonical URLs to absolutes.
+    ...(origin ? { metadataBase: new URL(origin) } : {}),
+    title,
+    description,
     icons: logoUrl ? [{ url: logoUrl }] : undefined,
     openGraph: {
-      title: seo?.meta_title || tenant.business_name,
-      description: seo?.meta_description || `${tenant.business_name} — اطلب الآن من أفضل المنتجات`,
-      ...(seo?.og_image_url && { images: [{ url: seo.og_image_url }] }),
+      type: "website",
+      locale: "ar_IQ",
+      siteName: tenant.business_name,
+      title,
+      description,
+      ...(ogImage ? { images: [{ url: ogImage }] } : {}),
+    },
+    twitter: {
+      card: ogImage ? "summary_large_image" : "summary",
+      title,
+      description,
+      ...(ogImage ? { images: [ogImage] } : {}),
     },
   };
 }

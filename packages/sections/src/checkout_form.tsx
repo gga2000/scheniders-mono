@@ -11,7 +11,7 @@
 
 import { useState } from "react";
 import { z } from "zod";
-import { resolveI18n } from "@scheniders/shared";
+import { resolveI18n, IRAQ_GOVERNORATES } from "@scheniders/shared";
 import {
   BentoCard,
   ChunkyButton,
@@ -57,27 +57,6 @@ const PAYMENT_LABEL: Record<
   fastpay: { en: "FastPay", ar: "FastPay", icon: "bolt" },
 };
 
-const GOVERNORATES = [
-  "Baghdad",
-  "Basra",
-  "Erbil",
-  "Sulaymaniyah",
-  "Duhok",
-  "Najaf",
-  "Karbala",
-  "Babil",
-  "Anbar",
-  "Ninawa",
-  "Kirkuk",
-  "Diwaniyah",
-  "Wasit",
-  "Maysan",
-  "Dhi Qar",
-  "Muthanna",
-  "Saladin",
-  "Diyala",
-];
-
 function CheckoutFormRender({
   props,
   ctx,
@@ -96,7 +75,7 @@ function CheckoutFormRender({
     customer_name: "",
     phone: "",
     email: "",
-    governorate_code: GOVERNORATES[0],
+    governorate_code: IRAQ_GOVERNORATES[0].code as string,
     city: "",
     address_details: "",
     notes: "",
@@ -151,7 +130,7 @@ function CheckoutFormRender({
 
   return (
     <section className="px-4 py-bk-section-dense">
-      <BentoCard bg="cream" size="md" className="p-bk-lg sm:p-bk-xl">
+      <BentoCard bg="cream" size="md" className="mx-auto max-w-2xl p-bk-lg sm:p-bk-xl">
         <ScribbleHeading color="pink" className="mb-bk-md">
           {t ? "تفاصيل الطلب" : "Your details"}
         </ScribbleHeading>
@@ -178,6 +157,15 @@ function CheckoutFormRender({
                 type="tel"
                 required
                 inputMode="tel"
+                dir="ltr"
+                autoComplete="tel"
+                placeholder="07XX XXX XXXX"
+                pattern="0?7[0-9]{9}"
+                title={
+                  t
+                    ? "رقم هاتف عراقي صحيح، مثال: 07701234567"
+                    : "A valid Iraqi mobile number, e.g. 07701234567"
+                }
                 value={form.phone}
                 onChange={(e) => set("phone", e.target.value)}
                 className={inputCls}
@@ -212,9 +200,9 @@ function CheckoutFormRender({
                 className={inputCls}
                 style={inputStyle}
               >
-                {GOVERNORATES.map((g) => (
-                  <option key={g} value={g}>
-                    {g}
+                {IRAQ_GOVERNORATES.map((g) => (
+                  <option key={g.code} value={g.code}>
+                    {g.name}
                   </option>
                 ))}
               </select>

@@ -17,6 +17,12 @@ import { SchneidersProductCard } from "@/components/schneiders/product-card";
 import { ScribbleHeading } from "@/components/schneiders/primitives";
 import { pickV2Page, buildRuntimeContext } from "@/lib/storefront-runtime";
 import { V2Page } from "@/components/v2-page";
+import { JsonLd } from "@/components/json-ld";
+import {
+  getStorefrontBase,
+  productJsonLd,
+  breadcrumbJsonLd,
+} from "@/lib/seo";
 
 interface Props {
   params: Promise<{ tenant: string; slug: string }>;
@@ -38,13 +44,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const title = `${product.name} — ${tenant.business_name}`;
   const description = product.description ?? undefined;
+  const { baseUrl } = await getStorefrontBase(tenantParam);
+  const productUrl = baseUrl
+    ? `${baseUrl}/products/${encodeURIComponent(product.slug ?? product.id)}`
+    : undefined;
   return {
     title,
     ...(description ? { description } : {}),
+    ...(productUrl ? { alternates: { canonical: productUrl } } : {}),
     openGraph: {
+      type: "website",
       title,
       ...(description ? { description } : {}),
+      ...(productUrl ? { url: productUrl } : {}),
       ...(product.image_url ? { images: [{ url: product.image_url }] } : {}),
+    },
+    twitter: {
+      card: product.image_url ? "summary_large_image" : "summary",
+      title,
+      ...(description ? { description } : {}),
+      ...(product.image_url ? { images: [product.image_url] } : {}),
     },
   };
 }
@@ -71,21 +90,48 @@ export default async function ProductPage({ params }: Props) {
   const v2 = tenant.store_config_v2 ?? null;
   const v2Page = pickV2Page(v2, "product");
   if (v2 && v2Page) {
+    const locale = v2.default_locale ?? "ar";
     const runtime = buildRuntimeContext({
       pageId: "product",
-      locale: v2.default_locale ?? "ar",
+      locale,
       now: new Date(),
       productId: product.id,
     });
     const hydratedProduct = { ...product, images: allImages, variants };
     const related = await listProducts(tenant.id, { limit: 24 });
+
+    const { baseUrl } = await getStorefrontBase(tenantParam);
+    const ar = locale === "ar";
+    const productUrl = `${baseUrl}/products/${encodeURIComponent(product.slug ?? product.id)}`;
+    const inStock =
+      (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0) > 0;
     return (
-      <V2Page
-        v2={v2}
-        page={v2Page}
-        runtime={runtime}
-        renderCtx={{ tenant, products: related, categories, product: hydratedProduct }}
-      />
+      <>
+        <JsonLd
+          data={[
+            productJsonLd({
+              name: product.name,
+              url: productUrl,
+              image: allImages.length > 0 ? allImages : product.image_url,
+              description: product.description ?? null,
+              price: product.price,
+              inStock,
+              brand: tenant.business_name,
+            }),
+            breadcrumbJsonLd([
+              { name: ar ? "الرئيسية" : "Home", url: baseUrl || "/" },
+              { name: ar ? "المنتجات" : "Products", url: `${baseUrl}/products` },
+              { name: product.name, url: productUrl },
+            ]),
+          ]}
+        />
+        <V2Page
+          v2={v2}
+          page={v2Page}
+          runtime={runtime}
+          renderCtx={{ tenant, products: related, categories, product: hydratedProduct }}
+        />
+      </>
     );
   }
 

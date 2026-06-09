@@ -1,14 +1,17 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Search, Sun, Moon, Menu, Loader2 } from "lucide-react";
+import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
+import { Search, Sun, Moon, Menu, Loader2, Shield, UserPlus } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { NotificationBell } from "@/components/shared/notification-bell";
+import { usePageHeader } from "@/store/use-page-header";
 
 const PAGE_TITLES: Record<string, string> = {
   "/": "Command Center",
-  "/merchants": "",
+  "/merchants": "Merchants",
+  "/leads": "Prospects",
+  "/team": "Team",
   "/billing": "Billing",
   "/trials": "Trials",
   "/health": "Health",
@@ -16,6 +19,22 @@ const PAGE_TITLES: Record<string, string> = {
   "/settings": "Settings",
   "/revenue": "Revenue Analytics",
   "/usage": "Usage Heatmap",
+};
+
+/** Friendly labels for the admin-console roles (stored as snake_case). */
+const ROLE_LABELS: Record<string, string> = {
+  super_admin: "Super Admin",
+  support_staff: "Support",
+};
+
+/** Per-route header icon, rendered beside the title (mirrors PAGE_TITLES). */
+const PAGE_ICONS: Record<string, ReactNode> = {
+  "/leads": (
+    <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#FF8899]/25 to-[#A78BFA]/25 shadow-[0_0_18px_-4px_rgba(255,136,153,0.45)]">
+      <span className="absolute inset-0 rounded-xl ring-1 ring-inset ring-white/20" />
+      <UserPlus className="h-[18px] w-[18px] text-[#FF8899]" />
+    </span>
+  ),
 };
 
 interface MerchantResult {
@@ -41,7 +60,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 interface AdminTopbarProps {
-  user: { email: string; full_name: string | null; role: string } | null;
+  user: { email: string; full_name: string | null; avatar_url: string | null; role: string } | null;
   onMenuClick?: () => void;
   isMobile?: boolean;
   onOpenCommandPalette?: () => void;
@@ -60,7 +79,13 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
   const searchRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const pageTitle = PAGE_TITLES[pathname ?? "/"] ?? "Admin";
+  const { title: pageHeaderTitle, subtitle: pageHeaderSubtitle } = usePageHeader();
+  const pageTitle = pageHeaderTitle ?? PAGE_TITLES[pathname ?? "/"] ?? "Admin";
+  const pageIcon = PAGE_ICONS[pathname ?? "/"] ?? null;
+
+  // The global merchant search queries /api/merchants and jumps to a merchant
+  // profile — it only belongs on the Merchants directory, not every page.
+  const showSearch = pathname === "/merchants" || (pathname?.startsWith("/merchants/") ?? false);
 
   const fetchResults = useCallback(async (searchQuery: string) => {
     if (!searchQuery.trim()) {
@@ -146,12 +171,27 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
             <Menu className="w-5 h-5 text-foreground" />
           </button>
         )}
+        {pageIcon}
         {pageTitle && (
-          <h1 className="text-lg font-semibold text-foreground">{pageTitle}</h1>
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold text-foreground leading-tight truncate">
+              {pageTitle}
+            </h1>
+            {pageHeaderSubtitle && (
+              <p className="hidden sm:flex items-center gap-1.5 text-[11px] text-foreground-muted leading-tight mt-0.5">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                </span>
+                {pageHeaderSubtitle}
+              </p>
+            )}
+          </div>
         )}
       </div>
 
-      {/* Center: Search */}
+      {/* Center: Search — merchant directory search, shown only on Merchants pages */}
+      {showSearch && (
       <div className="hidden md:flex flex-1 max-w-md mx-auto">
         <div ref={searchRef} className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
@@ -223,33 +263,53 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
           )}
         </div>
       </div>
+      )}
 
-      {/* Right: Notifications, Theme toggle, role badge, avatar */}
-      <div className="flex items-center gap-2">
+      {/* Right: Notifications, Theme toggle, user chip */}
+      <div className="flex items-center gap-1">
         <NotificationBell />
         <button
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+          className="w-9 h-9 flex items-center justify-center rounded-xl text-foreground/70 hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
           aria-label="Toggle theme"
         >
           {theme === "dark" ? (
-            <Sun className="w-4 h-4 text-foreground" />
+            <Sun className="w-[18px] h-[18px]" />
           ) : (
-            <Moon className="w-4 h-4 text-foreground" />
+            <Moon className="w-[18px] h-[18px]" />
           )}
         </button>
 
         {user && (
-          <div className="flex items-center gap-2">
-            <span className="hidden sm:inline-block text-xs font-medium px-2.5 py-1 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)]">
-              {user.role}
-            </span>
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#FBE38E] to-[#F4C7CF] flex items-center justify-center flex-shrink-0">
-              <span className="text-[#1E1E1E] font-semibold text-xs">
-                {(user.full_name || user.email)?.charAt(0).toUpperCase()}
-              </span>
+          <>
+            <div className="w-px h-6 bg-[var(--card-border)] mx-1.5" />
+            <div className="flex items-center gap-2.5">
+              <div className="hidden sm:flex flex-col items-end leading-tight">
+                <span className="text-[13px] font-semibold text-foreground truncate max-w-[160px]">
+                  {user.full_name || user.email?.split("@")[0]}
+                </span>
+                {(ROLE_LABELS[user.role] || user.role) && (
+                  <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-[var(--primary)]">
+                    <Shield className="w-2.5 h-2.5" strokeWidth={2.5} />
+                    {ROLE_LABELS[user.role] ?? "Admin"}
+                  </span>
+                )}
+              </div>
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#FBE38E] to-[#F4C7CF] flex items-center justify-center flex-shrink-0 overflow-hidden ring-2 ring-[var(--primary)]/20 shadow-sm">
+                {user.avatar_url ? (
+                  <img
+                    src={user.avatar_url}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-[#1E1E1E] font-semibold text-xs">
+                    {(user.full_name || user.email)?.charAt(0).toUpperCase()}
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
+          </>
         )}
       </div>
     </header>

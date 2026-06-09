@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import {
@@ -84,6 +84,23 @@ function PdpBuyBoxRender({
     setPageUrl(window.location.href);
   }, []);
 
+  // Sticky buy bar: surfaces a reachable Add-to-cart whenever the inline
+  // CTA is off-screen (e.g. while the shopper is still scrolling the
+  // gallery, or has scrolled past the buy box). Keeps the primary action
+  // one tap away on long product pages, desktop + mobile.
+  const inlineCtaRef = useRef<HTMLDivElement>(null);
+  const [showSticky, setShowSticky] = useState(false);
+  useEffect(() => {
+    const el = inlineCtaRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      ([entry]) => setShowSticky(!entry.isIntersecting),
+      { threshold: 0 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
   if (!product) {
     if (process.env.NODE_ENV !== "production") {
       return (
@@ -132,6 +149,7 @@ function PdpBuyBoxRender({
   }
 
   return (
+    <>
     <section
       className="px-4 py-4"
       style={{
@@ -168,7 +186,7 @@ function PdpBuyBoxRender({
           {props.show_compare_price &&
             onSale &&
             product.compare_at_price != null && (
-              <span className="font-body text-lg text-bk-ink-faint line-through">
+              <span className="font-body text-lg text-bk-ink-soft line-through">
                 {formatPrice(product.compare_at_price)}
               </span>
             )}
@@ -261,6 +279,7 @@ function PdpBuyBoxRender({
         )}
 
         <div
+          ref={inlineCtaRef}
           data-layer="add_to_cart"
           data-layer-label="Add to cart button"
           data-layer-kind="button"
@@ -331,6 +350,64 @@ function PdpBuyBoxRender({
         )}
       </BentoCard>
     </section>
+
+      {/* Sticky buy bar — floats up when the inline CTA is off-screen so the
+          add-to-cart is always one tap away. Contained "bento" pill, not a
+          full-bleed slab; slides in/out and respects reduced-motion via the
+          CSS transition only animating transform. */}
+      <div
+        aria-hidden={!showSticky}
+        className={
+          "fixed inset-x-0 bottom-0 z-40 px-3 pb-3 transition-transform duration-300 ease-out motion-reduce:transition-none " +
+          (showSticky ? "translate-y-0" : "translate-y-[140%] pointer-events-none")
+        }
+      >
+        <div
+          className="mx-auto flex max-w-3xl items-center gap-3 px-3 py-2 sm:gap-4 sm:px-4"
+          style={{
+            backgroundColor: "color-mix(in srgb, var(--bk-surface, #ffffff) 92%, transparent)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+            border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+            borderRadius: "var(--bk-radius-card, 1rem)",
+            boxShadow: "var(--bk-shadow-card, 6px 6px 0px 0px #1a1a1a)",
+          }}
+        >
+          <div className="hidden min-w-0 flex-1 sm:block">
+            <p
+              className="truncate font-display font-black text-sm uppercase leading-tight"
+              style={{ color: "var(--bk-ink, #1a1a1a)" }}
+            >
+              {product.name}
+            </p>
+            <p
+              className="font-display font-black leading-tight"
+              style={{ color: "var(--bk-primary, #ff4081)" }}
+            >
+              {formatPrice(unitPrice * qty)}
+            </p>
+          </div>
+          <span
+            className="font-display font-black text-lg sm:hidden"
+            style={{ color: "var(--bk-primary, #ff4081)" }}
+          >
+            {formatPrice(unitPrice * qty)}
+          </span>
+          <div className="ml-auto shrink-0">
+            <ChunkyButton
+              type="button"
+              bg="pink"
+              size="md"
+              onClick={handleAdd}
+              disabled={oos}
+            >
+              <MaterialIcon name="shopping_bag" />
+              {oos ? (t ? "نفد المخزون" : "Out of stock") : ctaLabel}
+            </ChunkyButton>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 

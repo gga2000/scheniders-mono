@@ -50,7 +50,7 @@ const defaultProps: Props = {
 };
 
 const iconBtn =
-  "inline-flex h-10 w-10 items-center justify-center rounded-[var(--bk-radius-input,0.75rem)] " +
+  "inline-flex h-11 w-11 items-center justify-center rounded-[var(--bk-radius-input,0.75rem)] " +
   "text-[var(--bk-ink,#1a1a1a)] hover:bg-candy-cream transition-colors";
 
 function SiteHeaderRender({

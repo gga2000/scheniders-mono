@@ -9,7 +9,7 @@
 
 import type { CSSProperties } from "react";
 import { z } from "zod";
-import { resolveI18n } from "@scheniders/shared";
+import { resolveI18n, governorateLabel } from "@scheniders/shared";
 import {
   BentoCard,
   MaterialIcon,
@@ -164,7 +164,7 @@ function DeliveryPromise({
                   key={g}
                   className="inline-flex items-center font-label font-bold text-[11px] sm:text-xs uppercase tracking-[0.15em] bg-white border-[3px] border-candy-ink rounded-full px-3 py-1"
                 >
-                  {g}
+                  {governorateLabel(g, locale)}
                 </span>
               ))}
             </div>

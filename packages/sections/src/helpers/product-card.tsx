@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { resolveSchneidersConfig, SCHNEIDERS_DEFAULTS } from "@scheniders/shared";
 import type { LocaleCode, SchneidersConfig } from "@scheniders/shared";
@@ -9,6 +10,7 @@ import { cn } from "./utils";
 import { formatPrice } from "./format";
 import { Sticker, MaterialIcon, WhatsAppIcon } from "./primitives";
 import { whatsappOrderLink } from "./whatsapp";
+import { useCart } from "./cart-store";
 
 type Tint = "mint" | "lilac" | "butter" | "sky" | "pink" | "cream";
 
@@ -53,6 +55,9 @@ export function SchneidersProductCard({
   locale = "en",
   priority = false,
 }: Props) {
+  const t = locale === "ar";
+  const addItem = useCart((s) => s.addItem);
+  const [justAdded, setJustAdded] = useState(false);
   const resolvedTint = tint ?? TINTS[index % TINTS.length];
   const onSale =
     product.compare_at_price != null && product.compare_at_price > product.price;
@@ -63,10 +68,28 @@ export function SchneidersProductCard({
   const sticker = { ...SCHNEIDERS_DEFAULTS.sale_sticker, ...(saleSticker ?? {}) };
   const stickerLabel =
     sticker.style === "percent"
-      ? `-${discountPct}% OFF`
+      ? t
+        ? `خصم ${discountPct}%`
+        : `-${discountPct}% OFF`
       : sticker.style === "label"
         ? (sticker.label ?? SCHNEIDERS_DEFAULTS.sale_sticker.label!)
-        : `Save ${formatPrice(savings)}`;
+        : t
+          ? `وفّر ${formatPrice(savings)}`
+          : `Save ${formatPrice(savings)}`;
+
+  function quickAdd() {
+    addItem({
+      product_id: product.id,
+      variant_id: null,
+      name: product.name,
+      variant_name: null,
+      price: product.price,
+      quantity: 1,
+      image_url: product.image_url ?? null,
+    });
+    setJustAdded(true);
+    window.setTimeout(() => setJustAdded(false), 1500);
+  }
 
   return (
     <article className={cn("bento-card bg-white p-4 relative flex flex-col", className)}>
@@ -100,19 +123,19 @@ export function SchneidersProductCard({
             priority={priority}
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             className={cn(
-              "object-cover mix-blend-multiply",
+              "object-cover",
               !inStock && "opacity-60 grayscale",
             )}
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-bk-ink-faint font-display font-bold text-sm uppercase">
-            No image
+            {t ? "لا توجد صورة" : "No image"}
           </div>
         )}
         {!inStock && (
           <div className="absolute top-2 right-2">
             <Sticker bg="ink" rotate={6} size="xs">
-              Sold Out
+              {t ? "نفد المخزون" : "Sold Out"}
             </Sticker>
           </div>
         )}
@@ -127,7 +150,7 @@ export function SchneidersProductCard({
       <div className="flex items-end justify-between mb-3 mt-auto">
         <div>
           {onSale && (
-            <div className="font-body font-medium text-xs text-bk-ink-faint line-through">
+            <div className="font-body font-medium text-xs text-bk-ink-soft line-through">
               {formatPrice(product.compare_at_price!)}
             </div>
           )}
@@ -151,21 +174,31 @@ export function SchneidersProductCard({
             fontFamily: "var(--bk-font-display, inherit)",
           }}
         >
-          Buy Now
+          {t ? "اشترِ الآن" : "Buy Now"}
         </StoreLink>
         <button
           type="button"
-          aria-label="Add to cart"
-          className="bento-card-sm bg-white p-2.5 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
+          onClick={quickAdd}
+          disabled={!inStock}
+          aria-label={
+            justAdded
+              ? t
+                ? "أُضيف إلى السلة"
+                : "Added to cart"
+              : t
+                ? "أضف إلى السلة"
+                : "Add to cart"
+          }
+          className="bento-card-sm bg-white p-2.5 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           style={{
-            color: "var(--bk-ink, #1a1a1a)",
+            color: justAdded ? "var(--bk-success, #16a34a)" : "var(--bk-ink, #1a1a1a)",
             border:
               "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
             borderRadius: "var(--bk-radius-input, 0.75rem)",
             boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
           }}
         >
-          <MaterialIcon name="add_shopping_cart" className="text-lg" />
+          <MaterialIcon name={justAdded ? "check" : "add_shopping_cart"} className="text-lg" />
         </button>
       </div>
       {(() => {

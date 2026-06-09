@@ -63,12 +63,31 @@ export const LEAD_PRIORITY_UI: Record<LeadPriority, string> = {
   urgent: "#DC2626", // red-600
 };
 
+// Thresholds mirror the DB `compute_lead_tier` function (the source of truth that
+// sets the stored `tier` column). Keep both in sync — see migration
+// 20260609030000_adjust_lead_tier_thresholds.sql.
 export const LEAD_TIER_CONFIG: Record<LeadTier, { label: string; minFollowers: number; color: string; icon: string }> = {
   bronze: { label: "Bronze", minFollowers: 0, color: "#CD7F32", icon: "Circle" },
-  silver: { label: "Silver", minFollowers: 1000, color: "#C0C0C0", icon: "Award" },
-  gold: { label: "Gold", minFollowers: 10000, color: "#FFD700", icon: "Star" },
-  diamond: { label: "Diamond", minFollowers: 50000, color: "#B9F2FF", icon: "Diamond" },
-  legendary: { label: "Legendary", minFollowers: 100000, color: "#FF6EFF", icon: "Crown" },
+  silver: { label: "Silver", minFollowers: 10000, color: "#C0C0C0", icon: "Award" },
+  gold: { label: "Gold", minFollowers: 50000, color: "#FFD700", icon: "Star" },
+  diamond: { label: "Diamond", minFollowers: 150000, color: "#B9F2FF", icon: "Diamond" },
+  legendary: { label: "Legendary", minFollowers: 400000, color: "#FF6EFF", icon: "Crown" },
+};
+
+/**
+ * Readable, high-contrast tier palette for light surfaces.
+ * `LEAD_TIER_CONFIG.color` is the vivid trophy-metal brand hue (gold, ice-blue…)
+ * — gorgeous as a fill or glow but unreadable as text on light. Mirrors the
+ * LEAD_STATUS_UI rationale: `solid` is a mid-dark hue for badge text + dots,
+ * `soft` a tinted background, and `gradient` a glossy jewel fill for the
+ * merchant medallion (paired with white text).
+ */
+export const LEAD_TIER_UI: Record<LeadTier, { solid: string; soft: string; gradient: string }> = {
+  bronze: { solid: "#B45309", soft: "rgba(180,83,9,0.12)", gradient: "linear-gradient(135deg,#CD7F32,#7C3A12)" },
+  silver: { solid: "#475569", soft: "rgba(71,85,105,0.12)", gradient: "linear-gradient(135deg,#8B97A6,#3F4C5A)" },
+  gold: { solid: "#A16207", soft: "rgba(161,98,7,0.14)", gradient: "linear-gradient(135deg,#D8951A,#7A4309)" },
+  diamond: { solid: "#0E7490", soft: "rgba(14,116,144,0.12)", gradient: "linear-gradient(135deg,#38BDF8,#0E7490)" },
+  legendary: { solid: "#A21CAF", soft: "rgba(162,28,175,0.14)", gradient: "linear-gradient(135deg,#E879F9,#A21CAF)" },
 };
 
 export const PLATFORM_CONFIG: Record<LeadSourcePlatform, { label: string; icon: string; color: string }> = {
@@ -202,7 +221,7 @@ export interface Lead {
   // Joined data (optional)
   industry?: Industry | null;
   assigned_user?: { id: string; display_name: string | null; email: string; avatar_url: string | null } | null;
-  created_by_user?: { id: string; display_name: string | null; email: string } | null;
+  created_by_user?: { id: string; display_name: string | null; email: string; avatar_url: string | null } | null;
 }
 
 export interface LeadActivity {

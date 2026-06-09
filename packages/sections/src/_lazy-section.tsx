@@ -25,7 +25,11 @@ interface LazySectionProps {
 
 export function LazySection({
   children,
-  intrinsicSize = "auto 1200px",
+  // `auto <length>` lets the browser remember each section's real height
+  // after first render; the length is only the pre-render estimate. 1200px
+  // badly over-reserved (real sections are ~450px), inflating the scrollbar
+  // with a phantom void — callers pass a per-type estimate; 600px fallback.
+  intrinsicSize = "auto 600px",
   sectionId,
 }: LazySectionProps) {
   return (

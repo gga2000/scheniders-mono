@@ -14,11 +14,13 @@ import { StoreLink } from "./helpers/store-context";
 import {
   BentoCard,
   ChunkyButton,
+  MaterialIcon,
   ScribbleHeading,
   Section,
   Sticker,
 } from "./helpers/primitives";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
+import { isOptimizableImageHost } from "./helpers/image";
 import { registerSection } from "./_registry";
 import type { SectionDefinition } from "./_types";
 
@@ -62,6 +64,7 @@ function BrandStory({
   const title = resolveI18n(props.title_i18n, locale);
   const paragraphsRaw = resolveI18n(props.paragraphs_i18n, locale);
   const linkLabel = resolveI18n(props.link_label_i18n, locale);
+  const name = ctx.tenant.business_name;
 
   const paragraphs = paragraphsRaw
     .split(/\n\n+/)
@@ -115,12 +118,45 @@ function BrandStory({
               src={props.accent_image_url}
               alt=""
               fill
-              unoptimized
+              unoptimized={!isOptimizableImageHost(props.accent_image_url)}
               sizes="(max-width: 1024px) 100vw, 40vw"
               className="absolute inset-0 w-full h-full object-cover"
             />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-candy-lilac via-candy-sky/50 to-candy-mint/50" />
+            /* No accent image: a designed editorial panel (brand mark +
+               business name + eyebrow) instead of an empty gradient block. */
+            <>
+              <div className="absolute inset-0 bg-gradient-to-br from-candy-lilac via-candy-sky/50 to-candy-mint/50" />
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
+                <span
+                  className="flex h-14 w-14 items-center justify-center"
+                  style={{
+                    backgroundColor: "var(--bk-surface, #ffffff)",
+                    color: "var(--bk-ink, #1a1a1a)",
+                    border:
+                      "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+                    borderRadius: "var(--bk-radius-pill, 9999px)",
+                    boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
+                  }}
+                >
+                  <MaterialIcon name="auto_awesome" className="text-2xl" />
+                </span>
+                <p
+                  className="font-display font-black text-2xl uppercase leading-tight sm:text-3xl"
+                  style={{ color: "var(--bk-ink, #1a1a1a)" }}
+                >
+                  {name}
+                </p>
+                {eyebrow && (
+                  <span
+                    className="font-label font-bold text-[11px] uppercase tracking-[0.25em]"
+                    style={{ color: "var(--bk-ink-soft, rgba(26,26,26,0.7))" }}
+                  >
+                    {eyebrow}
+                  </span>
+                )}
+              </div>
+            </>
           )}
         </BentoCard>
       </div>
