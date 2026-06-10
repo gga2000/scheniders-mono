@@ -33,6 +33,8 @@ export async function POST(request: NextRequest) {
         const { error } = await supabase.from("leads").insert({
           merchant_name: lead.merchant_name,
           platform: lead.platform || "other",
+          platform_url: lead.platform_url || null,
+          handle: lead.handle ? String(lead.handle).trim().replace(/^@+/, "") : null,
           follower_count: Number(lead.follower_count) || 0,
           management_name: lead.management_name || null,
           page_phone: lead.page_phone || null,

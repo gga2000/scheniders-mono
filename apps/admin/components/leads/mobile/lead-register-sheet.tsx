@@ -451,6 +451,24 @@ export function LeadRegisterSheet({
                 </div>
               )}
 
+              {/* Handle / username */}
+              <div>
+                <label className={LABEL}>Handle</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[var(--muted)] pointer-events-none">
+                    @
+                  </span>
+                  <input
+                    type="text"
+                    dir="ltr"
+                    value={form.handle}
+                    onChange={(e) => update("handle", e.target.value)}
+                    className={cn(FIELD, "pl-7")}
+                    placeholder="username"
+                  />
+                </div>
+              </div>
+
               {/* Website */}
               <div>
                 <label className={LABEL}>Website</label>

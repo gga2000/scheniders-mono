@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       query = query.or(
-        `merchant_name.ilike.%${search}%,management_name.ilike.%${search}%,page_phone.ilike.%${search}%,city.ilike.%${search}%`
+        `merchant_name.ilike.%${search}%,management_name.ilike.%${search}%,handle.ilike.%${search}%,page_phone.ilike.%${search}%,city.ilike.%${search}%`
       );
     }
 
@@ -96,6 +96,7 @@ export async function POST(request: NextRequest) {
         industry_id: body.industry_id || null,
         platform: body.platform || "instagram",
         platform_url: body.platform_url || null,
+        handle: body.handle || null,
         follower_count: body.follower_count || 0,
         post_count: body.post_count || 0,
         management_name: body.management_name || null,

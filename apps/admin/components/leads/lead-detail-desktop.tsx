@@ -496,6 +496,7 @@ export function LeadDetailDesktop() {
           industry_id: lead.industry_id,
           platform: lead.platform,
           platform_url: lead.platform_url ?? "",
+          handle: lead.handle ?? "",
           follower_count: lead.follower_count,
           management_name: lead.management_name ?? "",
           management_info: lead.management_info ?? "",

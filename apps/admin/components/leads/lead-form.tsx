@@ -305,15 +305,34 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData }: LeadForm
                 </div>
               </div>
 
-              <div>
-                <label className={LABEL}>Platform URL</label>
-                <input
-                  type="url"
-                  value={form.platform_url}
-                  onChange={(e) => update("platform_url", e.target.value)}
-                  className={FIELD}
-                  placeholder="https://…"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={LABEL}>Handle</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[var(--muted)] pointer-events-none">
+                      @
+                    </span>
+                    <input
+                      type="text"
+                      dir="ltr"
+                      value={form.handle}
+                      onChange={(e) => update("handle", e.target.value)}
+                      className={cn(FIELD, "pl-7")}
+                      placeholder="username"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className={LABEL}>Platform URL</label>
+                  <input
+                    type="url"
+                    dir="ltr"
+                    value={form.platform_url}
+                    onChange={(e) => update("platform_url", e.target.value)}
+                    className={FIELD}
+                    placeholder="https://…"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

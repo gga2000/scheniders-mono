@@ -148,6 +148,8 @@ export interface Lead {
   industry_id: string | null;
   platform: LeadSourcePlatform;
   platform_url: string | null;
+  /** Social handle / username for the primary platform (e.g. Instagram @username), stored without the leading "@". */
+  handle: string | null;
   follower_count: number;
   post_count: number;
 
@@ -400,6 +402,8 @@ export interface LeadFormData {
   industry_id: string | null;
   platform: LeadSourcePlatform;
   platform_url: string;
+  /** Social handle / username for the primary platform (e.g. Instagram @username), stored without the leading "@". */
+  handle: string;
   follower_count: number;
   post_count: number;
   management_name: string;

@@ -15,6 +15,7 @@ export const DEFAULT_FORM: LeadFormData = {
   industry_id: null,
   platform: "instagram",
   platform_url: "",
+  handle: "",
   follower_count: 0,
   post_count: 0,
   management_name: "",
@@ -105,6 +106,7 @@ export function useLeadFormController({
       setForm((prev) => ({
         ...prev,
         merchant_name: p.merchant_name || prev.merchant_name,
+        handle: p.handle || prev.handle,
         follower_count: p.follower_count || prev.follower_count,
         post_count: p.post_count || prev.post_count,
         avg_view_count: p.avg_view_count || prev.avg_view_count,
@@ -228,6 +230,8 @@ export function useLeadFormController({
     const normalized: LeadFormData = {
       ...form,
       merchant_name: form.merchant_name.trim(),
+      // Store the handle without a leading "@" (users may type "@name").
+      handle: form.handle.trim().replace(/^@+/, ""),
       website_url: form.website_url.trim(),
       email: form.email.trim().toLowerCase(),
       // DM-only pages keep no phone numbers.
