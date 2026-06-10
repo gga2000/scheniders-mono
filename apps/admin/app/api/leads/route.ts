@@ -94,6 +94,7 @@ export async function POST(request: NextRequest) {
       .insert({
         merchant_name: body.merchant_name,
         industry_id: body.industry_id || null,
+        industry_detail: body.industry_detail || null,
         platform: body.platform || "instagram",
         platform_url: body.platform_url || null,
         handle: body.handle || null,

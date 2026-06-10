@@ -146,6 +146,8 @@ export interface Lead {
   id: string;
   merchant_name: string;
   industry_id: string | null;
+  /** Free-text refinement of the industry (e.g. "herbs & natural products" under Health & Wellness). */
+  industry_detail: string | null;
   platform: LeadSourcePlatform;
   platform_url: string | null;
   /** Social handle / username for the primary platform (e.g. Instagram @username), stored without the leading "@". */
@@ -400,6 +402,8 @@ export interface LeadAnalytics {
 export interface LeadFormData {
   merchant_name: string;
   industry_id: string | null;
+  /** Free-text refinement of the industry (e.g. "herbs & natural products" under Health & Wellness). */
+  industry_detail: string;
   platform: LeadSourcePlatform;
   platform_url: string;
   /** Social handle / username for the primary platform (e.g. Instagram @username), stored without the leading "@". */

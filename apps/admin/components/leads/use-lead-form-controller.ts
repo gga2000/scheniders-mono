@@ -13,6 +13,7 @@ export const EMPTY_BRANCH: LeadBranch = { name: "", city: "", address: "", phone
 export const DEFAULT_FORM: LeadFormData = {
   merchant_name: "",
   industry_id: null,
+  industry_detail: "",
   platform: "instagram",
   platform_url: "",
   handle: "",
@@ -21,7 +22,8 @@ export const DEFAULT_FORM: LeadFormData = {
   management_name: "",
   management_info: "",
   page_phone: "",
-  phone_numbers: [{ ...EMPTY_PHONE }],
+  // Additional numbers start empty — employees reveal a row via "Add number".
+  phone_numbers: [],
   contact_via_dm: false,
   website_url: "",
   email: "",
@@ -230,6 +232,7 @@ export function useLeadFormController({
     const normalized: LeadFormData = {
       ...form,
       merchant_name: form.merchant_name.trim(),
+      industry_detail: form.industry_detail.trim(),
       // Store the handle without a leading "@" (users may type "@name").
       handle: form.handle.trim().replace(/^@+/, ""),
       website_url: form.website_url.trim(),

@@ -306,6 +306,7 @@ export function LeadMobileDetail() {
         initialData={{
           merchant_name: lead.merchant_name,
           industry_id: lead.industry_id,
+          industry_detail: lead.industry_detail ?? "",
           platform: lead.platform,
           platform_url: lead.platform_url ?? "",
           handle: lead.handle ?? "",

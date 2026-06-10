@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { cn, formatIQD } from "@/lib/utils";
-import type { LeadFormData, LeadSourcePlatform, LeadPriority } from "@/types/leads";
-import { PLATFORM_CONFIG, LEAD_PRIORITY_CONFIG } from "@/types/leads";
+import type { LeadFormData, LeadSourcePlatform } from "@/types/leads";
+import { PLATFORM_CONFIG } from "@/types/leads";
 import { IRAQ_GOVERNORATES } from "@scheniders/shared";
 import {
   Sparkles,
@@ -16,10 +16,11 @@ import {
   ChevronUp,
   TrendingUp,
   Globe,
-  Flag,
   Plus,
   Trash2,
   Building2,
+  Settings2,
+  Tag,
   UserPlus,
   Instagram,
   Facebook,
@@ -34,6 +35,7 @@ import {
 } from "lucide-react";
 import { BottomSheet } from "./bottom-sheet";
 import { normalizeIraqiPhone } from "../lead-phone";
+import { LeadIndustryManager } from "../lead-industry-manager";
 import {
   useLeadFormController,
   ANALYZABLE_PLATFORMS,
@@ -72,6 +74,8 @@ export function LeadRegisterSheet({
   initialData,
 }: LeadRegisterSheetProps) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const [industryMgrOpen, setIndustryMgrOpen] = useState(false);
+  const [showIndustryDetail, setShowIndustryDetail] = useState(false);
 
   const {
     form,
@@ -146,6 +150,7 @@ export function LeadRegisterSheet({
   );
 
   return (
+    <>
     <BottomSheet
       open={open}
       onOpenChange={onOpenChange}
@@ -327,51 +332,7 @@ export function LeadRegisterSheet({
           )}
         </div>
 
-        {/* 5. Priority chips */}
-        <div>
-          <label className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--muted)] mb-2">
-            <Flag className="w-3 h-3" /> Priority
-          </label>
-          <div className="flex items-center gap-2 flex-wrap">
-            {(
-              Object.entries(LEAD_PRIORITY_CONFIG) as [
-                LeadPriority,
-                (typeof LEAD_PRIORITY_CONFIG)["low"],
-              ][]
-            ).map(([key, cfg]) => {
-              const active = form.priority === key;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => update("priority", key)}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-all",
-                    !active &&
-                      "border-[var(--card-border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--muted)]/40",
-                  )}
-                  style={
-                    active
-                      ? {
-                          borderColor: cfg.color,
-                          backgroundColor: `${cfg.color}1A`,
-                          color: cfg.color,
-                        }
-                      : undefined
-                  }
-                >
-                  <span
-                    className="w-1.5 h-1.5 rounded-full"
-                    style={{ backgroundColor: cfg.color }}
-                  />
-                  {cfg.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 6. Collapsible "More details" */}
+        {/* 5. Collapsible "More details" */}
         <div>
           <button
             type="button"
@@ -388,9 +349,18 @@ export function LeadRegisterSheet({
 
           {moreOpen && (
             <div className="space-y-4 mt-3">
-              {/* Industry */}
+              {/* Industry + inline management + optional niche detail */}
               <div>
-                <label className={LABEL}>Industry</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className={cn(LABEL, "mb-0")}>Industry</label>
+                  <button
+                    type="button"
+                    onClick={() => setIndustryMgrOpen(true)}
+                    className="flex items-center gap-1 text-[11px] font-medium text-indigo-500 hover:underline"
+                  >
+                    <Settings2 className="w-3 h-3" /> Manage
+                  </button>
+                </div>
                 <div className="relative">
                   <select
                     value={form.industry_id ?? ""}
@@ -402,12 +372,34 @@ export function LeadRegisterSheet({
                       .filter((i) => i.is_active)
                       .map((i) => (
                         <option key={i.id} value={i.id}>
-                          {i.name}
+                          {i.name_ar || i.name}
                         </option>
                       ))}
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)] pointer-events-none" />
                 </div>
+                {showIndustryDetail || form.industry_detail ? (
+                  <div className="relative mt-2">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-400 pointer-events-none">
+                      <Tag className="w-4 h-4" />
+                    </span>
+                    <input
+                      type="text"
+                      value={form.industry_detail}
+                      onChange={(e) => update("industry_detail", e.target.value)}
+                      className={cn(FIELD, "pl-9")}
+                      placeholder="Specify the niche — e.g. herbs"
+                    />
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowIndustryDetail(true)}
+                    className="mt-2 flex items-center gap-1 text-[11px] font-medium text-[var(--muted)] hover:text-[var(--foreground)]"
+                  >
+                    <Plus className="w-3 h-3" /> Specify the niche
+                  </button>
+                )}
               </div>
 
               {/* Platform URL */}
@@ -830,18 +822,6 @@ export function LeadRegisterSheet({
                 )}
               </div>
 
-              {/* Source medium */}
-              <div>
-                <label className={LABEL}>Source Medium</label>
-                <input
-                  type="text"
-                  value={form.source_medium}
-                  onChange={(e) => update("source_medium", e.target.value)}
-                  className={FIELD}
-                  placeholder="e.g. social, direct"
-                />
-              </div>
-
               {/* Notes */}
               <div>
                 <label className={LABEL}>Notes</label>
@@ -858,5 +838,10 @@ export function LeadRegisterSheet({
         </div>
       </div>
     </BottomSheet>
+    <LeadIndustryManager
+      isOpen={industryMgrOpen}
+      onClose={() => setIndustryMgrOpen(false)}
+    />
+    </>
   );
 }
