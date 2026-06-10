@@ -498,6 +498,7 @@ export function LeadDetailDesktop() {
           platform_url: lead.platform_url ?? "",
           handle: lead.handle ?? "",
           follower_count: lead.follower_count,
+          post_count: lead.post_count,
           management_name: lead.management_name ?? "",
           management_info: lead.management_info ?? "",
           page_phone: lead.page_phone ?? "",

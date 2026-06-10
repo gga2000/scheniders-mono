@@ -8,6 +8,7 @@ import type {
   LeadPriority,
 } from "@/types/leads";
 import { PLATFORM_CONFIG, LEAD_PRIORITY_CONFIG } from "@/types/leads";
+import { IRAQ_GOVERNORATES } from "@scheniders/shared";
 import {
   X,
   Plus,
@@ -694,39 +695,61 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData }: LeadForm
                 </PillToggle>
               }
             >
-              <div className="grid grid-cols-2 gap-3">
+              {form.is_online_only ? (
                 <div>
-                  <label className={LABEL}>City</label>
-                  {form.is_online_only ? (
-                    <div
-                      className={cn(
-                        FIELD,
-                        "flex items-center gap-2 text-[var(--muted)] cursor-default select-none",
-                      )}
-                    >
-                      <Globe className="w-4 h-4 text-[#A78BFA] shrink-0" />
-                      No physical location
+                  <label className={LABEL}>Location</label>
+                  <div
+                    className={cn(
+                      FIELD,
+                      "flex items-center gap-2 text-[var(--muted)] cursor-default select-none",
+                    )}
+                  >
+                    <Globe className="w-4 h-4 text-[#A78BFA] shrink-0" />
+                    No physical location
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={LABEL}>Governorate</label>
+                    <div className="relative">
+                      <select
+                        value={form.governorate_code}
+                        onChange={(e) => update("governorate_code", e.target.value)}
+                        className={cn(FIELD, "appearance-none pr-9 cursor-pointer")}
+                      >
+                        <option value="">Select governorate</option>
+                        {IRAQ_GOVERNORATES.map((g) => (
+                          <option key={g.code} value={g.code}>
+                            {g.name} — {g.name_en}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)] pointer-events-none" />
                     </div>
-                  ) : (
+                  </div>
+                  <div>
+                    <label className={LABEL}>City / Area</label>
                     <input
                       type="text"
                       value={form.city}
                       onChange={(e) => update("city", e.target.value)}
                       className={FIELD}
-                      placeholder="e.g. Baghdad"
+                      placeholder="e.g. Amarah"
                     />
-                  )}
+                  </div>
                 </div>
-                <div>
-                  <label className={LABEL}>Source Medium</label>
-                  <input
-                    type="text"
-                    value={form.source_medium}
-                    onChange={(e) => update("source_medium", e.target.value)}
-                    className={FIELD}
-                    placeholder="e.g. social, direct"
-                  />
-                </div>
+              )}
+
+              <div>
+                <label className={LABEL}>Source Medium</label>
+                <input
+                  type="text"
+                  value={form.source_medium}
+                  onChange={(e) => update("source_medium", e.target.value)}
+                  className={FIELD}
+                  placeholder="e.g. social, direct"
+                />
               </div>
 
               {!form.is_online_only && (
