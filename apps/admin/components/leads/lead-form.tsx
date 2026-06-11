@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { cn, formatIQD } from "@/lib/utils";
 import type { LeadFormData, LeadSourcePlatform } from "@/types/leads";
 import { PLATFORM_CONFIG } from "@/types/leads";
@@ -464,16 +464,14 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
     });
   }, [open, initialData]);
 
-  // Set when the dialog is dismissed by Escape or an outside click (i.e. the
-  // employee "got out" by accident) — as opposed to the explicit Cancel/✕.
-  const accidentalCloseRef = useRef(false);
-
+  // ANY dismissal with unsaved content (✕, Cancel, Escape, click-outside) saves
+  // a draft rather than losing it — the form is never an accidental dead-end.
+  // (A successful submit closes via the controller's onClose, which bypasses this.)
   const handleOpenChange = (v: boolean) => {
     if (!v && submitting) return;
-    if (!v && accidentalCloseRef.current && onSaveDraft && isDirty) {
+    if (!v && onSaveDraft && isDirty) {
       onSaveDraft(form);
     }
-    accidentalCloseRef.current = false;
     onOpenChange(v);
   };
 
@@ -507,12 +505,6 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm lead-overlay-in" />
         <Dialog.Content
           aria-describedby={undefined}
-          onEscapeKeyDown={() => {
-            accidentalCloseRef.current = true;
-          }}
-          onInteractOutside={() => {
-            accidentalCloseRef.current = true;
-          }}
           onOpenAutoFocus={(e) => {
             e.preventDefault();
             setTimeout(() => nameRef.current?.focus(), 80);
