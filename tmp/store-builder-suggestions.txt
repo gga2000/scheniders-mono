@@ -1,0 +1,750 @@
+
+
+#### [A] Direct-manipulation & canvas editing
+_The canvas has the right model (click-to-select, rings, floating toolbar, inline edit, insert buttons, spacing drag) but lacks the table-stakes ergonomics of the benchmark tools. Several confirmed canvas bugs are in brokenNow (BUG1 device viewport, BUG7 picker drag, BUG16 scroll-sync, BUG17 inline-edit revert)._
+
+- **A1** (P1·L) No canvas zoom / fit-to-width / zoom pill
+    WHAT: There is no zoom control anywhere — the canvas always renders at 100% inside its container.
+    WHY: A merchant can't see a full desktop composition on a laptop or zoom in to nudge details; the tablet (820px) frame silently clamps below true size with no scale indicator, so they don't know they're not seeing real dimensions.
+    DO: Add Fit/50/75/100/200 + 'Fit to width' as a bottom-left canvas pill or top-bar control, applied via CSS transform:scale on the device-frame wrapper, and multiply the overlay-bounds math by the zoom factor.
+    BENCH: Framer zoom pill + Cmd-scroll, Webflow zoom dropdown, Wix Studio / Builder.io Fit-to-width default.
+- **A2** (P1·L) No drag-to-reorder sections on the canvas
+    WHAT: Sections reorder only via the list panel or up/down buttons, not by grabbing them on the canvas.
+    WHY: Grab-and-drag on the canvas is the most direct expected manipulation; without it, moving a section far is O(n) clicks or a context-switch to the rail.
+    DO: Add a drag handle to the selected-section overlay (or make the ring draggable) using the existing @dnd-kit context; reuse gapRects + the insertion line, drop via the same arrayMove path as the list panel.
+    BENCH: Webflow, Framer, Wix Studio, Replo all drag-reorder on-canvas with a live insertion indicator.
+- **A3** (P1·M) Canvas direct-manipulation chrome is hardcoded English
+    WHAT: Context-menu labels, overlay aria-labels, the pencil 'Edit' chip, inline-edit hints, spacing-handle and insert-button labels are all English literals bypassing editor-i18n.
+    WHY: For a primarily Arabic/Kurdish Iraqi merchant base, the most-used editing surface ships untranslated while the rest of the chrome is trilingual.
+    DO: Route all canvas chrome strings through editor-i18n STRINGS/t (add context_menu.*, inline_edit.*, spacing.*, insert.* keys). Keep layout LTR per project rule — translate copy only.
+    BENCH: Shopify/Wix localize 100% of editor chrome.
+- **A4** (P2·S) Clicking empty canvas does not deselect; no Escape-to-deselect
+    WHAT: The canvas click handler returns early when the click isn't on a [data-section-id], leaving the current section selected; Escape only reverts an inline edit.
+    WHY: Merchants expect to click away or press Escape to clear selection; the ring and toolbar persist confusingly.
+    DO: Add a background-click handler that calls onSectionClick(null) when the target isn't inside a section, plus a global Escape that clears selection when not inline-editing.
+    BENCH: Webflow, Framer, Figma all deselect on empty-canvas click and Escape.
+- **A5** (P2·S) Context menu can render off-screen — no viewport-edge clamping or flip
+    WHAT: The context menu uses raw cursor coords with a fixed min-width and 6 rows, with no measurement against viewport edges.
+    WHY: Right-clicking near the right/bottom edge pushes items outside the scroll container, making them unreachable.
+    DO: After mount, measure the menu rect and clamp/flip x/y to stay within the viewport, like the spacing toolbar's flip logic.
+    BENCH: Radix/shadcn menus (already in this repo) and every pro builder auto-flip and collision-pad.
+- **A6** (P2·M) Empty page has no rich on-canvas empty state
+    WHAT: A zero-section page shows a blank white canvas with only a faint top '+'; the rich template empty-state lives in the inspector rail, not where the merchant is looking.
+    WHY: First-run merchants can stare at an empty canvas not knowing where to click.
+    DO: Render an on-canvas centered card ('Add your first section' / 'Start from a template') when sectionIds.length===0, reusing page-template-empty-state content wired to onAddAt(0).
+    BENCH: Shopify/Wix/Framer show a prominent on-canvas add prompt on empty pages.
+- **A7** (P2·M) Promo/announcement bar isn't selectable or editable from the canvas
+    WHAT: The promo bar renders above the page via a separate RenderSection outside the section list, so it has no [data-section-id] participation in selection/overlay/gap systems.
+    WHY: This globally-visible, high-impact element can't be directly manipulated like every other section — an inconsistent model that forces the merchant to find it elsewhere.
+    DO: Make the promo bar a first-class selectable instance (stable data-section-id, tailored toolbar without up/down/delete) or show a clear hover 'edit announcement bar' affordance.
+    BENCH: Shopify OS 2.0 treats the announcement bar as a clickable, editable section.
+- **A8** (P2·S) sb-stage device-card chrome is defined in CSS but never applied to the preview frame
+    WHAT: globals.css defines .sb-stage (layered device-card shadow, 'floats as a device card'), but the preview viewport uses a flat rounded border + weak shadow-sm; sb-stage has zero usages.
+    WHY: The intended premium 'device floats on a recessed dot-grid canvas' aesthetic is half-built — the canvas reads flatter than the design system specifies, and the active breakpoint isn't communicated beyond raw width.
+    DO: Apply sb-stage to the live-preview viewport; optionally add a lightweight device bezel for mobile/tablet so the breakpoint is legible at a glance.
+    BENCH: Framer/Webflow/Wix Studio float the artboard with a real shadow and show device bezels.
+- **A9** (P3·S) Mobile editor hardcodes the selected-section toolbar label to null ('Section')
+    WHAT: mobile-editor-shell passes selectedSectionLabel={null}, so the overlay toolbar always reads the generic 'Section' instead of the real name.
+    WHY: The mobile editor feels unfinished and is harder to orient than desktop, which resolves a friendly label.
+    DO: Compute and pass the same friendly label derivation used on desktop.
+    BENCH: Pro builders always name the selected element in the floating toolbar.
+- **A10** (P3·S) Two parallel overlay implementations disagree on ring outset and clip at full-bleed edges
+    WHAT: Rings are absolutely-positioned divs at -4/+8 in live-preview-overlay vs -6/+12 in preview-overlay; for full-bleed hero/promo sections the negative outset is clipped by the viewport's overflow.
+    WHY: Selection rings on edge sections look cut off, and the duplicate overlay files with different outsets are a consistency smell (a side effect of the dead-vs-live duplication).
+    DO: Use an inset outline/box-shadow (or clamp ring position >=0) so edge sections aren't clipped, and converge on one overlay implementation once the dead path is removed.
+    BENCH: Framer/Webflow selection outlines render crisply at section edges, never clipped.
+
+
+#### [B] Section library, blocks & layers
+_The single registry→manifest projection driving picker/list/AutoForm is excellent zero-drift architecture, and the list panel (dnd reorder, undo-on-delete, inline-expand, presets, i18n) is strong. The two broken paths (BUG7 picker drag, BUG8 thumbnails) are in brokenNow; below are the library UX and power-merchant gaps._
+
+- **B1** (P1·M) No copy/paste or move of sections between pages
+    WHAT: Duplicate is in-page only; SectionInstance has no cross-page move and there is no section clipboard.
+    WHY: A merchant who builds a great testimonials/delivery block on Home must re-add and re-fill it from scratch on Category/PDP — a daily multi-page friction point.
+    DO: Add an in-memory section clipboard (Copy stashes a deep clone; Paste inserts with a fresh id) plus an optional 'Move to page…' submenu; the presets clone/instantiate plumbing already exists.
+    BENCH: Webflow/Framer Cmd-C/V elements across pages; Shopify copies section settings between templates.
+- **B2** (P1·M) Section library is English-only despite full bilingual data in the manifest
+    WHAT: The picker hardcodes entry.name.en/description.en in five places and the list row uses manifest.name.en + an English-only SECTION_CATEGORY_LABELS, even though every section carries name.ar/description.ar.
+    WHY: An Arabic/Kurdish merchant gets a fully English section library and category filter, jarring next to the fully-localized list-panel chrome.
+    DO: Resolve name/description by the active editor locale (entry.name[locale] ?? .en), search across locales, and convert SECTION_CATEGORY_LABELS to a localized {en,ar,ku} lookup.
+    BENCH: Shopify's section picker is fully localized including block names and category headings.
+- **B3** (P2·L) No multi-select in the layers panel (bulk hide/delete/duplicate/reorder)
+    WHAT: Rows are single-select with no shift/cmd handling and no selection set.
+    WHY: Cleaning up a long page (hide 4 off-season promos, delete an imported block) is a one-at-a-time kebab dance.
+    DO: Add shift-click range + cmd-click toggle, a contextual action bar ('3 selected · Hide · Duplicate · Delete'), and a single undoable bulk delete. Keep it pointer-driven.
+    BENCH: Framer/Webflow layers panels support shift/cmd multi-select with bulk actions.
+- **B4** (P2·M) No recents/favorites/smart ordering in the picker
+    WHAT: The grid renders manifest entries in fixed registration order with category chips + text search only.
+    WHY: A merchant who adds hero_image + product_grid on every page hunts for them in a 47-entry grid each time.
+    DO: Add a 'Recently used' shelf (persist last ~6 added types per tenant in localStorage) and a pin/star to favorite sections.
+    BENCH: Wix Studio, Builder.io, Plasmic surface recently-used/favorited blocks at the top.
+- **B5** (P2·L) Picker preview is a tiny static thumbnail, not brand-aware or live
+    WHAT: Cards show a small 16:10 static SVG (when it exists) + name + 2-line description; no hover-zoom, no larger pane, no brand-kit-aware render.
+    WHY: The merchant can't tell what a section will really look like with their brand/products before adding it, raising add→undo churn.
+    DO: Add a larger hover/focus preview pane; ideally a brand-kit-aware mini live render (the LivePreview infra exists) in a side detail pane.
+    BENCH: Replo/Shogun render brand-aware live previews of blocks before insertion.
+- **B6** (P2·S) site_header/site_footer appear as permanently-disabled cards on every page
+    WHAT: Both have valid_on:[] (global chrome) but are still in the manifest, so they render greyed/'Not for this page' on all 7 pages.
+    WHY: Dead clutter that pads the grid and confuses merchants ('why is Header always disabled?').
+    DO: Filter manifest entries with valid_on.length===0 out of the per-page add picker (they belong on a separate Global/Header&Footer surface); sort valid sections first and collapse invalid ones.
+    BENCH: Shopify separates Header/Footer/Announcement from the per-template add picker.
+- **B7** (P3·S) Picker lacks result counts, per-category counts, and an empty-search reset
+    WHAT: No 'Showing X of 47', no per-chip counts, and the no-results state has no 'Clear search'.
+    WHY: Below the bar for a polished library; the merchant must manually clear the field and re-click 'All'.
+    DO: Show a result count, add per-category counts to chips (manifest is in memory), and give the empty state a one-click reset.
+    BENCH: Shopify/Webflow show counts and one-click reset in add panels.
+- **B8** (P3·S) Hidden-section signal is opacity-only (color-only cue)
+    WHAT: A hidden row is signaled solely by opacity-55 + an amber Eye toggle, with no 'Hidden' text badge.
+    WHY: Opacity alone is weak (especially low-vision) and a 55%-opacity label can dip below contrast thresholds; the amber toggle is color-only.
+    DO: Add an explicit 'Hidden' text badge alongside the dim, keeping the label contrast above 4.5:1.
+    BENCH: Shopify/Webflow show an explicit 'Hidden' label, not opacity alone.
+- **B9** (P3·S) Kebab row menu is hand-rolled — no focus management or viewport flipping
+    WHAT: Each row's ⋯ menu is a custom absolutely-positioned div with a sibling click-scrim, fixed width, no collision/flip, no focus return — despite Radix being a dependency.
+    WHY: For the last rows it clips below the panel's overflow, and it reinvents a primitive the repo already has less robustly.
+    DO: Replace with the shared Radix DropdownMenu from @scheniders/ui for collision-aware positioning and focus return.
+    BENCH: Every world-class builder uses a collision-aware, focus-managed menu primitive.
+- **B10** (P3·M) List reorder has no live drop indicator or post-drop announcement
+    WHAT: Reorder relies on default item reflow with no insertion line, unlike the canvas which draws a crisp blue drop line.
+    WHY: In a dense list the drop position is ambiguous; the merchant infers it from reflow.
+    DO: Draw a 2px accent insertion line in the target gap during list drag, mirroring the canvas; optionally a DragOverlay ghost.
+    BENCH: Framer/Webflow layer panels draw a clear insertion line during reorder.
+- **B11** (P3·XL) No section grouping/nesting — flat list only
+    WHAT: SectionInstance is a flat record with no parent/children/group concept.
+    WHY: Long pages (10-15+ sections) become an unscannable flat scroll with no way to collapse a logical run.
+    DO: Start with a visual-only collapsible 'group label' in the layers list (no schema nesting) — high ROI for short Iraq-market pages; defer true container nesting unless merchants ask.
+    BENCH: Webflow/Framer nested containers; Shopify OS 2.0 nests blocks within sections.
+
+
+#### [C] Inspector / field controls / forms
+_The AutoForm is an ambitious, well-architected schema-walker (recursive introspection, i18n detection, breakpoint overrides, grouping). The correctness bugs (BUG9 union, BUG18 i18n override, BUG19 empty repeater item, BUG24 no validation) are in brokenNow; below are the missing must-have controls and form polish._
+
+- **C1** (P1·L) Repeater 'drag handle' is decorative — no real drag-and-drop reordering
+    WHAT: Each array item shows a GripVertical implying drag, but reordering is only via tiny ↑/↓ buttons with no drag listeners.
+    WHY: An affordance lie; reordering a 6-8 item testimonials/feature/logo list via repeated single-position clicks is slow and the 24px arrows are below comfortable touch size.
+    DO: Wire real DnD on the grip using the repo's existing dnd library (the section list already reorders via DnD); keep ↑/↓ as fallback. At minimum remove the misleading grip if not wiring DnD.
+    BENCH: Shopify blocks, Framer, Webflow, Replo all drag-reorder repeater items with a live drop indicator.
+- **C2** (P1·M) No reset-to-default (per field or per section)
+    WHAT: There's per-optional 'Clear' (sets undefined) and breakpoint 'Use base value', but nothing restores a field/section to its schema/section default — every section ships a defaultProps never exposed to the editor.
+    WHY: Once a merchant breaks a layout (clears a heading, sets a bad image) there's no recovery short of retyping — a basic safety net and abandonment risk.
+    DO: Thread section defaultProps into AutoForm: per-field 'Reset' (shown when current!=default) and a 'Reset section' action in the panel header.
+    BENCH: Shopify 'Reset' on changed settings; Framer/Webflow 'Reset to default' on overrides; Builder.io per-field revert.
+- **C3** (P1·M) .describe('video') and .describe('datetime') hints have no control; dead 'color'/'multiline' branches instead
+    WHAT: StringControl branches on image/color/multiline, but the only authored hints are image, url, video (hero_video, video_block), and datetime (countdown_card); video falls to a plain text input and datetime forces hand-typing an ISO string, while color/multiline are dead code.
+    WHY: Two shipped hints silently degrade — a countdown merchant hand-types ISO-8601 (guaranteed support ticket) and video has no upload/preview/validation.
+    DO: Add a video branch (upload accept='video/*' + <video> preview + poster) and a datetime branch (native datetime-local reading/writing ISO); wire or delete the dead color/multiline branches.
+    BENCH: Shopify video setting (upload+URL+poster); every builder uses a real date/time picker for countdowns.
+- **C4** (P2·L) icon: z.string() fields render as raw text inputs — no icon picker
+    WHAT: feature_grid/trust_strip items have icon: z.string() (mapped to a Material icon name), rendered as a plain text box.
+    WHY: A merchant must know and hand-type exact identifiers ('local_shipping') with no list/search/preview — effectively undiscoverable, producing blank icons on typos.
+    DO: Add an 'icon' hint + IconControl: a searchable visual grid popover with live previews writing the chosen identifier, showing the current glyph.
+    BENCH: Webflow/Framer/Shopify icon pickers all provide a searchable visual grid.
+- **C5** (P2·L) No media library / image reuse — every image is a fresh upload
+    WHAT: ImageControl uploads each file to a unique tenant path or accepts a URL; there's no browser of prior tenant assets, no alt-text field, no crop/focal point.
+    WHY: Reusing a logo/hero re-uploads it (duplicate storage), no alt text hurts accessibility + image SEO, and bad center-crops break mobile heroes.
+    DO: Add a 'Choose from library' Media Library modal listing the tenant-assets bucket with thumbnails, plus per-image alt text and client-side crop/focal-point stored as object-position.
+    BENCH: Shopify Files, Webflow Asset Manager, Framer asset panel, Wix Media Manager (focal point).
+- **C6** (P2·M) No swatch picker for palette enums; native color control wired to an unused hint
+    WHAT: ColorControl exists but only fires on .describe('color') which no schema uses; real color-ish fields are enums (scribble_color = butter/mint/lilac/sky/pink) rendered as plain text labels.
+    WHY: A merchant picks 'Butter' with no visual of what it looks like — color-by-name with no swatch.
+    DO: Render swatch chips for palette enums (resolve the token to its --bk-* color behind each option); decide whether any field should be a free color and author the hint or document color belongs in Brand Kit.
+    BENCH: Framer/Webflow show color swatch + picker; Shopify color settings show a swatch.
+- **C7** (P2·S) Bounded numeric fields never render a slider
+    WHAT: NumberControl always renders a stepper input + a 'Range: a–b' caption, never a slider, even for clear ratios like overlay_opacity 0–1.
+    WHY: Forcing decimal typing for a 0–1 opacity is clumsy and imprecise with no live 'feel'.
+    DO: When both min and max exist on a continuous range, render a slider with a numeric readout; infer step from .int() vs float. Keep the stepper for unbounded numbers.
+    BENCH: Framer/Webflow render opacity/bounded numerics as sliders with a readout.
+- **C8** (P2·M) Repeater items show generic 'Item N' with no summary and no per-item collapse
+    WHAT: Array item headers render 'Item {i+1}' with all items always expanded inline, not summarizing the item's own title.
+    WHY: A 6-item testimonials/FAQ list is a very long, low-scannability rail where you can't tell items apart without reading the inputs.
+    DO: Derive a smart label from the first text-ish field (title_i18n[activeLocale] truncated), make each item a collapsible card (collapsed once filled), and add a 'Duplicate item' action.
+    BENCH: Shopify blocks show the heading; Framer/Webflow show a representative field and collapse by default.
+- **C9** (P2·M) Long copy fields render as single-line inputs (no multiline / rich text / code editor)
+    WHAT: The multiline hint is unused; paragraph i18n fields and the html_embed `html` field render in a one-line box.
+    WHY: Editing body copy or HTML embeds in a ~40-char single-line box is painful and error-prone.
+    DO: Detect long-text fields (key heuristic paragraphs/body/content/description, or a multiline hint) → textarea variant of I18nStringInput; render html_embed as a monospace multi-line textarea / lightweight code editor.
+    BENCH: Shopify rich-text/textarea for body; Framer/Webflow multiline + code editor for embeds.
+- **C10** (P2·M) No per-field help text / descriptions from the schema
+    WHAT: .describe() is consumed only as a control-type switch; FieldHeader shows just an auto-humanized label, no help, no examples.
+    WHY: Merchants get bare, awkward labels ('Manual Skus', 'Analytics Tag', 'Triggered After Seconds') with no explanation of purpose/format — discoverability suffers, especially in the Logic group.
+    DO: Add a help-text channel (a describe convention `type|help` or a sibling meta map) rendered as muted helper text/tooltip, plus placeholders for free-form fields.
+    BENCH: Shopify 2.0 settings 'info' string; Webflow/Framer field descriptions and tooltips.
+- **C11** (P3·S) AutoForm's own affordance labels are hardcoded English
+    WHAT: 'Set/Clear/Add/No items yet/Item N/Upload image/Unsupported field/{bp} override/Use base value' and the URL placeholder are English literals, while SectionEditPanel correctly uses t().
+    WHY: An Arabic-locale merchant sees a half-translated inspector.
+    DO: Route AutoForm's literal UI strings through editor-i18n STRINGS/t (add missing keys); keep layout LTR.
+    BENCH: A bilingual builder localizes its own control labels, not just panel headers.
+- **C12** (P3·S) Required numbers snap to 0 on clear; color hex has no normalize/validate
+    WHAT: Clearing a required number writes 0 (e.g. limit=0 hides products) with no way to express 'unset'; the hex box accepts 'red'/'#gggggg' silently.
+    WHY: Surprising storefront states and a specific color-validation gap on top of the broader missing validation.
+    DO: Keep required-but-empty numerics flagged rather than silently zeroing; normalize/validate hex on blur (3/6-digit ±#).
+    BENCH: Shopify/Framer flag required-but-empty rather than silently zeroing; every color picker normalizes hex.
+
+
+#### [D] Brand kit, design tokens & theming
+_buildBrandKitVars is a genuinely strong, property-tested, SSR-safe emitter (11 derived tokens from 8 colors, WCAG luminance) — above many builders. The biggest gaps are the absent preset gallery, the broken font preview, no Arabic font pairing, and an incomplete token surface._
+
+- **D1** (P1·L) No preset / starter theme gallery — the #1 onboarding feature is absent
+    WHAT: The editor has only a 'Random palette' button and one hardcoded CANDY_DEFAULTS; there is no curated full-kit theme gallery.
+    WHY: A non-designer merchant can't produce a coherent palette+type+shape from 8 raw hex pickers and a random button; this is the single biggest gap vs every benchmark, which all open styling with a named theme gallery.
+    DO: Ship 6-10 curated full-kit presets (colors+typography+shape+motion+voice) as a thumbnail gallery rendered via buildBrandKitVars, seeded for Iraq SMB verticals (perfume/cosmetics, fashion, electronics, grocery); store as typed Partial<BrandKit> in shared. Also feeds the empty-state.
+    BENCH: Shopify OS 2.0 theme presets, Framer Styles presets, Webflow style-guide starters, Wix Studio themes.
+- **D2** (P1·M) Editor font previews silently render in system fallback — merchant picks fonts blind
+    WHAT: FontCombo and the typography specimen reference the selected family, but the platform document never injects the Google Fonts stylesheet (only the iframe preview loads fonts).
+    WHY: Selecting 'Playfair Display'/'Anton'/'Fraunces' shows system-ui everywhere in the editor — the core value of a font picker (seeing the typeface) is broken.
+    DO: On mount and on display/body change, inject a Google Fonts <link> (reuse buildBrandKitFontsUrl) into document.head; ideally render each option label in its own loaded typeface with font-display:swap.
+    BENCH: Framer/Webflow render each option in its own typeface; Shopify loads theme fonts in the editor.
+- **D3** (P1·L) No Arabic font pairing despite Arabic being a first-class store locale
+    WHAT: BrandTypography has only display/body (single font each) over an all-Latin catalogue; there's no Arabic-capable font selection.
+    WHY: Latin display fonts (Anton/Bebas/Fraunces) have no Arabic glyphs, so Arabic headlines/body fall back to an arbitrary system font with no design control — the storefront's Arabic typography is effectively unstyled in an Arabic-first market.
+    DO: Add optional display_ar/body_ar (Cairo, Tajawal, IBM Plex Sans Arabic, Noto Kufi/Naskh, Almarai, Rubik), emit --bk-font-*-ar, apply via :lang(ar), with sensible auto-pairings. Content RTL inside fields is fine; app stays LTR.
+    BENCH: Shopify themes and Wix support per-script font assignment.
+- **D4** (P2·S) Font catalogue has broken duplicates and non-existent Google Fonts families
+    WHAT: GOOGLE_FONTS lists 'Bricolage Grotesque' AND 'Bricolage', 'Playfair Display' AND 'Playfair', 'Source Serif Pro' (renamed to 'Source Serif 4'), and 'Geist'/'Geist Mono' (not served by Google Fonts CSS2).
+    WHY: Selecting those builds a fonts URL Google doesn't serve, so the storefront silently falls back — the merchant picks a font that never renders live.
+    DO: De-dupe and validate against the actual CSS2 API names; remove/rename invalid entries; self-host Geist via next/font if wanted; add a test asserting every entry resolves; group by Sans/Serif/Display.
+    BENCH: Webflow/Framer pickers only list families they can load.
+- **D5** (P2·L) No spacing / density / sizing scale token — only a 3-preset typography scale
+    WHAT: The only density control is typography.scale (base font size + leading); there's no spacing scale, section-padding/gutter/container-width token, or modular type-scale ratio — whitespace is hardcoded in sections.
+    WHY: Two merchants with different brand densities can't get a tight vs airy layout from the kit, and heading sizes don't relate to the base.
+    DO: Add a spacing/density axis emitting --bk-space-1..6, --bk-section-padding, --bk-gutter, --bk-container-max, --bk-type-ratio; wire sections to consume them; expose Compact/Default/Roomy + container width.
+    BENCH: Framer spacing tokens, Webflow spacing variables, Shopify section padding + page width.
+- **D6** (P2·M) Contrast checking covers only 3 pairs; accent/surface_alt/success/danger/secondary never validated
+    WHAT: ContrastBadge appears only for primary-on-surface, ink-on-surface, primary-on-ink; the SALE-sticker on-accent/accent, on-secondary/secondary, ink/surface_alt, and text over success/danger are unchecked, and there's no large-text 3:1 mode.
+    WHY: A merchant can ship an unreadable pale-yellow SALE badge with white text and get no warning.
+    DO: Add badges for every text-on-surface pair the renderer produces, a single aggregate 'palette accessibility: N pass/M warn', a large-text mode, and optional auto-fix suggestions.
+    BENCH: Stark/Figma plugins and Shopify accessibility hints check every pairing.
+- **D7** (P2·S) onColor uses a luminance threshold, not a contrast-maximizing choice
+    WHAT: onColor returns #fff when luminance<0.5 else ink — a threshold, not a contrast comparison, so mid-luminance colors near 0.5 can get the worse-contrast on-color (and on-primary/primary isn't badge-checked).
+    WHY: A merchant picking a mid-tone primary can get on-primary text failing AA with no signal.
+    DO: Pick max(contrastRatio(color,'#fff'), contrastRatio(color,ink)) and warn if even the best is <4.5:1; hoist contrastRatio into shared so emitter and editor share one implementation.
+    BENCH: Material Design and Radix Colors choose on-colors by maximizing contrast.
+- **D8** (P2·M) Fixed candy mint/lilac/sky literals ignore the merchant palette
+    WHAT: buildBrandKitVars hardcodes --bk-mint/lilac/sky as literals 'to keep them on-palette', and sections use them as decorative surfaces.
+    WHY: A merchant who rebrands to terracotta still gets pastel mint/lilac/sky blocks clashing with their brand — three un-themeable escape hatches mean the brand kit isn't a full source of truth.
+    DO: Derive mint/lilac/sky from the merchant palette (tint from secondary/accent/success or hue-rotate from secondary) or expose them as optional themeable decorative slots defaulting to the candy literals.
+    BENCH: In Shopify/Framer/Webflow every section color is part of the themeable palette.
+- **D9** (P2·M) Random palette overwrites all colors with no undo, ignores type/shape, and isn't contrast-validated
+    WHAT: randomizePalette does a full overwrite of all 8 colors with no confirm/undo, only randomizes colors, and doesn't validate the result against AA.
+    WHY: One mis-click destroys a hand-tuned palette, and the generated result is never a cohesive look (type/shape untouched) and can fail contrast.
+    DO: Fold into the preset 'generate-a-theme' (complete + contrast-checked) or add an undo affordance and regenerate until primary-on-surface and ink-on-surface pass AA.
+    BENCH: Hocoos/Hostinger AI builders generate complete validated themes; Framer randomize keeps undo.
+- **D10** (P3·M) Color math is duplicated between editor and emitter (drift risk)
+    WHAT: hex↔hsl↔rgb, luminance, contrastRatio, on-color derivation all exist twice (brand-kit-editor + brand-kit-vars) with different luminance handling.
+    WHY: The editor's contrast badges and the storefront's actual derived on-colors can disagree (editor grades by WCAG ratio; emitter uses a 0.5 threshold).
+    DO: Hoist the color utilities into @scheniders/shared and import in both so badge math and runtime derivation are identical.
+    BENCH: Design-token tools never fork the color engine between editor and runtime.
+- **D11** (P3·L) No custom font upload (woff2/ttf)
+    WHAT: Typography is a select over a fixed Google catalogue with no path to upload a brand's licensed font, despite an existing asset-upload pipeline.
+    WHY: Perfume/fashion brands (this market's skew) with a licensed typeface are stuck with Google Fonts.
+    DO: Add 'Upload custom font' pushing woff2/ttf to tenant-assets, storing URL+family in BrandTypography and emitting @font-face; validate type/size + a license checkbox.
+    BENCH: Webflow custom fonts, Framer font upload, Shopify custom font_picker.
+- **D12** (P3·L) No dark-mode / color-scheme support; no semantic-token tier
+    WHAT: The emitter outputs one flat light set with no dark variant or prefers-color-scheme, and sections bind directly to raw role tokens with no semantic (button-bg/card-bg/text-muted) indirection.
+    WHY: Dark sections are increasingly expected (lower priority for the cream house style), and without a semantic layer a global restyle (e.g. lighter card borders) means editing many sections.
+    DO: Optional opt-in dark palette under [data-theme=dark]; add a thin semantic layer (--bk-text/-muted/-border/-card-bg/-button-bg aliasing role tokens) and migrate sections to it.
+    BENCH: Framer/Webflow light+dark variables; Radix/Polaris primitive→semantic→component tiers.
+- **D13** (P3·M) Logo palette extraction silently fails on CORS-tainted uploads; no fallback
+    WHAT: extractPaletteFromLogo draws to a canvas with crossOrigin='anonymous'; if the tenant-assets public URL lacks CORS headers, getImageData throws with a cryptic message.
+    WHY: A feature that looks present is effectively broken on the merchant's own just-uploaded logo for many tenants.
+    DO: Verify tenant-assets sends permissive CORS, or do extraction server-side (fetch + sample in a route handler); improve the error to offer retry/manual pick.
+    BENCH: Builders extract server-side or via a CORS-guaranteed CDN so it never fails on the user's upload.
+- **D14** (P3·S) fontStack 'generic' branch is dead (both display and body resolve to sans-serif)
+    WHAT: const generic = kind==='display' ? 'sans-serif' : 'sans-serif' — both arms identical, so a serif display font falls back to a sans system font.
+    WHY: A visible FOUT/fallback mismatch for serif display faces (Playfair, Fraunces, EB Garamond).
+    DO: Derive the generic from a per-font category in the catalogue (serif↔serif, sans↔sans).
+    BENCH: Production font stacks pair the webfont with a same-category system fallback.
+
+
+#### [E] Pages, templates, navigation & first-run onboarding
+_The page-tree IA is clean, localized, and badge-rich, but the area is capped by a fixed page model and the weakest part of the builder: templates. The home-only-template bug (BUG29) and no per-page SEO UI are flagged here._
+
+- **E1** (P1·L) No per-page SEO / meta editing UI anywhere — PageMeta exists but is unreachable
+    WHAT: PageMeta {title,description,og_image_url,noindex} exists on every PageConfig, but the inspector has only blocks/style/health tabs and the only OG surface is the store-wide brand-kit identity.
+    WHY: A merchant cannot give Home/Category/Product/About/policy pages their own SEO copy or social image — directly caps organic discoverability, doubly important now that storefront SEO just landed.
+    DO: Add a 'Page settings' (gear) tab editing the active page's PageMeta — reuse i18n-string-input for bilingual title/description, the brand-kit image picker for og_image, a noindex toggle, and a SERP/social-card preview.
+    BENCH: Shopify 'Search engine listing' per page with live SERP preview; Webflow/Framer per-page SEO + noindex.
+- **E2** (P1·L) No first-run onboarding flow for a brand-new store
+    WHAT: A new merchant lands on the same Command Center and editor as an established one — 16 empty pages, no welcome wizard, no guided setup, no 'apply a starter theme to the whole store'.
+    WHY: The first 5 minutes are the most fragile point; with no 'start here' path, activation and time-to-first-publish suffer.
+    DO: Detect a never-published/all-empty config and present a guided flow (brand colors → logo → home template → preview → publish) or a pinned dismissible 'Set up your store' checklist driven by the existing health data.
+    BENCH: Shopify setup guide, Wix/Hostinger AI onboarding, Hocoos walk zero-to-previewable in a few steps.
+- **E3** (P1·L) No navigation/menu builder — header/footer nav can't be authored from the Pages area
+    WHAT: Header nav is a flat label+href array inside site_header with no nesting, no mega-menu, no link-to-page picker, and no central page-aware menu editor.
+    WHY: Adding content to About/FAQ doesn't make it reachable unless the merchant hand-types links (typo-prone), and reordering nav isn't first-class — pages exist but aren't connected into a navigable site.
+    DO: Add a top-level navigation model + a menu manager (header+footer) with add-by-page-picker, bilingual labels, drag-reorder, one level of nesting, and link validation against real pages; site_header/footer reference a menu id.
+    BENCH: Shopify Navigation, Webflow nav bound to pages, Wix menu manager.
+- **E4** (P2·XL) No custom pages — PageId is a frozen enum, and pages can't be added/removed/reordered/hidden/duplicated
+    WHAT: PageId is a closed union of 16 system pages with no custom/slug page type, no add/duplicate/rename/reorder/hide, and TREE is hardcoded.
+    WHY: Merchants can't build a campaign/Ramadan/lookbook landing page (the highest-converting target for the paid-social traffic this market lives on), duplicate a page, or hide a system page — a hard ceiling vs every benchmark.
+    DO: Add a custom PageConfig variant (slug + PageMeta), a storefront /s/[tenant]/p/[slug] route, an '+ Add page' dialog, and duplicate/rename/hide on custom pages (system pages non-deletable but hideable); gate valid_on:'custom'.
+    BENCH: Shopify/Webflow/Framer/Wix all support unlimited custom pages with slugs + SEO.
+- **E5** (P2·XL) Only 5 home-only templates; no per-page-type coverage, no real thumbnails, no breadth
+    WHAT: PAGE_TEMPLATES is 5 starter packs all page_id:'home' with synthesized 'stacked bars' placeholder thumbnails; nothing for Product/Category/About/Contact/policy pages.
+    WHY: Five home layouts is thin, and the pages a merchant most needs a head start on (especially Iraq COD policy boilerplate) have nothing; faux thumbnails hurt confidence at the decision moment.
+    DO: Add per-page-type packs (incl. prefilled bilingual Shipping/Returns/Privacy/Terms tuned for Iraq/COD/governorate shipping), real preview thumbnails, and grouping/search.
+    BENCH: Shopify Theme/section library, Framer marketplace, Webflow page-template gallery; policy generators are standard.
+- **E6** (P2·S) CommandCenter PagesCard duplicates labels, is English-only, and 'Edit' doesn't deep-link
+    WHAT: pages-card hardcodes its own English-only PAGE_LABELS (a second source of truth) and every row's 'Edit' links to a generic /store/edit, not the specific page.
+    WHY: Label drift, an English-only list amid a localized editor, and a per-row 'Edit' that ignores the row (FAQ → default page).
+    DO: Use getPageLabel(page_id, locale) from page-tree, deep-link Edit to /store/edit?page=<id>, and localize the card's static strings.
+    BENCH: Shopify rows deep-link to the exact resource and labels are single-sourced + localized.
+- **E7** (P3·M) Page-tree gives no per-page state (empty/draft/hidden) beyond a count badge
+    WHAT: Rows show only icon/label/optional section-count; an empty page (count 0 hides the badge) looks identical to a never-touched one, and there's no draft/changed indicator.
+    WHY: A merchant can't tell which pages are unfinished at a glance, and the rail misses being the primary 'what needs work' surface the count badges reached for.
+    DO: Add lightweight per-row affordances: an 'Empty' dot/label and a 'changed' indicator if per-page diffing is available; keep it quiet vs the active state.
+    BENCH: Shopify/Webflow indicate visibility and draft/published status per page; Framer flags unpublished changes.
+- **E8** (P3·S) Empty-state confirm dialog lacks Escape and neither template dialog manages focus
+    WHAT: The picker confirm handles Escape but the empty-state ConfirmOverlay has only backdrop/close, and neither moves focus into the modal or autofocuses a default on a destructive 'replace N sections' confirm.
+    WHY: Inconsistent dismissal and unfocused confirm/cancel on a destructive action — a modal-correctness gap (not a keyboard sweep).
+    DO: Add Escape→onCancel to ConfirmOverlay, focus Cancel on open, and restore focus to the originating card on close.
+    BENCH: Every benchmark's destructive confirm traps focus, autofocuses a safe default, and closes on Escape.
+
+
+#### [F] Responsive & A/B variants
+_The shared resolver is world-class (pure, property-tested, zero drift) and the inline 'shortcut variant' pattern is clever, but the authoring UX has structural collisions and dead presets. The broken items (BUG18 i18n override, BUG20 dead presets, BUG26 device-switch disconnect, BUG30 split validation, BUG31 timezone) are in brokenNow._
+
+- **F1** (P1·L) Two breakpoint-authoring systems collide on priority and identity
+    WHAT: Inline per-field overrides write a 'bp-shortcut-<bp>' variant at priority:0 while wizard variants get priority>=1; the systems are unaware of each other.
+    WHY: Shortcut variants show as confusing editable/draggable rows in the variant list, always LOSE to any wizard variant, and get silently clobbered the moment the merchant drags any variant (rewritePriorities reassigns the shortcut), changing which override wins on mobile.
+    DO: Make the variant list aware of shortcut variants (hide or badge as 'Responsive overrides — edit inline', disable drag/delete), give shortcuts a defined priority band, and document the single source of truth for per-breakpoint field overrides.
+    BENCH: Webflow/Framer present ONE breakpoint model; Editor X/Wix keep responsive overrides attached to the element.
+- **F2** (P1·L) No overlap/conflict detection between variants — last-writer-wins is invisible
+    WHAT: The resolver applies all matching variants by ascending priority; the only precedence signal is a raw priority number input.
+    WHY: With 9 AND-combined condition kinds, a merchant will create silently-shadowed variants (a Mobile and a Baghdad variant both overriding heading_i18n) with no warning of which wins.
+    DO: Badge variants that override the same path with overlapping condition spaces ('also set by Mobile variant'), show the effective winner, and add a 'preview as <context>' that highlights the winning variant.
+    BENCH: Replo/Shogun surface rule precedence; Optimizely shows which variation wins for a simulated audience.
+- **F3** (P1·M) Wizard step-2 forms and the entire VariantEditor chrome are hardcoded English
+    WHAT: Step-2 sub-step labels ('Which devices?', 'Starts at', 'Customer segment', etc.) and VariantEditor row chrome ('Replaces base', 'Remove', 'Done', 'Field schema not resolvable') are English literals despite a working STRINGS/t system.
+    WHY: For a merchant operating in Arabic/Kurdish, the variant authoring surface is half-English.
+    DO: Move all step-2 and VariantEditor chrome into STRINGS with ar/ku; mechanical, infra exists. Keep LTR.
+    BENCH: Shopify/Wix fully translate authoring chrome.
+- **F4** (P2·M) Override 'amber dot' indicator is color-only with weak contrast and no base-value diff
+    WHAT: An overridden field is signaled by a 2px amber dot (title='Overridden') with no text badge and no inline base value shown.
+    WHY: Color-only signaling on a 2px target fails the visual-a11y bar, and the merchant can't see what they're diverging from without removing the override.
+    DO: Pair the dot with an 'Overridden' text badge, show the base value as muted helper text beneath each override control, and bump the indicator size/contrast.
+    BENCH: Webflow/Framer show the inherited value + a clear text+color overridden state.
+- **F5** (P2·L) Variant override picker can't reach array-element or union fields; no search
+    WHAT: listOverridablePaths skips unions/discriminatedUnions, doesn't recurse into array elements (arrays replace wholesale), and the picker is a flat scrolling menu with no search.
+    WHY: Polymorphic blocks (CTA kind, slide variants) are entirely un-overridable per-variant, long arrays are heavy-handed to override, and many-field sections produce an unscannable list.
+    DO: Descend into a union's common members, add per-array-item override for short keyed arrays, and add search/grouping to the picker; document which types can't be overridden.
+    BENCH: Plasmic/Builder.io override into nested/polymorphic structures with a searchable property tree.
+- **F6** (P2·M) Product/category variant chips show raw UUIDs, not names
+    WHAT: IdListStep searches by name but selected chips render the raw id, and re-opening an existing product/category variant shows opaque UUIDs with no name resolution.
+    WHY: Product-scoped variants are hard to verify and easy to mis-target; the summary says 'For 3 products' with no names.
+    DO: Keep an id→name map from search and render the name on the chip; batch-resolve selected ids on edit; show 1-2 names in the row summary.
+    BENCH: Shopify/Replo product pickers show title + thumbnail on selected chips.
+- **F7** (P2·S) 'Add condition' reuses VariantAddWizard with existingVariantCount=0 and a no-op onAdd
+    WHAT: VariantEditor's addConditionMode passes existingVariantCount={0} and onAdd={()=>undefined}; the happy path uses onAddCondition but any fallback to onAdd silently no-ops or mis-numbers priority.
+    WHY: Fragile reuse of a 'create' modal as an 'append' modal with placeholder props — a latent bug behind a refactor.
+    DO: Pass real existingVariantCount and a throwing/asserting onAdd in addConditionMode, or split add-condition into its own component; test that a preset click in addConditionMode never calls onAdd.
+    BENCH: World-class editors don't feed a create-modal placeholder props to make it an append-modal.
+- **F8** (P2·S) Tablet vs desktop breakpoint glyphs are nearly identical; no 'all devices' affordance
+    WHAT: BREAKPOINT_EMOJI maps tablet:'🖥️' and desktop:'🖥' (indistinguishable), the variant-list icon maps every breakpoint to a phone, and there's no 'all devices' toggle.
+    WHY: The device picker is ambiguous and a desktop-only variant misleadingly shows a phone icon.
+    DO: Use distinct lucide icons (Smartphone/Tablet/Monitor) in wizard AND list, drop the emoji, and add an 'All devices' toggle.
+    BENCH: Webflow/Framer device pickers use clearly distinct glyphs and an explicit base/all state.
+- **F9** (P3·M) Deleting a variant uses window.confirm; no undo, no duplicate-variant action
+    WHAT: VariantRow.handleDelete uses native confirm() and there's no 'duplicate variant'.
+    WHY: A blocking native confirm breaks the glass-editor visual language, there's no undo, and duplicating a near-identical variant (same overrides, different governorate) is a common move with no support.
+    DO: Replace confirm() with the editor's own confirm sheet/toast-with-undo and add a 'Duplicate' row action (clone with new id, bumped priority).
+    BENCH: Framer/Webflow use in-app undo + duplicate; native confirm signals an unfinished tool.
+
+
+#### [G] Save, publish, versioning & history
+_The publishing core is genuinely strong (atomic advisory-locked publish RPC, real pre-publish diff, labeled 50-step undo, layered durability, non-blocking publish). The defects (BUG6 schedule, BUG21 autosave race, BUG22 diff, BUG25 conflicts, BUG27 diff_summary, BUG28 promote thrash, BUG32 status, BUG4 backup) live in brokenNow; below are the durability and history gaps._
+
+- **G1** (P1·S) No beforeunload guard — work within the 2s autosave window is lost on close/back/refresh
+    WHAT: Autosave is debounced 2s and the localStorage backup is every 30s, but there's no beforeunload handler tied to has_unpublished_changes and no router-navigation guard.
+    WHY: Closing the tab, clicking back, or refreshing within ~2s (or up to 30s, given the never-restored backup) silently loses the last edits — routine on flaky Iraqi 3G where saves often sit in 'error'.
+    DO: Add a beforeunload prompt when has_unpublished_changes && save_state not saved/idle, and synchronously flush a localStorage backup (and/or sendBeacon save) in the same handler.
+    BENCH: Webflow/Wix/Framer/Google Docs all warn before unload with unsaved changes.
+- **G2** (P1·M) Autosave failure is terminal with no auto-retry/backoff — a single flaky save strands the merchant
+    WHAT: performSaveDraft sets save_state='error' and stops; recovery depends on the merchant noticing the pill and clicking Retry, or making another edit. No exponential backoff, no offline queue.
+    WHY: On intermittent connectivity (the explicit reason for the PATCH fast path), a user who stops editing after a failure walks away believing nothing saved — silent data loss compounding BUG4/G1.
+    DO: Auto-retry with exponential backoff (2s/5s/15s, capped) while has_unpublished_changes holds, with a 'Retrying…' pill state; keep manual Retry; treat the localStorage backup as the offline queue.
+    BENCH: Google Docs/Framer/Notion auto-retry with backoff and only escalate after repeated failures.
+- **G3** (P2·M) Version history caps at 50, no pagination, no compare-two-versions, no rename/delete
+    WHAT: listVersions fetches 50 + named snapshots and always diffs the selected version against the current draft only; no 'compare A↔B', no rename, no delete, no 'load older'.
+    WHY: After ~50 publishes early history is unreachable in the UI, and merchants can't diff two historical versions, rename a mislabeled snapshot, or prune noise — a viewer, not a real history tool.
+    DO: Add cursor pagination, a second 'compare against' selector (diffJson already supports arbitrary pairs), and rename/delete actions (guarding named snapshots).
+    BENCH: Webflow/Wix history offers compare-any-two, rename, and infinite scroll.
+- **G4** (P2·M) Undo/redo history is in-memory only — wiped on reload, revert, and (its promise) misleads
+    WHAT: past/future are useRef arrays never persisted; reload starts empty, revert_to_published clears both stacks, yet the restore dialog claims 'You can undo this in this session'.
+    WHY: After any reload the merchant can't undo even one pre-reload step, and the restore-dialog promise is false post-reload.
+    DO: Persist a bounded undo stack (~20 entries) to the localStorage backup so undo survives reload, fix the restore copy, and consider a server-backed 'Undo last publish' restoring the previous version row.
+    BENCH: Figma/Framer persist undo across the session and survive reload.
+- **G5** (P2·M) No auto-prune of unnamed auto-save versions — unbounded growth of full-config blobs
+    WHAT: Every publish appends a 50-100KB full-config row forever; the migration promises pruning (named rows survive) but there is no prune job/trigger/cron.
+    WHY: For multi-tenant SaaS, store_config_versions grows without bound (~365 blobs/year per daily-publishing tenant), raising storage cost and slowing created_at queries.
+    DO: Add a scheduled prune (pg_cron or a QStash cron route) deleting unnamed rows older than N days or beyond the most-recent K per tenant, always preserving is_named.
+    BENCH: Shopify/Webflow keep a rolling auto-version window and named restore points indefinitely.
+- **G6** (P2·S) No-op republish still inserts a duplicate version row
+    WHAT: publish_store_config_v2 unconditionally inserts a version row even when the diff is totalChanges===0 (reachable via publish-after-revert paths).
+    WHY: Identical snapshots clutter the timeline and bloat the table; the diff already knows when nothing changed.
+    DO: Short-circuit a no-op publish (clear the dirty flag, skip the RPC/insert when config equals published) and surface 'Nothing to publish — already live'.
+    BENCH: Shopify/Webflow don't create a new published version when nothing changed.
+- **G7** (P3·S) Restore-version dialog over-promises and gives no post-restore confirmation
+    WHAT: handleRestore applies the config and closes with no success toast; the confirm copy says 'You can undo this in this session' (fragile per G4) and doesn't clarify the restored version is only a draft until published.
+    WHY: A merchant may believe the restore went live immediately.
+    DO: Show a post-restore toast ('Restored to <label> — now your draft. Publish to make it live.') with a one-click Publish, and make the undo copy accurate.
+    BENCH: Webflow/Wix confirm a restore and make staged-vs-live explicit.
+- **G8** (P3·M) Schedule creator has no overlap warning, creates empty overrides, and no quick-range presets
+    WHAT: ScheduleCreatorModal validates basics but doesn't warn on overlapping windows for the same section, creates the new time_window variant with an empty {} override, and offers only raw datetime-local inputs.
+    WHY: A 'scheduled' variant with an empty override renders identically to base (confusing no-visible-change), overlaps go unwarned, and manual datetime entry is error-prone.
+    DO: Warn on overlapping windows for the target section, deep-link the merchant into editing the new variant's override after creation, and add quick presets (Today, This weekend, 24h, 7 days).
+    BENCH: Shopify scheduling warns on overlaps and offers relative-range presets.
+
+
+#### [H] Health, SEO & launch readiness
+_The shared rules engine (pure, weighted, deep-linking, publish-gating, zero-drift) is strong, but several checks validate fields the storefront never renders (BUG3 OG/favicon, BUG34 empty-page title in brokenNow) and coverage has real SEO holes. The dead command-center Fix links (BUG36) are also flagged._
+
+- **H1** (P1·L) No COD / governorate-shipping conversion-readiness check for the Iraq money path
+    WHAT: Conversion checks cover marketing sections (hero/trust/grid/testimonials/newsletter/delivery_promise) but nothing validates that COD is enabled, shipping rates exist for served governorates, or a returns policy is reachable from checkout.
+    WHY: A merchant can score 'launch-ready' with no shipping rates and discover the broken funnel only after a customer can't check out — the panel validates marketing but not the money path.
+    DO: Add fail-level checks tied to the real checkout config: shipping rates for served governorates, COD enabled, and a reachable return/exchange policy.
+    BENCH: Shopify's launch checklist gates on 'set up shipping' and 'set up payments' as required.
+- **H2** (P1·M) No structured-data / JSON-LD check despite the storefront emitting rich schema
+    WHAT: 5 SEO checks cover meta title/description and business name/tagline, but nothing validates the Organization/Product/Breadcrumb/WebSite JSON-LD the storefront emits.
+    WHY: Structured data is the highest-leverage SEO surface for e-commerce (rich results, price/availability), and product schema quality depends on inputs (image/description/inStock) the panel could validate but doesn't.
+    DO: Add checks for Organization completeness (logo/phone), Product schema readiness (image+description), and WebSite SearchAction, reading the same config the LD builders read.
+    BENCH: Shopify/Webflow and Rank Math/Schema App surface structured-data validity as a preflight item.
+- **H3** (P1·M) No sitemap / robots / canonical / indexability check
+    WHAT: The storefront has robots.ts, canonical alternates, and a PageMeta.noindex flag honored at render, but no health check reflects any of it.
+    WHY: Indexability is the #1 silent launch killer — a merchant can accidentally noindex the home page (the flag is in the config the engine already receives) and never get warned, plus there's no sitemap verification.
+    DO: Add checks: warn/fail on noindex for home or policy pages (trivial — the flag is present), verify a reachable sitemap, and confirm canonical/origin resolves.
+    BENCH: Screaming Frog/Ahrefs/Shopify all flag noindex-on-important-pages and missing sitemap as critical.
+- **H4** (P2·M) Health checks infer contact/WhatsApp by fragile key-name regex on section.base
+    WHAT: contact_phone_set greps footer.base for /phone|contact_phone/ and whatsapp_number_set scans every section for /^wa_number$|^whatsapp_number$/, guessing key names instead of reading a typed field.
+    WHY: False passes (/phone/ matches 'phone_placeholder'), false warns (a WhatsApp URL under a CTA href is missed), and the contact-phone fix_action deep-links to the wrong place — costly since WhatsApp is a primary Iraq conversion channel.
+    DO: Introduce typed contact fields {phone, whatsapp_number} and read them directly; if scanning must stay, also detect wa.me/api.whatsapp.com hrefs and tighten the phone regex; fix the fix_action target.
+    BENCH: World-class builders validate a typed setting, never grep arbitrary block props by name.
+- **H5** (P2·M) No image-alt-text check despite many sections having alt fields
+    WHAT: 15+ sections expose alt/image_alt fields but no content check verifies a populated image has a non-empty alt.
+    WHY: Missing alt text hurts accessibility (in scope) and image SEO (a real product-discovery channel); the engine already walks section trees so detection is feasible.
+    DO: Add a content check that, for each section with a populated image_url, verifies a non-empty alt sibling and warns with a count + deep-link.
+    BENCH: Webflow Audit and Shopify image-SEO apps list missing alt per image.
+- **H6** (P2·M) No broken-link / unconfigured-CTA check
+    WHAT: No check inspects button/CTA hrefs or social URLs for empty or placeholder values ('#', '', localhost).
+    WHY: A hero 'Shop now' that goes nowhere silently kills conversion — a classic pre-launch defect the engine could catch statically.
+    DO: Scan known link/href fields across sections for empty/placeholder values and warn with a deep-link (static detection, no crawl).
+    BENCH: Webflow Audit and Screaming Frog flag empty/placeholder links as a launch gate.
+- **H7** (P2·L) 'Performance' category is two heuristics + two mis-categorized branding checks
+    WHAT: The perf category is home_section_count<=12, font_count<=2, logo_uploaded, favicon_uploaded — the last two aren't performance signals, and there's no image-weight/Lighthouse signal.
+    WHY: A merchant with a 12MB hero and 6 sections gets a green Performance bar — the category over-promises.
+    DO: Move logo/favicon out of Performance, and add a real signal (image dimensions/size where known, total images per page, or an async Lighthouse/PageSpeed score shown as pending).
+    BENCH: Shopify online-store speed score and Webflow audit pull real Lighthouse metrics.
+- **H8** (P2·M) Score is opaque — no per-check point value, no 'X to next tier', no impact sort
+    WHAT: The donut shows a number + band; a warn silently contributes 25% credit but nothing communicates per-check weight, points-to-launch-ready, or highest-impact-first ordering.
+    WHY: A merchant can't see why they're at 78 or which single fix moves the needle most — scoring transparency is a defining trait of the best preflight tools.
+    DO: Surface each check's point contribution ('+4 pts'), 'N points to Launch-ready' on the donut, and a sort-by-impact; the data (weight*CATEGORY_WEIGHT) is already computed.
+    BENCH: Lighthouse shows each audit's weight/impact; Ahrefs shows issue health-score impact.
+- **H9** (P3·S) Filter chips lack counts and the launch-ready empty state has no Publish CTA
+    WHAT: Chips (all/failing/warn/passing) carry no per-bucket counts, and when 'failing' is empty there's no prominent 'You're launch-ready — Publish' action.
+    WHY: The merchant can't see the shape of their work at a glance and the satisfying 'all done → ship it' moment is missing.
+    DO: Put color-coded counts on each chip and surface a prominent Publish affordance when the failing bucket is empty.
+    BENCH: Linear/GitHub filter pills carry counts; Shopify's checklist shows a satisfying all-done state with a clear next action.
+- **H10** (P3·S) Editor health screen's section-level Fix doesn't reliably switch page or close the screen
+    WHAT: HealthChecklistScreen's onSelectSection only sets the selected section id, unlike the i18n screen's handler which closes the system screen, sets active_page, then selects+edits.
+    WHY: A section-targeted Fix can select an id on the wrong/current page without opening it or leaving the health view — an inconsistent half-working deep-link.
+    DO: Mirror the i18n screen's handler: close the screen, set active_page, then select+edit the section so all fix kinds behave consistently.
+    BENCH: Shopify/Builder.io deep-links always navigate AND focus the target.
+
+
+#### [I] i18n / Arabic localization
+_The completeness walker, dual surfacing (toolbar pill + coverage screen), and the per-string input (primary-large + fallback-from-EN hints) are well above average. The hard bugs (BUG18 breakpoint override drops ar/ku) sit in brokenNow; the structural workflow gaps are here._
+
+- **I1** (P1·L) No machine-translate / AI-assist or 'copy from English' — every string is hand-translated
+    WHAT: The coverage screen's 'Translate' button only navigates to the section; there is no translate action, AI-assist, or even a copy-EN-into-AR shortcut anywhere.
+    WHY: For a bilingual/trilingual market a merchant with 40+ i18n fields retypes every Arabic and Kurdish string by hand — the single biggest friction, and the reason most stores ship ar/ku at low coverage; the label 'Translate' actively misleads.
+    DO: Add a per-field 'Copy from EN' (instant, free) and a screen-level 'Auto-translate missing AR/KU' calling a server route (Gemini/DeepL), writing draft values marked 'needs review'; rename 'Translate' to 'Go to field' until real translation exists.
+    BENCH: Shopify Translate & Adapt, Weglot/Webflow Localization one-click auto-translate; Wix auto-translates on locale add.
+- **I2** (P1·M) enabled_locales is never writable — no way to enable/disable a locale or set default
+    WHAT: enabled_locales (default ['en']) and default_locale are read by the coverage meter and health rules but never written by any platform component — there's no Languages control.
+    WHY: A merchant can't declare which languages their store supports; a store stuck at ['en'] shows only English coverage even while authoring Arabic, and ku coverage has no path to surface — locale set is step one of any i18n workflow.
+    DO: Add a Languages settings panel (toggle ar/en/ku, pick default, guard against disabling the default) wired to set_enabled_locales/set_default_locale and persisted via the patch path.
+    BENCH: Shopify Markets/Languages, Webflow Localization, Wix all start with enable-a-language + set-primary.
+- **I3** (P1·S) Editing surface ignores enabled_locales — LocaleSelect and every input always show all 3 locales
+    WHAT: LocaleSelect and I18nStringInput iterate SUPPORTED_LOCALES (all 3) while the coverage screen iterates enabled_locales — the two halves disagree.
+    WHY: A store with enabled_locales=['ar','en'] still shows a KU pill on every field and in the preview switcher, inviting authoring for a locale the store doesn't serve (which never shows in the meter), while ku coverage can never reach 100% in the pill.
+    DO: Thread enabled_locales (fallback SUPPORTED_LOCALES) into both LocaleSelect and I18nStringInput; pair with the Languages control (I2).
+    BENCH: Shopify/Webflow/Wix show only the store's enabled languages in the switcher and field tabs.
+- **I4** (P1·M) 'Jump to untranslated field' doesn't set the locale being fixed or scroll to the field
+    WHAT: Clicking Translate-for-Arabic opens the section's edit panel but doesn't pass focusLocale (input stays on EN) or the field path (no scroll/highlight), even though the path is computed and shown on the screen.
+    WHY: After clicking Translate-for-Arabic the merchant lands at the top of the panel on the wrong locale and must hunt for the field they came to fix — defeating the core promise of the gap list.
+    DO: Pass focusLocale through onSelectSection so the editor calls set_active_locale(focusLocale), and pass the path so the panel scrolls to/pulses that input. Even just switching the active locale is a cheap high-value win.
+    BENCH: Webflow/Shopify deep-link to the untranslated string with the target locale selected and the field focused.
+- **I5** (P2·S) All locale inputs force dir='ltr', breaking Arabic/Kurdish text entry
+    WHAT: Every input/textarea in i18n-string-input hardcodes dir='ltr' (an over-application of the LTR-chrome rule).
+    WHY: Arabic content with mixed Latin brand names/numbers renders with mis-ordered punctuation and wrong caret behavior — exactly the fields where correct RTL rendering matters most, so the author can't trust what they type matches the storefront.
+    DO: Use dir='auto' (or dir='rtl' when the field locale is ar/ku) on the value element only — NOT on any layout container — honoring both the LTR-chrome rule and correct RTL content entry.
+    BENCH: Shopify/Webflow/Wix/Crowdin render the RTL editing field RTL while keeping the tool LTR.
+- **I6** (P2·S) English (the source locale) is counted as a translation target in the meter and shown as 'missing'
+    WHAT: computeCompleteness treats en like ar/ku, so the pill shows 'en 100%' and clicking the EN pill lists English fields as untranslated.
+    WHY: Showing the source as a percentage is noise and listing 'missing English' is incoherent; 'en 100% / ar 60%' can be misread as 80% overall.
+    DO: Exclude the default/source locale from the coverage denominator and pill (show only target locales), label it 'Source', and surface 'empty English source' as a separate warning.
+    BENCH: Shopify/Webflow show coverage for target locales against the source, not the source as a %.
+- **I7** (P2·S) Missing-field list shows raw dot-paths and caps at 8 with a dead '+N more'
+    WHAT: The coverage screen shows verbatim paths ('base.pills.2.label_i18n') and slices to 8 missing fields with a non-interactive '+N more…', even though a path-humanizer already exists in the editor.
+    WHY: Non-technical merchants see intimidating config paths with array indices, and on a content-heavy page fields 9..N are literally unreachable from the screen.
+    DO: Reuse the existing humanizer to render labels ('Pill 3 label'), and make '+N more' an expand/paginate control (or remove the cap).
+    BENCH: Shopify/Webflow list fields by human label and never dead-end the list.
+- **I8** (P3·S) No done/empty state; fully-translated pages still clutter the 'untranslated' view
+    WHAT: The screen always renders every page card; there's no 'All translated for {locale}' state and completed pages add noise to a view whose purpose is showing gaps.
+    WHY: No positive confirmation when done, and the default view mixes completed pages into the gap list.
+    DO: Add an 'All translated 🎉' empty state and a 'Show completed' toggle so the default shows only outstanding work.
+    BENCH: Shopify Translate & Adapt shows a clean 'No untranslated content' state and filters to outstanding by default.
+- **I9** (P3·L) No glossary / do-not-translate / length-warning aids for Arabic authoring
+    WHAT: Inputs are plain per-locale text fields with no character budget, glossary, or do-not-translate marker.
+    WHY: Arabic/Kurdish strings run ~20-30% longer than English and break CTA/hero labels; brand terms (WhatsApp, brand name) get inconsistently translated.
+    DO: Add per-field length guidance (char count vs EN baseline, warn when AR is >X% longer for CTAs), a do-not-translate marker, and a glossary the auto-translate path respects.
+    BENCH: Crowdin/Phrase/Shopify Translate provide glossaries, length warnings, and DNT markers.
+
+
+#### [J] Segments, experiments & personalization
+_This is real closed-loop CRO infrastructure (deterministic sticky assignment, server beacon, z-test, market-fit segment rules) — ahead of most builder add-ons, at an early-Intelligems bar. The statistics/funnel/promote bugs (BUG10/11/12/30/35) are in brokenNow; below are the program-quality gaps._
+
+- **J1** (P1·L) Experiment editor never shows or sets WHAT each arm changes — arm→variant binding is invisible here
+    WHAT: ExperimentEditor sets name/metric/dates/arms, but the binding of an arm to a section variant lives entirely in the variant wizard via an ab_test condition; the experiment has no view of which sections/variants it controls or whether an arm is empty.
+    WHY: 'Variant A' is just a label+% with no preview, no 'this arm shows hero X', and no warning that an arm has zero bound variants (does nothing) — the test and the change it makes are conceptually severed, the biggest gap vs a real visual A/B tool.
+    DO: In ExperimentEditor render a 'What this test changes' block per arm via findExperimentReferences (deep-link to the bound section+variant), flag empty arms, and add an inline 'edit what Variant A shows' that pre-selects the ab_test condition.
+    BENCH: Shopify OS2.0/Replo/Intelligems show the variant change inline; Webflow Optimize binds the experiment to the visual block.
+- **J2** (P1·L) No sample-size/MDE planning and no sequential-testing guard — the promote CTA invites peeking
+    WHAT: needs_more_data is a flat 100 visitors/arm; canPromoteWinner fires on winning&&orders>=100 with a manual Refresh and an always-visible 'Stop & promote winner'.
+    WHY: For a ~1.5% COD conversion rate, 100 visitors is wildly underpowered; a merchant can refresh until they see a transient z>1.96 win and promote a false positive — a textbook peeking setup.
+    DO: Add a planner (baseline CR + target uplift → required visitors/duration), use it as the needs_more_data threshold, gate promote on reaching the planned sample, add a 'reading early can mislead' note, and apply a simple sequential correction if feasible.
+    BENCH: Optimizely Stats Engine/Intelligems sequential testing; Convert/VWO ship a sample-size calculator.
+- **J3** (P1·L) Segments have zero live audience sizing — every count is a hardcoded '—'
+    WHAT: The segment row renders 'Visitors: —' with no estimate, historical count, reachability check, or contradiction detection.
+    WHY: A merchant building 'returning + Baghdad + cart>50k + abandoned' has no idea whether it matches 5 or 5,000 (or is impossible), so targeting is blind; the bare '—' signals 'we couldn't get it', worse than nothing.
+    DO: Add a rough estimate (log anonymized visitor signal snapshots and run evaluateSegments over a recent window → 'matched ~N in 30d'), plus client-side contradiction detection (first_visit AND returning under combine=all, empty value lists).
+    BENCH: Shopify Customer Segments, Klaviyo, Optimizely audiences all show live/estimated member counts and warn on empty/contradictory rules.
+- **J4** (P2·M) Segments & experiments screens dropped per-string bilingual inputs and are ~90% hardcoded English
+    WHAT: Both screens translate only the header; RULE_KIND_LABELS, STATUS/METRIC_LABELS, field/dialog/empty-state copy, and 'Edit segment/experiment', 'Arms', 'Add rule' are English Record literals with no locale dimension.
+    WHY: These two CRO screens are the conspicuous exception in an otherwise fully-localized editor — an Arabic/Kurdish merchant gets the working surface in English.
+    DO: Move the labels and field/dialog/empty-state copy into STRINGS with ar/ku and resolve via t() — mechanical, the verdict strings already prove the pattern.
+    BENCH: The rest of this builder (and Shopify) localizes the entire editor surface, not just headers.
+- **J5** (P2·M) Experiment significance/verdict is buried in the View drawer — cards show no result
+    WHAT: ExperimentRow shows name/status/start/metric/traffic but no significance, uplift, or verdict; results appear only after opening the drawer and an async fetch.
+    WHY: A merchant can't tell which tests are winning or ready to promote without opening each one — the list is a directory, not a dashboard.
+    DO: Surface a verdict pill (reuse classifyVerdict/SignificanceBadge) + leading-arm uplift on running/completed cards from a single list-level batch stats fetch.
+    BENCH: Optimizely/VWO/Intelligems show winner/leading-variant + confidence inline on each row.
+- **J6** (P3·L) Stats viewer is a one-shot all-time fetch — no auto-refresh, date range, time-series, or segment breakdown
+    WHAT: ExperimentViewer fetches all-time cumulative aggregates once on open with a flat per-arm table; no conversion-over-time chart, no date filter, no segment breakdown, no live update.
+    WHY: A merchant can't see whether the result has stabilized ('lines converging') or that a variant wins on mobile but loses on desktop — the difference between a number and a decision aid; pulling all events all-time also won't scale.
+    DO: Add a cumulative-conversion-over-time line chart per arm (highest value), a date-range selector flowing into the created_at filter, a results-by-device/governorate breakdown, and a 'last updated' timestamp/poll.
+    BENCH: Optimizely/VWO/Intelligems lead with a time-series confidence chart + segment breakdowns.
+- **J7** (P3·L) No mutual-exclusion / collision handling between overlapping experiments on a section
+    WHAT: Each experiment assigns arms independently and all matching ab_test conditions apply; nothing prevents or flags two running experiments binding the same section.
+    WHY: A visitor enrolled in both confounds each test's results, with no exclusion groups, no 'this section is already under test' warning, and no holdback — results are silently unreliable.
+    DO: At minimum warn at bind time when a section already has a running experiment's variant; longer term add mutual-exclusion groups and a 'sections under test' overview.
+    BENCH: Optimizely exclusion groups, Convert mutual-exclusion.
+- **J8** (P3·M) Thin experiment onboarding — no hypothesis field, no test templates, no metric guidance
+    WHAT: Empty state is one generic sentence; new experiments seed a generic 50/50 Control/Variant A; the metric dropdown has no help text and there's no hypothesis field.
+    WHY: The screen assumes CRO literacy the target merchant lacks — the gap between 'has an A/B feature' and 'gets merchants to test things well'.
+    DO: Add a hypothesis/notes field, 2-4 market-relevant templates that pre-create the experiment AND bound variant ('Test PDP buy-box CTA', 'WhatsApp vs phone CTA'), and inline metric microcopy tied to the planner.
+    BENCH: Shopify/Replo/Unstack ship templates + hypothesis fields; Intelligems onboards with pre-built recipes.
+- **J9** (P3·M) Segment add-rule popover and chip controls have a11y/interaction gaps
+    WHAT: The hand-rolled add-rule popover has no click-away/Escape and no menu ARIA, governorate/device selection relies on low-contrast tint (color-only), and several controls are below comfortable touch size on the mobile shell.
+    WHY: The popover staying open until re-clicked feels broken, and the selection cues fail visual-a11y.
+    DO: Use the UI package's Popover/DropdownMenu (click-away + ARIA), strengthen selected-state contrast with a check icon (not tint alone), and audit mobile target sizes.
+    BENCH: Webflow/Framer/Shopify menus dismiss on outside-click/Escape and meet contrast/target minimums.
+
+
+#### [K] Command Center hub
+_A clean, on-system dashboard that beats low-end builders, but it misreports state (BUG2 draft-vs-published, BUG23 trial=Draft, BUG40 error state in brokenNow), shows the published not draft preview, and lacks the onboarding/publish loop. Dead Fix links (BUG36) also apply here._
+
+- **K1** (P1·M) Live preview iframe loads the published storefront, not the draft — can't preview unpublished work from the hub
+    WHAT: PreviewCard embeds the public storefront URL (last published), while the editor mints a signed preview token to show the draft.
+    WHY: A merchant with unpublished changes sees the OLD store in 'Live preview' with no way to preview their draft from the hub, and a never-published store may 404 — the preview and the merchant's 'what I'm about to ship' model are disconnected.
+    DO: Drive the hub preview with the same signed preview token the editor uses (badge 'Previewing draft'), or clearly label it 'Live (published)' and add a 'Preview draft' affordance.
+    BENCH: Wix/Shopify/Framer preview the working version by default and badge it.
+- **K2** (P1·M) Preview iframe renders desktop content unscaled in a 480px box — looks broken/zoomed
+    WHAT: The iframe is w-full h-full in a 480px-tall container with no transform scaling, so a 2500-6000px page shows only a top sliver with its own scrollbar.
+    WHY: The single most visible polish gap on the page — it reads as a cramped window rather than a representative preview.
+    DO: Render at a real device width (desktop 1280 / mobile 390) and CSS-scale to fit (transform:scale + transform-origin top-left), with a device frame for mobile.
+    BENCH: Framer/Webflow/Shopify show a scaled full-page thumbnail, never an unscaled top-sliver.
+- **K3** (P1·M) No inline Publish action — 'Unpublished changes' is a dead-end label
+    WHAT: The amber 'Unpublished changes' pill has no associated action; the only buttons are Visit store and Customize, and Publish lives only inside the editor.
+    WHY: The dashboard's core job — 'you have changes, here's the button to ship them' — is missing, so the pill is noise and the merchant must re-enter the full editor just to publish.
+    DO: When a draft exists, render a primary 'Publish changes' button/banner that opens the existing publish-confirm-sheet with the diff, reusing the editor's publish logic.
+    BENCH: Webflow/Wix surface a persistent Publish button on the dashboard whenever there are unpublished changes.
+- **K4** (P1·L) No first-run onboarding / 'what do I do next' guidance on the hub
+    WHAT: The hub renders the same static card grid regardless of store maturity; empty states are flat text and the only 'guidance' is a discouraging low health-ring score with cryptic messages.
+    WHY: Onboarding IA — the most important job of a pre-editor hub — is absent, so first-time merchants get no ordered setup path (products → logo/colors → shipping → policies → publish).
+    DO: Add a first-run 'Set up your store' ordered checklist (with progress '3 of 7') derived from the health checks, shown prominently for new/low-score stores and collapsing to the compact ring once mature; each step deep-links into the editor.
+    BENCH: Shopify home setup guide, Wix 'Get ready to sell', Hostinger/Hocoos AI onboarding checklists. (Dedupe with E2.)
+- **K5** (P2·M) Pages card offers no management and hides its Edit affordance on touch
+    WHAT: PagesCard is a flat list with a hover-only 'Edit' link (opacity-0 → group-hover), no per-page status/visibility/thumbnail, no add/reorder, and system pages (404/policies) listed identically to content pages.
+    WHY: On touch/mobile the Edit link is effectively invisible, and the card is a thin overview rather than a manageable page list.
+    DO: Make Edit always visible (or the row clickable), add a status/visibility chip, group system vs content pages, and add an 'Add page' affordance opening the template picker.
+    BENCH: Shopify/Webflow page lists show status, are fully clickable, group system pages, and allow inline add/manage.
+- **K6** (P2·M) KPI strip has no trend/comparison and a hardcoded 7-day window
+    WHAT: KpiStrip shows Orders/Revenue/AOV for a fixed 'Last 7 days' with no period-over-period delta, no range selector, and computes topProduct it never displays.
+    WHY: The numbers carry no signal (up/down vs prior period) and the merchant can't change the window.
+    DO: Add a period-over-period delta chip per KPI, a 7d/30d range toggle, and either show topProduct or stop fetching it. (Error-state handling is in BUG40.)
+    BENCH: Shopify/Wix dashboards show metric + trend arrow + comparison and a date-range control.
+- **K7** (P2·M) Bespoke Share/Domain modals lack focus management and reuse the shared Dialog primitive
+    WHAT: ShareDialog and DomainDialog are hand-rolled fixed overlays with manual Escape/backdrop logic, not the packages/ui Radix Dialog, and don't trap/restore focus or set role=dialog/aria-modal.
+    WHY: a11y gap (no focus trap, unlabelled) and reinvention against the repo's 'reuse packages/ui' rule.
+    DO: Port both onto the shared Radix Dialog for focus trap/restore + labelling, deleting the bespoke overlay/escape code.
+    BENCH: Every world-class builder's modals trap focus and are screen-reader-labelled.
+- **K8** (P2·S) Preview card lacks Open/Refresh/fullscreen controls and an interactivity signal
+    WHAT: The card has only a device toggle; the faux URL bar isn't clickable and there's no refresh, open-in-new-tab, or maximize on the card itself.
+    WHY: The merchant can't refresh after publishing without a full page reload, can't open full-screen, and 'Visit store' is stranded in the header away from the preview.
+    DO: Add Refresh (re-key the iframe), Open-in-new-tab, and optionally maximize to the preview header; make the URL bar copy/click-to-open.
+    BENCH: Framer/Webflow preview panels include refresh, breakpoint, and open-in-new-tab inline.
+- **K9** (P3·M) Editor capabilities (versions, scheduled changes, live experiments) are invisible from the hub
+    WHAT: The hub surfaces none of last-published time, upcoming scheduled changes, or running experiments, though the data exists.
+    WHY: A dashboard should bubble up exactly these at-a-glance signals; the hub under-leverages the platform's own capabilities.
+    DO: Add 'Last published <relative>' under the status pill, a banner for upcoming scheduled changes, and a badge for a live experiment — each linking to the relevant editor screen.
+    BENCH: Shopify/Wix show last-published time and pending scheduled publishes; Optimizely badges running experiments on home.
+- **K10** (P3·S) Quick-settings tiles are aspirational labels that may overstate support (Kurdish)
+    WHAT: Tiles read like settings panels but are generic editor links, and 'Languages — Arabic, English, Kurdish' may overpromise given the per-string inputs documented as bilingual ar/en.
+    WHY: Naming a capability the editor may not deliver erodes trust when the merchant clicks through.
+    DO: Verify Kurdish support and align tile copy with reality; once deep-linking exists (BUG36), point each tile at its real screen.
+    BENCH: World-class builders' settings tiles map 1:1 to real panels and never overstate capability.
+
+
+#### [L] Section catalog & content (the 47 sections)
+_The catalog is broad and unusually Iraq-fit (COD glorified, WhatsApp first-class, IQD centralized, real bilingual defaults, schema-per-section discipline). The money-path bugs (BUG13-15, BUG37-39) are in brokenNow; below are catalog breadth and content-model gaps._
+
+- **L1** (P1·XL) No real product-reviews section with photos — the biggest missing conversion section vs Shopify
+    WHAT: pdp_buy_box shows one aggregate star rating if configured and testimonials_carousel shows store-level quotes, but there's no per-product review section, rating distribution, photo reviews, or submission.
+    WHY: Photo-rich reviews are the highest-converting trust element for COD shoppers who can't pay-first/return-easily and rely heavily on social proof — a serious apparel/electronics merchant hits this immediately.
+    DO: Add a product_reviews section (rating histogram + per-review card with name/city/verified badge/photos, newest/helpful sort) sourced from a reviews table keyed by product_id, paired with AggregateRating JSON-LD.
+    BENCH: Shopify (Judge.me/Loox/Okendo), Replo, Shogun all treat photo reviews + distribution as a core PDP section.
+- **L2** (P2·XL) Missing high-value commerce sections: bundle/quantity-break, comparison table, before/after, recently-viewed
+    WHAT: The catalog over-indexes on hero/story variants (4 heroes, founder_note, brand_story, press_quotes) and lacks AOV/conversion drivers: bundle/quantity-break pricing, product comparison table, before/after slider, and a recently-viewed strip.
+    WHY: Bundles drive AOV when shipping is per-order; comparison tables convert electronics/cosmetics cash buyers; before/after suits skincare/beauty (large IQ verticals).
+    DO: Prioritize bundle/quantity-break and comparison_table next, then before_after and a localStorage-backed recently_viewed, each following the existing schema+defaultProps+render pattern.
+    BENCH: Shopify's library + Rebuy bundles, comparison-table blocks, before/after; Replo templates ship all of these.
+- **L3** (P2·M) FAQ accordion emits no FAQPage JSON-LD
+    WHAT: faq_accordion renders bilingual Q&A but emits no structured data, and storefront SEO emits Product/Breadcrumb but no FAQPage.
+    WHY: The FAQ content (delivery time, COD, returns) is exactly what Google rewards with FAQ rich results, derivable at near-zero cost, improving SERP real estate for high-intent Arabic queries.
+    DO: Have faq_accordion (or the page wrapper) emit a FAQPage <script> from its resolved Q/A in the active locale via the existing json-ld component; do the same for AggregateRating once reviews land.
+    BENCH: Shopify SEO apps and Webflow FAQ blocks auto-emit FAQPage schema.
+- **L4** (P2·M) Two/three PDP sticky bottom bars can stack and fight
+    WHAT: pdp_buy_box's sticky slab, pdp_add_to_cart's sticky bar (default on), and sticky_cta_bar are all PDP-valid fixed bottom-0 z-40 with no reserved bottom padding.
+    WHY: Placing more than one gives two or three overlapping fixed bars covering each other and the content — easy to trigger from the picker with no warning.
+    DO: Pick one canonical PDP sticky owner (the buy box slab), default pdp_add_to_cart.sticky_on_mobile false, warn when multiple sticky-bottom sections coexist, and add scroll-margin/bottom padding so content clears the active bar.
+    BENCH: Shopify/Replo allow exactly one sticky add-to-cart per PDP and manage the bottom inset.
+- **L5** (P3·M) delivery_promise can't bind to v2 config, and delivery promises contradict across sections
+    WHAT: The section prop governorates_covered is string[] but store-config-v2 stores it as a number (count) — no clean source — and delivery_promise defaults to '6h Baghdad' while CodCard says '24h' and trust_strip says 'Same-day Baghdad'.
+    WHY: A content-model mismatch invites drift, and three different delivery promises on one store erode credibility on the exact COD promise that drives the order.
+    DO: Unify on one delivery-promise source of truth (governorate lead times + covered list) in store-config-v2 that CodCard, delivery_promise, trust_strip, and checkout copy all read; reconcile the governorates_covered type.
+    BENCH: Shopify surfaces one delivery promise consistently across PDP, cart, and checkout.
+- **L6** (P3·S) Hardcoded English aria-labels on qty steppers in pdp_add_to_cart and cart_line_items
+    WHAT: pdp_add_to_cart and cart_line_items hardcode 'Decrease/Increase quantity' aria-labels regardless of locale, unlike pdp_buy_box which localizes them.
+    WHY: Assistive labels stay English for Arabic shoppers — a real localization inconsistency across sibling sections handling the same control.
+    DO: Localize the remaining aria-labels, ideally via a shared qty-stepper primitive so the strings live in one place.
+    BENCH: World-class builders localize all interactive labels including assistive text from one source.
+- **L7** (P3·S) WhatsApp order template omits quantity/variant context
+    WHAT: The shared whatsapp.ts template sends name+url+price with no quantity or variant line, and the PDP sends qty-multiplied total under a 'Price:' label that reads as unit price; cart_summary's hand-rolled message is richer, showing the helper is under-built.
+    WHY: A merchant manually fulfilling a WhatsApp COD order can mis-key quantity — a direct fulfillment-error risk on cash orders, the dominant Iraqi checkout-assist channel.
+    DO: Extend WhatsappProductInfo with quantity+variant and template 'Qty:'/'Option:' so the helper matches cart_summary; have product cards and the buy box pass qty/variant; label unit vs total clearly.
+    BENCH: WhatsApp-commerce flows pre-fill an unambiguous order summary.
+
+
+#### [M] Architecture, performance & reliability
+_The shared resolver, atomic patch/publish RPCs, fail-soft RenderSection, and lazy-paint strategy are genuinely strong. The cross-cutting reliability defects (BUG4 backup, BUG5 boundary, BUG21 autosave race, BUG24 validation, BUG25 conflicts) are in brokenNow; below are the structural and performance items._
+
+- **M1** (P2·M) No tenant-scope or path allowlist on the patch RPC — a member can jsonb_set arbitrary paths into any config field
+    WHAT: apply_store_config_v2_patch accepts caller-controlled p_path text[] and does jsonb_set(config,p_path,p_value,true) after only verifying active membership; the route validates only the envelope shape.
+    WHY: Any active member can overwrite schema_version, inject malformed pages/segments, stuff an oversized jsonb (no size cap), or create junk branches (create:true) that later fail per-section validation — the corruption entry point, gated only by 'is a member'.
+    DO: Constrain p_path to an allowlist of editable top-level prefixes (pages/globals/brand_kit/segments/experiments/schedules/locales), reject schema_version/unknown roots, add a size guard, and ideally validate the resulting document against the root Zod schema/Postgres CHECK before commit.
+    BENCH: Contentful/Sanity field-level APIs restrict mutations to schema-known paths and validate the result.
+- **M2** (P2·L) All 47 sections are eagerly bundled via RenderSection side-effect imports — no code-splitting
+    WHAT: RenderSection imports all 47 modules as side-effects to populate the registry; lazy-section.tsx defers paint, not JS.
+    WHY: Every page that renders any section pulls the entire library (47 components + schemas + deps) into one client chunk on both editor and storefront — wasted JS download/parse on the Iraq 3G critical path for content-light pages.
+    DO: Move to a registry of dynamic importers (registerSection with ()=>import('./hero_image') + React.lazy/next/dynamic per type), resolving needed types server-side for SSR so a page only ships the sections it instances.
+    BENCH: Shopify Hydrogen and Builder.io register blocks as lazy importers and only ship a page's used blocks.
+- **M3** (P2·L) Three effects JSON.stringify the entire 50-100KB config on every keystroke
+    WHAT: On each config change, the history-snapshot, dirty-flag, and autosave effects each independently JSON.stringify(config), plus the 30s localStorage effect — for a content-heavy store this is the dominant per-keystroke cost.
+    WHY: Every character typed serializes the whole document 3+ times synchronously on the main thread, producing visible input lag on the mid/low-end devices common in the target market.
+    DO: Compute the serialized form once per change (a memo/single derived effect feeding all three), or move dirty-detection to reference equality + a structural hash via a structural-sharing store (Zustand+Immer/valtio), stringifying only at the save boundary.
+    BENCH: Framer/Webflow keep per-keystroke work O(changed-node) via immutable structural sharing.
+- **M4** (P2·XL) State is a 1123-line hand-rolled hook coordinating ~10 mutable refs — fragile, hard to test, no single source of truth
+    WHAT: useStoreBuilderV2 holds config in useState but undo/redo/save in skipHistoryRef/lastSnapshotRef/pending refs + a historyTick counter (with eslint-disable on can_undo/can_redo deps), and imports a banned module-level supabase client.
+    WHY: Undo correctness depends on fragile imperative ref-coordination (the segment-CRUD bypass and tick hack are symptoms), can_undo/can_redo are derived from refs React can't see, and there's no command log to enable server-authoritative history or future multiplayer.
+    DO: Extract config+history into a command-based store (Zustand reducer or useReducer history middleware) with a typed undo stack, plain derived can_undo/can_redo (no tick/eslint-disable), and described section/segment/experiment commands; switch to the mandated lazy supabase getter.
+    BENCH: Framer/Plasmic/tldraw model editor state as a command/transaction store with a typed undo stack.
+- **M5** (P3·M) Live-preview page switch always does a full iframe reload (white flash, lost scroll), no warm cache
+    WHAT: Page navigation does a full iframe location.replace re-fetching all server data and re-establishing the bridge, even when the target page's server data is unchanged or already-cached.
+    WHY: A merchant flipping between Home/Category/Product to compare gets a full white-flash reload each time, losing scroll and the bridge 'ready' state.
+    DO: Keep visited preview pages warm (an iframe per recently-visited page, or in-memory page-map switch when only page_id changes), preserve scroll, show a skeleton instead of white, and only hard-reload when product_id/category_id actually change.
+    BENCH: Webflow/Framer keep the canvas warm and switch pages in-place; Shopify preserves preview scroll.
+
+
+#### [N] Net-new world-class capabilities (the big gaps)
+_Capabilities that are entirely absent and that a serious merchant hits within the first week — these are the strategic swings that move the builder toward the benchmark beyond fixing what exists._
+
+- **N1** (P1·M) No custom-code / pixel injection, and stored custom_css has no editor UI
+    WHAT: Confirmed: custom_css exists on StoreConfigV2 and is injected into the storefront <head>, but has zero editor references in store-builder-v2; there's no head/body script injection and no first-class Meta/TikTok/Google pixel fields (only the per-section sandboxed html_embed).
+    WHY: For an Iraq store running paid social, missing pixel injection directly breaks ad attribution and retargeting — launch-critical for paid acquisition — and the half-wired custom_css is a dead, invisible capability.
+    DO: Add a 'Code & tracking' settings screen: a custom_css editor (lightweight CodeMirror), head/body script fields with warnings, and first-class Meta Pixel ID / TikTok Pixel ID / Google tag fields rendering the official snippets server-side.
+    BENCH: Shopify (custom CSS + Additional scripts/web pixels), Webflow head/footer code, Wix tracking & analytics, Framer custom code.
+- **N2** (P2·L) No AI copy/section generation anywhere in the builder
+    WHAT: AI exists only for customer summaries; nothing in the builder generates or rewrites content, and the brand_kit.voice field (formality/notes) is never used.
+    WHY: AI generation is the headline feature of every modern builder, and the highest-value version here is bilingual — generate Arabic+English headline/subhead/CTA/blurbs in the brand voice and auto-translate one locale to the other (directly relieving the I1 hand-translation burden).
+    DO: Add inline 'Generate with AI' on text/i18n fields and 'Draft this section' in the picker, producing bilingual copy from brand_kit identity+voice+context; add 'Translate to AR/EN' in the i18n screen; reuse the customer ai-summary server plumbing, human-in-the-loop.
+    BENCH: Shopify Magic, Wix AI, Framer AI, Hostinger/Hocoos AI builders, Builder.io Visual AI.
+- **N3** (P2·M) No URL redirects manager — broken-link / SEO recovery is impossible
+    WHAT: There is no redirects model in StoreConfigV2 and no UI, yet product/category slugs (and future custom-page URLs) can change.
+    WHY: When a slug changes, old inbound links — ad links, WhatsApp-shared links, indexed Google results — 404, losing SEO equity and dead-linking exactly the WhatsApp/social distribution this market relies on.
+    DO: Add redirects: {from,to,status}[] to StoreConfigV2 with a management screen (validate loops/conflicts) honored in storefront middleware; optionally auto-suggest a redirect on slug change.
+    BENCH: Shopify URL Redirects, Webflow 301s, Wix redirect manager, Framer redirects.
+- **N4** (P2·L) No whole-store starter themes / template marketplace
+    WHAT: page-templates are per-page only; there's no StoreTheme that sets brand_kit + all pages + globals together, and no gallery/marketplace.
+    WHY: A new Iraq merchant wants to pick a complete look ('Perfume editorial', 'Electronics') and have colors+fonts+every page populated in one click — the 'instant beautiful store' first-run moment top builders lead with.
+    DO: Add whole-store StoreTheme presets (brand_kit + every page + globals) surfaced as a gallery in onboarding and an 'Apply theme' action with a replace-confirm; curate 4-6 vertical Iraq themes. (Pairs with D1.)
+    BENCH: Shopify Theme Store, Webflow/Framer marketplaces, Wix templates, Replo page library.
+- **N5** (P3·XL) No content collections / metaobjects (and no blog)
+    WHAT: Repeatable content (testimonials, branches, FAQs) is typed inline per-section instance; there's no reusable collection/metaobject layer and no blog/article model.
+    WHY: Editing the same testimonials/branches/FAQs across pages means re-entering and drift, and the absence of a blog caps content-driven organic SEO.
+    DO: Add a lightweight collections layer (named lists of typed records, bindable by sections via a reference instead of inline arrays), starting with a blog/article collection + a list/show section. Sequence after custom pages (E4) and media library (C5).
+    BENCH: Shopify Metaobjects, Webflow CMS Collections, Framer CMS, Wix Content Manager.
+- **N6** (P3·L) No general form builder beyond newsletter/checkout, and no submissions inbox
+    WHAT: Forms are fixed-purpose (newsletter email, COD checkout); there's no configurable lead/contact/pre-order/back-in-stock form and no submissions view.
+    WHY: COD merchants frequently need a custom lead capture (phone + WhatsApp opt-in is the real lead) or wholesale-inquiry form; today those leads are lost or pushed off-platform.
+    DO: Add a form-builder section (configurable fields incl. governorate select + WhatsApp opt-in), a submit action (store + optional WhatsApp deep-link/notify), and a submissions list, reusing the governorate select and phone-normalization utils.
+    BENCH: Webflow Forms, Wix Forms, Shopify contact form + apps, Framer forms.
+- **N7** (P3·XL) No real-time collaboration, presence, or in-context comments
+    WHAT: The editor is single-user with no presence/lock and no per-section comments; combined with no conflict detection (BUG25) two people clobber the shared draft.
+    WHY: Merchants increasingly work with an agency/marketer; without presence or comments concurrent editing collides and there's no way to leave in-context feedback.
+    DO: Start with a soft edit-lock + presence indicator via a Supabase realtime channel and per-section comment threads keyed by (page_id, section_id); defer full multiplayer co-editing.
+    BENCH: Framer/Figma multiplayer + comments, Webflow comments + locks, Builder.io comments.
+- **N8** (P3·L) No per-section animation / scroll-interaction controls
+    WHAT: Motion is a single global brand_kit.motion {enabled,speed} + broad CSS scroll-reveal; no inspector control to choose a per-section entrance/scroll/hover effect.
+    WHY: Brand-defining storefronts use selective motion (parallax hero, count-up stat strip); all-or-nothing global motion is a differentiation gap.
+    DO: Add an optional per-section motion block (entrance none/fade/rise/zoom, trigger on-load/on-scroll, intensity) as an inspector group layered over the global default, CSS-driven and honoring prefers-reduced-motion.
+    BENCH: Framer interactions, Webflow Interactions, Wix Studio animations, Replo per-component animation.
+
+
+#### [O] Visual polish & micro-interactions
+_The 'Elevated Light Glass' chrome is genuinely refined (save-state pill, publish ping, scroll-sync, tinted tiles, reduced-motion respect). The remaining polish gaps concentrate in the top bar, the IA of power screens, and a few honesty/labeling issues._
+
+- **O1** (P1·M) Top bar is a single non-responsive flex row — overcrowds/clips below ~1280px and jitters on save-state change
+    WHAT: The header packs ~10 controls (locale, breakpoint, undo/redo, preview-as, i18n pill, Open, save pill, Publish) in a flex row with no min-w-0, overflow menu, or breakpoint hiding, and width-variable pills ('Saved 12m ago', 'ar 100% / en 100%') reflow as state changes.
+    WHY: On a common 1366px laptop with both rails open, the row crowds/clips and the layout jitters as autosave ticks.
+    DO: Make the bar responsive: collapse secondary controls into a 'More' overflow below a width threshold, give the middle group min-w-0, and reduce variable pills to icon-only under ~1280px; test at 1280/1366/1440.
+    BENCH: Framer/Webflow keep the top bar to ~3 stable zones with secondary controls in menus; none let width jitter on save.
+- **O2** (P1·L) Power screens replace the whole canvas with no breadcrumb, active-state, or exit affordance
+    WHAT: Brand Kit/Versions/Scheduled/Segments/Experiments/i18n swap the entire main for a full-screen panel (hiding canvas + inspector) with no active-state on the page-tree settings buttons and no top-bar breadcrumb/back-to-canvas — exit depends on each screen's own close, while inert toolbar controls (breakpoint, preview-as) still show.
+    WHY: The merchant is teleported with no 'you are here' affordance and can feel trapped, unlike the Health tab which was correctly moved inline.
+    DO: Add active-state styling to the settings buttons, a top-bar breadcrumb + persistent Close when a system_screen is open, dim the inert canvas-only controls, and consider hosting these as right-docked panels (Framer/Webflow pattern) rather than full takeovers.
+    BENCH: Webflow/Framer open version/CMS/audience as panels keeping the design visible with the nav highlighting the active section.
+- **O3** (P2·M) Flagship advanced screens are double-buried in a collapsed, unlabeled 'Advanced' accordion with no activity badges
+    WHAT: Audiences, A/B tests, Scheduled changes, and Past versions live in an ADVANCED_SETTINGS accordion that defaults closed (localStorage-persisted) at the bottom of the page rail, with no count/badge for live activity.
+    WHY: A merchant who never expands it never discovers A/B testing or scheduled publishing — four of the builder's most differentiating capabilities are hidden behind a generic collapsed label.
+    DO: Add live-state badges (e.g. '2 experiments running', '1 scheduled change', unpublished-diff dot) on the Advanced toggle/items, promote Versions + Scheduled to primary (they're operational), and default the accordion open on first visit.
+    BENCH: Wix Studio/Builder.io put experiments/versions in the primary toolbar with activity badges.
+- **O4** (P3·M) Mobile editor buries breakpoint/locale/preview-as/undo-redo behind an unlabeled '...' with an inert device toggle
+    WHAT: Four capabilities live behind the mobile top-bar More button; undo/redo is two taps deep, and the breakpoint toggle in the drawer does nothing because the mobile canvas is locked to mobile.
+    WHY: Hard-to-discover controls, frequent undo buried deep on a phone (where errant edits are likelier), and a device toggle that visibly does nothing is misleading.
+    DO: Promote undo/redo to the mobile top bar, hide the inert breakpoint toggle on the phone shell (or honor it), and label/split the More button.
+    BENCH: Shopify/Wix mobile editors keep undo/redo and device toggle first-class and never show a no-op device toggle.
+- **O5** (P3·S) Top-bar locale select reads as a global language switch but only changes preview locale
+    WHAT: A bare Globe ar/en dropdown (aria-label 'Preview locale' but no visible 'Preview' qualifier) sits in the chrome and drives set_active_locale, conflated with breakpoint.
+    WHY: Merchants may think selecting 'en' changes their store's default language or enabled locales (actually managed in the i18n screen) — an IA ambiguity.
+    DO: Group the locale select inside the same 'preview context' cluster as breakpoint/preview-as and add a small 'Preview' qualifier/eye icon, keeping the i18n coverage pill visually distinct.
+    BENCH: Webflow/Shopify clearly separate 'simulate in locale X' from 'site languages' settings.

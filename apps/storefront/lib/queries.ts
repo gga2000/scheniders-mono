@@ -124,11 +124,15 @@ export const listCategories = cache(async (tenantId: string): Promise<Category[]
 export const getCategoryBySlug = cache(
   async (tenantId: string, slug: string): Promise<Category | null> => {
     const supabase = await createSupabaseServerClient();
+    // The dynamic route param can arrive still percent-encoded, so a non-ASCII
+    // Arabic slug (e.g. "العطور") comes through as "%D8%A7..." and would never
+    // match the stored value — same fix as getProductBySlug.
+    const key = decodeSlugParam(slug);
     const { data } = await supabase
       .from("categories")
       .select("id, tenant_id, name, slug, description, image_url, parent_id, display_order")
       .eq("tenant_id", tenantId)
-      .eq("slug", slug)
+      .eq("slug", key)
       .maybeSingle();
     return (data as unknown as Category) ?? null;
   },

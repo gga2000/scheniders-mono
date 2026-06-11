@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+
+<html dir="ltr" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Schneiders - Search Results</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,100..900;1,100..900&amp;family=Dm+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#ff5a8a',
+                        secondary: '#c5b6ff',
+                        accent: '#7cf0bd',
+                        highlight: '#ffd84a',
+                        info: '#9ad8ff',
+                        background: '#fff7ed',
+                        ink: '#1a1a1a'
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                        lg: "1rem",
+                        xl: "1.5rem",
+                        full: "9999px"
+                    },
+                    fontFamily: {
+                        headline: ["Public Sans", "sans-serif"],
+                        display: ["Public Sans", "sans-serif"],
+                        body: ["Dm Sans", "sans-serif"],
+                        label: ["Dm Sans", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .chunky-border { border: 3px solid #1a1a1a; }
+        .chunky-shadow { box-shadow: 4px 4px 0px 0px #1a1a1a; }
+        .chunky-shadow-sm { box-shadow: 2px 2px 0px 0px #1a1a1a; }
+        .chunky-shadow-hover:hover { transform: translate(2px, 2px); box-shadow: 2px 2px 0px 0px #1a1a1a; }
+        .chunky-shadow-active:active { transform: translate(4px, 4px); box-shadow: 0px 0px 0px 0px #1a1a1a; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        body { background-color: #fff7ed; color: #1a1a1a; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body text-ink pb-24">
+<!-- Promo Bar -->
+<div class="bg-highlight text-ink font-headline font-bold text-center py-2 text-sm chunky-border border-x-0 border-t-0 flex items-center justify-center gap-2 overflow-hidden whitespace-nowrap">
+<span>✨</span> Search 10,000+ products <span>✨</span>
+</div>
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-4 py-3 bg-[#fff7ed] border-b-[3px] border-[#1a1a1a] shadow-[4px_4px_0px_0px_#1a1a1a] mt-9">
+<button class="text-[#1a1a1a] hover:bg-[#7cf0bd] transition-colors p-2 rounded-full border-2 border-transparent hover:border-[#1a1a1a] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none">
+<span class="material-symbols-outlined font-bold text-2xl">arrow_back</span>
+</button>
+<h1 class="text-2xl font-black text-[#1a1a1a] border-b-4 border-[#ff5a8a] font-headline uppercase tracking-tight">Schneiders</h1>
+<button class="bg-accent text-ink chunky-border p-2 rounded-full chunky-shadow-sm chunky-shadow-hover chunky-shadow-active transition-all relative">
+<span class="material-symbols-outlined text-xl">shopping_basket</span>
+<span class="absolute -top-1 -right-1 bg-primary text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full chunky-border">3</span>
+</button>
+</header>
+<!-- Main Content Padding -->
+<main class="pt-28 px-4 pb-12 max-w-md mx-auto">
+<!-- Search Bar Section -->
+<div class="bg-white chunky-border rounded-xl chunky-shadow p-3 mb-6 flex items-center gap-3 focus-within:ring-4 ring-secondary transition-all">
+<span class="material-symbols-outlined text-primary font-bold text-2xl">search</span>
+<input class="w-full font-headline font-bold text-xl bg-transparent border-none focus:ring-0 p-0 text-ink" placeholder="Search..." type="text" value="sneakers"/>
+<button class="text-ink/50 hover:text-ink">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<div class="flex justify-between items-end mb-4">
+<p class="font-body font-bold text-lg">12 results for <span class="italic text-primary">"sneakers"</span></p>
+<div class="relative">
+<select class="appearance-none bg-white chunky-border rounded-lg chunky-shadow-sm font-label font-bold text-sm py-1 pl-3 pr-8 focus:ring-0 cursor-pointer">
+<option>Sort: Popular</option>
+<option>Price: Low to High</option>
+<option>Price: High to Low</option>
+<option>Newest</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-sm font-bold">expand_more</span>
+</div>
+</div>
+<!-- Recent & Trending Searches -->
+<div class="mb-6 space-y-3">
+<div class="flex gap-2 overflow-x-auto no-scrollbar pb-2 pt-1 px-1">
+<div class="bg-secondary text-ink font-label font-bold text-xs px-3 py-1.5 rounded-full chunky-border whitespace-nowrap shrink-0 flex items-center gap-1 -rotate-1 chunky-shadow-sm">
+<span class="material-symbols-outlined text-[14px]">history</span> Recent
+                </div>
+<button class="bg-white text-ink font-label font-bold text-xs px-3 py-1.5 rounded-full chunky-border whitespace-nowrap shrink-0 hover:bg-background chunky-shadow-sm">air force 1</button>
+<button class="bg-white text-ink font-label font-bold text-xs px-3 py-1.5 rounded-full chunky-border whitespace-nowrap shrink-0 hover:bg-background chunky-shadow-sm rotate-1">hoodie</button>
+</div>
+<div class="flex gap-2 overflow-x-auto no-scrollbar pb-2 pt-1 px-1">
+<div class="bg-highlight text-ink font-label font-bold text-xs px-3 py-1.5 rounded-full chunky-border whitespace-nowrap shrink-0 flex items-center gap-1 rotate-1 chunky-shadow-sm">
+                    🔥 Trending
+                </div>
+<button class="bg-white text-ink font-label font-bold text-xs px-3 py-1.5 rounded-full chunky-border whitespace-nowrap shrink-0 hover:bg-background chunky-shadow-sm -rotate-1">Nike</button>
+<button class="bg-white text-ink font-label font-bold text-xs px-3 py-1.5 rounded-full chunky-border whitespace-nowrap shrink-0 hover:bg-background chunky-shadow-sm rotate-2">Off-white</button>
+<button class="bg-white text-ink font-label font-bold text-xs px-3 py-1.5 rounded-full chunky-border whitespace-nowrap shrink-0 hover:bg-background chunky-shadow-sm -rotate-2">Sephora</button>
+</div>
+</div>
+<!-- Filter Pills -->
+<div class="flex gap-2 overflow-x-auto no-scrollbar pb-4 pt-1 px-1 mb-2">
+<button class="bg-info text-ink font-label font-bold text-sm px-4 py-2 rounded-lg chunky-border whitespace-nowrap shrink-0 flex items-center gap-1 chunky-shadow-sm chunky-shadow-hover transition-all">
+                Filter ⚙️
+            </button>
+<button class="bg-white text-ink font-label text-sm px-4 py-2 rounded-lg chunky-border whitespace-nowrap shrink-0 chunky-shadow-sm chunky-shadow-hover transition-all rotate-1 hover:bg-background">
+                Under 75K IQD
+            </button>
+<button class="bg-white text-ink font-label text-sm px-4 py-2 rounded-lg chunky-border whitespace-nowrap shrink-0 chunky-shadow-sm chunky-shadow-hover transition-all -rotate-1 hover:bg-background">
+                On Sale
+            </button>
+<button class="bg-white text-ink font-label text-sm px-4 py-2 rounded-lg chunky-border whitespace-nowrap shrink-0 chunky-shadow-sm chunky-shadow-hover transition-all rotate-2 hover:bg-background">
+                In Stock
+            </button>
+</div>
+<!-- Product Grid -->
+<div class="grid grid-cols-2 gap-4 mb-8">
+<!-- Product 1 -->
+<div class="bg-white rounded-xl chunky-border overflow-hidden flex flex-col group chunky-shadow transition-transform hover:-translate-y-1">
+<div class="relative aspect-square border-b-3 border-ink bg-gray-100">
+<img alt="Product Image" class="w-full h-full object-cover" data-alt="A pair of bright red sneakers placed on a clean white background, creating a bold, playful e-commerce vibe. The lighting is bright and even, highlighting the vibrant red color of the shoes. The style is modern, chunky, and fits a colorful, youthful fashion aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBt4FCyTMBM1Ox17PZvqgaQsMgYOO3RpdlJafFawpRA333SziVbILEeWfz-bGescZQcFURrn5zTUWFH8OCe3WVYa4wd56Z86A349nDuNYuBLgSeoBJaz2oI5GzA6Dtf_cs1pxCug8KszDGKsi9TMhyFuesWy9PYxSvKsGd_XfymXrJ_VuFEUF9I9VfXqIaG3vWG_IQlMjX22XFF2bablQVg7--w_hJ7zj4lEnKcAt5Eq7sYILO4AJ_ASg54zUd3kdn95qcyFgeYcto2"/>
+<div class="absolute top-2 left-2 bg-highlight text-ink font-label font-bold text-[10px] px-2 py-1 rounded-full chunky-border -rotate-3">NEW</div>
+</div>
+<div class="p-3 flex flex-col flex-grow">
+<h3 class="font-headline font-bold text-sm leading-tight mb-1">Nike Air Max 270</h3>
+<div class="flex flex-col mb-3">
+<span class="font-body font-black text-lg text-primary">125,000 د.ع</span>
+</div>
+<button class="mt-auto bg-primary text-white font-label font-bold text-xs py-2 rounded-lg chunky-border flex items-center justify-center gap-1 chunky-shadow-sm chunky-shadow-active transition-all group-hover:bg-pink-600">
+                        BUY NOW <span class="material-symbols-outlined text-[14px]">shopping_cart</span>
+</button>
+</div>
+</div>
+<!-- Product 2 -->
+<div class="bg-white rounded-xl chunky-border overflow-hidden flex flex-col group chunky-shadow transition-transform hover:-translate-y-1">
+<div class="relative aspect-square border-b-3 border-ink bg-gray-100">
+<img alt="Product Image" class="w-full h-full object-cover" data-alt="A pair of chunky white and green sneakers showcased against a soft pastel background. The lighting is bright daylight, creating a fresh, trendy, and joyful mood. The visual style aligns with a vibrant, playful e-commerce aesthetic featuring solid colors and clear focus." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCokUT6o29vbhjAC4qKKXfdRGXec6Dgiwz4V2E9fymJb5YHpw-sSpNDmzKjmXyh6gEdfa7IAr4UWC3wy0FRNDhdrVBgiD2CFhzhffr_1UwssLHYViPwrq6n_XlpMyVhrcdBscp6DYwA_GZjFVRJ7aM9FMat2lpzPYTv6oCAdZPPXxN4p40JWD8tkZQhuHaCaiLQ85IoUX0PS6KGsQk94VVZq2jTqnb0pTYH70-AmsPI5TFa12psmze5xgCpcQuHYGnX0ATTfokTWFTW"/>
+<div class="absolute top-2 left-2 bg-accent text-ink font-label font-bold text-[10px] px-2 py-1 rounded-full chunky-border rotate-3">-20%</div>
+</div>
+<div class="p-3 flex flex-col flex-grow">
+<h3 class="font-headline font-bold text-sm leading-tight mb-1">Chunky Sole Runners</h3>
+<div class="flex flex-col mb-3">
+<span class="font-body font-black text-lg text-primary">60,000 د.ع</span>
+<span class="font-body text-xs text-ink/60 line-through">75,000 د.ع</span>
+</div>
+<button class="mt-auto bg-primary text-white font-label font-bold text-xs py-2 rounded-lg chunky-border flex items-center justify-center gap-1 chunky-shadow-sm chunky-shadow-active transition-all group-hover:bg-pink-600">
+                        BUY NOW <span class="material-symbols-outlined text-[14px]">shopping_cart</span>
+</button>
+</div>
+</div>
+<!-- Product 3 -->
+<div class="bg-white rounded-xl chunky-border overflow-hidden flex flex-col group chunky-shadow transition-transform hover:-translate-y-1">
+<div class="relative aspect-square border-b-3 border-ink bg-gray-100">
+<img alt="Product Image" class="w-full h-full object-cover" data-alt="Stylish multicolor sneakers presented on a clean pastel surface. The mood is energetic and colorful, perfect for a modern streetwear brand. Bright, high-key lighting enhances the playful, candy-bento design style, emphasizing the bold colors of the shoe." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCexyp0ZQlQKeJN16pRLotfQe6BN9TMQfnkGtost78tn9CfV2WmOhrK5Hlwy56s43_Cbh_DZWBX3XYYWiSPGusvaJB1FNyvUFlIN69MqEH5aJQQcj2cW6R5ecn3SaoDBAuxVgMOA68-NJaC1LSTPvI5sdHwfqldaNF7gBBlG3TJFxrRSVW25ZYZgN5A_b8XvNZQ2dXs_AxHyAOmLqA_HjswB6gUeqct60WE3opE7RRi4j7g4joweXDIJcNNlP5qEgrHgRsUUhHNYi_9"/>
+</div>
+<div class="p-3 flex flex-col flex-grow">
+<h3 class="font-headline font-bold text-sm leading-tight mb-1">Retro High Tops</h3>
+<div class="flex flex-col mb-3">
+<span class="font-body font-black text-lg text-primary">95,000 د.ع</span>
+</div>
+<button class="mt-auto bg-primary text-white font-label font-bold text-xs py-2 rounded-lg chunky-border flex items-center justify-center gap-1 chunky-shadow-sm chunky-shadow-active transition-all group-hover:bg-pink-600">
+                        BUY NOW <span class="material-symbols-outlined text-[14px]">shopping_cart</span>
+</button>
+</div>
+</div>
+<!-- Product 4 -->
+<div class="bg-white rounded-xl chunky-border overflow-hidden flex flex-col group chunky-shadow transition-transform hover:-translate-y-1">
+<div class="relative aspect-square border-b-3 border-ink bg-gray-100">
+<img alt="Product Image" class="w-full h-full object-cover" data-alt="A close-up shot of trendy pastel pink sneakers. The setting is bright and youthful, capturing a playful, candy-colored mood. Soft, flattering daylight highlights the shoe's textures, perfectly matching a vibrant, modern e-commerce visual token system." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC6dGWJOQ5_NToOh-1grzZx7fLcBXDUrZfe1W0j1Vq-V8dULyKjro4DIjhfzQETnH0URBJiZoPz8mIPetWXPZhlgdfHUt0197QgwvpakYsQXhaJkJ3CryfjZ_VHhqBKJdsQC35wxN2VassDJVOa8jcTg5jIpGDKEkY5HOJPVpJ21BOehskCmc9ULz-rQp2UrwNoJ6yN68zG8PHQaDPNqg-Ca3N7wRwtlvVNQ0YnaKv_jQRjWx5m_4HebeshMvvbBFcUrtWLUQ76JPIt"/>
+</div>
+<div class="p-3 flex flex-col flex-grow">
+<h3 class="font-headline font-bold text-sm leading-tight mb-1">Pastel Cloud Walkers</h3>
+<div class="flex flex-col mb-3">
+<span class="font-body font-black text-lg text-primary">82,000 د.ع</span>
+</div>
+<button class="mt-auto bg-primary text-white font-label font-bold text-xs py-2 rounded-lg chunky-border flex items-center justify-center gap-1 chunky-shadow-sm chunky-shadow-active transition-all group-hover:bg-pink-600">
+                        BUY NOW <span class="material-symbols-outlined text-[14px]">shopping_cart</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Load More Button -->
+<div class="flex justify-center mb-10">
+<button class="bg-highlight text-ink font-headline font-black text-lg px-8 py-3 rounded-xl chunky-border chunky-shadow chunky-shadow-active transition-all rotate-1 hover:-rotate-1">
+                LOAD MORE
+            </button>
+</div>
+<!-- Can't Find CTA -->
+<div class="bg-info rounded-xl chunky-border p-5 text-center chunky-shadow mb-8 -rotate-1 relative overflow-hidden">
+<div class="absolute -right-4 -top-4 text-4xl opacity-50 rotate-12">👟</div>
+<h2 class="font-headline font-black text-2xl mb-2 relative z-10">Can't find what you want?</h2>
+<p class="font-body font-medium text-sm mb-4 relative z-10">Our personal shoppers are ready to help you find the perfect pair.</p>
+<button class="bg-[#25D366] text-white font-label font-bold text-base px-6 py-3 rounded-full chunky-border flex items-center justify-center gap-2 mx-auto chunky-shadow-sm chunky-shadow-active transition-all relative z-10 hover:bg-[#20b958]">
+                Ask us 💬
+            </button>
+</div>
+</main>
+<!-- Sticky Bottom Nav Bar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-3 bg-[#fff7ed] border-t-[3px] border-[#1a1a1a] shadow-[0px_-4px_0px_0px_#1a1a1a] rounded-t-xl md:hidden">
+<a class="flex flex-col items-center justify-center text-[#1a1a1a] p-2 hover:bg-[#c5b6ff] transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined font-bold">home</span>
+<span class="font-label text-xs font-bold mt-1">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-[#ffd84a] text-[#1a1a1a] rounded-lg border-2 border-[#1a1a1a] p-2 scale-110 shadow-[2px_2px_0px_0px_#1a1a1a]" href="#">
+<span class="material-symbols-outlined font-bold text-primary">search</span>
+<span class="font-label text-xs font-bold mt-1 text-primary">Explore</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#1a1a1a] p-2 hover:bg-[#c5b6ff] transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined font-bold">shopping_cart</span>
+<span class="font-label text-xs font-bold mt-1">Cart</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#1a1a1a] p-2 hover:bg-[#c5b6ff] transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined font-bold">chat</span>
+<span class="font-label text-xs font-bold mt-1">Support</span>
+</a>
+</nav>
+</body></html>

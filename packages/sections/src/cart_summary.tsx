@@ -16,10 +16,12 @@ import {
   BentoCard,
   ChunkyButton,
   ScribbleHeading,
+  WhatsAppIcon,
 } from "./helpers/primitives";
 import { StoreLink } from "./helpers/store-context";
 import { formatPrice } from "./helpers/format";
 import { useCart } from "./helpers/cart-store";
+import { isPlausiblePhone } from "./helpers/whatsapp";
 import { i18nStringSchema } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
@@ -38,8 +40,8 @@ const defaultProps: Props = {
   show_promo_input: false,
 };
 
-/** Free above this — matches the rest of the Iraq market defaults. */
-const FREE_DELIVERY_THRESHOLD = 50_000;
+/** Free above this — matches the seeded Schneiders shipping default (75k). */
+const FREE_DELIVERY_THRESHOLD = 75_000;
 const BAGHDAD_DELIVERY = 5_000;
 
 function CartSummaryRender({
@@ -87,11 +89,21 @@ function CartSummaryRender({
               {locale === "ar" ? "التوصيل" : "Delivery"}
             </dt>
             <dd className="font-display font-black text-bk-ink">
-              {delivery === 0
-                ? locale === "ar"
-                  ? "مجاني"
-                  : "Free"
-                : formatPrice(delivery)}
+              {delivery === 0 ? (
+                <span
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs uppercase tracking-wide"
+                  style={{
+                    backgroundColor: "var(--bk-mint, #7cf0bd)",
+                    color: "var(--bk-ink, #1a1a1a)",
+                    border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+                    borderRadius: "var(--bk-radius-pill, 9999px)",
+                  }}
+                >
+                  {locale === "ar" ? "مجاني 🎉" : "Free 🎉"}
+                </span>
+              ) : (
+                formatPrice(delivery)
+              )}
             </dd>
           </div>
           <div
@@ -169,7 +181,59 @@ function CartSummaryRender({
               {checkoutLabel}
             </ChunkyButton>
           </StoreLink>
+          <p className="mt-bk-xs text-center font-body text-xs text-bk-ink-soft">
+            {locale === "ar"
+              ? "الدفع عند الاستلام متاح • لا دفع مسبق"
+              : "Cash on delivery available • No upfront payment"}
+          </p>
         </div>
+
+        {/* "OR" → Order on WhatsApp (only when the tenant phone is plausible). */}
+        {!empty &&
+          (() => {
+            const phone =
+              (ctx.tenant as { contact_phone?: string | null } | undefined)
+                ?.contact_phone ?? null;
+            if (!isPlausiblePhone(phone)) return null;
+            const lines = items
+              .map(
+                (i) =>
+                  `• ${i.name}${i.variant_name ? ` — ${i.variant_name}` : ""} × ${i.quantity}`,
+              )
+              .join("\n");
+            const msg =
+              (locale === "ar"
+                ? `مرحباً! أودّ إكمال طلبي:\n${lines}\nالإجمالي: ${formatPrice(total)}`
+                : `Hi! I'd like to complete my order:\n${lines}\nTotal: ${formatPrice(total)}`);
+            const href = `https://wa.me/${phone!.replace(/\D/g, "")}?text=${encodeURIComponent(msg)}`;
+            return (
+              <>
+                <div className="my-bk-sm flex items-center gap-bk-sm">
+                  <span className="h-[3px] flex-1 bg-candy-ink/20" />
+                  <span className="font-display font-black text-sm uppercase text-bk-ink-soft">
+                    {locale === "ar" ? "أو" : "Or"}
+                  </span>
+                  <span className="h-[3px] flex-1 bg-candy-ink/20" />
+                </div>
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex w-full items-center justify-center gap-2 px-5 py-4 font-display font-black text-base uppercase tracking-tight"
+                  style={{
+                    backgroundColor: "var(--bk-mint, #7cf0bd)",
+                    color: "var(--bk-ink, #1a1a1a)",
+                    border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+                    borderRadius: "var(--bk-radius-input, 0.75rem)",
+                    boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
+                  }}
+                >
+                  <WhatsAppIcon className="h-5 w-5" />
+                  {locale === "ar" ? "اطلب عبر واتساب" : "Order on WhatsApp"}
+                </a>
+              </>
+            );
+          })()}
       </BentoCard>
     </section>
   );

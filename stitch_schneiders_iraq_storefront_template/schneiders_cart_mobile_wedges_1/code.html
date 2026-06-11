@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+
+<html class="light" dir="ltr" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Your Cart - Schneiders</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..900&amp;family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<style>
+    /* Custom font overrides to match request if Tailwind config doesn't perfectly align */
+    .font-headline { font-family: 'Bricolage Grotesque', sans-serif; }
+    .font-body { font-family: 'DM Sans', sans-serif; }
+    
+    /* Hand-drawn scribble underline utility */
+    .scribble-underline {
+      position: relative;
+      display: inline-block;
+    }
+    .scribble-underline::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 0;
+      width: 100%;
+      height: 8px;
+      background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 100 10" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><path d="M0,5 Q25,0 50,5 T100,5" stroke="%23ffd84a" stroke-width="4" fill="none" stroke-linecap="round"/></svg>');
+      background-size: 100% 100%;
+      z-index: -1;
+    }
+  </style>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "primary": "#ff5a8a",
+          "success": "#7cf0bd",
+          "highlight": "#ffd84a",
+          "secondary": "#c5b6ff",
+          "info": "#9ad8ff",
+          "background": "#fff7ed",
+          "ink": "#1a1a1a"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.5rem",
+                "lg": "1rem",
+                "xl": "1.5rem",
+                "2xl": "1rem", /* Mapping request 2xl to standard looking chunky corners */
+                "full": "9999px"
+        },
+        "spacing": {},
+        "fontFamily": {
+                "headline": [
+                        "Bricolage Grotesque", "sans-serif"
+                ],
+                "display": [
+                        "Bricolage Grotesque", "sans-serif"
+                ],
+                "body": [
+                        "DM Sans", "sans-serif"
+                ],
+                "label": [
+                        "DM Sans", "sans-serif"
+                ]
+        },
+        "fontSize": {}
+},
+    },
+  }
+</script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-ink font-body min-h-screen flex flex-col pb-24 md:pb-0">
+<!-- Promo Bar -->
+<div class="bg-highlight text-ink font-headline font-bold text-center py-2 text-sm uppercase tracking-wide border-b-2 border-ink">
+    🔥 Free Delivery on orders over 100,000 د.ع 🔥
+  </div>
+<!-- TopAppBar (from JSON) -->
+<header class="bg-[#fff7ed] dark:bg-[#1a1a1a] text-[#ff5a8a] dark:text-[#ff5a8a] border-b-4 border-[#1a1a1a] shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] sticky top-0 left-0 w-full z-50 flex items-center justify-between px-6 py-4">
+<button aria-label="Go Back" class="text-[#1a1a1a] dark:text-[#fff7ed] hover:scale-105 transition-transform active:translate-x-1 active:translate-y-1 active:shadow-none transition-all">
+<span class="material-symbols-outlined text-2xl font-bold">arrow_back</span>
+</button>
+<div class="font-headline text-2xl font-black text-[#1a1a1a] dark:text-[#fff7ed] italic text-center flex-1">
+      Schneiders
+    </div>
+<button class="bg-success text-ink border-2 border-ink rounded-full px-3 py-1 font-bold text-sm flex items-center gap-1 hover:scale-105 transition-transform active:translate-x-1 active:translate-y-1 shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] active:shadow-none transition-all">
+<span class="text-base">🛍</span> 3
+    </button>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 w-full max-w-lg mx-auto p-4 md:p-6 lg:max-w-2xl">
+<!-- Title -->
+<div class="mb-8 mt-4 text-center">
+<h1 class="font-headline text-4xl md:text-5xl font-black uppercase text-ink">
+<span class="scribble-underline">Your Cart</span>
+</h1>
+</div>
+<!-- Line Items -->
+<div class="space-y-6 mb-8">
+<!-- Item 1 -->
+<div class="bg-white border-4 border-ink rounded-2xl p-4 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] flex gap-4 relative">
+<!-- Sticker -->
+<div class="absolute -top-3 -right-3 bg-primary text-white font-headline font-black text-xs uppercase px-3 py-1 rounded-full border-2 border-ink rotate-12 z-10 shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]">
+          Save 35K!
+        </div>
+<!-- Thumb -->
+<div class="w-24 h-24 bg-success/20 border-2 border-ink rounded-xl overflow-hidden shrink-0 flex items-center justify-center">
+<img alt="T-shirt" class="w-full h-full object-cover mix-blend-multiply" data-alt="A bright, high-key product photo of a folded summer casual t-shirt. The shirt is clean white with a subtle graphic. The background is a soft mint green pastel tone, maintaining the light-mode, joyful Candy Bento UI aesthetic with flat, vibrant colors and minimal shadows." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCE48G-L1aUshzmaqPpFpy6Hw3kNKiWbQyTeIPT6ZRuXazXT6xaRGhqJJU4uBxPENuZlPoQHm68eJhVbYQy3vi5soMMvLI1iDRqN3s9H-mIF3H2338rzjTKIHhm2VutXwW7aQIkDqntZyyp2Ic6nM8-7dZ5vxl13YtQ1LAsf_QbimVvDDoLqSnEYJOKa9mOB7JNIL_6CCEdJ4poRNxaMQpmeLkDkGmrxNX_YMry8M3gMkRkTv_hnpGCKytXXK__CJTBVuirf9w24yvw"/>
+</div>
+<!-- Details -->
+<div class="flex-1 flex flex-col justify-between">
+<div>
+<h3 class="font-headline font-bold text-lg leading-tight">Summer Casual T-shirt</h3>
+<p class="text-ink/60 text-sm mt-1">Size: M | Color: White</p>
+</div>
+<div class="flex items-end justify-between mt-2">
+<div class="font-headline font-black text-lg text-primary">35,000 د.ع</div>
+<div class="flex items-center gap-2 bg-background border-2 border-ink rounded-lg p-1">
+<button class="w-6 h-6 flex items-center justify-center hover:bg-highlight rounded"><span class="material-symbols-outlined text-sm">remove</span></button>
+<span class="font-bold text-sm w-4 text-center">2</span>
+<button class="w-6 h-6 flex items-center justify-center hover:bg-highlight rounded"><span class="material-symbols-outlined text-sm">add</span></button>
+</div>
+</div>
+</div>
+<button class="absolute -bottom-3 -right-3 bg-highlight border-2 border-ink rounded-full w-8 h-8 flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] hover:bg-primary hover:text-white transition-colors">
+<span class="material-symbols-outlined text-sm">delete</span>
+</button>
+</div>
+<!-- Item 2 -->
+<div class="bg-white border-4 border-ink rounded-2xl p-4 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] flex gap-4 relative">
+<!-- Thumb -->
+<div class="w-24 h-24 bg-secondary/20 border-2 border-ink rounded-xl overflow-hidden shrink-0 flex items-center justify-center">
+<img alt="Handbag" class="w-full h-full object-cover mix-blend-multiply" data-alt="A stylish elegant handbag isolated on a soft lilac pastel background. The lighting is bright and cheerful, highlighting the bag's texture and gold hardware. The image feels perfectly suited for a light-mode, joyful mobile shopping app with vibrant, solid color blocks." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDL93wzWOc_DrBnIYvV5H-Ydsyz6B8b1GNzO_V0kcw4iRcm3wg_67Cq-pPccxCT7bh7dLxhTcIsNl-kEDuKWaPKynjATe0FTSVkRsKHyYz-X9fwka2pOtFbegXaS1GIRFw7UTOixMchIXWus-06oUAtDbyyEgEPf69anK5gQUdKBHAcIJjiBisnSzXHjOVHeWIqFLVmHIFP9nPaplnqjQLrxm2hL1he0qmeOjZybrcXLHQ5GT3Mebmg0aSnWxdgPJvQNKiz9QW0mPtA"/>
+</div>
+<!-- Details -->
+<div class="flex-1 flex flex-col justify-between">
+<div>
+<h3 class="font-headline font-bold text-lg leading-tight">Elegant Handbag</h3>
+<p class="text-ink/60 text-sm mt-1">Color: Lilac</p>
+</div>
+<div class="flex items-end justify-between mt-2">
+<div class="font-headline font-black text-lg text-primary">120,000 د.ع</div>
+<div class="flex items-center gap-2 bg-background border-2 border-ink rounded-lg p-1">
+<button class="w-6 h-6 flex items-center justify-center hover:bg-highlight rounded"><span class="material-symbols-outlined text-sm">remove</span></button>
+<span class="font-bold text-sm w-4 text-center">1</span>
+<button class="w-6 h-6 flex items-center justify-center hover:bg-highlight rounded"><span class="material-symbols-outlined text-sm">add</span></button>
+</div>
+</div>
+</div>
+<button class="absolute -bottom-3 -right-3 bg-highlight border-2 border-ink rounded-full w-8 h-8 flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] hover:bg-primary hover:text-white transition-colors">
+<span class="material-symbols-outlined text-sm">delete</span>
+</button>
+</div>
+<!-- Item 3 -->
+<div class="bg-white border-4 border-ink rounded-2xl p-4 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] flex gap-4 relative">
+<!-- Thumb -->
+<div class="w-24 h-24 bg-primary/10 border-2 border-ink rounded-xl overflow-hidden shrink-0 flex items-center justify-center">
+<img alt="Sneakers" class="w-full h-full object-cover mix-blend-multiply" data-alt="A pair of trendy pastel sneakers photographed straight-on against a faint hot pink pastel background. Bright, even daylight illumination creates a clean, premium e-commerce look. The aesthetic aligns with a fun, candy-colored bento UI design, emphasizing vibrant colors and high contrast." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB6x3D6y3eqGBRebMn_YK3HbrkoOfvbajhnMyj0YlaqvkcPBGj8aKQaD-eUnrB9M77FXU-bkgZtaR1lqlMyXwXq9lvdimjzOqi4_NcdK0mwQEUPVAKVqhBIxMeSfcGCpMtv8GKbOueMb52MLD_qfmG1rsYVmkxblo_rjWZlH5T4LzEAWOkukhYBn0Hg9r-NID1xMxBLOtHxyAHxXeGfcjRyioQDyA6kBdrgTA1pQ8myelcOkuht7Q7ew4l0MbOw_lc-723tdTWFLpM2"/>
+</div>
+<!-- Details -->
+<div class="flex-1 flex flex-col justify-between">
+<div>
+<h3 class="font-headline font-bold text-lg leading-tight">Pastel Sneakers</h3>
+<p class="text-ink/60 text-sm mt-1">Size: 42 | Color: Pink/White</p>
+</div>
+<div class="flex items-end justify-between mt-2">
+<div class="font-headline font-black text-lg text-primary">80,000 د.ع</div>
+<div class="flex items-center gap-2 bg-background border-2 border-ink rounded-lg p-1">
+<button class="w-6 h-6 flex items-center justify-center hover:bg-highlight rounded"><span class="material-symbols-outlined text-sm">remove</span></button>
+<span class="font-bold text-sm w-4 text-center">1</span>
+<button class="w-6 h-6 flex items-center justify-center hover:bg-highlight rounded"><span class="material-symbols-outlined text-sm">add</span></button>
+</div>
+</div>
+</div>
+<button class="absolute -bottom-3 -right-3 bg-highlight border-2 border-ink rounded-full w-8 h-8 flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] hover:bg-primary hover:text-white transition-colors">
+<span class="material-symbols-outlined text-sm">delete</span>
+</button>
+</div>
+</div>
+<!-- Promo Code -->
+<div class="bg-info border-4 border-ink rounded-2xl p-4 mb-8 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
+<div class="flex gap-2">
+<input class="flex-1 bg-background border-2 border-ink rounded-xl px-4 py-3 font-bold placeholder-ink/50 focus:ring-0 focus:border-ink" placeholder="Got a promo code?" type="text"/>
+<button class="bg-highlight border-2 border-ink rounded-xl px-6 py-3 font-headline font-black uppercase text-sm shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all">
+          Apply
+        </button>
+</div>
+</div>
+<!-- Summary -->
+<div class="bg-white border-4 border-ink rounded-2xl p-5 mb-8 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
+<h2 class="font-headline font-black text-xl mb-4 uppercase">Order Summary</h2>
+<div class="space-y-3 font-bold text-sm">
+<div class="flex justify-between">
+<span class="text-ink/80">Subtotal (4 items)</span>
+<span>270,000 د.ع</span>
+</div>
+<div class="flex justify-between text-success">
+<span>Promo Discount</span>
+<span>- 35,000 د.ع</span>
+</div>
+<div class="flex justify-between text-ink/80">
+<span>Delivery</span>
+<span class="bg-success text-ink border-2 border-ink rounded px-2 py-0.5 text-xs font-black uppercase inline-block -rotate-2">Free</span>
+</div>
+<div class="border-t-2 border-dashed border-ink/30 my-4 pt-4 flex justify-between items-end">
+<span class="font-headline font-black text-xl uppercase">Total</span>
+<span class="font-headline font-black text-3xl text-primary">235,000 د.ع</span>
+</div>
+</div>
+</div>
+<!-- Trust Badges -->
+<div class="flex flex-wrap justify-center gap-2 mb-8">
+<div class="bg-background border-2 border-ink rounded-full px-3 py-1 flex items-center gap-1 text-xs font-bold shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]">
+<span class="text-base">💵</span> Cash on Delivery
+      </div>
+<div class="bg-highlight border-2 border-ink rounded-full px-3 py-1 flex items-center gap-1 text-xs font-bold shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]">
+<span class="text-base">⚡️</span> 24h Delivery
+      </div>
+<div class="bg-secondary border-2 border-ink rounded-full px-3 py-1 flex items-center gap-1 text-xs font-bold shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]">
+<span class="text-base">✨</span> 100% Original
+      </div>
+<div class="bg-info border-2 border-ink rounded-full px-3 py-1 flex items-center gap-1 text-xs font-bold shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]">
+<span class="text-base">🔄</span> Easy Returns
+      </div>
+</div>
+<!-- Main Action Buttons -->
+<div class="space-y-4 mb-12 hidden md:block">
+<button class="w-full bg-primary text-white border-4 border-ink rounded-2xl py-4 font-headline font-black text-xl uppercase shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all flex justify-center items-center gap-3">
+        Checkout <span class="text-background/80">—</span> 235,000 د.ع
+      </button>
+<div class="flex items-center gap-4 py-2">
+<div class="h-0.5 bg-ink/20 flex-1"></div>
+<div class="font-headline font-black text-ink/40 uppercase">Or</div>
+<div class="h-0.5 bg-ink/20 flex-1"></div>
+</div>
+<button class="w-full bg-white border-4 border-ink rounded-2xl py-4 font-headline font-black text-lg uppercase shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all flex justify-center items-center gap-2 hover:bg-success/10">
+<span class="text-success text-2xl">📱</span> Order via WhatsApp
+      </button>
+</div>
+</main>
+<!-- BottomNavBar Shell (from JSON - Suppressed based on Logic) -->
+<!-- Contextual State & Identity (THE LOCK): Semantic Mapping (CRITICAL) - Page intent is Transactional (Checkout/Cart flow). BottomNavBar is suppressed. -->
+<!-- Mobile Sticky Footer Action -->
+<div class="md:hidden fixed bottom-0 left-0 w-full bg-success border-t-4 border-ink p-4 z-40 flex items-center justify-between pb-safe shadow-[0_-4px_0px_0px_rgba(26,26,26,1)]">
+<div class="flex flex-col">
+<span class="text-xs font-bold uppercase text-ink/80">Total</span>
+<span class="font-headline font-black text-xl text-ink">235,000 د.ع</span>
+</div>
+<button class="bg-primary text-white border-2 border-ink rounded-xl px-6 py-3 font-headline font-black uppercase text-sm shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all flex items-center gap-2">
+      Checkout <span class="material-symbols-outlined text-lg">arrow_forward</span>
+</button>
+</div>
+<style>
+    /* Safe area padding for mobile bottom bar */
+    .pb-safe {
+      padding-bottom: env(safe-area-inset-bottom, 1rem);
+    }
+  </style>
+</body></html>

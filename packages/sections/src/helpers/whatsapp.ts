@@ -57,6 +57,82 @@ export function isPlausiblePhone(phone: string | null | undefined): boolean {
 }
 
 /**
+ * The contact shape we read off the tenant. The storefront passes the full
+ * tenant (which carries `store_config`), but sections are typed against
+ * `BaseTenant` (no `store_config`), so we read defensively via `unknown`.
+ */
+interface TenantContactShape {
+  store_config?: {
+    contact?: {
+      whatsapp_number?: string | null;
+      phone_number?: string | null;
+    } | null;
+  } | null;
+  contact_phone?: string | null;
+}
+
+/**
+ * The single, canonical WhatsApp number for a storefront.
+ *
+ * Every WhatsApp CTA across the store resolves through this so a tenant sets
+ * their number ONCE (the universal `store_config.contact.whatsapp_number`,
+ * editable in the store builder) and it applies everywhere. Pass a per-section
+ * `override` to point an individual button at a different number. Falls back to
+ * `contact_phone`. Returns `null` when nothing plausible is configured — the
+ * caller must then not render the CTA (never deep-link to a dead number).
+ */
+export function resolveTenantWhatsapp(
+  tenant: unknown,
+  override?: string | null,
+): string | null {
+  if (override && isPlausiblePhone(override)) return override;
+  const t = (tenant ?? {}) as TenantContactShape;
+  const candidate =
+    t.store_config?.contact?.whatsapp_number ??
+    t.store_config?.contact?.phone_number ??
+    t.contact_phone ??
+    null;
+  return isPlausiblePhone(candidate) ? candidate : null;
+}
+
+/**
+ * Resolve a tenant's voice-call number. Prefers an explicit `contact_phone`,
+ * then the configured WhatsApp number, then a per-section override. Same
+ * plausibility guard as {@link resolveTenantWhatsapp}.
+ */
+export function resolveTenantPhone(
+  tenant: unknown,
+  override?: string | null,
+): string | null {
+  if (override && isPlausiblePhone(override)) return override;
+  const t = (tenant ?? {}) as TenantContactShape;
+  const candidate =
+    t.contact_phone ??
+    t.store_config?.contact?.phone_number ??
+    t.store_config?.contact?.whatsapp_number ??
+    null;
+  return isPlausiblePhone(candidate) ? candidate : null;
+}
+
+/**
+ * Normalise a phone number to the international digits `wa.me` expects.
+ * The market is Iraq (country code 964), and merchants typically store local
+ * numbers (leading 0, e.g. `0780 230 1677`). `wa.me` needs the international
+ * form with no `+`/`0` (`9647802301677`), so:
+ *   - `00964…`  → strip the `00` IDD prefix
+ *   - `0XXXXXXXXXX` (local) → drop the leading 0, prepend `964`
+ *   - already `964…` → unchanged
+ *   - anything else → left as-is (assume already international)
+ */
+export function whatsappDigits(phone: string): string {
+  let digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  if (digits.startsWith("964")) return digits;
+  if (digits.startsWith("0")) return "964" + digits.slice(1);
+  return digits;
+}
+
+/**
  * Returns a `https://wa.me/...` URL with a pre-filled order message.
  * Returns `null` when no usable phone number is provided (caller should
  * not render the button in that case).
@@ -67,7 +143,7 @@ export function whatsappOrderLink(
   locale: LocaleCode,
 ): string | null {
   if (!isPlausiblePhone(phone)) return null;
-  const digits = phone!.replace(/\D/g, "");
+  const digits = whatsappDigits(phone!);
 
   const template = pickTemplate(locale);
   const message = template

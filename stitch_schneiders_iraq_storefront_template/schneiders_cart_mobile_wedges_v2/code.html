@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Schneiders Cart</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,900&amp;family=DM+Sans:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          'hot-pink': '#ff5a8a',
+          'mint': '#7cf0bd',
+          'butter-yellow': '#ffd84a',
+          'lilac': '#c5b6ff',
+          'sky': '#9ad8ff',
+          'cream': '#fff7ed',
+          'charcoal': '#1a1a1a'
+        },
+        borderRadius: {
+          "DEFAULT": "0.5rem",
+          "lg": "1rem",
+          "xl": "1.5rem",
+          "2xl": "1rem", // Overriding 2xl to match the chunky feel requested if needed, but standard 2xl is 1rem usually in tailwind, let's keep it standard or custom as needed. Actually standard 2xl is 1rem, let's use 1rem. Wait, standard is 1.5rem for xl, so 2xl is 1rem? No, standard 2xl is larger. Let's use custom ones from the JSON/Prompt.
+          "full": "9999px"
+        },
+        fontFamily: {
+          headline: ["Bricolage Grotesque", "sans-serif"],
+          display: ["Bricolage Grotesque", "sans-serif"],
+          body: ["DM Sans", "sans-serif"],
+          label: ["DM Sans", "sans-serif"]
+        },
+        boxShadow: {
+          'brutal': '4px 4px 0px 0px #1a1a1a',
+        }
+      }
+    }
+  }
+</script>
+<style>
+  /* Custom zigzag border effect */
+  .zigzag-bottom {
+    background: linear-gradient(-45deg, transparent 16px, #ffd84a 0), linear-gradient(45deg, transparent 16px, #ffd84a 0);
+    background-repeat: repeat-x;
+    background-position: left bottom;
+    background-size: 22px 32px;
+    padding-bottom: 24px;
+  }
+</style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-cream font-body text-charcoal antialiased pb-32">
+<!-- Promo Bar -->
+<div class="bg-butter-yellow text-charcoal font-headline text-sm font-black uppercase text-center py-2 border-b-[3px] border-charcoal">
+    ⚡ FREE NEXT-DAY DELIVERY OVER 100K ⚡
+  </div>
+<!-- TopAppBar Component -->
+<header class="sticky top-0 z-50 bg-cream border-b-[3px] border-charcoal shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
+<div class="flex justify-between items-center w-full px-6 py-4">
+<button class="text-charcoal hover:bg-mint transition-colors active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all rounded-full p-2">
+<span class="material-symbols-outlined text-2xl">arrow_back</span>
+</button>
+<h1 class="font-headline text-2xl font-black text-charcoal uppercase tracking-tighter">Schneiders</h1>
+<button class="bg-mint text-charcoal border-[3px] border-charcoal shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] rounded-full px-3 py-1 font-headline font-black flex items-center gap-1 -rotate-3 hover:bg-hot-pink transition-colors active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all">
+<span class="material-symbols-outlined text-lg">shopping_bag</span>
+<span>3</span>
+</button>
+</div>
+</header>
+<main class="px-4 py-6 max-w-md mx-auto space-y-8">
+<!-- Page Title -->
+<div class="text-center relative">
+<h2 class="font-headline text-5xl font-black text-charcoal mb-1 relative inline-block z-10">
+        Your Cart
+        <!-- Hand-drawn highlight -->
+<span class="absolute bottom-1 left-0 w-full h-4 bg-butter-yellow -z-10 -rotate-2 opacity-80"></span>
+</h2>
+<p class="font-body font-bold text-lg text-charcoal/70">3 items waiting ✨</p>
+</div>
+<!-- Cart Items List -->
+<div class="space-y-6">
+<!-- Item 1 -->
+<div class="bg-white border-[3px] border-charcoal rounded-2xl shadow-brutal p-4 relative flex gap-4 -rotate-1">
+<!-- Sticker -->
+<div class="absolute -top-3 -right-3 bg-hot-pink text-white font-headline font-black text-xs px-3 py-1 border-[3px] border-charcoal rounded-full -rotate-6 shadow-brutal z-10">
+          Save 35K
+        </div>
+<div class="w-24 h-24 bg-mint border-[3px] border-charcoal rounded-xl overflow-hidden shrink-0">
+<img alt="Casual T-shirt" class="w-full h-full object-cover mix-blend-multiply opacity-80" data-alt="A bright, high-contrast studio photograph of a vibrant yellow summer casual t-shirt on a solid light mint green background. The lighting is harsh and direct, creating distinct hard shadows typical of modern brutalist bento design. The t-shirt is slightly crumpled to show texture, fitting a playful, candy-colored aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDPHk2M1YgInBcykCUieYRz9ByTEBo62tiWvl1MzNXYpnytF8rLdRfhPOoQ5WY-ZQI3sLB8gvtoxh1jBMMdvfp60aSTXZH_UfJZJJ2RvxII0DRlTMzHOrvZSMwvpN6caLIeHfiPlt6SjUzUvIMRpWt33LbNpy4EUrvP9kMiEbo6GdmBZsZHdHLInpVyebge0SZbg7J4AEkmaQGVSJP8keHh8znHnbRa8qmdiS0q703khAiO0mbmpyVOkVadopjnBB6eHAPA3xA1ZejL"/>
+</div>
+<div class="flex-1 flex flex-col justify-between">
+<div>
+<h3 class="font-headline font-black text-lg leading-tight mb-1">Summer Casual T-shirt</h3>
+<div class="flex items-center gap-2 mb-2">
+<span class="font-black text-charcoal text-lg">85,000 د.ع</span>
+<span class="font-bold text-charcoal/50 line-through text-sm">120,000 د.ع</span>
+</div>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center bg-cream border-[3px] border-charcoal rounded-xl shadow-brutal w-fit">
+<button class="px-3 py-1 font-black text-xl hover:bg-hot-pink hover:text-white transition-colors rounded-l-lg">-</button>
+<span class="px-3 py-1 font-black text-lg border-x-[3px] border-charcoal bg-white">1</span>
+<button class="px-3 py-1 font-black text-xl hover:bg-mint transition-colors rounded-r-lg">+</button>
+</div>
+<button class="bg-butter-yellow p-2 border-[3px] border-charcoal rounded-xl shadow-brutal hover:bg-hot-pink transition-colors">
+<span class="material-symbols-outlined font-bold">delete</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="bg-white border-[3px] border-charcoal rounded-2xl shadow-brutal p-4 relative flex gap-4 rotate-1">
+<div class="w-24 h-24 bg-lilac border-[3px] border-charcoal rounded-xl overflow-hidden shrink-0">
+<img alt="Elegant Handbag" class="w-full h-full object-cover mix-blend-multiply opacity-80" data-alt="A stylish, brightly lit photograph of a pink elegant handbag positioned diagonally on a soft lilac background. The aesthetic is heavily influenced by bento grid layouts with candy colors and playful compositions. The lighting casts a strong, defined drop shadow to the bottom right, emphasizing the brutalist pop-art feel." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC6WehNpQWvHBb6JXLkT7gz6yg3ErpzIiv7ZeEfc0a8T-zR8j2d1vVZKgSdcfaN-f-3Ki5cH5rvsloP6QKBCQZUEfQHZbZKqfokfYsaGfB1HLaxt725BnPZ4bPIsSkjCYuq7VNpY4CmCoIfjFsvgi7P2_tCjWDG1BSB7LFVVwiGm9mK2AVST1nfdmdTq8miJrupuL7TZFR5Qnh1SdJgL6DvOxc3kQoMoFhjta_d4txe3nY5OCfnFiLzBAio_JvhitOM_F6p8AcghdCS"/>
+</div>
+<div class="flex-1 flex flex-col justify-between">
+<div>
+<h3 class="font-headline font-black text-lg leading-tight mb-1">Elegant Handbag</h3>
+<p class="font-body font-bold text-sm text-charcoal/70 mb-1">Pink color</p>
+<div class="font-black text-charcoal text-lg mb-2">55,000 د.ع</div>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center bg-cream border-[3px] border-charcoal rounded-xl shadow-brutal w-fit">
+<button class="px-3 py-1 font-black text-xl hover:bg-hot-pink hover:text-white transition-colors rounded-l-lg">-</button>
+<span class="px-3 py-1 font-black text-lg border-x-[3px] border-charcoal bg-white">2</span>
+<button class="px-3 py-1 font-black text-xl hover:bg-mint transition-colors rounded-r-lg">+</button>
+</div>
+<button class="bg-butter-yellow p-2 border-[3px] border-charcoal rounded-xl shadow-brutal hover:bg-hot-pink transition-colors">
+<span class="material-symbols-outlined font-bold">delete</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar Component -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-3 pb-safe bg-cream border-t-[3px] border-charcoal shadow-[0px_-4px_0px_0px_rgba(26,26,26,1)] rounded-t-xl hidden md:hidden">
+<div class="flex flex-col items-center justify-center text-charcoal opacity-70 hover:bg-mint transition-transform active:scale-95 transition-all">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label text-[10px] font-bold uppercase">Home</span>
+</div>
+<div class="flex flex-col items-center justify-center text-charcoal opacity-70 hover:bg-mint transition-transform active:scale-95 transition-all">
+<span class="material-symbols-outlined">redeem</span>
+<span class="font-label text-[10px] font-bold uppercase">Offers</span>
+</div>
+<div class="flex flex-col items-center justify-center bg-butter-yellow text-charcoal border-[2px] border-charcoal rounded-lg py-1 px-3 scale-110 active:scale-95 transition-all">
+<span class="material-symbols-outlined">shopping_cart</span>
+<span class="font-label text-[10px] font-bold uppercase">Cart</span>
+</div>
+<div class="flex flex-col items-center justify-center text-charcoal opacity-70 hover:bg-mint transition-transform active:scale-95 transition-all">
+<span class="material-symbols-outlined">person</span>
+<span class="font-label text-[10px] font-bold uppercase">Profile</span>
+</div>
+</nav>
+</body></html>

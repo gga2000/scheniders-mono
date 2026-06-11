@@ -40,7 +40,14 @@ interface Props {
   locale?: LocaleCode;
   /** Eager-load the image (above-the-fold cards) to improve LCP. */
   priority?: boolean;
+  /** Append a per-card "Order via WhatsApp" pill. Off by default — the Stitch
+   *  card footer is BUY NOW + a compact cart icon; WhatsApp lives on the PDP /
+   *  sticky bar, not on every grid card (it bulks the silhouette). */
+  showWhatsapp?: boolean;
 }
+
+/** A product counts as "New" for ~30 days after it is created. */
+const NEW_WINDOW_MS = 1000 * 60 * 60 * 24 * 30;
 
 const TINTS: Tint[] = ["mint", "lilac", "butter", "sky"];
 
@@ -54,6 +61,7 @@ export function SchneidersProductCard({
   storeOrigin,
   locale = "en",
   priority = false,
+  showWhatsapp = false,
 }: Props) {
   const t = locale === "ar";
   const addItem = useCart((s) => s.addItem);
@@ -64,6 +72,13 @@ export function SchneidersProductCard({
   const savings = onSale ? product.compare_at_price! - product.price : 0;
   const discountPct = onSale ? Math.round((savings / product.compare_at_price!) * 100) : 0;
   const inStock = (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0) > 0;
+  // One corner badge per card, by priority: Save (on sale) → Bestseller → New.
+  const isBestseller = !onSale && product.is_bestseller === true;
+  const isNew =
+    !onSale &&
+    !isBestseller &&
+    product.created_at != null &&
+    Date.now() - new Date(product.created_at).getTime() < NEW_WINDOW_MS;
 
   const sticker = { ...SCHNEIDERS_DEFAULTS.sale_sticker, ...(saleSticker ?? {}) };
   const stickerLabel =
@@ -93,20 +108,32 @@ export function SchneidersProductCard({
 
   return (
     <article className={cn("bento-card bg-white p-4 relative flex flex-col", className)}>
-      {/* Save sticker on sale items */}
-      {onSale && (
+      {/* One rotated corner badge: Save (on sale) → Bestseller → New. */}
+      {onSale ? (
         <div className="absolute -top-3 -left-2 z-10">
           <Sticker bg={sticker.bg ?? "pink"} rotate={sticker.rotate_deg ?? -8} size="sm">
             {stickerLabel}
           </Sticker>
         </div>
-      )}
+      ) : isBestseller ? (
+        <div className="absolute -top-3 -left-2 z-10">
+          <Sticker bg="butter" rotate={-8} size="sm">
+            {t ? "الأكثر مبيعاً" : "Bestseller"}
+          </Sticker>
+        </div>
+      ) : isNew ? (
+        <div className="absolute -top-3 -left-2 z-10">
+          <Sticker bg="mint" rotate={-8} size="sm">
+            {t ? "جديد" : "New"}
+          </Sticker>
+        </div>
+      ) : null}
 
       {/* Image area with pastel tint */}
       <StoreLink
         href={`/products/${product.slug ?? product.id}`}
         className={cn(
-          "relative aspect-[4/3] overflow-hidden mb-3",
+          "group relative aspect-[4/3] overflow-hidden mb-3 block",
           TINT_BG[resolvedTint],
         )}
         style={{
@@ -123,7 +150,7 @@ export function SchneidersProductCard({
             priority={priority}
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             className={cn(
-              "object-cover",
+              "object-cover transition-transform duration-300 ease-out group-hover:scale-[1.04]",
               !inStock && "opacity-60 grayscale",
             )}
           />
@@ -201,7 +228,7 @@ export function SchneidersProductCard({
           <MaterialIcon name={justAdded ? "check" : "add_shopping_cart"} className="text-lg" />
         </button>
       </div>
-      {(() => {
+      {showWhatsapp && (() => {
         const productPath = `/products/${product.slug ?? product.id}`;
         const productUrl = storeOrigin
           ? `${storeOrigin.replace(/\/+$/, "")}${productPath}`

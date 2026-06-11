@@ -12,6 +12,11 @@ import type {
     Experiment,
 } from "@scheniders/shared";
 import { supabase } from "@/lib/supabase";
+import {
+    diffJson,
+    summarizeDiff,
+    type DiffSummary,
+} from "@/components/store-builder-v2/config-diff";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Experiment stats types                                               */
@@ -118,6 +123,17 @@ export interface UseStoreBuilderV2Return {
     /** Replace the entire draft config (used by version restore). */
     applyConfig: (next: StoreConfigV2) => void;
 
+    /**
+     * A newer-than-DB local backup found on mount (crash/close recovery).
+     * Non-null only when a localStorage snapshot exists whose config differs
+     * from what loaded from the DB. The editor surfaces a restore banner.
+     */
+    recoverable_backup: { saved_at: number } | null;
+    /** Apply the recoverable backup as the current draft (undoable). */
+    restore_backup: () => void;
+    /** Discard the recoverable backup and clear the banner. */
+    dismiss_backup: () => void;
+
     /** Append a row to store_config_versions as a named snapshot. */
     createNamedSnapshot: (label: string) => Promise<NamedSnapshot>;
 
@@ -177,6 +193,24 @@ const HISTORY_DEBOUNCE_MS = 400;
 
 function localBackupKey(tenantId: string): string {
     return `schn-builder-v2-${tenantId}`;
+}
+
+/**
+ * Count added/removed/changed leaf paths between a serialized baseline config
+ * and the next config, for a version row's diff badges. Tolerant of an
+ * unparseable/empty baseline (treats it as "everything added").
+ */
+function computeDiffSummary(
+    baselineSerialized: string,
+    next: StoreConfigV2,
+): DiffSummary {
+    let baseline: unknown = {};
+    try {
+        baseline = JSON.parse(baselineSerialized);
+    } catch {
+        baseline = {};
+    }
+    return summarizeDiff(diffJson(baseline, next));
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -287,6 +321,12 @@ export function useStoreBuilderV2(
     /* ── Auto-save to DB (2s debounce) ────────────────────────────── */
     const saveDraftRef = useRef<((cfg: StoreConfigV2) => Promise<void>) | null>(null);
 
+    // True while the current edits have NOT yet been written to the DB draft
+    // (a change happened and the debounced autosave hasn't succeeded). Distinct
+    // from has_unpublished_changes, which stays true after a draft autosave.
+    // Drives the beforeunload guard so we only warn on genuine loss risk.
+    const pendingDraftWriteRef = useRef(false);
+
     const performSaveDraft = useCallback(
         async (cfg: StoreConfigV2): Promise<void> => {
             set_save_state("saving");
@@ -299,6 +339,7 @@ export function useStoreBuilderV2(
                     })
                     .eq("id", tenantId);
                 if (error) throw error;
+                pendingDraftWriteRef.current = false;
                 set_save_state("saved");
                 set_last_saved_at(new Date());
                 // Drop back to idle after a moment.
@@ -318,6 +359,8 @@ export function useStoreBuilderV2(
         const serialized = JSON.stringify(config);
         if (serialized === initialSerializedRef.current) return;
 
+        // Edits exist that aren't in the DB draft yet — guard against unload.
+        pendingDraftWriteRef.current = true;
         if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
         autoSaveTimerRef.current = setTimeout(() => {
             saveDraftRef.current?.(config);
@@ -344,6 +387,31 @@ export function useStoreBuilderV2(
         return () => clearInterval(interval);
     }, [config, tenantId]);
 
+    /* ── Unsaved-changes unload guard ─────────────────────────────── */
+    // When edits haven't reached the DB draft yet (pendingDraftWriteRef),
+    // synchronously flush a localStorage backup and prompt the browser's
+    // "leave site?" dialog so the last keystrokes within the 2s autosave
+    // window aren't silently lost on close/back/refresh (common on flaky 3G).
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        function onBeforeUnload(e: BeforeUnloadEvent): void {
+            if (!pendingDraftWriteRef.current) return;
+            try {
+                window.localStorage.setItem(
+                    localBackupKey(tenantId),
+                    JSON.stringify({ saved_at: Date.now(), config }),
+                );
+            } catch {
+                // Swallow quota / serialization errors.
+            }
+            e.preventDefault();
+            // Legacy browsers require returnValue to be set to trigger the prompt.
+            e.returnValue = "";
+        }
+        window.addEventListener("beforeunload", onBeforeUnload);
+        return () => window.removeEventListener("beforeunload", onBeforeUnload);
+    }, [config, tenantId]);
+
     /* ── Actions ──────────────────────────────────────────────────── */
 
     const save_draft = useCallback(async (): Promise<void> => {
@@ -355,17 +423,27 @@ export function useStoreBuilderV2(
         if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
         set_save_state("saving");
         try {
+            // Summarise what this publish changes vs the last save point so the
+            // inserted version row's diff badges aren't empty. Baseline is the
+            // config as of the last publish/load (initialSerializedRef).
+            const publishDiff = computeDiffSummary(
+                initialSerializedRef.current,
+                config,
+            );
+
             // Single atomic RPC: checks membership, asserts schema_version=2,
             // takes an advisory lock, UPDATEs tenants (store_config_v2,
             // store_config_v2_draft=NULL, config_version=2), and INSERTs the
-            // version snapshot — all in one transaction. Author is computed
-            // server-side from auth.users.
+            // version snapshot (with the diff summary) — all in one transaction.
+            // Author is computed server-side from auth.users.
             const { error } = await supabase.rpc("publish_store_config_v2", {
                 p_tenant_id: tenantId,
                 p_config: config,
+                p_diff_summary: publishDiff,
             });
             if (error) throw error;
 
+            pendingDraftWriteRef.current = false;
             set_save_state("saved");
             set_last_saved_at(new Date());
             initialSerializedRef.current = JSON.stringify(config);
@@ -553,6 +631,58 @@ export function useStoreBuilderV2(
         setHistoryTick((t) => t + 1);
     }, []);
 
+    /* ── Crash-recovery: detect a newer local backup on mount ─────── */
+    const [recoverableBackup, setRecoverableBackup] = useState<{
+        saved_at: number;
+        config: StoreConfigV2;
+    } | null>(null);
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        try {
+            const raw = window.localStorage.getItem(localBackupKey(tenantId));
+            if (!raw) return;
+            const parsed = JSON.parse(raw) as {
+                saved_at?: number;
+                config?: StoreConfigV2;
+            };
+            if (!parsed?.config || typeof parsed.saved_at !== "number") return;
+            // Only offer recovery when the backup actually diverges from what
+            // we hydrated from the DB — otherwise it's a stale duplicate.
+            if (JSON.stringify(parsed.config) === initialSerializedRef.current) {
+                window.localStorage.removeItem(localBackupKey(tenantId));
+                return;
+            }
+            setRecoverableBackup({ saved_at: parsed.saved_at, config: parsed.config });
+        } catch {
+            // Corrupt backup — drop it.
+            try {
+                window.localStorage.removeItem(localBackupKey(tenantId));
+            } catch {
+                /* ignore */
+            }
+        }
+        // Mount-only: we compare against the DB-hydrated baseline once.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const restore_backup = useCallback((): void => {
+        setRecoverableBackup((b) => {
+            if (b) applyConfig(b.config);
+            return null;
+        });
+    }, [applyConfig]);
+
+    const dismiss_backup = useCallback((): void => {
+        setRecoverableBackup(null);
+        if (typeof window !== "undefined") {
+            try {
+                window.localStorage.removeItem(localBackupKey(tenantId));
+            } catch {
+                /* ignore */
+            }
+        }
+    }, [tenantId]);
+
     /* ── Version / schedule CRUD helpers ────────────────────────── */
 
     const getAuthorInfo = useCallback(async (): Promise<{ user_id: string | null; author_name: string | null }> => {
@@ -579,6 +709,12 @@ export function useStoreBuilderV2(
     const createNamedSnapshot = useCallback(
         async (label: string): Promise<NamedSnapshot> => {
             const { user_id, author_name } = await getAuthorInfo();
+            // Populate the diff badge: changes in this snapshot vs the last
+            // save point (otherwise the version-history row renders empty).
+            const diff_summary = computeDiffSummary(
+                initialSerializedRef.current,
+                config,
+            );
             const { data, error } = await supabase
                 .from("store_config_versions")
                 .insert({
@@ -588,6 +724,7 @@ export function useStoreBuilderV2(
                     config,
                     created_by: user_id,
                     author_name,
+                    diff_summary,
                 })
                 .select("id, label, created_at, created_by, author_name, diff_summary")
                 .single();
@@ -1003,8 +1140,15 @@ export function useStoreBuilderV2(
                         );
                         z = se > 0 ? (p1 - p2) / se : null;
                     }
+                    // Two-sided test: a variant that is significantly WORSE
+                    // (z < -1.96) is just as "significant" as a better one.
+                    // Direction (winning vs losing) is read from the sign of z
+                    // / uplift downstream — gating on z > 1.96 made "losing"
+                    // mathematically unreachable.
                     const significant =
-                        !needs_more_data && z !== null && z > Z_THRESHOLD;
+                        !needs_more_data &&
+                        z !== null &&
+                        Math.abs(z) > Z_THRESHOLD;
                     const uplift_pct = p2 > 0 ? ((p1 - p2) / p2) * 100 : 0;
                     significance[armId] = {
                         z,
@@ -1048,6 +1192,11 @@ export function useStoreBuilderV2(
 
         patchField,
         applyConfig,
+        recoverable_backup: recoverableBackup
+            ? { saved_at: recoverableBackup.saved_at }
+            : null,
+        restore_backup,
+        dismiss_backup,
         createNamedSnapshot,
         listVersions,
         restoreVersion,

@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Schneiders Order Tracking</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {},
+          "borderRadius": {
+            "DEFAULT": "0.5rem",
+            "lg": "1rem",
+            "xl": "1.5rem",
+            "full": "9999px"
+          },
+          "fontFamily": {
+            "headline": [
+              "Public Sans", "sans-serif"
+            ],
+            "display": [
+              "Public Sans", "sans-serif"
+            ],
+            "body": [
+              "Dm Sans", "sans-serif"
+            ],
+            "label": [
+              "Dm Sans", "sans-serif"
+            ]
+          }
+        }
+      }
+    }
+  </script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&amp;family=Public+Sans:ital,wght@0,100..900;1,100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+    /* Chunky Brutalist Defaults */
+    .chunky-border { border: 3px solid #1a1a1a; }
+    .chunky-shadow { box-shadow: 4px 4px 0px 0px #1a1a1a; }
+    .chunky-shadow-sm { box-shadow: 2px 2px 0px 0px #1a1a1a; }
+    .chunky-shadow-none:active { box-shadow: 0px 0px 0px 0px #1a1a1a; transform: translate(4px, 4px); }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-[#fff7ed] text-[#1a1a1a] font-body min-h-screen pb-24 selection:bg-[#ff5a8a] selection:text-white">
+<!-- 1. TOP PROMO -->
+<div class="bg-[#ffd84a] chunky-border border-l-0 border-r-0 border-t-0 py-2 px-4 text-center font-headline font-bold text-sm tracking-wide overflow-hidden whitespace-nowrap">
+<div class="inline-block px-4">📦 Track your order in real time ✨</div>
+</div>
+<!-- 2. HEADER -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-4 py-3 bg-[#fff7ed] border-b-[3px] border-[#1a1a1a] shadow-[4px_4px_0px_0px_#1a1a1a] mt-[38px] md:mt-[38px]">
+<button class="flex items-center justify-center w-10 h-10 rounded-full chunky-border bg-white hover:bg-[#c5b6ff] transition-colors chunky-shadow-none">
+<span class="material-symbols-outlined font-bold">arrow_back</span>
+</button>
+<div class="font-headline text-2xl font-black uppercase tracking-tight text-[#1a1a1a] border-b-4 border-[#ff5a8a]">
+      Schneiders
+    </div>
+<button class="flex items-center justify-center w-10 h-10 rounded-full chunky-border bg-[#7cf0bd] hover:bg-[#ffd84a] transition-colors chunky-shadow-none relative">
+<span class="material-symbols-outlined font-bold">shopping_basket</span>
+<span class="absolute -top-1 -right-1 bg-[#ff5a8a] text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center chunky-border">2</span>
+</button>
+</header>
+<main class="pt-32 px-4 max-w-lg mx-auto space-y-8 pb-8">
+<!-- 3. TITLE -->
+<div class="text-center space-y-4">
+<h1 class="font-display text-5xl font-black leading-none relative inline-block">
+        Track Your Order 📦
+        <svg class="absolute -bottom-3 left-0 w-full text-[#9ad8ff] h-4" preserveaspectratio="none" viewbox="0 0 200 20">
+<path d="M0,10 Q50,0 100,10 T200,10" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="4"></path>
+</svg>
+</h1>
+<p class="font-body text-lg font-medium pt-2">No login needed. Just your phone number.</p>
+</div>
+<!-- 4. LOOKUP CARD -->
+<section class="bg-white rounded-2xl chunky-border chunky-shadow p-6 space-y-5">
+<h2 class="font-headline text-2xl font-black">Find your order</h2>
+<div class="space-y-4">
+<div class="relative">
+<label class="block font-label text-sm font-bold mb-1">Phone Number</label>
+<div class="flex items-center rounded-xl chunky-border bg-[#fff7ed] overflow-hidden focus-within:ring-2 focus-within:ring-[#ff5a8a]">
+<span class="pl-4 pr-2 font-bold border-r-[3px] border-[#1a1a1a]">+964</span>
+<input class="w-full bg-transparent border-none focus:ring-0 font-body font-bold text-lg p-3" placeholder="750 000 0000" type="tel"/>
+</div>
+</div>
+<div class="relative">
+<label class="block font-label text-sm font-bold mb-1">Order Number</label>
+<input class="w-full rounded-xl chunky-border bg-[#fff7ed] border-none focus:ring-0 font-body font-bold text-lg p-3 border-[3px] border-solid focus-within:ring-2 focus-within:ring-[#ff5a8a] focus-within:border-[#1a1a1a]" placeholder="SCH-2026-00247" type="text" value="SCH-2026-00247"/>
+</div>
+<button class="w-full bg-[#ff5a8a] text-white font-headline text-xl font-black uppercase rounded-xl chunky-border chunky-shadow-sm p-4 hover:bg-[#ff3b72] transition-colors chunky-shadow-none flex items-center justify-center gap-2">
+          Track Order <span class="material-symbols-outlined font-bold">arrow_forward</span>
+</button>
+</div>
+</section>
+<!-- 5. STATUS CARD -->
+<section class="bg-[#7cf0bd] rounded-2xl chunky-border chunky-shadow p-6 relative rotate-1 transform">
+<div class="absolute -top-4 -right-2 bg-white chunky-border px-3 py-1 font-bold text-sm transform -rotate-6 shadow-[2px_2px_0px_0px_#1a1a1a]">
+        ORDER #SCH-2026-00247
+      </div>
+<h2 class="font-display text-4xl font-black mb-2">On the way! 🚚</h2>
+<p class="font-body text-lg font-bold">Out for delivery — should arrive within 2 hours</p>
+</section>
+<!-- 6. TIMELINE -->
+<section class="bg-white rounded-2xl chunky-border chunky-shadow p-6">
+<div class="relative pl-6 space-y-8 before:absolute before:inset-0 before:ml-[14px] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-[3px] before:border-l-[3px] before:border-dashed before:border-[#1a1a1a]">
+<!-- Row 1 -->
+<div class="relative flex items-center gap-4">
+<div class="absolute -left-6 bg-[#7cf0bd] w-6 h-6 rounded-full chunky-border flex items-center justify-center z-10 shadow-[2px_2px_0px_0px_#1a1a1a]">
+<span class="material-symbols-outlined text-[14px] font-bold">check</span>
+</div>
+<div>
+<h3 class="font-headline font-bold text-xl leading-tight">Order placed</h3>
+<p class="font-body text-sm font-medium text-gray-600">Today 10:42 AM</p>
+</div>
+</div>
+<!-- Row 2 -->
+<div class="relative flex items-center gap-4">
+<div class="absolute -left-6 bg-[#7cf0bd] w-6 h-6 rounded-full chunky-border flex items-center justify-center z-10 shadow-[2px_2px_0px_0px_#1a1a1a]">
+<span class="material-symbols-outlined text-[14px] font-bold">check</span>
+</div>
+<div>
+<h3 class="font-headline font-bold text-xl leading-tight">Confirmed</h3>
+<p class="font-body text-sm font-medium text-gray-600">Today 11:08 AM - called you</p>
+</div>
+</div>
+<!-- Row 3 -->
+<div class="relative flex items-center gap-4">
+<div class="absolute -left-6 bg-[#ffd84a] w-6 h-6 rounded-full chunky-border flex items-center justify-center z-10 shadow-[2px_2px_0px_0px_#1a1a1a]">
+<span class="material-symbols-outlined text-[14px] font-bold">check</span>
+</div>
+<div>
+<h3 class="font-headline font-bold text-xl leading-tight">Dispatched</h3>
+<p class="font-body text-sm font-medium text-gray-600">Today 1:30 PM - from warehouse</p>
+</div>
+</div>
+<!-- Row 4 (Active) -->
+<div class="relative flex items-center gap-4">
+<div class="absolute -left-[27px] bg-[#ff5a8a] w-7 h-7 rounded-full chunky-border flex items-center justify-center z-10 shadow-[2px_2px_0px_0px_#1a1a1a] before:absolute before:w-10 before:h-10 before:bg-[#ff5a8a] before:rounded-full before:-z-10 before:opacity-30">
+<span class="material-symbols-outlined text-[14px] font-bold text-white">local_shipping</span>
+</div>
+<div>
+<h3 class="font-headline font-black text-2xl leading-tight text-[#ff5a8a]">Out for delivery</h3>
+<p class="font-body text-sm font-bold text-gray-800 bg-[#ffd84a] inline-block px-2 py-0.5 rounded-md border-2 border-[#1a1a1a] mt-1">Estimated 3:30–4:30 PM</p>
+</div>
+</div>
+<!-- Row 5 (Pending) -->
+<div class="relative flex items-center gap-4 opacity-60">
+<div class="absolute -left-6 bg-[#c5b6ff] w-6 h-6 rounded-full chunky-border flex items-center justify-center z-10">
+</div>
+<div>
+<h3 class="font-headline font-bold text-xl leading-tight">Delivered</h3>
+<p class="font-body text-sm font-medium text-gray-600">Pending - Pay cash when received</p>
+</div>
+</div>
+</div>
+</section>
+<!-- 7. DELIVERY HERO -->
+<section class="bg-[#9ad8ff] rounded-2xl chunky-border chunky-shadow p-5 flex flex-col gap-4 transform -rotate-1 relative z-10">
+<div class="flex items-center gap-4">
+<div class="w-16 h-16 rounded-full chunky-border overflow-hidden bg-white shrink-0">
+<img alt="Avatar of delivery driver Mahmood" class="w-full h-full object-cover" data-alt="A close-up portrait of a friendly young Middle Eastern man smiling warmly, wearing a casual bright t-shirt. The background is a sunny, vibrant street scene, out of focus. Lighting is natural, bright, and cheerful, fitting a light-mode app aesthetic. He looks like a helpful delivery driver." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCp5PyacNY_1eDLFMxgt8Aq1yrBGN4ZJgW0Jvu8qP20r9OvqnDQN723acExv3txPuDJH59LxXq-uV2pduUeulAFGW2DYKuu2yK9i5MLfl_qHzB0BHE2y8ExBdmFEQ9_JBVd5RUver3kmo7rWs4Z85oKAtkj7Y05hJlMif1_yGy2Xy4noTI1TCumLzejyfKV1S4ZVIb0zf8ZtkjzIx-C1wnpn2zgLHPKDOGxr0w_8TIm_kSOs5RjDQoJ-oH4qPaCesXjeJyv7d7pi1Sj"/>
+</div>
+<div>
+<h3 class="font-display font-black text-2xl">Mahmood 👋</h3>
+<p class="font-body font-bold text-sm">Your delivery hero today</p>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 bg-[#7cf0bd] chunky-border chunky-shadow-sm rounded-xl py-3 px-4 font-headline font-bold text-sm flex items-center justify-center gap-2 hover:bg-[#6be0ac] active:translate-y-[2px] active:translate-x-[2px] active:shadow-none transition-all">
+          Message Mahmood 💬
+        </button>
+<button class="w-12 shrink-0 bg-white chunky-border chunky-shadow-sm rounded-xl flex items-center justify-center hover:bg-gray-100 active:translate-y-[2px] active:translate-x-[2px] active:shadow-none transition-all">
+<span class="material-symbols-outlined font-bold">call</span>
+</button>
+</div>
+</section>
+<!-- 8. SUMMARY -->
+<section class="bg-white rounded-2xl chunky-border chunky-shadow overflow-hidden">
+<details class="group">
+<summary class="flex justify-between items-center p-5 cursor-pointer list-none font-headline font-bold text-xl">
+<div class="flex items-center gap-2">
+<span>Order Summary</span>
+<span class="bg-[#c5b6ff] text-xs px-2 py-0.5 rounded-full border-2 border-[#1a1a1a]">3 items</span>
+</div>
+<span class="material-symbols-outlined font-bold group-open:rotate-180 transition-transform">expand_more</span>
+</summary>
+<div class="px-5 pb-5 pt-0 border-t-[3px] border-[#1a1a1a] mt-0 bg-[#fff7ed] space-y-3 pt-4">
+<!-- Item 1 -->
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 bg-white chunky-border rounded-lg overflow-hidden shrink-0">
+<img alt="Product thumbnail" class="w-full h-full object-cover" data-alt="A bright, playful product shot of a bold red sneaker on a clean white background. High contrast, sharp lighting, pop-art style suitable for a modern e-commerce mobile app." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDHJBkz9TX2Nznj1qdwIA7pjdGIYz8I0W3ANSsqSmgz78FxLKiFWiyLdqNiTCxCRf8-J_IdneaeJckEmz1mO9mss4Fp1VxEbu_EOxJienDYydwF4hTL3H6hsbV41NhfU2TyIRwuDfgVR34DBj8UrwFYKXl-5m0lR30pnvzkJBxjCyWB768tC-6eqSLfRfj6hYCE0oQgcMKX-GlbemhkmrtCbFG8C38tu09JTrBtn3LazQpmjXWBW2LkRSPrzyHDSIjyHVbLAEl0K7Mh"/>
+</div>
+<div class="flex-1">
+<h4 class="font-bold text-sm line-clamp-1">Classic Red Sneakers</h4>
+<p class="text-xs text-gray-600">Size 42</p>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 bg-white chunky-border rounded-lg overflow-hidden shrink-0">
+<img alt="Product thumbnail" class="w-full h-full object-cover" data-alt="A clean, vibrant product photo of black wireless headphones against a soft pastel background. Bright, modern lighting, clear details, playful e-commerce aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCn_PuvCxjBeTLPrXGrWRPp4NrJklO0GeoghIaUa9RAXhzBANB20FnqkqlXSFcUwxvx8mCmXQ9pgCvh_V9JzCKpTVfxV_09n4Aorf1bpB_WH9CsOEXgFkNPbNLZfZZUymYTBgOwQWHc_WCwy-erxYQ1LKNi6AmosyGzKjJ0qCwafhGkJqZyer3zsamCEn12tpzBK5upPTWy1alRXu4YYenYhENLOk7R3U3eMxE34n2a_HlYWQmlaaZDUpkMrie4Sr12EEUSwJcJPgWl"/>
+</div>
+<div class="flex-1">
+<h4 class="font-bold text-sm line-clamp-1">Wireless Headphones</h4>
+<p class="text-xs text-gray-600">Black</p>
+</div>
+</div>
+<!-- Item 3 -->
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 bg-white chunky-border rounded-lg overflow-hidden shrink-0">
+<img alt="Product thumbnail" class="w-full h-full object-cover" data-alt="A vivid, sharp product image of a vintage polaroid camera on a bright yellow background. Fun, pop-art style, high contrast, suitable for a playful shopping app." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA2Edt2XlvMCvoFSVU2FPXMum3aRPvfULMqDmEnf6lLAU5MJpLW2K-ARmWgzWHGlVubNH9z7Gtrqu6ew0WWxCCbondjoIcG_ZU7PwmtCLINEOGNwFTIvSftq3KQ4zWlb3d0Q_QhS9Rfqbn9GZmYxQD-xUgVAluh7MgzOM0T5kNyuilX3Zb-e2ZWCzN1ZBxcSe7jz07gceYMsYj232nEZWklprR1kGGcTIo_rHHAWRnp3xjVBhxUSPNQS8uscC6A9uvjdxFtErkAd53z"/>
+</div>
+<div class="flex-1">
+<h4 class="font-bold text-sm line-clamp-1">Retro Camera</h4>
+<p class="text-xs text-gray-600">Yellow</p>
+</div>
+</div>
+<div class="flex justify-between items-end pt-4 border-t-2 border-dashed border-[#1a1a1a]">
+<span class="font-headline font-bold">Total (Cash on Delivery)</span>
+<span class="font-display font-black text-xl text-[#ff5a8a]">180,000 د.ع</span>
+</div>
+</div>
+</details>
+</section>
+<!-- 9. HELP -->
+<section class="bg-[#ff5a8a] text-white rounded-2xl chunky-border chunky-shadow p-6 flex flex-col gap-4 text-center">
+<h2 class="font-display font-black text-3xl">Anything wrong? 🆘</h2>
+<button class="bg-white text-[#1a1a1a] chunky-border chunky-shadow-sm rounded-xl py-3 px-4 font-headline font-black text-lg flex items-center justify-center gap-2 hover:bg-[#fff7ed] active:translate-y-[2px] active:translate-x-[2px] active:shadow-none transition-all mx-auto w-full max-w-xs">
+        Get help 💬
+      </button>
+</section>
+</main>
+<!-- 10. FOOTER BAR -->
+<div class="fixed bottom-0 left-0 w-full z-50 flex justify-between items-center px-4 py-3 bg-[#7cf0bd] border-t-[3px] border-[#1a1a1a] shadow-[0px_-4px_0px_0px_#1a1a1a]">
+<div class="flex items-center gap-2 bg-white chunky-border rounded-full px-4 py-2 shadow-[2px_2px_0px_0px_#1a1a1a]">
+<span class="material-symbols-outlined font-bold text-[#ff5a8a]">location_on</span>
+<span class="font-headline font-bold text-sm">Live location</span>
+</div>
+<button class="w-12 h-12 bg-white chunky-border rounded-full flex items-center justify-center shadow-[2px_2px_0px_0px_#1a1a1a] hover:bg-[#ffd84a] transition-colors">
+<span class="material-symbols-outlined font-bold">chat</span>
+</button>
+</div>
+</body></html>

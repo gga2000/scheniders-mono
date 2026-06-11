@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Schneiders - Quick Answers</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,900&amp;family=DM+Sans:wght@400;500;700&amp;family=Public+Sans:wght@400;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        'hot-pink': '#ff5a8a',
+                        'mint': '#7cf0bd',
+                        'butter-yellow': '#ffd84a',
+                        'lilac': '#c5b6ff',
+                        'sky': '#9ad8ff',
+                        'cream': '#fff7ed',
+                        'charcoal': '#1a1a1a',
+                        'whatsapp': '#25D366'
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "2xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        "headline": ["Bricolage Grotesque", "sans-serif"],
+                        "display": ["Bricolage Grotesque", "sans-serif"],
+                        "body": ["DM Sans", "sans-serif"],
+                        "label": ["DM Sans", "sans-serif"]
+                    },
+                    boxShadow: {
+                        'brutal': '4px 4px 0px 0px rgba(26,26,26,1)',
+                        'brutal-sm': '2px 2px 0px 0px rgba(26,26,26,1)'
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: #fff7ed; color: #1a1a1a; font-family: 'DM Sans', sans-serif; }
+        h1, h2, h3, h4, h5, h6, .font-headline { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 900; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 1; }
+        
+        /* Zigzag Border Effect */
+        .zigzag-border {
+            position: relative;
+        }
+        .zigzag-border::after {
+            content: "";
+            position: absolute;
+            bottom: -6px;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background-image: linear-gradient(135deg, #1a1a1a 50%, transparent 50%), linear-gradient(45deg, transparent 50%, #1a1a1a 50%);
+            background-position: left bottom;
+            background-repeat: repeat-x;
+            background-size: 12px 6px;
+            z-index: 10;
+        }
+        
+        /* Hide scrollbar for horizontal scrolling */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-cream text-charcoal pb-24 md:pb-0">
+<!-- Top Promo Bar -->
+<div class="bg-butter-yellow border-b-[3px] border-charcoal py-2 px-4 text-center zigzag-border z-50 relative">
+<p class="font-headline text-sm font-black uppercase tracking-wide">Got questions? We've got answers ✨</p>
+</div>
+<!-- JSON TopAppBar -->
+<header class="sticky top-0 z-40 bg-cream border-b-[3px] border-charcoal shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
+<div class="flex justify-between items-center w-full px-6 py-4">
+<button class="text-charcoal hover:bg-mint transition-colors active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all rounded-full p-2">
+<span class="material-symbols-outlined text-2xl">arrow_back</span>
+</button>
+<h1 class="font-headline text-2xl font-black text-charcoal tracking-tighter uppercase">Schneiders</h1>
+<button class="relative bg-mint border-[3px] border-charcoal rounded-full p-2 shadow-brutal-sm hover:bg-butter-yellow transition-colors active:translate-x-[2px] active:translate-y-[2px] active:shadow-none">
+<span class="material-symbols-outlined text-charcoal">shopping_bag</span>
+<span class="absolute -top-2 -right-2 bg-hot-pink text-cream text-[10px] font-bold px-2 py-1 rounded-full border-[2px] border-charcoal">3</span>
+</button>
+</div>
+</header>
+<main class="max-w-screen-md mx-auto px-4 py-8 overflow-hidden">
+<!-- Hero Section -->
+<section class="mb-10 text-center relative">
+<h2 class="font-headline text-5xl md:text-6xl font-black uppercase tracking-tighter leading-tight relative inline-block">
+                Quick
+                <span class="block text-hot-pink relative">
+                    Answers
+                    <svg class="absolute -bottom-3 left-0 w-full h-4 text-butter-yellow" preserveaspectratio="none" viewbox="0 0 200 20">
+<path d="M0,10 Q50,20 100,5 T150,15 T200,10" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="6"></path>
+</svg>
+</span>
+</h2>
+<p class="font-body text-lg font-bold mt-6 text-charcoal opacity-80">Everything you need to know, fast.</p>
+</section>
+<!-- Search -->
+<section class="mb-8">
+<div class="flex items-center bg-white border-[3px] border-charcoal rounded-2xl shadow-brutal p-2 focus-within:ring-4 focus-within:ring-butter-yellow transition-all">
+<span class="material-symbols-outlined text-charcoal pl-3 opacity-50 text-2xl">search</span>
+<input class="w-full bg-transparent border-none focus:ring-0 font-body font-bold text-lg px-4 text-charcoal placeholder:text-charcoal placeholder:opacity-50" placeholder="Search FAQs..." type="text"/>
+<button class="bg-hot-pink text-cream border-[3px] border-charcoal rounded-xl p-3 shadow-brutal-sm hover:bg-sky transition-colors active:translate-x-[2px] active:translate-y-[2px] active:shadow-none flex-shrink-0">
+<span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+</section>
+<!-- Category Filters -->
+<section class="mb-10 -mx-4 px-4">
+<div class="flex gap-3 overflow-x-auto no-scrollbar py-4 px-1">
+<button class="whitespace-nowrap font-headline font-black text-sm uppercase bg-hot-pink text-cream border-[3px] border-charcoal rounded-full px-6 py-2 shadow-brutal-sm transform -rotate-2 flex-shrink-0">All</button>
+<button class="whitespace-nowrap font-headline font-black text-sm uppercase bg-white text-charcoal border-[3px] border-charcoal rounded-full px-6 py-2 shadow-brutal-sm hover:bg-butter-yellow transform rotate-1 transition-colors flex-shrink-0">Delivery</button>
+<button class="whitespace-nowrap font-headline font-black text-sm uppercase bg-white text-charcoal border-[3px] border-charcoal rounded-full px-6 py-2 shadow-brutal-sm hover:bg-sky transform -rotate-1 transition-colors flex-shrink-0">Payment</button>
+<button class="whitespace-nowrap font-headline font-black text-sm uppercase bg-white text-charcoal border-[3px] border-charcoal rounded-full px-6 py-2 shadow-brutal-sm hover:bg-lilac transform rotate-2 transition-colors flex-shrink-0">Returns</button>
+<button class="whitespace-nowrap font-headline font-black text-sm uppercase bg-white text-charcoal border-[3px] border-charcoal rounded-full px-6 py-2 shadow-brutal-sm hover:bg-mint transform -rotate-1 transition-colors flex-shrink-0">Products</button>
+<button class="whitespace-nowrap font-headline font-black text-sm uppercase bg-white text-charcoal border-[3px] border-charcoal rounded-full px-6 py-2 shadow-brutal-sm hover:bg-butter-yellow transform rotate-1 transition-colors flex-shrink-0">Account</button>
+</div>
+</section>
+<!-- FAQ List -->
+<section class="space-y-6 mb-12">
+<!-- Expanded Item -->
+<article class="bg-white border-[3px] border-charcoal rounded-2xl shadow-brutal overflow-hidden transform -rotate-1 transition-transform hover:rotate-0">
+<button class="w-full flex justify-between items-center p-5 text-left bg-butter-yellow border-b-[3px] border-charcoal">
+<h3 class="font-headline font-black text-xl uppercase pr-4">How long does delivery take?</h3>
+<span class="material-symbols-outlined text-3xl bg-white border-[2px] border-charcoal rounded-full p-1 shadow-brutal-sm">remove</span>
+</button>
+<div class="p-5 bg-cream">
+<p class="font-body font-bold text-base leading-relaxed">
+                        For Baghdad, we usually deliver within 24 hours! For other provinces, expect your shiny new gear in 2-3 business days. We'll send you a WhatsApp message when your driver is on the way. 🚀
+                    </p>
+<div class="mt-4 flex items-center gap-2 bg-sky border-[2px] border-charcoal rounded-xl p-3 shadow-brutal-sm w-max">
+<span class="material-symbols-outlined">local_shipping</span>
+<span class="font-headline font-black text-sm uppercase">24h Baghdad Delivery</span>
+</div>
+</div>
+</article>
+<!-- Collapsed Item 1 -->
+<article class="bg-white border-[3px] border-charcoal rounded-2xl shadow-brutal overflow-hidden transform rotate-1 transition-transform hover:rotate-0">
+<button class="w-full flex justify-between items-center p-5 text-left hover:bg-lilac transition-colors">
+<h3 class="font-headline font-black text-xl uppercase pr-4">Is Cash on Delivery available?</h3>
+<span class="material-symbols-outlined text-3xl bg-butter-yellow border-[2px] border-charcoal rounded-full p-1 shadow-brutal-sm">add</span>
+</button>
+</article>
+<!-- Collapsed Item 2 -->
+<article class="bg-white border-[3px] border-charcoal rounded-2xl shadow-brutal overflow-hidden transform -rotate-1 transition-transform hover:rotate-0">
+<button class="w-full flex justify-between items-center p-5 text-left hover:bg-mint transition-colors">
+<h3 class="font-headline font-black text-xl uppercase pr-4">How do I return an item?</h3>
+<span class="material-symbols-outlined text-3xl bg-butter-yellow border-[2px] border-charcoal rounded-full p-1 shadow-brutal-sm">add</span>
+</button>
+</article>
+<!-- Collapsed Item 3 -->
+<article class="bg-white border-[3px] border-charcoal rounded-2xl shadow-brutal overflow-hidden transform rotate-2 transition-transform hover:rotate-0">
+<button class="w-full flex justify-between items-center p-5 text-left hover:bg-sky transition-colors">
+<h3 class="font-headline font-black text-xl uppercase pr-4">Are your products 100% original?</h3>
+<span class="material-symbols-outlined text-3xl bg-butter-yellow border-[2px] border-charcoal rounded-full p-1 shadow-brutal-sm">add</span>
+</button>
+</article>
+<!-- Collapsed Item 4 -->
+<article class="bg-white border-[3px] border-charcoal rounded-2xl shadow-brutal overflow-hidden transform -rotate-2 transition-transform hover:rotate-0">
+<button class="w-full flex justify-between items-center p-5 text-left hover:bg-hot-pink hover:text-cream transition-colors group">
+<h3 class="font-headline font-black text-xl uppercase pr-4">Can I change my order after placing it?</h3>
+<span class="material-symbols-outlined text-3xl bg-butter-yellow text-charcoal border-[2px] border-charcoal rounded-full p-1 shadow-brutal-sm group-hover:bg-cream">add</span>
+</button>
+</article>
+<!-- Collapsed Item 5 -->
+<article class="bg-white border-[3px] border-charcoal rounded-2xl shadow-brutal overflow-hidden transform rotate-1 transition-transform hover:rotate-0">
+<button class="w-full flex justify-between items-center p-5 text-left hover:bg-lilac transition-colors">
+<h3 class="font-headline font-black text-xl uppercase pr-4">Do you ship outside Iraq?</h3>
+<span class="material-symbols-outlined text-3xl bg-butter-yellow border-[2px] border-charcoal rounded-full p-1 shadow-brutal-sm">add</span>
+</button>
+</article>
+</section>
+<!-- Help Callout -->
+<section class="mb-12">
+<div class="bg-mint border-[3px] border-charcoal rounded-2xl shadow-brutal p-8 text-center transform -rotate-1 relative overflow-hidden">
+<!-- Decorative element -->
+<div class="absolute -top-6 -right-6 text-charcoal opacity-10">
+<span class="material-symbols-outlined text-9xl">support_agent</span>
+</div>
+<h3 class="font-headline font-black text-3xl uppercase mb-2 relative z-10">Can't find an answer?</h3>
+<p class="font-body font-bold text-lg mb-6 relative z-10">Our super friendly support team is ready to help!</p>
+<div class="flex flex-col sm:flex-row gap-4 justify-center relative z-10">
+<button class="flex items-center justify-center gap-2 bg-[#25D366] text-white border-[3px] border-charcoal rounded-xl px-6 py-4 shadow-brutal-sm hover:bg-opacity-90 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all w-full sm:w-auto">
+<span class="material-symbols-outlined">chat</span>
+<span class="font-headline font-black text-lg uppercase tracking-wide">WhatsApp Us</span>
+</button>
+<button class="flex items-center justify-center gap-2 bg-white text-charcoal border-[3px] border-charcoal rounded-xl px-6 py-4 shadow-brutal-sm hover:bg-butter-yellow active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all w-full sm:w-auto">
+<span class="material-symbols-outlined">call</span>
+<span class="font-headline font-black text-lg uppercase tracking-wide">Call Us</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Trust Strip -->
+<section class="mb-8 overflow-hidden py-2">
+<div class="flex flex-wrap justify-center gap-3">
+<div class="flex items-center gap-1 bg-white border-[2px] border-charcoal rounded-full px-3 py-1 shadow-brutal-sm">
+<span class="material-symbols-outlined text-hot-pink text-sm">verified</span>
+<span class="font-headline font-black text-[10px] uppercase">100% Original</span>
+</div>
+<div class="flex items-center gap-1 bg-white border-[2px] border-charcoal rounded-full px-3 py-1 shadow-brutal-sm">
+<span class="material-symbols-outlined text-mint text-sm">payments</span>
+<span class="font-headline font-black text-[10px] uppercase">Cash on Delivery</span>
+</div>
+<div class="flex items-center gap-1 bg-white border-[2px] border-charcoal rounded-full px-3 py-1 shadow-brutal-sm">
+<span class="material-symbols-outlined text-butter-yellow text-sm">local_shipping</span>
+<span class="font-headline font-black text-[10px] uppercase">24h Delivery</span>
+</div>
+<div class="flex items-center gap-1 bg-white border-[2px] border-charcoal rounded-full px-3 py-1 shadow-brutal-sm">
+<span class="material-symbols-outlined text-sky text-sm">assignment_return</span>
+<span class="font-headline font-black text-[10px] uppercase">Easy Returns</span>
+</div>
+</div>
+</section>
+</main>
+<!-- JSON BottomNavBar (Hidden on desktop) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-3 pb-safe bg-cream border-t-[3px] border-charcoal rounded-t-xl shadow-[0px_-4px_0px_0px_rgba(26,26,26,1)]">
+<button class="flex flex-col items-center justify-center text-charcoal opacity-70 hover:bg-mint transition-transform active:scale-95">
+<span class="material-symbols-outlined text-2xl mb-1">home</span>
+<span class="font-label text-[10px] font-bold uppercase">Home</span>
+</button>
+<button class="flex flex-col items-center justify-center text-charcoal opacity-70 hover:bg-mint transition-transform active:scale-95">
+<span class="material-symbols-outlined text-2xl mb-1">redeem</span>
+<span class="font-label text-[10px] font-bold uppercase">Offers</span>
+</button>
+<button class="flex flex-col items-center justify-center text-charcoal opacity-70 hover:bg-mint transition-transform active:scale-95 relative">
+<span class="material-symbols-outlined text-2xl mb-1">shopping_cart</span>
+<span class="font-label text-[10px] font-bold uppercase">Cart</span>
+<span class="absolute top-0 right-1 bg-hot-pink text-cream text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center border border-charcoal">3</span>
+</button>
+<button class="flex flex-col items-center justify-center text-charcoal opacity-70 hover:bg-mint transition-transform active:scale-95">
+<span class="material-symbols-outlined text-2xl mb-1">person</span>
+<span class="font-label text-[10px] font-bold uppercase">Profile</span>
+</button>
+</nav>
+<!-- JSON Footer -->
+<footer class="w-full border-t-[3px] border-charcoal mt-10 p-8 bg-lilac dark:bg-charcoal flex flex-col items-center gap-6 text-center w-full pb-28 md:pb-8">
+<h2 class="font-headline font-black text-charcoal text-3xl uppercase tracking-tighter">Schneiders</h2>
+<div class="flex flex-wrap justify-center gap-x-6 gap-y-4">
+<a class="text-charcoal hover:text-hot-pink hover:rotate-2 transition-transform active:scale-98 font-body text-sm font-bold uppercase" href="#">WhatsApp Support</a>
+<a class="text-charcoal hover:text-hot-pink hover:rotate-2 transition-transform active:scale-98 font-body text-sm font-bold uppercase" href="#">Phone Confirmation Info</a>
+<a class="text-charcoal hover:text-hot-pink hover:rotate-2 transition-transform active:scale-98 font-body text-sm font-bold uppercase" href="#">Privacy Policy</a>
+</div>
+<p class="font-body text-sm font-bold text-charcoal mt-4 border-t-[2px] border-charcoal border-dashed pt-6 w-full max-w-md">
+            © 2024 Schneiders. Made with 🍬 in Baghdad.
+        </p>
+</footer>
+</body></html>

@@ -39,6 +39,7 @@ import "./testimonials_carousel";
 import "./image_gallery";
 import "./video_block";
 import "./marquee_strip";
+import "./announcement_bar";
 import "./promo_banner";
 import "./countdown_card";
 import "./free_gift_strip";

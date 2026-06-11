@@ -831,7 +831,9 @@ export function LivePreview({
                 ref={viewportRef}
                 data-testid="live-preview-viewport"
                 className={cn(
-                    "relative h-full overflow-auto rounded-lg border border-(--card-border) bg-white shadow-sm transition-[width] duration-200 ease-out",
+                    // sb-stage gives the device the intended layered "floats as
+                    // a device card" shadow (was a flat shadow-sm).
+                    "sb-stage relative h-full overflow-auto rounded-lg border border-(--card-border) bg-white transition-[width] duration-200 ease-out",
                 )}
                 style={{ width, maxWidth: "100%" }}
             >

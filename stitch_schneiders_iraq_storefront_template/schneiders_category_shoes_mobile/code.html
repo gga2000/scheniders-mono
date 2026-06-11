@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Shoes - Schneiders</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,900&amp;family=DM+Sans:wght@400;500;600;700;800&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            DEFAULT: "#ff5a8a",
+                            content: "#1a1a1a"
+                        },
+                        secondary: {
+                            DEFAULT: "#7cf0bd",
+                            content: "#1a1a1a"
+                        },
+                        tertiary: {
+                            DEFAULT: "#ffd84a",
+                            content: "#1a1a1a"
+                        },
+                        surface: {
+                            DEFAULT: "#fff7ed",
+                            content: "#1a1a1a"
+                        },
+                        lilac: "#c5b6ff",
+                        sky: "#9ad8ff",
+                        ink: "#1a1a1a",
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "2xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        headline: ["Bricolage Grotesque", "sans-serif"],
+                        display: ["Bricolage Grotesque", "sans-serif"],
+                        body: ["DM Sans", "sans-serif"],
+                        label: ["DM Sans", "sans-serif"]
+                    },
+                    boxShadow: {
+                        'chunky': '4px 4px 0px 0px rgba(26,26,26,1)',
+                        'chunky-sm': '2px 2px 0px 0px rgba(26,26,26,1)',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 1, 'wght' 600, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        /* Zigzag pattern for top bar */
+        .zigzag-bottom {
+            position: relative;
+        }
+        .zigzag-bottom::after {
+            content: "";
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            right: 0;
+            height: 8px;
+            background: linear-gradient(135deg, #ffd84a 25%, transparent 25%) -8px 0,
+                        linear-gradient(225deg, #ffd84a 25%, transparent 25%) -8px 0,
+                        linear-gradient(315deg, transparent 75%, #ffd84a 75%),
+                        linear-gradient(45deg, transparent 75%, #ffd84a 75%);
+            background-size: 16px 16px;
+            z-index: 10;
+        }
+        
+        body {
+            background-color: #fff7ed;
+            color: #1a1a1a;
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        /* Hide scrollbar for filters */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body text-ink antialiased bg-surface min-h-screen flex flex-col pb-24 md:pb-0">
+<!-- 1. TOP BAR: Zigzag bottom, butter yellow -->
+<div class="bg-tertiary text-ink font-body font-bold text-xs py-2 text-center zigzag-bottom relative z-20 border-b-[3px] border-ink tracking-wide">
+        ✨ 24h Delivery • Cash on Delivery • Free Returns 🎉
+    </div>
+<!-- 2. STICKY HEADER -->
+<header class="sticky top-0 bg-surface border-b-[3px] border-ink z-50 flex justify-between items-center w-full px-4 py-3 shadow-chunky-sm">
+<button class="w-10 h-10 flex items-center justify-center border-[3px] border-ink rounded-full bg-white hover:bg-lilac transition-colors active:scale-95 shadow-chunky-sm">
+<span class="material-symbols-outlined text-xl">arrow_back</span>
+</button>
+<h1 class="font-headline text-3xl font-black italic bg-tertiary px-4 py-1 border-[3px] border-ink -rotate-2">
+            Schneiders
+        </h1>
+<button class="flex items-center gap-1 border-[3px] border-ink rounded-full bg-secondary px-3 py-1.5 hover:bg-white transition-colors active:scale-95 shadow-chunky-sm rotate-1">
+<span class="material-symbols-outlined text-lg">shopping_cart</span>
+<span class="font-headline font-bold text-lg">2</span>
+</button>
+</header>
+<!-- MAIN CONTENT -->
+<main class="max-w-screen-xl mx-auto px-4 py-6 flex flex-col gap-8 md:px-8 lg:px-12">
+<!-- 3. BREADCRUMBS -->
+<nav aria-label="Breadcrumb" class="flex items-center gap-2 font-label text-sm font-bold opacity-80">
+<a class="hover:text-primary transition-colors" href="#">Home</a>
+<span class="material-symbols-outlined text-primary text-sm font-black">chevron_right</span>
+<span class="text-primary underline decoration-2 underline-offset-4">Shoes</span>
+</nav>
+<!-- 4. CATEGORY HERO -->
+<section class="relative bg-secondary border-[3px] border-ink rounded-2xl p-6 md:p-10 shadow-chunky rotate-1 overflow-hidden">
+<!-- Tiny sticker -->
+<div class="absolute top-4 left-4 bg-primary text-white font-headline font-bold text-xs uppercase px-3 py-1 border-[2px] border-ink rounded-full -rotate-4 shadow-chunky-sm">
+                STEP INTO COLOR
+            </div>
+<div class="mt-6 flex flex-col md:flex-row md:justify-between md:items-end gap-4 relative z-10">
+<div>
+<h2 class="font-headline text-5xl md:text-7xl font-black uppercase -rotate-1 tracking-tighter">
+                        SHOES
+                    </h2>
+<p class="font-body font-semibold text-lg md:text-xl mt-2 max-w-md">
+                        Fresh kicks, dropped weekly
+                    </p>
+</div>
+<!-- Count Pill -->
+<div class="self-end bg-tertiary text-ink font-headline font-black text-lg px-4 py-2 border-[3px] border-ink rounded-xl rotate-3 shadow-chunky-sm inline-block">
+                    24 PRODUCTS
+                </div>
+</div>
+<!-- Decorative BG Elements (Optional visual flair) -->
+<div class="absolute -bottom-8 -right-8 opacity-20 pointer-events-none">
+<span class="material-symbols-outlined text-[120px]">directions_run</span>
+</div>
+</section>
+<!-- 5. CHUNKY FILTERS & 6. ACTIVE CHIPS -->
+<section class="flex flex-col gap-4">
+<!-- Horizontal scroll filters -->
+<div class="flex gap-3 overflow-x-auto pb-4 no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+<button class="shrink-0 bg-white text-ink font-headline font-bold text-sm px-4 py-2 border-[3px] border-ink rounded-xl shadow-chunky-sm -rotate-1 hover:bg-gray-50 active:scale-95 transition-all flex items-center gap-1">
+                    Filter <span class="material-symbols-outlined text-sm">tune</span>
+</button>
+<button class="shrink-0 bg-primary text-ink font-headline font-bold text-sm px-4 py-2 border-[3px] border-ink rounded-xl shadow-chunky-sm rotate-1 hover:brightness-110 active:scale-95 transition-all">
+                    Under 50K IQD
+                </button>
+<button class="shrink-0 bg-lilac text-ink font-headline font-bold text-sm px-4 py-2 border-[3px] border-ink rounded-xl shadow-chunky-sm -rotate-2 hover:brightness-110 active:scale-95 transition-all flex items-center gap-1">
+                    On Sale <span class="material-symbols-outlined text-sm text-red-500">local_fire_department</span>
+</button>
+<button class="shrink-0 bg-secondary text-ink font-headline font-bold text-sm px-4 py-2 border-[3px] border-ink rounded-xl shadow-chunky-sm rotate-1 ring-4 ring-ink ring-offset-0 hover:brightness-110 active:scale-95 transition-all flex items-center gap-1">
+                    In Stock <span class="material-symbols-outlined text-sm">check</span>
+</button>
+<button class="shrink-0 bg-white text-ink font-headline font-bold text-sm px-4 py-2 border-[3px] border-ink rounded-xl shadow-chunky-sm rotate-2 hover:bg-gray-50 active:scale-95 transition-all flex items-center gap-1">
+                    Sort: Popular <span class="material-symbols-outlined text-sm">swap_vert</span>
+</button>
+</div>
+<!-- Active Chips -->
+<div class="flex flex-wrap gap-2">
+<span class="inline-flex items-center gap-1 bg-primary/20 text-ink font-body font-bold text-xs px-3 py-1 border-[2px] border-ink rounded-full">
+                    Under 50K IQD 
+                    <button class="hover:text-primary"><span class="material-symbols-outlined text-xs">close</span></button>
+</span>
+<span class="inline-flex items-center gap-1 bg-lilac/30 text-ink font-body font-bold text-xs px-3 py-1 border-[2px] border-ink rounded-full">
+                    On Sale 
+                    <button class="hover:text-primary"><span class="material-symbols-outlined text-xs">close</span></button>
+</span>
+<button class="text-xs font-bold underline underline-offset-2 ml-2 hover:text-primary">Clear All</button>
+</div>
+</section>
+<!-- 7. PRODUCT GRID -->
+<section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+<!-- Product Card 1 -->
+<article class="bg-white border-[3px] border-ink rounded-2xl p-3 shadow-chunky flex flex-col gap-3 group">
+<div class="relative rounded-xl bg-lilac aspect-[4/3] border-[2px] border-ink overflow-hidden group-hover:rotate-1 transition-transform">
+<img alt="Mint runner sneakers floating on a pastel background" class="w-full h-full object-cover mix-blend-multiply" data-alt="A vibrant, studio-lit product shot of chunky mint green and pink runner sneakers floating dynamically against a soft lilac background. The aesthetic is playful, high-energy, and heavily styled, resembling a glossy editorial layout. The lighting is bright and evenly distributed, highlighting the textures of the shoe. The overall mood is youthful and candy-colored." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB9oqgXFPolD4_eVRIvQ7ES_mv0WLDlD3-cY5X0unNGGxFzrc_ruIeG4gqNU4TEJYo9k0uQW9Ed26OcMJZVljRXkxkoGq_iL6nLD4QkekYdRDZWbNwfWalTeDeF5L6_x1YiotF5FdZaDDPQcxqxXU4-15T3AGPyUT3fNVt1s1yqH53VQoGGGM8HO7G7Z-of2Zen4aKweCo0Ndx3kxCwQLybyadrU32FeycnOqGKoUu8SHvMUtilt0OvEzyzWEeKTPxHmCghN2n575PU"/>
+<div class="absolute top-2 left-2 bg-primary text-white font-headline text-[10px] font-black px-2 py-0.5 border-2 border-ink rounded-md -rotate-8 shadow-chunky-sm">
+                        Save 25K
+                    </div>
+</div>
+<div class="flex flex-col flex-grow">
+<h3 class="font-headline font-bold text-sm md:text-base leading-tight mb-1">Mint Runner Sneakers</h3>
+<div class="flex items-baseline gap-2 mt-auto">
+<span class="font-headline font-black text-lg">75,000 IQD</span>
+<span class="font-body text-xs font-bold text-gray-500 line-through">100,000</span>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex-grow bg-primary text-ink font-headline font-black text-sm uppercase py-2 border-[3px] border-ink rounded-xl shadow-chunky-sm hover:brightness-110 active:scale-95 transition-all text-center">
+                        BUY NOW
+                    </button>
+<button class="w-10 h-10 shrink-0 bg-white border-[3px] border-ink rounded-xl shadow-chunky-sm flex items-center justify-center hover:bg-tertiary active:scale-95 transition-all">
+<span class="material-symbols-outlined text-sm">shopping_cart</span>
+</button>
+</div>
+</article>
+<!-- Product Card 2 -->
+<article class="bg-white border-[3px] border-ink rounded-2xl p-3 shadow-chunky flex flex-col gap-3 group">
+<div class="relative rounded-xl bg-sky aspect-[4/3] border-[2px] border-ink overflow-hidden group-hover:-rotate-1 transition-transform">
+<img alt="Chunky white sneakers on a light blue background" class="w-full h-full object-cover mix-blend-multiply" data-alt="A bright, playful product shot of clean, chunky white platform sneakers resting on a vibrant sky blue surface. The lighting is crisp and summery, creating sharp, bold shadows that fit a brutalist candy aesthetic. The image feels energetic and modern, perfect for a high-end streetwear catalog. The overall color palette is pastel but punchy." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBeR_ri-aq7wuRvn-Yq3u9SPTdXCKmmF0SGHIZPTl4DVtaQyHt2kVh1I74XY9-Os-MkUf12WFTPbr7t_mOWLm0t288myfBnkDy7_Zk_fXJHqe9tC3LhkCNSwNJXA7UYicH0Ye5w-uB2br2ftOIHtCmbdmp_vUb7pTQRFn0wXweo7y9A-82f3q8-6HSDyAlLSmE2vF-V-EP4b-KS_hdAbjAcfM3U8qjR88Z32mzTfIVDE2VufWfXELRb-Wy4Q4s3ex9ha_V-lj-fm4j-"/>
+<div class="absolute top-2 left-2 bg-secondary text-ink font-headline text-[10px] font-black px-2 py-0.5 border-2 border-ink rounded-md -rotate-8 shadow-chunky-sm">
+                        NEW
+                    </div>
+</div>
+<div class="flex flex-col flex-grow">
+<h3 class="font-headline font-bold text-sm md:text-base leading-tight mb-1">Cloud Platform Trainers</h3>
+<div class="flex items-baseline gap-2 mt-auto">
+<span class="font-headline font-black text-lg">90,000 IQD</span>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex-grow bg-primary text-ink font-headline font-black text-sm uppercase py-2 border-[3px] border-ink rounded-xl shadow-chunky-sm hover:brightness-110 active:scale-95 transition-all text-center">
+                        BUY NOW
+                    </button>
+<button class="w-10 h-10 shrink-0 bg-white border-[3px] border-ink rounded-xl shadow-chunky-sm flex items-center justify-center hover:bg-tertiary active:scale-95 transition-all">
+<span class="material-symbols-outlined text-sm">shopping_cart</span>
+</button>
+</div>
+</article>
+<!-- Product Card 3 -->
+<article class="bg-white border-[3px] border-ink rounded-2xl p-3 shadow-chunky flex flex-col gap-3 group">
+<div class="relative rounded-xl bg-primary/20 aspect-[4/3] border-[2px] border-ink overflow-hidden group-hover:rotate-2 transition-transform">
+<img alt="Yellow and black chunky boots on a pink background" class="w-full h-full object-cover mix-blend-multiply" data-alt="A bold, stylized photograph of bright yellow and black chunky boots presented on a soft pink pastel background. The aesthetic is playful brutalism, with hard-edged styling and vibrant, contrasting colors. The lighting is stark and direct, emphasizing the rugged texture of the footwear against the sweet, candy-colored backdrop. The mood is rebellious yet fun." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAIv3WJSil_lg79Ccg9LSf_vHfsuidM4fBaEfsKkfrRWET8cL5405p6UoZLzPu4XjWrqGShjPY2H2WfnlPFR9-0UeEsauey3-a8Uy1ecXyU8KgjGsT5desZSGdbVj6RQESRz3X7tbtzlIXb_cf9dR5rWLV8YnN9XQHYJdEHFVxoqcOkM8-OfaQw7l_wDQiepwQGVJET6Md0rzET21KwUT5ZA3db32lpg3sRMDPGUyLrngjJZlKRs5npoAp9sqXqwjTG3ubNA2hLWqJd"/>
+<div class="absolute top-2 left-2 bg-tertiary text-ink font-headline text-[10px] font-black px-2 py-0.5 border-2 border-ink rounded-md -rotate-8 shadow-chunky-sm">
+                        BESTSELLER
+                    </div>
+</div>
+<div class="flex flex-col flex-grow">
+<h3 class="font-headline font-bold text-sm md:text-base leading-tight mb-1">Bumblebee Chunky Boots</h3>
+<div class="flex items-baseline gap-2 mt-auto">
+<span class="font-headline font-black text-lg">110,000 IQD</span>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex-grow bg-primary text-ink font-headline font-black text-sm uppercase py-2 border-[3px] border-ink rounded-xl shadow-chunky-sm hover:brightness-110 active:scale-95 transition-all text-center">
+                        BUY NOW
+                    </button>
+<button class="w-10 h-10 shrink-0 bg-white border-[3px] border-ink rounded-xl shadow-chunky-sm flex items-center justify-center hover:bg-tertiary active:scale-95 transition-all">
+<span class="material-symbols-outlined text-sm">shopping_cart</span>
+</button>
+</div>
+</article>
+<!-- Product Card 4 -->
+<article class="bg-white border-[3px] border-ink rounded-2xl p-3 shadow-chunky flex flex-col gap-3 group">
+<div class="relative rounded-xl bg-tertiary/30 aspect-[4/3] border-[2px] border-ink overflow-hidden group-hover:-rotate-2 transition-transform">
+<img alt="Pastel colored canvas shoes on a warm yellow background" class="w-full h-full object-cover mix-blend-multiply" data-alt="A cheerful, high-key image of pastel-colored canvas slip-on shoes arranged casually on a warm butter-yellow surface. The lighting is soft and inviting, giving the scene a sunny, optimistic feel. The aesthetic aligns with a playful, sticker-book style, using bright solid colors and clear focal points. The overall vibe is relaxed and sweet." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAMh0ZYCmsDm0OksHO0TnRmNXOYu1YLKtcOy3J0x3vKqg40hU7LhZstXVynMWAYUKKGHGpphU7z56qkIZeJ9PqMe093jxc5hUt5SUjyJOQ_1visRvKCpEJaMsosnRqAwVOMab4I-HiI9N4puBNU45VkFXJXe1qD2zTnaajQe7SDv8Ebs-ChA8NugkTxCp5fDkhhM-1dCltu0Mfrq54NvAjO-Zb9BvByZvScM57BYIGqsdItNh-chDRk_dPQ34uG97Yy1wGMZV7yRvm0"/>
+</div>
+<div class="flex flex-col flex-grow">
+<h3 class="font-headline font-bold text-sm md:text-base leading-tight mb-1">Canvas Slip-ons</h3>
+<div class="flex items-baseline gap-2 mt-auto">
+<span class="font-headline font-black text-lg">45,000 IQD</span>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex-grow bg-primary text-ink font-headline font-black text-sm uppercase py-2 border-[3px] border-ink rounded-xl shadow-chunky-sm hover:brightness-110 active:scale-95 transition-all text-center">
+                        BUY NOW
+                    </button>
+<button class="w-10 h-10 shrink-0 bg-white border-[3px] border-ink rounded-xl shadow-chunky-sm flex items-center justify-center hover:bg-tertiary active:scale-95 transition-all">
+<span class="material-symbols-outlined text-sm">shopping_cart</span>
+</button>
+</div>
+</article>
+<!-- Product Card 5 -->
+<article class="bg-white border-[3px] border-ink rounded-2xl p-3 shadow-chunky flex flex-col gap-3 group">
+<div class="relative rounded-xl bg-secondary aspect-[4/3] border-[2px] border-ink overflow-hidden group-hover:rotate-1 transition-transform">
+<img alt="Bright pink heels on a mint green background" class="w-full h-full object-cover mix-blend-multiply" data-alt="A striking, editorial-style photograph of glossy, bright pink high heels positioned perfectly on a vivid mint green background. The contrast is sharp and unapologetic, embodying a candy-colored brutalist design language. Shadows are hard and defined, adding dimension to the playful, vibrant composition. The image is sophisticated yet undeniably fun." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBkUXfRVxTFryKjQnds5khHWVgqgsc4QVuEMqTikJom0vt9tVJEEwf7b-m5vDKJlVoONYQMeuHiqAaO4nHEmqZbELlnbGe7NwJrNYRT5zI0LewL6Hc_NkiOSibvC-n6bP4_w2B_ETFUV4kckH7cnvPA-g8VcUkoh2wIKc99k3_9ejQCiYmXgD2FHkfU_8-6907-JIYlbtnpc1McL_ndrNDJhCmJ_UCQ64IGsdDG6CmKi4cMhWG0gmMXbBcLEQ_7wY3Di7DvtJNr_DJL"/>
+<div class="absolute top-2 left-2 bg-tertiary text-ink font-headline text-[10px] font-black px-2 py-0.5 border-2 border-ink rounded-md -rotate-8 shadow-chunky-sm">
+                        BESTSELLER
+                    </div>
+</div>
+<div class="flex flex-col flex-grow">
+<h3 class="font-headline font-bold text-sm md:text-base leading-tight mb-1">Bubblegum Heels</h3>
+<div class="flex items-baseline gap-2 mt-auto">
+<span class="font-headline font-black text-lg">85,000 IQD</span>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex-grow bg-primary text-ink font-headline font-black text-sm uppercase py-2 border-[3px] border-ink rounded-xl shadow-chunky-sm hover:brightness-110 active:scale-95 transition-all text-center">
+                        BUY NOW
+                    </button>
+<button class="w-10 h-10 shrink-0 bg-white border-[3px] border-ink rounded-xl shadow-chunky-sm flex items-center justify-center hover:bg-tertiary active:scale-95 transition-all">
+<span class="material-symbols-outlined text-sm">shopping_cart</span>
+</button>
+</div>
+</article>
+<!-- Product Card 6 -->
+<article class="bg-white border-[3px] border-ink rounded-2xl p-3 shadow-chunky flex flex-col gap-3 group">
+<div class="relative rounded-xl bg-lilac/50 aspect-[4/3] border-[2px] border-ink overflow-hidden group-hover:-rotate-1 transition-transform">
+<img alt="Retro colorful sneakers on a light purple background" class="w-full h-full object-cover mix-blend-multiply" data-alt="A lively, stylized shot of retro-inspired sneakers featuring multiple vibrant color blocks, resting on a soft lilac background. The lighting is bright studio style, creating a crisp, clean aesthetic that feels like a premium sticker. The composition is centered and bold, adhering to a playful, youthful visual identity. It's energetic and highly commercial." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqx6rlmvcowUSpMTfnLZQ5Q2AOliKGyf1XlwDrHSLZ4lai4iHS9TwjX6RP2Ltm7bbkPE4B4zvewunQbwFxZs6ALEqa6QUdMexr5OYDpidYQoh7PtxGn89VetC27vTMTfnAHclCxTblmhI1Q4Vt8CB6Jo3s5pmzc60SRq_vPoIYRUxDm2Z0mMeTKkm4oIgeku6PUYb87dDhJqTSq5o25GrOXVJHWuTCABEznx9pNbCSBMfrdRfi7KilaRbY7Pd4iG089DVryCM9XSY_"/>
+<div class="absolute top-2 left-2 bg-secondary text-ink font-headline text-[10px] font-black px-2 py-0.5 border-2 border-ink rounded-md -rotate-8 shadow-chunky-sm">
+                        NEW
+                    </div>
+</div>
+<div class="flex flex-col flex-grow">
+<h3 class="font-headline font-bold text-sm md:text-base leading-tight mb-1">Retro Block Sneakers</h3>
+<div class="flex items-baseline gap-2 mt-auto">
+<span class="font-headline font-black text-lg">120,000 IQD</span>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex-grow bg-primary text-ink font-headline font-black text-sm uppercase py-2 border-[3px] border-ink rounded-xl shadow-chunky-sm hover:brightness-110 active:scale-95 transition-all text-center">
+                        BUY NOW
+                    </button>
+<button class="w-10 h-10 shrink-0 bg-white border-[3px] border-ink rounded-xl shadow-chunky-sm flex items-center justify-center hover:bg-tertiary active:scale-95 transition-all">
+<span class="material-symbols-outlined text-sm">shopping_cart</span>
+</button>
+</div>
+</article>
+<!-- Product Card 7 -->
+<article class="bg-white border-[3px] border-ink rounded-2xl p-3 shadow-chunky flex flex-col gap-3 group hidden md:flex">
+<div class="relative rounded-xl bg-sky/40 aspect-[4/3] border-[2px] border-ink overflow-hidden group-hover:rotate-2 transition-transform">
+<img alt="Sleek black running shoes on a sky blue background" class="w-full h-full object-cover mix-blend-multiply" data-alt="A dynamic, high-contrast image of sleek, modern black running shoes positioned asymmetrically on a bright sky blue background. The aesthetic combines athletic performance with a playful, candy-colored bento grid style. Lighting is intense, producing hard, dark shadows that emphasize the shoe's silhouette. The overall look is bold, graphic, and visually arresting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD44Y1iRd8nFpE6-Tk4RMIQ9dY5vdJnS0ad8JbPEg_DSA0caQ4XJ0fJv6baVNDaEV2tPuGd3RvfVZgarRFNpKHfEGeXNOXlc_uzuRl8qCB-acRUi1BXnYdBbDRojV3Um-CJogPmYsE47ANzXouOXYa6Ls615lAfchuqW-CiAbcISONo1B-epXP6-v-2VRi84fZ9lw3cjcXIQnld3MdgH22hNxqWx-IZYND5k2Dq6jAOsGSdDJ898CsZRtIvBXbx1BQ0R0ltlS2-Lx-s"/>
+<div class="absolute top-2 left-2 bg-primary text-white font-headline text-[10px] font-black px-2 py-0.5 border-2 border-ink rounded-md -rotate-8 shadow-chunky-sm">
+                        Save 10K
+                    </div>
+</div>
+<div class="flex flex-col flex-grow">
+<h3 class="font-headline font-bold text-sm md:text-base leading-tight mb-1">Midnight Runners</h3>
+<div class="flex items-baseline gap-2 mt-auto">
+<span class="font-headline font-black text-lg">65,000 IQD</span>
+<span class="font-body text-xs font-bold text-gray-500 line-through">75,000</span>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex-grow bg-primary text-ink font-headline font-black text-sm uppercase py-2 border-[3px] border-ink rounded-xl shadow-chunky-sm hover:brightness-110 active:scale-95 transition-all text-center">
+                        BUY NOW
+                    </button>
+<button class="w-10 h-10 shrink-0 bg-white border-[3px] border-ink rounded-xl shadow-chunky-sm flex items-center justify-center hover:bg-tertiary active:scale-95 transition-all">
+<span class="material-symbols-outlined text-sm">shopping_cart</span>
+</button>
+</div>
+</article>
+<!-- Product Card 8 -->
+<article class="bg-white border-[3px] border-ink rounded-2xl p-3 shadow-chunky flex flex-col gap-3 group hidden lg:flex">
+<div class="relative rounded-xl bg-tertiary/50 aspect-[4/3] border-[2px] border-ink overflow-hidden group-hover:-rotate-2 transition-transform">
+<img alt="White and red classic sneakers on a butter yellow background" class="w-full h-full object-cover mix-blend-multiply" data-alt="A vibrant, flat-lay style photograph of classic white and red sneakers resting on a smooth, butter-yellow background. The composition is clean and geometric, fitting a playful, brutalist UI design language. The colors are highly saturated, and the lighting creates soft but distinct shadows, giving the shoes a premium, sticker-like quality. The mood is nostalgic yet fresh." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB2vzq0mNPejK-mGzGOB3p3GA-GZBXtEL-R9yCqApWRCUE3nIf2QCp2QK4ZdfmZfRA_h3H3EwjNILvFEQkvtb3z47AeRFHK7IJtqv_XF82ZsJ9ZH0EvCJW6gCydzFsltn5tAxAkPkYl9p05VGQCP0leOqE36TUtqcDi1v8ugMmsOOBdjY_KvvaS60-6JXCD9uafqxBzD8KrKWcm46PYR9oaxJ-K8I43WKlIMSflstwbCyHBSRvOHsVQ3v4NOyv7QtD5HVOoYFnJTtUi"/>
+</div>
+<div class="flex flex-col flex-grow">
+<h3 class="font-headline font-bold text-sm md:text-base leading-tight mb-1">Classic Court Kicks</h3>
+<div class="flex items-baseline gap-2 mt-auto">
+<span class="font-headline font-black text-lg">55,000 IQD</span>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex-grow bg-primary text-ink font-headline font-black text-sm uppercase py-2 border-[3px] border-ink rounded-xl shadow-chunky-sm hover:brightness-110 active:scale-95 transition-all text-center">
+                        BUY NOW
+                    </button>
+<button class="w-10 h-10 shrink-0 bg-white border-[3px] border-ink rounded-xl shadow-chunky-sm flex items-center justify-center hover:bg-tertiary active:scale-95 transition-all">
+<span class="material-symbols-outlined text-sm">shopping_cart</span>
+</button>
+</div>
+</article>
+</section>
+<!-- 8. PAGINATION -->
+<section class="flex flex-col items-center justify-center mt-4 gap-4">
+<button class="bg-tertiary text-ink font-headline font-black text-lg px-8 py-3 border-[3px] border-ink rounded-xl shadow-chunky rotate-1 hover:bg-white hover:rotate-0 active:scale-95 transition-all tracking-wide">
+                LOAD MORE
+            </button>
+<div class="font-headline font-black text-lg tracking-widest text-ink/80 mt-2">
+                1 • 2 • 3 →
+            </div>
+</section>
+<!-- 9. WHATSAPP CTA -->
+<section class="bg-sky border-[3px] border-ink rounded-2xl p-6 shadow-chunky -rotate-1 mt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
+<div>
+<h3 class="font-headline font-black text-2xl mb-1">Need help finding your size?</h3>
+<p class="font-body font-bold text-ink/80">Our style experts are online right now.</p>
+</div>
+<button class="bg-white text-ink font-headline font-black text-lg px-6 py-3 border-[3px] border-ink rounded-xl shadow-chunky-sm hover:bg-secondary active:scale-95 transition-all flex items-center gap-2 rotate-2">
+                Ask us on WhatsApp <span class="material-symbols-outlined text-green-500">chat</span>
+</button>
+</section>
+</main>
+<!-- 10. STICKY BOTTOM BAR (Mobile) -->
+<div class="md:hidden fixed bottom-4 left-4 right-4 z-50 flex justify-center">
+<div class="bg-secondary border-[3px] border-ink rounded-full p-2 pr-6 shadow-chunky flex items-center gap-4 w-full max-w-sm mx-auto">
+<button class="bg-white text-ink w-12 h-12 rounded-full border-[3px] border-ink flex items-center justify-center shadow-chunky-sm shrink-0 active:scale-95">
+<span class="material-symbols-outlined text-green-500 text-2xl">chat</span>
+</button>
+<button class="flex-grow bg-white text-ink font-headline font-black text-lg py-2.5 rounded-full border-[3px] border-ink shadow-chunky-sm active:scale-95 text-center tracking-wide hover:bg-primary hover:text-white transition-colors">
+                ORDER NOW
+            </button>
+</div>
+</div>
+</body></html>

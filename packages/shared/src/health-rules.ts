@@ -360,9 +360,22 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         };
     }),
     check("every_page_has_meta_title", "seo", 1, (cfg) => {
+        // Functional pages (cart/checkout/search/404) aren't crawlable content
+        // and don't need an SEO title. Every other defined page renders a real
+        // crawlable URL — even with zero sections it falls back to a legacy
+        // template — so it must be checked regardless of section count.
+        const NON_SEO_PAGES: ReadonlySet<PageId> = new Set([
+            "search",
+            "cart",
+            "checkout",
+            "checkout_success",
+            "track",
+            "not_found",
+        ]);
         const missing: PageId[] = [];
         for (const p of cfg.pages) {
-            if (p.sections.length === 0) continue; // skip empty pages
+            if (NON_SEO_PAGES.has(p.page_id)) continue;
+            if (p.meta?.noindex) continue; // intentionally not indexed
             const t = resolveStr(p.meta?.title);
             if (!t.trim()) missing.push(p.page_id);
         }

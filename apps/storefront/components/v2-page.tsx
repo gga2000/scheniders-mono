@@ -116,6 +116,16 @@ export async function V2Page({
         renderCtx={renderCtx}
         slots={["footer"]}
       />
+      {/* Sticky bottom bar — fixed-position, so DOM order after the footer is
+          fine. Renders only when a tenant configures the slot; page-specific
+          sticky CTAs (PDP add-to-cart, category ORDER NOW) live in their own
+          sections. */}
+      <StorefrontGlobals
+        globals={v2.globals}
+        runtime={enrichedRuntime}
+        renderCtx={renderCtx}
+        slots={["sticky_bottom_bar"]}
+      />
     </>
   );
 }

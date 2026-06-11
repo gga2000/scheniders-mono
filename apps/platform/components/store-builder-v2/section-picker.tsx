@@ -157,6 +157,10 @@ export function SectionPicker(props: SectionPickerProps): React.ReactElement | n
     const filtered = useMemo<SectionManifestEntry[]>(() => {
         const q = query.trim().toLowerCase();
         return manifest.filter((entry) => {
+            // Global chrome (valid_on: []) like site_header/site_footer isn't
+            // addable per-page — exclude it from the picker instead of showing
+            // a permanently-disabled card on every page. (BUG/B6)
+            if (entry.valid_on.length === 0) return false;
             if (category !== "all" && entry.category !== category) return false;
             if (!q) return true;
             const name = entry.name.en.toLowerCase();

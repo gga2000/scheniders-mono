@@ -300,7 +300,10 @@ export const EMPTY_BRAND_KIT: import("./store-config-v2").BrandKit = {
     surface: "#fff7ed",
     surface_alt: "#ffffff",
     ink: "#1a1a1a",
-    success: "#22c55e",
+    // Candy Bento equates success with mint (#7cf0bd) — see DESIGN.md
+    // ("Mint #7cf0bd — success / WhatsApp / fresh accent"). The old emerald
+    // (#22c55e) made every --bk-success surface off-palette.
+    success: "#7cf0bd",
     danger: "#ef4444",
   },
   typography: {

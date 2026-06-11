@@ -90,6 +90,9 @@ function makeBuilder(
         undo_description: null,
         redo_description: null,
         applyConfig: noop,
+        recoverable_backup: null,
+        restore_backup: noop,
+        dismiss_backup: noop,
         createNamedSnapshot: async () => ({
             id: "v0",
             label: "noop",

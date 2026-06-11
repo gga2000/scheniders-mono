@@ -2,13 +2,28 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { emptyStoreConfigV2, signPreviewToken } from "@scheniders/shared";
-import type { StoreConfigV2 } from "@scheniders/shared";
+import type { StoreConfigV2, PageId } from "@scheniders/shared";
 import type {
     Product as SectionProduct,
     Category as SectionCategory,
 } from "@scheniders/sections";
 import { env } from "@/lib/env";
 import { EditorShell } from "@/components/store-builder-v2/editor-shell";
+import type { SettingsSectionId } from "@/components/store-builder-v2/page-tree";
+
+/**
+ * Settings screens reachable via a Command Center `?screen=` deep-link.
+ * "health" is intentionally excluded — it's an inline inspector tab, not a
+ * full-screen takeover, so it has no system_screen to open.
+ */
+const DEEP_LINK_SCREENS: readonly SettingsSectionId[] = [
+    "brand_kit",
+    "versions",
+    "scheduled",
+    "experiments",
+    "segments",
+    "i18n",
+];
 
 const PREVIEW_PRODUCTS_LIMIT = 24;
 
@@ -52,8 +67,25 @@ async function getServerSupabase() {
     );
 }
 
-export default async function StoreV2Page() {
+export default async function StoreV2Page({
+    searchParams,
+}: {
+    searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
     const supabase = await getServerSupabase();
+
+    // Command Center deep-links (?screen=/?page=/?section=) — open the editor
+    // on the exact target the merchant clicked instead of the default state.
+    const sp = await searchParams;
+    const rawScreen = typeof sp.screen === "string" ? sp.screen : undefined;
+    const initialSystemScreen =
+        rawScreen && (DEEP_LINK_SCREENS as readonly string[]).includes(rawScreen)
+            ? (rawScreen as SettingsSectionId)
+            : undefined;
+    const initialPageId =
+        typeof sp.page === "string" ? (sp.page as PageId) : null;
+    const initialSectionId =
+        typeof sp.section === "string" ? sp.section : null;
 
     const {
         data: { user },
@@ -127,6 +159,9 @@ export default async function StoreV2Page() {
             previewToken={previewToken}
             previewProducts={previewProducts}
             previewCategories={previewCategories}
+            initialSystemScreen={initialSystemScreen}
+            initialPageId={initialPageId}
+            initialSectionId={initialSectionId}
         />
     );
 }

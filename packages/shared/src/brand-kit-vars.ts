@@ -7,8 +7,8 @@
 // root `<div>`; downstream components consume the tokens via the
 // `bk-*` Tailwind theme tokens or by reading the vars directly.
 //
-// 34 variables emitted, namespaced `--bk-*`:
-//   - 19 colors (8 base + 11 derived)
+// 37 variables emitted, namespaced `--bk-*`:
+//   - 22 colors (8 base + 11 derived + 3 fixed candy accents)
 //   -  4 typography
 //   -  7 shape (radius, borders, shadows)
 //   -  3 motion
@@ -204,6 +204,10 @@ export const BK_VAR_NAMES = [
   "--bk-ink",
   "--bk-success",
   "--bk-danger",
+  // Colors — fixed candy-accent surfaces (3)
+  "--bk-mint",
+  "--bk-lilac",
+  "--bk-sky",
   // Colors — derived (11)
   "--bk-on-primary",
   "--bk-on-secondary",
@@ -321,6 +325,15 @@ export function buildBrandKitVars(kit: BrandKit): React.CSSProperties {
     "--bk-ink": inkHex,
     "--bk-success": successHex,
     "--bk-danger": dangerHex,
+    // Colors — fixed Candy Bento accent surfaces. The design references
+    // mint / lilac / sky as named decorative surfaces, but the brand kit has
+    // no field for them. Emit them as literals so these surfaces stay
+    // on-palette even when a tenant overrides `success` or `secondary`
+    // (which previously made every mint surface emerald and every lilac
+    // surface collapse to mint). Themeable tokens stay primary/secondary/accent.
+    "--bk-mint": "#7cf0bd",
+    "--bk-lilac": "#c5b6ff",
+    "--bk-sky": "#9ad8ff",
     // Colors — derived
     "--bk-on-primary": onColor(primary),
     "--bk-on-secondary": onColor(secondary),

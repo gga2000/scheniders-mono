@@ -19,6 +19,11 @@ import {
 import { StoreLink } from "./helpers/store-context";
 import { formatPrice } from "./helpers/format";
 import { useCart } from "./helpers/cart-store";
+import {
+  resolveTenantWhatsapp,
+  resolveTenantPhone,
+  whatsappDigits,
+} from "./helpers/whatsapp";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
@@ -29,6 +34,9 @@ const schema = z.object({
   secondary_label_i18n: i18nStringOptional,
   secondary_kind: z.enum(["whatsapp", "call", "none"]).optional(),
   show_total: z.boolean(),
+  /** Point this bar's WhatsApp/call button at a different number than the
+   *  store-wide one (store_config.contact.whatsapp_number). Empty = inherit. */
+  whatsapp_override: z.string().optional(),
 });
 
 type Props = z.infer<typeof schema>;
@@ -54,19 +62,18 @@ function StickyCtaBarRender({
   const subtotal = useCart((s) => s.getTotal());
   const itemCount = useCart((s) => s.getItemCount());
 
-  const tenantWhatsapp =
-    (ctx.tenant as unknown as { whatsapp_number?: string | null })
-      .whatsapp_number || null;
-  const tenantPhone =
-    (ctx.tenant as unknown as { phone_number?: string | null })
-      .phone_number || tenantWhatsapp;
+  // Resolve through the canonical store contact so this bar uses the same
+  // store-wide WhatsApp number as every other section (with an optional
+  // per-bar override).
+  const waNumber = resolveTenantWhatsapp(ctx.tenant, props.whatsapp_override);
+  const callNumber = resolveTenantPhone(ctx.tenant, props.whatsapp_override);
 
   const secondaryHref = (() => {
-    if (props.secondary_kind === "whatsapp" && tenantWhatsapp) {
-      return `https://wa.me/${tenantWhatsapp.replace(/\D/g, "")}`;
+    if (props.secondary_kind === "whatsapp" && waNumber) {
+      return `https://wa.me/${whatsappDigits(waNumber)}`;
     }
-    if (props.secondary_kind === "call" && tenantPhone) {
-      return `tel:${tenantPhone}`;
+    if (props.secondary_kind === "call" && callNumber) {
+      return `tel:${callNumber}`;
     }
     return null;
   })();

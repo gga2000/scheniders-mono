@@ -12,7 +12,8 @@
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
-import { BentoCard } from "./helpers/primitives";
+import { BentoCard, Sticker } from "./helpers/primitives";
+import { formatPrice } from "./helpers/format";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
 
@@ -65,6 +66,40 @@ function PdpGalleryRender({
   if (!ctx.product || images.length === 0) return null;
 
   const productName = ctx.product.name ?? "";
+  const product = ctx.product;
+  const t = ctx.runtime.locale === "ar";
+  const onSale =
+    product.compare_at_price != null && product.compare_at_price > product.price;
+  const savings = onSale ? product.compare_at_price! - product.price : 0;
+  const stockLeft =
+    (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0);
+  // Overlay stickers for the main (stacked) image: a "Save X" sale flag, a
+  // low-stock urgency flag, or a sold-out flag.
+  const overlayStickers = (
+    <>
+      {onSale && savings > 0 && (
+        <div className="absolute top-3 right-3 z-10">
+          <Sticker bg="pink" rotate={-6} size="sm">
+            {t ? `وفّر ${formatPrice(savings)}` : `Save ${formatPrice(savings)}`}
+          </Sticker>
+        </div>
+      )}
+      {stockLeft > 0 && stockLeft <= 5 && (
+        <div className="absolute bottom-3 left-3 z-10">
+          <Sticker bg="lilac" rotate={3} size="xs">
+            {t ? `آخر ${stockLeft} قطع` : `Last ${stockLeft} in stock`}
+          </Sticker>
+        </div>
+      )}
+      {stockLeft <= 0 && (
+        <div className="absolute bottom-3 left-3 z-10">
+          <Sticker bg="ink" rotate={3} size="xs">
+            {t ? "نفد المخزون" : "Sold Out"}
+          </Sticker>
+        </div>
+      )}
+    </>
+  );
 
   if (props.layout === "grid") {
     return (
@@ -143,6 +178,7 @@ function PdpGalleryRender({
             priority
           />
         </button>
+        {overlayStickers}
       </BentoCard>
       {props.show_thumbnails && images.length > 1 && (
         <div className="mt-bk-sm flex gap-bk-xs overflow-x-auto scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

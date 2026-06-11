@@ -1,9 +1,17 @@
 // =====================================================================
 // Section — pdp_buy_box
 // =====================================================================
-// One-card PDP buy box: title + price + variant picker + qty stepper +
-// add-to-cart + COD reassurance badge. Reads runtime.product. Used on
-// product detail pages as the conversion hub.
+// The PDP conversion hub, in the Candy Bento lockup:
+//   • white info card — On-Sale/New badge, title, optional rating, price +
+//     compare-at + "-X% WOW!" sticker
+//   • butter CodCard — glorified cash-on-delivery (24h + pay-cash + inspect)
+//   • dashed options card — SIZE pills (size-like variants), OPTION pills
+//     (the rest), QTY stepper, "Size Guide" link
+//   • inline add-to-cart + WhatsApp
+//   • a full-bleed mint sticky slab (TOTAL + WhatsApp + ADD TO CART) that
+//     floats up whenever the inline CTA is off-screen.
+// Reads runtime.product (+ its variants). Rating is opt-in via real config —
+// no fabricated review counts.
 // =====================================================================
 
 "use client";
@@ -14,13 +22,15 @@ import { resolveI18n } from "@scheniders/shared";
 import {
   BentoCard,
   ChunkyButton,
+  CodCard,
   MaterialIcon,
   Sticker,
   WhatsAppIcon,
 } from "./helpers/primitives";
+import { cn } from "./helpers/utils";
 import { formatPrice, formatSavings } from "./helpers/format";
 import { useCart } from "./helpers/cart-store";
-import { whatsappOrderLink } from "./helpers/whatsapp";
+import { whatsappOrderLink, resolveTenantWhatsapp } from "./helpers/whatsapp";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
@@ -31,6 +41,17 @@ const schema = z.object({
   show_compare_price: z.boolean(),
   show_variant_picker: z.boolean(),
   show_qty_stepper: z.boolean(),
+  /** Show the glorified butter COD card. */
+  show_cod_card: z.boolean().optional(),
+  /** Show a "Size Guide" link beside the SIZE picker. */
+  show_size_guide: z.boolean().optional(),
+  /** Optional REAL aggregate rating (0–5) + count. Stars render only when both
+   *  are present — never fabricate review counts. */
+  rating_value: z.number().min(0).max(5).optional(),
+  rating_count: z.number().int().nonnegative().optional(),
+  /** Point this section's WhatsApp button at a different number than the
+   *  store-wide one (store_config.contact.whatsapp_number). Empty = inherit. */
+  whatsapp_override: z.string().optional(),
 });
 
 type Props = z.infer<typeof schema>;
@@ -44,13 +65,20 @@ const defaultProps: Props = {
   show_compare_price: true,
   show_variant_picker: true,
   show_qty_stepper: true,
+  show_cod_card: true,
+  show_size_guide: true,
 };
 
 interface ProductVariantLite {
   id: string;
   name: string;
   price?: number | null;
+  stock_quantity?: number;
 }
+
+/** Size-like variant names (S / M / L / XL / 2XL / numeric) get the SIZE picker;
+ *  everything else falls into the OPTION picker. */
+const SIZE_LIKE = /^(xs|s|m|l|xl|xxl|xxxl|2xl|3xl|4xl|\d+)$/i;
 
 function PdpBuyBoxRender({
   props,
@@ -61,22 +89,32 @@ function PdpBuyBoxRender({
 }) {
   const product = ctx.product;
   const locale = ctx.runtime.locale;
+  const t = locale === "ar";
   const addItem = useCart((s) => s.addItem);
+
   const variants = useMemo(
     () =>
       (product as unknown as { variants?: ProductVariantLite[] } | undefined)
         ?.variants ?? [],
     [product],
   );
+  const { sizeVariants, otherVariants } = useMemo(() => {
+    const sizes: ProductVariantLite[] = [];
+    const others: ProductVariantLite[] = [];
+    for (const v of variants) {
+      if (SIZE_LIKE.test(v.name.trim())) sizes.push(v);
+      else others.push(v);
+    }
+    return { sizeVariants: sizes, otherVariants: others };
+  }, [variants]);
+
   const [variantId, setVariantId] = useState<string | null>(
     variants[0]?.id ?? null,
   );
   const [qty, setQty] = useState(1);
 
-  // The WhatsApp message embeds the product URL. The absolute page URL is only
-  // available on the client, so initialise with the SSR-safe relative path —
-  // server and first client render then match (no hydration mismatch) — and
-  // upgrade to the absolute URL after mount.
+  // WhatsApp deep-link embeds the absolute page URL — only known client-side,
+  // so start SSR-safe (relative) and upgrade after mount (no hydration drift).
   const [pageUrl, setPageUrl] = useState(
     `/products/${(product as { slug?: string } | undefined)?.slug ?? product?.id ?? ""}`,
   );
@@ -84,10 +122,7 @@ function PdpBuyBoxRender({
     setPageUrl(window.location.href);
   }, []);
 
-  // Sticky buy bar: surfaces a reachable Add-to-cart whenever the inline
-  // CTA is off-screen (e.g. while the shopper is still scrolling the
-  // gallery, or has scrolled past the buy box). Keeps the primary action
-  // one tap away on long product pages, desktop + mobile.
+  // Sticky slab visibility — surfaces the CTA whenever the inline one is off-screen.
   const inlineCtaRef = useRef<HTMLDivElement>(null);
   const [showSticky, setShowSticky] = useState(false);
   useEffect(() => {
@@ -106,12 +141,7 @@ function PdpBuyBoxRender({
       return (
         <div
           data-section-placeholder="pdp_buy_box"
-          style={{
-            padding: 12,
-            border: "1px dashed #999",
-            color: "#666",
-            fontSize: 12,
-          }}
+          style={{ padding: 12, border: "1px dashed #999", color: "#666", fontSize: 12 }}
         >
           pdp_buy_box — no product in runtime context
         </div>
@@ -128,12 +158,24 @@ function PdpBuyBoxRender({
   const savings = onSale
     ? formatSavings(product.compare_at_price ?? 0, product.price)
     : null;
-  const oos =
-    (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0) <= 0;
+  const discountPct = onSale
+    ? Math.round(
+        ((product.compare_at_price! - product.price) /
+          product.compare_at_price!) *
+          100,
+      )
+    : 0;
+  const stockLeft =
+    (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0);
+  const oos = stockLeft <= 0;
 
-  const t = locale === "ar";
   const ctaLabel = resolveI18n(props.add_to_cart_label_i18n, locale);
   const codLabel = resolveI18n(props.cod_badge_label_i18n, locale);
+
+  const ratingValue = props.rating_value;
+  const ratingCount = props.rating_count;
+  const showRating =
+    typeof ratingValue === "number" && typeof ratingCount === "number";
 
   function handleAdd() {
     if (oos || !product) return;
@@ -148,136 +190,212 @@ function PdpBuyBoxRender({
     });
   }
 
+  const VariantPill = ({
+    v,
+    big,
+  }: {
+    v: ProductVariantLite;
+    big?: boolean;
+  }) => {
+    const isActive = (variantId ?? variants[0]?.id) === v.id;
+    const vOos = v.stock_quantity === 0;
+    return (
+      <button
+        type="button"
+        key={v.id}
+        onClick={() => setVariantId(v.id)}
+        aria-pressed={isActive}
+        disabled={vOos}
+        className={cn(
+          "font-display font-black uppercase transition-transform",
+          big ? "min-w-12 h-12 px-3 text-lg" : "px-4 h-10 text-sm",
+          isActive && "scale-105 -rotate-2",
+          vOos && "opacity-40 cursor-not-allowed line-through",
+        )}
+        style={{
+          backgroundColor: isActive
+            ? "var(--bk-primary, #ff5a8a)"
+            : "#ffffff",
+          color: isActive ? "var(--bk-on-primary, #fff)" : "var(--bk-ink, #1a1a1a)",
+          border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+          borderRadius: "var(--bk-radius-input, 0.75rem)",
+          boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
+          fontFamily: "var(--bk-font-display, inherit)",
+        }}
+      >
+        {v.name}
+      </button>
+    );
+  };
+
   return (
     <>
-    <section
-      className="px-4 py-4"
-      style={{
-        fontFamily: "var(--bk-font-display, inherit)",
-      }}
-    >
-      <BentoCard
-        bg="white"
-        size="md"
-        className="p-bk-lg sm:p-bk-xl space-y-bk-md"
-        style={{ borderRadius: "var(--bk-radius-card, 1.25rem)" }}
-      >
-        <div className="flex items-start gap-bk-sm flex-wrap">
+      <section className="px-4 py-4 space-y-bk-md">
+        {/* ── Info card ── */}
+        <BentoCard bg="white" size="md" className="p-bk-lg sm:p-bk-xl space-y-bk-sm relative">
+          <span
+            className="inline-block font-display font-black text-xs uppercase px-2 py-1"
+            style={{
+              backgroundColor: onSale ? "var(--bk-primary, #ff5a8a)" : "var(--bk-sky, #9ad8ff)",
+              color: onSale ? "var(--bk-on-primary, #fff)" : "var(--bk-ink, #1a1a1a)",
+              border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+              borderRadius: "calc(var(--bk-radius-input, 0.5rem) * 0.6)",
+            }}
+          >
+            {onSale ? (t ? "تخفيض" : "On Sale") : t ? "وصل حديثاً" : "New Arrival"}
+          </span>
+
           <h1
-            className="font-display font-black text-2xl sm:text-3xl uppercase leading-tight flex-1 min-w-0"
+            className="font-display font-black text-2xl sm:text-3xl uppercase leading-tight"
             style={{ color: "var(--bk-ink, #1a1a1a)" }}
           >
             {product.name}
           </h1>
-          {onSale && (
-            <Sticker bg="pink" rotate={-4} size="sm">
-              {t ? "تخفيض" : "Sale"}
-            </Sticker>
-          )}
-        </div>
 
-        <div className="flex items-baseline gap-bk-sm flex-wrap">
-          <span
-            className="font-display font-black text-3xl sm:text-4xl"
-            style={{ color: "var(--bk-primary, #ff4081)" }}
-          >
-            {formatPrice(unitPrice * qty)}
-          </span>
-          {props.show_compare_price &&
-            onSale &&
-            product.compare_at_price != null && (
+          {showRating && (
+            <div className="flex items-center gap-2">
+              <span
+                className="text-lg drop-shadow-[1px_1px_0px_#1a1a1a]"
+                style={{ color: "var(--bk-mint, #7cf0bd)" }}
+                aria-hidden="true"
+              >
+                {"★".repeat(Math.round(ratingValue!))}
+                <span style={{ color: "var(--bk-ink-faint, rgb(26 26 26 / 0.38))" }}>
+                  {"★".repeat(5 - Math.round(ratingValue!))}
+                </span>
+              </span>
+              <span className="font-body font-bold text-sm text-bk-ink-soft">
+                ({ratingCount})
+              </span>
+            </div>
+          )}
+
+          <div className="flex items-baseline gap-bk-sm flex-wrap relative pt-bk-2xs">
+            <span
+              className="font-display font-black text-3xl sm:text-4xl"
+              style={{ color: "var(--bk-primary, #ff5a8a)" }}
+            >
+              {formatPrice(unitPrice * qty)}
+            </span>
+            {props.show_compare_price && onSale && product.compare_at_price != null && (
               <span className="font-body text-lg text-bk-ink-soft line-through">
                 {formatPrice(product.compare_at_price)}
               </span>
             )}
+            {onSale && (
+              <span className="absolute -top-3 right-0">
+                <Sticker bg="mint" rotate={10} size="sm">
+                  {t ? `وفّر ${discountPct}%` : `-${discountPct}% Wow!`}
+                </Sticker>
+              </span>
+            )}
+          </div>
           {savings && (
-            <span className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-primary">
+            <p className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-primary">
               {t ? `وفّر ${savings}` : `Save ${savings}`}
-            </span>
-          )}
-        </div>
-
-        {props.show_variant_picker && variants.length > 0 && (
-          <div data-layer="variants" data-layer-label="Variant pills">
-            <p className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft mb-bk-xs">
-              {t ? "الخيارات" : "Options"}
             </p>
-            <div className="flex flex-wrap gap-bk-xs">
-              {variants.map((v) => {
-                const isActive = (variantId ?? variants[0]?.id) === v.id;
-                return (
+          )}
+        </BentoCard>
+
+        {/* ── Glorified COD card ── */}
+        {props.show_cod_card !== false && <CodCard locale={locale} />}
+
+        {/* ── Options card (dashed) ── */}
+        {(props.show_variant_picker || props.show_qty_stepper) && (
+          <BentoCard
+            bg="cream"
+            size="md"
+            className="p-bk-lg space-y-bk-md"
+            style={{ borderStyle: "dashed" }}
+          >
+            {props.show_variant_picker && sizeVariants.length > 0 && (
+              <div data-layer="variants" data-layer-label="Size pills">
+                <div className="flex justify-between items-end mb-bk-xs">
+                  <h3 className="font-display font-black text-lg uppercase">
+                    {t ? "المقاس" : "Size"}
+                  </h3>
+                  {props.show_size_guide !== false && (
+                    <span className="font-label font-bold text-xs text-bk-ink-soft underline decoration-2 underline-offset-2">
+                      {t ? "دليل المقاسات" : "Size Guide"}
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-bk-xs flex-wrap">
+                  {sizeVariants.map((v) => (
+                    <VariantPill key={v.id} v={v} big />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {props.show_variant_picker && otherVariants.length > 0 && (
+              <div data-layer="variants" data-layer-label="Option pills">
+                <h3 className="font-display font-black text-lg uppercase mb-bk-xs">
+                  {t ? "الخيار" : "Option"}
+                </h3>
+                <div className="flex gap-bk-xs flex-wrap">
+                  {otherVariants.map((v) => (
+                    <VariantPill key={v.id} v={v} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {props.show_qty_stepper && (
+              <div data-layer="qty" data-layer-label="Quantity stepper">
+                <h3 className="font-display font-black text-lg uppercase mb-bk-xs">
+                  {t ? "الكمية" : "Quantity"}
+                </h3>
+                <div
+                  className="inline-flex items-center bg-white"
+                  style={{
+                    border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+                    borderRadius: "var(--bk-radius-input, 0.75rem)",
+                    boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
+                  }}
+                >
                   <button
                     type="button"
-                    key={v.id}
-                    onClick={() => setVariantId(v.id)}
-                    aria-pressed={isActive}
-                    className="px-4 py-2 font-display font-black text-sm uppercase"
+                    onClick={() => setQty((q) => Math.max(1, q - 1))}
+                    aria-label={t ? "إنقاص الكمية" : "Decrease quantity"}
+                    className="w-11 h-11 flex items-center justify-center"
+                    style={{ color: "var(--bk-ink, #1a1a1a)" }}
+                  >
+                    <MaterialIcon name="remove" />
+                  </button>
+                  <span
+                    className="w-11 text-center font-display font-black text-lg"
+                    style={{ color: "var(--bk-ink, #1a1a1a)", fontFamily: "var(--bk-font-display, inherit)" }}
+                  >
+                    {qty}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setQty((q) => Math.min(Math.max(1, stockLeft || 99), q + 1))
+                    }
+                    aria-label={t ? "زيادة الكمية" : "Increase quantity"}
+                    className="w-11 h-11 flex items-center justify-center"
                     style={{
-                      backgroundColor: isActive
-                        ? "var(--bk-secondary, #c5b6ff)"
-                        : "#ffffff",
                       color: "var(--bk-ink, #1a1a1a)",
-                      border:
-                        "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
-                      borderRadius: "var(--bk-radius-input, 0.75rem)",
-                      boxShadow:
-                        "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
-                      fontFamily: "var(--bk-font-display, inherit)",
+                      backgroundColor: "var(--bk-mint, #7cf0bd)",
+                      borderLeft: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
                     }}
                   >
-                    {v.name}
+                    <MaterialIcon name="add" />
                   </button>
-                );
-              })}
-            </div>
-          </div>
+                </div>
+                {!oos && stockLeft > 0 && stockLeft <= 10 && (
+                  <p className="text-xs font-label font-bold text-bk-ink-soft mt-bk-2xs">
+                    {t ? `بقي ${stockLeft} فقط` : `Only ${stockLeft} left`}
+                  </p>
+                )}
+              </div>
+            )}
+          </BentoCard>
         )}
 
-        {props.show_qty_stepper && (
-          <div data-layer="qty" data-layer-label="Quantity stepper" className="flex items-center gap-bk-sm">
-            <span className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
-              {t ? "الكمية" : "Qty"}
-            </span>
-            <div
-              className="flex items-center bg-white"
-              style={{
-                border:
-                  "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
-                borderRadius: "var(--bk-radius-input, 0.75rem)",
-                boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => setQty((q) => Math.max(1, q - 1))}
-                aria-label="Decrease quantity"
-                className="w-10 h-10 flex items-center justify-center"
-                style={{ color: "var(--bk-ink, #1a1a1a)" }}
-              >
-                <MaterialIcon name="remove" />
-              </button>
-              <span
-                className="w-10 text-center font-display font-black text-lg"
-                style={{
-                  color: "var(--bk-ink, #1a1a1a)",
-                  fontFamily: "var(--bk-font-display, inherit)",
-                }}
-              >
-                {qty}
-              </span>
-              <button
-                type="button"
-                onClick={() => setQty((q) => q + 1)}
-                aria-label="Increase quantity"
-                className="w-10 h-10 flex items-center justify-center"
-                style={{ color: "var(--bk-ink, #1a1a1a)" }}
-              >
-                <MaterialIcon name="add" />
-              </button>
-            </div>
-          </div>
-        )}
-
+        {/* ── Inline add-to-cart ── */}
         <div
           ref={inlineCtaRef}
           data-layer="add_to_cart"
@@ -297,16 +415,15 @@ function PdpBuyBoxRender({
           </ChunkyButton>
         </div>
 
+        {/* ── WhatsApp order ── */}
         {(() => {
-          const phone = (ctx.tenant as { contact_phone?: string | null } | undefined)
-            ?.contact_phone;
+          const phone = resolveTenantWhatsapp(
+            ctx.tenant,
+            props.whatsapp_override,
+          );
           const link = whatsappOrderLink(
             phone,
-            {
-              name: product.name,
-              url: pageUrl,
-              price: formatPrice(unitPrice * qty),
-            },
+            { name: product.name, url: pageUrl, price: formatPrice(unitPrice * qty) },
             locale,
           );
           if (!link) return null;
@@ -318,10 +435,9 @@ function PdpBuyBoxRender({
               data-testid="pdp-whatsapp-cta"
               className="inline-flex w-full items-center justify-center gap-2 px-4 py-3 text-sm font-display font-black uppercase tracking-wide"
               style={{
-                backgroundColor: "var(--bk-success, #7cf0bd)",
+                backgroundColor: "var(--bk-mint, #7cf0bd)",
                 color: "var(--bk-ink, #1a1a1a)",
-                border:
-                  "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+                border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
                 borderRadius: "var(--bk-radius-input, 0.75rem)",
                 boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
               }}
@@ -336,10 +452,9 @@ function PdpBuyBoxRender({
           <div
             className="inline-flex items-center gap-2 px-3 py-2 font-label font-bold text-xs uppercase tracking-[0.15em]"
             style={{
-              backgroundColor: "var(--bk-success, #7cf0bd)",
+              backgroundColor: "var(--bk-mint, #7cf0bd)",
               color: "var(--bk-ink, #1a1a1a)",
-              border:
-                "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+              border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
               borderRadius: "var(--bk-radius-pill, 9999px)",
               boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
             }}
@@ -348,61 +463,37 @@ function PdpBuyBoxRender({
             {codLabel}
           </div>
         )}
-      </BentoCard>
-    </section>
+      </section>
 
-      {/* Sticky buy bar — floats up when the inline CTA is off-screen so the
-          add-to-cart is always one tap away. Contained "bento" pill, not a
-          full-bleed slab; slides in/out and respects reduced-motion via the
-          CSS transition only animating transform. */}
+      {/* ── Full-bleed mint sticky slab — TOTAL + WhatsApp + ADD TO CART ── */}
       <div
         aria-hidden={!showSticky}
-        className={
-          "fixed inset-x-0 bottom-0 z-40 px-3 pb-3 transition-transform duration-300 ease-out motion-reduce:transition-none " +
-          (showSticky ? "translate-y-0" : "translate-y-[140%] pointer-events-none")
-        }
+        className={cn(
+          "fixed inset-x-0 bottom-0 z-40 transition-transform duration-300 ease-out motion-reduce:transition-none",
+          showSticky ? "translate-y-0" : "translate-y-full pointer-events-none",
+        )}
+        style={{
+          backgroundColor: "var(--bk-mint, #7cf0bd)",
+          borderTop: "var(--bk-border-thickness-bold, 4px) solid var(--bk-ink, #1a1a1a)",
+          boxShadow: "0 -4px 0 0 var(--bk-ink, #1a1a1a)",
+        }}
       >
-        <div
-          className="mx-auto flex max-w-3xl items-center gap-3 px-3 py-2 sm:gap-4 sm:px-4"
-          style={{
-            backgroundColor: "color-mix(in srgb, var(--bk-surface, #ffffff) 92%, transparent)",
-            backdropFilter: "blur(8px)",
-            WebkitBackdropFilter: "blur(8px)",
-            border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
-            borderRadius: "var(--bk-radius-card, 1rem)",
-            boxShadow: "var(--bk-shadow-card, 6px 6px 0px 0px #1a1a1a)",
-          }}
-        >
-          <div className="hidden min-w-0 flex-1 sm:block">
-            <p
-              className="truncate font-display font-black text-sm uppercase leading-tight"
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
+          <div className="flex flex-col leading-tight min-w-0">
+            <span className="font-label font-bold text-[10px] uppercase tracking-[0.2em] text-bk-ink-soft">
+              {t ? "الإجمالي" : "Total"}
+            </span>
+            <span
+              className="font-display font-black text-xl sm:text-2xl"
               style={{ color: "var(--bk-ink, #1a1a1a)" }}
             >
-              {product.name}
-            </p>
-            <p
-              className="font-display font-black leading-tight"
-              style={{ color: "var(--bk-primary, #ff4081)" }}
-            >
               {formatPrice(unitPrice * qty)}
-            </p>
+            </span>
           </div>
-          <span
-            className="font-display font-black text-lg sm:hidden"
-            style={{ color: "var(--bk-primary, #ff4081)" }}
-          >
-            {formatPrice(unitPrice * qty)}
-          </span>
-          <div className="ml-auto shrink-0">
-            <ChunkyButton
-              type="button"
-              bg="pink"
-              size="md"
-              onClick={handleAdd}
-              disabled={oos}
-            >
+          <div className="shrink-0">
+            <ChunkyButton type="button" bg="pink" size="md" onClick={handleAdd} disabled={oos}>
               <MaterialIcon name="shopping_bag" />
-              {oos ? (t ? "نفد المخزون" : "Out of stock") : ctaLabel}
+              {oos ? (t ? "نفد" : "Sold Out") : ctaLabel}
             </ChunkyButton>
           </div>
         </div>
@@ -416,8 +507,8 @@ const definition: SectionDefinition<Props> = {
   category: "page",
   name: { en: "Buy box", ar: "صندوق الشراء" },
   description: {
-    en: "PDP buy box: title, price, variants, qty, add-to-cart, COD badge.",
-    ar: "صندوق شراء المنتج: العنوان، السعر، الخيارات، الكمية، الإضافة للسلة، شارة الدفع عند الاستلام.",
+    en: "PDP buy box: badge, title, price, COD card, size/option/qty, add-to-cart, sticky slab.",
+    ar: "صندوق شراء المنتج: الشارة، العنوان، السعر، بطاقة الدفع عند الاستلام، المقاس/الخيار/الكمية، الإضافة للسلة، الشريط السفلي.",
   },
   thumbnail: "/sections/pdp_buy_box.svg",
   valid_on: ["product"],

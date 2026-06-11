@@ -58,7 +58,7 @@ export function PagesCard({ config }: PagesCardProps) {
                                 {page.sections.length} section{page.sections.length !== 1 ? "s" : ""}
                             </span>
                             <Link
-                                href="/store/edit"
+                                href={`/store/edit?page=${page.page_id}`}
                                 className="text-[11px] font-semibold text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground transition-all flex items-center gap-0.5"
                             >
                                 Edit <ArrowRight className="w-3 h-3" />

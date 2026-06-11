@@ -232,7 +232,17 @@ export default async function TenantLayout({ params, children }: Props) {
       />
       <div
         data-bk-motion={bkMotion}
-        style={{ ...brandVars, ...schnVars, ...bkVars }}
+        style={{
+          ...brandVars,
+          ...schnVars,
+          ...bkVars,
+          // Cascade the brand-kit body font to ALL inherited text in the
+          // tenant subtree (not only primitives that read the var explicitly),
+          // so plain prose/labels render in DM Sans / the tenant body face
+          // rather than system-ui.
+          fontFamily:
+            "var(--bk-font-body, var(--font-dm-sans), 'DM Sans', sans-serif)",
+        }}
       >
         {children}
       </div>
@@ -248,13 +258,24 @@ export async function generateMetadata({ params }: { params: Promise<{ tenant: s
   if (!tenant) return { title: "Store not found" };
 
   const seo = tenant.store_config?.seo;
-  const logoUrl = tenant.store_config?.logo_url || tenant.branding?.logo_url;
-  const title = seo?.meta_title || tenant.business_name;
+  // Prefer the V2 brand kit identity (what the store builder edits) and fall
+  // back to the legacy `store_config.seo`/`logo_url`. Without this, the OG image
+  // and favicon a merchant uploads in the V2 builder never render, and the
+  // health check that validates `brand_kit.identity.*` reports a false pass.
+  const v2Identity = (
+    tenant as Tenant & { store_config_v2?: StoreConfigV2 | null }
+  ).store_config_v2?.brand_kit?.identity;
+  const logoUrl =
+    v2Identity?.favicon_url ||
+    v2Identity?.logo_url ||
+    tenant.store_config?.logo_url ||
+    tenant.branding?.logo_url;
+  const title = seo?.meta_title || v2Identity?.name || tenant.business_name;
   const description =
     seo?.meta_description ||
     `${tenant.business_name} — اطلب الآن من أفضل المنتجات`;
   const origin = await getRequestOrigin();
-  const ogImage = seo?.og_image_url;
+  const ogImage = v2Identity?.og_image_url || seo?.og_image_url;
 
   return {
     // metadataBase lets Next resolve relative OG/canonical URLs to absolutes.

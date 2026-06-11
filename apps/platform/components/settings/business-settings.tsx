@@ -7,6 +7,7 @@ import {
     Save,
     Palette,
     Phone,
+    MessageCircle,
     Mail,
     MapPin,
     Globe,
@@ -31,6 +32,10 @@ interface TenantData {
     trial_ends_at: string | null;
     contact_email: string | null;
     contact_phone: string | null;
+    store_config: {
+        contact?: { whatsapp_number?: string | null } | null;
+        [key: string]: unknown;
+    } | null;
     city: string | null;
     address: string | null;
     branding: {
@@ -112,6 +117,9 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
     const [businessName, setBusinessName] = useState(tenant.business_name || "");
     const [contactEmail, setContactEmail] = useState(tenant.contact_email || "");
     const [contactPhone, setContactPhone] = useState(tenant.contact_phone || "");
+    const [whatsappNumber, setWhatsappNumber] = useState(
+        tenant.store_config?.contact?.whatsapp_number || "",
+    );
     const [city, setCity] = useState(tenant.city || "");
     const [address, setAddress] = useState(tenant.address || "");
     const [primaryColor, setPrimaryColor] = useState(tenant.branding?.primary_color || "#3b82f6");
@@ -154,6 +162,16 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                     business_name: businessName.trim(),
                     contact_email: contactEmail.trim() || null,
                     contact_phone: contactPhone.trim() || null,
+                    // Universal storefront WhatsApp number — every WhatsApp CTA
+                    // resolves through store_config.contact.whatsapp_number
+                    // (per-button overrides live in the store builder).
+                    store_config: {
+                        ...(tenant.store_config ?? {}),
+                        contact: {
+                            ...((tenant.store_config?.contact as Record<string, unknown> | null) ?? {}),
+                            whatsapp_number: whatsappNumber.trim() || null,
+                        },
+                    },
                     city: city.trim() || null,
                     address: address.trim() || null,
                     branding: {
@@ -275,6 +293,23 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                                 className="w-full px-3 py-2 rounded-xl border border-(--card-border) bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                                 placeholder="07XXXXXXXXX"
                             />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                                <MessageCircle className="w-3 h-3 inline mr-1" />
+                                WhatsApp Number
+                            </label>
+                            <input
+                                type="tel"
+                                value={whatsappNumber}
+                                onChange={(e) => setWhatsappNumber(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-(--card-border) bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                placeholder="07XXXXXXXXX"
+                            />
+                            <p className="text-[11px] text-muted-foreground mt-1">
+                                Used for every WhatsApp button across your storefront.
+                                Individual buttons can override this in the store builder.
+                            </p>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div>
