@@ -73,13 +73,22 @@ export function useLeadFormController({
 
   const isEdit = !!initialData;
 
+  // Snapshot of the form as it was on open — used to detect unsaved edits so an
+  // accidental dismissal can be auto-saved as a draft.
+  const baselineRef = useRef<string>("");
+
   const resetForm = useCallback(() => {
-    setForm(initialData ? { ...DEFAULT_FORM, ...initialData } : DEFAULT_FORM);
+    const initial = initialData ? { ...DEFAULT_FORM, ...initialData } : DEFAULT_FORM;
+    setForm(initial);
+    baselineRef.current = JSON.stringify(initial);
     setAnalyzeHandle("");
     setAnalyzeError(null);
     setAnalyzeSuccess(false);
     setErrors({});
   }, [initialData]);
+
+  /** True when the form differs from its opened state (has unsaved content). */
+  const isDirty = JSON.stringify(form) !== baselineRef.current;
 
   useEffect(() => {
     if (open) resetForm();
@@ -308,6 +317,7 @@ export function useLeadFormController({
     estimatedMonthlyRevenue,
     hasPrediction,
     avgOrderValue,
+    isDirty,
     update,
     resetForm,
     handleAnalyze,

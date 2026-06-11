@@ -122,6 +122,7 @@ export async function POST(request: NextRequest) {
         tags: body.tags || [],
         source_campaign: body.source_campaign || null,
         source_medium: body.source_medium || null,
+        is_draft: body.is_draft ?? false,
         // Attribute the lead to the authenticated admin who added it (who, not client-supplied).
         created_by: admin.user.id,
       })

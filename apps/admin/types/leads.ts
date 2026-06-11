@@ -182,6 +182,9 @@ export interface Lead {
   /** Additional store branches, each with its own location + phone(s). */
   branches: LeadBranch[];
 
+  /** True while this is an unfinished draft (auto-saved on accidental form exit). */
+  is_draft: boolean;
+
   status: LeadStatus;
   priority: LeadPriority;
   lead_score: number;

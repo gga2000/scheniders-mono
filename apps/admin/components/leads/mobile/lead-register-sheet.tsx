@@ -46,6 +46,11 @@ interface LeadRegisterSheetProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: LeadFormData) => Promise<boolean>;
   initialData?: Partial<LeadFormData>;
+  /**
+   * If provided, closing the sheet (swipe / tap-outside / back) with unsaved
+   * content auto-saves the in-progress lead as a draft instead of losing it.
+   */
+  onSaveDraft?: (data: LeadFormData) => void;
 }
 
 const PLATFORM_ICONS: Record<LeadSourcePlatform, LucideIcon> = {
@@ -72,6 +77,7 @@ export function LeadRegisterSheet({
   onOpenChange,
   onSubmit,
   initialData,
+  onSaveDraft,
 }: LeadRegisterSheetProps) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [industryMgrOpen, setIndustryMgrOpen] = useState(false);
@@ -95,6 +101,7 @@ export function LeadRegisterSheet({
     estimatedMonthlyRevenue,
     isOrdersOverride,
     hasPrediction,
+    isDirty,
     update,
     handleAnalyze,
     addPhone,
@@ -115,6 +122,14 @@ export function LeadRegisterSheet({
   });
 
   const PlatformIcon = PLATFORM_ICONS[form.platform];
+
+  // Closing the sheet (swipe / tap-outside / back) with unsaved content saves a
+  // draft rather than discarding — there's no explicit discard button on mobile.
+  const handleSheetClose = (v: boolean) => {
+    if (!v && submitting) return;
+    if (!v && onSaveDraft && isDirty) onSaveDraft(form);
+    onOpenChange(v);
+  };
 
   const footer = (
     <div className="flex items-center gap-2">
@@ -153,7 +168,7 @@ export function LeadRegisterSheet({
     <>
     <BottomSheet
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={handleSheetClose}
       fullHeight
       title={isEdit ? "Edit Lead" : "Add Lead"}
       footer={footer}

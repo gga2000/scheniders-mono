@@ -34,6 +34,7 @@ import { LeadFollowUpList } from "@/components/leads/lead-follow-up-list";
 import { QuickNoteSheet } from "@/components/leads/mobile/quick-note-sheet";
 import { AdvanceStageSheet } from "@/components/leads/mobile/advance-stage-sheet";
 import { LeadRegisterSheet } from "@/components/leads/mobile/lead-register-sheet";
+import { leadToFormData } from "@/components/leads/lead-form-data";
 import { leadPhone, toIntlIraqi } from "@/components/leads/lead-phone";
 import { useUpdateLead } from "@/hooks/use-lead-mutations";
 import type { LeadFormData } from "@/types/leads";
@@ -303,37 +304,7 @@ export function LeadMobileDetail() {
       <LeadRegisterSheet
         open={editOpen}
         onOpenChange={setEditOpen}
-        initialData={{
-          merchant_name: lead.merchant_name,
-          industry_id: lead.industry_id,
-          industry_detail: lead.industry_detail ?? "",
-          platform: lead.platform,
-          platform_url: lead.platform_url ?? "",
-          handle: lead.handle ?? "",
-          follower_count: lead.follower_count,
-          post_count: lead.post_count,
-          management_name: lead.management_name ?? "",
-          management_info: lead.management_info ?? "",
-          page_phone: lead.page_phone ?? "",
-          phone_numbers: lead.phone_numbers,
-          contact_via_dm: lead.contact_via_dm,
-          website_url: lead.website_url ?? "",
-          email: lead.email ?? "",
-          avg_view_count: lead.avg_view_count,
-          avg_like_count: lead.avg_like_count,
-          avg_comments_count: lead.avg_comments_count,
-          avg_order_count: lead.avg_order_count,
-          address: lead.address ?? "",
-          city: lead.city ?? "",
-          governorate_code: lead.governorate_code ?? "",
-          is_online_only: lead.is_online_only,
-          branches: lead.branches ?? [],
-          priority: lead.priority,
-          assigned_to: lead.assigned_to,
-          tags: lead.tags,
-          source_campaign: lead.source_campaign ?? "",
-          source_medium: lead.source_medium ?? "",
-        }}
+        initialData={leadToFormData(lead)}
         onSubmit={(formData: LeadFormData) =>
           new Promise<boolean>((resolve) => {
             updateLead.mutate(

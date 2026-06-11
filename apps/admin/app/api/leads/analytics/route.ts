@@ -10,10 +10,12 @@ export async function GET(request: NextRequest) {
 
     const supabase = createAdminClient();
 
-    // Fetch all leads for analytics
+    // Fetch all leads for analytics — drafts are unfinished and excluded so they
+    // never inflate pipeline counts or revenue forecasts.
     const { data: leads, error } = await supabase
       .from("leads")
-      .select("id, status, platform, tier, industry_id, lead_score, estimated_monthly_revenue, assigned_to, created_by, created_at, converted_at, industry:industries(name)");
+      .select("id, status, platform, tier, industry_id, lead_score, estimated_monthly_revenue, assigned_to, created_by, created_at, converted_at, industry:industries(name)")
+      .eq("is_draft", false);
 
     if (error) throw error;
 

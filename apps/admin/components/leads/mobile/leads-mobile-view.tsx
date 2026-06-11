@@ -4,14 +4,16 @@ import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useInfiniteLeads } from "@/hooks/use-infinite-leads";
 import { useLeadAnalytics } from "@/hooks/use-lead-analytics";
-import { useCreateLead } from "@/hooks/use-lead-mutations";
+import { useCreateLead, useUpdateLead } from "@/hooks/use-lead-mutations";
 import { useLeadStore } from "@/store/use-lead-store";
 import { usePageHeader } from "@/store/use-page-header";
 import { LEAD_STATUS_CONFIG, LEAD_STATUS_UI } from "@/types/leads";
 import type { Lead, LeadFormData, LeadStatus } from "@/types/leads";
+import { leadToFormData, DRAFT_PLACEHOLDER_NAME } from "../lead-form-data";
 import { LeadMobileRow } from "./lead-mobile-row";
 import { LeadRegisterSheet } from "./lead-register-sheet";
 import { AdvanceStageSheet } from "./advance-stage-sheet";
+import { toast } from "sonner";
 import {
   Search,
   X,
@@ -24,6 +26,7 @@ import {
 export function LeadsMobileView() {
   const [registerOpen, setRegisterOpen] = useState(false);
   const [stageLead, setStageLead] = useState<Lead | null>(null);
+  const [draftLead, setDraftLead] = useState<Lead | null>(null);
 
   const {
     data,
@@ -55,6 +58,7 @@ export function LeadsMobileView() {
   const byStatus = analytics?.by_status;
 
   const createLead = useCreateLead();
+  const updateLead = useUpdateLead();
   const handleCreate = (formData: LeadFormData): Promise<boolean> =>
     new Promise((resolve) => {
       createLead.mutate(formData, {
@@ -62,6 +66,20 @@ export function LeadsMobileView() {
         onError: () => resolve(false),
       });
     });
+
+  // Auto-save an in-progress lead as a draft when the sheet is dismissed.
+  const handleSaveDraft = (formData: LeadFormData) =>
+    createLead.mutate(
+      {
+        ...formData,
+        merchant_name: formData.merchant_name.trim() || DRAFT_PLACEHOLDER_NAME,
+        is_draft: true,
+      },
+      {
+        onSuccess: () => toast.success("Saved as draft — pick it back up anytime"),
+        onError: () => toast.error("Couldn't save the draft"),
+      },
+    );
 
   return (
     <div className="p-4 space-y-4 pb-24">
@@ -185,7 +203,12 @@ export function LeadsMobileView() {
       ) : (
         <div className="space-y-2.5">
           {leads.map((l) => (
-            <LeadMobileRow key={l.id} lead={l} onStatusTap={setStageLead} />
+            <LeadMobileRow
+              key={l.id}
+              lead={l}
+              onStatusTap={setStageLead}
+              onResumeDraft={setDraftLead}
+            />
           ))}
         </div>
       )}
@@ -224,7 +247,32 @@ export function LeadsMobileView() {
         open={registerOpen}
         onOpenChange={setRegisterOpen}
         onSubmit={handleCreate}
+        onSaveDraft={handleSaveDraft}
       />
+
+      {/* Resume an in-progress draft — saving promotes it to a real lead */}
+      <LeadRegisterSheet
+        key={draftLead?.id ?? "no-draft"}
+        open={!!draftLead}
+        onOpenChange={(v) => {
+          if (!v) setDraftLead(null);
+        }}
+        initialData={draftLead ? leadToFormData(draftLead) : undefined}
+        onSubmit={(formData) =>
+          new Promise<boolean>((resolve) => {
+            if (!draftLead) return resolve(false);
+            updateLead.mutate(
+              { id: draftLead.id, data: { ...formData, is_draft: false } },
+              { onSuccess: () => resolve(true), onError: () => resolve(false) },
+            );
+          })
+        }
+        onSaveDraft={(formData) => {
+          if (!draftLead) return;
+          updateLead.mutate({ id: draftLead.id, data: { ...formData, is_draft: true } });
+        }}
+      />
+
       <AdvanceStageSheet lead={stageLead} onClose={() => setStageLead(null)} />
     </div>
   );
