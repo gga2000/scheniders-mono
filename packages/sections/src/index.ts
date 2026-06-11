@@ -31,6 +31,7 @@ import testimonials_carousel from "./testimonials_carousel";
 import image_gallery from "./image_gallery";
 import video_block from "./video_block";
 import marquee_strip from "./marquee_strip";
+import announcement_bar from "./announcement_bar";
 
 // Conversion family
 import promo_banner from "./promo_banner";
@@ -101,6 +102,7 @@ export const BUILTIN_SECTIONS = [
   image_gallery,
   video_block,
   marquee_strip,
+  announcement_bar,
   promo_banner,
   countdown_card,
   free_gift_strip,

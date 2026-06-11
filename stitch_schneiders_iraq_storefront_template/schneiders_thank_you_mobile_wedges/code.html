@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Schneiders - Order Confirmation</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..900&amp;family=DM+Sans:opsz,wght@9..40,400..800&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {},
+            "borderRadius": {
+                    "DEFAULT": "0.5rem",
+                    "lg": "1rem",
+                    "xl": "1.5rem",
+                    "full": "9999px"
+            },
+            "spacing": {},
+            "fontFamily": {
+                    "headline": ["Bricolage Grotesque", "sans-serif"],
+                    "display": ["Bricolage Grotesque", "sans-serif"],
+                    "body": ["DM Sans", "sans-serif"],
+                    "label": ["DM Sans", "sans-serif"]
+            },
+            "fontSize": {}
+          },
+        },
+      }
+    </script>
+<style>
+        .chunky-border { border: 3px solid #1a1a1a; }
+        .chunky-shadow { box-shadow: 4px 4px 0px 0px rgba(26,26,26,1); }
+        .chunky-shadow-sm { box-shadow: 2px 2px 0px 0px rgba(26,26,26,1); }
+        .zigzag-bottom {
+            background-image: radial-gradient(#ffd84a 50%, transparent 50%), radial-gradient(#ffd84a 50%, transparent 50%);
+            background-position: 0 100%, 10px 100%;
+            background-size: 20px 10px;
+            background-repeat: repeat-x;
+            padding-bottom: 10px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-[#fff7ed] text-[#1a1a1a] font-body pb-0 min-h-screen flex flex-col antialiased selection:bg-[#ff5a8a] selection:text-white">
+<!-- 1. Top Promo Bar -->
+<div class="fixed top-0 w-full z-[60] bg-[#ffd84a] text-[#1a1a1a] text-center py-2 font-bold font-body text-sm border-b-[3px] border-[#1a1a1a]">
+        🎉 Order placed! We'll call you in 30 minutes ✨
+    </div>
+<!-- 2. Header (TopAppBar from JSON) -->
+<header class="fixed top-10 w-full z-50 flex justify-between items-center px-6 h-20 bg-[#fff7ed] border-b-[3px] border-[#1a1a1a] shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] docked full-width transition-all">
+<button class="text-[#1a1a1a] hover:scale-105 active:translate-x-1 active:translate-y-1 active:shadow-none transition-all flex items-center justify-center w-10 h-10 rounded-full border-[3px] border-transparent hover:border-[#1a1a1a] hover:bg-[#7cf0bd]">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">menu</span>
+</button>
+<h1 class="font-headline text-2xl font-black uppercase tracking-tighter text-[#1a1a1a]">Schneiders</h1>
+<button class="text-[#1a1a1a] hover:scale-105 active:translate-x-1 active:translate-y-1 active:shadow-none transition-all flex items-center justify-center w-10 h-10 rounded-full border-[3px] border-transparent hover:border-[#1a1a1a] hover:bg-[#ffd84a]">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">shopping_bag</span>
+</button>
+</header>
+<main class="flex-grow pt-36 px-4 md:px-8 max-w-2xl mx-auto w-full pb-12">
+<!-- 3. Celebration Block -->
+<section class="text-center mb-10 flex flex-col items-center">
+<div class="text-8xl -rotate-6 mb-4 drop-shadow-md">🎉</div>
+<div class="relative inline-block mb-4">
+<h2 class="font-headline text-5xl md:text-6xl font-black tracking-tight text-[#1a1a1a] relative z-10">Order Placed!</h2>
+<div class="absolute bottom-1 left-0 w-full h-4 bg-[#7cf0bd] -z-10 -rotate-2"></div>
+</div>
+<div class="inline-flex items-center gap-2 bg-white chunky-border rounded-full px-4 py-2 font-bold font-body text-sm chunky-shadow-sm">
+<span class="material-symbols-outlined text-[18px]">receipt</span>
+                Order #SCH-2026-00247
+            </div>
+</section>
+<!-- 4. Reassurance Card (Mint) -->
+<section class="bg-[#7cf0bd] chunky-border rounded-2xl p-6 chunky-shadow rotate-1 mb-8">
+<div class="flex items-start gap-4">
+<div class="bg-white rounded-full p-2 chunky-border chunky-shadow-sm flex-shrink-0">
+<span class="material-symbols-outlined text-[28px]">call</span>
+</div>
+<div>
+<h3 class="font-headline text-2xl font-black leading-tight mb-2">We'll call you within 30 minutes</h3>
+<p class="font-body font-bold text-[#1a1a1a]/80">to confirm your delivery address and time. No upfront payment needed.</p>
+</div>
+</div>
+</section>
+<!-- 5. Order Summary Card (White) -->
+<section class="bg-white chunky-border rounded-2xl p-6 chunky-shadow mb-8 relative">
+<div class="absolute -top-4 -right-2 bg-[#ffd84a] chunky-border rounded-full px-4 py-1 font-bold text-xs rotate-[12deg] chunky-shadow-sm font-headline tracking-wide uppercase">
+                Cash on Delivery
+            </div>
+<h3 class="font-headline text-xl font-black mb-6">Your Order</h3>
+<div class="flex flex-col gap-4 mb-6">
+<!-- Item 1 -->
+<div class="flex items-center gap-4">
+<div class="w-16 h-16 rounded-xl chunky-border overflow-hidden bg-[#c5b6ff] flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="A close up of a vibrant hot pink athletic shoe resting on a soft lilac geometric block. The lighting is incredibly bright and cheerful, creating a candy-colored, playful aesthetic reminiscent of a modern pop-art editorial spread." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAxNcfAGOoOTorkDLk_ho8ZBinPg9oFNa0txdbLKwYgRFsQyGyvnfYnRzUuhIGtqLGPUgTf5vslUDrzyVu4LUJw7554iKevqn6rjRIQgDFx2WeXv-vuecDNYKaZworKWBzvj5-Haoh9HMIDtCXOjdqkSEoRkBETZUEyvG3i47h_7BpXj0XtP1RcgYMm7X_84PT3UXCdLS3rF7Hhk6nOsIobmMvhk1Nfit-NMAAafYwVk2xFHCoid5IWrdHpXeh8jjCTva7UyRGOhP1-"/>
+</div>
+<div class="flex-grow">
+<h4 class="font-bold font-body leading-tight">Neon Cloud Runners</h4>
+<p class="text-sm text-[#1a1a1a]/60 font-medium">Size 42 • Pink</p>
+</div>
+<div class="font-headline font-bold text-right whitespace-nowrap">
+                        120,000 د.ع
+                    </div>
+</div>
+<!-- Item 2 -->
+<div class="flex items-center gap-4">
+<div class="w-16 h-16 rounded-xl chunky-border overflow-hidden bg-[#7cf0bd] flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="A minimalist pastel green t-shirt neatly folded on a stark white surface. The scene is illuminated by strong, warm sunshine casting a sharp drop shadow, embodying a joyful, clean, and optimistic e-commerce vibe." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBnc_N0ENUkrNmy2YqCxytlxeVDCPv3uwFyU7sNby0e5UFKEoJB88W04eRgfwEpMJifxb3Oz-G3PWeHp590cSOUeosgRVNzBaTJagy0cOdymg0wIBLHitE0sNoimCUi2wXb7GxQfQsWul_KUXg7-WimiYDjO4hUtFYWmtLGEwhubrNuan8Jvr-v0EwMgnuvunBDmzUjVc_tNSok4EpnZtO22fMiuBO1xybAYCXc4_F-3Q2t-sAHMSAuFk2kWueCXKHyaC-PwinjQCBe"/>
+</div>
+<div class="flex-grow">
+<h4 class="font-bold font-body leading-tight">Fresh Mint Tee</h4>
+<p class="text-sm text-[#1a1a1a]/60 font-medium">Size L • Green</p>
+</div>
+<div class="font-headline font-bold text-right whitespace-nowrap">
+                        60,000 د.ع
+                    </div>
+</div>
+</div>
+<div class="border-t-[3px] border-[#1a1a1a] border-dashed pt-4 flex justify-between items-end">
+<span class="font-bold font-body text-lg">Total</span>
+<span class="font-headline text-3xl font-black text-[#ff5a8a]">180,000 د.ع</span>
+</div>
+</section>
+<!-- 6. Delivery Promise Card (Yellow) -->
+<section class="bg-[#ffd84a] chunky-border rounded-2xl p-6 chunky-shadow -rotate-1 mb-10 flex items-center gap-4">
+<span class="material-symbols-outlined text-[40px]">local_shipping</span>
+<div>
+<h3 class="font-headline text-xl font-black leading-tight">Delivered by Friday, May 16</h3>
+<p class="font-body font-bold text-[#1a1a1a]/80 mt-1">to Baghdad — 24-hour express</p>
+</div>
+</section>
+<!-- 7. "What happens next" Step List -->
+<section class="mb-12">
+<h3 class="font-headline text-2xl font-black mb-6 text-center">What happens next?</h3>
+<div class="flex flex-col gap-4">
+<div class="bg-[#fff7ed] chunky-border rounded-xl p-4 chunky-shadow-sm rotate-1 flex items-center gap-4">
+<div class="w-8 h-8 rounded-full bg-[#1a1a1a] text-white flex items-center justify-center font-headline font-black flex-shrink-0">1</div>
+<p class="font-bold font-body text-lg">We call to confirm</p>
+</div>
+<div class="bg-[#c5b6ff] chunky-border rounded-xl p-4 chunky-shadow-sm -rotate-1 flex items-center gap-4 ml-2">
+<div class="w-8 h-8 rounded-full bg-[#1a1a1a] text-white flex items-center justify-center font-headline font-black flex-shrink-0">2</div>
+<p class="font-bold font-body text-lg">Your order is dispatched</p>
+</div>
+<div class="bg-[#7cf0bd] chunky-border rounded-xl p-4 chunky-shadow-sm rotate-2 flex items-center gap-4 mr-2">
+<div class="w-8 h-8 rounded-full bg-[#1a1a1a] text-white flex items-center justify-center font-headline font-black flex-shrink-0">3</div>
+<p class="font-bold font-body text-lg">You receive it &amp; pay cash</p>
+</div>
+</div>
+</section>
+<!-- 8. "Save your order" Card (Sky Blue) -->
+<section class="bg-[#9ad8ff] chunky-border rounded-2xl p-6 chunky-shadow mb-12 text-center flex flex-col items-center">
+<h3 class="font-headline text-xl font-black mb-4">Don't lose your order details!</h3>
+<button class="bg-[#7cf0bd] hover:bg-[#5ae6a8] chunky-border rounded-full px-6 py-3 font-headline font-black text-lg chunky-shadow-sm flex items-center gap-2 mb-4 active:translate-y-1 active:shadow-none transition-all w-full max-w-sm justify-center">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">chat</span>
+                Save on WhatsApp
+            </button>
+<a class="font-body font-bold underline decoration-2 underline-offset-4 hover:text-[#ff5a8a] transition-colors" href="#">🔖 Bookmark this page</a>
+</section>
+<!-- 10. Main CTA -->
+<button class="w-full bg-[#ff5a8a] text-[#1a1a1a] chunky-border rounded-2xl py-5 font-headline font-black text-2xl uppercase tracking-wider chunky-shadow hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(26,26,26,1)] active:translate-y-2 active:shadow-none transition-all flex items-center justify-center gap-2">
+            CONTINUE SHOPPING
+            <span class="material-symbols-outlined font-black">arrow_forward</span>
+</button>
+</main>
+<!-- 11. Footer (From JSON) -->
+<footer class="w-full flex flex-col items-center gap-6 text-center bg-[#fff7ed] border-t-[3px] border-[#1a1a1a] p-8 mt-auto">
+<h2 class="font-headline text-2xl font-black text-[#1a1a1a] uppercase tracking-tighter">Schneiders</h2>
+<div class="bg-[#7cf0bd] chunky-border rounded-full px-6 py-2 chunky-shadow-sm inline-flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">support_agent</span>
+<span class="font-headline font-black">Questions? WhatsApp us 📞</span>
+</div>
+<div class="flex flex-wrap justify-center gap-4 md:gap-6">
+<a class="font-body text-sm font-bold text-[#1a1a1a] hover:text-[#ff5a8a] transition-colors underline decoration-2 underline-offset-2" href="#">WhatsApp Support</a>
+<a class="font-body text-sm font-bold text-[#1a1a1a] hover:text-[#ff5a8a] transition-colors underline decoration-2 underline-offset-2" href="#">Shipping Policy</a>
+<a class="font-body text-sm font-bold text-[#1a1a1a] hover:text-[#ff5a8a] transition-colors underline decoration-2 underline-offset-2" href="#">Track Order</a>
+</div>
+<p class="font-body text-sm font-bold text-[#1a1a1a] mt-4 opacity-80">© 2024 SCHNEIDERS. MADE IN IRAQ 🇮🇶</p>
+</footer>
+</body></html>

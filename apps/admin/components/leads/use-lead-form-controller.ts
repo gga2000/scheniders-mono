@@ -13,14 +13,17 @@ export const EMPTY_BRANCH: LeadBranch = { name: "", city: "", address: "", phone
 export const DEFAULT_FORM: LeadFormData = {
   merchant_name: "",
   industry_id: null,
+  industry_detail: "",
   platform: "instagram",
   platform_url: "",
+  handle: "",
   follower_count: 0,
   post_count: 0,
   management_name: "",
   management_info: "",
   page_phone: "",
-  phone_numbers: [{ ...EMPTY_PHONE }],
+  // Additional numbers start empty — employees reveal a row via "Add number".
+  phone_numbers: [],
   contact_via_dm: false,
   website_url: "",
   email: "",
@@ -70,13 +73,22 @@ export function useLeadFormController({
 
   const isEdit = !!initialData;
 
+  // Snapshot of the form as it was on open — used to detect unsaved edits so an
+  // accidental dismissal can be auto-saved as a draft.
+  const baselineRef = useRef<string>("");
+
   const resetForm = useCallback(() => {
-    setForm(initialData ? { ...DEFAULT_FORM, ...initialData } : DEFAULT_FORM);
+    const initial = initialData ? { ...DEFAULT_FORM, ...initialData } : DEFAULT_FORM;
+    setForm(initial);
+    baselineRef.current = JSON.stringify(initial);
     setAnalyzeHandle("");
     setAnalyzeError(null);
     setAnalyzeSuccess(false);
     setErrors({});
   }, [initialData]);
+
+  /** True when the form differs from its opened state (has unsaved content). */
+  const isDirty = JSON.stringify(form) !== baselineRef.current;
 
   useEffect(() => {
     if (open) resetForm();
@@ -105,6 +117,7 @@ export function useLeadFormController({
       setForm((prev) => ({
         ...prev,
         merchant_name: p.merchant_name || prev.merchant_name,
+        handle: p.handle || prev.handle,
         follower_count: p.follower_count || prev.follower_count,
         post_count: p.post_count || prev.post_count,
         avg_view_count: p.avg_view_count || prev.avg_view_count,
@@ -228,6 +241,9 @@ export function useLeadFormController({
     const normalized: LeadFormData = {
       ...form,
       merchant_name: form.merchant_name.trim(),
+      industry_detail: form.industry_detail.trim(),
+      // Store the handle without a leading "@" (users may type "@name").
+      handle: form.handle.trim().replace(/^@+/, ""),
       website_url: form.website_url.trim(),
       email: form.email.trim().toLowerCase(),
       // DM-only pages keep no phone numbers.
@@ -301,6 +317,7 @@ export function useLeadFormController({
     estimatedMonthlyRevenue,
     hasPrediction,
     avgOrderValue,
+    isDirty,
     update,
     resetForm,
     handleAnalyze,

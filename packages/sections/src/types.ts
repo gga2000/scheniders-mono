@@ -31,8 +31,10 @@ export interface Product extends BaseProduct {
   category_id?: string | null;
   display_order?: number;
   images?: string[];
-  /** Optional ISO date — used for "newest" sort fallbacks. */
+  /** Optional ISO date — used for "newest" sort fallbacks + the "New" card badge. */
   created_at?: string;
+  /** Optional merchandising flag — drives the "Bestseller" card badge when set. */
+  is_bestseller?: boolean;
   /** Optional variant list — populated on the PDP. */
   variants?: ProductVariant[];
 }

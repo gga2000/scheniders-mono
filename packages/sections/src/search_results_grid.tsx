@@ -12,11 +12,54 @@
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
-import { BentoCard, Section } from "./helpers/primitives";
+import {
+  BentoCard,
+  ChunkyButton,
+  Section,
+  WhatsAppIcon,
+} from "./helpers/primitives";
 import { SchneidersProductCard } from "./helpers/product-card";
+import { isPlausiblePhone } from "./helpers/whatsapp";
 import { i18nStringSchema } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
+
+/** Sky "personal shopper" help card shown under the results (and the empty
+ *  state) — a friendly WhatsApp escape hatch when search comes up short. */
+function HelpCard({
+  locale,
+  phone,
+}: {
+  locale: "ar" | "en" | "ku";
+  phone: string | null;
+}) {
+  const t = locale === "ar";
+  return (
+    <BentoCard bg="sky" size="md" rotate={-1} className="mt-bk-md p-bk-lg text-center">
+      <h3 className="font-display font-black text-xl uppercase">
+        {t ? "ما لقيت اللي تبحث عنه؟" : "Can't find what you want?"}
+      </h3>
+      <p className="mt-bk-2xs font-body text-sm text-bk-ink-soft">
+        {t
+          ? "فريق التسوّق الشخصي جاهز لمساعدتك في إيجاد القطعة المثالية."
+          : "Our personal shoppers are ready to help you find the perfect piece."}
+      </p>
+      {isPlausiblePhone(phone) && (
+        <a
+          href={`https://wa.me/${phone!.replace(/\D/g, "")}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-bk-sm inline-block"
+        >
+          <ChunkyButton type="button" bg="mint" size="md">
+            <WhatsAppIcon className="h-5 w-5" />
+            {t ? "اسألنا" : "Ask us"}
+          </ChunkyButton>
+        </a>
+      )}
+    </BentoCard>
+  );
+}
 
 const schema = z.object({
   empty_state_message_i18n: i18nStringSchema,
@@ -76,6 +119,9 @@ function SearchResultsGridRender({
   }, [ctx.products, query]);
 
   const emptyMessage = resolveI18n(props.empty_state_message_i18n, locale);
+  const phone =
+    (ctx.tenant as { contact_phone?: string | null } | undefined)
+      ?.contact_phone ?? null;
 
   const mobileCols =
     props.cols_mobile === 1 ? "grid-cols-1" : "grid-cols-2";
@@ -99,6 +145,7 @@ function SearchResultsGridRender({
             </p>
           )}
         </BentoCard>
+        <HelpCard locale={locale} phone={phone} />
       </Section>
     );
   }
@@ -117,6 +164,7 @@ function SearchResultsGridRender({
           <SchneidersProductCard key={p.id} product={p} index={i} />
         ))}
       </div>
+      <HelpCard locale={locale} phone={phone} />
     </Section>
   );
 }

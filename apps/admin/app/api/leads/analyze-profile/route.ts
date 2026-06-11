@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/admin-supabase";
 
 interface ProfileResult {
   merchant_name: string;
+  handle: string;
   follower_count: number;
   post_count: number;
   avg_view_count: number;
@@ -136,6 +137,7 @@ async function scrapeInstagram(username: string): Promise<ProfileResult> {
 
   return {
     merchant_name: (profile.full_name as string) || igUsername,
+    handle: igUsername,
     follower_count: num(profile.follower_count),
     post_count: num(profile.media_count),
     avg_view_count: avgViews,

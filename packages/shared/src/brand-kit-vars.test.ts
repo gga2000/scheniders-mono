@@ -30,8 +30,10 @@ describe("buildBrandKitVars — default snapshot", () => {
         "--bk-font-body": "'DM Sans', 'DM Sans', sans-serif",
         "--bk-font-display": "'Bricolage Grotesque', 'Bricolage Grotesque', sans-serif",
         "--bk-ink": "#1a1a1a",
-        "--bk-ink-faint": "rgb(26 26 26 / 0.25)",
-        "--bk-ink-soft": "rgb(26 26 26 / 0.6)",
+        "--bk-ink-faint": "rgb(26 26 26 / 0.38)",
+        "--bk-ink-soft": "rgb(26 26 26 / 0.7)",
+        "--bk-lilac": "#c5b6ff",
+        "--bk-mint": "#7cf0bd",
         "--bk-motion": "auto",
         "--bk-on-accent": "#1a1a1a",
         "--bk-on-primary": "#ffffff",
@@ -49,7 +51,8 @@ describe("buildBrandKitVars — default snapshot", () => {
         "--bk-secondary": "#7cf0bd",
         "--bk-shadow-button": "2px 2px 0px 0px var(--bk-ink)",
         "--bk-shadow-card": "4px 4px 0px 0px var(--bk-ink)",
-        "--bk-success": "#22c55e",
+        "--bk-sky": "#9ad8ff",
+        "--bk-success": "#7cf0bd",
         "--bk-surface": "#fff7ed",
         "--bk-surface-alt": "#ffffff",
         "--bk-wedge-multiplier": "1",
@@ -91,8 +94,8 @@ describe("buildBrandKitVars — color derivations", () => {
     const k = cloneKit();
     k.colors.ink = "#000000";
     const v = buildBrandKitVars(k) as Record<string, string>;
-    expect(v["--bk-ink-soft"]).toBe("rgb(0 0 0 / 0.6)");
-    expect(v["--bk-ink-faint"]).toBe("rgb(0 0 0 / 0.25)");
+    expect(v["--bk-ink-soft"]).toBe("rgb(0 0 0 / 0.7)");
+    expect(v["--bk-ink-faint"]).toBe("rgb(0 0 0 / 0.38)");
     expect(v["--bk-divider"]).toBe("rgb(0 0 0 / 0.1)");
   });
 });

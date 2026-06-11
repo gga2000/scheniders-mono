@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+
+<html class="light" dir="ltr" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Schneiders - Checkout</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;700;900&amp;family=Dm+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "hot-pink": "#ff5a8a",
+            "mint": "#7cf0bd",
+            "butter-yellow": "#ffd84a",
+            "lilac": "#c5b6ff",
+            "sky": "#9ad8ff",
+            "cream": "#fff7ed",
+            "charcoal": "#1a1a1a"
+          },
+          borderRadius: {
+            "DEFAULT": "0.5rem",
+            "lg": "1rem",
+            "xl": "1.5rem",
+            "2xl": "2rem",
+            "full": "9999px"
+          },
+          fontFamily: {
+            "headline": ["Public Sans", "sans-serif"],
+            "display": ["Public Sans", "sans-serif"],
+            "body": ["Dm Sans", "sans-serif"],
+            "label": ["Dm Sans", "sans-serif"]
+          },
+        },
+      },
+    }
+  </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-cream text-charcoal font-body antialiased min-h-screen flex flex-col items-center">
+<!-- TopAppBar Semantic Shell -->
+<header class="w-full max-w-xl sticky top-0 z-50 bg-cream dark:bg-charcoal border-b-[3px] border-charcoal shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] flex justify-between items-center px-6 py-4 transition-all">
+<button aria-label="Go Back" class="text-hot-pink dark:text-hot-pink hover:bg-mint transition-colors active:translate-x-[2px] active:translate-y-[2px] active:shadow-none p-2 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-2xl font-bold">arrow_back</span>
+</button>
+<h1 class="font-headline text-2xl font-black text-charcoal dark:text-cream uppercase tracking-tighter">Schneiders</h1>
+<div class="flex items-center gap-2 bg-mint border-[2px] border-charcoal px-3 py-1 rounded-full shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] rotate-2">
+<span class="material-symbols-outlined text-sm font-bold">lock</span>
+<span class="font-label text-xs font-bold uppercase tracking-wider">Secure</span>
+</div>
+</header>
+<main class="w-full max-w-xl px-4 py-8 flex flex-col gap-8 pb-32">
+<!-- Progress Indicator -->
+<div class="flex items-center justify-center gap-4 font-label text-sm font-bold uppercase tracking-wider">
+<span class="text-charcoal flex items-center gap-1 opacity-60">Cart <span class="material-symbols-outlined text-xs">check</span></span>
+<span class="text-charcoal opacity-30">•</span>
+<span class="text-hot-pink bg-butter-yellow px-3 py-1 border-[2px] border-charcoal rounded-full shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] -rotate-2">Details</span>
+<span class="text-charcoal opacity-30">•</span>
+<span class="text-charcoal opacity-60">Confirm</span>
+</div>
+<!-- Reassurance Banner -->
+<div class="bg-butter-yellow border-[3px] border-charcoal rounded-2xl p-5 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] -rotate-1 relative z-10">
+<div class="flex flex-col gap-2">
+<h2 class="font-headline text-xl font-black tracking-tight leading-tight">📞 We'll call you within 30 minutes</h2>
+<p class="font-body text-base font-medium">To confirm your order. No upfront payment needed.</p>
+</div>
+</div>
+<!-- Order Summary Card -->
+<section class="bg-white border-[3px] border-charcoal rounded-2xl p-6 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] flex flex-col gap-6">
+<div class="flex justify-between items-center cursor-pointer hover:opacity-80 transition-opacity">
+<h2 class="font-headline text-2xl font-black tracking-tight">Your Order</h2>
+<span class="material-symbols-outlined text-2xl">expand_more</span>
+</div>
+<div class="flex flex-col gap-4">
+<!-- Product Row 1 -->
+<div class="flex items-center gap-4">
+<div class="w-16 h-16 bg-mint border-[2px] border-charcoal rounded-xl shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] overflow-hidden">
+<div class="w-full h-full bg-[url('https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&amp;fit=crop&amp;q=80&amp;w=200')] bg-cover bg-center" data-alt="A brightly lit, top-down studio shot of a chunky, pastel pink ceramic mug sitting on a mint green background. The lighting is harsh and direct, creating distinct, playful shadows that match a modern, vibrant bento-box aesthetic. The overall mood is cheerful, energetic, and perfectly styled for a youthful e-commerce brand."></div>
+</div>
+<div class="flex-1 flex flex-col">
+<h3 class="font-body font-bold text-base leading-tight">Pastel Cloud Mug</h3>
+<span class="font-body text-sm text-charcoal/70">Qty: 2</span>
+</div>
+<div class="font-headline font-bold text-lg">
+            90,000 <span class="text-xs">IQD</span>
+</div>
+</div>
+<!-- Product Row 2 -->
+<div class="flex items-center gap-4">
+<div class="w-16 h-16 bg-lilac border-[2px] border-charcoal rounded-xl shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] overflow-hidden">
+<div class="w-full h-full bg-[url('https://images.unsplash.com/photo-1572635196237-14b3f281503f?auto=format&amp;fit=crop&amp;q=80&amp;w=200')] bg-cover bg-center" data-alt="A pair of bold, oversized sunglasses with thick pastel yellow frames resting on a smooth lilac surface. The composition is graphic and minimalist, emphasizing the chunky silhouette of the sunglasses. The lighting is crisp, evoking a sunny, carefree summer vibe that aligns with a playful, sticker-book e-commerce design."></div>
+</div>
+<div class="flex-1 flex flex-col">
+<h3 class="font-body font-bold text-base leading-tight">Sunshine Shades</h3>
+<span class="font-body text-sm text-charcoal/70">Qty: 1</span>
+</div>
+<div class="font-headline font-bold text-lg">
+            180,000 <span class="text-xs">IQD</span>
+</div>
+</div>
+</div>
+<div class="border-t-[2px] border-dashed border-charcoal/30 pt-6 flex flex-col gap-3">
+<div class="flex justify-between font-body text-base font-medium">
+<span>Subtotal</span>
+<span>270,000 IQD</span>
+</div>
+<div class="flex justify-between font-body text-base font-medium items-center">
+<span>Delivery</span>
+<span class="bg-mint px-2 py-1 border-[2px] border-charcoal rounded-lg text-sm font-bold shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] rotate-2">FREE 🎉</span>
+</div>
+<div class="flex justify-between font-body text-base font-medium text-hot-pink">
+<span>Discount (PROMO35)</span>
+<span>-35,000 IQD</span>
+</div>
+</div>
+<div class="border-t-[3px] border-charcoal pt-4 flex justify-between items-end">
+<span class="font-headline text-xl font-bold">Total</span>
+<span class="font-headline text-3xl font-black">235,000 <span class="text-lg">IQD</span></span>
+</div>
+</section>
+<!-- Customer Info Form -->
+<section class="bg-white border-[3px] border-charcoal rounded-2xl p-6 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] flex flex-col gap-6">
+<div class="relative inline-block w-fit">
+<h2 class="font-headline text-2xl font-black tracking-tight">Delivery Details</h2>
+<div class="absolute -bottom-2 left-0 w-full h-3 bg-mint rounded-full -z-10 -rotate-1"></div>
+</div>
+<form class="flex flex-col gap-5">
+<div class="flex flex-col gap-2">
+<label class="font-label text-sm font-bold uppercase tracking-wider pl-2">Full Name</label>
+<input class="w-full bg-cream border-[3px] border-charcoal rounded-xl p-3.5 font-body text-base font-medium focus:outline-none focus:ring-0 focus:border-hot-pink focus:shadow-[4px_4px_0px_0px_#ff5a8a] transition-all" placeholder="Ali Mohammed" type="text"/>
+</div>
+<div class="flex flex-col gap-2">
+<label class="font-label text-sm font-bold uppercase tracking-wider pl-2">Phone Number</label>
+<div class="flex border-[3px] border-charcoal rounded-xl overflow-hidden focus-within:border-hot-pink focus-within:shadow-[4px_4px_0px_0px_#ff5a8a] transition-all">
+<div class="bg-butter-yellow border-r-[3px] border-charcoal px-4 py-3.5 font-headline font-bold flex items-center justify-center">
+              +964
+            </div>
+<input class="flex-1 bg-cream border-none p-3.5 font-body text-base font-medium focus:outline-none focus:ring-0" placeholder="770 000 0000" type="tel"/>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="flex flex-col gap-2">
+<label class="font-label text-sm font-bold uppercase tracking-wider pl-2">Governorate</label>
+<div class="relative">
+<select class="w-full bg-cream border-[3px] border-charcoal rounded-xl p-3.5 font-body text-base font-medium appearance-none focus:outline-none focus:ring-0 focus:border-hot-pink focus:shadow-[4px_4px_0px_0px_#ff5a8a] transition-all">
+<option>Baghdad</option>
+<option>Erbil</option>
+<option>Basra</option>
+</select>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none font-bold">expand_more</span>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<label class="font-label text-sm font-bold uppercase tracking-wider pl-2">Area / District</label>
+<input class="w-full bg-cream border-[3px] border-charcoal rounded-xl p-3.5 font-body text-base font-medium focus:outline-none focus:ring-0 focus:border-hot-pink focus:shadow-[4px_4px_0px_0px_#ff5a8a] transition-all" placeholder="Mansour" type="text"/>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<label class="font-label text-sm font-bold uppercase tracking-wider pl-2">Full Address</label>
+<textarea class="w-full bg-cream border-[3px] border-charcoal rounded-xl p-3.5 font-body text-base font-medium resize-none focus:outline-none focus:ring-0 focus:border-hot-pink focus:shadow-[4px_4px_0px_0px_#ff5a8a] transition-all" placeholder="Street, Sector, House Number..." rows="3"></textarea>
+</div>
+<div class="flex flex-col gap-2">
+<label class="font-label text-sm font-bold uppercase tracking-wider pl-2">Delivery Notes (Optional)</label>
+<input class="w-full bg-cream border-[3px] border-charcoal rounded-xl p-3.5 font-body text-base font-medium focus:outline-none focus:ring-0 focus:border-hot-pink focus:shadow-[4px_4px_0px_0px_#ff5a8a] transition-all" placeholder="e.g. Call when near" type="text"/>
+</div>
+</form>
+</section>
+<!-- Payment Method -->
+<section class="flex flex-col gap-6">
+<div class="relative inline-block w-fit">
+<h2 class="font-headline text-2xl font-black tracking-tight">Payment Method</h2>
+<div class="absolute -bottom-2 left-0 w-full h-3 bg-butter-yellow rounded-full -z-10 rotate-1"></div>
+</div>
+<div class="flex flex-col gap-4">
+<!-- Selected: COD -->
+<div class="bg-mint border-[4px] border-charcoal rounded-2xl p-5 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] rotate-0.5 flex justify-between items-center cursor-pointer">
+<div class="flex items-center gap-3">
+<span class="text-3xl">💵</span>
+<span class="font-headline text-xl font-bold">Cash on Delivery</span>
+</div>
+<div class="bg-white rounded-full p-1 border-[2px] border-charcoal flex items-center justify-center">
+<span class="material-symbols-outlined text-charcoal font-black text-sm" style="font-variation-settings: 'FILL' 1;">check</span>
+</div>
+</div>
+<!-- Disabled: Cards -->
+<div class="bg-cream border-[3px] border-charcoal/40 rounded-2xl p-5 opacity-70 relative overflow-hidden">
+<div class="absolute -right-6 top-4 bg-butter-yellow border-[2px] border-charcoal px-6 py-1 font-headline font-bold text-sm rotate-45 shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] z-10">
+              Coming Soon
+           </div>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-3xl opacity-50">credit_card</span>
+<span class="font-headline text-xl font-bold opacity-50">Credit/Debit Card</span>
+</div>
+</div>
+<!-- Disabled: Wallet -->
+<div class="bg-cream border-[3px] border-charcoal/40 rounded-2xl p-5 opacity-70 relative overflow-hidden">
+<div class="absolute -right-6 top-4 bg-sky border-[2px] border-charcoal px-6 py-1 font-headline font-bold text-sm rotate-45 shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] z-10">
+              Coming Soon
+           </div>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-3xl opacity-50">account_balance_wallet</span>
+<span class="font-headline text-xl font-bold opacity-50">FastPay Wallet</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Trust Recap -->
+<div class="flex flex-wrap justify-center gap-3 py-4">
+<div class="bg-mint border-[2px] border-charcoal px-4 py-2 rounded-xl shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] font-body font-bold text-sm -rotate-2">
+        ✓ Secure Order
+      </div>
+<div class="bg-butter-yellow border-[2px] border-charcoal px-4 py-2 rounded-xl shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] font-body font-bold text-sm rotate-1">
+        ✓ 7-day Returns
+      </div>
+<div class="bg-sky border-[2px] border-charcoal px-4 py-2 rounded-xl shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] font-body font-bold text-sm -rotate-1">
+        ✓ Verified Seller
+      </div>
+<div class="bg-lilac border-[2px] border-charcoal px-4 py-2 rounded-xl shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] font-body font-bold text-sm rotate-2">
+        ✓ 24/7 WhatsApp Support
+      </div>
+</div>
+<!-- Primary CTA Area -->
+<div class="flex flex-col gap-6 mt-4">
+<button class="w-full bg-hot-pink text-white border-[3px] border-charcoal rounded-2xl py-5 px-6 shadow-[6px_6px_0px_0px_rgba(26,26,26,1)] hover:bg-[#ff3b75] active:translate-x-[3px] active:translate-y-[3px] active:shadow-[3px_3px_0px_0px_rgba(26,26,26,1)] transition-all flex justify-between items-center group">
+<span class="font-headline text-2xl font-black uppercase tracking-tight">PLACE ORDER — 235,000 IQD</span>
+<span class="material-symbols-outlined text-3xl group-hover:translate-x-2 transition-transform">arrow_forward</span>
+</button>
+<p class="text-center font-body text-sm font-medium opacity-70 px-4">
+        By placing this order, you agree to pay in cash upon delivery. No hidden fees.
+      </p>
+<div class="flex items-center gap-4 w-full px-8">
+<div class="h-[2px] flex-1 bg-charcoal/20"></div>
+<span class="font-headline font-black text-charcoal/40">OR</span>
+<div class="h-[2px] flex-1 bg-charcoal/20"></div>
+</div>
+<button class="w-full bg-white text-charcoal border-[3px] border-charcoal rounded-full py-4 px-6 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] hover:bg-cream active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all flex justify-center items-center gap-2">
+<span class="text-xl">💬</span>
+<span class="font-headline text-lg font-bold">Place Order via WhatsApp Instead</span>
+</button>
+</div>
+</main>
+<!-- Footer Semantic Shell -->
+<footer class="w-full max-w-xl bg-lilac dark:bg-charcoal border-t-[3px] border-charcoal mt-auto p-8 flex flex-col items-center gap-6 text-center">
+<div class="flex flex-col items-center gap-2">
+<h3 class="font-headline font-black text-xl text-charcoal">Need help?</h3>
+<p class="font-body text-lg font-bold">0770 000 0000</p>
+<button class="bg-mint border-[2px] border-charcoal px-6 py-2 rounded-full font-headline font-bold text-sm shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] mt-2 hover:rotate-2 transition-transform">
+        Chat Now
+      </button>
+</div>
+<div class="flex flex-wrap justify-center gap-4 mt-4">
+<a class="font-body text-sm font-bold text-charcoal hover:text-hot-pink transition-colors" href="#">WhatsApp Support</a>
+<a class="font-body text-sm font-bold text-charcoal hover:text-hot-pink transition-colors" href="#">Phone Confirmation Info</a>
+<a class="font-body text-sm font-bold text-charcoal hover:text-hot-pink transition-colors" href="#">Privacy Policy</a>
+</div>
+<p class="font-body text-sm font-bold text-charcoal mt-4 opacity-80">
+      © 2024 Schneiders. Made with 🍬 in Baghdad.
+    </p>
+</footer>
+</body></html>

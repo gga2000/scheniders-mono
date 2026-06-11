@@ -57,8 +57,14 @@ export function SchneidersHeader({
           </button>
         )}
 
-        <StoreLink href="/" className="font-display font-black text-2xl text-candy-ink tracking-tight uppercase truncate max-w-[60%] text-center">
-          {tenant.business_name || "Schneiders"}
+        <StoreLink
+          href="/"
+          aria-label={tenant.business_name || "Schneiders"}
+          className="min-w-0 max-w-[60%] flex justify-center"
+        >
+          <span className="inline-flex items-center -rotate-2 px-3 py-1 bento-card-sm bg-candy-butter font-display font-black text-xl sm:text-2xl text-candy-ink tracking-tight uppercase truncate">
+            {tenant.business_name || "Schneiders"}
+          </span>
         </StoreLink>
 
         <StoreLink

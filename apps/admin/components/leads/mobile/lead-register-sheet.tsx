@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { cn, formatIQD } from "@/lib/utils";
-import type { LeadFormData, LeadSourcePlatform, LeadPriority } from "@/types/leads";
-import { PLATFORM_CONFIG, LEAD_PRIORITY_CONFIG } from "@/types/leads";
+import type { LeadFormData, LeadSourcePlatform } from "@/types/leads";
+import { PLATFORM_CONFIG } from "@/types/leads";
+import { IRAQ_GOVERNORATES } from "@scheniders/shared";
 import {
   Sparkles,
   Loader2,
@@ -15,8 +16,11 @@ import {
   ChevronUp,
   TrendingUp,
   Globe,
-  Flag,
   Plus,
+  Trash2,
+  Building2,
+  Settings2,
+  Tag,
   UserPlus,
   Instagram,
   Facebook,
@@ -30,6 +34,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { BottomSheet } from "./bottom-sheet";
+import { normalizeIraqiPhone } from "../lead-phone";
+import { LeadIndustryManager } from "../lead-industry-manager";
 import {
   useLeadFormController,
   ANALYZABLE_PLATFORMS,
@@ -40,6 +46,11 @@ interface LeadRegisterSheetProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: LeadFormData) => Promise<boolean>;
   initialData?: Partial<LeadFormData>;
+  /**
+   * If provided, closing the sheet (swipe / tap-outside / back) with unsaved
+   * content auto-saves the in-progress lead as a draft instead of losing it.
+   */
+  onSaveDraft?: (data: LeadFormData) => void;
 }
 
 const PLATFORM_ICONS: Record<LeadSourcePlatform, LucideIcon> = {
@@ -66,8 +77,11 @@ export function LeadRegisterSheet({
   onOpenChange,
   onSubmit,
   initialData,
+  onSaveDraft,
 }: LeadRegisterSheetProps) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const [industryMgrOpen, setIndustryMgrOpen] = useState(false);
+  const [showIndustryDetail, setShowIndustryDetail] = useState(false);
 
   const {
     form,
@@ -85,9 +99,20 @@ export function LeadRegisterSheet({
     setAnalyzeSuccess,
     estimatedDailyOrders,
     estimatedMonthlyRevenue,
+    isOrdersOverride,
     hasPrediction,
+    isDirty,
     update,
     handleAnalyze,
+    addPhone,
+    removePhone,
+    updatePhone,
+    addBranch,
+    removeBranch,
+    updateBranch,
+    addBranchPhone,
+    removeBranchPhone,
+    updateBranchPhone,
     submit,
   } = useLeadFormController({
     open,
@@ -97,6 +122,14 @@ export function LeadRegisterSheet({
   });
 
   const PlatformIcon = PLATFORM_ICONS[form.platform];
+
+  // Closing the sheet (swipe / tap-outside / back) with unsaved content saves a
+  // draft rather than discarding — there's no explicit discard button on mobile.
+  const handleSheetClose = (v: boolean) => {
+    if (!v && submitting) return;
+    if (!v && onSaveDraft && isDirty) onSaveDraft(form);
+    onOpenChange(v);
+  };
 
   const footer = (
     <div className="flex items-center gap-2">
@@ -132,9 +165,10 @@ export function LeadRegisterSheet({
   );
 
   return (
+    <>
     <BottomSheet
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={handleSheetClose}
       fullHeight
       title={isEdit ? "Edit Lead" : "Add Lead"}
       footer={footer}
@@ -313,51 +347,7 @@ export function LeadRegisterSheet({
           )}
         </div>
 
-        {/* 5. Priority chips */}
-        <div>
-          <label className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--muted)] mb-2">
-            <Flag className="w-3 h-3" /> Priority
-          </label>
-          <div className="flex items-center gap-2 flex-wrap">
-            {(
-              Object.entries(LEAD_PRIORITY_CONFIG) as [
-                LeadPriority,
-                (typeof LEAD_PRIORITY_CONFIG)["low"],
-              ][]
-            ).map(([key, cfg]) => {
-              const active = form.priority === key;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => update("priority", key)}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-all",
-                    !active &&
-                      "border-[var(--card-border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--muted)]/40",
-                  )}
-                  style={
-                    active
-                      ? {
-                          borderColor: cfg.color,
-                          backgroundColor: `${cfg.color}1A`,
-                          color: cfg.color,
-                        }
-                      : undefined
-                  }
-                >
-                  <span
-                    className="w-1.5 h-1.5 rounded-full"
-                    style={{ backgroundColor: cfg.color }}
-                  />
-                  {cfg.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 6. Collapsible "More details" */}
+        {/* 5. Collapsible "More details" */}
         <div>
           <button
             type="button"
@@ -374,9 +364,18 @@ export function LeadRegisterSheet({
 
           {moreOpen && (
             <div className="space-y-4 mt-3">
-              {/* Industry */}
+              {/* Industry + inline management + optional niche detail */}
               <div>
-                <label className={LABEL}>Industry</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className={cn(LABEL, "mb-0")}>Industry</label>
+                  <button
+                    type="button"
+                    onClick={() => setIndustryMgrOpen(true)}
+                    className="flex items-center gap-1 text-[11px] font-medium text-indigo-500 hover:underline"
+                  >
+                    <Settings2 className="w-3 h-3" /> Manage
+                  </button>
+                </div>
                 <div className="relative">
                   <select
                     value={form.industry_id ?? ""}
@@ -388,13 +387,137 @@ export function LeadRegisterSheet({
                       .filter((i) => i.is_active)
                       .map((i) => (
                         <option key={i.id} value={i.id}>
-                          {i.name}
+                          {i.name_ar || i.name}
                         </option>
                       ))}
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)] pointer-events-none" />
                 </div>
+                {showIndustryDetail || form.industry_detail ? (
+                  <div className="relative mt-2">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-400 pointer-events-none">
+                      <Tag className="w-4 h-4" />
+                    </span>
+                    <input
+                      type="text"
+                      value={form.industry_detail}
+                      onChange={(e) => update("industry_detail", e.target.value)}
+                      className={cn(FIELD, "pl-9")}
+                      placeholder="Specify the niche — e.g. herbs"
+                    />
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowIndustryDetail(true)}
+                    className="mt-2 flex items-center gap-1 text-[11px] font-medium text-[var(--muted)] hover:text-[var(--foreground)]"
+                  >
+                    <Plus className="w-3 h-3" /> Specify the niche
+                  </button>
+                )}
               </div>
+
+              {/* Platform URL */}
+              <div>
+                <label className={LABEL}>Platform URL</label>
+                <input
+                  type="url"
+                  dir="ltr"
+                  value={form.platform_url}
+                  onChange={(e) => update("platform_url", e.target.value)}
+                  className={FIELD}
+                  placeholder="https://…"
+                />
+              </div>
+
+              {/* Posts */}
+              <div>
+                <label className={LABEL}>Posts</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={form.post_count || ""}
+                  onChange={(e) => update("post_count", Number(e.target.value) || 0)}
+                  className={cn(FIELD, "font-mono")}
+                  placeholder="0"
+                />
+              </div>
+
+              {/* Management name */}
+              <div>
+                <label className={LABEL}>Management Name</label>
+                <input
+                  type="text"
+                  value={form.management_name}
+                  onChange={(e) => update("management_name", e.target.value)}
+                  className={FIELD}
+                  placeholder="Owner / Manager"
+                />
+              </div>
+
+              {/* Additional phone numbers — hidden for DM-only pages */}
+              {!form.contact_via_dm && (
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className={cn(LABEL, "mb-0")}>Additional Numbers</label>
+                    {form.phone_numbers.length < 3 && (
+                      <button
+                        type="button"
+                        onClick={addPhone}
+                        className="flex items-center gap-1 text-[11px] font-medium text-[#A78BFA] hover:underline"
+                      >
+                        <Plus className="w-3 h-3" /> Add
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    {form.phone_numbers.map((phone, idx) => (
+                      <div key={idx} className="flex items-start gap-2">
+                        <input
+                          type="text"
+                          value={phone.title}
+                          onChange={(e) => updatePhone(idx, "title", e.target.value)}
+                          className={cn(FIELD, "w-1/3")}
+                          placeholder="Label"
+                        />
+                        <div className="flex-1">
+                          <input
+                            type="tel"
+                            inputMode="tel"
+                            dir="ltr"
+                            value={phone.number}
+                            onChange={(e) => updatePhone(idx, "number", e.target.value)}
+                            onBlur={() =>
+                              phone.number && updatePhone(idx, "number", normalizeIraqiPhone(phone.number))
+                            }
+                            className={cn(
+                              FIELD,
+                              "font-mono",
+                              errors[`phone_${idx}`] && "field-error animate-shake",
+                            )}
+                            data-error={!!errors[`phone_${idx}`]}
+                            placeholder="07XXXXXXXXX"
+                          />
+                          {errors[`phone_${idx}`] && (
+                            <p className="field-error-text">
+                              <AlertCircle className="w-3 h-3" /> {errors[`phone_${idx}`]}
+                            </p>
+                          )}
+                        </div>
+                        {form.phone_numbers.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removePhone(idx)}
+                            className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Audience metrics 2-col */}
               <div>
@@ -415,9 +538,18 @@ export function LeadRegisterSheet({
                         min={0}
                         value={form[key] || ""}
                         onChange={(e) => update(key, Number(e.target.value) || 0)}
-                        className={cn(FIELD, "font-mono")}
+                        className={cn(
+                          FIELD,
+                          "font-mono",
+                          key === "avg_order_count" && isOrdersOverride && "border-emerald-400/60",
+                        )}
                         placeholder="0"
                       />
+                      {key === "avg_order_count" && (
+                        <p className="mt-1 text-[10px] text-[var(--muted)]">
+                          Overrides the views-based forecast
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -450,6 +582,24 @@ export function LeadRegisterSheet({
                   </div>
                 </div>
               )}
+
+              {/* Handle / username */}
+              <div>
+                <label className={LABEL}>Handle</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[var(--muted)] pointer-events-none">
+                    @
+                  </span>
+                  <input
+                    type="text"
+                    dir="ltr"
+                    value={form.handle}
+                    onChange={(e) => update("handle", e.target.value)}
+                    className={cn(FIELD, "pl-7")}
+                    placeholder="username"
+                  />
+                </div>
+              </div>
 
               {/* Website */}
               <div>
@@ -484,10 +634,10 @@ export function LeadRegisterSheet({
                 )}
               </div>
 
-              {/* City with Online shop only pill */}
+              {/* Location & branches with Online shop only pill */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className={cn(LABEL, "mb-0")}>City</label>
+                  <label className={cn(LABEL, "mb-0")}>Location</label>
                   <button
                     type="button"
                     onClick={() => update("is_online_only", !form.is_online_only)}
@@ -514,13 +664,176 @@ export function LeadRegisterSheet({
                     No physical location
                   </div>
                 ) : (
-                  <input
-                    type="text"
-                    value={form.city}
-                    onChange={(e) => update("city", e.target.value)}
-                    className={FIELD}
-                    placeholder="e.g. Baghdad"
-                  />
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={LABEL}>Governorate</label>
+                        <div className="relative">
+                          <select
+                            value={form.governorate_code}
+                            onChange={(e) => update("governorate_code", e.target.value)}
+                            className={cn(FIELD, "appearance-none pr-9 cursor-pointer")}
+                          >
+                            <option value="">Select</option>
+                            {IRAQ_GOVERNORATES.map((g) => (
+                              <option key={g.code} value={g.code}>
+                                {g.name} — {g.name_en}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)] pointer-events-none" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className={LABEL}>City / Area</label>
+                        <input
+                          type="text"
+                          value={form.city}
+                          onChange={(e) => update("city", e.target.value)}
+                          className={FIELD}
+                          placeholder="e.g. Amarah"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className={LABEL}>Address</label>
+                      <textarea
+                        value={form.address}
+                        onChange={(e) => update("address", e.target.value)}
+                        className={cn(FIELD, "h-auto py-2.5 resize-none")}
+                        rows={2}
+                        placeholder="Full address (optional)"
+                      />
+                    </div>
+
+                    {/* Branches — additional physical locations, each with its own phone(s) */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--muted)]">
+                          <Building2 className="w-3 h-3" /> Branches
+                        </label>
+                        <button
+                          type="button"
+                          onClick={addBranch}
+                          className="flex items-center gap-1 text-[11px] font-medium text-[#A78BFA] hover:underline"
+                        >
+                          <Plus className="w-3 h-3" /> Add branch
+                        </button>
+                      </div>
+
+                      {form.branches.length === 0 ? (
+                        <p className="text-[11px] text-[var(--muted)] italic">
+                          Single location — the fields above are the main branch. Add more for
+                          multi-branch stores.
+                        </p>
+                      ) : (
+                        <div className="space-y-2.5">
+                          {form.branches.map((branch, bi) => (
+                            <div
+                              key={bi}
+                              className="rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)]/40 p-3 space-y-2.5"
+                            >
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={branch.name}
+                                  onChange={(e) => updateBranch(bi, "name", e.target.value)}
+                                  className={cn(FIELD, "flex-1")}
+                                  placeholder="Branch name (e.g. Mansour)"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeBranch(bi)}
+                                  className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                                  title="Remove branch"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2">
+                                <input
+                                  type="text"
+                                  value={branch.city}
+                                  onChange={(e) => updateBranch(bi, "city", e.target.value)}
+                                  className={FIELD}
+                                  placeholder="City"
+                                />
+                                <input
+                                  type="text"
+                                  value={branch.address}
+                                  onChange={(e) => updateBranch(bi, "address", e.target.value)}
+                                  className={FIELD}
+                                  placeholder="Address (optional)"
+                                />
+                              </div>
+
+                              <div className="space-y-1.5">
+                                {branch.phones.map((phone, pi) => {
+                                  const errKey = `branch_${bi}_phone_${pi}`;
+                                  return (
+                                    <div key={pi} className="flex items-start gap-2">
+                                      <input
+                                        type="text"
+                                        value={phone.title}
+                                        onChange={(e) => updateBranchPhone(bi, pi, "title", e.target.value)}
+                                        className={cn(FIELD, "w-1/3")}
+                                        placeholder="Label"
+                                      />
+                                      <div className="flex-1">
+                                        <input
+                                          type="tel"
+                                          inputMode="tel"
+                                          dir="ltr"
+                                          value={phone.number}
+                                          onChange={(e) => updateBranchPhone(bi, pi, "number", e.target.value)}
+                                          onBlur={() =>
+                                            phone.number &&
+                                            updateBranchPhone(bi, pi, "number", normalizeIraqiPhone(phone.number))
+                                          }
+                                          className={cn(
+                                            FIELD,
+                                            "font-mono",
+                                            errors[errKey] && "field-error animate-shake",
+                                          )}
+                                          data-error={!!errors[errKey]}
+                                          placeholder="07XXXXXXXXX"
+                                        />
+                                        {errors[errKey] && (
+                                          <p className="field-error-text">
+                                            <AlertCircle className="w-3 h-3" /> {errors[errKey]}
+                                          </p>
+                                        )}
+                                      </div>
+                                      {branch.phones.length > 1 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => removeBranchPhone(bi, pi)}
+                                          className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                                {branch.phones.length < 3 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => addBranchPhone(bi)}
+                                    className="flex items-center gap-1 text-[11px] font-medium text-[#A78BFA] hover:underline"
+                                  >
+                                    <Plus className="w-3 h-3" /> Add number
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
 
@@ -540,5 +853,10 @@ export function LeadRegisterSheet({
         </div>
       </div>
     </BottomSheet>
+    <LeadIndustryManager
+      isOpen={industryMgrOpen}
+      onClose={() => setIndustryMgrOpen(false)}
+    />
+    </>
   );
 }

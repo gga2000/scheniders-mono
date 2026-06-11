@@ -3,10 +3,35 @@
 import Link from "next/link";
 import { HeartPulse, AlertTriangle, CheckCircle2, ArrowRight } from "lucide-react";
 import { runHealthChecks, emptyStoreConfigV2 } from "@scheniders/shared";
-import type { StoreConfigV2 } from "@scheniders/shared";
+import type { StoreConfigV2, FixAction } from "@scheniders/shared";
 
 interface HealthCardProps {
     config: StoreConfigV2 | null;
+}
+
+/**
+ * Turn a health check's fix target into an editor deep-link so "Fix" lands the
+ * merchant on the exact screen/page/section instead of the editor default.
+ * (BUG36 — the rules engine already computes `fix_action.go_to`.)
+ */
+function fixHref(fix: FixAction | undefined): string {
+    const go = fix?.go_to;
+    if (!go) return "/store/edit";
+    switch (go.kind) {
+        case "settings":
+            // "health" is an inline tab, not a deep-linkable screen.
+            return go.key === "health"
+                ? "/store/edit"
+                : `/store/edit?screen=${go.key}`;
+        case "page":
+            return `/store/edit?page=${go.page_id}`;
+        case "section":
+            return `/store/edit?page=${go.page_id}&section=${go.section_id}`;
+        case "external":
+            return go.href;
+        default:
+            return "/store/edit";
+    }
 }
 
 function scoreColor(score: number): string {
@@ -99,7 +124,7 @@ export function HealthCard({ config }: HealthCardProps) {
                             />
                             <p className="text-xs text-foreground flex-1">{check.message ?? check.id}</p>
                             <Link
-                                href="/store/edit"
+                                href={fixHref(check.fix_action)}
                                 className="shrink-0 rounded-lg bg-(--background-soft) px-2 py-1 text-[10px] font-semibold text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                             >
                                 Fix

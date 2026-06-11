@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>About Schneiders</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,900&amp;family=DM+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                "hot-pink": "#ff5a8a",
+                "mint": "#7cf0bd",
+                "butter": "#ffd84a",
+                "lilac": "#c5b6ff",
+                "sky-blue": "#9ad8ff",
+                "cream": "#fff7ed",
+                "charcoal": "#1a1a1a"
+            },
+            "borderRadius": {
+                "DEFAULT": "0.5rem",
+                "lg": "1rem",
+                "xl": "1.5rem",
+                "2xl": "1.5rem",
+                "full": "9999px"
+            },
+            "fontFamily": {
+                "headline": ["Bricolage Grotesque", "sans-serif"],
+                "display": ["Bricolage Grotesque", "sans-serif"],
+                "body": ["DM Sans", "sans-serif"],
+                "label": ["DM Sans", "sans-serif"]
+            },
+            boxShadow: {
+                'chunky': '4px 4px 0px 0px #1a1a1a',
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'DM Sans', sans-serif; background-color: #fff7ed; color: #1a1a1a; overflow-x: hidden; }
+        h1, h2, h3, h4, .font-headline { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 900; }
+        .chunky-border { border: 3px solid #1a1a1a; }
+        .scribble-butter { position: relative; z-index: 1; }
+        .scribble-butter::after { content: ''; position: absolute; bottom: -5px; left: 0; width: 100%; height: 12px; background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 100 20" xmlns="http://www.w3.org/2000/svg"><path d="M0 10 Q 25 0, 50 10 T 100 10" stroke="%23ffd84a" stroke-width="4" fill="none"/></svg>'); z-index: -1; }
+        .scribble-sky { position: relative; z-index: 1; }
+        .scribble-sky::after { content: ''; position: absolute; bottom: -5px; left: 0; width: 100%; height: 12px; background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 100 20" xmlns="http://www.w3.org/2000/svg"><path d="M0 10 Q 25 20, 50 10 T 100 10" stroke="%239ad8ff" stroke-width="4" fill="none"/></svg>'); z-index: -1; }
+        .zigzag-bottom { position: relative; }
+        .zigzag-bottom::after { content: ''; position: absolute; bottom: -10px; left: 0; right: 0; height: 10px; background: linear-gradient(-45deg, transparent 33%, #fff7ed 33%, #fff7ed 66%, transparent 66%), linear-gradient(45deg, transparent 33%, #fff7ed 33%, #fff7ed 66%, transparent 66%); background-size: 20px 20px; z-index: 10; transform: rotate(180deg); }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-cream text-charcoal pb-24 md:pb-0">
+<!-- 1. Top Butter Promo Bar -->
+<div class="bg-butter py-2 px-4 text-center font-bold text-sm zigzag-bottom z-50 relative border-b-3 border-charcoal">
+        Made with love in Baghdad 🇮🇶 ✨
+    </div>
+<!-- 2. Sticky Header (TopAppBar) -->
+<header class="bg-[#fff7ed] dark:bg-black text-[#ff5a8a] font-headline text-2xl font-black uppercase sticky top-0 w-full z-40 border-b-4 border-[#1a1a1a] shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] flex justify-between items-center px-6 py-4">
+<a class="text-[#1a1a1a] hover:bg-[#ffd84a] hover:scale-105 transition-transform active:translate-y-1 active:shadow-none duration-100 p-2 rounded-full flex items-center justify-center" href="#">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</a>
+<h1 class="font-headline text-2xl font-black text-[#1a1a1a] tracking-tight m-0">Schneiders</h1>
+<a class="text-[#1a1a1a] hover:bg-[#ffd84a] hover:scale-105 transition-transform active:translate-y-1 active:shadow-none duration-100 bg-mint chunky-border rounded-full p-2 flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]" href="#">
+<span class="material-symbols-outlined" data-icon="shopping_cart">shopping_cart</span>
+</a>
+</header>
+<main class="max-w-md mx-auto md:max-w-2xl lg:max-w-4xl px-4 py-8 space-y-12">
+<!-- 3. HERO STORY -->
+<section class="relative">
+<div class="bg-hot-pink p-8 rounded-2xl chunky-border shadow-chunky transform -rotate-2 relative overflow-hidden">
+<div class="absolute top-4 left-4 bg-white chunky-border rounded-lg px-3 py-1 font-bold text-xs transform -rotate-6 z-10">OUR STORY</div>
+<h2 class="text-4xl md:text-5xl text-white font-headline leading-tight mt-6 relative z-10">
+                    Shopping should feel like <span class="scribble-butter text-white">JOY.</span>
+</h2>
+<!-- Decorative Elements -->
+<div class="absolute -bottom-4 -right-4 w-24 h-24 bg-butter rounded-full opacity-50 blur-xl"></div>
+<div class="absolute top-10 -right-10 w-32 h-32 bg-mint rounded-full opacity-50 blur-xl"></div>
+</div>
+</section>
+<!-- 4. Story Text Card -->
+<section>
+<div class="bg-white p-6 rounded-2xl chunky-border shadow-chunky space-y-6">
+<p class="text-lg font-medium">We started Schneiders because we were tired of online shopping in Iraq feeling like a gamble. You deserve better.</p>
+<p class="text-gray-700">No more waiting weeks. No more fake products. We built this platform to bring you original, high-quality items with an experience that makes you smile from click to delivery.</p>
+<div class="bg-mint p-5 rounded-xl chunky-border shadow-chunky transform rotate-2 mt-8">
+<p class="font-headline text-xl mb-2">"We don't sell stuff. We deliver joy."</p>
+<p class="text-sm font-bold opacity-80">— The Schneiders Team</p>
+</div>
+</div>
+</section>
+<!-- 5. Our Promise Bento Grid (2x2) -->
+<section class="space-y-4">
+<h3 class="font-headline text-2xl text-center mb-6"><span class="scribble-butter">Our Promise</span></h3>
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-mint p-4 rounded-2xl chunky-border shadow-chunky flex flex-col items-center justify-center text-center aspect-square transform hover:scale-105 transition-transform">
+<span class="text-4xl mb-2">💵</span>
+<span class="font-bold">Cash on Delivery</span>
+</div>
+<div class="bg-butter p-4 rounded-2xl chunky-border shadow-chunky flex flex-col items-center justify-center text-center aspect-square transform hover:scale-105 transition-transform">
+<span class="text-4xl mb-2">⚡</span>
+<span class="font-bold">24h Express</span>
+</div>
+<div class="bg-sky-blue p-4 rounded-2xl chunky-border shadow-chunky flex flex-col items-center justify-center text-center aspect-square transform hover:scale-105 transition-transform">
+<span class="text-4xl mb-2">🛡️</span>
+<span class="font-bold">100% Original</span>
+</div>
+<div class="bg-lilac p-4 rounded-2xl chunky-border shadow-chunky flex flex-col items-center justify-center text-center aspect-square transform hover:scale-105 transition-transform">
+<span class="text-4xl mb-2">↩️</span>
+<span class="font-bold">Easy Returns</span>
+</div>
+</div>
+</section>
+<!-- 6. By the Numbers -->
+<section class="overflow-hidden py-4 -mx-4 px-4">
+<div class="flex space-x-4 overflow-x-auto pb-4 snap-x no-scrollbar">
+<div class="snap-center shrink-0 w-64 bg-hot-pink p-4 rounded-full chunky-border shadow-chunky flex items-center justify-between text-white">
+<span class="font-headline text-2xl">10,000+</span>
+<span class="font-bold text-sm uppercase">Orders</span>
+</div>
+<div class="snap-center shrink-0 w-64 bg-sky-blue p-4 rounded-full chunky-border shadow-chunky flex items-center justify-between">
+<span class="font-headline text-2xl">18</span>
+<span class="font-bold text-sm uppercase">Governorates</span>
+</div>
+<div class="snap-center shrink-0 w-64 bg-butter p-4 rounded-full chunky-border shadow-chunky flex items-center justify-between">
+<span class="font-headline text-2xl">4.9★</span>
+<span class="font-bold text-sm uppercase">Rating</span>
+</div>
+</div>
+</section>
+<!-- 7. Meet the Team -->
+<section class="space-y-6">
+<h3 class="font-headline text-3xl text-center"><span class="scribble-sky">Meet the Team</span></h3>
+<div class="flex overflow-x-auto pb-6 -mx-4 px-4 space-x-6 snap-x no-scrollbar">
+<!-- Team Member 1 -->
+<div class="snap-center shrink-0 w-48 relative">
+<img alt="Portrait of a female team member" class="w-full aspect-square object-cover rounded-full chunky-border shadow-chunky mb-4" data-alt="A brightly lit, professional yet approachable portrait of a diverse female team member. She is smiling warmly in a casual, modern office setting. The lighting is high-key and soft, fitting the playful, candy-colored bento grid aesthetic. Her attire is vibrant, matching the pastel and hot pink color palette of the UI." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqaIBrx_YrvmGPV-m5vu_YSUoTdlThIQ_cHhGE1984xXKQ7x0nCZp2PqxBh7DyoOxL3rw8aavSgfpG6BKDDI6vwRttXe2NA42XyRNAvF6jnhP1RJU4dyHXNkIP39tvMKplCM0cJNixUwrOpM7NfBzPqyX4g7Hhj2gr1jHSuO2bKV56cvFTeRNuuR0NMdvxBA0jl1UpEL8yXYCZHMGjBR4xhukn-Nfh67ipqZLSUPLJq0LBBsHPYudHcCFq1FPo9P8NaEZYHDaCUVJZ"/>
+<div class="absolute -top-2 -right-2 bg-butter text-xs font-bold px-2 py-1 rounded-lg chunky-border transform rotate-12">Founder</div>
+<div class="text-center">
+<h4 class="font-headline text-lg">Zainab</h4>
+<p class="text-sm opacity-80">Chief Joy Officer</p>
+</div>
+</div>
+<!-- Team Member 2 -->
+<div class="snap-center shrink-0 w-48 relative">
+<img alt="Portrait of a male team member" class="w-full aspect-square object-cover rounded-full chunky-border shadow-chunky mb-4" data-alt="A cheerful, high-quality portrait of a diverse male team member in a well-lit, contemporary space. He exudes a friendly, trustworthy vibe suitable for a fun e-commerce brand. The image is bright and colorful, seamlessly integrating with the chunky-brutalist candy style and mint/sky-blue accents of the design system." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA57uSw5GCwbcHh35M79_lquxGABNP_IkastExI2DFg6XVGuVAJNb5zIlPNBrm6KyaZDmEmf1a4pw_KqK1Ne5hMsK34Ucrl2PSgM33X_7hbKPtMzhYeC4l27QJTSzMg-Ka0VcAy3HWZwZDnS_Q5mK1GbnmlBpNDBJ1sJEYkRMzug3VchIGVy_yen_zszu-TN1bKFfU1kEnOBSXyXB1yyBCnpuySkkwKb0IyrSxY7Ia2-stnaxkRJvDpRUiePt5l1K20osZdVwyzf-tW"/>
+<div class="absolute -bottom-2 -left-2 bg-sky-blue text-xs font-bold px-2 py-1 rounded-lg chunky-border transform -rotate-12">Designer</div>
+<div class="text-center">
+<h4 class="font-headline text-lg">Ali</h4>
+<p class="text-sm opacity-80">Pixel Pusher</p>
+</div>
+</div>
+</div>
+</section>
+<!-- 8. Where We Are -->
+<section>
+<div class="bg-sky-blue p-6 rounded-2xl chunky-border shadow-chunky relative overflow-hidden">
+<h3 class="font-headline text-2xl mb-4 text-center">Where to find us 📍</h3>
+<div class="bg-white rounded-xl chunky-border h-48 mb-6 overflow-hidden flex items-center justify-center relative bg-[url('https://images.unsplash.com/photo-1524661135-423995f22d0b?w=800&amp;auto=format&amp;fit=crop&amp;q=60&amp;ixlib=rb-4.0.3')] bg-cover bg-center" data-alt="A stylized, illustrative map view of Baghdad, Iraq, rendered in a playful, bright color palette. The map features chunky roads and pastel-colored city blocks, perfectly matching the UI's candy-colored bento style. A large, cartoonish red pin marks the location. The mood is welcoming and geographically distinct.">
+<div class="absolute inset-0 bg-white/50 backdrop-blur-sm"></div>
+<span class="text-6xl relative z-10 drop-shadow-md transform -translate-y-2">📍</span>
+<div class="absolute bottom-2 right-2 bg-white px-2 py-1 text-xs font-bold rounded chunky-border">Baghdad</div>
+</div>
+<div class="space-y-3">
+<div class="flex items-center space-x-3 bg-white p-3 rounded-xl chunky-border">
+<span class="text-xl">🏢</span>
+<span class="font-bold text-sm">Al-Mansour, Baghdad, Iraq</span>
+</div>
+<div class="flex space-x-3">
+<a class="flex-1 bg-[#25D366] text-white p-3 rounded-xl chunky-border shadow-chunky flex justify-center items-center space-x-2 transform hover:-translate-y-1 transition-transform" href="#">
+<span class="font-bold">WhatsApp Us</span>
+</a>
+<a class="w-14 bg-butter p-3 rounded-xl chunky-border shadow-chunky flex justify-center items-center transform hover:-translate-y-1 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="phone">phone</span>
+</a>
+</div>
+</div>
+</div>
+</section>
+<!-- 9. CTA -->
+<section class="pb-8">
+<div class="bg-lilac p-8 rounded-2xl chunky-border shadow-chunky text-center transform -rotate-1">
+<h3 class="font-headline text-3xl mb-2">Want to chat? 💬</h3>
+<p class="mb-6 font-medium">Got questions? We're here for you.</p>
+<button class="w-full bg-[#25D366] text-white font-headline text-xl py-4 rounded-xl chunky-border shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] active:translate-y-1 active:shadow-none transition-all transform hover:scale-105">
+                    Message Us Now
+                </button>
+</div>
+</section>
+</main>
+<!-- 10. Footer -->
+<footer class="bg-cream border-t-4 border-charcoal py-8 text-center px-4 hidden md:block">
+<p class="font-headline text-xl mb-4">Schneiders</p>
+<div class="flex justify-center space-x-4 text-sm font-bold">
+<a class="hover:text-hot-pink hover:underline" href="#">Privacy Policy</a>
+<a class="hover:text-hot-pink hover:underline" href="#">Terms of Service</a>
+<a class="hover:text-hot-pink hover:underline" href="#">FAQ</a>
+</div>
+<p class="mt-6 text-xs opacity-60">© 2024 Schneiders Iraq. Delivering Joy.</p>
+</footer>
+</body></html>

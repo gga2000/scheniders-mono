@@ -9,8 +9,15 @@
 
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
-import { Section, SectionHeader } from "./helpers/primitives";
+import {
+  BentoCard,
+  Section,
+  SectionHeader,
+  Sticker,
+} from "./helpers/primitives";
+import { StoreLink } from "./helpers/store-context";
 import { SchneidersProductCard } from "./helpers/product-card";
+import { resolveTenantWhatsapp } from "./helpers/whatsapp";
 import type { Product } from "./types";
 import { i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
@@ -108,13 +115,49 @@ function ProductGridRender({
 }) {
   const items = selectProducts(props, ctx);
   const heading = resolveI18n(props.heading_i18n, ctx.runtime.locale);
+  const locale = ctx.runtime.locale;
+  const t = locale === "ar";
+  // On a category landing page, lead with a mint category hero (breadcrumb +
+  // eyebrow sticker + big name + count) instead of the plain section heading.
+  const category = ctx.category;
+  const catCount = category ? ctx.products.length : 0;
 
   if (items.length === 0) return null;
 
   return (
     <Section>
-      {heading && (
-        <SectionHeader title={heading} color={props.scribble_color ?? "butter"} />
+      {category ? (
+        <div className="mb-bk-lg">
+          <p className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft mb-bk-sm">
+            <StoreLink href="/" className="hover:text-bk-primary">
+              {t ? "الرئيسية" : "Home"}
+            </StoreLink>
+            <span className="text-bk-primary mx-1">›</span>
+            {category.name}
+          </p>
+          <BentoCard bg="mint" size="md" rotate={1} className="p-bk-lg sm:p-bk-xl">
+            <Sticker bg="pink" rotate={-4} size="xs" className="mb-bk-sm">
+              {t ? "اكتشف المجموعة" : "Step into color"}
+            </Sticker>
+            <h1 className="font-display font-black text-3xl sm:text-4xl uppercase leading-tight">
+              {category.name}
+            </h1>
+            {category.description && (
+              <p className="font-body font-bold text-sm mt-bk-xs max-w-[85%]">
+                {category.description}
+              </p>
+            )}
+            <div className="mt-bk-md">
+              <Sticker bg="butter" rotate={3} size="xs">
+                {t ? `${catCount} منتج` : `${catCount} product${catCount === 1 ? "" : "s"}`}
+              </Sticker>
+            </div>
+          </BentoCard>
+        </div>
+      ) : (
+        heading && (
+          <SectionHeader title={heading} color={props.scribble_color ?? "butter"} />
+        )
       )}
       <div
         data-layer="cards"
@@ -127,10 +170,7 @@ function ProductGridRender({
             product={product}
             index={i}
             priority={i < 4}
-            whatsappPhone={
-              (ctx.tenant as { contact_phone?: string | null } | undefined)
-                ?.contact_phone ?? null
-            }
+            whatsappPhone={resolveTenantWhatsapp(ctx.tenant)}
             locale={ctx.runtime.locale}
           />
         ))}

@@ -52,19 +52,19 @@ export function SettingsTiles({ storefrontUrl, businessName, tenantId, slug }: S
                 <h3 className="text-base font-semibold text-foreground mb-4">Quick settings</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     <Tile
-                        href="/store/edit"
+                        href="/store/edit?screen=brand_kit"
                         icon={<Palette className="w-4 h-4" />}
                         label="Brand & theme"
                         description="Logo, colors, fonts, shapes"
                     />
                     <Tile
-                        href="/store/edit"
+                        href="/store/edit?screen=i18n"
                         icon={<Globe2 className="w-4 h-4" />}
                         label="Languages"
                         description="Arabic, English, Kurdish"
                     />
                     <Tile
-                        href="/store/edit"
+                        href="/store/edit?screen=brand_kit"
                         icon={<Search className="w-4 h-4" />}
                         label="SEO"
                         description="Page titles & meta descriptions"

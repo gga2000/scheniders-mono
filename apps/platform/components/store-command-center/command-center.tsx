@@ -1,5 +1,6 @@
 "use client";
 
+import { isStorePubliclyLive } from "@scheniders/shared";
 import type { StoreConfigV2 } from "@scheniders/shared";
 import { useStoreAnalytics } from "@/hooks/use-store-analytics";
 import { useStorefrontUrl } from "@/hooks/use-storefront-url";
@@ -30,9 +31,18 @@ export function CommandCenter({ tenant, tenantId }: CommandCenterProps) {
     const storefrontUrl = useStorefrontUrl(tenant.slug, tenantId);
 
     const storeStatus = {
-        published: !!tenant.store_config_v2 && tenant.status === "active",
+        // A trial tenant with a published config is genuinely live (anon RLS
+        // exposes `status IN ('trial','active')`), so it must not read as "Draft".
+        published:
+            !!tenant.store_config_v2 && isStorePubliclyLive(tenant.status),
         hasDraft: !!tenant.store_config_v2_draft,
     };
+
+    // The hub must reflect the same state the editor shows: the editor loads
+    // `draft ?? published`, so Health/Pages here score the draft when one exists
+    // (otherwise a built-but-unpublished store reports an empty published config).
+    const resolvedConfig =
+        tenant.store_config_v2_draft ?? tenant.store_config_v2;
 
     return (
         <div className="px-4 sm:px-6 py-6 max-w-[1400px] mx-auto space-y-6">
@@ -55,8 +65,8 @@ export function CommandCenter({ tenant, tenantId }: CommandCenterProps) {
 
                 {/* Right column */}
                 <div className="space-y-6">
-                    <HealthCard config={tenant.store_config_v2} />
-                    <PagesCard config={tenant.store_config_v2} />
+                    <HealthCard config={resolvedConfig} />
+                    <PagesCard config={resolvedConfig} />
                     <SettingsTiles
                         storefrontUrl={storefrontUrl}
                         businessName={tenant.business_name}

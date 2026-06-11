@@ -139,9 +139,14 @@ function OrderTrackerRender({
   return (
     <section className="px-4 py-bk-section-dense">
       <BentoCard bg="butter" size="md" className="p-bk-lg sm:p-bk-xl">
-        <ScribbleHeading color="pink" className="mb-bk-md">
-          {heading}
+        <ScribbleHeading color="pink" className="mb-bk-2xs">
+          {heading} 📦
         </ScribbleHeading>
+        <p className="font-body text-sm text-bk-ink-soft mb-bk-md">
+          {t
+            ? "لا حاجة لتسجيل الدخول. فقط رقم هاتفك."
+            : "No login needed. Just your phone number."}
+        </p>
         <form onSubmit={onSubmit} className="space-y-bk-sm">
           {(props.lookup_method === "phone" || props.lookup_method === "both") && (
             <label className="block">
@@ -208,40 +213,62 @@ function OrderTrackerRender({
               </p>
             )}
             {props.show_timeline && (
-              <ol className="mt-bk-md space-y-bk-xs">
+              <ol className="mt-bk-md">
                 {STATUS_STEPS.map((step, i) => {
                   const reached = i <= statusIndex(order.status);
                   const isCurrent = i === statusIndex(order.status);
+                  const isLast = i === STATUS_STEPS.length - 1;
                   return (
                     <li
                       key={step}
-                      className="flex items-center gap-bk-sm"
+                      className="relative flex items-center gap-bk-sm pb-bk-md last:pb-0"
                       aria-current={isCurrent ? "step" : undefined}
                     >
+                      {/* Connector line to the next step (mint once reached). */}
+                      {!isLast && (
+                        <span
+                          aria-hidden="true"
+                          className="absolute top-10 w-[3px]"
+                          style={{
+                            left: "18px",
+                            bottom: "0",
+                            backgroundColor:
+                              i < statusIndex(order.status)
+                                ? "var(--bk-mint, #7cf0bd)"
+                                : "rgb(26 26 26 / 0.15)",
+                          }}
+                        />
+                      )}
                       <span
-                        className="w-9 h-9 flex items-center justify-center shrink-0"
+                        className="relative z-10 flex items-center justify-center shrink-0 transition-all"
                         style={{
+                          width: isCurrent ? "44px" : "36px",
+                          height: isCurrent ? "44px" : "36px",
                           backgroundColor: isCurrent
                             ? "var(--bk-primary, #ff5a8a)"
                             : reached
-                              ? "var(--bk-success, #7cf0bd)"
+                              ? "var(--bk-mint, #7cf0bd)"
                               : "#ffffff",
                           color: isCurrent
                             ? "var(--bk-on-primary, #ffffff)"
                             : "var(--bk-ink, #1a1a1a)",
                           border:
                             "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
-                          borderRadius: "var(--bk-radius-input, 0.75rem)",
+                          borderRadius: "var(--bk-radius-pill, 9999px)",
+                          boxShadow: isCurrent
+                            ? "0 0 0 5px color-mix(in srgb, var(--bk-primary, #ff5a8a) 28%, transparent)"
+                            : "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
                         }}
                       >
                         <MaterialIcon
                           name={reached ? STATUS_LABEL[step].icon : "circle"}
-                          className="text-base"
+                          className={isCurrent ? "text-xl" : "text-base"}
                         />
                       </span>
                       <span
                         className={
-                          "font-display font-black uppercase text-sm " +
+                          "font-display font-black uppercase " +
+                          (isCurrent ? "text-base" : "text-sm ") +
                           (reached ? "text-bk-ink" : "text-bk-ink-faint")
                         }
                       >

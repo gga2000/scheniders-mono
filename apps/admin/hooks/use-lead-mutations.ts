@@ -7,7 +7,7 @@ import { adminFetch } from "@/lib/admin-fetch";
 export function useCreateLead() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: LeadFormData) => {
+    mutationFn: async (data: LeadFormData & { is_draft?: boolean }) => {
       const res = await adminFetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -28,7 +28,7 @@ export function useCreateLead() {
 export function useUpdateLead() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<LeadFormData> & { status?: LeadStatus } }) => {
+    mutationFn: async ({ id, data }: { id: string; data: Partial<LeadFormData> & { status?: LeadStatus; is_draft?: boolean } }) => {
       const res = await adminFetch(`/api/leads/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },

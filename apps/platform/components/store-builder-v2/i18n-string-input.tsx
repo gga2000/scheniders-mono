@@ -186,7 +186,7 @@ export function I18nStringInput({
                         onChange={(e) => updateLocale(localActive, e.target.value)}
                         placeholder={placeholder}
                         rows={3}
-                        dir="ltr"
+                        dir="auto"
                         className={cn(
                             "w-full rounded-xl border border-(--card-border) bg-background px-3.5 py-2.5 text-sm",
                             "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary",
@@ -200,7 +200,7 @@ export function I18nStringInput({
                         value={activeValue}
                         onChange={(e) => updateLocale(localActive, e.target.value)}
                         placeholder={placeholder}
-                        dir="ltr"
+                        dir="auto"
                         className={cn(
                             "w-full rounded-xl border border-(--card-border) bg-background px-3.5 py-2.5 text-sm",
                             "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary",
@@ -269,7 +269,7 @@ export function I18nStringInput({
                                     onChange={(e) => updateLocale(loc, e.target.value)}
                                     placeholder={placeholder}
                                     rows={2}
-                                    dir="ltr"
+                                    dir="auto"
                                     className={cn(
                                         "flex-1 rounded-lg border border-(--card-border) bg-background px-2.5 py-1.5 text-xs",
                                         "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary",
@@ -283,7 +283,7 @@ export function I18nStringInput({
                                     value={localeValue}
                                     onChange={(e) => updateLocale(loc, e.target.value)}
                                     placeholder={placeholder}
-                                    dir="ltr"
+                                    dir="auto"
                                     className={cn(
                                         "flex-1 rounded-lg border border-(--card-border) bg-background px-2.5 py-1.5 text-xs",
                                         "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary",

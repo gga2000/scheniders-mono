@@ -119,6 +119,9 @@ function makeBuilder(overrides: Partial<UseStoreBuilderV2Return> = {}): UseStore
         undo_description: null,
         redo_description: null,
         applyConfig: noop,
+        recoverable_backup: null,
+        restore_backup: noop,
+        dismiss_backup: noop,
         createNamedSnapshot: async () => ({
             id: "v0",
             label: "noop",
@@ -295,8 +298,8 @@ describe("EditorShell", () => {
         // Empty config has multiple `blocks_publish` ad_compliance failures.
         // Builder v2 no longer blocks publish on health — clicking Publish
         // opens the PublishConfirmSheet so the merchant can fix or
-        // publish anyway. The button should be enabled and the tooltip
-        // becomes a "review before publishing" advisory.
+        // publish anyway. The button should be enabled and the tooltip is a
+        // non-blocking advisory that matches the enabled button (BUG41).
         const onPublish = vi.fn().mockResolvedValue(undefined);
         const builder = makeBuilder({
             has_unpublished_changes: true,
@@ -314,7 +317,7 @@ describe("EditorShell", () => {
         );
         const btn = screen.getByTestId("publish-button") as HTMLButtonElement;
         expect(btn.disabled).toBe(false);
-        expect(btn.getAttribute("title") ?? "").toMatch(/review before publishing/);
+        expect(btn.getAttribute("title") ?? "").toMatch(/will be shown before you publish/);
         // Click does NOT publish directly — the sheet should open.
         fireEvent.click(btn);
         expect(onPublish).not.toHaveBeenCalled();

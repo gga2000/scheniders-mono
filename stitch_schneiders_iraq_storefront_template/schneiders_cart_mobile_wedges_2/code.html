@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+
+<html dir="ltr" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Schneiders - Your Cart</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;700;900&amp;family=DM+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        cream: '#fff7ed',
+                        pink: '#ff5a8a',
+                        mint: '#7cf0bd',
+                        butter: '#ffd84a',
+                        lilac: '#c5b6ff',
+                        sky: '#9ad8ff',
+                        charcoal: '#1a1a1a',
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "2xl": "1rem", 
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        "headline": ["Public Sans", "sans-serif"],
+                        "display": ["Public Sans", "sans-serif"],
+                        "body": ["DM Sans", "sans-serif"],
+                        "label": ["DM Sans", "sans-serif"]
+                    },
+                    boxShadow: {
+                        'brutal': '4px 4px 0px 0px rgba(26, 26, 26, 1)',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'DM Sans', sans-serif; background-color: #fff7ed; color: #1a1a1a; }
+        h1, h2, h3, h4, .font-display { font-family: 'Public Sans', sans-serif; font-weight: 900; }
+        
+        /* Zigzag pattern generator */
+        .zigzag-bg {
+            background: linear-gradient(135deg, #ffd84a 25%, transparent 25%) -10px 0,
+                        linear-gradient(225deg, #ffd84a 25%, transparent 25%) -10px 0,
+                        linear-gradient(315deg, #ffd84a 25%, transparent 25%),
+                        linear-gradient(45deg, #ffd84a 25%, transparent 25%);
+            background-size: 20px 20px;
+            background-color: #ffd84a; /* fallback */
+        }
+        
+        .brutal-border { border: 3px solid #1a1a1a; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-cream pb-32">
+<!-- TopAppBar JSON Component (Adjusted for Cart specific layout requested) -->
+<header class="fixed top-0 w-full z-50 h-16 bg-[#fff7ed] border-b-4 border-[#1a1a1a] flex justify-between items-center px-4 transition-transform">
+<button aria-label="Menu" class="text-[#1a1a1a] hover:scale-105 active:rotate-1 transition-transform flex items-center justify-center">
+<span class="material-symbols-outlined text-2xl font-bold">arrow_back</span>
+</button>
+<span class="font-display font-black text-2xl text-[#1a1a1a]">Schneiders</span>
+<button class="bg-mint text-charcoal font-bold rounded-full px-3 py-1 flex items-center gap-1 brutal-border shadow-brutal hover:scale-105 active:rotate-1 transition-transform">
+<span class="material-symbols-outlined text-sm">shopping_bag</span>
+<span class="text-sm">3</span>
+</button>
+</header>
+<div class="pt-16">
+<!-- Zigzag Promo Bar -->
+<div class="w-full bg-butter py-2 border-b-3 border-charcoal text-center flex items-center justify-center gap-2 overflow-hidden relative">
+<div class="absolute inset-0 zigzag-bg opacity-20"></div>
+<span class="font-bold text-sm relative z-10 flex items-center gap-1">
+<span class="text-xl">🚚</span> FREE delivery on orders over 75,000 د.ع
+             </span>
+</div>
+<main class="px-4 py-6 max-w-lg mx-auto space-y-8">
+<!-- Page Title -->
+<div class="space-y-2">
+<div class="relative inline-block rotate-[-1deg]">
+<h1 class="text-4xl font-display text-charcoal relative z-10">Your Cart</h1>
+<div class="absolute bottom-1 left-0 w-full h-3 bg-butter brutal-border -z-10 -rotate-2"></div>
+</div>
+<p class="text-sm font-bold text-charcoal">3 items waiting to come home with you ✨</p>
+</div>
+<!-- Cart Items -->
+<div class="space-y-4">
+<!-- Item 1 -->
+<div class="bg-white rounded-xl brutal-border shadow-brutal p-3 flex gap-4 relative">
+<!-- Sticker -->
+<div class="absolute -top-3 -left-2 bg-pink text-white font-bold text-xs px-2 py-1 rounded-md brutal-border rotate-[-6deg] z-10">
+                        Save 35K
+                    </div>
+<div class="w-24 h-24 bg-sky/30 rounded-lg brutal-border overflow-hidden shrink-0">
+<img alt="Summer Casual T-shirt" class="w-full h-full object-cover mix-blend-multiply" data-alt="A bright, playful lifestyle shot of a folded summer casual t-shirt in a pastel yellow setting. The lighting is sunny and crisp, creating soft, playful shadows that match the Candy Bento aesthetic. The t-shirt itself is a vibrant hot pink, popping against the cream and butter yellow background, exuding a joyful, energetic mood." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCqDFjZ5fUtLofgEr1GYGdJFRYL6TVFunjSjo-pGiUJrQ6IrkGDWvxsECD5NWlY5k_nxp8pkQ3vJ132Imp3MmvjuaOwIGCMTKBwKa1kMeSIteP7lKYa9SrbPYdezMlZXWcZq_g9LzcxcDBt8pHbAypR5QT5hL51MApIL1zW64vS26ow2WnG8Eb1Epryw3SvjjthnDkCKxy_f_4DFv_ZLsVY3zrz3zTb8oRFKcQ3sQyW5PtEN7uhj8xMgQ3_g-1Qvcy1BeZHNnyt0omq"/>
+</div>
+<div class="flex-1 flex flex-col justify-between">
+<div>
+<h3 class="font-display text-lg leading-tight">Summer Casual T-shirt</h3>
+<div class="flex items-center gap-2 mt-1">
+<span class="font-bold text-pink">85,000 د.ع</span>
+<span class="text-xs line-through text-gray-500">120,000 د.ع</span>
+</div>
+</div>
+<div class="flex justify-between items-center mt-2">
+<div class="flex items-center brutal-border rounded-full bg-cream overflow-hidden h-8">
+<button class="px-2 hover:bg-gray-200 active:bg-gray-300 transition-colors h-full flex items-center justify-center font-bold text-lg w-8">-</button>
+<span class="font-bold text-sm w-6 text-center">1</span>
+<button class="px-2 hover:bg-gray-200 active:bg-gray-300 transition-colors h-full flex items-center justify-center font-bold text-lg w-8">+</button>
+</div>
+<button class="bg-butter brutal-border rounded-full w-8 h-8 flex items-center justify-center hover:scale-110 transition-transform active:rotate-12">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="bg-white rounded-xl brutal-border shadow-brutal p-3 flex gap-4 relative rotate-[0.5deg]">
+<div class="w-24 h-24 bg-lilac/40 rounded-lg brutal-border overflow-hidden shrink-0 flex items-center justify-center">
+<img alt="Elegant Handbag" class="w-full h-full object-cover mix-blend-multiply" data-alt="A chic elegant handbag resting on a soft lilac pastel surface. The lighting is bright and modern, creating a clear, high-contrast look typical of the Candy Bento style. The handbag is a sleek black, offering a stark brutalist contrast to the playful lilac background. The mood is stylish yet accessible." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCDCQsUt0VoEgTdQb97rwSWbOB9S-rFJ49KdJKaKeyP3GO4p_BNQpw8ZUHJqahgroBsNwGI3bPSDNqBJPdj9pECLbSjWw1TCIGRnnT6cFBgJB3dfv68zqp8sFWen9UW7vrCzJDzfKEn3CXKuz_d06o4CwHuQTvvhv1AbGYvN9hKspjCKhY6xFJ0RC82bberz_zm47PikBIcGIsMHi6tTsvCs13dXLkZgXGzELlQPzxbA_q3mtOoC-IioRA0Q3vpAiJ8ZMhQoTUD4Pf_"/>
+</div>
+<div class="flex-1 flex flex-col justify-between">
+<div>
+<h3 class="font-display text-lg leading-tight">Elegant Handbag</h3>
+<div class="font-bold text-charcoal mt-1">55,000 د.ع</div>
+</div>
+<div class="flex justify-between items-center mt-2">
+<div class="flex items-center brutal-border rounded-full bg-cream overflow-hidden h-8">
+<button class="px-2 hover:bg-gray-200 active:bg-gray-300 transition-colors h-full flex items-center justify-center font-bold text-lg w-8">-</button>
+<span class="font-bold text-sm w-6 text-center">1</span>
+<button class="px-2 hover:bg-gray-200 active:bg-gray-300 transition-colors h-full flex items-center justify-center font-bold text-lg w-8">+</button>
+</div>
+<button class="bg-butter brutal-border rounded-full w-8 h-8 flex items-center justify-center hover:scale-110 transition-transform active:rotate-12">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Promo Code Section -->
+<div class="bg-sky rounded-xl brutal-border shadow-brutal p-4 rotate-[1deg] flex flex-col gap-2">
+<label class="font-bold text-sm flex items-center gap-1" for="promo">
+                    ✨ HAVE A CODE?
+                </label>
+<div class="flex gap-2">
+<input class="flex-1 rounded-lg brutal-border px-3 py-2 text-sm font-bold bg-white focus:outline-none focus:ring-2 focus:ring-pink" id="promo" placeholder="Enter code..." type="text"/>
+<button class="bg-butter brutal-border rounded-lg px-4 py-2 font-display font-black text-sm hover:scale-105 active:rotate-2 transition-transform">
+                        APPLY
+                    </button>
+</div>
+</div>
+<!-- Order Summary -->
+<div class="bg-white rounded-xl brutal-border shadow-brutal p-5 relative">
+<!-- Sticker -->
+<div class="absolute -top-3 -right-2 bg-butter text-charcoal font-bold text-xs px-2 py-1 rounded-md brutal-border rotate-[3deg] z-10 shadow-brutal">
+                    Save 35K!
+                </div>
+<h2 class="font-display text-2xl mb-4 border-b-2 border-dashed border-gray-300 pb-2">Order Summary</h2>
+<div class="space-y-3 text-sm font-bold">
+<div class="flex justify-between">
+<span class="text-gray-600">Subtotal</span>
+<span>270,000 د.ع</span>
+</div>
+<div class="flex justify-between text-pink">
+<span>Discount</span>
+<span>-35,000 د.ع</span>
+</div>
+<div class="flex justify-between text-mint">
+<span>Delivery</span>
+<span>FREE</span>
+</div>
+<div class="border-t-3 border-charcoal pt-3 mt-3 flex justify-between items-end">
+<span class="font-display text-xl">Total</span>
+<span class="font-display text-2xl">235,000 د.ع</span>
+</div>
+</div>
+</div>
+<!-- Trust Strip -->
+<div class="flex overflow-x-auto gap-3 pb-2 hide-scrollbar -mx-4 px-4 snap-x">
+<div class="snap-center shrink-0 bg-lilac/30 brutal-border rounded-full px-4 py-2 flex items-center gap-2 shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]">
+<span class="text-xl">🤝</span>
+<span class="font-bold text-sm whitespace-nowrap">Cash on Delivery</span>
+</div>
+<div class="snap-center shrink-0 bg-butter/30 brutal-border rounded-full px-4 py-2 flex items-center gap-2 shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]">
+<span class="text-xl">⚡</span>
+<span class="font-bold text-sm whitespace-nowrap">24h Delivery</span>
+</div>
+<div class="snap-center shrink-0 bg-mint/30 brutal-border rounded-full px-4 py-2 flex items-center gap-2 shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]">
+<span class="text-xl">💯</span>
+<span class="font-bold text-sm whitespace-nowrap">100% Original</span>
+</div>
+</div>
+<!-- WhatsApp Option -->
+<div class="flex items-center gap-4 py-2">
+<div class="flex-1 h-0.5 bg-gray-300"></div>
+<span class="font-bold text-gray-400 text-sm">OR</span>
+<div class="flex-1 h-0.5 bg-gray-300"></div>
+</div>
+<button class="w-full bg-white brutal-border shadow-brutal rounded-xl py-3 flex items-center justify-center gap-2 hover:-translate-y-1 transition-transform active:translate-y-0 active:shadow-[1px_1px_0px_0px_rgba(26,26,26,1)]">
+<span class="text-xl">💬</span>
+<span class="font-display font-bold text-mint drop-shadow-sm" style="-webkit-text-stroke: 0.5px #1a1a1a;">Order on WhatsApp</span>
+</button>
+</main>
+</div>
+<!-- Sticky Bottom Bar -->
+<div class="fixed bottom-0 w-full z-50 bg-mint border-t-3 border-charcoal p-4 pb-safe flex justify-between items-center shadow-[0_-4px_0_0_rgba(26,26,26,1)]">
+<div class="flex flex-col">
+<span class="text-xs font-bold text-charcoal/70">Total</span>
+<span class="font-display font-black text-xl text-charcoal">235,000 د.ع</span>
+</div>
+<button class="bg-pink text-white font-display font-black text-lg px-6 py-3 rounded-full brutal-border shadow-brutal hover:scale-105 active:scale-95 transition-transform flex items-center gap-2">
+            CHECKOUT
+            <span class="material-symbols-outlined text-white font-bold">arrow_forward</span>
+</button>
+</div>
+</body></html>

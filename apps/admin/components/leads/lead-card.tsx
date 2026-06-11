@@ -24,6 +24,7 @@ import {
   Award,
   Circle,
   Globe,
+  Pencil,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -89,7 +90,9 @@ export function LeadCard({
         `lead-card--${tier}`,
         isSelected && "ring-2 ring-[var(--primary)]",
         stalenessClass === "stale" && "lead-card--stale",
-        stalenessClass === "cold" && "lead-card--cold"
+        stalenessClass === "cold" && "lead-card--cold",
+        lead.is_draft &&
+          "outline-2 outline-dashed outline-amber-400/70 -outline-offset-2"
       )}
     >
       {/* ── Tier Visual Layers ───────────────────────────── */}
@@ -175,6 +178,14 @@ export function LeadCard({
                 </svg>
               )}
             </button>
+
+            {/* Draft badge — takes precedence visually over tier */}
+            {lead.is_draft && (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                <Pencil className="w-3 h-3" />
+                Draft
+              </span>
+            )}
 
             {/* Tier badge */}
             <div

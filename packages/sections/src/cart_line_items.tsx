@@ -14,6 +14,7 @@ import { resolveI18n } from "@scheniders/shared";
 import {
   BentoCard,
   MaterialIcon,
+  ScribbleHeading,
 } from "./helpers/primitives";
 import { formatPrice } from "./helpers/format";
 import { useCart } from "./helpers/cart-store";
@@ -65,8 +66,20 @@ function CartLineItemsRender({
     );
   }
 
+  const itemCount = items.reduce((n, i) => n + i.quantity, 0);
+
   return (
     <section className="px-4 py-bk-section-dense">
+      <header className="mb-bk-md">
+        <ScribbleHeading color="butter" as="h1">
+          {locale === "ar" ? "سلتك" : "Your Cart"}
+        </ScribbleHeading>
+        <p className="mt-bk-2xs font-body text-sm text-bk-ink-soft">
+          {locale === "ar"
+            ? `${itemCount} عنصر بانتظار الوصول إليك ✨`
+            : `${itemCount} item${itemCount === 1 ? "" : "s"} waiting to come home with you ✨`}
+        </p>
+      </header>
       <ul className="space-y-bk-sm">
         {items.map((item) => {
           const lineTotal = item.price * item.quantity;

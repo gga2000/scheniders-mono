@@ -37,6 +37,7 @@ import type {
     PageId,
     ScheduledChange,
     SectionInstance,
+    StoreConfigV2,
     Variant,
 } from "@scheniders/shared";
 import type {
@@ -147,6 +148,61 @@ function resolveTargets(
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
+/* Variant mutation (the source of truth the storefront resolver reads) */
+/* ─────────────────────────────────────────────────────────────────── */
+
+function variantKey(page_id: string, section_id: string, variant_id: string): string {
+    return `${page_id}::${section_id}::${variant_id}`;
+}
+
+/**
+ * Apply `transform` to every variant referenced by a schedule's targets.
+ * Schedule rows are metadata only — the live store evaluates the variant's own
+ * `time_window`/`enabled`, so lifecycle actions MUST mutate the config here
+ * (via builder.setConfig) or they're cosmetic (BUG6).
+ */
+function applyToTargetVariants(
+    config: StoreConfigV2,
+    targets: ScheduledChange["targets"],
+    transform: (v: Variant) => Variant,
+): StoreConfigV2 {
+    const keys = new Set(
+        targets.map((t) => variantKey(t.page_id, t.section_id, t.variant_id)),
+    );
+    return {
+        ...config,
+        pages: config.pages.map((page) => ({
+            ...page,
+            sections: page.sections.map((section) => {
+                if (!section.variants?.length) return section;
+                let changed = false;
+                const variants = section.variants.map((v) => {
+                    if (!keys.has(variantKey(page.page_id, section.id, v.id))) {
+                        return v;
+                    }
+                    changed = true;
+                    return transform(v);
+                });
+                return changed ? { ...section, variants } : section;
+            }),
+        })),
+    };
+}
+
+/** Patch the `time_window` condition(s) on a variant. */
+function patchTimeWindow(
+    v: Variant,
+    patch: { start_iso?: string; end_iso?: string },
+): Variant {
+    return {
+        ...v,
+        conditions: v.conditions.map((c) =>
+            c.kind === "time_window" ? { ...c, ...patch } : c,
+        ),
+    };
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
 /* Component                                                            */
 /* ─────────────────────────────────────────────────────────────────── */
 
@@ -220,6 +276,15 @@ export function ScheduledChangesScreen({
             setBusyId(s.id);
             try {
                 const nowIso = new Date().toISOString();
+                // Source of truth: end the variant's time window NOW so the
+                // live store stops showing it on the next publish.
+                builder.setConfig(
+                    (prev) =>
+                        applyToTargetVariants(prev, s.targets, (v) =>
+                            patchTimeWindow(v, { end_iso: nowIso }),
+                        ),
+                    "Ended scheduled change early",
+                );
                 await builder.updateSchedule(s.id, {
                     ends_at_iso: nowIso,
                     status: "expired",
@@ -246,6 +311,16 @@ export function ScheduledChangesScreen({
         async (s: StoredSchedule): Promise<void> => {
             setBusyId(s.id);
             try {
+                // Disable the targeted variant so it never applies on the live
+                // store (non-destructive — the override is preserved).
+                builder.setConfig(
+                    (prev) =>
+                        applyToTargetVariants(prev, s.targets, (v) => ({
+                            ...v,
+                            enabled: false,
+                        })),
+                    "Cancelled scheduled change",
+                );
                 await builder.cancelSchedule(s.id);
                 setSchedules((prev) =>
                     prev
@@ -287,6 +362,15 @@ export function ScheduledChangesScreen({
         async (s: StoredSchedule, nextStartIso: string): Promise<void> => {
             setBusyId(s.id);
             try {
+                // Move the variant's actual start so the resolver activates it
+                // at the new time, not just the schedule metadata.
+                builder.setConfig(
+                    (prev) =>
+                        applyToTargetVariants(prev, s.targets, (v) =>
+                            patchTimeWindow(v, { start_iso: nextStartIso }),
+                        ),
+                    "Updated scheduled change start",
+                );
                 await builder.updateSchedule(s.id, { starts_at_iso: nextStartIso });
                 setSchedules((prev) =>
                     prev

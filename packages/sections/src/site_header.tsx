@@ -1,11 +1,12 @@
 // =====================================================================
 // Section — site_header  (global)
 // =====================================================================
-// Persistent storefront header: wordmark / logo, primary nav, and the
-// search + cart actions (cart shows a live item-count badge). Lives in
-// globals.header. Rendered by default on every V2 page when a tenant has
-// not configured one (see StorefrontGlobals). Mobile collapses the nav
-// into a toggle panel; the search + cart actions stay visible.
+// Persistent storefront header in the Candy Bento lockup: a circular
+// bento menu/back button, a centered butter "logo chip" wordmark, and a
+// mint cart pill with a live item count. Lives in globals.header and
+// ships by default on every V2 page (see StorefrontGlobals). On sub-pages
+// the left control becomes a circular back button; on the home page it is
+// the menu toggle that opens the mobile category/nav drawer.
 // =====================================================================
 
 "use client";
@@ -29,6 +30,8 @@ const navLinkSchema = z.object({
 const schema = z.object({
   /** Override the store name shown as the wordmark (defaults to business_name). */
   wordmark_i18n: i18nStringOptional,
+  /** "pill" = butter logo chip (default); "plain" = square + wordmark. */
+  wordmark_style: z.enum(["pill", "plain"]).optional(),
   nav_links: z.array(navLinkSchema),
   show_search: z.boolean(),
   show_cart: z.boolean(),
@@ -39,6 +42,7 @@ const schema = z.object({
 type Props = z.infer<typeof schema>;
 
 const defaultProps: Props = {
+  wordmark_style: "pill",
   nav_links: [
     { label_i18n: { ar: "الرئيسية", en: "Home" }, href: "/" },
     { label_i18n: { ar: "المنتجات", en: "Shop" }, href: "/products" },
@@ -49,9 +53,15 @@ const defaultProps: Props = {
   sticky: true,
 };
 
-const iconBtn =
-  "inline-flex h-11 w-11 items-center justify-center rounded-[var(--bk-radius-input,0.75rem)] " +
-  "text-[var(--bk-ink,#1a1a1a)] hover:bg-candy-cream transition-colors";
+/** Circular white bento control (menu / back). 44px touch target. */
+const circleBtn =
+  "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white " +
+  "transition-transform hover:scale-105 active:scale-95";
+const circleBtnStyle = {
+  border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+  boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
+  color: "var(--bk-ink, #1a1a1a)",
+} as const;
 
 function SiteHeaderRender({
   props,
@@ -66,12 +76,15 @@ function SiteHeaderRender({
 
   // The cart count comes from a localStorage-persisted store, so it's empty
   // during SSR. Only reveal the count after mount so the server and first
-  // client render agree (no hydration mismatch), regardless of the store's
-  // hydration strategy.
+  // client render agree (no hydration mismatch).
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const cartCount = useCart((s) => s.getItemCount());
   const count = mounted ? cartCount : 0;
+
+  // Home shows the menu toggle (opens the drawer); every other page shows a
+  // circular back control instead, matching the Stitch sub-page chrome.
+  const isHome = ctx.runtime.page_id === "home";
 
   const logo = ctx.tenant.branding?.logo_url ?? null;
   const wordmark = props.wordmark_i18n
@@ -83,68 +96,94 @@ function SiteHeaderRender({
     label: resolveI18n(l.label_i18n, locale),
   }));
 
-  const Wordmark = (
-    <StoreLink
-      href="/"
-      className="flex items-center gap-2 min-w-0"
-      onClick={() => setOpen(false)}
-    >
-      <BrandMark logoUrl={logo} name={wordmark} size="md" />
-    </StoreLink>
-  );
-
   return (
     <header
       className={cn("w-full z-40", props.sticky && "sticky top-0")}
       style={{
-        backgroundColor: "var(--bk-surface, #ffffff)",
+        backgroundColor: "var(--bk-surface, #fff7ed)",
         borderBottom:
           "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+        boxShadow: "0 3px 0 0 rgb(26 26 26 / 0.06)",
       }}
     >
-      <div className="mx-auto max-w-6xl px-4 min-h-16 flex items-center justify-between gap-3">
-        {/* Left: mobile toggle + wordmark */}
-        <div className="flex items-center gap-1 min-w-0">
-          {navLinks.length > 0 && (
+      <div className="mx-auto max-w-6xl px-4 min-h-16 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+        {/* Left: mobile menu/back + desktop nav */}
+        <div className="flex items-center gap-2 justify-self-start min-w-0">
+          {isHome ? (
+            navLinks.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setOpen((o) => !o)}
+                aria-label={t ? "القائمة" : "Menu"}
+                aria-expanded={open}
+                className={cn(circleBtn, "sm:hidden")}
+                style={circleBtnStyle}
+              >
+                <MaterialIcon
+                  name={open ? "close" : "menu"}
+                  className="text-2xl"
+                />
+              </button>
+            )
+          ) : (
             <button
               type="button"
-              onClick={() => setOpen((o) => !o)}
-              aria-label={t ? "القائمة" : "Menu"}
-              aria-expanded={open}
-              className={cn(iconBtn, "sm:hidden")}
+              onClick={() => {
+                if (typeof window !== "undefined" && window.history.length > 1) {
+                  window.history.back();
+                }
+              }}
+              aria-label={t ? "رجوع" : "Back"}
+              className={cn(circleBtn, "sm:hidden")}
+              style={circleBtnStyle}
             >
-              <MaterialIcon name={open ? "close" : "menu"} className="text-2xl" />
+              <MaterialIcon name="arrow_back" className="text-2xl" />
             </button>
           )}
-          {Wordmark}
+
+          {/* Desktop nav */}
+          <nav className="hidden sm:flex items-center gap-6">
+            {navLinks.map((l) => (
+              <StoreLink
+                key={`${l.href}-${l.label}`}
+                href={l.href}
+                className="group relative font-label font-bold text-sm uppercase tracking-wide transition-colors hover:text-[var(--bk-primary,#ff5a8a)]"
+                style={{ color: "var(--bk-ink, #1a1a1a)" }}
+              >
+                {l.label}
+                <span
+                  aria-hidden="true"
+                  className="absolute -bottom-1 left-0 h-[var(--bk-border-thickness,3px)] w-0 transition-all duration-200 group-hover:w-full"
+                  style={{ backgroundColor: "var(--bk-primary, #ff5a8a)" }}
+                />
+              </StoreLink>
+            ))}
+          </nav>
         </div>
 
-        {/* Center: desktop nav */}
-        <nav className="hidden sm:flex items-center gap-6">
-          {navLinks.map((l) => (
-            <StoreLink
-              key={`${l.href}-${l.label}`}
-              href={l.href}
-              className="group relative font-label font-bold text-sm uppercase tracking-wide transition-colors hover:text-[var(--bk-primary,#ff5a8a)]"
-              style={{ color: "var(--bk-ink, #1a1a1a)" }}
-            >
-              {l.label}
-              <span
-                aria-hidden="true"
-                className="absolute -bottom-1 left-0 h-[var(--bk-border-thickness,3px)] w-0 transition-all duration-200 group-hover:w-full"
-                style={{ backgroundColor: "var(--bk-primary, #ff5a8a)" }}
-              />
-            </StoreLink>
-          ))}
-        </nav>
+        {/* Center: wordmark logo chip */}
+        <StoreLink
+          href="/"
+          className="justify-self-center min-w-0 max-w-[60vw] sm:max-w-none"
+          onClick={() => setOpen(false)}
+          aria-label={wordmark}
+        >
+          <BrandMark
+            logoUrl={logo}
+            name={wordmark}
+            size="md"
+            variant={props.wordmark_style ?? "pill"}
+          />
+        </StoreLink>
 
-        {/* Right: search + cart */}
-        <div className="flex items-center gap-0.5">
+        {/* Right: search (desktop) + cart pill */}
+        <div className="flex items-center gap-2 justify-self-end">
           {props.show_search && (
             <StoreLink
               href="/search"
               aria-label={t ? "بحث" : "Search"}
-              className={iconBtn}
+              className={cn(circleBtn, "hidden sm:inline-flex")}
+              style={circleBtnStyle}
             >
               <MaterialIcon name="search" className="text-2xl" />
             </StoreLink>
@@ -152,29 +191,29 @@ function SiteHeaderRender({
           {props.show_cart && (
             <StoreLink
               href="/cart"
-              aria-label={t ? "سلة التسوّق" : "Cart"}
-              className={cn(iconBtn, "relative")}
+              aria-label={
+                t ? `سلة التسوّق (${count})` : `Cart (${count})`
+              }
+              className="inline-flex h-11 items-center gap-1.5 rounded-full px-3.5 transition-transform hover:scale-105 active:scale-95"
+              style={{
+                backgroundColor: "var(--bk-mint, #7cf0bd)",
+                color: "var(--bk-ink, #1a1a1a)",
+                border:
+                  "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+                boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
+              }}
             >
-              <MaterialIcon name="shopping_bag" className="text-2xl" />
-              {count > 0 && (
-                <span
-                  className="absolute -top-0.5 -right-0.5 inline-flex h-5 min-w-5 items-center justify-center px-1 font-display font-black text-[11px] leading-none text-white"
-                  style={{
-                    backgroundColor: "var(--bk-primary, #ff5a8a)",
-                    border: "2px solid var(--bk-ink, #1a1a1a)",
-                    borderRadius: "9999px",
-                  }}
-                >
-                  {count}
-                </span>
-              )}
+              <MaterialIcon name="shopping_bag" className="text-xl" />
+              <span className="font-display font-black text-sm tabular-nums">
+                {count}
+              </span>
             </StoreLink>
           )}
         </div>
       </div>
 
-      {/* Mobile nav panel */}
-      {open && navLinks.length > 0 && (
+      {/* Mobile nav drawer (home only) */}
+      {open && isHome && navLinks.length > 0 && (
         <nav
           className="sm:hidden"
           style={{

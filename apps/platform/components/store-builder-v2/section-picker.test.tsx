@@ -28,7 +28,7 @@ describe("SectionPicker", () => {
         expect(screen.queryByTestId("section-picker")).toBeNull();
     });
 
-    it("renders all manifest entries when open", () => {
+    it("renders all per-page-addable manifest entries when open", () => {
         render(
             <SectionPicker
                 open
@@ -37,15 +37,23 @@ describe("SectionPicker", () => {
                 onAdd={() => {}}
             />,
         );
-        for (const entry of SECTIONS_MANIFEST) {
+        // Global chrome (valid_on: []) like site_header/site_footer is excluded
+        // from the per-page picker (BUG6/B6), so only addable sections render.
+        const addable = SECTIONS_MANIFEST.filter((e) => e.valid_on.length > 0);
+        for (const entry of addable) {
             expect(
                 screen.getByTestId(`section-picker-card-${entry.type}`),
             ).toBeTruthy();
         }
+        // The global-chrome entries must NOT render a card here.
+        for (const entry of SECTIONS_MANIFEST.filter((e) => e.valid_on.length === 0)) {
+            expect(
+                screen.queryByTestId(`section-picker-card-${entry.type}`),
+            ).toBeNull();
+        }
         // Sanity: the manifest is populated (started at 21; grows as new
-        // section families ship). The loop above is the real assertion —
-        // every manifest entry must render a card.
-        expect(SECTIONS_MANIFEST.length).toBeGreaterThanOrEqual(21);
+        // section families ship).
+        expect(addable.length).toBeGreaterThanOrEqual(21);
     });
 
     it("filters by category chip", () => {

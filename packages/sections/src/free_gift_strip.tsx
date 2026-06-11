@@ -2,14 +2,13 @@
 // Section — free_gift_strip
 // =====================================================================
 // Progress strip used on the cart page: "Spend X more to unlock a free
-// gift." Reads the current cart subtotal off `window` so the strip
-// updates as the customer adds items — but degrades to a static "spend
-// X to unlock" message on SSR.
+// gift." Reads the live cart subtotal from the shared `useCart()` store
+// (the same source every other cart section uses) so the bar updates as
+// the customer adds items.
 // =====================================================================
 
 "use client";
 
-import { useEffect, useState } from "react";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import {
@@ -17,6 +16,7 @@ import {
   Section,
 } from "./helpers/primitives";
 import { formatPrice } from "./helpers/format";
+import { useCart } from "./helpers/cart-store";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition } from "./_types";
@@ -43,26 +43,6 @@ const defaultProps: Props = {
   },
 };
 
-/**
- * Light-touch cart subtotal lookup. The storefront's cart state lives
- * in a context that varies by template — to keep this section portable
- * we sniff a documented global (`window.__schnCartSubtotal`) and fall
- * back to 0 if it isn't set yet.
- */
-function useCartSubtotal(): number {
-  const [subtotal, setSubtotal] = useState(0);
-  useEffect(() => {
-    function read() {
-      const w = window as unknown as { __schnCartSubtotal?: number };
-      setSubtotal(typeof w.__schnCartSubtotal === "number" ? w.__schnCartSubtotal : 0);
-    }
-    read();
-    const id = window.setInterval(read, 750);
-    return () => window.clearInterval(id);
-  }, []);
-  return subtotal;
-}
-
 function FreeGiftStrip({
   props,
   ctx,
@@ -71,7 +51,7 @@ function FreeGiftStrip({
   ctx: import("./_types").SectionRenderContext;
 }) {
   const locale = ctx.runtime.locale;
-  const subtotal = useCartSubtotal();
+  const subtotal = useCart((s) => s.getTotal());
   const remaining = Math.max(0, props.threshold_iqd - subtotal);
   const unlocked = remaining === 0;
   const headingTemplate = resolveI18n(props.heading_i18n, locale);

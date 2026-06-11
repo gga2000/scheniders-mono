@@ -37,9 +37,12 @@ type ScribbleColor = "butter" | "mint" | "lilac" | "sky" | "pink";
 
 const SCRIBBLE_HEX: Record<ScribbleColor, string> = {
   butter: "var(--bk-accent, #ffd84a)",
-  mint: "var(--bk-success, #7cf0bd)",
-  lilac: "var(--bk-secondary, #c5b6ff)",
-  sky: "#9ad8ff",
+  // Decorative candy surfaces read the fixed --bk-mint/--bk-lilac/--bk-sky
+  // tokens (not --bk-success / --bk-secondary, which a tenant can recolor and
+  // which previously made mint→emerald and lilac→mint).
+  mint: "var(--bk-mint, #7cf0bd)",
+  lilac: "var(--bk-lilac, #c5b6ff)",
+  sky: "var(--bk-sky, #9ad8ff)",
   pink: "var(--bk-primary, #ff5a8a)",
 };
 
@@ -153,9 +156,12 @@ const BG_VAR: Partial<Record<CardBg, { bg: string; fg?: string }>> = {
   // the hero secondary WhatsApp CTA.
   white: { bg: "#ffffff", fg: "var(--bk-ink, #1a1a1a)" },
   pink: { bg: "var(--bk-primary, #ff5a8a)", fg: "var(--bk-on-primary, #fff)" },
-  mint: { bg: "var(--bk-success, #7cf0bd)", fg: "var(--bk-ink, #1a1a1a)" },
+  // Decorative candy surfaces read the fixed --bk-mint/--bk-lilac/--bk-sky
+  // tokens so they never drift when a tenant overrides success/secondary.
+  mint: { bg: "var(--bk-mint, #7cf0bd)", fg: "var(--bk-ink, #1a1a1a)" },
   butter: { bg: "var(--bk-accent, #ffd84a)", fg: "var(--bk-ink, #1a1a1a)" },
-  lilac: { bg: "var(--bk-secondary, #c5b6ff)", fg: "var(--bk-ink, #1a1a1a)" },
+  lilac: { bg: "var(--bk-lilac, #c5b6ff)", fg: "var(--bk-ink, #1a1a1a)" },
+  sky: { bg: "var(--bk-sky, #9ad8ff)", fg: "var(--bk-ink, #1a1a1a)" },
   cream: { bg: "var(--bk-surface, #fff7ed)", fg: "var(--bk-ink, #1a1a1a)" },
   ink: { bg: "var(--bk-ink, #1a1a1a)", fg: "#fff" },
 };
@@ -363,6 +369,70 @@ export function TrustPill({
   );
 }
 
+/**
+ * Glorified Cash-on-Delivery card — the recurring butter hero that sells COD
+ * as a feature (24h delivery + pay-cash + inspect-before-paying), used on the
+ * PDP, checkout, thank-you, and tracking screens. Self-contained i18n so any
+ * surface can drop it in. Copy is overridable for page-specific phrasing.
+ */
+export function CodCard({
+  locale = "en",
+  rotate = 1,
+  showInspect = true,
+  className,
+}: {
+  locale?: "ar" | "en" | "ku";
+  rotate?: number;
+  showInspect?: boolean;
+  className?: string;
+}) {
+  const t = locale === "ar";
+  const Row = ({ icon, title, sub }: { icon: string; title: string; sub: string }) => (
+    <div className="flex items-start gap-3">
+      <MaterialIcon
+        name={icon}
+        className="text-2xl shrink-0"
+      />
+      <div className="min-w-0">
+        <p className="font-display font-black uppercase text-sm leading-tight">
+          {title}
+        </p>
+        <p className="font-body text-xs leading-snug" style={{ color: "var(--bk-ink-soft, rgb(26 26 26 / 0.7))" }}>
+          {sub}
+        </p>
+      </div>
+    </div>
+  );
+  return (
+    <BentoCard
+      bg="butter"
+      size="md"
+      rotate={rotate}
+      className={cn("p-bk-md sm:p-bk-lg space-y-bk-sm", className)}
+    >
+      <Row
+        icon="local_shipping"
+        title={t ? "التوصيل خلال ٢٤ ساعة" : "Delivered in 24h"}
+        sub={t ? "إلى بغداد والمحافظات الرئيسية" : "To Baghdad & major cities"}
+      />
+      <Row
+        icon="payments"
+        title={t ? "الدفع عند الاستلام" : "Pay cash on delivery"}
+        sub={t ? "آمن ١٠٠٪، بدون رسوم خفية" : "100% secure, no hidden fees"}
+      />
+      {showInspect && (
+        <TrustPill
+          bg="white"
+          rotate={-2}
+          icon={<MaterialIcon name="visibility" className="text-base" />}
+        >
+          {t ? "افحص قبل الدفع" : "Inspect before paying"}
+        </TrustPill>
+      )}
+    </BentoCard>
+  );
+}
+
 export function MaterialIcon({
   name,
   className,
@@ -412,11 +482,16 @@ export function BrandMark({
   logoUrl,
   name,
   size = "md",
+  variant = "plain",
   className,
 }: {
   logoUrl?: string | null;
   name: string;
   size?: "sm" | "md";
+  /** "pill" wraps the wordmark in a tilted butter chip (the Stitch header
+   *  logo lockup); "plain" is the rotated-square + wordmark used in the
+   *  footer / inline contexts. */
+  variant?: "plain" | "pill";
   className?: string;
 }) {
   if (logoUrl) {
@@ -433,6 +508,31 @@ export function BrandMark({
       />
     );
   }
+
+  // Butter "logo chip" lockup — the storefront header identity.
+  if (variant === "pill") {
+    return (
+      <span
+        className={cn(
+          "inline-flex items-center -rotate-2 px-3 py-1 font-display font-black uppercase tracking-tight truncate",
+          size === "sm" ? "text-lg" : "text-xl sm:text-2xl",
+          className,
+        )}
+        style={{
+          backgroundColor: "var(--bk-accent, #ffd84a)",
+          color: "var(--bk-ink, #1a1a1a)",
+          border:
+            "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+          borderRadius: "var(--bk-radius-input, 0.75rem)",
+          boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
+          fontFamily: "var(--bk-font-display, inherit)",
+        }}
+      >
+        {name}
+      </span>
+    );
+  }
+
   return (
     <span className={cn("flex items-center gap-2", className)}>
       <span

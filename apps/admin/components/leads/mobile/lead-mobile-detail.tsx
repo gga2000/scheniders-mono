@@ -13,6 +13,7 @@ import {
   Loader2,
   AlertTriangle,
   Target,
+  Pencil,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLeadDetail } from "@/hooks/use-lead-detail";
@@ -32,7 +33,11 @@ import { LeadActivityTimeline } from "@/components/leads/lead-activity-timeline"
 import { LeadFollowUpList } from "@/components/leads/lead-follow-up-list";
 import { QuickNoteSheet } from "@/components/leads/mobile/quick-note-sheet";
 import { AdvanceStageSheet } from "@/components/leads/mobile/advance-stage-sheet";
+import { LeadRegisterSheet } from "@/components/leads/mobile/lead-register-sheet";
+import { leadToFormData } from "@/components/leads/lead-form-data";
 import { leadPhone, toIntlIraqi } from "@/components/leads/lead-phone";
+import { useUpdateLead } from "@/hooks/use-lead-mutations";
+import type { LeadFormData } from "@/types/leads";
 
 // ── Tabs ─────────────────────────────────────────────────────────────────
 
@@ -47,6 +52,8 @@ export function LeadMobileDetail() {
   const [tab, setTab] = useState<Tab>("Overview");
   const [noteOpen, setNoteOpen] = useState(false);
   const [stageOpen, setStageOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const updateLead = useUpdateLead();
 
   // Loading
   if (isLoading) {
@@ -135,6 +142,15 @@ export function LeadMobileDetail() {
               </p>
             )}
           </div>
+          <button
+            type="button"
+            onClick={() => setEditOpen(true)}
+            className="ml-auto shrink-0 flex items-center gap-1.5 rounded-xl border border-[var(--card-border)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] hover:bg-white/5 transition-colors active:scale-95"
+            aria-label="Edit prospect"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            Edit
+          </button>
         </div>
 
         {/* Badge row */}
@@ -285,6 +301,19 @@ export function LeadMobileDetail() {
       </div>
 
       {/* ── Sheets ────────────────────────────────────────────────── */}
+      <LeadRegisterSheet
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        initialData={leadToFormData(lead)}
+        onSubmit={(formData: LeadFormData) =>
+          new Promise<boolean>((resolve) => {
+            updateLead.mutate(
+              { id: lead.id, data: formData },
+              { onSuccess: () => resolve(true), onError: () => resolve(false) },
+            );
+          })
+        }
+      />
       <QuickNoteSheet
         leadId={noteOpen ? lead.id : null}
         leadName={lead.merchant_name}

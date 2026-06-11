@@ -146,8 +146,12 @@ export interface Lead {
   id: string;
   merchant_name: string;
   industry_id: string | null;
+  /** Free-text refinement of the industry (e.g. "herbs & natural products" under Health & Wellness). */
+  industry_detail: string | null;
   platform: LeadSourcePlatform;
   platform_url: string | null;
+  /** Social handle / username for the primary platform (e.g. Instagram @username), stored without the leading "@". */
+  handle: string | null;
   follower_count: number;
   post_count: number;
 
@@ -177,6 +181,9 @@ export interface Lead {
   is_online_only: boolean;
   /** Additional store branches, each with its own location + phone(s). */
   branches: LeadBranch[];
+
+  /** True while this is an unfinished draft (auto-saved on accidental form exit). */
+  is_draft: boolean;
 
   status: LeadStatus;
   priority: LeadPriority;
@@ -398,8 +405,12 @@ export interface LeadAnalytics {
 export interface LeadFormData {
   merchant_name: string;
   industry_id: string | null;
+  /** Free-text refinement of the industry (e.g. "herbs & natural products" under Health & Wellness). */
+  industry_detail: string;
   platform: LeadSourcePlatform;
   platform_url: string;
+  /** Social handle / username for the primary platform (e.g. Instagram @username), stored without the leading "@". */
+  handle: string;
   follower_count: number;
   post_count: number;
   management_name: string;

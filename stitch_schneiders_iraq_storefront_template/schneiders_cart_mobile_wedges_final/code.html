@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+
+<html dir="ltr" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Schneiders Cart Wedges Final</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..900&amp;family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {},
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                    spacing: {},
+                    fontFamily: {
+                        "headline": ["Bricolage Grotesque", "sans-serif"],
+                        "display": ["Bricolage Grotesque", "sans-serif"],
+                        "body": ["DM Sans", "sans-serif"],
+                        "label": ["DM Sans", "sans-serif"]
+                    },
+                    fontSize: {}
+                },
+            },
+        }
+    </script>
+<style>
+        body { background-color: #fff7ed; color: #1a1a1a; font-family: 'DM Sans', sans-serif; }
+        .bricolage { font-family: 'Bricolage Grotesque', sans-serif; }
+        .brutal-border { border: 3px solid #1a1a1a; }
+        .brutal-shadow { box-shadow: 4px 4px 0px 0px #1a1a1a; }
+        .brutal-shadow-sm { box-shadow: 2px 2px 0px 0px #1a1a1a; }
+        .brutal-shadow-hover:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0px 0px #1a1a1a; }
+        .brutal-shadow-active:active { transform: translate(4px, 4px); box-shadow: 0px 0px 0px 0px #1a1a1a; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-[#fff7ed] text-[#1a1a1a] pb-40 selection:bg-[#ff5a8a] selection:text-[#fff7ed]">
+<!-- Top Promo Bar -->
+<div class="bg-[#ffd84a] text-[#1a1a1a] text-center py-2 text-sm font-bold brutal-border border-x-0 border-t-0 z-[60] relative">
+        🚚 FREE delivery on orders over 75,000 د.ع
+    </div>
+<!-- Sticky Header (TopAppBar JSON logic mapped) -->
+<header class="fixed top-[38px] left-0 w-full z-50 flex justify-between items-center px-4 py-3 bg-[#fff7ed] border-b-[3px] border-[#1a1a1a] shadow-[4px_4px_0px_0px_#1a1a1a]">
+<button aria-label="Go back" class="w-10 h-10 flex items-center justify-center bg-[#fff7ed] brutal-border brutal-shadow-sm rounded-full brutal-shadow-active transition-all">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">arrow_back</span>
+</button>
+<h1 class="font-headline text-2xl font-black uppercase tracking-tight text-[#1a1a1a]">Schneiders</h1>
+<button aria-label="Cart" class="relative w-12 h-10 flex items-center justify-center bg-[#c5b6ff] brutal-border brutal-shadow-sm rounded-full brutal-shadow-active transition-all">
+<span class="material-symbols-outlined">shopping_basket</span>
+<span class="absolute -top-2 -right-2 bg-[#ff5a8a] text-white text-xs font-black w-6 h-6 rounded-full flex items-center justify-center brutal-border">3</span>
+</button>
+</header>
+<!-- Main Content -->
+<main class="pt-24 px-4 max-w-lg mx-auto">
+<!-- Main Title -->
+<div class="mt-8 mb-8">
+<h2 class="bricolage text-5xl font-black italic relative inline-block mb-2">
+                Your Cart
+                <span class="absolute bottom-0 left-0 w-full h-4 bg-[#ffd84a] -z-10 translate-y-1 -rotate-1 brutal-border"></span>
+</h2>
+<p class="text-lg font-bold text-[#1a1a1a]">3 items waiting to come home with you ✨</p>
+</div>
+<!-- Product Cards -->
+<div class="flex flex-col gap-5 mb-8">
+<!-- Item 1 -->
+<div class="bg-white rounded-xl brutal-border brutal-shadow p-3 flex gap-4 relative">
+<div class="w-24 h-24 bg-[#c5b6ff] rounded-lg brutal-border overflow-hidden shrink-0">
+<img alt="Product Image" class="w-full h-full object-cover" data-alt="A trendy, chunky platform sneaker rendered in vibrant, candy-colored pastel hues like hot pink and mint green. The shoe is presented against a seamless studio background with high-key lighting, emphasizing its wobbly, playful silhouette. The aesthetic is heavily inspired by playful, youthful e-commerce brands, featuring bold forms and a distinctly modern, joyful mood." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDsn5wM7LOrMA-WGpEAkmT1asr6BEBPLusMpZqy2P0zs8vnhylb2Du08t8lE9FcS6W0ovjVCEpkV6Tm8BCgIdkHsnXez2s4wNrkSo8P2sxP5gKrY9Y-yl9dS3YblEKkv__gV89KyWqYM7mKtxsam1D3LeXSW_2br7gHzLhs5dBwwxAObOE9R__VpVsCcfrNXM7iCNxMCJwci53VoJRO_iSIpelMEj3toUArhH0r04S_hMHDuDXE3F4CqGkk_on0yG6IQtZnALbtXyzh"/>
+</div>
+<div class="flex-1 flex flex-col justify-between py-1">
+<div class="flex justify-between items-start">
+<h3 class="bricolage font-bold text-lg leading-tight w-3/4">Chunky Platform Sneakers</h3>
+<button aria-label="Remove item" class="text-[#ff5a8a] p-1 brutal-shadow-active transition-all">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+<div class="flex justify-between items-end mt-2">
+<span class="font-black text-xl text-[#1a1a1a]">85,000 د.ع</span>
+<div class="flex items-center gap-3 bg-[#fff7ed] brutal-border rounded-full px-2 py-1">
+<button aria-label="Decrease quantity" class="w-6 h-6 flex items-center justify-center font-black bg-white rounded-full brutal-border">-</button>
+<span class="font-black text-sm">1</span>
+<button aria-label="Increase quantity" class="w-6 h-6 flex items-center justify-center font-black bg-[#ffd84a] rounded-full brutal-border">+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="bg-white rounded-xl brutal-border brutal-shadow p-3 flex gap-4 relative">
+<!-- Sticker -->
+<div class="absolute -top-3 -right-2 z-10 bg-[#7cf0bd] text-[#1a1a1a] px-3 py-1 font-black text-sm uppercase -rotate-6 brutal-border shadow-[2px_2px_0px_0px_#1a1a1a]">
+                    Save 35K
+                </div>
+<div class="w-24 h-24 bg-[#ff5a8a] rounded-lg brutal-border overflow-hidden shrink-0">
+<img alt="Product Image" class="w-full h-full object-cover" data-alt="A stylized, modern handbag in soft lilac and butter yellow tones. The bag is shot from an isometric angle against a clean, bright cream background, highlighting its structured yet rounded design. High-end lifestyle photography lighting makes the pastel colors pop vibrantly, creating a mood that is fresh, youthful, and highly commercial." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDxbCsKCP8SdIheO1fcBVe9NDFEnnPiX7Cz-bmwJYCfuhJ7KHb9rORl6hx_CTgRrDUAApAOvhoTeWPt0ZmlqvpAO3ZNLxB8uFw2FnDoDAKk_kRk2s1N5bWAud5dusnXFd6Y4Fn2xcjfHnprRZ6Rx_HrvSnTOpZjmwD5Gr87c5Kv8sDOscS_VKvMsfjZ4s0Q1tThs1D46Xysq5lM6OcRBpsiyEEX-9q2DMYNq-ro4mDHSRry_MTf9YulW-VcULtyR_HjeviloIQ3tDvi"/>
+</div>
+<div class="flex-1 flex flex-col justify-between py-1">
+<div class="flex justify-between items-start">
+<h3 class="bricolage font-bold text-lg leading-tight w-3/4">Lilac Mini Handbag</h3>
+<button aria-label="Remove item" class="text-[#ff5a8a] p-1 brutal-shadow-active transition-all">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+<div class="flex justify-between items-end mt-2">
+<div>
+<span class="line-through text-gray-400 text-sm font-bold block">150,000 د.ع</span>
+<span class="font-black text-xl text-[#ff5a8a]">115,000 د.ع</span>
+</div>
+<div class="flex items-center gap-3 bg-[#fff7ed] brutal-border rounded-full px-2 py-1">
+<button aria-label="Decrease quantity" class="w-6 h-6 flex items-center justify-center font-black bg-white rounded-full brutal-border">-</button>
+<span class="font-black text-sm">1</span>
+<button aria-label="Increase quantity" class="w-6 h-6 flex items-center justify-center font-black bg-[#ffd84a] rounded-full brutal-border">+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Item 3 -->
+<div class="bg-white rounded-xl brutal-border brutal-shadow p-3 flex gap-4 relative opacity-90">
+<div class="w-24 h-24 bg-[#9ad8ff] rounded-lg brutal-border overflow-hidden shrink-0">
+<img alt="Product Image" class="w-full h-full object-cover" data-alt="A classic, oversized graphic t-shirt featuring playful typography and bright colors. The shirt is displayed flat against a contrasting pastel mint background under crisp, natural daylight. The image has a joyful, catalog-like quality, emphasizing bold graphics and a casual, fun vibe suitable for a vibrant e-commerce platform." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAavsSmdqI5QwYxRLC1jI8fyx4JmbyiLWKtg2wWb3CMFZVsB3vrXghWT6MCRTSqmv9FRrL6DiTqNlOKGMel8GItY19ggUKVVbYkOtaf54UCxQavhiq7u8RABRo8GM0qH2fCdP_ZZK1_MEAbThsmVx1wOtC96eR1rRwGoSTJ31tT8eDkpUQ8NyIJkrvRObpHt39bLUDoIyKDOSbUhYItHshpQ-6oZYRCwO44vxB7TycEAB73FBfq8QfqG5EbLGWYwO3ytB-UTaK597I2"/>
+</div>
+<div class="flex-1 flex flex-col justify-between py-1">
+<div class="flex justify-between items-start">
+<h3 class="bricolage font-bold text-lg leading-tight w-3/4">Graphic Oversized Tee</h3>
+<button aria-label="Remove item" class="text-[#ff5a8a] p-1 brutal-shadow-active transition-all">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+<div class="flex justify-between items-end mt-2">
+<span class="font-black text-xl text-[#1a1a1a]">70,000 د.ع</span>
+<div class="flex items-center gap-3 bg-[#fff7ed] brutal-border rounded-full px-2 py-1">
+<button aria-label="Decrease quantity" class="w-6 h-6 flex items-center justify-center font-black bg-white rounded-full brutal-border">-</button>
+<span class="font-black text-sm">2</span>
+<button aria-label="Increase quantity" class="w-6 h-6 flex items-center justify-center font-black bg-[#ffd84a] rounded-full brutal-border">+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Promo Field -->
+<div class="bg-[#9ad8ff] rounded-xl brutal-border brutal-shadow p-4 mb-8">
+<label class="block bricolage font-black text-lg mb-2 text-[#1a1a1a]">✨ HAVE A CODE?</label>
+<div class="flex gap-2">
+<input class="flex-1 bg-white brutal-border rounded-lg px-4 py-3 font-bold focus:outline-none focus:ring-0 placeholder:text-gray-400" placeholder="Enter promo code" type="text"/>
+<button class="bg-[#ffd84a] px-6 py-3 font-black rounded-lg brutal-border brutal-shadow-sm brutal-shadow-active transition-all uppercase tracking-wider">Apply</button>
+</div>
+</div>
+<!-- Order Summary -->
+<div class="bg-white rounded-xl brutal-border brutal-shadow p-5 mb-8">
+<h3 class="bricolage font-black text-2xl mb-4 border-b-[3px] border-dashed border-[#1a1a1a] pb-3">Order Summary</h3>
+<div class="space-y-3 font-bold text-lg mb-4">
+<div class="flex justify-between">
+<span class="text-gray-600">Subtotal</span>
+<span>270,000 د.ع</span>
+</div>
+<div class="flex justify-between text-[#ff5a8a]">
+<span>Discount</span>
+<span>-35,000 د.ع</span>
+</div>
+<div class="flex justify-between">
+<span class="text-gray-600">Delivery</span>
+<span class="text-[#7cf0bd] uppercase font-black tracking-widest bg-[#1a1a1a] px-2 py-0.5 rounded-md text-sm self-center brutal-border">FREE</span>
+</div>
+</div>
+<div class="border-t-[3px] border-dashed border-[#1a1a1a] pt-4 mt-2 flex justify-between items-center">
+<span class="bricolage font-black text-2xl uppercase">Total</span>
+<span class="bricolage font-black text-3xl text-[#ff5a8a]">235,000 د.ع</span>
+</div>
+</div>
+</main>
+<!-- Sticky Footer Actions -->
+<div class="fixed bottom-0 left-0 w-full z-50 bg-[#fff7ed] border-t-[3px] border-[#1a1a1a] px-4 py-4 pb-safe flex flex-col gap-3 shadow-[0px_-4px_0px_0px_#1a1a1a]">
+<div class="max-w-lg mx-auto w-full flex flex-col gap-3">
+<!-- Checkout Button -->
+<button class="w-full bg-[#ff5a8a] text-[#fff7ed] rounded-xl py-4 flex items-center justify-center gap-2 brutal-border brutal-shadow brutal-shadow-active transition-all group">
+<span class="bricolage font-black text-2xl uppercase tracking-wider group-hover:scale-105 transition-transform">Checkout</span>
+<span class="material-symbols-outlined font-black text-2xl" style="font-variation-settings: 'wght' 700;">arrow_forward</span>
+</button>
+<div class="flex items-center gap-4 py-1 opacity-60">
+<div class="h-[3px] bg-[#1a1a1a] flex-1"></div>
+<span class="font-black uppercase tracking-widest text-sm">OR</span>
+<div class="h-[3px] bg-[#1a1a1a] flex-1"></div>
+</div>
+<!-- WhatsApp Pill -->
+<button class="w-full bg-[#7cf0bd] text-[#1a1a1a] rounded-full py-3 px-6 flex items-center justify-center gap-2 brutal-border brutal-shadow-sm brutal-shadow-active transition-all">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">chat</span>
+<span class="font-bold text-lg uppercase tracking-wide">Order on WhatsApp</span>
+</button>
+</div>
+</div>
+</body></html>

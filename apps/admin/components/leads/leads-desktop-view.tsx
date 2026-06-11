@@ -18,6 +18,7 @@ import { LeadCard } from "@/components/leads/lead-card";
 import { LeadKanban } from "@/components/leads/lead-kanban";
 import { LeadImportDialog } from "@/components/leads/lead-import-dialog";
 import { AddedByAvatar } from "@/components/leads/added-by-avatar";
+import { leadToFormData, DRAFT_PLACEHOLDER_NAME } from "@/components/leads/lead-form-data";
 import {
   LEAD_STATUS_CONFIG,
   LEAD_STATUS_UI,
@@ -48,6 +49,7 @@ import {
   Wallet,
   Phone,
   MessageCircle,
+  Pencil,
   type LucideIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -106,6 +108,7 @@ export function LeadsDesktopView() {
   const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [draftLead, setDraftLead] = useState<Lead | null>(null);
 
   const { viewMode, setViewMode, selectedLeads, toggleLead, selectAll, clearSelection } =
     useLeadStore();
@@ -139,6 +142,26 @@ export function LeadsDesktopView() {
         onError: () => resolve(false),
       });
     });
+
+  // Auto-save an in-progress lead as a draft when the form is dismissed by accident.
+  const handleSaveDraft = (formData: LeadFormData) =>
+    createLead.mutate(
+      {
+        ...formData,
+        merchant_name: formData.merchant_name.trim() || DRAFT_PLACEHOLDER_NAME,
+        is_draft: true,
+      },
+      {
+        onSuccess: () => toast.success("Saved as draft — pick it back up anytime"),
+        onError: () => toast.error("Couldn't save the draft"),
+      },
+    );
+
+  // Drafts reopen the editor (resume); real leads open their detail page.
+  const openLead = (lead: Lead) => {
+    if (lead.is_draft) setDraftLead(lead);
+    else router.push(`/leads/${lead.id}`);
+  };
 
   const kpis: {
     label: string;
@@ -331,9 +354,7 @@ export function LeadsDesktopView() {
                   lead={lead}
                   isSelected={selectedLeads.has(lead.id)}
                   onSelect={() => toggleLead(lead.id)}
-                  onClick={() => {
-                    router.push(`/leads/${lead.id}`);
-                  }}
+                  onClick={() => openLead(lead)}
                   onQuickCall={() => {
                     const p = leadPhone(lead);
                     if (p) window.location.href = `tel:${p}`;
@@ -420,10 +441,13 @@ export function LeadsDesktopView() {
                   return (
                     <tr
                       key={lead.id}
-                      onClick={() => {
-                        router.push(`/leads/${lead.id}`);
-                      }}
-                      className="group border-b border-[var(--card-border)] last:border-0 hover:bg-black/[0.02] dark:hover:bg-white/[0.03] cursor-pointer transition-colors"
+                      onClick={() => openLead(lead)}
+                      className={cn(
+                        "group border-b border-[var(--card-border)] last:border-0 cursor-pointer transition-colors",
+                        lead.is_draft
+                          ? "bg-amber-50/60 hover:bg-amber-50 dark:bg-amber-500/[0.06] dark:hover:bg-amber-500/[0.1]"
+                          : "hover:bg-black/[0.02] dark:hover:bg-white/[0.03]",
+                      )}
                     >
                       <td
                         className="relative py-3 px-4"
@@ -461,8 +485,15 @@ export function LeadsDesktopView() {
                             </span>
                           </div>
                           <div className="min-w-0">
-                            <div className="font-semibold text-[var(--foreground)] truncate max-w-[220px]">
-                              {lead.merchant_name}
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-[var(--foreground)] truncate max-w-[180px]">
+                                {lead.merchant_name}
+                              </span>
+                              {lead.is_draft && (
+                                <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                                  <Pencil className="h-2.5 w-2.5" /> Draft
+                                </span>
+                              )}
                             </div>
                             {lead.management_name && (
                               <div className="text-xs text-[var(--muted)] truncate max-w-[220px]">
@@ -597,7 +628,9 @@ export function LeadsDesktopView() {
                 updateLead.mutate({ id: leadId, data: { status: newStatus } });
               }}
               onLeadClick={(leadId) => {
-                router.push(`/leads/${leadId}`);
+                const l = leads.find((x) => x.id === leadId);
+                if (l) openLead(l);
+                else router.push(`/leads/${leadId}`);
               }}
             />
           </div>
@@ -694,8 +727,36 @@ export function LeadsDesktopView() {
         )}
       </AnimatePresence>
 
-      {/* Lead Form Dialog */}
-      <LeadForm open={formOpen} onOpenChange={setFormOpen} onSubmit={handleCreateLead} />
+      {/* Lead Form Dialog — accidental exit auto-saves a draft */}
+      <LeadForm
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        onSubmit={handleCreateLead}
+        onSaveDraft={handleSaveDraft}
+      />
+
+      {/* Resume an in-progress draft — saving promotes it to a real lead */}
+      <LeadForm
+        key={draftLead?.id ?? "no-draft"}
+        open={!!draftLead}
+        onOpenChange={(v) => {
+          if (!v) setDraftLead(null);
+        }}
+        initialData={draftLead ? leadToFormData(draftLead) : undefined}
+        onSubmit={(data) =>
+          new Promise<boolean>((resolve) => {
+            if (!draftLead) return resolve(false);
+            updateLead.mutate(
+              { id: draftLead.id, data: { ...data, is_draft: false } },
+              { onSuccess: () => resolve(true), onError: () => resolve(false) },
+            );
+          })
+        }
+        onSaveDraft={(data) => {
+          if (!draftLead) return;
+          updateLead.mutate({ id: draftLead.id, data: { ...data, is_draft: true } });
+        }}
+      />
 
       {/* Import Dialog */}
       <LeadImportDialog isOpen={importOpen} onClose={() => setImportOpen(false)} />

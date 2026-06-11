@@ -18,6 +18,7 @@ import {
 } from "./helpers/primitives";
 import { useCart } from "./helpers/cart-store";
 import { formatPrice } from "./helpers/format";
+import { whatsappOrderLink, resolveTenantWhatsapp } from "./helpers/whatsapp";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
@@ -27,6 +28,8 @@ const schema = z.object({
   whatsapp_label_i18n: i18nStringOptional,
   show_quantity_picker: z.boolean(),
   sticky_on_mobile: z.boolean(),
+  /** Per-section WhatsApp number override (empty = store-wide number). */
+  whatsapp_override: z.string().optional(),
 });
 
 type Props = z.infer<typeof schema>;
@@ -54,14 +57,15 @@ function PdpAddToCartRender({
 
   const primaryLabel = resolveI18n(props.primary_label_i18n, locale);
   const whatsappLabel = resolveI18n(props.whatsapp_label_i18n, locale);
-  const tenantWhatsapp =
-    (ctx.tenant as unknown as { whatsapp_number?: string | null })
-      .whatsapp_number || null;
-  const whatsappHref = tenantWhatsapp
-    ? `https://wa.me/${tenantWhatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(
-        `${product.name} — ${formatPrice(product.price)}`,
-      )}`
-    : null;
+  // Resolve through the canonical store contact (store-wide WhatsApp number,
+  // with optional per-section override); whatsappOrderLink returns null for
+  // missing/placeholder numbers, so the button only renders when usable.
+  const tenantPhone = resolveTenantWhatsapp(ctx.tenant, props.whatsapp_override);
+  const whatsappHref = whatsappOrderLink(
+    tenantPhone,
+    { name: product.name, price: formatPrice(product.price) },
+    locale,
+  );
 
   const oos =
     (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0) <= 0;

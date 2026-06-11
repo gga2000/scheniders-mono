@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       query = query.or(
-        `merchant_name.ilike.%${search}%,management_name.ilike.%${search}%,page_phone.ilike.%${search}%,city.ilike.%${search}%`
+        `merchant_name.ilike.%${search}%,management_name.ilike.%${search}%,handle.ilike.%${search}%,page_phone.ilike.%${search}%,city.ilike.%${search}%`
       );
     }
 
@@ -94,8 +94,10 @@ export async function POST(request: NextRequest) {
       .insert({
         merchant_name: body.merchant_name,
         industry_id: body.industry_id || null,
+        industry_detail: body.industry_detail || null,
         platform: body.platform || "instagram",
         platform_url: body.platform_url || null,
+        handle: body.handle || null,
         follower_count: body.follower_count || 0,
         post_count: body.post_count || 0,
         management_name: body.management_name || null,
@@ -120,6 +122,7 @@ export async function POST(request: NextRequest) {
         tags: body.tags || [],
         source_campaign: body.source_campaign || null,
         source_medium: body.source_medium || null,
+        is_draft: body.is_draft ?? false,
         // Attribute the lead to the authenticated admin who added it (who, not client-supplied).
         created_by: admin.user.id,
       })

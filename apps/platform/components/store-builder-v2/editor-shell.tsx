@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ExternalLink, Redo2, Store, Undo2 } from "lucide-react";
+import { ChevronLeft, ExternalLink, Redo2, Smartphone, Store, Undo2 } from "lucide-react";
 import {
     DndContext,
     PointerSensor,
@@ -13,6 +13,7 @@ import {
 } from "@dnd-kit/core";
 import type {
     BrandKit,
+    Breakpoint,
     CheckResult,
     LocaleCode,
     PageConfig,
@@ -33,7 +34,7 @@ import { useIframeBridge } from "@/hooks/use-iframe-bridge";
 import { useStorefrontUrl } from "@/hooks/use-storefront-url";
 import { getManifestEntry } from "@/lib/sections-manifest";
 import { PageTree, getPageLabel, type SettingsSectionId } from "./page-tree";
-import { PreviewFrame } from "./preview-frame";
+import { PreviewModal } from "./preview-modal";
 import {
     PreviewOverlay,
     type PreviewOverlayAction,
@@ -119,6 +120,13 @@ export interface EditorShellProps {
      * land on the live preview.
      */
     initialSystemScreen?: SettingsSectionId | null;
+    /**
+     * Deep-link target (from the Command Center "Fix"/"Edit" links). On mount
+     * the editor switches to this page and, if given, selects + opens the
+     * section for editing. See BUG36.
+     */
+    initialPageId?: PageId | null;
+    initialSectionId?: string | null;
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -172,6 +180,8 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         storefrontUrlOverride,
         onEditSection,
         initialSystemScreen,
+        initialPageId,
+        initialSectionId,
     } = props;
 
     const activePreviewToken = previewToken ?? DEV_PREVIEW_TOKEN;
@@ -384,7 +394,11 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             ) {
                 set_system_screen(id);
             } else {
-                set_system_screen((curr) => (curr === id ? curr : curr));
+                // All SettingsSectionId members are handled above; this guard
+                // turns a future unhandled id into a compile error instead of a
+                // silent no-op.
+                const _exhaustive: never = id;
+                void _exhaustive;
             }
         },
         [],
@@ -760,6 +774,28 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         ],
     );
 
+    // Build the `_preview` URL for any device — the PreviewModal swaps the
+    // breakpoint while keeping the current page/locale/token.
+    const makePreviewUrl = useCallback(
+        (bp: Breakpoint): string =>
+            buildPreviewUrl(
+                storefrontUrl,
+                tenant.slug,
+                builder.active_page,
+                bp,
+                builder.active_locale,
+                activePreviewToken,
+            ),
+        [
+            storefrontUrl,
+            tenant.slug,
+            builder.active_page,
+            builder.active_locale,
+            activePreviewToken,
+        ],
+    );
+    const [preview_modal_open, set_preview_modal_open] = useState(false);
+
     const healthReport = useMemo(
         () => runHealthChecks(builder.config),
         [builder.config],
@@ -771,6 +807,9 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     // Health no longer blocks publish — surfaced via PublishConfirmSheet.
     const publishDisabled = !builder.has_unpublished_changes;
     const publishBusy = builder.save_state === "saving";
+    // Health does NOT block publishing — these warnings are surfaced
+    // (non-blocking) in the PublishConfirmSheet. The tooltip copy must say so,
+    // otherwise it contradicts the enabled Publish button.
     const publishBlockedReason = useMemo<string | null>(() => {
         if (healthBlocking.length === 0) return null;
         // Use rule-defined messages instead of raw ids so the tooltip is
@@ -780,7 +819,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             .slice(0, 3)
             .map((c) => c.message ?? c.id);
         const more = healthBlocking.length > 3 ? `, +${healthBlocking.length - 3} more` : "";
-        return `${healthBlocking.length} health warning${healthBlocking.length === 1 ? "" : "s"} — review before publishing: ${messages.join("; ")}${more}`;
+        return `${healthBlocking.length} health warning${healthBlocking.length === 1 ? "" : "s"} will be shown before you publish: ${messages.join("; ")}${more}`;
     }, [healthBlocking]);
 
     // Phase 2d: detect mobile viewport. We keep the desktop 3-pane path
@@ -875,6 +914,20 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         [builder],
     );
 
+    // Apply a Command Center deep-link (?page=/&section=) once on mount, so a
+    // "Fix"/"Edit" click lands on the exact page/section instead of the default.
+    const deepLinkAppliedRef = useRef(false);
+    useEffect(() => {
+        if (deepLinkAppliedRef.current) return;
+        deepLinkAppliedRef.current = true;
+        if (initialPageId) builder.set_active_page(initialPageId);
+        if (initialSectionId) {
+            set_selected_section_id(initialSectionId);
+            set_editing_section_id(initialSectionId);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     // Pages handled by desktop-only stubs on mobile (don't try to render
     // dense screens at 390px).
     const DESKTOP_ONLY_SETTINGS: readonly SettingsSectionId[] = [
@@ -895,6 +948,13 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                 onDragEnd={handleDndDragEnd}
                 onDragCancel={handleDndDragCancel}
             >
+                {builder.recoverable_backup && (
+                    <DraftRecoveryBanner
+                        backup={builder.recoverable_backup}
+                        onRestore={builder.restore_backup}
+                        onDismiss={builder.dismiss_backup}
+                    />
+                )}
                 {system_screen && DESKTOP_ONLY_SETTINGS.includes(system_screen) ? (
                     <div
                         data-testid="editor-shell-v2"
@@ -1020,6 +1080,20 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             data-testid="editor-shell-v2"
             className="flex h-[calc(100vh-4rem)] flex-col bg-background"
         >
+            {builder.recoverable_backup && (
+                <DraftRecoveryBanner
+                    backup={builder.recoverable_backup}
+                    onRestore={builder.restore_backup}
+                    onDismiss={builder.dismiss_backup}
+                />
+            )}
+            {preview_modal_open && (
+                <PreviewModal
+                    onClose={() => set_preview_modal_open(false)}
+                    initialBreakpoint={builder.active_breakpoint}
+                    makeUrl={makePreviewUrl}
+                />
+            )}
             {/* Top bar */}
             <header
                 data-testid="editor-shell-topbar"
@@ -1125,6 +1199,16 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                         config={builder.config}
                         onClick={() => set_system_screen("i18n")}
                     />
+                    <button
+                        type="button"
+                        onClick={() => set_preview_modal_open(true)}
+                        data-testid="open-accurate-preview"
+                        title="Preview at a real device viewport (accurate responsive layout)"
+                        className="inline-flex h-8 items-center gap-1.5 rounded-full border border-(--card-border) bg-(--background-soft) px-3 text-xs font-medium text-muted-foreground transition-colors hover:border-(--border-hover) hover:text-foreground"
+                    >
+                        <Smartphone className="h-3.5 w-3.5" />
+                        <span>Preview</span>
+                    </button>
                     <a
                         href={previewUrl}
                         target="_blank"
@@ -1421,6 +1505,64 @@ function FirstRunBanner({
     );
 }
 
+/** Relative "N min ago" label for the recovery banner timestamp. */
+function relativeTimeFrom(ms: number): string {
+    const diff = Date.now() - ms;
+    if (diff < 60_000) return "just now";
+    const mins = Math.round(diff / 60_000);
+    if (mins < 60) return `${mins} minute${mins === 1 ? "" : "s"} ago`;
+    const hrs = Math.round(mins / 60);
+    if (hrs < 24) return `${hrs} hour${hrs === 1 ? "" : "s"} ago`;
+    const days = Math.round(hrs / 24);
+    return `${days} day${days === 1 ? "" : "s"} ago`;
+}
+
+/**
+ * Crash-recovery banner — shown when a local backup newer than the DB draft is
+ * found on mount (BUG4). Restoring is undoable (routes through applyConfig).
+ */
+function DraftRecoveryBanner({
+    backup,
+    onRestore,
+    onDismiss,
+}: {
+    backup: { saved_at: number };
+    onRestore: () => void;
+    onDismiss: () => void;
+}) {
+    return (
+        <div
+            data-testid="editor-shell-recovery-banner"
+            className="fixed inset-x-0 top-2 z-50 mx-auto flex w-fit max-w-[92vw] items-center gap-3 rounded-xl border border-amber-400/50 bg-amber-50/95 px-4 py-2.5 text-sm shadow-[0_10px_30px_-12px_rgba(0,0,0,0.35)] backdrop-blur"
+        >
+            <span aria-hidden="true" className="text-base">
+                ⏱️
+            </span>
+            <p className="flex-1 text-amber-900">
+                Unsaved changes from {relativeTimeFrom(backup.saved_at)} were
+                recovered.
+            </p>
+            <button
+                type="button"
+                onClick={onRestore}
+                data-testid="editor-shell-recovery-restore"
+                className="inline-flex h-7 items-center rounded-md bg-amber-600 px-3 text-xs font-semibold text-white transition-colors hover:bg-amber-700"
+            >
+                Restore
+            </button>
+            <button
+                type="button"
+                aria-label="Dismiss recovery banner"
+                onClick={onDismiss}
+                data-testid="editor-shell-recovery-dismiss"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-amber-900/60 transition-colors hover:bg-amber-500/15 hover:text-amber-900"
+            >
+                ×
+            </button>
+        </div>
+    );
+}
+
 /* ─────────────────────────────────────────────────────────────────── */
 /* Internal helpers                                                     */
 /* ─────────────────────────────────────────────────────────────────── */
@@ -1461,58 +1603,3 @@ function parsePathSegments(path: string): Array<string | number> {
     return segs;
 }
 
-/**
- * Immutably set a deeply nested value, creating intermediate objects /
- * arrays as needed. Supports array-bracket syntax in path segments.
- */
-function setByPath(
-    root: Record<string, unknown>,
-    path: string,
-    value: unknown,
-): Record<string, unknown> {
-    const segs = parsePathSegments(path);
-    if (segs.length === 0) return root;
-
-    const cloneContainer = (val: unknown, nextKey: string | number): unknown => {
-        if (typeof nextKey === "number") {
-            if (Array.isArray(val)) return val.slice();
-            return [];
-        }
-        if (val && typeof val === "object" && !Array.isArray(val)) {
-            return { ...(val as Record<string, unknown>) };
-        }
-        return {};
-    };
-
-    const nextRoot = cloneContainer(root, segs[0]) as
-        | Record<string, unknown>
-        | unknown[];
-    let cur: Record<string, unknown> | unknown[] = nextRoot;
-    for (let i = 0; i < segs.length - 1; i++) {
-        const key = segs[i];
-        const nextKey = segs[i + 1];
-        const child = (cur as Record<string | number, unknown>)[key as never];
-        const cloned = cloneContainer(child, nextKey) as
-            | Record<string, unknown>
-            | unknown[];
-        (cur as Record<string | number, unknown>)[key as never] = cloned;
-        cur = cloned;
-    }
-    (cur as Record<string | number, unknown>)[segs[segs.length - 1] as never] = value;
-    return nextRoot as Record<string, unknown>;
-}
-
-/**
- * Turn a dotted/bracketed path into a short human label for the
- * undo-history tooltip (e.g. `pills[2].label_i18n` → "pills label").
- */
-function humanPathFragment(path: string): string {
-    const segs = parsePathSegments(path);
-    const words: string[] = [];
-    for (const s of segs) {
-        if (typeof s === "string") {
-            words.push(s.replace(/_i18n$/g, "").replace(/_/g, " "));
-        }
-    }
-    return words.length > 0 ? words.join(" ") : "field";
-}
