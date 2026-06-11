@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useInfiniteLeads } from "@/hooks/use-infinite-leads";
 import { useLeadAnalytics } from "@/hooks/use-lead-analytics";
-import { useCreateLead, useUpdateLead } from "@/hooks/use-lead-mutations";
+import { useCreateLead, useUpdateLead, useDeleteLead } from "@/hooks/use-lead-mutations";
 import { useLeadStore } from "@/store/use-lead-store";
 import { usePageHeader } from "@/store/use-page-header";
 import { LEAD_STATUS_CONFIG, LEAD_STATUS_UI } from "@/types/leads";
@@ -59,6 +59,7 @@ export function LeadsMobileView() {
 
   const createLead = useCreateLead();
   const updateLead = useUpdateLead();
+  const deleteLead = useDeleteLead();
   const handleCreate = (formData: LeadFormData): Promise<boolean> =>
     new Promise((resolve) => {
       createLead.mutate(formData, {
@@ -76,7 +77,13 @@ export function LeadsMobileView() {
         is_draft: true,
       },
       {
-        onSuccess: () => toast.success("Saved as draft — pick it back up anytime"),
+        onSuccess: (res) => {
+          const id = res?.lead?.id as string | undefined;
+          toast.success("Saved as draft", {
+            description: "Find it in your list — or discard it.",
+            action: id ? { label: "Discard", onClick: () => deleteLead.mutate(id) } : undefined,
+          });
+        },
         onError: () => toast.error("Couldn't save the draft"),
       },
     );

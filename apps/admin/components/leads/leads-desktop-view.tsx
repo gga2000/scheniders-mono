@@ -8,6 +8,7 @@ import { useLeadAnalytics } from "@/hooks/use-lead-analytics";
 import {
   useCreateLead,
   useUpdateLead,
+  useDeleteLead,
   useBulkLeadAction,
 } from "@/hooks/use-lead-mutations";
 import { useLeadStore } from "@/store/use-lead-store";
@@ -118,6 +119,7 @@ export function LeadsDesktopView() {
   const lastTrend = analytics?.monthly_trends?.[analytics.monthly_trends.length - 1];
   const createLead = useCreateLead();
   const updateLead = useUpdateLead();
+  const deleteLead = useDeleteLead();
   const bulkAction = useBulkLeadAction();
 
   const leads = data?.leads ?? [];
@@ -143,7 +145,7 @@ export function LeadsDesktopView() {
       });
     });
 
-  // Auto-save an in-progress lead as a draft when the form is dismissed by accident.
+  // Auto-save an in-progress lead as a draft when the form is dismissed.
   const handleSaveDraft = (formData: LeadFormData) =>
     createLead.mutate(
       {
@@ -152,7 +154,13 @@ export function LeadsDesktopView() {
         is_draft: true,
       },
       {
-        onSuccess: () => toast.success("Saved as draft — pick it back up anytime"),
+        onSuccess: (res) => {
+          const id = res?.lead?.id as string | undefined;
+          toast.success("Saved as draft", {
+            description: "Find it in your list — or discard it.",
+            action: id ? { label: "Discard", onClick: () => deleteLead.mutate(id) } : undefined,
+          });
+        },
         onError: () => toast.error("Couldn't save the draft"),
       },
     );
