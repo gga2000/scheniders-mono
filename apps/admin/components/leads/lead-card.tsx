@@ -251,7 +251,15 @@ export function LeadCard({
             {platformConfig.label}
           </span>
           {lead.industry && (
-            <span className="truncate text-xs">{lead.industry.name}</span>
+            <span
+              className="inline-flex items-center gap-1 truncate rounded px-1.5 py-0.5 text-xs font-medium"
+              style={{
+                backgroundColor: `${lead.industry.color}1A`,
+                color: lead.industry.color,
+              }}
+            >
+              {lead.industry.name_ar || lead.industry.name}
+            </span>
           )}
         </div>
 

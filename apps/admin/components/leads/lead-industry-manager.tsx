@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
+import * as Dialog from "@radix-ui/react-dialog";
 import { EASE_CHROME } from "@/lib/animation-constants";
 import {
   useIndustries,
@@ -216,43 +217,28 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm"
-            onClick={onClose}
-          />
+    <Dialog.Root open={isOpen} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm lead-overlay-in" />
+        <Dialog.Content
+          aria-describedby={undefined}
+          className="fixed left-1/2 top-1/2 z-[201] flex max-h-[85vh] w-[calc(100vw-2rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] shadow-2xl lead-modal-in"
+        >
+          {/* ── Header (fixed) ─────────────────────────── */}
+          <div className="flex shrink-0 items-center justify-between px-6 py-4 border-b border-[var(--card-border)]">
+            <div className="flex items-center gap-2">
+              <Settings className="w-4 h-4 text-[var(--muted)]" />
+              <Dialog.Title className="text-sm font-semibold text-[var(--foreground)]">
+                Manage Industries
+              </Dialog.Title>
+            </div>
+            <Dialog.Close className="p-1.5 rounded-lg text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--card-border)] transition-colors">
+              <X className="w-4 h-4" />
+            </Dialog.Close>
+          </div>
 
-          {/* Modal */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: -20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -20 }}
-            transition={{ duration: 0.2, ease: EASE_CHROME }}
-            className="fixed top-[5%] left-1/2 -translate-x-1/2 z-[201] w-full max-w-xl max-h-[90vh] overflow-y-auto"
-          >
-            <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-2xl overflow-hidden">
-              {/* ── Header ─────────────────────────────────── */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--card-border)]">
-                <div className="flex items-center gap-2">
-                  <Settings className="w-4 h-4 text-[var(--muted)]" />
-                  <h2 className="text-sm font-semibold text-[var(--foreground)]">
-                    Manage Industries
-                  </h2>
-                </div>
-                <button
-                  onClick={onClose}
-                  className="p-1.5 rounded-lg text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--card-border)] transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
+          {/* ── Scrollable body ────────────────────────── */}
+          <div className="flex-1 overflow-y-auto overscroll-contain">
               {/* ── Add Form Toggle ────────────────────────── */}
               <div className="px-6 pt-4">
                 <button
@@ -630,76 +616,67 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
                   </div>
                 )}
               </div>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+
+      {/* ── Delete Confirmation (nested dialog) ──────── */}
+      <Dialog.Root
+        open={!!deleteConfirm}
+        onOpenChange={(v) => {
+          if (!v) setDeleteConfirm(null);
+        }}
+      >
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[210] bg-black/50 backdrop-blur-sm lead-overlay-in" />
+          <Dialog.Content
+            aria-describedby={undefined}
+            className="fixed left-1/2 top-1/2 z-[211] w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-6 shadow-2xl lead-modal-in"
+          >
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-500/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-red-500" />
+              </div>
+              <div>
+                <Dialog.Title className="text-sm font-bold text-[var(--foreground)] mb-1">
+                  Delete &ldquo;{deleteConfirm?.industry.name}&rdquo;?
+                </Dialog.Title>
+                {deleteConfirm && deleteConfirm.linkedLeads > 0 ? (
+                  <p className="text-xs text-[var(--muted)]">
+                    This industry is linked to{" "}
+                    <span className="font-semibold text-red-500">
+                      {deleteConfirm.linkedLeads}
+                    </span>{" "}
+                    lead{deleteConfirm.linkedLeads !== 1 ? "s" : ""}. Removing it
+                    will set their industry to uncategorized. Continue?
+                  </p>
+                ) : (
+                  <p className="text-xs text-[var(--muted)]">
+                    This industry will be permanently removed. This action cannot
+                    be undone.
+                  </p>
+                )}
+              </div>
             </div>
-          </motion.div>
 
-          {/* ── Delete Confirmation Dialog ──────────────── */}
-          <AnimatePresence>
-            {deleteConfirm && (
-              <>
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="fixed inset-0 z-[210] bg-black/30"
-                  onClick={() => setDeleteConfirm(null)}
-                />
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.15, ease: EASE_CHROME }}
-                  className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[211] w-full max-w-sm"
-                >
-                  <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-2xl p-6">
-                    <div className="flex items-start gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-500/10 flex items-center justify-center shrink-0">
-                        <AlertTriangle className="w-5 h-5 text-red-500" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-[var(--foreground)] mb-1">
-                          Delete &ldquo;{deleteConfirm.industry.name}&rdquo;?
-                        </h3>
-                        {deleteConfirm.linkedLeads > 0 ? (
-                          <p className="text-xs text-[var(--muted)]">
-                            This industry is linked to{" "}
-                            <span className="font-semibold text-red-500">
-                              {deleteConfirm.linkedLeads}
-                            </span>{" "}
-                            lead{deleteConfirm.linkedLeads !== 1 ? "s" : ""}. Removing it
-                            will set their industry to uncategorized. Continue?
-                          </p>
-                        ) : (
-                          <p className="text-xs text-[var(--muted)]">
-                            This industry will be permanently removed. This action cannot
-                            be undone.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 justify-end">
-                      <button
-                        onClick={() => setDeleteConfirm(null)}
-                        className="px-4 py-2 rounded-lg text-xs font-medium text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleConfirmDelete}
-                        disabled={deleteIndustry.isPending}
-                        className="px-4 py-2 rounded-lg bg-red-500 text-white text-xs font-semibold hover:bg-red-600 transition-colors"
-                      >
-                        {deleteIndustry.isPending ? "Deleting..." : "Delete"}
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
-        </>
-      )}
-    </AnimatePresence>
+            <div className="flex items-center gap-2 justify-end">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="px-4 py-2 rounded-lg text-xs font-medium text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={deleteIndustry.isPending}
+                className="px-4 py-2 rounded-lg bg-red-500 text-white text-xs font-semibold hover:bg-red-600 transition-colors"
+              >
+                {deleteIndustry.isPending ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </Dialog.Root>
   );
 }
