@@ -1,6 +1,7 @@
 "use client";
 
-import type { LeadSourcePlatform, Industry } from "@/types/leads";
+import type { LeadSourcePlatform, Industry, LeadTier } from "@/types/leads";
+import { LEAD_TIER_CONFIG, LEAD_TIER_UI } from "@/types/leads";
 import {
   Phone,
   UserPlus,
@@ -22,6 +23,11 @@ import {
   Flower,
   Coffee,
   Building2,
+  Circle,
+  Award,
+  Star,
+  Diamond,
+  Crown,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -57,66 +63,23 @@ const PATHS = {
 
 type ChipMeta = {
   label: string;
-  chip: string;
+  /** Brand color applied to the logo only — the chip itself stays neutral/minimal. */
+  color: string;
   logo: (cls: string) => React.ReactNode;
 };
 
 const PLATFORM_CHIP: Record<LeadSourcePlatform, ChipMeta> = {
-  instagram: {
-    label: "Instagram",
-    chip: "bg-gradient-to-tr from-amber-400 via-rose-500 to-fuchsia-600 text-white",
-    logo: (c) => <BrandSvg d={PATHS.instagram} className={c} />,
-  },
-  facebook: {
-    label: "Facebook",
-    chip: "bg-[#1877F2] text-white",
-    logo: (c) => <BrandSvg d={PATHS.facebook} className={c} />,
-  },
-  tiktok: {
-    label: "TikTok",
-    chip: "bg-zinc-900 text-white",
-    logo: (c) => <BrandSvg d={PATHS.tiktok} className={c} />,
-  },
-  snapchat: {
-    label: "Snapchat",
-    chip: "bg-[#FFFC00] text-black",
-    logo: (c) => <BrandSvg d={PATHS.snapchat} className={c} />,
-  },
-  youtube: {
-    label: "YouTube",
-    chip: "bg-[#FF0000] text-white",
-    logo: (c) => <BrandSvg d={PATHS.youtube} className={c} />,
-  },
-  twitter: {
-    label: "X",
-    chip: "bg-zinc-900 text-white",
-    logo: (c) => <BrandSvg d={PATHS.twitter} className={c} />,
-  },
-  linkedin: {
-    label: "LinkedIn",
-    chip: "bg-[#0A66C2] text-white",
-    logo: (c) => <BrandSvg d={PATHS.linkedin} className={c} />,
-  },
-  website: {
-    label: "Website",
-    chip: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
-    logo: (c) => <Globe className={c} />,
-  },
-  referral: {
-    label: "Referral",
-    chip: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300",
-    logo: (c) => <UserPlus className={c} />,
-  },
-  cold_call: {
-    label: "Cold Call",
-    chip: "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300",
-    logo: (c) => <Phone className={c} />,
-  },
-  other: {
-    label: "Other",
-    chip: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
-    logo: (c) => <MoreHorizontal className={c} />,
-  },
+  instagram: { label: "Instagram", color: "#E4405F", logo: (c) => <BrandSvg d={PATHS.instagram} className={c} /> },
+  facebook: { label: "Facebook", color: "#1877F2", logo: (c) => <BrandSvg d={PATHS.facebook} className={c} /> },
+  tiktok: { label: "TikTok", color: "var(--foreground)", logo: (c) => <BrandSvg d={PATHS.tiktok} className={c} /> },
+  snapchat: { label: "Snapchat", color: "#E4B100", logo: (c) => <BrandSvg d={PATHS.snapchat} className={c} /> },
+  youtube: { label: "YouTube", color: "#FF0000", logo: (c) => <BrandSvg d={PATHS.youtube} className={c} /> },
+  twitter: { label: "X", color: "var(--foreground)", logo: (c) => <BrandSvg d={PATHS.twitter} className={c} /> },
+  linkedin: { label: "LinkedIn", color: "#0A66C2", logo: (c) => <BrandSvg d={PATHS.linkedin} className={c} /> },
+  website: { label: "Website", color: "var(--muted)", logo: (c) => <Globe className={c} /> },
+  referral: { label: "Referral", color: "#8B5CF6", logo: (c) => <UserPlus className={c} /> },
+  cold_call: { label: "Cold Call", color: "#F97316", logo: (c) => <Phone className={c} /> },
+  other: { label: "Other", color: "var(--muted)", logo: (c) => <MoreHorizontal className={c} /> },
 };
 
 export function PlatformChip({
@@ -131,12 +94,13 @@ export function PlatformChip({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full font-semibold shadow-sm",
-        sm ? "h-5 gap-1 pl-1.5 pr-2 text-[10px]" : "h-6 gap-1.5 pl-2 pr-2.5 text-[11px]",
-        meta.chip,
+        "inline-flex items-center rounded-full font-medium text-[var(--foreground)] bg-black/[0.04] dark:bg-white/[0.06] ring-1 ring-inset ring-black/[0.05] dark:ring-white/[0.06]",
+        sm ? "h-5 gap-1 px-2 text-[10px]" : "h-6 gap-1.5 px-2.5 text-[11px]",
       )}
     >
-      {meta.logo(sm ? "h-2.5 w-2.5" : "h-3 w-3")}
+      <span className="inline-flex shrink-0" style={{ color: meta.color }}>
+        {meta.logo(sm ? "h-3 w-3" : "h-3.5 w-3.5")}
+      </span>
       {meta.label}
     </span>
   );
@@ -193,6 +157,35 @@ export function IndustryChip({
         <Icon className={cn("text-white", sm ? "h-2.5 w-2.5" : "h-3 w-3")} />
       </span>
       {industry.name_ar || industry.name}
+    </span>
+  );
+}
+
+// ── Tier / ranking chips ────────────────────────────────────────────────────
+
+const TIER_ICONS: Record<LeadTier, LucideIcon> = {
+  bronze: Circle,
+  silver: Award,
+  gold: Star,
+  diamond: Diamond,
+  legendary: Crown,
+};
+
+export function TierChip({ tier, size = "md" }: { tier: LeadTier; size?: "sm" | "md" }) {
+  const cfg = LEAD_TIER_CONFIG[tier];
+  const ui = LEAD_TIER_UI[tier];
+  const Icon = TIER_ICONS[tier];
+  const sm = size === "sm";
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center whitespace-nowrap rounded-full font-bold",
+        sm ? "h-5 gap-1 px-2 text-[10px]" : "h-6 gap-1.5 px-2.5 text-[11px]",
+      )}
+      style={{ backgroundColor: ui.soft, color: ui.solid }}
+    >
+      <Icon className={sm ? "h-2.5 w-2.5" : "h-3 w-3"} />
+      {cfg.label}
     </span>
   );
 }
