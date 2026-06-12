@@ -17,6 +17,7 @@ import {
 } from "./helpers/primitives";
 import { StoreLink } from "./helpers/store-context";
 import { SchneidersProductCard } from "./helpers/product-card";
+import { FilterableProductGrid } from "./helpers/filterable-grid";
 import { resolveTenantWhatsapp } from "./helpers/whatsapp";
 import type { Product } from "./types";
 import { i18nStringOptional } from "./_schema";
@@ -122,59 +123,70 @@ function ProductGridRender({
   const category = ctx.category;
   const catCount = category ? ctx.products.length : 0;
 
-  if (items.length === 0) return null;
+  // On a category page the grid is the full category catalogue (filterable +
+  // paginated client-side); on the home/curated case it's the limited query.
+  if ((category ? ctx.products.length : items.length) === 0) return null;
 
   return (
     <Section>
       {category ? (
-        <div className="mb-bk-lg">
-          <p className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft mb-bk-sm">
-            <StoreLink href="/" className="hover:text-bk-primary">
-              {t ? "الرئيسية" : "Home"}
-            </StoreLink>
-            <span className="text-bk-primary mx-1">›</span>
-            {category.name}
-          </p>
-          <BentoCard bg="mint" size="md" rotate={1} className="p-bk-lg sm:p-bk-xl">
-            <Sticker bg="pink" rotate={-4} size="xs" className="mb-bk-sm">
-              {t ? "اكتشف المجموعة" : "Step into color"}
-            </Sticker>
-            <h1 className="font-display font-black text-3xl sm:text-4xl uppercase leading-tight">
+        <>
+          <div className="mb-bk-lg">
+            <p className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft mb-bk-sm">
+              <StoreLink href="/" className="hover:text-bk-primary">
+                {t ? "الرئيسية" : "Home"}
+              </StoreLink>
+              <span className="text-bk-primary mx-1">›</span>
               {category.name}
-            </h1>
-            {category.description && (
-              <p className="font-body font-bold text-sm mt-bk-xs max-w-[85%]">
-                {category.description}
-              </p>
-            )}
-            <div className="mt-bk-md">
-              <Sticker bg="butter" rotate={3} size="xs">
-                {t ? `${catCount} منتج` : `${catCount} product${catCount === 1 ? "" : "s"}`}
+            </p>
+            <BentoCard bg="mint" size="md" rotate={1} className="p-bk-lg sm:p-bk-xl">
+              <Sticker bg="pink" rotate={-4} size="xs" className="mb-bk-sm">
+                {t ? "اكتشف المجموعة" : "Step into color"}
               </Sticker>
-            </div>
-          </BentoCard>
-        </div>
-      ) : (
-        heading && (
-          <SectionHeader title={heading} color={props.scribble_color ?? "butter"} />
-        )
-      )}
-      <div
-        data-layer="cards"
-        data-layer-label="Product cards"
-        className="grid grid-cols-2 gap-bk-sm sm:gap-bk-md md:grid-cols-3 lg:grid-cols-4"
-      >
-        {items.map((product, i) => (
-          <SchneidersProductCard
-            key={product.id}
-            product={product}
-            index={i}
-            priority={i < 4}
+              <h1 className="font-display font-black text-3xl sm:text-4xl uppercase leading-tight">
+                {category.name}
+              </h1>
+              {category.description && (
+                <p className="font-body font-bold text-sm mt-bk-xs max-w-[85%]">
+                  {category.description}
+                </p>
+              )}
+              <div className="mt-bk-md">
+                <Sticker bg="butter" rotate={3} size="xs">
+                  {t ? `${catCount} منتج` : `${catCount} product${catCount === 1 ? "" : "s"}`}
+                </Sticker>
+              </div>
+            </BentoCard>
+          </div>
+          <FilterableProductGrid
+            products={ctx.products}
+            locale={locale}
             whatsappPhone={resolveTenantWhatsapp(ctx.tenant)}
-            locale={ctx.runtime.locale}
           />
-        ))}
-      </div>
+        </>
+      ) : (
+        <>
+          {heading && (
+            <SectionHeader title={heading} color={props.scribble_color ?? "butter"} />
+          )}
+          <div
+            data-layer="cards"
+            data-layer-label="Product cards"
+            className="grid grid-cols-2 gap-bk-sm sm:gap-bk-md md:grid-cols-3 lg:grid-cols-4"
+          >
+            {items.map((product, i) => (
+              <SchneidersProductCard
+                key={product.id}
+                product={product}
+                index={i}
+                priority={i < 4}
+                whatsappPhone={resolveTenantWhatsapp(ctx.tenant)}
+                locale={ctx.runtime.locale}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </Section>
   );
 }

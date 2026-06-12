@@ -29,6 +29,7 @@ import {
   WhatsAppIcon,
 } from "./helpers/primitives";
 import { useCart } from "./helpers/cart-store";
+import { useStoreBase } from "./helpers/store-context";
 import { isPlausiblePhone } from "./helpers/whatsapp";
 import { formatPrice } from "./helpers/format";
 import { i18nStringOptional } from "./_schema";
@@ -72,6 +73,7 @@ function CheckoutFormRender({
   const items = useCart((s) => s.items);
   const subtotal = useCart((s) => s.getTotal());
   const clearCart = useCart((s) => s.clearCart);
+  const base = useStoreBase();
   const [status, setStatus] = useState<"idle" | "submitting" | "ok" | "error">(
     "idle",
   );
@@ -119,8 +121,38 @@ function CheckoutFormRender({
         }),
       });
       if (res.ok) {
+        const data = (await res.json().catch(() => null)) as
+          | { orderNumber?: string; total?: number }
+          | null;
+        const orderNumber = data?.orderNumber ?? "";
+        // Stash the just-placed order for the thank-you recap. This is the
+        // privacy-safe path (only the buyer's browser holds it) — never fetch
+        // an order by number on the public success page (enumeration risk).
+        try {
+          sessionStorage.setItem(
+            "schn:last-order",
+            JSON.stringify({
+              number: orderNumber,
+              items: items.map((i) => ({
+                name: i.name,
+                variant: i.variant_name ?? null,
+                qty: i.quantity,
+                price: i.price,
+              })),
+              subtotal,
+              total: data?.total ?? subtotal,
+              ts: Date.now(),
+            }),
+          );
+        } catch {
+          /* sessionStorage unavailable — the recap just won't render */
+        }
         clearCart();
         setStatus("ok");
+        // Navigate to the celebratory thank-you page (full nav keeps the stash).
+        window.location.href = `${base}/checkout/success${
+          orderNumber ? `?order=${encodeURIComponent(orderNumber)}` : ""
+        }`;
       } else {
         setStatus("error");
       }

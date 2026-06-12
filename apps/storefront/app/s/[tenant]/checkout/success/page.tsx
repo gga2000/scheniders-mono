@@ -28,6 +28,7 @@ import {
   WhatsAppIcon,
 } from "@/components/schneiders/primitives";
 import { SchneidersProductCard } from "@/components/schneiders/product-card";
+import { OrderRecap } from "@/components/schneiders/order-recap";
 
 interface Props {
   params: Promise<{ tenant: string }>;
@@ -64,6 +65,14 @@ export default async function CheckoutSuccessPage({ params, searchParams }: Prop
       (t
         ? `سنتصل بك خلال ${callWithin} دقيقة لتأكيد عنوانك ووقت التوصيل.`
         : `We'll call you within ${callWithin} minutes to confirm your address and delivery time.`);
+
+    // 24h express delivery estimate — a concrete "Delivered by <day>" date reads
+    // far more reassuring than a vague window (matches the Stitch thank-you).
+    const deliveryDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const deliveryLabel = deliveryDate.toLocaleDateString(
+      t ? "ar-IQ" : "en-GB",
+      { weekday: "long", month: "long", day: "numeric" },
+    );
 
     return (
       <SchneidersPageShell
@@ -104,6 +113,26 @@ export default async function CheckoutSuccessPage({ params, searchParams }: Prop
               </h2>
               <p className="font-body text-sm mt-1">
                 {thankYouSubheadline}
+              </p>
+            </div>
+          </div>
+        </BentoCard>
+
+        {/* Order recap — privacy-safe, from the buyer's own session */}
+        <OrderRecap locale={locale} />
+
+        {/* Delivery ETA */}
+        <BentoCard bg="butter" rotate={-1} className="p-5">
+          <div className="flex items-start gap-3">
+            <MaterialIcon name="local_shipping" className="text-3xl drop-shadow-[2px_2px_0px_#1a1a1a]" />
+            <div>
+              <h2 className="font-display font-black text-xl uppercase">
+                {t ? `التوصيل بحلول ${deliveryLabel}` : `Delivered by ${deliveryLabel}`}
+              </h2>
+              <p className="font-body text-sm mt-1">
+                {t
+                  ? "إلى بغداد والمحافظات — توصيل سريع خلال ٢٤ ساعة"
+                  : "To Baghdad & provinces — 24-hour express"}
               </p>
             </div>
           </div>

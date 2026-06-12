@@ -418,6 +418,9 @@ export function LeadsDesktopView() {
                     Platform
                   </th>
                   <th className="py-2.5 px-4 text-left text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider">
+                    Industry
+                  </th>
+                  <th className="py-2.5 px-4 text-left text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider">
                     Followers
                   </th>
                   <th className="py-2.5 px-4 text-left text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider">
@@ -528,6 +531,25 @@ export function LeadsDesktopView() {
                           />
                           {platformCfg.label}
                         </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        {lead.industry ? (
+                          <span
+                            className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap"
+                            style={{
+                              backgroundColor: `${lead.industry.color}1A`,
+                              color: lead.industry.color,
+                            }}
+                          >
+                            <span
+                              className="h-1.5 w-1.5 rounded-full"
+                              style={{ backgroundColor: lead.industry.color }}
+                            />
+                            {lead.industry.name_ar || lead.industry.name}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-[var(--muted)]">—</span>
+                        )}
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-1.5">

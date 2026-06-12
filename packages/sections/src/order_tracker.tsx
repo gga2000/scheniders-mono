@@ -59,6 +59,23 @@ const STATUS_LABEL: Record<StatusStep, { en: string; ar: string; icon: string }>
     delivered: { en: "Delivered", ar: "تم التسليم", icon: "task_alt" },
   };
 
+/** Big, friendly status banner shown above the timeline — driven entirely by
+ *  the real order status (no fabricated ETA/driver). */
+const STATUS_HERO: Record<
+  StatusStep,
+  { en: string; ar: string; bg: "butter" | "sky" | "mint" }
+> = {
+  placed: { en: "Order received!", ar: "تم استلام طلبك!", bg: "butter" },
+  confirmed: {
+    en: "Confirmed — getting it ready",
+    ar: "تم التأكيد — نجهّز طلبك",
+    bg: "butter",
+  },
+  shipped: { en: "Shipped!", ar: "تم الشحن!", bg: "sky" },
+  out_for_delivery: { en: "On the way! 🚚", ar: "في الطريق إليك! 🚚", bg: "mint" },
+  delivered: { en: "Delivered 🎉", ar: "تم التسليم 🎉", bg: "mint" },
+};
+
 interface OrderResult {
   order_number: string;
   status: StatusStep;
@@ -202,6 +219,19 @@ function OrderTrackerRender({
 
         {order && status === "ok" && (
           <div className="mt-bk-lg pt-bk-lg border-t-[3px] border-dashed border-bk-divider">
+            {/* Real-status hero banner (Stitch "On the way!" treatment). */}
+            <BentoCard
+              bg={STATUS_HERO[order.status].bg}
+              size="sm"
+              rotate={-1}
+              className="mb-bk-md p-bk-md text-center"
+            >
+              <p className="font-display font-black uppercase text-lg">
+                {t
+                  ? STATUS_HERO[order.status].ar
+                  : STATUS_HERO[order.status].en}
+              </p>
+            </BentoCard>
             <p className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
               {t ? "رقم الطلب" : "Order"}
             </p>
