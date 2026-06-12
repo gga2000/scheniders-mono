@@ -8,8 +8,8 @@ import {
   LEAD_STATUS_UI,
   LEAD_PRIORITY_CONFIG,
   LEAD_TIER_CONFIG,
-  PLATFORM_CONFIG,
 } from "@/types/leads";
+import { PlatformChip, IndustryChip } from "@/components/leads/lead-chips";
 import {
   Phone,
   MessageCircle,
@@ -54,7 +54,6 @@ export function LeadCard({
   const statusConfig = LEAD_STATUS_CONFIG[lead.status];
   const statusUi = LEAD_STATUS_UI[lead.status];
   const priorityConfig = LEAD_PRIORITY_CONFIG[lead.priority];
-  const platformConfig = PLATFORM_CONFIG[lead.platform];
   const TierIcon = TIER_ICONS[tier];
 
   // Staleness
@@ -243,24 +242,9 @@ export function LeadCard({
         </div>
 
         {/* Platform + Industry */}
-        <div className="flex items-center gap-2 mb-3 text-sm text-[var(--muted)]">
-          <span
-            className="px-1.5 py-0.5 rounded text-xs font-medium"
-            style={{ backgroundColor: `${platformConfig.color}15`, color: platformConfig.color }}
-          >
-            {platformConfig.label}
-          </span>
-          {lead.industry && (
-            <span
-              className="inline-flex items-center gap-1 truncate rounded px-1.5 py-0.5 text-xs font-medium"
-              style={{
-                backgroundColor: `${lead.industry.color}1A`,
-                color: lead.industry.color,
-              }}
-            >
-              {lead.industry.name_ar || lead.industry.name}
-            </span>
-          )}
+        <div className="flex flex-wrap items-center gap-1.5 mb-3">
+          <PlatformChip platform={lead.platform} size="sm" />
+          {lead.industry && <IndustryChip industry={lead.industry} size="sm" />}
         </div>
 
         {/* Key Metrics Row */}

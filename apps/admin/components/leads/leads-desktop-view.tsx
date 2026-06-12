@@ -20,12 +20,12 @@ import { LeadKanban } from "@/components/leads/lead-kanban";
 import { LeadImportDialog } from "@/components/leads/lead-import-dialog";
 import { AddedByAvatar } from "@/components/leads/added-by-avatar";
 import { leadToFormData, DRAFT_PLACEHOLDER_NAME } from "@/components/leads/lead-form-data";
+import { PlatformChip, IndustryChip } from "@/components/leads/lead-chips";
 import {
   LEAD_STATUS_CONFIG,
   LEAD_STATUS_UI,
   LEAD_PRIORITY_CONFIG,
   LEAD_PRIORITY_UI,
-  PLATFORM_CONFIG,
   LEAD_TIER_CONFIG,
   LEAD_TIER_UI,
 } from "@/types/leads";
@@ -444,7 +444,6 @@ export function LeadsDesktopView() {
                   const statusUi = LEAD_STATUS_UI[lead.status];
                   const priorityCfg = LEAD_PRIORITY_CONFIG[lead.priority];
                   const priorityColor = LEAD_PRIORITY_UI[lead.priority];
-                  const platformCfg = PLATFORM_CONFIG[lead.platform];
                   const tierCfg = LEAD_TIER_CONFIG[lead.tier];
                   const tierUi = LEAD_TIER_UI[lead.tier];
                   const isWhale = lead.tier === "legendary" || lead.tier === "diamond";
@@ -521,35 +520,10 @@ export function LeadsDesktopView() {
                         />
                       </td>
                       <td className="py-3 px-4">
-                        <span
-                          className="inline-flex items-center gap-1.5 text-xs font-medium"
-                          style={{ color: platformCfg.color }}
-                        >
-                          <span
-                            className="w-1.5 h-1.5 rounded-full"
-                            style={{ backgroundColor: platformCfg.color }}
-                          />
-                          {platformCfg.label}
-                        </span>
+                        <PlatformChip platform={lead.platform} />
                       </td>
                       <td className="py-3 px-4">
-                        {lead.industry ? (
-                          <span
-                            className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap"
-                            style={{
-                              backgroundColor: `${lead.industry.color}1A`,
-                              color: lead.industry.color,
-                            }}
-                          >
-                            <span
-                              className="h-1.5 w-1.5 rounded-full"
-                              style={{ backgroundColor: lead.industry.color }}
-                            />
-                            {lead.industry.name_ar || lead.industry.name}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-[var(--muted)]">—</span>
-                        )}
+                        <IndustryChip industry={lead.industry} />
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-1.5">
