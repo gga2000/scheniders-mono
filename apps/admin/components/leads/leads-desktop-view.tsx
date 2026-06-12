@@ -20,7 +20,7 @@ import { LeadKanban } from "@/components/leads/lead-kanban";
 import { LeadImportDialog } from "@/components/leads/lead-import-dialog";
 import { AddedByAvatar } from "@/components/leads/added-by-avatar";
 import { leadToFormData, DRAFT_PLACEHOLDER_NAME } from "@/components/leads/lead-form-data";
-import { PlatformChip, IndustryChip } from "@/components/leads/lead-chips";
+import { PlatformChip, IndustryChip, TierChip } from "@/components/leads/lead-chips";
 import {
   LEAD_STATUS_CONFIG,
   LEAD_STATUS_UI,
@@ -63,6 +63,24 @@ function compactIQD(v: number): string {
 }
 
 const countFmt = (n: number) => Math.round(n).toLocaleString();
+
+/** Absolute "12 Jun 2026" + a relative hint ("3d ago") for the Date added column. */
+function formatAdded(iso: string): { date: string; rel: string } {
+  const d = new Date(iso);
+  const date = d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
+  const rel =
+    days <= 0
+      ? "Today"
+      : days === 1
+        ? "Yesterday"
+        : days < 30
+          ? `${days}d ago`
+          : days < 365
+            ? `${Math.floor(days / 30)}mo ago`
+            : `${Math.floor(days / 365)}y ago`;
+  return { date, rel };
+}
 
 /** Animated count-up that eases from 0 → value on mount / value change. */
 function CountUp({
@@ -415,6 +433,9 @@ export function LeadsDesktopView() {
                     Added by
                   </th>
                   <th className="py-2.5 px-4 text-left text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider">
+                    Date added
+                  </th>
+                  <th className="py-2.5 px-4 text-left text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider">
                     Platform
                   </th>
                   <th className="py-2.5 px-4 text-left text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider">
@@ -422,6 +443,9 @@ export function LeadsDesktopView() {
                   </th>
                   <th className="py-2.5 px-4 text-left text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider">
                     Followers
+                  </th>
+                  <th className="py-2.5 px-4 text-left text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider">
+                    Ranking
                   </th>
                   <th className="py-2.5 px-4 text-left text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider">
                     Score
@@ -446,6 +470,7 @@ export function LeadsDesktopView() {
                   const priorityColor = LEAD_PRIORITY_UI[lead.priority];
                   const tierCfg = LEAD_TIER_CONFIG[lead.tier];
                   const tierUi = LEAD_TIER_UI[lead.tier];
+                  const added = formatAdded(lead.created_at);
                   const isWhale = lead.tier === "legendary" || lead.tier === "diamond";
 
                   return (
@@ -519,6 +544,10 @@ export function LeadsDesktopView() {
                           addedAt={lead.created_at}
                         />
                       </td>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <div className="text-xs font-medium text-[var(--foreground)]">{added.date}</div>
+                        <div className="text-[10px] text-[var(--muted)]">{added.rel}</div>
+                      </td>
                       <td className="py-3 px-4">
                         <PlatformChip platform={lead.platform} />
                       </td>
@@ -526,22 +555,12 @@ export function LeadsDesktopView() {
                         <IndustryChip industry={lead.industry} />
                       </td>
                       <td className="py-3 px-4">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-semibold tabular-nums">
-                            {lead.follower_count.toLocaleString()}
-                          </span>
-                          <span
-                            className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md"
-                            style={{ backgroundColor: tierUi.soft, color: tierUi.solid }}
-                            title={`${tierCfg.label} tier · ${tierCfg.minFollowers.toLocaleString()}+ followers`}
-                          >
-                            <span
-                              className="w-1.5 h-1.5 rounded-full"
-                              style={{ backgroundColor: tierUi.solid }}
-                            />
-                            {tierCfg.label}
-                          </span>
-                        </div>
+                        <span className="font-semibold tabular-nums">
+                          {lead.follower_count.toLocaleString()}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <TierChip tier={lead.tier} />
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
