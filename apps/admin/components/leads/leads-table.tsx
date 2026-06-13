@@ -344,7 +344,7 @@ export function LeadsTable({ leads, onOpenLead, onQuickCall, onQuickWhatsApp }: 
             </>
           ) : (
             <>
-              {layoutQuery.isError && (
+              {layoutQuery.isError && !layoutQuery.data && (
                 <span className="mr-auto text-[10px] text-amber-600 dark:text-amber-400">
                   Using default columns — couldn&apos;t load the saved layout.
                 </span>

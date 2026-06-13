@@ -13,8 +13,40 @@ import {
 const LAYOUT_KEY = ["leads-table-layout"] as const;
 
 /**
+ * Per-browser cache of the last layout this client saw. Used purely as the
+ * query's synchronous placeholder so a reload paints the correct column order on
+ * the FIRST frame instead of flashing the default order and snapping once the
+ * network resolves. The network fetch is still authoritative and reconciles it.
+ */
+const LS_CACHE_KEY = "scheniders.leads-table-layout";
+
+function readCachedLayout(): ResolvedLayout | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    const raw = window.localStorage.getItem(LS_CACHE_KEY);
+    if (!raw) return undefined;
+    const parsed = layoutSchema.safeParse(JSON.parse(raw));
+    return parsed.success ? resolveLeadLayout(parsed.data) : undefined;
+  } catch {
+    // localStorage unavailable (private mode) or malformed JSON — fall back to
+    // the network fetch; this cache is only a first-paint optimization.
+    return undefined;
+  }
+}
+
+function writeCachedLayout(layout: ResolvedLayout): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(LS_CACHE_KEY, JSON.stringify(serializeLayout(layout)));
+  } catch {
+    // localStorage write can throw (quota / disabled) — non-fatal for a cache.
+  }
+}
+
+/**
  * Load the org-wide leads-table layout. Always resolves to a fully-normalized
- * ResolvedLayout (never null) so consumers never branch on "no saved layout".
+ * ResolvedLayout (never null). Hydrates instantly from the per-browser cache to
+ * avoid a column-order flash on reload, then reconciles with the server.
  */
 export function useLeadsTableLayout() {
   return useQuery({
@@ -24,8 +56,12 @@ export function useLeadsTableLayout() {
       if (!res.ok) throw new Error("Failed to load layout");
       const json = (await res.json()) as { layout: unknown };
       const parsed = layoutSchema.safeParse(json.layout);
-      return resolveLeadLayout(parsed.success ? parsed.data : null);
+      const resolved = resolveLeadLayout(parsed.success ? parsed.data : null);
+      writeCachedLayout(resolved);
+      return resolved;
     },
+    // Synchronous first-paint value from localStorage (undefined on first-ever visit).
+    placeholderData: () => readCachedLayout(),
     staleTime: 60_000,
   });
 }
@@ -54,6 +90,7 @@ export function useSaveLeadsTableLayout() {
     },
     onSuccess: (resolved) => {
       qc.setQueryData<ResolvedLayout>(LAYOUT_KEY, resolved);
+      writeCachedLayout(resolved);
       qc.invalidateQueries({ queryKey: LAYOUT_KEY });
     },
   });
