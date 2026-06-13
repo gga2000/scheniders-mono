@@ -13,6 +13,7 @@ import {
 } from "@/hooks/use-lead-mutations";
 import { useLeadStore } from "@/store/use-lead-store";
 import { usePageHeader } from "@/store/use-page-header";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { LeadFilterBar } from "@/components/leads/lead-filter-bar";
 import { LeadForm } from "@/components/leads/lead-form";
 import { LeadCard } from "@/components/leads/lead-card";
@@ -39,6 +40,7 @@ import {
   CheckCircle2,
   Percent,
   Wallet,
+  SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -98,9 +100,20 @@ export function LeadsDesktopView() {
   const [formOpen, setFormOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [draftLead, setDraftLead] = useState<Lead | null>(null);
+  // Column-edit mode is owned here so the "Edit columns" button can sit in the
+  // filter row; <LeadsTable> consumes it. super_admin only (the route 403s others).
+  const [columnsEditing, setColumnsEditing] = useState(false);
+
+  const { role } = useAdminAuth();
+  const canEditLayout = role === "super_admin";
 
   const { viewMode, setViewMode, selectedLeads, toggleLead, selectAll, clearSelection } =
     useLeadStore();
+
+  // Leave edit mode if the table view is no longer active.
+  useEffect(() => {
+    if (viewMode !== "table") setColumnsEditing(false);
+  }, [viewMode]);
   const { data, isLoading, isError } = useLeads(page, viewMode === "kanban" ? 100 : 20);
   const { data: analytics, isLoading: analyticsLoading } = useLeadAnalytics();
   const kpiLoading = analyticsLoading && !analytics;
@@ -292,7 +305,24 @@ export function LeadsDesktopView() {
       <div className="rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] overflow-hidden">
         {/* Filters */}
         <div className="p-4 border-b border-[var(--card-border)]">
-          <LeadFilterBar />
+          <LeadFilterBar
+            actions={
+              canEditLayout && viewMode === "table" && !columnsEditing ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearSelection();
+                    setColumnsEditing(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--card-border)] px-3 py-1.5 text-xs font-semibold text-[var(--muted)] hover:bg-[var(--background)] hover:text-[var(--foreground)] transition-colors"
+                  title="Reorder, resize, and show/hide columns for everyone"
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                  Edit columns
+                </button>
+              ) : null
+            }
+          />
         </div>
 
         {/* Content */}
@@ -389,6 +419,8 @@ export function LeadsDesktopView() {
             onOpenLead={openLead}
             onQuickCall={handleQuickCall}
             onQuickWhatsApp={handleQuickWhatsApp}
+            editing={canEditLayout && columnsEditing}
+            onEditingChange={setColumnsEditing}
           />
         ) : (
           /* Kanban View */

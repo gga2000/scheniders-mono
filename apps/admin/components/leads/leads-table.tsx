@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLeadStore } from "@/store/use-lead-store";
-import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useLeadsTableLayout, useSaveLeadsTableLayout } from "@/hooks/use-leads-table-layout";
 import {
   LEAD_COLUMN_MAP,
@@ -124,18 +123,35 @@ interface LeadsTableProps {
   onOpenLead: (lead: Lead) => void;
   onQuickCall: (lead: Lead) => void;
   onQuickWhatsApp: (lead: Lead) => void;
+  /** Edit mode is owned by the parent so the entry button can live in the filter row. */
+  editing: boolean;
+  onEditingChange: (editing: boolean) => void;
 }
 
-export function LeadsTable({ leads, onOpenLead, onQuickCall, onQuickWhatsApp }: LeadsTableProps) {
+export function LeadsTable({
+  leads,
+  onOpenLead,
+  onQuickCall,
+  onQuickWhatsApp,
+  editing,
+  onEditingChange,
+}: LeadsTableProps) {
   const { selectedLeads, toggleLead, selectAll, clearSelection } = useLeadStore();
-  const { role } = useAdminAuth();
-  const canEditLayout = role === "super_admin";
 
   const layoutQuery = useLeadsTableLayout();
   const saveMutation = useSaveLeadsTableLayout();
-  const saved = layoutQuery.data ?? defaultLayout();
+  // Memoized so the sync effect below doesn't re-fire on every render (defaultLayout()
+  // returns a fresh array each call).
+  const saved = useMemo(() => layoutQuery.data ?? defaultLayout(), [layoutQuery.data]);
 
   const [state, dispatch] = useReducer(editReducer, { mode: "view", draft: null });
+
+  // Keep the reducer's edit session in sync with the parent-owned `editing` flag.
+  useEffect(() => {
+    if (editing && state.mode !== "edit") dispatch({ type: "ENTER", base: saved });
+    else if (!editing && state.mode === "edit") dispatch({ type: "EXIT" });
+  }, [editing, saved, state.mode]);
+
   // Narrow to a local so `draft` is provably non-null in edit mode (no `!`).
   const draft = state.mode === "edit" ? state.draft : null;
   const isEditing = draft !== null;
@@ -238,15 +254,11 @@ export function LeadsTable({ leads, onOpenLead, onQuickCall, onQuickWhatsApp }: 
     setDropTarget(null);
   };
 
-  const enterEdit = () => {
-    clearSelection();
-    dispatch({ type: "ENTER", base: saved });
-  };
   const handleSave = () => {
     if (!state.draft) return;
     saveMutation.mutate(state.draft, {
       onSuccess: () => {
-        dispatch({ type: "EXIT" });
+        onEditingChange(false);
         toast.success("Column layout saved for everyone.");
       },
       onError: (err) =>
@@ -319,50 +331,6 @@ export function LeadsTable({ leads, onOpenLead, onQuickCall, onQuickWhatsApp }: 
 
   return (
     <div>
-      {/* Edit toolbar (super_admin only) */}
-      {canEditLayout && (
-        <div className="flex items-center justify-end gap-2 px-4 py-2 border-b border-[var(--card-border)]">
-          {isEditing ? (
-            <>
-              <span className="mr-auto text-xs text-[var(--muted)]">
-                Drag headers to reorder · drag a header edge to resize
-              </span>
-              <LeadColumnsPanel
-                layout={activeLayout}
-                onToggleHidden={(id) => dispatch({ type: "TOGGLE_HIDDEN", id })}
-                onShift={(id, dir) => dispatch({ type: "SHIFT", id, dir })}
-                trigger={
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--card-border)] px-3 py-1.5 text-xs font-semibold text-[var(--foreground)] hover:bg-[var(--background)] transition-colors"
-                  >
-                    <SlidersHorizontal className="h-3.5 w-3.5" />
-                    Columns
-                  </button>
-                }
-              />
-            </>
-          ) : (
-            <>
-              {layoutQuery.isError && !layoutQuery.data && (
-                <span className="mr-auto text-[10px] text-amber-600 dark:text-amber-400">
-                  Using default columns — couldn&apos;t load the saved layout.
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={enterEdit}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--card-border)] px-3 py-1.5 text-xs font-semibold text-[var(--muted)] hover:bg-[var(--background)] hover:text-[var(--foreground)] transition-colors"
-                title="Reorder, resize, and show/hide columns for everyone"
-              >
-                <SlidersHorizontal className="h-3.5 w-3.5" />
-                Edit columns
-              </button>
-            </>
-          )}
-        </div>
-      )}
-
       <div className="overflow-x-auto">
         <table
           className={cn("text-sm table-fixed", resizingId && "select-none")}
@@ -468,8 +436,24 @@ export function LeadsTable({ leads, onOpenLead, onQuickCall, onQuickWhatsApp }: 
             visibleCount={visible.length}
             isDirty={isDirty}
             isSaving={saveMutation.isPending}
+            columnsControl={
+              <LeadColumnsPanel
+                layout={activeLayout}
+                onToggleHidden={(id) => dispatch({ type: "TOGGLE_HIDDEN", id })}
+                onShift={(id, dir) => dispatch({ type: "SHIFT", id, dir })}
+                trigger={
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white/90 hover:bg-white/10 transition-colors"
+                  >
+                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                    Columns
+                  </button>
+                }
+              />
+            }
             onResetDefault={() => dispatch({ type: "RESET_DEFAULT" })}
-            onDiscard={() => dispatch({ type: "EXIT" })}
+            onDiscard={() => onEditingChange(false)}
             onSave={handleSave}
           />
         )}

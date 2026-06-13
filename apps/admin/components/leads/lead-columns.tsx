@@ -145,7 +145,10 @@ export const LEAD_CELL_RENDERERS: Record<LeadColumnId, (lead: Lead, ctx: LeadCel
   platform: (lead) => <PlatformChip platform={lead.platform} />,
   industry: (lead) => <IndustryChip industry={lead.industry} />,
   followers: (lead) => (
-    <span className="font-semibold tabular-nums">{lead.follower_count.toLocaleString()}</span>
+    // Subtle tint by tier/rank — diamonds/legendaries read hotter at a glance.
+    <span className="font-semibold tabular-nums" style={{ color: LEAD_TIER_UI[lead.tier].solid }}>
+      {lead.follower_count.toLocaleString()}
+    </span>
   ),
   ranking: (lead) => <TierChip tier={lead.tier} />,
   score: (lead) => <ScoreCell value={lead.lead_score} />,

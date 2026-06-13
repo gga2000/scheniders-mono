@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { motion } from "framer-motion";
 import { Loader2, RotateCcw, Check } from "lucide-react";
 
@@ -13,6 +14,7 @@ export function LeadsTableEditBar({
   visibleCount,
   isDirty,
   isSaving,
+  columnsControl,
   onResetDefault,
   onDiscard,
   onSave,
@@ -20,6 +22,8 @@ export function LeadsTableEditBar({
   visibleCount: number;
   isDirty: boolean;
   isSaving: boolean;
+  /** Show/hide + reorder popover trigger, rendered inline in the bar. */
+  columnsControl?: ReactNode;
   onResetDefault: () => void;
   onDiscard: () => void;
   onSave: () => void;
@@ -36,6 +40,7 @@ export function LeadsTableEditBar({
         <span className="text-zinc-400"> · {visibleCount} shown</span>
       </span>
       <div className="w-px h-5 bg-white/20" />
+      {columnsControl}
       <button
         type="button"
         onClick={onResetDefault}
