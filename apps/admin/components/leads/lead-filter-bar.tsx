@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useLeadStore, useActiveFilterCount } from "@/store/use-lead-store";
 import { useIndustries } from "@/hooks/use-industries";
@@ -29,7 +30,7 @@ const SELECT =
 // Applied (non-default) filter — make it visibly active.
 const SELECT_ACTIVE = "border-[#A78BFA] bg-[#A78BFA]/10 text-[var(--foreground)] font-semibold";
 
-export function LeadFilterBar() {
+export function LeadFilterBar({ actions }: { actions?: ReactNode }) {
   const {
     statusFilter,
     setStatusFilter,
@@ -214,6 +215,7 @@ export function LeadFilterBar() {
             );
           },
         )}
+        {actions && <div className="ml-auto">{actions}</div>}
       </div>
     </div>
   );
