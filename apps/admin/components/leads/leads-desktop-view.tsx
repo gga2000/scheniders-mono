@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useLeads } from "@/hooks/use-leads";
@@ -18,17 +18,8 @@ import { LeadForm } from "@/components/leads/lead-form";
 import { LeadCard } from "@/components/leads/lead-card";
 import { LeadKanban } from "@/components/leads/lead-kanban";
 import { LeadImportDialog } from "@/components/leads/lead-import-dialog";
-import { AddedByAvatar } from "@/components/leads/added-by-avatar";
+import { LeadsTable } from "@/components/leads/leads-table";
 import { leadToFormData, DRAFT_PLACEHOLDER_NAME } from "@/components/leads/lead-form-data";
-import { PlatformChip, IndustryChip, TierChip } from "@/components/leads/lead-chips";
-import {
-  LEAD_STATUS_CONFIG,
-  LEAD_STATUS_UI,
-  LEAD_PRIORITY_CONFIG,
-  LEAD_PRIORITY_UI,
-  LEAD_TIER_CONFIG,
-  LEAD_TIER_UI,
-} from "@/types/leads";
 import type { LeadFormData, Lead } from "@/types/leads";
 import { leadPhone, toIntlIraqi } from "./lead-phone";
 import { toast } from "sonner";
@@ -48,9 +39,6 @@ import {
   CheckCircle2,
   Percent,
   Wallet,
-  Phone,
-  MessageCircle,
-  Pencil,
   type LucideIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -63,24 +51,6 @@ function compactIQD(v: number): string {
 }
 
 const countFmt = (n: number) => Math.round(n).toLocaleString();
-
-/** Absolute "12 Jun 2026" + a relative hint ("3d ago") for the Date added column. */
-function formatAdded(iso: string): { date: string; rel: string } {
-  const d = new Date(iso);
-  const date = d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-  const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
-  const rel =
-    days <= 0
-      ? "Today"
-      : days === 1
-        ? "Yesterday"
-        : days < 30
-          ? `${days}d ago`
-          : days < 365
-            ? `${Math.floor(days / 30)}mo ago`
-            : `${Math.floor(days / 365)}y ago`;
-  return { date, rel };
-}
 
 /** Animated count-up that eases from 0 → value on mount / value change. */
 function CountUp({
@@ -188,6 +158,19 @@ export function LeadsDesktopView() {
     if (lead.is_draft) setDraftLead(lead);
     else router.push(`/leads/${lead.id}`);
   };
+
+  // Quick row actions, shared by the table and the cards view.
+  const handleQuickCall = useCallback((lead: Lead) => {
+    const p = leadPhone(lead);
+    if (p) window.location.href = `tel:${p}`;
+    else toast.info("No phone number on file");
+  }, []);
+  const handleQuickWhatsApp = useCallback((lead: Lead) => {
+    const p = leadPhone(lead);
+    const intl = p && toIntlIraqi(p);
+    if (intl) window.open(`https://wa.me/${intl}`, "_blank");
+    else toast.info("No WhatsApp number on file");
+  }, []);
 
   const kpis: {
     label: string;
@@ -381,17 +364,8 @@ export function LeadsDesktopView() {
                   isSelected={selectedLeads.has(lead.id)}
                   onSelect={() => toggleLead(lead.id)}
                   onClick={() => openLead(lead)}
-                  onQuickCall={() => {
-                    const p = leadPhone(lead);
-                    if (p) window.location.href = `tel:${p}`;
-                    else toast.info("No phone number on file");
-                  }}
-                  onQuickWhatsApp={() => {
-                    const p = leadPhone(lead);
-                    const intl = p && toIntlIraqi(p);
-                    if (intl) window.open(`https://wa.me/${intl}`, "_blank");
-                    else toast.info("No WhatsApp number on file");
-                  }}
+                  onQuickCall={() => handleQuickCall(lead)}
+                  onQuickWhatsApp={() => handleQuickWhatsApp(lead)}
                   onQuickNote={() => router.push(`/leads/${lead.id}`)}
                 />
               ))}
@@ -409,239 +383,13 @@ export function LeadsDesktopView() {
             </button>
           </div>
         ) : viewMode === "table" ? (
-          /* Table View */
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--card-border)] bg-[var(--background)]/40">
-                  <th className="py-2.5 px-4 text-left w-10">
-                    <input
-                      type="checkbox"
-                      checked={selectedLeads.size === leads.length && leads.length > 0}
-                      onChange={() =>
-                        selectedLeads.size === leads.length
-                          ? clearSelection()
-                          : selectAll(leads.map((l) => l.id))
-                      }
-                      className="rounded"
-                    />
-                  </th>
-                  <th className="py-2.5 px-4 text-left text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider">
-                    Merchant
-                  </th>
-                  <th className="py-2.5 px-4 text-left text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider">
-                    Added by
-                  </th>
-                  <th className="py-2.5 px-4 text-left text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider">
-                    Date added
-                  </th>
-                  <th className="py-2.5 px-4 text-left text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider">
-                    Platform
-                  </th>
-                  <th className="py-2.5 px-4 text-left text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider">
-                    Industry
-                  </th>
-                  <th className="py-2.5 px-4 text-left text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider">
-                    Followers
-                  </th>
-                  <th className="py-2.5 px-4 text-left text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider">
-                    Ranking
-                  </th>
-                  <th className="py-2.5 px-4 text-left text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider">
-                    Score
-                  </th>
-                  <th className="py-2.5 px-4 text-left text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider">
-                    Est. Orders
-                  </th>
-                  <th className="py-2.5 px-4 text-left text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="py-2.5 px-4 text-left text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider">
-                    Priority
-                  </th>
-                  <th className="py-2.5 px-2 w-28" />
-                </tr>
-              </thead>
-              <tbody>
-                {leads.map((lead) => {
-                  const statusCfg = LEAD_STATUS_CONFIG[lead.status];
-                  const statusUi = LEAD_STATUS_UI[lead.status];
-                  const priorityCfg = LEAD_PRIORITY_CONFIG[lead.priority];
-                  const priorityColor = LEAD_PRIORITY_UI[lead.priority];
-                  const tierCfg = LEAD_TIER_CONFIG[lead.tier];
-                  const tierUi = LEAD_TIER_UI[lead.tier];
-                  const added = formatAdded(lead.created_at);
-                  const isWhale = lead.tier === "legendary" || lead.tier === "diamond";
-
-                  return (
-                    <tr
-                      key={lead.id}
-                      onClick={() => openLead(lead)}
-                      className={cn(
-                        "group border-b border-[var(--card-border)] last:border-0 cursor-pointer transition-colors",
-                        lead.is_draft
-                          ? "bg-amber-50/60 hover:bg-amber-50 dark:bg-amber-500/[0.06] dark:hover:bg-amber-500/[0.1]"
-                          : "hover:bg-black/[0.02] dark:hover:bg-white/[0.03]",
-                      )}
-                    >
-                      <td
-                        className="relative py-3 px-4"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <span
-                          className={cn(
-                            "absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-full transition-all duration-300",
-                            isWhale ? "h-7" : "h-0 group-hover:h-7",
-                          )}
-                          style={{ backgroundColor: tierCfg.color }}
-                        />
-                        <input
-                          type="checkbox"
-                          checked={selectedLeads.has(lead.id)}
-                          onChange={() => toggleLead(lead.id)}
-                          className="rounded"
-                        />
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="relative w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold text-white shrink-0 transition-transform group-hover:scale-105"
-                            style={{
-                              backgroundImage: tierUi.gradient,
-                              boxShadow: isWhale
-                                ? `0 4px 14px -3px ${tierCfg.color}, inset 0 1px 0 rgba(255,255,255,0.45)`
-                                : "0 2px 6px -2px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.4)",
-                              textShadow: "0 1px 2px rgba(0,0,0,0.35)",
-                            }}
-                          >
-                            <span className="absolute inset-0 rounded-xl ring-1 ring-inset ring-white/25" />
-                            <span className="relative">
-                              {lead.merchant_name.trim().charAt(0).toUpperCase() || "?"}
-                            </span>
-                          </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-semibold text-[var(--foreground)] truncate max-w-[180px]">
-                                {lead.merchant_name}
-                              </span>
-                              {lead.is_draft && (
-                                <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                                  <Pencil className="h-2.5 w-2.5" /> Draft
-                                </span>
-                              )}
-                            </div>
-                            {lead.management_name && (
-                              <div className="text-xs text-[var(--muted)] truncate max-w-[220px]">
-                                {lead.management_name}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
-                        <AddedByAvatar
-                          user={lead.created_by_user}
-                          addedAt={lead.created_at}
-                        />
-                      </td>
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="text-xs font-medium text-[var(--foreground)]">{added.date}</div>
-                        <div className="text-[10px] text-[var(--muted)]">{added.rel}</div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <PlatformChip platform={lead.platform} />
-                      </td>
-                      <td className="py-3 px-4">
-                        <IndustryChip industry={lead.industry} />
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="font-semibold tabular-nums">
-                          {lead.follower_count.toLocaleString()}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <TierChip tier={lead.tier} />
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-14 h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
-                            <div
-                              className="h-full rounded-full bg-gradient-to-r from-[#FF8899] to-[#A78BFA]"
-                              style={{ width: `${lead.lead_score}%` }}
-                            />
-                          </div>
-                          <span className="text-xs font-bold tabular-nums">{lead.lead_score}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                          ~{lead.estimated_daily_orders}/d
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap"
-                          style={{ backgroundColor: statusUi.soft, color: statusUi.solid }}
-                        >
-                          <span
-                            className="w-1.5 h-1.5 rounded-full"
-                            style={{ backgroundColor: statusUi.solid }}
-                          />
-                          {statusCfg.label}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div
-                          className="inline-flex items-center gap-1.5"
-                          style={{ color: priorityColor }}
-                        >
-                          <span
-                            className={cn(
-                              "w-2 h-2 rounded-full",
-                              lead.priority === "urgent" && "animate-pulse-soft",
-                            )}
-                            style={{ backgroundColor: priorityColor }}
-                          />
-                          <span className="text-xs font-semibold">{priorityCfg.label}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-2">
-                        <div
-                          className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <button
-                            onClick={() => {
-                              const p = leadPhone(lead);
-                              if (p) window.location.href = `tel:${p}`;
-                              else toast.info("No phone number on file");
-                            }}
-                            className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--muted)] hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
-                            title="Call"
-                          >
-                            <Phone className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              const p = leadPhone(lead);
-                              const intl = p && toIntlIraqi(p);
-                              if (intl) window.open(`https://wa.me/${intl}`, "_blank");
-                              else toast.info("No WhatsApp number on file");
-                            }}
-                            className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--muted)] hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10 transition-colors"
-                            title="WhatsApp"
-                          >
-                            <MessageCircle className="w-3.5 h-3.5" />
-                          </button>
-                          <ChevronRight className="w-4 h-4 text-[var(--muted)]" />
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          /* Table View — columns are admin-configurable (see LeadsTable) */
+          <LeadsTable
+            leads={leads}
+            onOpenLead={openLead}
+            onQuickCall={handleQuickCall}
+            onQuickWhatsApp={handleQuickWhatsApp}
+          />
         ) : (
           /* Kanban View */
           <div className="p-4">
