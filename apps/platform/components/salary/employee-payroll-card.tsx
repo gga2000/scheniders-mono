@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
     CheckCircle, Settings, TrendingDown, AlertCircle, Star,
     Calendar, X, TriangleAlert, History, EyeOff, ChevronDown,
-    ChevronUp, Undo2, TrendingUp, ArrowRight,
+    ChevronUp, Undo2, TrendingUp,
 } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
 import { format } from "date-fns";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,47 @@ function fmtDate(d: string | null | undefined, fmt = "MMM d") {
     try { return format(new Date(d.includes("T") ? d : d + "T00:00:00"), fmt); } catch { return d; }
 }
 
+/**
+ * Eased count-up for the hero amount. Animates 0→value on first mount and, when the
+ * value later changes, continues smoothly from the *currently displayed* number (not
+ * the last committed target) so an interrupting refresh never snaps backward. Honors
+ * prefers-reduced-motion by snapping straight to the value.
+ */
+function useCountUp(target: number, durationMs = 550) {
+    const reduce = useReducedMotion();
+    const [value, setValue] = useState(reduce ? target : 0);
+    const valueRef = useRef(value);
+    useEffect(() => {
+        const from = valueRef.current;
+        const to = target;
+        let raf = 0;
+        // Snap (reduced-motion, or value unchanged): defer through rAF so we never setState
+        // synchronously inside the effect body.
+        if (reduce || from === to) {
+            valueRef.current = to;
+            raf = requestAnimationFrame(() => setValue(to));
+            return () => cancelAnimationFrame(raf);
+        }
+        const start = performance.now();
+        const tick = (now: number) => {
+            const t = Math.min(1, (now - start) / durationMs);
+            const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
+            const v = from + (to - from) * eased;
+            valueRef.current = v;
+            setValue(v);
+            if (t < 1) {
+                raf = requestAnimationFrame(tick);
+            } else {
+                valueRef.current = to;
+                setValue(to);
+            }
+        };
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
+    }, [target, reduce, durationMs]);
+    return value;
+}
+
 // ─── Avatar with name-based gradient ─────────────────────────────────────────
 
 const AVATAR_GRADIENTS = [
@@ -45,16 +87,18 @@ function Avatar({ name, avatarUrl }: { name: string; avatarUrl: string | null })
     const gradient = AVATAR_GRADIENTS[name.charCodeAt(0) % AVATAR_GRADIENTS.length];
 
     if (avatarUrl) {
-        return <img src={avatarUrl} alt={name} className="w-10 h-10 rounded-xl object-cover shrink-0" />;
+        return <img src={avatarUrl} alt={name} className="w-11 h-11 rounded-xl object-cover shrink-0 ring-1 ring-[var(--card-border)]" />;
     }
     return (
-        <div className={cn("w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center text-white font-bold text-sm shrink-0", gradient)}>
-            {initials}
+        <div role="img" aria-label={name} className={cn("w-11 h-11 rounded-xl bg-gradient-to-br flex items-center justify-center text-white font-bold text-sm shrink-0", gradient)}>
+            <span aria-hidden="true">{initials}</span>
         </div>
     );
 }
 
-// ─── Compact line item ────────────────────────────────────────────────────────
+// ─── Compact ledger line item ────────────────────────────────────────────────
+// The currency unit is anchored to subtotal/total rows + the hero, not every line,
+// so the digit column scans cleanly and `IQD` marks the figures that matter.
 
 function CompactLineItem({
     label,
@@ -67,18 +111,20 @@ function CompactLineItem({
     type: "positive" | "negative" | "neutral" | "total";
     bold?: boolean;
 }) {
+    const showUnit = bold || type === "total";
     return (
-        <div className={cn("flex items-center justify-between py-0.5 text-xs", bold && "font-semibold")}>
-            <span className={cn(type === "total" ? "text-foreground" : "text-muted")}>{label}</span>
+        <div className={cn("flex items-center justify-between gap-2 py-[3px] text-xs", bold && "font-semibold")}>
+            <span className={cn("truncate", type === "total" ? "text-foreground" : "text-muted")}>{label}</span>
             <span className={cn(
-                "tabular-nums",
+                "tabular-nums shrink-0",
                 type === "positive" && "text-emerald-600 dark:text-emerald-400",
                 type === "negative" && "text-rose-600 dark:text-rose-400",
                 type === "neutral" && "text-foreground",
                 type === "total" && "text-foreground font-bold",
             )}>
                 {type === "positive" ? "+" : type === "negative" ? "−" : ""}
-                {fmtIQD(value)} IQD
+                {fmtIQD(value)}
+                {showUnit && <span className="text-[10px] text-muted font-normal ml-0.5">IQD</span>}
             </span>
         </div>
     );
@@ -104,6 +150,8 @@ interface EmployeePayrollCardProps {
     hasOverride: boolean;
     isPayingOut?: boolean;
     recentPayments?: PayrollRecord[];
+    /** Stagger index for the entrance animation (optional). */
+    index?: number;
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -123,7 +171,9 @@ export function EmployeePayrollCard({
     hasOverride,
     isPayingOut = false,
     recentPayments = [],
+    index = 0,
 }: EmployeePayrollCardProps) {
+    const reduce = useReducedMotion();
     const { employee, calculation, effectiveRate, overlappingPayroll } = data;
     const breakdown = calculation.orderBreakdown;
     const qualityPct = Math.round(breakdown.qualityScore * 100);
@@ -161,12 +211,22 @@ export function EmployeePayrollCard({
         (calculation.baseSalary > 0 ? 1 : 0) +
         (ordersGross > 0 ? 1 : 0) +
         (calculation.performanceBonusesTotal > 0 ? 1 : 0);
+    const hasEarnings = earningLines > 0;
     const hasAnyDeduction =
         replacementDeduction > 0 || refundDeduction > 0 ||
         calculation.absenceDeduction > 0 || calculation.advancesTotal > 0 ||
         calculation.penaltiesTotal > 0;
+    // True signed result of the ledger. Net is clamped at 0 (use-salaries), so when this is
+    // negative the displayed lines can't sum to the 0 hero — surface the gap instead of hiding it.
+    const rawNet =
+        preDeductions - replacementDeduction - refundDeduction -
+        calculation.absenceDeduction - calculation.advancesTotal - calculation.penaltiesTotal;
+    const overDeducted = rawNet < -0.5;
 
-    // Trend vs last payment (#25)
+    // Hero count-up
+    const animatedNet = useCountUp(calculation.netSalary);
+
+    // Trend vs last payment (#25) — advisory; periods may differ in length, so it's demoted + tooltipped.
     const lastPayment = recentPayments[0] ?? null;
     const trendPct = lastPayment && lastPayment.net_salary > 0
         ? Math.round(((calculation.netSalary - lastPayment.net_salary) / lastPayment.net_salary) * 100)
@@ -180,27 +240,43 @@ export function EmployeePayrollCard({
         calculation.pendingAdvances.length +
         calculation.pendingPenalties.length +
         calculation.pendingBonuses.length;
+    const detailsId = `payroll-details-${employee.id}`;
 
     return (
         <>
-            <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden hover:border-[var(--ink)]/20 transition-all flex flex-col">
+            <motion.div
+                initial={reduce ? false : { opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1], delay: reduce ? 0 : Math.min(index * 0.05, 0.4) }}
+                whileHover={reduce ? undefined : { y: -3 }}
+                className="group bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden hover:border-[var(--ink)]/25 hover:shadow-[0_12px_32px_-12px_rgba(0,0,0,0.18)] dark:hover:shadow-[0_12px_32px_-12px_rgba(0,0,0,0.6)] transition-[box-shadow,border-color] flex flex-col"
+            >
 
-                {/* ── A. Header ── */}
-                <div className="p-4 flex items-start gap-3">
-                    <Avatar name={displayName} avatarUrl={employee.avatarUrl} />
+                {/* ── A. Header — identity ── */}
+                <div className="p-4 pb-3 flex items-start gap-3">
+                    <div className="relative shrink-0">
+                        <Avatar name={displayName} avatarUrl={employee.avatarUrl} />
+                        {employee.isActive && (
+                            <span
+                                role="img"
+                                aria-label="Active"
+                                className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-[var(--card-bg)]"
+                            />
+                        )}
+                    </div>
                     <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-1">
+                        <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
                                 <p className="font-semibold text-foreground truncate leading-tight">{displayName}</p>
-                                <p className="text-xs text-muted capitalize leading-tight">{employee.role}</p>
-                                <p className="text-xs text-muted mt-0.5 tabular-nums">
-                                    {fmtDate(calculation.periodStart, "MMM d")} — {fmtDate(calculation.periodEnd, "MMM d, yyyy")}
-                                </p>
+                                <span className="inline-block mt-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider text-muted bg-[var(--background)]">
+                                    {employee.role}
+                                </span>
                             </div>
-                            <div className="flex items-center gap-0.5 shrink-0">
+                            <div className="flex items-center gap-0.5 shrink-0 opacity-50 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                                 <button
                                     onClick={() => setConfigOpen(true)}
                                     className="p-1.5 rounded-lg hover:bg-[var(--background)] text-muted hover:text-foreground transition-colors"
+                                    aria-label="Configure salary"
                                     title="Configure salary"
                                 >
                                     <Settings className="w-3.5 h-3.5" />
@@ -208,6 +284,7 @@ export function EmployeePayrollCard({
                                 <button
                                     onClick={() => onHide(employee.id)}
                                     className="p-1.5 rounded-lg hover:bg-[var(--background)] text-muted hover:text-rose-500 transition-colors"
+                                    aria-label="Hide from view"
                                     title="Hide from view"
                                 >
                                     <EyeOff className="w-3.5 h-3.5" />
@@ -217,72 +294,87 @@ export function EmployeePayrollCard({
                     </div>
                 </div>
 
-                {/* ── B. Stats badges row ── */}
-                <div className="px-4 pb-3 flex items-center gap-1.5 flex-wrap">
-                    {/* Orders (payable) — click to open the breakdown */}
-                    <button
-                        onClick={() => setBreakdownOpen(true)}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 hover:ring-1 hover:ring-emerald-400 transition-all"
-                        title="View order breakdown"
-                    >
-                        <CheckCircle className="w-3 h-3" />
-                        {calculation.completedOrdersCount} payable
-                        {breakdown.completedTotal !== calculation.completedOrdersCount && (
-                            <span className="opacity-60">/ {breakdown.completedTotal}</span>
-                        )}
-                    </button>
-
-                    {/* Quality score */}
+                {/* ── B. Quality meter + period + trend ── */}
+                <div className="px-4 pb-3 space-y-2.5">
                     {breakdown.completedTotal > 0 && (
-                        <span
-                            className={cn(
-                                "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
-                                qualityPct >= 90 && "bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400",
-                                qualityPct >= 70 && qualityPct < 90 && "bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400",
-                                qualityPct < 70 && "bg-rose-100 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400",
-                            )}
-                            title="Clean delivery rate — payable ÷ completed"
-                        >
-                            {qualityPct}% quality
-                        </span>
-                    )}
-
-                    {/* Period pill (always shows actual dates — #13) */}
-                    <button
-                        onClick={() => { setDraftStart(calculation.periodStart); setDraftEnd(calculation.periodEnd); setCalendarOpen(v => !v); }}
-                        className={cn(
-                            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors",
-                            hasOverride
-                                ? "bg-indigo-100 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400"
-                                : "bg-[var(--background)] text-muted hover:text-foreground border border-[var(--card-border)]"
-                        )}
-                        title="Set custom period"
-                    >
-                        <Calendar className="w-3 h-3" />
-                        {calculation.periodStart} → {calculation.periodEnd}
-                    </button>
-                    {hasOverride && (
                         <button
-                            onClick={() => onClearPeriodOverride(employee.id)}
-                            className="p-0.5 rounded-full text-muted hover:text-rose-500 transition-colors"
-                            title="Reset to global period"
+                            onClick={() => setBreakdownOpen(true)}
+                            className="w-full block rounded-lg -mx-1 px-1 py-0.5 hover:bg-[var(--background)] transition-colors"
+                            aria-label={`${calculation.completedOrdersCount} of ${breakdown.completedTotal} orders payable, ${qualityPct}% quality — open order breakdown`}
+                            title="Payable ÷ completed — click for the order breakdown"
                         >
-                            <X className="w-3 h-3" />
+                            <div className="flex items-baseline justify-between mb-1.5">
+                                <span className="text-xs font-medium text-foreground tabular-nums">
+                                    {calculation.completedOrdersCount}
+                                    <span className="text-muted font-normal"> / {breakdown.completedTotal} payable</span>
+                                </span>
+                                <span className={cn(
+                                    "text-xs font-semibold tabular-nums",
+                                    qualityPct >= 90 ? "text-emerald-600 dark:text-emerald-400"
+                                        : qualityPct >= 70 ? "text-amber-700 dark:text-amber-400"
+                                            : "text-rose-600 dark:text-rose-400",
+                                )}>
+                                    {qualityPct}% quality
+                                </span>
+                            </div>
+                            <div className="h-1.5 rounded-full bg-[var(--card-border)] overflow-hidden">
+                                <motion.div
+                                    initial={reduce ? false : { width: 0 }}
+                                    animate={{ width: `${Math.max(2, qualityPct)}%` }}
+                                    transition={{ duration: 0.6, ease: "easeOut", delay: reduce ? 0 : 0.15 }}
+                                    className={cn(
+                                        "h-full rounded-full",
+                                        qualityPct >= 90 ? "bg-emerald-500"
+                                            : qualityPct >= 70 ? "bg-amber-500"
+                                                : "bg-rose-500",
+                                    )}
+                                />
+                            </div>
                         </button>
                     )}
 
-                    {/* Trend badge (#25) */}
-                    {trendPct !== null && (
-                        <span className={cn(
-                            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
-                            trendPct > 0 && "bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400",
-                            trendPct < 0 && "bg-rose-100 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400",
-                            trendPct === 0 && "bg-[var(--background)] text-muted border border-[var(--card-border)]",
-                        )}>
-                            {trendPct > 0 ? <TrendingUp className="w-3 h-3" /> : trendPct < 0 ? <TrendingDown className="w-3 h-3" /> : <ArrowRight className="w-3 h-3" />}
-                            {trendPct > 0 ? `+${trendPct}%` : trendPct < 0 ? `${trendPct}%` : "Same"}
-                        </span>
-                    )}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                        {/* Period pill — single friendly format, opens the picker (#13) */}
+                        <button
+                            onClick={() => { setDraftStart(calculation.periodStart); setDraftEnd(calculation.periodEnd); setCalendarOpen(v => !v); }}
+                            aria-expanded={calendarOpen}
+                            className={cn(
+                                "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors tabular-nums",
+                                hasOverride
+                                    ? "bg-indigo-100 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400"
+                                    : "bg-[var(--background)] text-muted hover:text-foreground border border-[var(--card-border)]"
+                            )}
+                            title="Set a custom period"
+                        >
+                            <Calendar className="w-3 h-3" />
+                            {fmtDate(calculation.periodStart, "MMM d")} – {fmtDate(calculation.periodEnd, "MMM d")}
+                        </button>
+                        {hasOverride && (
+                            <button
+                                onClick={() => onClearPeriodOverride(employee.id)}
+                                className="p-1 rounded-full text-muted hover:text-rose-500 transition-colors"
+                                aria-label="Reset to global period"
+                                title="Reset to global period"
+                            >
+                                <X className="w-3 h-3" />
+                            </button>
+                        )}
+
+                        {/* Trend badge — advisory, demoted (periods may differ in length) */}
+                        {trendPct !== null && trendPct !== 0 && (
+                            <span
+                                className={cn(
+                                    "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-medium tabular-nums",
+                                    trendPct > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400",
+                                )}
+                                title="Change in net vs your last payout — periods may differ in length"
+                            >
+                                {trendPct > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                                <span className="sr-only">Net vs last payout: </span>
+                                {trendPct > 0 ? `+${trendPct}%` : `${trendPct}%`}
+                            </span>
+                        )}
+                    </div>
                 </div>
 
                 {/* ── C. Guard banners (partial + overpay only) ── */}
@@ -298,7 +390,7 @@ export function EmployeePayrollCard({
                     </div>
                 )}
                 {isOverpaid && (
-                    <div className="mx-4 mb-3 flex items-center gap-2 p-2.5 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800 rounded-xl text-xs text-yellow-700 dark:text-yellow-400">
+                    <div className="mx-4 mb-3 flex items-center gap-2 p-2.5 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl text-xs text-amber-700 dark:text-amber-400">
                         <TriangleAlert className="w-3.5 h-3.5 shrink-0" />
                         <span><span className="font-semibold">Unusually high</span> — net is more than 2× base salary. Double-check before confirming.</span>
                     </div>
@@ -313,6 +405,7 @@ export function EmployeePayrollCard({
                                 type="date"
                                 value={draftStart}
                                 onChange={e => setDraftStart(e.target.value)}
+                                aria-label="Period start"
                                 className="flex-1 px-2 py-1.5 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg text-xs text-foreground focus:outline-none"
                             />
                             <span className="text-muted text-xs">→</span>
@@ -320,6 +413,7 @@ export function EmployeePayrollCard({
                                 type="date"
                                 value={draftEnd}
                                 onChange={e => setDraftEnd(e.target.value)}
+                                aria-label="Period end"
                                 className="flex-1 px-2 py-1.5 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg text-xs text-foreground focus:outline-none"
                             />
                         </div>
@@ -341,119 +435,122 @@ export function EmployeePayrollCard({
                     </div>
                 )}
 
-                {/* ── E. Salary breakdown + sparkline (always visible) ── */}
-                <div className="mx-4 mb-3 p-3 bg-[var(--background)] rounded-xl border border-[var(--card-border)] flex gap-3">
-                    {/* Left: breakdown — earnings → deductions → Net (one running ledger) */}
-                    <div className="flex-1 min-w-0 space-y-0">
-                        {/* ── Earnings ── */}
-                        <CompactLineItem label="Base Salary" value={calculation.baseSalary} type="neutral" />
-                        {ordersGross > 0 && (
-                            <CompactLineItem
-                                label={`Orders (${breakdown.completedTotal}×${fmtIQD(perOrderBonus)})`}
-                                value={ordersGross}
-                                type="positive"
-                            />
-                        )}
-                        {calculation.performanceBonusesTotal > 0 && (
-                            <CompactLineItem
-                                label={`Bonuses (${calculation.pendingBonuses.length})`}
-                                value={calculation.performanceBonusesTotal}
-                                type="positive"
-                            />
-                        )}
+                {/* ── E. Money panel — ledger resolving to the Net hero + pay action ── */}
+                <div className="mx-4 mb-3 mt-auto rounded-xl border border-[var(--card-border)] bg-[var(--background)] overflow-hidden">
+                    {/* Ledger: earnings → deductions (one running ledger) */}
+                    <div className="p-3 pb-2.5 flex gap-3">
+                        <div className="flex-1 min-w-0 space-y-0">
+                            {/* Earnings */}
+                            {calculation.baseSalary > 0 && (
+                                <CompactLineItem label="Base Salary" value={calculation.baseSalary} type="neutral" />
+                            )}
+                            {ordersGross > 0 && (
+                                <CompactLineItem
+                                    label={`Orders (${breakdown.completedTotal}×${fmtIQD(perOrderBonus)})`}
+                                    value={ordersGross}
+                                    type="positive"
+                                />
+                            )}
+                            {calculation.performanceBonusesTotal > 0 && (
+                                <CompactLineItem
+                                    label={`Bonuses (${calculation.pendingBonuses.length})`}
+                                    value={calculation.performanceBonusesTotal}
+                                    type="positive"
+                                />
+                            )}
+                            {!hasEarnings && (
+                                <p className="text-xs text-muted py-0.5">No earnings this period</p>
+                            )}
 
-                        {/* ── Before-deductions subtotal — only when it sums 2+ earning lines ── */}
-                        {earningLines >= 2 && (
-                            <>
-                                <div className="border-t border-[var(--card-border)] my-1" />
-                                <CompactLineItem label="Before deductions" value={preDeductions} type="total" bold />
-                            </>
-                        )}
+                            {/* Before-deductions subtotal — only when it sums 2+ earning lines */}
+                            {earningLines >= 2 && (
+                                <>
+                                    <div className="border-t border-[var(--card-border)] my-1" />
+                                    <CompactLineItem label="Before deductions" value={preDeductions} type="total" bold />
+                                </>
+                            )}
 
-                        {/* ── Deductions (replacements/refunds are clickable → order breakdown) ── */}
-                        {hasAnyDeduction && (
-                            <>
-                                {earningLines < 2 && <div className="border-t border-[var(--card-border)] my-1" />}
-                                {breakdown.replacements > 0 && (
-                                    <button
-                                        onClick={() => setBreakdownOpen(true)}
-                                        className="w-full text-left"
-                                        title="Replacement orders — re-ships, not new sales. Click for the order list."
-                                    >
+                            {/* Deductions (replacements/refunds are clickable → order breakdown) */}
+                            {hasAnyDeduction && (
+                                <>
+                                    {earningLines < 2 && <div className="border-t border-[var(--card-border)] my-1" />}
+                                    {breakdown.replacements > 0 && (
+                                        <button
+                                            onClick={() => setBreakdownOpen(true)}
+                                            className="w-full text-left hover:opacity-80 transition-opacity"
+                                            aria-label={`Replacements: ${breakdown.replacements} orders, ${fmtIQD(replacementDeduction)} IQD excluded — open list`}
+                                            title="Replacement orders — re-ships, not new sales. Click for the order list."
+                                        >
+                                            <CompactLineItem
+                                                label={`Replacements (${breakdown.replacements})`}
+                                                value={replacementDeduction}
+                                                type="negative"
+                                            />
+                                        </button>
+                                    )}
+                                    {breakdown.refunds > 0 && (
+                                        <button
+                                            onClick={() => setBreakdownOpen(true)}
+                                            className="w-full text-left hover:opacity-80 transition-opacity"
+                                            aria-label={`Refunds and returns: ${breakdown.refunds} orders, ${fmtIQD(refundDeduction)} IQD excluded — open list`}
+                                            title="Refunded / returned orders — the sale came back. Click for the order list."
+                                        >
+                                            <CompactLineItem
+                                                label={`Refunds / returns (${breakdown.refunds})`}
+                                                value={refundDeduction}
+                                                type="negative"
+                                            />
+                                        </button>
+                                    )}
+                                    {calculation.absenceDeduction > 0 && (
                                         <CompactLineItem
-                                            label={`Replacements (${breakdown.replacements})`}
-                                            value={replacementDeduction}
+                                            label={`Absence (${calculation.absenceDays}d)`}
+                                            value={calculation.absenceDeduction}
                                             type="negative"
                                         />
-                                    </button>
-                                )}
-                                {breakdown.refunds > 0 && (
-                                    <button
-                                        onClick={() => setBreakdownOpen(true)}
-                                        className="w-full text-left"
-                                        title="Refunded / returned orders — the sale came back. Click for the order list."
-                                    >
+                                    )}
+                                    {calculation.advancesTotal > 0 && (
                                         <CompactLineItem
-                                            label={`Refunds / returns (${breakdown.refunds})`}
-                                            value={refundDeduction}
+                                            label={`Advances (${calculation.pendingAdvances.length})`}
+                                            value={calculation.advancesTotal}
                                             type="negative"
                                         />
-                                    </button>
-                                )}
-                                {calculation.absenceDeduction > 0 && (
-                                    <CompactLineItem
-                                        label={`Absence (${calculation.absenceDays}d)`}
-                                        value={calculation.absenceDeduction}
-                                        type="negative"
-                                    />
-                                )}
-                                {calculation.advancesTotal > 0 && (
-                                    <CompactLineItem
-                                        label={`Advances (${calculation.pendingAdvances.length})`}
-                                        value={calculation.advancesTotal}
-                                        type="negative"
-                                    />
-                                )}
-                                {calculation.penaltiesTotal > 0 && (
-                                    <CompactLineItem
-                                        label={`Penalties (${calculation.pendingPenalties.length})`}
-                                        value={calculation.penaltiesTotal}
-                                        type="negative"
-                                    />
-                                )}
-                            </>
-                        )}
+                                    )}
+                                    {calculation.penaltiesTotal > 0 && (
+                                        <CompactLineItem
+                                            label={`Penalties (${calculation.pendingPenalties.length})`}
+                                            value={calculation.penaltiesTotal}
+                                            type="negative"
+                                        />
+                                    )}
+                                </>
+                            )}
+                        </div>
 
-                        {/* ── Net (after deductions) ── */}
-                        <div className="border-t border-[var(--card-border)] my-1" />
-                        <CompactLineItem label="Net Payable" value={calculation.netSalary} type="total" bold />
+                        {/* Sparkline (#7) — only if ≥2 payments */}
+                        {sparkData.length >= 2 && (
+                            <div className="w-16 h-12 shrink-0 self-center" role="img" aria-label="Recent net payouts trend">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={sparkData} margin={{ top: 2, right: 0, bottom: 2, left: 0 }}>
+                                        <Area
+                                            type="monotone"
+                                            dataKey="v"
+                                            stroke="#10b981"
+                                            fill="#10b98120"
+                                            strokeWidth={1.5}
+                                            dot={false}
+                                            isAnimationActive={false}
+                                        />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
                     </div>
 
-                    {/* Right: sparkline (#7) — only if ≥2 payments */}
-                    {sparkData.length >= 2 && (
-                        <div className="w-16 h-12 shrink-0 self-center">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={sparkData} margin={{ top: 2, right: 0, bottom: 2, left: 0 }}>
-                                    <Area
-                                        type="monotone"
-                                        dataKey="v"
-                                        stroke="#10b981"
-                                        fill="#10b98120"
-                                        strokeWidth={1.5}
-                                        dot={false}
-                                        isAnimationActive={false}
-                                    />
-                                </AreaChart>
-                            </ResponsiveContainer>
-                        </div>
-                    )}
-                </div>
-
-                {/* ── F. Net payable + fully-paid state ── */}
-                <div className="px-4 py-3 border-t border-[var(--card-border)] mt-auto">
-                    {isFullyCovered && overlappingPayroll ? (
-                        /* Fully-paid state (#12) */
-                        <>
+                    {/* Hero Net + pay action (or fully-paid state) */}
+                    <div className="px-3 py-3 border-t border-[var(--card-border)] bg-[var(--card-bg)]">
+                        {isFullyCovered && overlappingPayroll ? (
+                            /* Fully-paid state (#12) */
                             <div className="flex items-center justify-between">
                                 <div>
                                     <div className="flex items-center gap-1.5">
@@ -461,11 +558,11 @@ export function EmployeePayrollCard({
                                             <CheckCircle className="w-3.5 h-3.5" />
                                             Paid
                                         </span>
-                                        <span className="text-xs text-muted">
+                                        <span className="text-xs text-muted tabular-nums">
                                             {fmtDate(overlappingPayroll.paid_at, "MMM d, yyyy")} · {fmtIQD(overlappingPayroll.net_salary)} IQD
                                         </span>
                                     </div>
-                                    <p className="text-xs text-muted mt-1">
+                                    <p className="text-xs text-muted mt-1 tabular-nums">
                                         {fmtDate(overlappingPayroll.period_start)} — {fmtDate(overlappingPayroll.period_end)}
                                     </p>
                                 </div>
@@ -473,13 +570,14 @@ export function EmployeePayrollCard({
                                     <button
                                         onClick={() => setConfirmVoid(true)}
                                         className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-muted hover:text-rose-500 transition-colors"
+                                        aria-label="Void this payment"
                                         title="Void this payment"
                                     >
                                         <Undo2 className="w-4 h-4" />
                                     </button>
                                 ) : (
                                     <div className="flex items-center gap-1">
-                                        <span className="text-xs text-rose-600 font-medium">Void?</span>
+                                        <span className="text-xs text-rose-600 dark:text-rose-400 font-medium">Void?</span>
                                         <button
                                             onClick={() => { /* void is handled via payroll history table; close confirm */ setConfirmVoid(false); }}
                                             className="px-2 py-1 text-xs bg-[var(--background)] border border-[var(--card-border)] text-muted rounded-lg hover:text-foreground transition-colors"
@@ -495,46 +593,60 @@ export function EmployeePayrollCard({
                                     </div>
                                 )}
                             </div>
-                        </>
-                    ) : (
-                        /* Normal state */
-                        <>
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-xs text-muted">Net Payable</p>
-                                    <p className="text-lg font-bold text-foreground tabular-nums">{fmtIQD(calculation.netSalary)} IQD</p>
+                        ) : (
+                            /* The hero: Net Payable shown once, large + animated */
+                            <>
+                                <div className="flex items-end justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">Net Payable</p>
+                                        <p className="text-[26px] font-bold text-foreground tabular-nums tracking-tight leading-none mt-1">
+                                            {fmtIQD(animatedNet)}
+                                            <span className="text-sm font-medium text-muted ml-1">IQD</span>
+                                        </p>
+                                        {overDeducted && (
+                                            <p
+                                                className="text-[11px] text-amber-700 dark:text-amber-400 mt-1.5 tabular-nums"
+                                                title="Deductions exceeded earnings; Net is floored at 0. The remainder is not carried into the next period automatically."
+                                            >
+                                                Capped at 0 · −{fmtIQD(-rawNet)} IQD not deducted
+                                            </p>
+                                        )}
+                                    </div>
+                                    <motion.button
+                                        whileTap={reduce ? undefined : { scale: 0.95 }}
+                                        onClick={() => onMarkAsPaid(data)}
+                                        disabled={isPayingOut || calculation.netSalary === 0}
+                                        title={calculation.netSalary === 0 ? "No amount to pay" : undefined}
+                                        className={cn(
+                                            "flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all shrink-0",
+                                            "bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm shadow-emerald-500/25",
+                                            "disabled:opacity-50 disabled:cursor-not-allowed"
+                                        )}
+                                    >
+                                        {isPayingOut ? (
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        ) : (
+                                            <>
+                                                <CheckCircle className="w-4 h-4" />
+                                                Mark Paid
+                                            </>
+                                        )}
+                                    </motion.button>
                                 </div>
-                                <button
-                                    onClick={() => onMarkAsPaid(data)}
-                                    disabled={isPayingOut || calculation.netSalary === 0}
-                                    title={calculation.netSalary === 0 ? "No amount to pay" : undefined}
-                                    className={cn(
-                                        "flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all",
-                                        "bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm shadow-emerald-500/20",
-                                        "disabled:opacity-40 disabled:cursor-not-allowed"
-                                    )}
-                                >
-                                    {isPayingOut ? (
-                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                    ) : (
-                                        <>
-                                            <CheckCircle className="w-4 h-4" />
-                                            Mark Paid
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-                            {/* Last paid (#24) */}
-                            {lastPayment && (
-                                <p className="text-xs text-muted mt-1">
-                                    Last paid: {fmtDate(lastPayment.paid_at)} · {fmtIQD(lastPayment.net_salary)} IQD
-                                </p>
-                            )}
-                        </>
-                    )}
+                                {calculation.netSalary === 0 && !overDeducted && (
+                                    <p className="text-xs text-muted mt-2">Nothing to pay this period.</p>
+                                )}
+                                {lastPayment && (
+                                    <p className="text-xs text-muted mt-2 tabular-nums">
+                                        Last paid: {fmtDate(lastPayment.paid_at)} · {fmtIQD(lastPayment.net_salary)} IQD
+                                    </p>
+                                )}
+                            </>
+                        )}
+                    </div>
                 </div>
 
-                {/* ── G+H. Action buttons + Details toggle ── */}
+                {/* ── F. Action buttons + Details toggle ── */}
                 <div className="px-4 py-3 border-t border-[var(--card-border)] flex gap-2">
                     <button
                         onClick={() => setAdvanceOpen(true)}
@@ -559,6 +671,8 @@ export function EmployeePayrollCard({
                     </button>
                     <button
                         onClick={() => setDetailsExpanded(v => !v)}
+                        aria-expanded={detailsExpanded}
+                        aria-controls={detailsId}
                         className={cn(
                             "flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-colors",
                             detailsExpanded
@@ -574,7 +688,13 @@ export function EmployeePayrollCard({
 
                 {/* ── G. Details panel (expandable) ── */}
                 {detailsExpanded && (
-                    <div className="border-t border-[var(--card-border)] px-4 py-3 space-y-3">
+                    <motion.div
+                        id={detailsId}
+                        initial={reduce ? false : { opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        className="border-t border-[var(--card-border)] px-4 py-3 space-y-3"
+                    >
                         {/* Returned after payment (advisory) */}
                         {data.returnedAfterPayment.length > 0 && (
                             <div>
@@ -647,17 +767,17 @@ export function EmployeePayrollCard({
                                     {recentPayments.slice(0, 5).map(p => (
                                         <div key={p.id} className="flex items-start justify-between py-1.5 border-b border-[var(--card-border)] last:border-0 gap-2">
                                             <div className="min-w-0">
-                                                <p className="text-xs font-medium text-foreground">
+                                                <p className="text-xs font-medium text-foreground tabular-nums">
                                                     {fmtDate(p.period_start)} → {fmtDate(p.period_end)}
                                                 </p>
-                                                <p className="text-xs text-muted">
+                                                <p className="text-xs text-muted tabular-nums">
                                                     {p.completed_orders_count} orders · paid {fmtDate(p.paid_at ?? p.period_end)}
                                                 </p>
                                                 {p.notes && (
                                                     <p className="text-xs text-muted italic mt-0.5">&ldquo;{p.notes}&rdquo;</p>
                                                 )}
                                             </div>
-                                            <p className="text-xs font-semibold text-emerald-600 tabular-nums shrink-0">{fmtIQD(p.net_salary)} IQD</p>
+                                            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums shrink-0">{fmtIQD(p.net_salary)} IQD</p>
                                         </div>
                                     ))}
                                 </div>
@@ -667,9 +787,9 @@ export function EmployeePayrollCard({
                         {pendingCount === 0 && recentPayments.length === 0 && breakdown.completedTotal === 0 && data.returnedAfterPayment.length === 0 && (
                             <p className="text-xs text-muted text-center py-2">No pending items or payment history.</p>
                         )}
-                    </div>
+                    </motion.div>
                 )}
-            </div>
+            </motion.div>
 
             {/* Modals */}
             <AddAdvanceModal

@@ -733,9 +733,10 @@ export function SalariesTab() {
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                            {effectiveEmployeeData.map(data => (
+                            {effectiveEmployeeData.map((data, i) => (
                                 <EmployeePayrollCard
                                     key={data.employee.id}
+                                    index={i}
                                     data={data}
                                     globalPeriodStart={periodStart}
                                     globalPeriodEnd={periodEnd}
