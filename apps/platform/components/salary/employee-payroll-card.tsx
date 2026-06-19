@@ -342,18 +342,22 @@ export function EmployeePayrollCard({
                                     {qualityPct}% quality
                                 </span>
                             </div>
-                            <div className="h-1.5 rounded-full bg-[var(--card-border)] overflow-hidden">
-                                <motion.div
-                                    initial={reduce ? false : { width: 0 }}
-                                    animate={{ width: `${Math.max(2, qualityPct)}%` }}
-                                    transition={{ duration: 0.6, ease: "easeOut", delay: reduce ? 0 : 0.15 }}
-                                    className={cn(
-                                        "h-full rounded-full",
-                                        qualityPct >= 90 ? "bg-emerald-500"
-                                            : qualityPct >= 70 ? "bg-amber-500"
-                                                : "bg-rose-500",
-                                    )}
-                                />
+                            {/* Stacked composition bar: genuine / replacements / refunds */}
+                            <div className="h-1.5 rounded-full bg-[var(--card-border)] overflow-hidden flex">
+                                {([
+                                    { n: breakdown.genuine, cls: "bg-emerald-500", label: "genuine" },
+                                    { n: breakdown.replacements, cls: "bg-amber-500", label: "replacements" },
+                                    { n: breakdown.refunds, cls: "bg-rose-500", label: "refunds" },
+                                ] as const).filter(s => s.n > 0).map((s, si) => (
+                                    <motion.div
+                                        key={s.label}
+                                        initial={reduce ? false : { width: 0 }}
+                                        animate={{ width: `${(s.n / breakdown.completedTotal) * 100}%` }}
+                                        transition={{ duration: 0.6, ease: "easeOut", delay: reduce ? 0 : 0.15 + si * 0.08 }}
+                                        className={cn("h-full", s.cls)}
+                                        title={`${s.n} ${s.label}`}
+                                    />
+                                ))}
                             </div>
                         </button>
                     )}
@@ -621,7 +625,7 @@ export function EmployeePayrollCard({
                         ) : (
                             /* The hero: Net Payable shown once, large + animated */
                             <>
-                                <div className="flex items-end justify-between gap-3">
+                                <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2">
                                     <div className="min-w-0">
                                         <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">Net Payable</p>
                                         <p className="text-[26px] font-bold text-foreground tabular-nums tracking-tight leading-none mt-1">
