@@ -398,15 +398,19 @@ export function EmployeePayrollCard({
                                 type="negative"
                             />
                         )}
-                        {hasDeductions && (
-                            <>
-                                {deductionKinds > 1 && (
-                                    <CompactLineItem label="Total deductions" value={totalDeductions} type="negative" />
-                                )}
-                                <div className="border-t border-[var(--card-border)] my-1" />
-                                <CompactLineItem label="Net Payable" value={calculation.netSalary} type="total" bold />
-                            </>
+                        {deductionKinds > 1 && (
+                            <CompactLineItem label="Total deductions" value={totalDeductions} type="negative" />
                         )}
+                        {!hasDeductions && (
+                            <div className="flex items-center justify-between py-0.5 text-xs">
+                                <span className="text-muted">No deductions</span>
+                                <span className="text-muted tabular-nums">—</span>
+                            </div>
+                        )}
+                        {/* Always resolve the calculation to Net so the full math is visible,
+                            even when there are no deductions (Net == Gross). */}
+                        <div className="border-t border-[var(--card-border)] my-1" />
+                        <CompactLineItem label="Net Payable" value={calculation.netSalary} type="total" bold />
                     </div>
 
                     {/* Right: sparkline (#7) — only if ≥2 payments */}
