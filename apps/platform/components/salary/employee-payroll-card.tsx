@@ -7,7 +7,7 @@ import {
     ChevronUp, Undo2, TrendingUp,
 } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
-import { format } from "date-fns";
+import { format, differenceInCalendarDays } from "date-fns";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
 import type { EmployeePayrollData, PayrollRecord } from "@/types/salary";
@@ -26,6 +26,12 @@ function fmtIQD(n: number) {
 function fmtDate(d: string | null | undefined, fmt = "MMM d") {
     if (!d) return "";
     try { return format(new Date(d.includes("T") ? d : d + "T00:00:00"), fmt); } catch { return d; }
+}
+
+/** Inclusive day count of a yyyy-mm-dd period (so a 1-day period = 1). */
+function daysInclusive(start: string, end: string): number {
+    try { return differenceInCalendarDays(new Date(end + "T00:00:00"), new Date(start + "T00:00:00")) + 1; }
+    catch { return 0; }
 }
 
 /**
@@ -192,7 +198,6 @@ export function EmployeePayrollCard({
     const displayName = employee.displayName || employee.email.split("@")[0];
     const isFullyCovered = overlappingPayroll?.fullyCovered === true;
     const isPartialOverlap = !!overlappingPayroll && !isFullyCovered;
-    const isOverpaid = calculation.netSalary > effectiveRate.baseMonthlySalary * 2 && effectiveRate.baseMonthlySalary > 0;
 
     // Payroll math shown as a single running ledger: earnings → deductions → Net.
     // The order bonus is computed on EVERY completed order (the pre-deduction figure), then
@@ -226,11 +231,31 @@ export function EmployeePayrollCard({
     // Hero count-up
     const animatedNet = useCountUp(calculation.netSalary);
 
-    // Trend vs last payment (#25) — advisory; periods may differ in length, so it's demoted + tooltipped.
+    // Trend vs last payout (#25) — normalized to a PER-DAY rate so a short "since last
+    // payroll" window doesn't read as a crash against a full prior period.
     const lastPayment = recentPayments[0] ?? null;
-    const trendPct = lastPayment && lastPayment.net_salary > 0
-        ? Math.round(((calculation.netSalary - lastPayment.net_salary) / lastPayment.net_salary) * 100)
-        : null;
+    const trendPct = (() => {
+        if (!lastPayment || lastPayment.net_salary <= 0) return null;
+        const curDays = daysInclusive(calculation.periodStart, calculation.periodEnd);
+        const lastDays = daysInclusive(lastPayment.period_start, lastPayment.period_end);
+        if (curDays <= 0 || lastDays <= 0) return null;
+        const curDaily = calculation.netSalary / curDays;
+        const lastDaily = lastPayment.net_salary / lastDays;
+        if (lastDaily <= 0) return null;
+        return Math.round(((curDaily - lastDaily) / lastDaily) * 100);
+    })();
+
+    // "Unusually high" sanity guard. For salaried staff: net > 2× base. For commission-only
+    // staff (no base to anchor) it never fired — flag when net runs well above the last payout,
+    // which is where a rate/attribution misconfig would otherwise slip through to payment.
+    const baseSalaryRate = effectiveRate.baseMonthlySalary;
+    const lastNet = lastPayment?.net_salary ?? 0;
+    const isOverpaid =
+        (baseSalaryRate > 0 && calculation.netSalary > baseSalaryRate * 2) ||
+        (baseSalaryRate === 0 && lastNet > 0 && calculation.netSalary > lastNet * 1.5);
+    const overpaidReason = baseSalaryRate > 0
+        ? "net is more than 2× base salary"
+        : "net is well above the last payout";
 
     // Sparkline data (#7)
     const sparkData = [...recentPayments].slice(0, 6).reverse().map(p => ({ v: p.net_salary }));
@@ -367,7 +392,7 @@ export function EmployeePayrollCard({
                                     "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-medium tabular-nums",
                                     trendPct > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400",
                                 )}
-                                title="Change in net vs your last payout — periods may differ in length"
+                                title="Per-day net rate vs your last payout (normalized for period length)"
                             >
                                 {trendPct > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                                 <span className="sr-only">Net vs last payout: </span>
@@ -392,7 +417,7 @@ export function EmployeePayrollCard({
                 {isOverpaid && (
                     <div className="mx-4 mb-3 flex items-center gap-2 p-2.5 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl text-xs text-amber-700 dark:text-amber-400">
                         <TriangleAlert className="w-3.5 h-3.5 shrink-0" />
-                        <span><span className="font-semibold">Unusually high</span> — net is more than 2× base salary. Double-check before confirming.</span>
+                        <span><span className="font-semibold">Unusually high</span> — {overpaidReason}. Double-check before confirming.</span>
                     </div>
                 )}
 
