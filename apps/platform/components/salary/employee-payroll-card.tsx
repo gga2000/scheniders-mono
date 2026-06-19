@@ -144,6 +144,18 @@ export function EmployeePayrollCard({
     const isPartialOverlap = !!overlappingPayroll && !isFullyCovered;
     const isOverpaid = calculation.netSalary > effectiveRate.baseMonthlySalary * 2 && effectiveRate.baseMonthlySalary > 0;
 
+    // Deductions applied between Gross and Net — surfaced as explicit line items so the
+    // calculation resolves top-to-bottom (Gross − deductions = Net) right in the card.
+    const totalDeductions =
+        calculation.absenceDeduction + calculation.advancesTotal + calculation.penaltiesTotal;
+    const hasDeductions = totalDeductions > 0;
+    // Show an aggregate "Total deductions" line only when more than one kind applies —
+    // with a single deduction it would just repeat that line.
+    const deductionKinds =
+        (calculation.absenceDeduction > 0 ? 1 : 0) +
+        (calculation.advancesTotal > 0 ? 1 : 0) +
+        (calculation.penaltiesTotal > 0 ? 1 : 0);
+
     // Trend vs last payment (#25)
     const lastPayment = recentPayments[0] ?? null;
     const trendPct = lastPayment && lastPayment.net_salary > 0
@@ -359,7 +371,19 @@ export function EmployeePayrollCard({
                             />
                         )}
                         <div className="border-t border-[var(--card-border)] my-1" />
-                        <CompactLineItem label="Gross" value={calculation.grossSalary} type="total" bold />
+                        <CompactLineItem
+                            label={hasDeductions ? "Gross (before deductions)" : "Gross"}
+                            value={calculation.grossSalary}
+                            type="total"
+                            bold
+                        />
+                        {calculation.absenceDeduction > 0 && (
+                            <CompactLineItem
+                                label={`Absence (${calculation.absenceDays}d)`}
+                                value={calculation.absenceDeduction}
+                                type="negative"
+                            />
+                        )}
                         {calculation.advancesTotal > 0 && (
                             <CompactLineItem
                                 label={`Advances (${calculation.pendingAdvances.length})`}
@@ -373,6 +397,15 @@ export function EmployeePayrollCard({
                                 value={calculation.penaltiesTotal}
                                 type="negative"
                             />
+                        )}
+                        {hasDeductions && (
+                            <>
+                                {deductionKinds > 1 && (
+                                    <CompactLineItem label="Total deductions" value={totalDeductions} type="negative" />
+                                )}
+                                <div className="border-t border-[var(--card-border)] my-1" />
+                                <CompactLineItem label="Net Payable" value={calculation.netSalary} type="total" bold />
+                            </>
                         )}
                     </div>
 
