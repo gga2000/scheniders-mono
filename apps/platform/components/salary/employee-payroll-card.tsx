@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import {
     CheckCircle, Settings, TrendingDown, AlertCircle, Star,
     Calendar, X, TriangleAlert, History, EyeOff, ChevronDown,
-    ChevronUp, Undo2, TrendingUp,
+    ChevronUp, ChevronRight, Undo2, TrendingUp,
 } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { format, differenceInCalendarDays } from "date-fns";
@@ -111,16 +111,24 @@ function CompactLineItem({
     value,
     type,
     bold = false,
+    onClick,
+    title,
+    ariaLabel,
 }: {
     label: string;
     value: number;
     type: "positive" | "negative" | "neutral" | "total";
     bold?: boolean;
+    onClick?: () => void;
+    title?: string;
+    ariaLabel?: string;
 }) {
     const showUnit = bold || type === "total";
-    return (
-        <div className={cn("flex items-center justify-between gap-2 py-[3px] text-xs", bold && "font-semibold")}>
-            <span className={cn("truncate", type === "total" ? "text-foreground" : "text-muted")}>{label}</span>
+    const inner = (
+        <>
+            <span className={cn("shrink-0", type === "total" ? "text-foreground" : "text-muted")}>{label}</span>
+            {/* dotted leader ties label → amount across the gap (receipt style) */}
+            <span aria-hidden className="flex-1 border-b border-dotted border-[var(--card-border)] mb-[3px] min-w-[10px]" />
             <span className={cn(
                 "tabular-nums shrink-0",
                 type === "positive" && "text-emerald-600 dark:text-emerald-400",
@@ -132,8 +140,26 @@ function CompactLineItem({
                 {fmtIQD(value)}
                 {showUnit && <span className="text-[10px] text-muted font-normal ml-0.5">IQD</span>}
             </span>
-        </div>
+            {/* fixed chevron slot keeps the amount column aligned across clickable + static rows */}
+            <span className="w-3 shrink-0 flex items-center justify-center">
+                {onClick && <ChevronRight className="w-3 h-3 text-muted opacity-50 group-hover/row:opacity-100 transition-opacity" />}
+            </span>
+        </>
     );
+    const cls = cn("flex items-end gap-1.5 py-[3px] text-xs", bold && "font-semibold");
+    if (onClick) {
+        return (
+            <button
+                onClick={onClick}
+                title={title}
+                aria-label={ariaLabel}
+                className={cn(cls, "w-full text-left rounded-md -mx-1 px-1 hover:bg-[var(--card-bg)] cursor-pointer group/row transition-colors")}
+            >
+                {inner}
+            </button>
+        );
+    }
+    return <div className={cls}>{inner}</div>;
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -221,6 +247,9 @@ export function EmployeePayrollCard({
         replacementDeduction > 0 || refundDeduction > 0 ||
         calculation.absenceDeduction > 0 || calculation.advancesTotal > 0 ||
         calculation.penaltiesTotal > 0;
+    const totalDeductions =
+        replacementDeduction + refundDeduction + calculation.absenceDeduction +
+        calculation.advancesTotal + calculation.penaltiesTotal;
     // True signed result of the ledger. Net is clamped at 0 (use-salaries), so when this is
     // negative the displayed lines can't sum to the 0 hero — surface the gap instead of hiding it.
     const rawNet =
@@ -504,32 +533,24 @@ export function EmployeePayrollCard({
                                 <>
                                     {earningLines < 2 && <div className="border-t border-[var(--card-border)] my-1" />}
                                     {breakdown.replacements > 0 && (
-                                        <button
+                                        <CompactLineItem
+                                            label={`Replacements (${breakdown.replacements})`}
+                                            value={replacementDeduction}
+                                            type="negative"
                                             onClick={() => setBreakdownOpen(true)}
-                                            className="w-full text-left hover:opacity-80 transition-opacity"
-                                            aria-label={`Replacements: ${breakdown.replacements} orders, ${fmtIQD(replacementDeduction)} IQD excluded — open list`}
+                                            ariaLabel={`Replacements: ${breakdown.replacements} orders, ${fmtIQD(replacementDeduction)} IQD excluded — open list`}
                                             title="Replacement orders — re-ships, not new sales. Click for the order list."
-                                        >
-                                            <CompactLineItem
-                                                label={`Replacements (${breakdown.replacements})`}
-                                                value={replacementDeduction}
-                                                type="negative"
-                                            />
-                                        </button>
+                                        />
                                     )}
                                     {breakdown.refunds > 0 && (
-                                        <button
+                                        <CompactLineItem
+                                            label={`Refunds / returns (${breakdown.refunds})`}
+                                            value={refundDeduction}
+                                            type="negative"
                                             onClick={() => setBreakdownOpen(true)}
-                                            className="w-full text-left hover:opacity-80 transition-opacity"
-                                            aria-label={`Refunds and returns: ${breakdown.refunds} orders, ${fmtIQD(refundDeduction)} IQD excluded — open list`}
+                                            ariaLabel={`Refunds and returns: ${breakdown.refunds} orders, ${fmtIQD(refundDeduction)} IQD excluded — open list`}
                                             title="Refunded / returned orders — the sale came back. Click for the order list."
-                                        >
-                                            <CompactLineItem
-                                                label={`Refunds / returns (${breakdown.refunds})`}
-                                                value={refundDeduction}
-                                                type="negative"
-                                            />
-                                        </button>
+                                        />
                                     )}
                                     {calculation.absenceDeduction > 0 && (
                                         <CompactLineItem
@@ -552,6 +573,13 @@ export function EmployeePayrollCard({
                                             type="negative"
                                         />
                                     )}
+                                    {/* Rollup so the red lines visibly sum and the ledger reconciles to Net */}
+                                    <div className="flex items-end gap-1.5 pt-1 mt-0.5 border-t border-dashed border-[var(--card-border)] text-[11px]">
+                                        <span className="text-muted shrink-0">Total deducted</span>
+                                        <span aria-hidden className="flex-1 border-b border-dotted border-[var(--card-border)] mb-[3px] min-w-[10px]" />
+                                        <span className="text-rose-600 dark:text-rose-400 font-medium tabular-nums shrink-0">−{fmtIQD(totalDeductions)}</span>
+                                        <span className="w-3 shrink-0" />
+                                    </div>
                                 </>
                             )}
                         </div>
