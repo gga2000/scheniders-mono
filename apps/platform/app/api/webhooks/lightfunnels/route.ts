@@ -90,21 +90,28 @@ export async function POST(request: NextRequest) {
                     );
 
                 if (queueErr) {
+                    // Surface the failure (HTTP 500) instead of returning 200 —
+                    // a swallowed error here silently drops abandoned checkouts
+                    // and lets LightFunnels think delivery succeeded.
                     console.error("[Webhook] Failed to queue checkout:", checkoutId, queueErr);
-                } else {
-                    console.log(`[Webhook] Checkout queued for import in ${CHECKOUT_DELAY_MINUTES}min:`, checkoutId);
+                    return NextResponse.json(
+                        { success: false, error: "Failed to queue checkout" },
+                        { status: 500 }
+                    );
+                }
 
-                    // Schedule QStash delayed callback to trigger processing
-                    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL
-                        || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
-                    if (baseUrl) {
-                        await scheduleCheckoutProcessing(
-                            CHECKOUT_DELAY_MINUTES * 60 + 30, // +30s buffer past process_after
-                            baseUrl
-                        );
-                    } else {
-                        console.warn("[Webhook] No NEXT_PUBLIC_SITE_URL or VERCEL_URL set, cannot schedule QStash callback");
-                    }
+                console.log(`[Webhook] Checkout queued for import in ${CHECKOUT_DELAY_MINUTES}min:`, checkoutId);
+
+                // Schedule QStash delayed callback to trigger processing
+                const baseUrl = process.env.NEXT_PUBLIC_SITE_URL
+                    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
+                if (baseUrl) {
+                    await scheduleCheckoutProcessing(
+                        CHECKOUT_DELAY_MINUTES * 60 + 30, // +30s buffer past process_after
+                        baseUrl
+                    );
+                } else {
+                    console.warn("[Webhook] No NEXT_PUBLIC_SITE_URL or VERCEL_URL set, cannot schedule QStash callback");
                 }
 
                 return NextResponse.json(
