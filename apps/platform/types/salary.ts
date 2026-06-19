@@ -130,7 +130,10 @@ export interface CountedOrderDetail {
     customerName: string;
     status: string;
     bucket: OrderBucket;
+    /** When the order was placed. */
     createdAt: string;
+    /** When the order was marked completed — the date that placed it in this pay period. */
+    completedAt: string | null;
     amount: number;
 }
 
