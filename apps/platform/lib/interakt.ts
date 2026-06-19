@@ -268,6 +268,21 @@ function buildTemplateBody(
     }
 }
 
+/**
+ * Interakt rejects any template variable that contains a tab, newline, or more
+ * than two consecutive spaces. Customer-entered fields (address, name) routinely
+ * contain these, so normalize every variable to single-spaced, trimmed text
+ * before sending. Falls back to "-" so a value that normalizes to empty doesn't
+ * trip Interakt's separate "variable cannot be empty" rule.
+ */
+function sanitizeTemplateVar(value: string): string {
+    const cleaned = (value ?? "")
+        .replace(/[\t\r\n]+/g, " ")
+        .replace(/ {2,}/g, " ")
+        .trim();
+    return cleaned.length > 0 ? cleaned : "-";
+}
+
 // =============================================
 // API CALL
 // =============================================
@@ -301,6 +316,7 @@ export async function sendTemplateMessage(
 
     const templateName = TEMPLATE_NAMES[templateType];
     const body = buildTemplateBody(order, templateType, overridePhone, discountPercent, customPrice);
+    body.template.bodyValues = body.template.bodyValues.map(sanitizeTemplateVar);
 
     console.log(
         `[Interakt] Sending template "${templateName}" to +${body.countryCode}${body.phoneNumber} for order ${order.order_id}`
@@ -460,6 +476,7 @@ export async function sendStaffAlertMessage(
     }
 
     const body = buildStaffAlertBody(order, staffPhone);
+    body.template.bodyValues = body.template.bodyValues.map(sanitizeTemplateVar);
 
     console.log(
         `[Interakt:STAFF] Sending "${STAFF_ALERT_TEMPLATE_NAME}" to +${countryCode}${phoneNumber} for order ${order.order_id}`,
