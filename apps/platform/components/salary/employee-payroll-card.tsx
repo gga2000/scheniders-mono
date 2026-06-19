@@ -144,17 +144,27 @@ export function EmployeePayrollCard({
     const isPartialOverlap = !!overlappingPayroll && !isFullyCovered;
     const isOverpaid = calculation.netSalary > effectiveRate.baseMonthlySalary * 2 && effectiveRate.baseMonthlySalary > 0;
 
-    // Deductions applied between Gross and Net — surfaced as explicit line items so the
-    // calculation resolves top-to-bottom (Gross − deductions = Net) right in the card.
-    const totalDeductions =
-        calculation.absenceDeduction + calculation.advancesTotal + calculation.penaltiesTotal;
-    const hasDeductions = totalDeductions > 0;
-    // Show an aggregate "Total deductions" line only when more than one kind applies —
-    // with a single deduction it would just repeat that line.
-    const deductionKinds =
-        (calculation.absenceDeduction > 0 ? 1 : 0) +
-        (calculation.advancesTotal > 0 ? 1 : 0) +
-        (calculation.penaltiesTotal > 0 ? 1 : 0);
+    // Payroll math shown as a single running ledger: earnings → deductions → Net.
+    // The order bonus is computed on EVERY completed order (the pre-deduction figure), then
+    // replacements and refunds are subtracted — which nets to the genuine-only bonus that is
+    // actually paid. This only reframes how the same total is presented; Net stays
+    // calculation.netSalary, so nobody's pay changes.
+    const perOrderBonus = effectiveRate.perOrderBonus;
+    const ordersGross = breakdown.completedTotal * perOrderBonus;
+    const replacementDeduction = breakdown.replacements * perOrderBonus;
+    const refundDeduction = breakdown.refunds * perOrderBonus;
+    const preDeductions =
+        calculation.baseSalary + ordersGross + calculation.performanceBonusesTotal;
+    // Count of non-zero earning lines — a "Before deductions" subtotal is only worth showing
+    // when it sums more than one (otherwise it just repeats the single earning line above it).
+    const earningLines =
+        (calculation.baseSalary > 0 ? 1 : 0) +
+        (ordersGross > 0 ? 1 : 0) +
+        (calculation.performanceBonusesTotal > 0 ? 1 : 0);
+    const hasAnyDeduction =
+        replacementDeduction > 0 || refundDeduction > 0 ||
+        calculation.absenceDeduction > 0 || calculation.advancesTotal > 0 ||
+        calculation.penaltiesTotal > 0;
 
     // Trend vs last payment (#25)
     const lastPayment = recentPayments[0] ?? null;
@@ -333,45 +343,16 @@ export function EmployeePayrollCard({
 
                 {/* ── E. Salary breakdown + sparkline (always visible) ── */}
                 <div className="mx-4 mb-3 p-3 bg-[var(--background)] rounded-xl border border-[var(--card-border)] flex gap-3">
-                    {/* Left: breakdown */}
+                    {/* Left: breakdown — earnings → deductions → Net (one running ledger) */}
                     <div className="flex-1 min-w-0 space-y-0">
+                        {/* ── Earnings ── */}
                         <CompactLineItem label="Base Salary" value={calculation.baseSalary} type="neutral" />
-                        {calculation.orderBonus > 0 && (
+                        {ordersGross > 0 && (
                             <CompactLineItem
-                                label={`Orders (${calculation.completedOrdersCount}×${fmtIQD(effectiveRate.perOrderBonus)})`}
-                                value={calculation.orderBonus}
+                                label={`Orders (${breakdown.completedTotal}×${fmtIQD(perOrderBonus)})`}
+                                value={ordersGross}
                                 type="positive"
                             />
-                        )}
-                        {breakdown.completedTotal > 0 && (
-                            <button
-                                onClick={() => setBreakdownOpen(true)}
-                                className="w-full text-left space-y-0 group"
-                                title="Bonus the employee would have earned if these orders were genuine — excluded because they're replacements/refunds. Click for the order list."
-                            >
-                                <div className="flex items-center justify-between py-0.5 text-xs">
-                                    <span className="text-muted group-hover:text-foreground transition-colors">Replacements (excluded)</span>
-                                    <span className="tabular-nums flex items-center gap-1.5">
-                                        <span className="text-muted">{breakdown.replacements}</span>
-                                        {breakdown.replacements > 0 && (
-                                            <span className="text-amber-600 dark:text-amber-400">
-                                                · {fmtIQD(breakdown.replacements * effectiveRate.perOrderBonus)} IQD
-                                            </span>
-                                        )}
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between py-0.5 text-xs">
-                                    <span className="text-muted group-hover:text-foreground transition-colors">Refunds / returns (excluded)</span>
-                                    <span className="tabular-nums flex items-center gap-1.5">
-                                        <span className="text-muted">{breakdown.refunds}</span>
-                                        {breakdown.refunds > 0 && (
-                                            <span className="text-rose-600 dark:text-rose-400">
-                                                · {fmtIQD(breakdown.refunds * effectiveRate.perOrderBonus)} IQD
-                                            </span>
-                                        )}
-                                    </span>
-                                </div>
-                            </button>
                         )}
                         {calculation.performanceBonusesTotal > 0 && (
                             <CompactLineItem
@@ -380,45 +361,70 @@ export function EmployeePayrollCard({
                                 type="positive"
                             />
                         )}
-                        <div className="border-t border-[var(--card-border)] my-1" />
-                        <CompactLineItem
-                            label={hasDeductions ? "Gross (before deductions)" : "Gross"}
-                            value={calculation.grossSalary}
-                            type="total"
-                            bold
-                        />
-                        {calculation.absenceDeduction > 0 && (
-                            <CompactLineItem
-                                label={`Absence (${calculation.absenceDays}d)`}
-                                value={calculation.absenceDeduction}
-                                type="negative"
-                            />
+
+                        {/* ── Before-deductions subtotal — only when it sums 2+ earning lines ── */}
+                        {earningLines >= 2 && (
+                            <>
+                                <div className="border-t border-[var(--card-border)] my-1" />
+                                <CompactLineItem label="Before deductions" value={preDeductions} type="total" bold />
+                            </>
                         )}
-                        {calculation.advancesTotal > 0 && (
-                            <CompactLineItem
-                                label={`Advances (${calculation.pendingAdvances.length})`}
-                                value={calculation.advancesTotal}
-                                type="negative"
-                            />
+
+                        {/* ── Deductions (replacements/refunds are clickable → order breakdown) ── */}
+                        {hasAnyDeduction && (
+                            <>
+                                {earningLines < 2 && <div className="border-t border-[var(--card-border)] my-1" />}
+                                {breakdown.replacements > 0 && (
+                                    <button
+                                        onClick={() => setBreakdownOpen(true)}
+                                        className="w-full text-left"
+                                        title="Replacement orders — re-ships, not new sales. Click for the order list."
+                                    >
+                                        <CompactLineItem
+                                            label={`Replacements (${breakdown.replacements})`}
+                                            value={replacementDeduction}
+                                            type="negative"
+                                        />
+                                    </button>
+                                )}
+                                {breakdown.refunds > 0 && (
+                                    <button
+                                        onClick={() => setBreakdownOpen(true)}
+                                        className="w-full text-left"
+                                        title="Refunded / returned orders — the sale came back. Click for the order list."
+                                    >
+                                        <CompactLineItem
+                                            label={`Refunds / returns (${breakdown.refunds})`}
+                                            value={refundDeduction}
+                                            type="negative"
+                                        />
+                                    </button>
+                                )}
+                                {calculation.absenceDeduction > 0 && (
+                                    <CompactLineItem
+                                        label={`Absence (${calculation.absenceDays}d)`}
+                                        value={calculation.absenceDeduction}
+                                        type="negative"
+                                    />
+                                )}
+                                {calculation.advancesTotal > 0 && (
+                                    <CompactLineItem
+                                        label={`Advances (${calculation.pendingAdvances.length})`}
+                                        value={calculation.advancesTotal}
+                                        type="negative"
+                                    />
+                                )}
+                                {calculation.penaltiesTotal > 0 && (
+                                    <CompactLineItem
+                                        label={`Penalties (${calculation.pendingPenalties.length})`}
+                                        value={calculation.penaltiesTotal}
+                                        type="negative"
+                                    />
+                                )}
+                            </>
                         )}
-                        {calculation.penaltiesTotal > 0 && (
-                            <CompactLineItem
-                                label={`Penalties (${calculation.pendingPenalties.length})`}
-                                value={calculation.penaltiesTotal}
-                                type="negative"
-                            />
-                        )}
-                        {deductionKinds > 1 && (
-                            <CompactLineItem label="Total deductions" value={totalDeductions} type="negative" />
-                        )}
-                        {!hasDeductions && (
-                            <div className="flex items-center justify-between py-0.5 text-xs">
-                                <span className="text-muted">No deductions</span>
-                                <span className="text-muted tabular-nums">—</span>
-                            </div>
-                        )}
-                        {/* Always resolve the calculation to Net so the full math is visible,
-                            even when there are no deductions (Net == Gross). */}
+
+                        {/* ── Net (after deductions) ── */}
                         <div className="border-t border-[var(--card-border)] my-1" />
                         <CompactLineItem label="Net Payable" value={calculation.netSalary} type="total" bold />
                     </div>
