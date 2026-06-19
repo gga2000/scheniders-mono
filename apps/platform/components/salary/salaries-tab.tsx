@@ -631,6 +631,8 @@ export function SalariesTab() {
                 employeeCount={effectiveEmployeeData.length}
                 totalPendingAdvances={totalPendingAdvances}
                 totalPendingPenalties={totalPendingPenalties}
+                onAdvancesClick={() => setActiveSubTab("advances")}
+                onPenaltiesClick={() => setActiveSubTab("penalties")}
             />
 
             {/* ── Row 2b: Order-quality strip (business-wide, selected period) ── */}
