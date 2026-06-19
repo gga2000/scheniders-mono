@@ -49,7 +49,10 @@ export const productRepository = {
     /** Insert a new product. Returns the created product. */
     async create(productData: Omit<Product, "id" | "created_at" | "updated_at" | "variants">, tenantId: string | null): Promise<Product> {
         return withRetry('productRepository.create', async () => {
-            const { sku: _sku, variants: _variants, times_sold: _ts, total_revenue: _tr, profit_margin: _pm, average_order_value: _aov, ...data } = productData as any;
+            // Strip computed/joined fields that have no column on `products`.
+            // NOTE: `sku` is a real, writable column (used by LightFunnels order
+            // matching) — it must stay in the payload, not be stripped here.
+            const { variants: _variants, times_sold: _ts, total_revenue: _tr, profit_margin: _pm, average_order_value: _aov, ...data } = productData as any;
             const { data: newProduct, error } = await supabase
                 .from("products")
                 .insert([{ ...data, is_archived: false, tenant_id: tenantId }])
@@ -64,7 +67,9 @@ export const productRepository = {
     /** Update a product by ID. */
     async update(id: string, data: Partial<Product>): Promise<void> {
         return withRetry('productRepository.update', async () => {
-            const { sku: _sku, variants: _variants, times_sold: _ts, total_revenue: _tr, profit_margin: _pm, average_order_value: _aov, id: _id, created_at: _ca, ...updateData } = data as any;
+            // Strip computed/joined fields and immutable keys. `sku` is a real,
+            // writable column (LightFunnels order matching depends on it) — keep it.
+            const { variants: _variants, times_sold: _ts, total_revenue: _tr, profit_margin: _pm, average_order_value: _aov, id: _id, created_at: _ca, ...updateData } = data as any;
             const { error } = await supabase
                 .from("products")
                 .update(updateData)
