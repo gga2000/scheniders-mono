@@ -80,8 +80,10 @@ async function processCheckoutQueue(): Promise<NextResponse> {
                     throw new Error(`Could not parse checkout ${item.checkout_id}`);
                 }
 
-                // Import the checkout
-                const result = await createOrderFromWebhook(webhookData);
+                // Import the checkout. Must attribute to the same tenant the
+                // live order webhook uses, else the order is created with a null
+                // tenant_id and is invisible in the tenant-scoped app.
+                const result = await createOrderFromWebhook(webhookData, env.LIGHTFUNNELS_TENANT_ID);
 
                 if (result.success || result.duplicate) {
                     // Mark as processed (both success and duplicate are OK)
