@@ -347,18 +347,28 @@ export function EmployeePayrollCard({
                             <button
                                 onClick={() => setBreakdownOpen(true)}
                                 className="w-full text-left space-y-0 group"
-                                title="View order breakdown"
+                                title="Bonus the employee would have earned if these orders were genuine — excluded because they're replacements/refunds. Click for the order list."
                             >
                                 <div className="flex items-center justify-between py-0.5 text-xs">
                                     <span className="text-muted group-hover:text-foreground transition-colors">Replacements (excluded)</span>
-                                    <span className={cn("tabular-nums", breakdown.replacements > 0 ? "text-amber-600 dark:text-amber-400" : "text-muted")}>
-                                        {breakdown.replacements}
+                                    <span className="tabular-nums flex items-center gap-1.5">
+                                        <span className="text-muted">{breakdown.replacements}</span>
+                                        {breakdown.replacements > 0 && (
+                                            <span className="text-amber-600 dark:text-amber-400">
+                                                · {fmtIQD(breakdown.replacements * effectiveRate.perOrderBonus)} IQD
+                                            </span>
+                                        )}
                                     </span>
                                 </div>
                                 <div className="flex items-center justify-between py-0.5 text-xs">
                                     <span className="text-muted group-hover:text-foreground transition-colors">Refunds / returns (excluded)</span>
-                                    <span className={cn("tabular-nums", breakdown.refunds > 0 ? "text-rose-600 dark:text-rose-400" : "text-muted")}>
-                                        {breakdown.refunds}
+                                    <span className="tabular-nums flex items-center gap-1.5">
+                                        <span className="text-muted">{breakdown.refunds}</span>
+                                        {breakdown.refunds > 0 && (
+                                            <span className="text-rose-600 dark:text-rose-400">
+                                                · {fmtIQD(breakdown.refunds * effectiveRate.perOrderBonus)} IQD
+                                            </span>
+                                        )}
                                     </span>
                                 </div>
                             </button>
