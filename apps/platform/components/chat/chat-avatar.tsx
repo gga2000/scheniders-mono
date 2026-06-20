@@ -65,7 +65,8 @@ export function ChatAvatar({
                 />
             ) : (
                 <span
-                    aria-hidden="true"
+                    role="img"
+                    aria-label={name}
                     className={`flex items-center justify-center rounded-full font-semibold ${BOX[size]} ${ringClassName ?? ""}`}
                     style={{ backgroundColor: color.bg, color: color.fg }}
                 >
