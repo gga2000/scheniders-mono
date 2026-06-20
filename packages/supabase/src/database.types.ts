@@ -14,6 +14,108 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_requests: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          name?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "access_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      account_link_tokens: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          id: string
+          provider: string
+          target_user_id: string
+          tenant_id: string
+          token: string
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at: string
+          id?: string
+          provider?: string
+          target_user_id: string
+          tenant_id: string
+          token: string
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          provider?: string
+          target_user_id?: string
+          tenant_id?: string
+          token?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_link_tokens_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_link_tokens_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_link_tokens_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       activity_logs: {
         Row: {
           action: string
@@ -350,6 +452,60 @@ export type Database = {
           },
         ]
       }
+      admin_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
+      admin_users: {
+        Row: {
+          admin_role: string
+          created_at: string
+          created_by: string | null
+          display_name: string | null
+          email: string | null
+          is_active: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_role: string
+          created_at?: string
+          created_by?: string | null
+          display_name?: string | null
+          email?: string | null
+          is_active?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_role?: string
+          created_at?: string
+          created_by?: string | null
+          display_name?: string | null
+          email?: string | null
+          is_active?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       admin_watchlist: {
         Row: {
           admin_user_id: string
@@ -667,6 +823,511 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_conversations: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_private: boolean
+          kind: string
+          last_message_at: string | null
+          name: string | null
+          order_id: string | null
+          tenant_id: string
+          topic: string | null
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_private?: boolean
+          kind: string
+          last_message_at?: string | null
+          name?: string | null
+          order_id?: string | null
+          tenant_id: string
+          topic?: string | null
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_private?: boolean
+          kind?: string
+          last_message_at?: string | null
+          name?: string | null
+          order_id?: string | null
+          tenant_id?: string
+          topic?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_conversations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_conversations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "mv_customer_aggregates"
+            referencedColumns: ["last_order_id"]
+          },
+          {
+            foreignKeyName: "chat_conversations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_conversations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_orders_with_risk"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_conversations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_members: {
+        Row: {
+          conversation_id: string
+          id: string
+          joined_at: string
+          last_read_at: string
+          muted: boolean
+          role: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          id?: string
+          joined_at?: string
+          last_read_at?: string
+          muted?: boolean
+          role?: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          id?: string
+          joined_at?: string
+          last_read_at?: string
+          muted?: boolean
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_members_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_message_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          height: number | null
+          id: string
+          message_id: string
+          mime: string | null
+          size_bytes: number | null
+          storage_path: string
+          width: number | null
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          height?: number | null
+          id?: string
+          message_id: string
+          mime?: string | null
+          size_bytes?: number | null
+          storage_path: string
+          width?: number | null
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          height?: number | null
+          id?: string
+          message_id?: string
+          mime?: string | null
+          size_bytes?: number | null
+          storage_path?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_message_attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_message_mentions: {
+        Row: {
+          id: string
+          mentioned_user_id: string
+          message_id: string
+        }
+        Insert: {
+          id?: string
+          mentioned_user_id: string
+          message_id: string
+        }
+        Update: {
+          id?: string
+          mentioned_user_id?: string
+          message_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_message_mentions_mentioned_user_id_fkey"
+            columns: ["mentioned_user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_message_mentions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_message_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          message_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          id?: string
+          message_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          message_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_message_reactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_message_references: {
+        Row: {
+          id: string
+          message_id: string
+          ref_id: string
+          ref_type: string
+          snapshot: Json
+        }
+        Insert: {
+          id?: string
+          message_id: string
+          ref_id: string
+          ref_type: string
+          snapshot?: Json
+        }
+        Update: {
+          id?: string
+          message_id?: string
+          ref_id?: string
+          ref_type?: string
+          snapshot?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_message_references_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_messages: {
+        Row: {
+          body: string
+          client_msg_id: string | null
+          conversation_id: string
+          created_at: string
+          deleted_at: string | null
+          edited_at: string | null
+          id: string
+          reply_to_id: string | null
+          sender_id: string
+          tenant_id: string
+        }
+        Insert: {
+          body?: string
+          client_msg_id?: string | null
+          conversation_id: string
+          created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
+          id?: string
+          reply_to_id?: string | null
+          sender_id: string
+          tenant_id: string
+        }
+        Update: {
+          body?: string
+          client_msg_id?: string | null
+          conversation_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
+          id?: string
+          reply_to_id?: string | null
+          sender_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_reply_to_id_fkey"
+            columns: ["reply_to_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_notifications: {
+        Row: {
+          actor_avatar: string | null
+          actor_id: string | null
+          actor_name: string
+          conversation_id: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          message_id: string | null
+          preview: string
+          recipient_id: string
+          tenant_id: string
+        }
+        Insert: {
+          actor_avatar?: string | null
+          actor_id?: string | null
+          actor_name: string
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message_id?: string | null
+          preview?: string
+          recipient_id: string
+          tenant_id: string
+        }
+        Update: {
+          actor_avatar?: string | null
+          actor_id?: string | null
+          actor_name?: string
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message_id?: string | null
+          preview?: string
+          recipient_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_notifications_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_notifications_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_notifications_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_notifications_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_notifications_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_pins: {
+        Row: {
+          conversation_id: string
+          message_id: string
+          pinned_at: string
+          pinned_by: string | null
+        }
+        Insert: {
+          conversation_id: string
+          message_id: string
+          pinned_at?: string
+          pinned_by?: string | null
+        }
+        Update: {
+          conversation_id?: string
+          message_id?: string
+          pinned_at?: string
+          pinned_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_pins_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_pins_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_pins_pinned_by_fkey"
+            columns: ["pinned_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_user_status: {
+        Row: {
+          custom_emoji: string | null
+          custom_text: string | null
+          last_seen_at: string | null
+          tenant_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          custom_emoji?: string | null
+          custom_text?: string | null
+          last_seen_at?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          custom_emoji?: string | null
+          custom_text?: string | null
+          last_seen_at?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_user_status_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_user_status_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1958,18 +2619,25 @@ export type Database = {
           avg_like_count: number
           avg_order_count: number
           avg_view_count: number
+          branches: Json
           city: string | null
+          contact_via_dm: boolean
           converted_at: string | null
           converted_tenant_id: string | null
           created_at: string
           created_by: string | null
           custom_fields: Json
+          email: string | null
           estimated_daily_orders: number
           estimated_monthly_revenue: number
           follower_count: number
           governorate_code: string | null
+          handle: string | null
           id: string
+          industry_detail: string | null
           industry_id: string | null
+          is_draft: boolean
+          is_online_only: boolean
           last_contacted_at: string | null
           lead_score: number
           management_info: string | null
@@ -1982,6 +2650,7 @@ export type Database = {
           phone_numbers: Json
           platform: Database["public"]["Enums"]["lead_source_platform"]
           platform_url: string | null
+          post_count: number
           priority: Database["public"]["Enums"]["lead_priority"]
           prospect_tenant_id: string | null
           score_breakdown: Json
@@ -1993,6 +2662,7 @@ export type Database = {
           tags: string[] | null
           tier: Database["public"]["Enums"]["lead_tier"]
           updated_at: string
+          website_url: string | null
         }
         Insert: {
           address?: string | null
@@ -2002,18 +2672,25 @@ export type Database = {
           avg_like_count?: number
           avg_order_count?: number
           avg_view_count?: number
+          branches?: Json
           city?: string | null
+          contact_via_dm?: boolean
           converted_at?: string | null
           converted_tenant_id?: string | null
           created_at?: string
           created_by?: string | null
           custom_fields?: Json
+          email?: string | null
           estimated_daily_orders?: number
           estimated_monthly_revenue?: number
           follower_count?: number
           governorate_code?: string | null
+          handle?: string | null
           id?: string
+          industry_detail?: string | null
           industry_id?: string | null
+          is_draft?: boolean
+          is_online_only?: boolean
           last_contacted_at?: string | null
           lead_score?: number
           management_info?: string | null
@@ -2026,6 +2703,7 @@ export type Database = {
           phone_numbers?: Json
           platform?: Database["public"]["Enums"]["lead_source_platform"]
           platform_url?: string | null
+          post_count?: number
           priority?: Database["public"]["Enums"]["lead_priority"]
           prospect_tenant_id?: string | null
           score_breakdown?: Json
@@ -2037,6 +2715,7 @@ export type Database = {
           tags?: string[] | null
           tier?: Database["public"]["Enums"]["lead_tier"]
           updated_at?: string
+          website_url?: string | null
         }
         Update: {
           address?: string | null
@@ -2046,18 +2725,25 @@ export type Database = {
           avg_like_count?: number
           avg_order_count?: number
           avg_view_count?: number
+          branches?: Json
           city?: string | null
+          contact_via_dm?: boolean
           converted_at?: string | null
           converted_tenant_id?: string | null
           created_at?: string
           created_by?: string | null
           custom_fields?: Json
+          email?: string | null
           estimated_daily_orders?: number
           estimated_monthly_revenue?: number
           follower_count?: number
           governorate_code?: string | null
+          handle?: string | null
           id?: string
+          industry_detail?: string | null
           industry_id?: string | null
+          is_draft?: boolean
+          is_online_only?: boolean
           last_contacted_at?: string | null
           lead_score?: number
           management_info?: string | null
@@ -2070,6 +2756,7 @@ export type Database = {
           phone_numbers?: Json
           platform?: Database["public"]["Enums"]["lead_source_platform"]
           platform_url?: string | null
+          post_count?: number
           priority?: Database["public"]["Enums"]["lead_priority"]
           prospect_tenant_id?: string | null
           score_breakdown?: Json
@@ -2081,6 +2768,7 @@ export type Database = {
           tags?: string[] | null
           tier?: Database["public"]["Enums"]["lead_tier"]
           updated_at?: string
+          website_url?: string | null
         }
         Relationships: [
           {
@@ -2475,6 +3163,7 @@ export type Database = {
           contact_count: number | null
           created_at: string
           customer_name: string
+          deleted_at: string | null
           delivered_at: string | null
           delivered_source: string | null
           delivery_company: string | null
@@ -2485,6 +3174,7 @@ export type Database = {
           discount_amount: number | null
           governorate_code: string | null
           id: string
+          idempotency_key: string | null
           internal_notes: string | null
           is_archived: boolean | null
           is_gift: boolean | null
@@ -2551,6 +3241,7 @@ export type Database = {
           contact_count?: number | null
           created_at?: string
           customer_name: string
+          deleted_at?: string | null
           delivered_at?: string | null
           delivered_source?: string | null
           delivery_company?: string | null
@@ -2561,6 +3252,7 @@ export type Database = {
           discount_amount?: number | null
           governorate_code?: string | null
           id?: string
+          idempotency_key?: string | null
           internal_notes?: string | null
           is_archived?: boolean | null
           is_gift?: boolean | null
@@ -2627,6 +3319,7 @@ export type Database = {
           contact_count?: number | null
           created_at?: string
           customer_name?: string
+          deleted_at?: string | null
           delivered_at?: string | null
           delivered_source?: string | null
           delivery_company?: string | null
@@ -2637,6 +3330,7 @@ export type Database = {
           discount_amount?: number | null
           governorate_code?: string | null
           id?: string
+          idempotency_key?: string | null
           internal_notes?: string | null
           is_archived?: boolean | null
           is_gift?: boolean | null
@@ -4776,6 +5470,70 @@ export type Database = {
           },
         ]
       }
+      team_invites: {
+        Row: {
+          accepted_at: string | null
+          accepted_user_id: string | null
+          created_at: string
+          display_name: string | null
+          email: string
+          id: string
+          invited_by: string | null
+          role: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_user_id?: string | null
+          created_at?: string
+          display_name?: string | null
+          email: string
+          id?: string
+          invited_by?: string | null
+          role?: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_user_id?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string
+          id?: string
+          invited_by?: string | null
+          role?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_invites_accepted_user_id_fkey"
+            columns: ["accepted_user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_invites_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_invites_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       telegram_employee_link: {
         Row: {
           linked_at: string
@@ -5620,7 +6378,9 @@ export type Database = {
           contact_count: number | null
           created_at: string | null
           customer_name: string | null
+          deleted_at: string | null
           delivered_at: string | null
+          delivered_source: string | null
           delivery_company: string | null
           delivery_fee: number | null
           delivery_note: string | null
@@ -5657,6 +6417,9 @@ export type Database = {
           printed_at: string | null
           priority: string | null
           product_cost: number | null
+          reason_id: string | null
+          refund_status: Database["public"]["Enums"]["refund_status"] | null
+          refunded_at: string | null
           rejection_reason: string | null
           risk_data: Json | null
           risk_metadata: Json | null
@@ -5682,6 +6445,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "orders_reason_id_fkey"
+            columns: ["reason_id"]
+            isOneToOne: false
+            referencedRelation: "order_reasons"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "orders_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -5692,6 +6462,26 @@ export type Database = {
       }
     }
     Functions: {
+      aggregate_experiment_stats: {
+        Args: { p_experiment_id: string; p_tenant_id: string }
+        Returns: {
+          add_to_cart: number
+          arm_id: string
+          checkout_start: number
+          orders: number
+          revenue_iqd: number
+          visitors: number
+        }[]
+      }
+      apply_store_config_v2_patch: {
+        Args: {
+          p_is_draft: boolean
+          p_path: string[]
+          p_tenant_id: string
+          p_value: Json
+        }
+        Returns: undefined
+      }
       calculate_customer_trust: {
         Args: { target_phone: string }
         Returns: undefined
@@ -5706,8 +6496,60 @@ export type Database = {
         }
         Returns: Json
       }
+      chat_find_or_create_dm: {
+        Args: { p_other_user_id: string }
+        Returns: string
+      }
+      chat_find_or_create_order_conversation: {
+        Args: { p_order_id: string }
+        Returns: string
+      }
+      chat_is_member: { Args: { p_conversation_id: string }; Returns: boolean }
+      chat_mark_read: {
+        Args: { p_conversation_id: string }
+        Returns: undefined
+      }
+      chat_send_message: {
+        Args: {
+          p_attachments?: Json
+          p_body: string
+          p_client_msg_id?: string
+          p_conversation_id: string
+          p_mentions?: string[]
+          p_references?: Json
+          p_reply_to_id?: string
+        }
+        Returns: {
+          body: string
+          client_msg_id: string | null
+          conversation_id: string
+          created_at: string
+          deleted_at: string | null
+          edited_at: string | null
+          id: string
+          reply_to_id: string | null
+          sender_id: string
+          tenant_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "chat_messages"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      chat_topic_conv_id: { Args: { p_topic: string }; Returns: string }
+      chat_topic_conversation: {
+        Args: { p_conversation_id: string }
+        Returns: string
+      }
+      chat_topic_user: { Args: { p_user_id: string }; Returns: string }
       compute_lead_predictions: {
-        Args: { p_avg_view_count: number; p_industry_id: string }
+        Args: {
+          p_avg_order_count?: number
+          p_avg_view_count: number
+          p_industry_id: string
+        }
         Returns: {
           daily_orders: number
           monthly_revenue: number
@@ -5839,6 +6681,15 @@ export type Database = {
       }
       inv_phase: { Args: { p_status: string }; Returns: string }
       is_tenant_admin: { Args: { p_tenant_id: string }; Returns: boolean }
+      lookup_order: {
+        Args: { p_order_number: string; p_phone: string; p_tenant_id: string }
+        Returns: {
+          customer_name: string
+          governorate: string
+          order_number: string
+          status: string
+        }[]
+      }
       normalize_phone: { Args: { input_phone: string }; Returns: string }
       process_return: {
         Args: {
@@ -5852,6 +6703,26 @@ export type Database = {
         Returns: undefined
       }
       progress_seed_orders: { Args: never; Returns: undefined }
+      publish_store_config_v2: {
+        Args: { p_config: Json; p_diff_summary?: Json; p_tenant_id: string }
+        Returns: {
+          author_name: string | null
+          config: Json
+          created_at: string
+          created_by: string | null
+          diff_summary: Json | null
+          id: string
+          is_named: boolean
+          label: string | null
+          tenant_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "store_config_versions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       recompute_inventory: {
         Args: { p_tenant_id?: string }
         Returns: undefined
