@@ -1,14 +1,20 @@
 // apps/platform/hooks/chat/use-mention-notifications.ts
-import { useEffect, useMemo, useCallback } from "react";
+import { useEffect, useId, useMemo, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
+import { diag } from "@/lib/diag";
 import { chatKeys } from "./use-conversations";
 import type { ChatMentionNotification } from "@/types/chat";
 
 export function useMentionNotifications() {
     const { user } = useAuth();
     const qc = useQueryClient();
+    // Per-instance channel name. NotificationsDropdown renders in both the desktop
+    // and mobile top bars (both mount even when one is CSS-hidden), and React
+    // StrictMode double-invokes effects — a STATIC channel name made realtime-js
+    // dedupe to one channel and reject the second `.on()` after `subscribe()`.
+    const instanceId = useId();
     const { data: mentions = [] } = useQuery({
         queryKey: chatKeys.mentions(),
         enabled: !!user?.id,
@@ -24,12 +30,16 @@ export function useMentionNotifications() {
 
     useEffect(() => {
         if (!user?.id) return;
-        const channel = supabase.channel("chat_notifications_db")
+        const channel = supabase.channel(`chat_notifications_db:${user.id}:${instanceId}`)
             .on("postgres_changes", { event: "*", schema: "public", table: "chat_notifications" },
                 () => qc.invalidateQueries({ queryKey: chatKeys.mentions() }))
-            .subscribe();
+            .subscribe((status, err) => {
+                if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+                    diag.warn(`[chat] mention notifications channel ${status}${err ? ` ${err.message}` : ""}`);
+                }
+            });
         return () => { supabase.removeChannel(channel); };
-    }, [user?.id, qc]);
+    }, [user?.id, qc, instanceId]);
 
     const unreadCount = useMemo(() => mentions.filter((m) => !m.is_read).length, [mentions]);
     const markAsRead = useCallback(async (id: string) => {
