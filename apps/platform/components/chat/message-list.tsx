@@ -70,6 +70,16 @@ export function MessageList({
         else setShowJump(true);
     }, [lastId, messages.length, scrollToBottom]);
 
+    // Announcement for the polite live region. Memoized so frequent UI re-renders
+    // (scroll, jump-pill toggle) don't recompute it; an unchanged string is also a
+    // no-op DOM write, so screen readers only re-read when the latest message changes.
+    const liveAnnouncement = useMemo(() => {
+        const last = messages[messages.length - 1];
+        if (!last || last.deleted_at) return "";
+        const who = memberMap.get(last.sender_id)?.display_name ?? "Teammate";
+        return `${who}: ${last.body}`;
+    }, [messages, memberMap]);
+
     if (loading && messages.length === 0) {
         return (
             <div className="flex-1 space-y-4 overflow-hidden px-4 py-3">
@@ -101,12 +111,7 @@ export function MessageList({
     return (
         <div className="relative flex min-h-0 flex-1 flex-col">
             <div aria-live="polite" className="sr-only">
-                {(() => {
-                    const last = messages[messages.length - 1];
-                    if (!last) return "";
-                    const who = memberMap.get(last.sender_id)?.display_name ?? "Teammate";
-                    return last.deleted_at ? "" : `${who}: ${last.body}`;
-                })()}
+                {liveAnnouncement}
             </div>
         {showJump && (
             <button
