@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 import { tenantPresenceTopic } from "@/lib/chat/topics";
 import { diag } from "@/lib/diag";
+import { usePresenceStore } from "@/store/use-presence-store";
 
 export type PresenceStatus = "online" | "idle" | "away";
 
@@ -65,6 +66,9 @@ export function useTenantPresence(activity?: string) {
                 const unique = Array.from(new Map(users.map((u) => [u.id, u])).values());
                 unique.sort((a, b) => new Date(b.online_at).getTime() - new Date(a.online_at).getTime());
                 setOnlineUsers(unique);
+                usePresenceStore.getState().setStatuses(
+                    Object.fromEntries(unique.map((u) => [u.id, u.status]))
+                );
             })
             .subscribe(async (status, err) => {
                 if (status === "SUBSCRIBED") {
