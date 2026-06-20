@@ -605,6 +605,7 @@ export function MobileDesktopOnlyStub({
         i18n: "Translations",
         shipping: "Shipping rates",
         discounts: "Discount codes",
+        cart_recovery: "Cart recovery",
         redirects: "Redirects",
     };
     return (

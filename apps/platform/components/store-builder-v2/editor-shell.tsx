@@ -63,6 +63,7 @@ import { ExperimentsScreen } from "./experiments-screen";
 import { RedirectsScreen } from "./redirects-screen";
 import { ShippingScreen } from "./shipping-screen";
 import { DiscountsScreen } from "./discounts-screen";
+import { CartRecoveryScreen } from "./cart-recovery-screen";
 import { I18nScreen, I18nToolbarPill } from "./i18n-screen";
 import { InspectorRail, type InspectorTab } from "./inspector-rail";
 import { EditorLocaleProvider } from "@/lib/editor-locale-context";
@@ -401,6 +402,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                 id === "i18n" ||
                 id === "shipping" ||
                 id === "discounts" ||
+                id === "cart_recovery" ||
                 id === "redirects"
             ) {
                 set_system_screen(id);
@@ -979,6 +981,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         "i18n",
         "shipping",
         "discounts",
+        "cart_recovery",
         "redirects",
     ] as const;
 
@@ -1342,6 +1345,11 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                         />
                     ) : system_screen === "discounts" ? (
                         <DiscountsScreen
+                            builder={builder}
+                            onClose={handleCloseSystemScreen}
+                        />
+                    ) : system_screen === "cart_recovery" ? (
+                        <CartRecoveryScreen
                             builder={builder}
                             onClose={handleCloseSystemScreen}
                         />

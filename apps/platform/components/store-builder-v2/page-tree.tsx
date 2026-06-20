@@ -132,6 +132,7 @@ export type SettingsSectionId =
     | "i18n"
     | "shipping"
     | "discounts"
+    | "cart_recovery"
     | "redirects";
 
 interface SettingsNode {
@@ -155,6 +156,7 @@ const ADVANCED_SETTINGS: SettingsNode[] = [
     { id: "scheduled", icon: Calendar, labelKey: "setting_scheduled", label: "Scheduled changes" },
     { id: "shipping", icon: Truck, labelKey: "setting_shipping", label: "Shipping rates" },
     { id: "discounts", icon: Ticket, labelKey: "setting_discounts", label: "Discount codes" },
+    { id: "cart_recovery", icon: ShoppingCart, labelKey: "setting_cart_recovery", label: "Cart recovery" },
     { id: "versions", icon: History, labelKey: "setting_versions", label: "Past versions" },
     { id: "redirects", icon: Signpost, labelKey: "setting_redirects", label: "Redirects" },
 ];
@@ -188,6 +190,7 @@ const SETTING_TINT: Record<SettingsSectionId, string> = {
     scheduled: "sb-tile--content",
     shipping: "sb-tile--trust",
     discounts: "sb-tile--conversion",
+    cart_recovery: "sb-tile--conversion",
     versions: "sb-tile--page",
     redirects: "sb-tile--trust",
 };

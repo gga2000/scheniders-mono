@@ -363,6 +363,28 @@ export interface StoreCommerceConfig {
   shipping?: GovernorateShippingConfig;
   /** Coupon / discount codes. */
   discounts?: DiscountCode[];
+  /** Abandoned-cart WhatsApp recovery (opt-in per tenant). */
+  cart_recovery?: CartRecoveryConfig;
+  /** "Frequently bought together" bundles (AOV upsell). */
+  bundles?: Bundle[];
+}
+
+export interface Bundle {
+  id: string;
+  name?: I18nString;
+  /** Products that must ALL be in the cart for the bundle to apply. */
+  product_ids: string[];
+  /** Discount kind applied to the bundle's combined item subtotal. */
+  kind: "percent" | "fixed";
+  value: number;
+  enabled?: boolean;
+}
+
+export interface CartRecoveryConfig {
+  /** Off by default — the merchant must opt in before any nudge is sent. */
+  enabled?: boolean;
+  /** Idle minutes after the last checkout activity before the nudge (5–1440). */
+  delay_minutes?: number;
 }
 
 /* ─────────────────────────────────────────────────────────────────── */

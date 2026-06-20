@@ -6,39 +6,43 @@ import {
     sendCartRecoveryMessage,
     type RecoverableCart,
 } from "@/lib/abandoned-cart-sender";
-import type { AbandonedCartItem } from "@scheniders/shared";
+import { resolveCartRecovery } from "@scheniders/shared";
+import type { AbandonedCartItem, StoreConfigV2 } from "@scheniders/shared";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
-// Wait this long after the customer's last checkout activity before nudging —
-// long enough that they've genuinely left, short enough to still recover.
-const DELAY_MINUTES = 30;
-const BATCH_SIZE = 20;
-
-let _supabase: ReturnType<typeof createSupabaseServiceClient> | null = null;
-const supabase = () => (_supabase ??= createSupabaseServiceClient());
+// Floor: never consider a cart younger than this. Each tenant's own delay (from
+// its config) is applied on top, so this is just the cheapest pre-filter.
+const MIN_DELAY_MINUTES = 5;
+const BATCH_SIZE = 50;
 
 interface SweepResult {
     processed: number;
     sent: number;
     failed: number;
+    /** Skipped because the tenant opted out or the cart isn't past its delay. */
+    skipped: number;
 }
 
 /**
- * Find carts idle past the delay window that haven't been reminded or recovered,
- * send each a WhatsApp recovery nudge, and stamp reminded_at on success (failures
- * stay eligible for the next sweep). Service role → bypasses RLS.
+ * Sweep abandoned carts and send WhatsApp recovery nudges. Recovery is OPT-IN
+ * per tenant: a cart is only nudged if its tenant enabled recovery AND the cart
+ * has been idle past that tenant's configured delay. Sends stamp reminded_at;
+ * failures stay eligible for the next sweep. Service role → bypasses RLS.
  */
 async function sweepAbandonedCarts(): Promise<SweepResult> {
-    const cutoff = new Date(Date.now() - DELAY_MINUTES * 60_000).toISOString();
+    const db = createSupabaseServiceClient();
+    const floorCutoff = new Date(
+        Date.now() - MIN_DELAY_MINUTES * 60_000,
+    ).toISOString();
 
-    const { data, error } = await supabase()
+    const { data, error } = await db
         .from("abandoned_carts")
-        .select("id, phone, items, subtotal_iqd")
+        .select("id, tenant_id, phone, items, subtotal_iqd, updated_at")
         .is("reminded_at", null)
         .is("recovered_at", null)
-        .lte("updated_at", cutoff)
+        .lte("updated_at", floorCutoff)
         .order("updated_at", { ascending: true })
         .limit(BATCH_SIZE);
 
@@ -46,14 +50,55 @@ async function sweepAbandonedCarts(): Promise<SweepResult> {
 
     const carts = (data ?? []) as Array<{
         id: string;
+        tenant_id: string;
         phone: string;
         items: AbandonedCartItem[];
         subtotal_iqd: number;
+        updated_at: string;
     }>;
+    if (carts.length === 0) {
+        return { processed: 0, sent: 0, failed: 0, skipped: 0 };
+    }
 
+    // Load each involved tenant's recovery config once.
+    const tenantIds = [...new Set(carts.map((c) => c.tenant_id))];
+    const { data: tenants } = await db
+        .from("tenants")
+        .select("id, store_config_v2")
+        .in("id", tenantIds);
+
+    const cfgByTenant = new Map<
+        string,
+        ReturnType<typeof resolveCartRecovery>
+    >();
+    for (const t of (tenants ?? []) as Array<{
+        id: string;
+        store_config_v2: StoreConfigV2 | null;
+    }>) {
+        cfgByTenant.set(
+            t.id,
+            resolveCartRecovery(t.store_config_v2?.commerce?.cart_recovery),
+        );
+    }
+
+    const now = Date.now();
     let sent = 0;
     let failed = 0;
+    let skipped = 0;
     for (const c of carts) {
+        const cfg = cfgByTenant.get(c.tenant_id);
+        // Opted out, or not yet idle past this tenant's delay → leave for later.
+        if (!cfg || !cfg.enabled) {
+            skipped += 1;
+            continue;
+        }
+        const dueAt =
+            new Date(c.updated_at).getTime() + cfg.delayMinutes * 60_000;
+        if (now < dueAt) {
+            skipped += 1;
+            continue;
+        }
+
         const cart: RecoverableCart = {
             id: c.id,
             phone: c.phone,
@@ -63,7 +108,7 @@ async function sweepAbandonedCarts(): Promise<SweepResult> {
         const result = await sendCartRecoveryMessage(cart);
         if (result.success) {
             sent += 1;
-            await supabase()
+            await db
                 .from("abandoned_carts")
                 .update({ reminded_at: new Date().toISOString() })
                 .eq("id", c.id);
@@ -72,7 +117,7 @@ async function sweepAbandonedCarts(): Promise<SweepResult> {
         }
     }
 
-    return { processed: carts.length, sent, failed };
+    return { processed: carts.length, sent, failed, skipped };
 }
 
 export async function GET(request: Request): Promise<NextResponse> {

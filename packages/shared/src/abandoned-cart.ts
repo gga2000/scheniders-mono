@@ -6,6 +6,31 @@
 // truth for cart totals shared by the capture endpoint and the reminder sender.
 // =====================================================================
 
+import type { CartRecoveryConfig } from "./types/store-config-v2";
+
+export const CART_RECOVERY_DEFAULT_DELAY_MIN = 30;
+const CART_RECOVERY_MIN_DELAY = 5;
+const CART_RECOVERY_MAX_DELAY = 1440;
+
+/** Resolve a tenant's cart-recovery config to concrete, clamped values.
+ *  Off by default (opt-in); delay clamped to [5, 1440] minutes. */
+export function resolveCartRecovery(cfg?: CartRecoveryConfig | null): {
+  enabled: boolean;
+  delayMinutes: number;
+} {
+  const enabled = cfg?.enabled === true;
+  const raw = cfg?.delay_minutes;
+  const d =
+    typeof raw === "number" && Number.isFinite(raw)
+      ? raw
+      : CART_RECOVERY_DEFAULT_DELAY_MIN;
+  const delayMinutes = Math.min(
+    CART_RECOVERY_MAX_DELAY,
+    Math.max(CART_RECOVERY_MIN_DELAY, Math.round(d)),
+  );
+  return { enabled, delayMinutes };
+}
+
 export interface AbandonedCartItem {
   product_id: string;
   variant_id?: string | null;

@@ -121,6 +121,7 @@ export const STRINGS = {
         setting_scheduled: { en: "Scheduled changes", ar: "المجدول", ku: "خشتەکراو" },
         setting_shipping: { en: "Shipping rates", ar: "أسعار التوصيل", ku: "نرخی گەیاندن" },
         setting_discounts: { en: "Discount codes", ar: "أكواد الخصم", ku: "کۆدی داشکاندن" },
+        setting_cart_recovery: { en: "Cart recovery", ar: "استرجاع السلات", ku: "گەڕاندنەوەی سەبەتە" },
         setting_versions: { en: "Past versions", ar: "النسخ", ku: "وەشانەکان" },
         setting_redirects: { en: "Redirects", ar: "إعادة التوجيه", ku: "ئاراستەکردن" },
     },
