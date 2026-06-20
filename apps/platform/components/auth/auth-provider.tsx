@@ -177,6 +177,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     currentUserIdRef.current = currentSession.user.id;
                     setIsLoading(false);
 
+                    // Private Realtime channels (chat presence + per-conversation
+                    // broadcast) authorize via RLS on realtime.messages, which evaluates
+                    // auth.uid()/role from the JWT on the socket. The SSR cookie client
+                    // does NOT push that token to Realtime automatically, so set it
+                    // explicitly on every (re)auth — without it, private channels fall
+                    // back to `anon` and every subscribe is denied (presence shows 0).
+                    void supabase.realtime.setAuth(currentSession.access_token);
+
                     // Skip the redundant profile refetch when only the token rotated.
                     if (event === 'TOKEN_REFRESHED' && isSameUser && profileLoadedRef.current) {
                         diag.log(`[Auth] TOKEN_REFRESHED — same user, skipping profile fetch`);
@@ -200,6 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     }
                 } else if (event === 'SIGNED_OUT') {
                     clearSafety();
+                    void supabase.realtime.setAuth(); // drop the JWT from the socket
                     currentUserIdRef.current = null;
                     setUser(null);
                     setSession(null);

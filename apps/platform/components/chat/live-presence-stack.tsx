@@ -53,7 +53,7 @@ export function LivePresenceStack() {
                     )}
                 </button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-80 overflow-hidden p-0">
+            <PopoverContent align="end" className="w-80 overflow-hidden p-0 bg-[var(--card-bg)] border-[var(--card-border)] shadow-xl">
                 <div className="flex items-center gap-1.5 border-b border-[var(--card-border)] px-3 py-2.5 text-xs font-semibold text-foreground">
                     <span className="relative flex h-2 w-2">
                         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-60" />
