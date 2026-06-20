@@ -603,6 +603,9 @@ export function MobileDesktopOnlyStub({
         versions: "Version history",
         health: "Health",
         i18n: "Translations",
+        shipping: "Shipping rates",
+        discounts: "Discount codes",
+        redirects: "Redirects",
     };
     return (
         <div

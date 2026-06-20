@@ -94,7 +94,7 @@ function AnnouncementBar({
           "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
       }}
       role="region"
-      aria-label={locale === "ar" ? "إعلان" : "Announcement"}
+      aria-label={locale !== "en" ? "إعلان" : "Announcement"}
     >
       <div
         className="inline-flex whitespace-nowrap animate-marquee will-change-transform motion-reduce:animate-none"

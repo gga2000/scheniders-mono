@@ -21,6 +21,7 @@ vi.mock("@/hooks/use-toast", () => ({
 }));
 
 import { AutoForm } from "./auto-form";
+import { getManifestEntry } from "@/lib/sections-manifest";
 
 beforeEach(() => {
     vi.clearAllMocks();
@@ -62,6 +63,72 @@ describe("AutoForm", () => {
         expect(input.type).toBe("number");
         expect(input.min).toBe("1");
         expect(input.max).toBe("20");
+    });
+
+    it("renders a slider for a bounded number and commits drags (C7)", () => {
+        const schema = z.object({ opacity: z.number().min(0).max(1) });
+        const onChange = vi.fn();
+        render(
+            <AutoForm
+                schema={schema}
+                value={{ opacity: 0.5 }}
+                onChange={onChange}
+            />,
+        );
+        const slider = screen.getByTestId(
+            "auto-form-root.opacity-slider",
+        ) as HTMLInputElement;
+        expect(slider.type).toBe("range");
+        // Float range → fine step.
+        expect(slider.step).toBe("0.01");
+        fireEvent.change(slider, { target: { value: "0.8" } });
+        expect(onChange).toHaveBeenCalledWith({ opacity: 0.8 });
+    });
+
+    it("clearing a required number snaps to min, not 0 (C12)", () => {
+        const schema = z.object({ limit: z.number().int().min(1).max(20) });
+        const onChange = vi.fn();
+        render(
+            <AutoForm schema={schema} value={{ limit: 5 }} onChange={onChange} />,
+        );
+        const input = screen.getByTestId(
+            "auto-form-root.limit-input",
+        ) as HTMLInputElement;
+        fireEvent.change(input, { target: { value: "" } });
+        expect(onChange).toHaveBeenCalledWith({ limit: 1 });
+    });
+
+    it("offers Reset to default when props differ, and resets on click (C2)", () => {
+        const defaults = getManifestEntry("trust_strip")?.defaultProps as
+            | Record<string, unknown>
+            | undefined;
+        expect(defaults).toBeTruthy();
+        const onChange = vi.fn();
+        render(
+            <AutoForm
+                schema={z.object({})}
+                value={{ __changed: true }}
+                sectionType="trust_strip"
+                onChange={onChange}
+            />,
+        );
+        fireEvent.click(screen.getByTestId("auto-form-reset-default"));
+        expect(onChange).toHaveBeenCalledWith(defaults);
+    });
+
+    it("hides Reset to default when props already equal the default (C2)", () => {
+        const defaults = getManifestEntry("trust_strip")?.defaultProps as
+            | Record<string, unknown>
+            | undefined;
+        render(
+            <AutoForm
+                schema={z.object({})}
+                value={defaults}
+                sectionType="trust_strip"
+                onChange={() => {}}
+            />,
+        );
+        expect(screen.queryByTestId("auto-form-reset-default")).toBeNull();
     });
 
     it("renders a switch for a boolean", () => {

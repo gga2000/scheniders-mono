@@ -31,6 +31,7 @@ const EXPECTED_TYPES = [
   "image_gallery",
   "video_block",
   "marquee_strip",
+  "announcement_bar",
   // Conversion family
   "promo_banner",
   "countdown_card",
@@ -45,6 +46,7 @@ const EXPECTED_TYPES = [
   "pdp_variants",
   "pdp_add_to_cart",
   "pdp_related_products",
+  "product_reviews",
   // Cart / checkout / track
   "cart_line_items",
   "cart_summary",
@@ -73,9 +75,9 @@ const EXPECTED_TYPES = [
 ];
 
 describe("section registry", () => {
-  it("registers exactly 47 built-in sections", () => {
-    expect(BUILTIN_SECTIONS).toHaveLength(47);
-    expect(listSections()).toHaveLength(47);
+  it("registers exactly 49 built-in sections", () => {
+    expect(BUILTIN_SECTIONS).toHaveLength(49);
+    expect(listSections()).toHaveLength(49);
   });
 
   it("each section's defaultProps validates against its own schema", () => {

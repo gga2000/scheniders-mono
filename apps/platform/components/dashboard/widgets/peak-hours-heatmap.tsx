@@ -99,14 +99,16 @@ export function PeakHoursHeatmap({ data }: PeakHoursHeatmapProps) {
                 </div>
             </div>
 
-            {/* Tooltip */}
-            {tooltip && (
-                <div className="mt-2 text-xs text-center text-muted">
-                    <span className="font-semibold text-foreground">{dayLabels[tooltip.day]}</span> {t("dashboard.heatmap.at")}{' '}
-                    <span className="font-semibold text-foreground">{HOUR_LABELS[tooltip.hour]}</span>
-                    {' '}— <span className="font-semibold text-foreground">{tooltip.count} {t("dashboard.heatmap.orders")}</span>
-                </div>
-            )}
+            {/* Tooltip — height reserved so hovering never reflows the grid */}
+            <div className="mt-2 h-5 leading-5 text-xs text-center text-muted">
+                {tooltip && (
+                    <>
+                        <span className="font-semibold text-foreground">{dayLabels[tooltip.day]}</span> {t("dashboard.heatmap.at")}{' '}
+                        <span className="font-semibold text-foreground">{HOUR_LABELS[tooltip.hour]}</span>
+                        {' '}— <span className="font-semibold text-foreground">{tooltip.count} {t("dashboard.heatmap.orders")}</span>
+                    </>
+                )}
+            </div>
         </div>
     );
 }

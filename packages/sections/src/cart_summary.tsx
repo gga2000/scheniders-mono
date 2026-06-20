@@ -11,7 +11,8 @@
 
 import { useState } from "react";
 import { z } from "zod";
-import { resolveI18n } from "@scheniders/shared";
+import { resolveI18n, computeDeliveryFee, computeDiscount } from "@scheniders/shared";
+import type { StoreConfigV2 } from "@scheniders/shared";
 import {
   BentoCard,
   ChunkyButton,
@@ -21,7 +22,7 @@ import {
 import { StoreLink } from "./helpers/store-context";
 import { formatPrice } from "./helpers/format";
 import { useCart } from "./helpers/cart-store";
-import { isPlausiblePhone } from "./helpers/whatsapp";
+import { whatsappCartLink } from "./helpers/whatsapp";
 import { i18nStringSchema } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
@@ -40,10 +41,6 @@ const defaultProps: Props = {
   show_promo_input: false,
 };
 
-/** Free above this — matches the seeded Schneiders shipping default (75k). */
-const FREE_DELIVERY_THRESHOLD = 75_000;
-const BAGHDAD_DELIVERY = 5_000;
-
 function CartSummaryRender({
   props,
   ctx,
@@ -54,20 +51,41 @@ function CartSummaryRender({
   const locale = ctx.runtime.locale;
   const items = useCart((s) => s.items);
   const subtotal = useCart((s) => s.getTotal());
+  const couponCode = useCart((s) => s.couponCode);
+  const setCouponCode = useCart((s) => s.setCouponCode);
   const heading = resolveI18n(props.heading_i18n, locale);
   const checkoutLabel = resolveI18n(props.checkout_label_i18n, locale);
-  const [promoCode, setPromoCode] = useState("");
+  const [promoCode, setPromoCode] = useState(couponCode ?? "");
   const [promoStatus, setPromoStatus] = useState<
     "idle" | "applied" | "invalid"
-  >("idle");
+  >(couponCode ? "applied" : "idle");
 
   const empty = items.length === 0;
-  const delivery = empty
-    ? 0
-    : subtotal >= FREE_DELIVERY_THRESHOLD
-      ? 0
-      : BAGHDAD_DELIVERY;
-  const total = subtotal + delivery;
+  const commerce = (
+    ctx.tenant as { store_config_v2?: StoreConfigV2 | null } | undefined
+  )?.store_config_v2?.commerce;
+  // Cart estimate: governorate isn't chosen yet, so the default_rate applies
+  // (falls back to the legacy flat fee when unconfigured). The exact per-gov
+  // fee resolves at checkout.
+  const delivery = computeDeliveryFee(subtotal, items.length, {
+    shipping: commerce?.shipping,
+  });
+  // Discount: a client-side PREVIEW of the applied coupon (the server
+  // re-validates + records the authoritative amount at checkout).
+  const discount = computeDiscount(subtotal, couponCode, commerce?.discounts);
+  const discountAmount = discount?.amount_iqd ?? 0;
+  const total = subtotal - discountAmount + delivery;
+
+  function applyPromo(): void {
+    const d = computeDiscount(subtotal, promoCode, commerce?.discounts);
+    if (d) {
+      setCouponCode(d.code);
+      setPromoStatus("applied");
+    } else {
+      setCouponCode(null);
+      setPromoStatus(promoCode.trim() ? "invalid" : "idle");
+    }
+  }
 
   return (
     <section className="px-4 py-bk-section-dense">
@@ -78,15 +96,15 @@ function CartSummaryRender({
         <dl className="space-y-bk-xs font-body text-sm">
           <div className="flex justify-between">
             <dt className="text-bk-ink-soft">
-              {locale === "ar" ? "المجموع الفرعي" : "Subtotal"}
+              {locale !== "en" ? "المجموع الفرعي" : "Subtotal"}
             </dt>
             <dd className="font-display font-black text-bk-ink">
-              {formatPrice(subtotal)}
+              <bdi>{formatPrice(subtotal, locale)}</bdi>
             </dd>
           </div>
           <div className="flex justify-between">
             <dt className="text-bk-ink-soft">
-              {locale === "ar" ? "التوصيل" : "Delivery"}
+              {locale !== "en" ? "التوصيل" : "Delivery"}
             </dt>
             <dd className="font-display font-black text-bk-ink">
               {delivery === 0 ? (
@@ -99,18 +117,29 @@ function CartSummaryRender({
                     borderRadius: "var(--bk-radius-pill, 9999px)",
                   }}
                 >
-                  {locale === "ar" ? "مجاني 🎉" : "Free 🎉"}
+                  {locale !== "en" ? "مجاني 🎉" : "Free 🎉"}
                 </span>
               ) : (
-                formatPrice(delivery)
+                <bdi>{formatPrice(delivery, locale)}</bdi>
               )}
             </dd>
           </div>
+          {discountAmount > 0 && (
+            <div className="flex justify-between">
+              <dt className="text-bk-ink-soft">
+                {locale !== "en" ? "الخصم" : "Discount"}
+                {discount ? ` (${discount.code})` : ""}
+              </dt>
+              <dd className="font-display font-black text-bk-success">
+                <bdi>−{formatPrice(discountAmount, locale)}</bdi>
+              </dd>
+            </div>
+          )}
           <div
             className="flex justify-between pt-bk-xs border-t-[3px] border-dashed border-bk-divider"
           >
             <dt className="font-display font-black uppercase text-bk-ink">
-              {locale === "ar" ? "المجموع" : "Total"}
+              {locale !== "en" ? "المجموع" : "Total"}
             </dt>
             <dd
               className="font-display font-black text-xl"
@@ -119,7 +148,7 @@ function CartSummaryRender({
                 fontFamily: "var(--bk-font-display, inherit)",
               }}
             >
-              {formatPrice(total)}
+              <bdi>{formatPrice(total, locale)}</bdi>
             </dd>
           </div>
         </dl>
@@ -129,7 +158,7 @@ function CartSummaryRender({
               htmlFor="cart-promo-input"
               className="block font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft"
             >
-              {locale === "ar" ? "كود الخصم" : "Promo code"}
+              {locale !== "en" ? "كود الخصم" : "Promo code"}
             </label>
             <div className="flex gap-bk-xs">
               <input
@@ -148,29 +177,27 @@ function CartSummaryRender({
                   color: "var(--bk-ink, #1a1a1a)",
                   fontFamily: "var(--bk-font-body, inherit)",
                 }}
-                placeholder={locale === "ar" ? "أدخل الكود" : "Enter code"}
+                placeholder={locale !== "en" ? "أدخل الكود" : "Enter code"}
               />
               <ChunkyButton
                 type="button"
                 bg="butter"
                 size="sm"
-                onClick={() =>
-                  setPromoStatus(promoCode.trim() ? "invalid" : "idle")
-                }
+                onClick={applyPromo}
               >
-                {locale === "ar" ? "تطبيق" : "Apply"}
+                {locale !== "en" ? "تطبيق" : "Apply"}
               </ChunkyButton>
             </div>
             {promoStatus === "invalid" && (
               <p className="font-label font-bold text-xs text-bk-danger">
-                {locale === "ar"
+                {locale !== "en"
                   ? "الكود غير صالح"
                   : "Code not valid"}
               </p>
             )}
             {promoStatus === "applied" && (
               <p className="font-label font-bold text-xs text-bk-ink">
-                {locale === "ar" ? "تم تطبيق الكود" : "Code applied"}
+                {locale !== "en" ? "تم تطبيق الكود" : "Code applied"}
               </p>
             )}
           </div>
@@ -182,7 +209,7 @@ function CartSummaryRender({
             </ChunkyButton>
           </StoreLink>
           <p className="mt-bk-xs text-center font-body text-xs text-bk-ink-soft">
-            {locale === "ar"
+            {locale !== "en"
               ? "الدفع عند الاستلام متاح • لا دفع مسبق"
               : "Cash on delivery available • No upfront payment"}
           </p>
@@ -194,24 +221,25 @@ function CartSummaryRender({
             const phone =
               (ctx.tenant as { contact_phone?: string | null } | undefined)
                 ?.contact_phone ?? null;
-            if (!isPlausiblePhone(phone)) return null;
-            const lines = items
-              .map(
-                (i) =>
-                  `• ${i.name}${i.variant_name ? ` — ${i.variant_name}` : ""} × ${i.quantity}`,
-              )
-              .join("\n");
-            const msg =
-              (locale === "ar"
-                ? `مرحباً! أودّ إكمال طلبي:\n${lines}\nالإجمالي: ${formatPrice(total)}`
-                : `Hi! I'd like to complete my order:\n${lines}\nTotal: ${formatPrice(total)}`);
-            const href = `https://wa.me/${phone!.replace(/\D/g, "")}?text=${encodeURIComponent(msg)}`;
+            const href = whatsappCartLink(
+              phone,
+              {
+                items: items.map((i) => ({
+                  name: i.name,
+                  variant: i.variant_name,
+                  quantity: i.quantity,
+                })),
+                total: formatPrice(total, locale),
+              },
+              locale,
+            );
+            if (!href) return null;
             return (
               <>
                 <div className="my-bk-sm flex items-center gap-bk-sm">
                   <span className="h-[3px] flex-1 bg-candy-ink/20" />
                   <span className="font-display font-black text-sm uppercase text-bk-ink-soft">
-                    {locale === "ar" ? "أو" : "Or"}
+                    {locale !== "en" ? "أو" : "Or"}
                   </span>
                   <span className="h-[3px] flex-1 bg-candy-ink/20" />
                 </div>
@@ -229,7 +257,7 @@ function CartSummaryRender({
                   }}
                 >
                   <WhatsAppIcon className="h-5 w-5" />
-                  {locale === "ar" ? "اطلب عبر واتساب" : "Order on WhatsApp"}
+                  {locale !== "en" ? "اطلب عبر واتساب" : "Order on WhatsApp"}
                 </a>
               </>
             );

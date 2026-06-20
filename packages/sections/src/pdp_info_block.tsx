@@ -81,22 +81,22 @@ function PdpInfoBlockRender({
               <MaterialIcon key={i} name="star" className="text-xl" />
             ))}
             <span className="ml-1 font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
-              {locale === "ar" ? "5.0 من 5" : "5.0 / 5"}
+              {locale !== "en" ? "5.0 من 5" : "5.0 / 5"}
             </span>
           </div>
         )}
         <div className="flex items-baseline gap-bk-sm flex-wrap">
           <span className="font-display font-black text-3xl sm:text-4xl text-bk-ink">
-            {formatPrice(product.price)}
+            <bdi>{formatPrice(product.price, locale)}</bdi>
           </span>
           {onSale && product.compare_at_price != null && (
             <span className="font-body text-lg text-bk-ink-soft line-through">
-              {formatPrice(product.compare_at_price)}
+              <bdi>{formatPrice(product.compare_at_price, locale)}</bdi>
             </span>
           )}
           {savings && (
             <span className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-primary">
-              {locale === "ar"
+              {locale !== "en"
                 ? `وفّر ${savings}`
                 : `Save ${savings}`}
             </span>
@@ -105,14 +105,14 @@ function PdpInfoBlockRender({
         {props.show_stock_urgency && lowStock != null && (
           <p className="font-label font-bold text-sm uppercase tracking-[0.15em] text-bk-primary inline-flex items-center gap-bk-xs">
             <MaterialIcon name="local_fire_department" className="text-xl" />
-            {locale === "ar"
+            {locale !== "en"
               ? `بقي ${lowStock} فقط`
               : `Only ${lowStock} left`}
           </p>
         )}
         {props.show_sku && product.sku && (
           <p className="font-label text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
-            {locale === "ar" ? "الرمز" : "SKU"}: {product.sku}
+            {locale !== "en" ? "الرمز" : "SKU"}: {product.sku}
           </p>
         )}
       </div>

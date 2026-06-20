@@ -27,6 +27,7 @@ import {
     Image as ImageIcon,
     Loader2,
     Plus,
+    RotateCcw,
     Trash2,
     Upload,
     X,
@@ -49,6 +50,7 @@ import {
 } from "@/lib/section-field-groups";
 import { STRINGS, t as tx } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
+import { getManifestEntry } from "@/lib/sections-manifest";
 import {
     clearBreakpointOverride,
     getBreakpointOverride,
@@ -146,22 +148,67 @@ export function AutoForm<T>(props: AutoFormProps<T>): ReactElement {
         return { shape, buckets };
     }, [schema, sectionType]);
 
+    // C2: section-level "Reset to default". Defaults come from the section's
+    // own definition (zero drift via the manifest). Shown only when the current
+    // props actually differ from the defaults. Reset is undoable (the caller
+    // routes through setConfig), so no confirm dialog is needed.
+    const sectionDefaults = useMemo<Record<string, unknown> | undefined>(() => {
+        if (!sectionType) return undefined;
+        const d = getManifestEntry(sectionType)?.defaultProps as
+            | Record<string, unknown>
+            | undefined;
+        return d;
+    }, [sectionType]);
+    const dirtyVsDefault = useMemo<boolean>(() => {
+        if (!sectionDefaults) return false;
+        try {
+            return JSON.stringify(value) !== JSON.stringify(sectionDefaults);
+        } catch {
+            return false;
+        }
+    }, [sectionDefaults, value]);
+    const resetHeader =
+        sectionDefaults && dirtyVsDefault ? (
+            <div className="flex justify-end">
+                <button
+                    type="button"
+                    data-testid="auto-form-reset-default"
+                    title="Reset this section to its default content"
+                    onClick={() =>
+                        onChange(
+                            // Clone so callers can't mutate the shared default.
+                            JSON.parse(JSON.stringify(sectionDefaults)) as T,
+                        )
+                    }
+                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
+                >
+                    <RotateCcw className="h-3 w-3" aria-hidden="true" />
+                    Reset to default
+                </button>
+            </div>
+        ) : null;
+
     if (grouped) {
         return (
-            <GroupedFormRenderer
-                shape={grouped.shape}
-                buckets={grouped.buckets}
-                value={value as unknown as Record<string, unknown>}
-                onChange={(next) => onChange(next as T)}
-                tenantId={tenantId}
-                activeLocale={activeLocale ?? "en"}
-                renderAdornment={renderAdornment}
-            />
+            <>
+                {resetHeader}
+                <GroupedFormRenderer
+                    shape={grouped.shape}
+                    buckets={grouped.buckets}
+                    value={value as unknown as Record<string, unknown>}
+                    onChange={(next) => onChange(next as T)}
+                    tenantId={tenantId}
+                    activeLocale={activeLocale ?? "en"}
+                    renderAdornment={renderAdornment}
+                />
+            </>
         );
     }
 
     return (
-        <FieldRenderer
+        <>
+            {resetHeader}
+            <FieldRenderer
             schema={schema as unknown as z.ZodType<unknown>}
             value={value as unknown}
             onChange={(next) => onChange(next as T)}
@@ -171,7 +218,8 @@ export function AutoForm<T>(props: AutoFormProps<T>): ReactElement {
             activeLocale={activeLocale ?? "en"}
             renderAdornment={renderAdornment}
             isTopLevel
-        />
+            />
+        </>
     );
 }
 
@@ -395,20 +443,31 @@ function inferField(schema: z.ZodType<unknown>): {
             }>;
             let min: number | undefined;
             let max: number | undefined;
+            let integer = false;
             for (const c of checks) {
                 const d = c._def ?? c.def ?? {};
                 if (d.check === "greater_than" && typeof d.value === "number") {
                     min = d.inclusive ? d.value : d.value + 1;
                 } else if (d.check === "less_than" && typeof d.value === "number") {
                     max = d.inclusive ? d.value : d.value - 1;
+                } else if (
+                    d.check === "int" ||
+                    (d as { format?: string }).format === "safeint"
+                ) {
+                    integer = true;
                 }
             }
             // `minValue` / `maxValue` fallback for v4 helpers if present.
-            const innerAny = inner as unknown as { minValue?: number; maxValue?: number };
+            const innerAny = inner as unknown as {
+                minValue?: number;
+                maxValue?: number;
+                _def?: { format?: string };
+            };
             if (min === undefined && typeof innerAny.minValue === "number") min = innerAny.minValue;
             if (max === undefined && typeof innerAny.maxValue === "number") max = innerAny.maxValue;
+            if (innerAny._def?.format === "safeint") integer = true;
             return {
-                field: { kind: "number", min, max },
+                field: { kind: "number", min, max, integer },
                 optional,
                 description,
             };
@@ -574,6 +633,7 @@ function FieldRenderer(props: FieldRendererProps): ReactElement {
                     onChange={(v) => onChange(v)}
                     min={field.min}
                     max={field.max}
+                    integer={field.integer}
                     optional={optional}
                     onClear={optional ? () => onChange(undefined) : undefined}
                     testIdBase={testIdBase}
@@ -942,35 +1002,62 @@ interface NumberControlProps {
     onChange: (next: number | undefined) => void;
     min?: number;
     max?: number;
+    integer?: boolean;
     optional: boolean;
     onClear?: () => void;
     testIdBase: string;
 }
 
 function NumberControl(p: NumberControlProps): ReactElement {
+    // A bounded range (both min + max) gets a slider for fast, in-range
+    // adjustment (C7). Step is 1 for integers, else a fine fraction so 0–1
+    // ratios (e.g. opacity) feel continuous.
+    const bounded = p.min !== undefined && p.max !== undefined;
+    const span = bounded ? (p.max as number) - (p.min as number) : 0;
+    const step = p.integer ? 1 : span > 0 && span <= 2 ? 0.01 : 1;
+    const commit = (raw: string): void => {
+        if (raw === "") {
+            // C12: clearing a required number snaps to the min (not a silent 0,
+            // which can mean "hide everything"); optional clears to undefined.
+            p.onChange(p.optional ? undefined : (p.min ?? 0));
+            return;
+        }
+        const n = Number(raw);
+        if (Number.isFinite(n)) p.onChange(n);
+    };
+
     return (
         <div className="space-y-1.5">
             <FieldHeader label={p.label} onClear={p.onClear} testIdBase={p.testIdBase} />
-            <input
-                type="number"
-                data-testid={`${p.testIdBase}-input`}
-                value={p.value ?? ""}
-                min={p.min}
-                max={p.max}
-                onChange={(e) => {
-                    const raw = e.target.value;
-                    if (raw === "") {
-                        p.onChange(p.optional ? undefined : 0);
-                        return;
-                    }
-                    const n = Number(raw);
-                    if (Number.isFinite(n)) p.onChange(n);
-                }}
-                className={cn(
-                    "w-full rounded-xl border border-(--card-border) bg-background px-3.5 py-2.5 text-sm",
-                    "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary",
+            <div className={cn("flex items-center gap-3")}>
+                {bounded && (
+                    <input
+                        type="range"
+                        data-testid={`${p.testIdBase}-slider`}
+                        aria-label={p.label}
+                        min={p.min}
+                        max={p.max}
+                        step={step}
+                        value={p.value ?? p.min}
+                        onChange={(e) => p.onChange(Number(e.target.value))}
+                        className="flex-1 accent-(--bk-primary,#ec4899)"
+                    />
                 )}
-            />
+                <input
+                    type="number"
+                    data-testid={`${p.testIdBase}-input`}
+                    value={p.value ?? ""}
+                    min={p.min}
+                    max={p.max}
+                    step={step}
+                    onChange={(e) => commit(e.target.value)}
+                    className={cn(
+                        "rounded-xl border border-(--card-border) bg-background px-3.5 py-2.5 text-sm",
+                        "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary",
+                        bounded ? "w-20 shrink-0 text-center" : "w-full",
+                    )}
+                />
+            </div>
             {(p.min !== undefined || p.max !== undefined) && (
                 <p className="text-[11px] text-muted-foreground">
                     {p.min !== undefined && p.max !== undefined

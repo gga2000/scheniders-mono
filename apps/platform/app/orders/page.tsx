@@ -109,6 +109,7 @@ const IraqMap = dynamic(
     { ssr: false, loading: () => <div className="w-full h-[350px] animate-pulse bg-muted/20 rounded-2xl" /> }
 );
 import { useIsMobile } from "@/hooks/use-mobile";
+import { OrderPipeline } from "@/components/orders/order-pipeline";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Search,
@@ -315,6 +316,20 @@ export default function OrdersPage() {
         setShowSubFilters((v) => {
             const next = !v;
             localStorage.setItem("ordersShowSubFilters", String(next));
+            return next;
+        });
+    }, []);
+    // Order pipeline funnel — hidden by default, surfaced via toolbar toggle.
+    // Per-device pref, mirrors the sub-filters pattern above.
+    const [showPipeline, setShowPipeline] = useState(false);
+    useEffect(() => {
+        const stored = typeof window !== "undefined" ? localStorage.getItem("ordersShowPipeline") : null;
+        if (stored !== null) setShowPipeline(stored === "true");
+    }, []);
+    const togglePipeline = useCallback(() => {
+        setShowPipeline((v) => {
+            const next = !v;
+            localStorage.setItem("ordersShowPipeline", String(next));
             return next;
         });
     }, []);
@@ -1635,6 +1650,22 @@ export default function OrdersPage() {
                                                                 <SlidersHorizontal className="w-4 h-4" />
                                                             </button>
 
+                                                            {/* Order Pipeline Toggle */}
+                                                            <button
+                                                                onClick={togglePipeline}
+                                                                className={cn(
+                                                                    "p-2.5 rounded-xl transition-all duration-300",
+                                                                    showPipeline
+                                                                        ? "bg-emerald-100 text-emerald-600 shadow-sm dark:bg-[var(--primary)] dark:text-black"
+                                                                        : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground dark:hover:bg-white/5"
+                                                                )}
+                                                                title={t("orders.pipeline.toggle", "Order pipeline")}
+                                                                aria-label={t("orders.pipeline.toggle", "Order pipeline")}
+                                                                aria-pressed={showPipeline}
+                                                            >
+                                                                <GitBranch className="w-4 h-4" />
+                                                            </button>
+
                                                             <div className="w-px h-8 bg-black/5 mx-1 orders-toolbar-divider" />
 
                                                             {/* Archive Toggle */}
@@ -2022,6 +2053,29 @@ export default function OrdersPage() {
                                                                     </div>
                                                                 )}
                                                             </ErrorBoundary>
+                                                        </div>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+
+                                            {/* Order Pipeline — collapsible funnel overview, sits above the search bar (hidden by default) */}
+                                            <AnimatePresence initial={false}>
+                                                {showPipeline && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, height: 0 }}
+                                                        animate={{ opacity: 1, height: "auto" }}
+                                                        exit={{ opacity: 0, height: 0 }}
+                                                        transition={{ duration: 0.3, ease: EASE_PANEL }}
+                                                        className="overflow-hidden"
+                                                    >
+                                                        <div className="pb-4">
+                                                            <OrderPipeline
+                                                                statusCounts={statusCounts}
+                                                                activeStatus={typeof filters.status === "string" ? filters.status : undefined}
+                                                                onSelectStatus={(status) =>
+                                                                    setFilters({ ...filters, status: status as Order["status"] | undefined })
+                                                                }
+                                                            />
                                                         </div>
                                                     </motion.div>
                                                 )}

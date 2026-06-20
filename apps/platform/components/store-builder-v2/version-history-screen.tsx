@@ -145,14 +145,41 @@ export function VersionHistoryScreen({
         return versions.find((v) => v.id === selectedId) ?? null;
     }, [selectedId, versions]);
 
+    // EC28: a version's full config is no longer in the list — fetch it on
+    // demand only for the selected row (for the diff). Optimistic local rows
+    // already carry their config.
+    const [selectedConfig, setSelectedConfig] = useState<StoreConfigV2 | null>(null);
+    useEffect(() => {
+        if (!selected) {
+            setSelectedConfig(null);
+            return;
+        }
+        if (selected.config) {
+            setSelectedConfig(selected.config);
+            return;
+        }
+        let cancelled = false;
+        void builder
+            .getVersionConfig(selected.id)
+            .then((cfg) => {
+                if (!cancelled) setSelectedConfig(cfg);
+            })
+            .catch(() => {
+                if (!cancelled) setSelectedConfig(null);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [selected, builder]);
+
     const diff = useMemo<DiffEntry[] | null>(() => {
-        if (!selected) return null;
+        if (!selected || !selectedConfig) return null;
         try {
-            return diffJson(selected.config, builder.config);
+            return diffJson(selectedConfig, builder.config);
         } catch {
             return null;
         }
-    }, [builder.config, selected]);
+    }, [builder.config, selected, selectedConfig]);
 
     /* ── Actions ──────────────────────────────────────────────── */
 
@@ -176,13 +203,19 @@ export function VersionHistoryScreen({
         if (!confirmRestore) return;
         setRestoring(true);
         try {
-            // Apply locally first (instant) then prepend an optimistic auto-save.
-            builder.applyConfig(confirmRestore.config);
+            // EC28: fetch the config on demand (not in the list) unless this is an
+            // optimistic local row that already carries it. Apply locally first
+            // (instant) then prepend an optimistic auto-save.
+            const cfg =
+                confirmRestore.config ??
+                (await builder.getVersionConfig(confirmRestore.id));
+            if (!cfg) throw new Error("Version has no config payload");
+            builder.applyConfig(cfg);
             const optimistic: StoredVersion = {
                 id: `optimistic-${Date.now()}`,
                 label: `Restored "${confirmRestore.label ?? "Auto-save"}"`,
                 is_named: false,
-                config: confirmRestore.config,
+                config: cfg,
                 created_at: new Date().toISOString(),
                 created_by: "",
                 author_name: "You",
@@ -207,11 +240,14 @@ export function VersionHistoryScreen({
         // an audit trail.)
         setSnapshotBusy(true);
         try {
-            // Temporarily apply, snapshot, then revert. Simpler: insert a row
-            // referencing the version's config payload directly via supabase.
-            // We use the hook's helper after stashing config.
+            // EC28: fetch the version's config on demand. Temporarily apply,
+            // snapshot, then revert to the editor's current config.
+            const cfg =
+                promoteVersion.config ??
+                (await builder.getVersionConfig(promoteVersion.id));
+            if (!cfg) throw new Error("Version has no config payload");
             const previousConfig: StoreConfigV2 = builder.config;
-            builder.applyConfig(promoteVersion.config);
+            builder.applyConfig(cfg);
             try {
                 await builder.createNamedSnapshot(label);
             } finally {

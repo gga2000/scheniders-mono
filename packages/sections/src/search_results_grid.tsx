@@ -33,7 +33,7 @@ function HelpCard({
   locale: "ar" | "en" | "ku";
   phone: string | null;
 }) {
-  const t = locale === "ar";
+  const t = locale !== "en";
   return (
     <BentoCard bg="sky" size="md" rotate={-1} className="mt-bk-md p-bk-lg text-center">
       <h3 className="font-display font-black text-xl uppercase">
@@ -141,7 +141,7 @@ function SearchResultsGridRender({
           </p>
           {query && (
             <p className="mt-bk-xs font-body text-sm text-bk-ink-soft">
-              {locale === "ar" ? `بحثت عن: "${query}"` : `Searched for: "${query}"`}
+              {locale !== "en" ? `بحثت عن: "${query}"` : `Searched for: "${query}"`}
             </p>
           )}
         </BentoCard>
@@ -154,7 +154,7 @@ function SearchResultsGridRender({
     <Section density="dense">
       {query && (
         <p className="mb-bk-md font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
-          {locale === "ar"
+          {locale !== "en"
             ? `${results.length} نتيجة لـ "${query}"`
             : `${results.length} results for "${query}"`}
         </p>

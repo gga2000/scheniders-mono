@@ -15,8 +15,26 @@ import type { LocaleCode } from "@scheniders/shared";
 
 export interface WhatsappProductInfo {
   name: string;
+  /** EC26: the chosen variant (e.g. "Red / L") — appended to the product name. */
+  variant?: string | null;
   price?: string | number | null;
   url?: string;
+}
+
+/** A line in a full-order WhatsApp message. */
+export interface WhatsappOrderItem {
+  name: string;
+  variant?: string | null;
+  quantity: number;
+}
+
+/** Optional delivery details to include in a full-order WhatsApp message. */
+export interface WhatsappCustomerInfo {
+  name?: string;
+  phone?: string;
+  governorate?: string;
+  area?: string;
+  address?: string;
 }
 
 const TEMPLATES: Record<"en" | "ar", string> = {
@@ -25,7 +43,7 @@ const TEMPLATES: Record<"en" | "ar", string> = {
 };
 
 function pickTemplate(locale: LocaleCode): string {
-  if (locale === "ar") return TEMPLATES.ar;
+  if (locale !== "en") return TEMPLATES.ar;
   return TEMPLATES.en;
 }
 
@@ -146,10 +164,56 @@ export function whatsappOrderLink(
   const digits = whatsappDigits(phone!);
 
   const template = pickTemplate(locale);
+  // EC26: fold the chosen variant into the product name so the merchant sees
+  // exactly which option was selected.
+  const namePart = product.variant
+    ? `${product.name} — ${product.variant}`
+    : (product.name ?? "");
   const message = template
-    .replace("{product_name}", product.name ?? "")
+    .replace("{product_name}", namePart)
     .replace("{product_url}", product.url ?? "")
     .replace("{price}", formatPrice(product.price));
 
   return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+}
+
+/**
+ * EC26: a `wa.me` link carrying the FULL order — every line (with variant +
+ * quantity), an optional delivery block, and the total — so the merchant
+ * receives the whole order instead of a bare "Hi" ping with zero context. Used
+ * by the cart + checkout WhatsApp CTAs (one source of truth). Returns null when
+ * no usable phone is configured.
+ */
+export function whatsappCartLink(
+  phone: string | null | undefined,
+  order: {
+    items: WhatsappOrderItem[];
+    customer?: WhatsappCustomerInfo;
+    total?: string | null;
+  },
+  locale: LocaleCode,
+): string | null {
+  if (!isPlausiblePhone(phone)) return null;
+  const ar = locale !== "en";
+  const parts: string[] = [
+    ar ? "مرحباً! أودّ إكمال طلبي:" : "Hi! I'd like to complete my order:",
+  ];
+  for (const i of order.items) {
+    const variant = i.variant ? ` — ${i.variant}` : "";
+    parts.push(`• ${i.name}${variant} × ${i.quantity}`);
+  }
+  if (order.total) {
+    parts.push(ar ? `الإجمالي: ${order.total}` : `Total: ${order.total}`);
+  }
+  const c = order.customer;
+  if (c && (c.name || c.phone || c.governorate || c.area || c.address)) {
+    parts.push(ar ? "— بيانات التوصيل —" : "— Delivery —");
+    if (c.name) parts.push(ar ? `الاسم: ${c.name}` : `Name: ${c.name}`);
+    if (c.phone) parts.push(ar ? `الهاتف: ${c.phone}` : `Phone: ${c.phone}`);
+    if (c.governorate)
+      parts.push(ar ? `المحافظة: ${c.governorate}` : `Governorate: ${c.governorate}`);
+    if (c.area) parts.push(ar ? `المنطقة: ${c.area}` : `Area: ${c.area}`);
+    if (c.address) parts.push(ar ? `العنوان: ${c.address}` : `Address: ${c.address}`);
+  }
+  return `https://wa.me/${whatsappDigits(phone!)}?text=${encodeURIComponent(parts.join("\n"))}`;
 }

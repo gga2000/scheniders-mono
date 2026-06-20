@@ -144,7 +144,7 @@ function ExitIntentOfferRender({
           <button
             type="button"
             onClick={dismiss}
-            aria-label={locale === "ar" ? "إغلاق" : "Close"}
+            aria-label={locale !== "en" ? "إغلاق" : "Close"}
             className="absolute top-3 right-3 w-9 h-9 bg-white flex items-center justify-center"
             style={{
               border:
@@ -171,7 +171,7 @@ function ExitIntentOfferRender({
                 borderRadius: "var(--bk-radius-input, 0.75rem)",
               }}
               aria-label={
-                locale === "ar"
+                locale !== "en"
                   ? `انسخ الكود ${props.discount_code}`
                   : `Copy code ${props.discount_code}`
               }
@@ -179,10 +179,10 @@ function ExitIntentOfferRender({
               {props.discount_code}
               <span className="ml-2 font-label font-bold text-xs text-bk-ink-faint normal-case">
                 {copied
-                  ? locale === "ar"
+                  ? locale !== "en"
                     ? "تم النسخ"
                     : "Copied"
-                  : locale === "ar"
+                  : locale !== "en"
                     ? "اضغط للنسخ"
                     : "Tap to copy"}
               </span>

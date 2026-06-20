@@ -6,6 +6,22 @@
 // =====================================================================
 
 import { headers } from "next/headers";
+import type { LocaleCode } from "@scheniders/shared";
+
+/**
+ * BCP-47 value for `<html lang>` (EC15). The root layout can't see the tenant,
+ * so it renders a static `ar`; the tenant subtree corrects it from the store's
+ * default locale. LTR-only project — only `lang` is ever set, never `dir`.
+ */
+export function htmlLangFor(locale: LocaleCode | null | undefined): string {
+  return locale ?? "ar";
+}
+
+/** OpenGraph `locale` (language_TERRITORY) for a tenant locale (EC15) — so an
+ *  en/ku store no longer advertises `ar_IQ` to crawlers and social cards. */
+export function ogLocaleFor(locale: LocaleCode | null | undefined): string {
+  return `${locale ?? "ar"}_IQ`;
+}
 
 /** Absolute origin (proto + host) of the current request, from proxy headers. */
 export async function getRequestOrigin(): Promise<string> {

@@ -79,7 +79,7 @@ function SiteFooterRender({
   ctx: SectionRenderContext;
 }) {
   const locale = ctx.runtime.locale;
-  const t = locale === "ar";
+  const t = locale !== "en";
   const name = ctx.tenant.business_name;
   const logo = ctx.tenant.branding?.logo_url ?? null;
   const tagline = props.tagline_i18n

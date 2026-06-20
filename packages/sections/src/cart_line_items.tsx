@@ -72,10 +72,10 @@ function CartLineItemsRender({
     <section className="px-4 py-bk-section-dense">
       <header className="mb-bk-md">
         <ScribbleHeading color="butter" as="h1">
-          {locale === "ar" ? "سلتك" : "Your Cart"}
+          {locale !== "en" ? "سلتك" : "Your Cart"}
         </ScribbleHeading>
         <p className="mt-bk-2xs font-body text-sm text-bk-ink-soft">
-          {locale === "ar"
+          {locale !== "en"
             ? `${itemCount} عنصر بانتظار الوصول إليك ✨`
             : `${itemCount} item${itemCount === 1 ? "" : "s"} waiting to come home with you ✨`}
         </p>
@@ -133,7 +133,7 @@ function CartLineItemsRender({
                   </p>
                 )}
                 <p className="mt-bk-2xs font-display font-black text-sm text-bk-primary">
-                  {formatPrice(lineTotal)}
+                  <bdi>{formatPrice(lineTotal, locale)}</bdi>
                 </p>
               </div>
               <div className="flex flex-col items-end gap-bk-xs">
@@ -182,7 +182,7 @@ function CartLineItemsRender({
                   onClick={() => removeItem(item.product_id, item.variant_id)}
                   className="font-label font-bold text-[11px] uppercase tracking-[0.15em] text-bk-ink-soft hover:text-bk-primary"
                 >
-                  {locale === "ar" ? "إزالة" : "Remove"}
+                  {locale !== "en" ? "إزالة" : "Remove"}
                 </button>
               </div>
             </li>

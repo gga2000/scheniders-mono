@@ -1,7 +1,7 @@
 "use client";
 
 import { Order } from "@/lib/supabase";
-import { formatIQD } from "@/lib/utils";
+import { FinancialValue } from "@/components/ui/financial-value";
 import { Activity } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 
@@ -33,11 +33,10 @@ function useTimeAgo() {
 
 interface RecentOrdersFeedProps {
     orders: Order[];
-    showFinancials: boolean;
     onOrderClick?: (order: Order) => void;
 }
 
-export function RecentOrdersFeed({ orders, showFinancials, onOrderClick }: RecentOrdersFeedProps) {
+export function RecentOrdersFeed({ orders, onOrderClick }: RecentOrdersFeedProps) {
     const { t } = useLanguage();
     const STATUS_STYLES = useStatusStyles();
     const timeAgo = useTimeAgo();
@@ -88,12 +87,12 @@ export function RecentOrdersFeed({ orders, showFinancials, onOrderClick }: Recen
                                 <span className="text-[10px] text-muted shrink-0 hidden sm:block">{order.city}</span>
                             )}
 
-                            {/* Price (admin only) */}
-                            {showFinancials && (
-                                <span className="text-xs font-bold text-foreground shrink-0 tabular-nums">
-                                    {formatIQD(order.price)}
-                                </span>
-                            )}
+                            {/* Price — masked until revealed (per-row eye on hover) */}
+                            <FinancialValue
+                                amount={order.price}
+                                className="text-xs font-bold text-foreground"
+                                iconSize={12}
+                            />
 
                             {/* Time */}
                             <span className="text-[10px] text-muted shrink-0 tabular-nums">

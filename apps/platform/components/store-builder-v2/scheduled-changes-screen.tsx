@@ -40,6 +40,10 @@ import type {
     StoreConfigV2,
     Variant,
 } from "@scheniders/shared";
+import {
+    zonedWallTimeToUtcISO,
+    utcISOToZonedWallTime,
+} from "@scheniders/shared";
 import type {
     UseStoreBuilderV2Return,
     StoredSchedule,
@@ -91,28 +95,15 @@ function deriveStatus(s: StoredSchedule, now: Date): ScheduleStatus {
     return "expired";
 }
 
-function dateInputValue(iso: string | undefined): string {
-    if (!iso) return "";
-    try {
-        const d = new Date(iso);
-        if (Number.isNaN(d.getTime())) return "";
-        // datetime-local expects YYYY-MM-DDTHH:mm in local time.
-        const pad = (n: number) => String(n).padStart(2, "0");
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    } catch {
-        return "";
-    }
+// EC21: convert between the UTC instant we store and the datetime-local input's
+// wall-clock, using the schedule's SELECTED timezone (not the browser's) — so a
+// merchant on a non-Baghdad browser no longer schedules ±3h off.
+function dateInputValue(iso: string | undefined, timeZone: string): string {
+    return iso ? utcISOToZonedWallTime(iso, timeZone) : "";
 }
 
-function inputToIso(value: string): string {
-    if (!value) return "";
-    try {
-        const d = new Date(value);
-        if (Number.isNaN(d.getTime())) return "";
-        return d.toISOString();
-    } catch {
-        return "";
-    }
+function inputToIso(value: string, timeZone: string): string {
+    return zonedWallTimeToUtcISO(value, timeZone);
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -683,10 +674,12 @@ function ScheduleRow({
                   })
                   .join("; ");
 
-    const [editStartValue, setEditStartValue] = useState<string>(dateInputValue(schedule.starts_at_iso));
+    const [editStartValue, setEditStartValue] = useState<string>(
+        dateInputValue(schedule.starts_at_iso, schedule.timezone),
+    );
     useEffect(() => {
-        setEditStartValue(dateInputValue(schedule.starts_at_iso));
-    }, [schedule.starts_at_iso]);
+        setEditStartValue(dateInputValue(schedule.starts_at_iso, schedule.timezone));
+    }, [schedule.starts_at_iso, schedule.timezone]);
 
     const icon =
         status === "active" ? (
@@ -761,7 +754,7 @@ function ScheduleRow({
                     <button
                         type="button"
                         onClick={() => {
-                            const iso = inputToIso(editStartValue);
+                            const iso = inputToIso(editStartValue, schedule.timezone);
                             if (iso) onEditStartSave?.(iso);
                         }}
                         data-testid={`schedule-row-${schedule.id}-edit-start-save`}
@@ -986,12 +979,12 @@ function ScheduleCreatorModal({
             setFormError("Label is required");
             return;
         }
-        const startsIso = inputToIso(startInput);
+        const startsIso = inputToIso(startInput, timezone);
         if (!startsIso) {
             setFormError("Valid start date is required");
             return;
         }
-        const endsIso = endInput ? inputToIso(endInput) : undefined;
+        const endsIso = endInput ? inputToIso(endInput, timezone) : undefined;
         if (endInput && !endsIso) {
             setFormError("End date is invalid");
             return;

@@ -59,7 +59,7 @@ function FreeGiftStrip({
 
   const headingResolved = headingTemplate.replace(
     /\{remaining\}/g,
-    formatPrice(remaining),
+    formatPrice(remaining, locale),
   );
 
   const pct = Math.min(

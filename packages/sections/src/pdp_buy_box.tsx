@@ -89,7 +89,7 @@ function PdpBuyBoxRender({
 }) {
   const product = ctx.product;
   const locale = ctx.runtime.locale;
-  const t = locale === "ar";
+  const t = locale !== "en";
   const addItem = useCart((s) => s.addItem);
 
   const variants = useMemo(
@@ -275,11 +275,11 @@ function PdpBuyBoxRender({
               className="font-display font-black text-3xl sm:text-4xl"
               style={{ color: "var(--bk-primary, #ff5a8a)" }}
             >
-              {formatPrice(unitPrice * qty)}
+              <bdi>{formatPrice(unitPrice * qty, locale)}</bdi>
             </span>
             {props.show_compare_price && onSale && product.compare_at_price != null && (
               <span className="font-body text-lg text-bk-ink-soft line-through">
-                {formatPrice(product.compare_at_price)}
+                <bdi>{formatPrice(product.compare_at_price, locale)}</bdi>
               </span>
             )}
             {onSale && (
@@ -423,7 +423,12 @@ function PdpBuyBoxRender({
           );
           const link = whatsappOrderLink(
             phone,
-            { name: product.name, url: pageUrl, price: formatPrice(unitPrice * qty) },
+            {
+              name: product.name,
+              variant: activeVariant?.name ?? null,
+              url: pageUrl,
+              price: formatPrice(unitPrice * qty, locale),
+            },
             locale,
           );
           if (!link) return null;
@@ -487,7 +492,7 @@ function PdpBuyBoxRender({
               className="font-display font-black text-xl sm:text-2xl"
               style={{ color: "var(--bk-ink, #1a1a1a)" }}
             >
-              {formatPrice(unitPrice * qty)}
+              <bdi>{formatPrice(unitPrice * qty, locale)}</bdi>
             </span>
           </div>
           <div className="shrink-0">

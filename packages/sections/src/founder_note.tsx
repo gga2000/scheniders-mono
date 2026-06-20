@@ -74,7 +74,7 @@ function FounderNote({
             )}
             <div className="absolute top-3 left-3">
               <Sticker bg="pink" rotate={-5} size="sm">
-                {locale === "ar" ? "كلمة المؤسِّس" : "Founder note"}
+                {locale !== "en" ? "كلمة المؤسِّس" : "Founder note"}
               </Sticker>
             </div>
           </div>

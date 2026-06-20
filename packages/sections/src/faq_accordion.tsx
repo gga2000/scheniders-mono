@@ -71,7 +71,7 @@ function FaqAccordionRender({
   ctx: { runtime: { locale: "ar" | "en" | "ku" } };
 }) {
   const locale = ctx.runtime.locale;
-  const t = locale === "ar";
+  const t = locale !== "en";
   const [openIdx, setOpenIdx] = useState<number | null>(0);
   const [query, setQuery] = useState("");
 

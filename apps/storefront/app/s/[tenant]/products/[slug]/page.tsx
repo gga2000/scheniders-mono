@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
+import { enforceRedirect } from "@/lib/redirects";
 import {
   getProductBySlug,
   getProductImages,
@@ -77,7 +78,11 @@ export default async function ProductPage({ params }: Props) {
   if (!tenant) notFound();
 
   const product = await getProductBySlug(tenant.id, slug);
-  if (!product) notFound();
+  if (!product) {
+    // N3: honor a configured redirect before 404ing (e.g. the slug changed).
+    enforceRedirect(tenant.store_config_v2, tenantParam, `/products/${slug}`);
+    notFound();
+  }
 
   const [images, variants, categories] = await Promise.all([
     getProductImages(product.id),

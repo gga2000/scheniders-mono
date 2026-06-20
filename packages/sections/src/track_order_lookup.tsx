@@ -48,7 +48,7 @@ function TrackOrderLookupRender({
   ctx: SectionRenderContext;
 }) {
   const locale = ctx.runtime.locale;
-  const t = locale === "ar";
+  const t = locale !== "en";
   const heading = resolveI18n(props.heading_i18n, locale);
   const subheading = resolveI18n(props.subheading_i18n, locale);
   const submitLabel = resolveI18n(props.submit_label_i18n, locale);

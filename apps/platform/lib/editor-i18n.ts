@@ -119,7 +119,10 @@ export const STRINGS = {
         setting_segments: { en: "Audiences", ar: "الشرائح", ku: "بەشەکان" },
         setting_experiments: { en: "A/B tests", ar: "التجارب", ku: "تاقیکردنەوەکان" },
         setting_scheduled: { en: "Scheduled changes", ar: "المجدول", ku: "خشتەکراو" },
+        setting_shipping: { en: "Shipping rates", ar: "أسعار التوصيل", ku: "نرخی گەیاندن" },
+        setting_discounts: { en: "Discount codes", ar: "أكواد الخصم", ku: "کۆدی داشکاندن" },
         setting_versions: { en: "Past versions", ar: "النسخ", ku: "وەشانەکان" },
+        setting_redirects: { en: "Redirects", ar: "إعادة التوجيه", ku: "ئاراستەکردن" },
     },
 
     /* ── Section list panel (Inspector "Blocks" tab) ───────────── */

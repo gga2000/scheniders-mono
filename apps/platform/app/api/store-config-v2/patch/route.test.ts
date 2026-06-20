@@ -177,4 +177,49 @@ describe("POST /api/store-config-v2/patch", () => {
         expect(json.applied.path).toEqual(["pages", 0, "title"]);
         expect(json.applied.value).toBe("new title");
     });
+
+    /* ── M1: path allowlist + size guards ──────────────────────────── */
+
+    it("returns 400 for a non-editable path root (e.g. schema_version)", async () => {
+        state.user = { id: "u1" };
+        const res = await POST(
+            makeRequest({
+                tenant_id: TENANT_UUID,
+                is_draft: true,
+                path: ["schema_version"],
+                value: 99,
+            }),
+        );
+        expect(res.status).toBe(400);
+        const json = (await res.json()) as { error: string };
+        expect(json.error).toBe("Field not editable");
+    });
+
+    it("returns 400 when the first path segment is numeric (no top-level array)", async () => {
+        state.user = { id: "u1" };
+        const res = await POST(
+            makeRequest({
+                tenant_id: TENANT_UUID,
+                is_draft: true,
+                path: [0, "title"],
+                value: "x",
+            }),
+        );
+        expect(res.status).toBe(400);
+    });
+
+    it("returns 400 when the patch value exceeds the size cap", async () => {
+        state.user = { id: "u1" };
+        const res = await POST(
+            makeRequest({
+                tenant_id: TENANT_UUID,
+                is_draft: true,
+                path: ["custom_css"],
+                value: "x".repeat(524_289),
+            }),
+        );
+        expect(res.status).toBe(400);
+        const json = (await res.json()) as { error: string };
+        expect(json.error).toBe("Value too large");
+    });
 });

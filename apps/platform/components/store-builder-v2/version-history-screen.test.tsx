@@ -71,6 +71,7 @@ function makeBuilder(
             author_name: "",
         }),
         listVersions: async () => [],
+        getVersionConfig: async () => null,
         restoreVersion: async () => {},
         listSchedules: async () => [],
         createSchedule: async () => ({
@@ -250,5 +251,37 @@ describe("VersionHistoryScreen", () => {
         expect(screen.getByTestId("version-history-diff")).toBeTruthy();
         // There should be at least one "changed" row.
         expect(screen.getAllByTestId("version-history-diff-row-changed").length).toBeGreaterThan(0);
+    });
+
+    it("fetches a version's config on demand for the diff (EC28 lazy load)", async () => {
+        const builder = makeBuilder({
+            getVersionConfig: async () => ({
+                ...emptyStoreConfigV2(),
+                default_locale: "en",
+            }),
+        });
+        builder.config.default_locale = "ar";
+        // A list row WITHOUT an inline config — the EC28 payload shape.
+        const v: StoredVersion = {
+            id: "v-lazy",
+            label: "Lazy",
+            is_named: true,
+            created_at: new Date(Date.now() - 60_000).toISOString(),
+            created_by: "user-1",
+            author_name: "Test Author",
+        };
+        render(
+            <VersionHistoryScreen
+                builder={builder}
+                onClose={() => {}}
+                initialVersions={[v]}
+            />,
+        );
+        fireEvent.click(screen.getByTestId("version-history-row-v-lazy"));
+        // The diff appears only AFTER getVersionConfig resolves.
+        expect(await screen.findByTestId("version-history-diff")).toBeTruthy();
+        expect(
+            screen.getAllByTestId("version-history-diff-row-changed").length,
+        ).toBeGreaterThan(0);
     });
 });

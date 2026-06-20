@@ -311,6 +311,46 @@ export interface NamedSnapshot {
 /* Commerce config — V1 business fields ported forward                  */
 /* ─────────────────────────────────────────────────────────────────── */
 
+/** Per-governorate COD delivery rate. */
+export interface GovernorateShippingRate {
+  /** Flat delivery fee (IQD). */
+  fee_iqd: number;
+  /** Subtotal (IQD) at/above which delivery is free here. Omit / 0 = never free. */
+  free_threshold_iqd?: number;
+  /** Optional ETA shown to the customer. */
+  eta_hours?: number;
+}
+
+/**
+ * Per-governorate shipping engine. `rates` overrides specific governorates;
+ * `default_rate` is the fallback for the rest. When the whole config is absent,
+ * the storefront + server fall back to the legacy flat fee (back-compat).
+ * (Named with the `Governorate` prefix to avoid clashing with the legacy V1
+ * `ShippingConfig` in store-config.ts.)
+ */
+export interface GovernorateShippingConfig {
+  rates?: Partial<Record<GovernorateCode, GovernorateShippingRate>>;
+  default_rate?: GovernorateShippingRate;
+}
+
+/** A coupon / discount code (definitions; redemption caps tracked in DB later). */
+export interface DiscountCode {
+  /** Case-insensitive code the customer enters. */
+  code: string;
+  kind: "percent" | "fixed";
+  /** percent: 0–100; fixed: IQD off. */
+  value: number;
+  /** Minimum cart subtotal (IQD) to qualify. */
+  min_subtotal_iqd?: number;
+  /** Cap (IQD) for a percent discount. */
+  max_discount_iqd?: number;
+  /** Active window (UTC ISO). */
+  starts_iso?: string;
+  ends_iso?: string;
+  /** Default true. */
+  enabled?: boolean;
+}
+
 export interface StoreCommerceConfig {
   whatsapp_number?: string;
   enable_whatsapp_order?: boolean;
@@ -319,6 +359,10 @@ export interface StoreCommerceConfig {
   socials?: { instagram?: string; facebook?: string; tiktok?: string; email?: string };
   returns_policy?: { window_days?: number };
   delivery_promise?: { baghdad_hours?: number; provinces_hours?: number; governorates_covered?: number };
+  /** Per-governorate shipping rates (EC2/EC16 engine). */
+  shipping?: GovernorateShippingConfig;
+  /** Coupon / discount codes. */
+  discounts?: DiscountCode[];
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -347,6 +391,45 @@ export interface StoreConfigV2 {
   commerce?: StoreCommerceConfig;   // NEW
   /** Merchant-supplied CSS injected into the storefront <head>. */
   custom_css?: string;              // NEW
+  /** URL redirects (e.g. after a slug change) — see RedirectRule. */
+  redirects?: RedirectRule[];       // NEW
+  /** Merchant-authored custom pages, served at /s/<tenant>/p/<slug>. */
+  custom_pages?: CustomPage[];      // NEW
+}
+
+/**
+ * A single URL redirect. Source/destination are tenant-relative paths with a
+ * leading slash (e.g. `/products/old-slug` → `/products/new-slug`); `to` may
+ * also be an absolute URL. Used to keep inbound ad/WhatsApp/search links alive
+ * when a slug changes.
+ */
+export interface RedirectRule {
+  /** Tenant-relative source path, leading slash. */
+  from: string;
+  /** Destination — tenant-relative path or absolute URL. */
+  to: string;
+  /** 308 permanent (default) vs 307 temporary. */
+  permanent?: boolean;
+}
+
+/**
+ * A merchant-authored custom page (campaign / landing / lookbook). Served at
+ * `/s/<tenant>/p/<slug>`. Unlike the fixed system pages, custom pages have a
+ * stable id + a URL slug; otherwise they reuse the same section + meta model.
+ */
+export interface CustomPage {
+  /** Stable id (React keys / reorder). */
+  id: string;
+  /** URL slug, unique per tenant (kebab-case). */
+  slug: string;
+  /** Editor + navigation label. */
+  title?: I18nString;
+  /** Section tree — same model as system pages. */
+  sections: SectionInstance[];
+  /** Per-page SEO. */
+  meta?: PageMeta;
+  /** Hidden = not served (404) without deleting. */
+  hidden?: boolean;
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -354,8 +437,12 @@ export interface StoreConfigV2 {
 /* ─────────────────────────────────────────────────────────────────── */
 
 export interface RuntimeContext {
-  /** Currently rendering page. */
-  page_id: PageId;
+  /**
+   * Currently rendering page. A system PageId, or a custom page's slug (custom
+   * pages have a non-enum identity). Page-conditioned variants only ever target
+   * system PageIds, so a custom slug simply matches none — see the resolver.
+   */
+  page_id: PageId | (string & {});
   /** Current breakpoint at render time (server SSR uses "mobile" default). */
   breakpoint: Breakpoint;
   /** Negotiated locale. */

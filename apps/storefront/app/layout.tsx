@@ -42,6 +42,16 @@ export default function RootLayout({
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@400,1&display=swap"
         />
+        {/* EC14: Arabic-capable fallback face. The Latin brand fonts
+            (Bricolage / DM Sans) carry no Arabic glyphs, so ar/ku text would
+            drop to the system font. Referenced last in the brand font stacks
+            (fontStack) and the tenant body cascade; the browser only fetches
+            the woff2 for glyphs in the Arabic unicode-range, so Latin-only
+            stores never download it. */}
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap"
+        />
       </head>
       <body>{children}</body>
     </html>

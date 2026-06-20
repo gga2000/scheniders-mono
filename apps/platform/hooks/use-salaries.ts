@@ -20,6 +20,8 @@ import type {
 interface CompletedOrderRow {
     id: string;
     created_at: string;
+    /** When the order entered `completed` status (set by the DB trigger). Drives payroll period bucketing. */
+    completed_at: string | null;
     order_id: string;
     customer_name: string | null;
     status: string;
@@ -28,6 +30,25 @@ interface CompletedOrderRow {
     price: number | null;
     sequence_number: number | null;
     refund_status: string | null;
+}
+
+/**
+ * True when a completed order's *completion* falls within [periodStart, periodEnd] (inclusive days, UTC).
+ *
+ * Payroll buckets completed orders by `completed_at` — the date the order was MARKED completed —
+ * not by `created_at` (when the order was placed). An order placed before a pay period but completed
+ * inside it (e.g. the customer's money arrived late) belongs to the period in which it completed; the
+ * employee is paid for it in that run. Bucketing by `created_at` would bury such an order in the
+ * already-paid window it was placed in, so it would be paid by nobody. Orders with no `completed_at`
+ * (historical imports that never transitioned through the trigger) are excluded.
+ */
+export function isCompletedInPeriod(
+    completedAt: string | null,
+    periodStart: string,
+    periodEnd: string
+): boolean {
+    if (!completedAt) return false;
+    return completedAt >= periodStart + "T00:00:00Z" && completedAt <= periodEnd + "T23:59:59Z";
 }
 
 /** A return/refund order row (any status) — for refund linkage + the returned-after-payment flag. */
@@ -284,16 +305,18 @@ export function useSalaries(
                 .lte("period_start", fetchEnd)
                 .gte("period_end", windowStart),
 
-            // Completed orders — filter by created_at, same as the orders page.
+            // Completed orders — filter by completed_at (when the order was MARKED completed),
+            // NOT created_at. An order placed before the window but completed inside it (late-arriving
+            // money) belongs to the period it completed in; created_at bucketing would lose it.
             // Pull the flags + sequence so we can split genuine deliveries from replacements/refunds.
             fetchAllRows<CompletedOrderRow>((from, to) =>
                 supabase
                     .from("orders")
-                    .select("id, created_at, order_id, customer_name, status, is_replacement, is_return, price, sequence_number, refund_status")
+                    .select("id, created_at, completed_at, order_id, customer_name, status, is_replacement, is_return, price, sequence_number, refund_status")
                     .eq("status", "completed")
-                    .gte("created_at", wStart)
-                    .lte("created_at", wEnd)
-                    .order("created_at", { ascending: true })
+                    .gte("completed_at", wStart)
+                    .lte("completed_at", wEnd)
+                    .order("completed_at", { ascending: true })
                     .range(from, to)
             ),
 
@@ -432,10 +455,9 @@ export function useSalaries(
                 l.created_at <= periodEnd + "T23:59:59Z"
             );
 
-            // Filter by created_at — same logic as the orders page date filter
+            // Bucket by completion date, not order date — see isCompletedInPeriod.
             const periodCompletedOrders = completedOrders.filter(o =>
-                o.created_at >= periodStart + "T00:00:00Z" &&
-                o.created_at <= periodEnd + "T23:59:59Z"
+                isCompletedInPeriod(o.completed_at, periodStart, periodEnd)
             );
 
             // Attribution: all completed orders in period OR only those last-touched by this employee
@@ -464,10 +486,15 @@ export function useSalaries(
                     status: o.status,
                     bucket: classifyOrder(o, refundedOriginals),
                     createdAt: o.created_at,
+                    completedAt: o.completed_at,
                     amount: o.price ?? 0,
                 }))
-                // Flagged orders (refunds, then replacements) first so they stay visible if the list is capped
-                .sort((a, b) => bucketRank[a.bucket] - bucketRank[b.bucket] || b.createdAt.localeCompare(a.createdAt));
+                // Flagged orders (refunds, then replacements) first so they stay visible if the list is
+                // capped; then most-recently-completed first (the date that placed it in this period).
+                .sort((a, b) =>
+                    bucketRank[a.bucket] - bucketRank[b.bucket] ||
+                    (b.completedAt ?? b.createdAt).localeCompare(a.completedAt ?? a.createdAt)
+                );
 
             let genuine = 0, replacements = 0, refunds = 0;
             for (const d of orderDetails) {
@@ -580,8 +607,7 @@ export function useSalaries(
     const periodBreakdown = useMemo((): OrderBreakdown => {
         if (!globalPeriodStart || !globalPeriodEnd) return EMPTY_BREAKDOWN;
         const inPeriod = completedOrders.filter(o =>
-            o.created_at >= globalPeriodStart + "T00:00:00Z" &&
-            o.created_at <= globalPeriodEnd + "T23:59:59Z"
+            isCompletedInPeriod(o.completed_at, globalPeriodStart, globalPeriodEnd)
         );
         let genuine = 0, replacements = 0, refunds = 0;
         for (const o of inPeriod) {

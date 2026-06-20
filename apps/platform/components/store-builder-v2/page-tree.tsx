@@ -26,6 +26,8 @@ import {
     Search,
     ShoppingBag,
     ShoppingCart,
+    Signpost,
+    Ticket,
     Truck,
     Users,
     type LucideIcon,
@@ -127,7 +129,10 @@ export type SettingsSectionId =
     | "scheduled"
     | "versions"
     | "health"
-    | "i18n";
+    | "i18n"
+    | "shipping"
+    | "discounts"
+    | "redirects";
 
 interface SettingsNode {
     id: SettingsSectionId;
@@ -148,7 +153,10 @@ const ADVANCED_SETTINGS: SettingsNode[] = [
     { id: "segments", icon: Users, labelKey: "setting_segments", label: "Audiences" },
     { id: "experiments", icon: FlaskConical, labelKey: "setting_experiments", label: "A/B tests" },
     { id: "scheduled", icon: Calendar, labelKey: "setting_scheduled", label: "Scheduled changes" },
+    { id: "shipping", icon: Truck, labelKey: "setting_shipping", label: "Shipping rates" },
+    { id: "discounts", icon: Ticket, labelKey: "setting_discounts", label: "Discount codes" },
     { id: "versions", icon: History, labelKey: "setting_versions", label: "Past versions" },
+    { id: "redirects", icon: Signpost, labelKey: "setting_redirects", label: "Redirects" },
 ];
 
 const ADVANCED_OPEN_KEY = "schneiders.builder.advanced.open";
@@ -178,7 +186,10 @@ const SETTING_TINT: Record<SettingsSectionId, string> = {
     segments: "sb-tile--trust",
     experiments: "sb-tile--conversion",
     scheduled: "sb-tile--content",
+    shipping: "sb-tile--trust",
+    discounts: "sb-tile--conversion",
     versions: "sb-tile--page",
+    redirects: "sb-tile--trust",
 };
 
 /* ─────────────────────────────────────────────────────────────────── */

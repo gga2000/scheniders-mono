@@ -71,7 +71,7 @@ function SiteHeaderRender({
   ctx: SectionRenderContext;
 }) {
   const locale = ctx.runtime.locale;
-  const t = locale === "ar";
+  const t = locale !== "en";
   const [open, setOpen] = useState(false);
 
   // The cart count comes from a localStorage-persisted store, so it's empty

@@ -79,7 +79,7 @@ function PdpVariantsRender({
   if (!ctx.product || visible.length === 0) return null;
 
   const locale = ctx.runtime.locale;
-  const labelText = locale === "ar" ? "اختر الخيار" : "Choose option";
+  const labelText = locale !== "en" ? "اختر الخيار" : "Choose option";
 
   if (props.layout === "dropdown") {
     return (
@@ -105,7 +105,7 @@ function PdpVariantsRender({
                 <option key={v.id} value={v.id} disabled={oos}>
                   {v.name}
                   {oos
-                    ? locale === "ar"
+                    ? locale !== "en"
                       ? " — نفد"
                       : " — out of stock"
                     : ""}

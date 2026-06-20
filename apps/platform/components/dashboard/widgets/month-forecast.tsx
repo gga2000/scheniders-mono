@@ -1,16 +1,15 @@
 "use client";
 
 import { MonthForecast as MonthForecastType } from "@/lib/analytics/dashboard-calculations";
-import { formatIQD } from "@/lib/utils";
+import { FinancialValue } from "@/components/ui/financial-value";
 import { CalendarDays, TrendingUp } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 
 interface MonthForecastProps {
     forecast: MonthForecastType;
-    showFinancials: boolean;
 }
 
-export function MonthForecast({ forecast, showFinancials }: MonthForecastProps) {
+export function MonthForecast({ forecast }: MonthForecastProps) {
     const { projectedOrders, projectedRevenue, daysElapsed, daysInMonth, ordersThisMonth, revenueThisMonth, ordersPerDay } = forecast;
     const progressPct = Math.round((daysElapsed / daysInMonth) * 100);
     const { t, language } = useLanguage();
@@ -53,15 +52,15 @@ export function MonthForecast({ forecast, showFinancials }: MonthForecastProps) 
                     </div>
                 </div>
 
-                {showFinancials && (
-                    <div>
-                        <p className="text-[10px] font-bold text-purple-900/50 uppercase tracking-wider mb-0.5">{t("dashboard.forecast.projectedRevenue")}</p>
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-2xl font-bold text-purple-950">{formatIQD(projectedRevenue)}</span>
-                            <span className="text-xs text-purple-900/40">({formatIQD(revenueThisMonth)} {t("dashboard.forecast.soFar")})</span>
-                        </div>
+                <div>
+                    <p className="text-[10px] font-bold text-purple-900/50 uppercase tracking-wider mb-0.5">{t("dashboard.forecast.projectedRevenue")}</p>
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                        <FinancialValue amount={projectedRevenue} className="text-2xl font-bold text-purple-950" iconSize={15} />
+                        <span className="text-xs text-purple-900/40 inline-flex items-center gap-1">
+                            (<FinancialValue amount={revenueThisMonth} hideToggle className="text-xs text-purple-900/40" /> {t("dashboard.forecast.soFar")})
+                        </span>
                     </div>
-                )}
+                </div>
             </div>
 
             <div className="flex items-center gap-1.5 mt-3 text-[10px] text-purple-900/40">

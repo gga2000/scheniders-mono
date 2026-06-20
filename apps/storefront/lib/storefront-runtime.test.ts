@@ -37,4 +37,15 @@ describe("pickV2Page", () => {
     expect(pickV2Page(makeV2([page]), "home")).toBeNull();
   });
   it("returns null for null config", () => { expect(pickV2Page(null, "home")).toBeNull(); });
+
+  it("returns null (no crash) when pages is malformed — EC7", () => {
+    expect(pickV2Page({ pages: {} } as unknown as StoreConfigV2, "home")).toBeNull();
+    expect(pickV2Page({ pages: "oops" } as unknown as StoreConfigV2, "home")).toBeNull();
+    expect(pickV2Page({} as unknown as StoreConfigV2, "home")).toBeNull();
+  });
+
+  it("returns null (no crash) when a page's sections is non-array — EC7", () => {
+    const page = { page_id: "home", sections: {} } as unknown as PageConfig;
+    expect(pickV2Page(makeV2([page]), "home")).toBeNull();
+  });
 });

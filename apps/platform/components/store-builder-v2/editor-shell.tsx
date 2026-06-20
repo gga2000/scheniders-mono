@@ -18,6 +18,7 @@ import type {
     LocaleCode,
     PageConfig,
     PageId,
+    PageMeta,
     RuntimeContext,
     SectionInstance,
     StoreConfigV2,
@@ -59,6 +60,9 @@ import { VersionHistoryScreen } from "./version-history-screen";
 import { ScheduledChangesScreen } from "./scheduled-changes-screen";
 import { SegmentsScreen } from "./segments-screen";
 import { ExperimentsScreen } from "./experiments-screen";
+import { RedirectsScreen } from "./redirects-screen";
+import { ShippingScreen } from "./shipping-screen";
+import { DiscountsScreen } from "./discounts-screen";
 import { I18nScreen, I18nToolbarPill } from "./i18n-screen";
 import { InspectorRail, type InspectorTab } from "./inspector-rail";
 import { EditorLocaleProvider } from "@/lib/editor-locale-context";
@@ -93,6 +97,8 @@ export interface EditorShellProps {
     publishedConfig?: StoreConfigV2 | null;
     hasPublished: boolean;
     initiallyDirty?: boolean;
+    /** EC33: DB `updated_at` (epoch ms) — gates stale crash-backup recovery. */
+    initialUpdatedAt?: number | null;
     /**
      * Short-lived HMAC-signed preview token for the iframe. Minted
      * server-side from `PREVIEW_TOKEN_SECRET` with a 1h TTL, scoped to
@@ -173,6 +179,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         publishedConfig,
         hasPublished,
         initiallyDirty,
+        initialUpdatedAt,
         previewToken,
         previewProducts,
         previewCategories,
@@ -194,6 +201,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         initialConfig,
         hasPublished,
         initiallyDirty,
+        initialUpdatedAt,
     });
     const liveStorefrontUrl = useStorefrontUrl(tenant.slug, tenant.id);
 
@@ -390,7 +398,10 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                 id === "scheduled" ||
                 id === "segments" ||
                 id === "experiments" ||
-                id === "i18n"
+                id === "i18n" ||
+                id === "shipping" ||
+                id === "discounts" ||
+                id === "redirects"
             ) {
                 set_system_screen(id);
             } else {
@@ -455,6 +466,35 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                 }
                 return { ...prev, pages: nextPages };
             });
+        },
+        [builder, builder.active_page],
+    );
+
+    // The active page's SEO meta (E1) + its update handler.
+    const activePageMeta = useMemo(
+        () =>
+            builder.config.pages.find((p) => p.page_id === builder.active_page)
+                ?.meta,
+        [builder.config.pages, builder.active_page],
+    );
+    const handlePageMetaChange = useCallback(
+        (next: PageMeta): void => {
+            builder.setConfig((prev) => {
+                const idx = prev.pages.findIndex(
+                    (p) => p.page_id === builder.active_page,
+                );
+                const nextPages = [...prev.pages];
+                if (idx >= 0) {
+                    nextPages[idx] = { ...nextPages[idx], meta: next };
+                } else {
+                    nextPages.push({
+                        page_id: builder.active_page,
+                        sections: [],
+                        meta: next,
+                    });
+                }
+                return { ...prev, pages: nextPages };
+            }, "Edited page SEO");
         },
         [builder, builder.active_page],
     );
@@ -937,6 +977,9 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         "scheduled",
         "versions",
         "i18n",
+        "shipping",
+        "discounts",
+        "redirects",
     ] as const;
 
     if (isMobile) {
@@ -1292,6 +1335,21 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                             }}
                             onClose={handleCloseSystemScreen}
                         />
+                    ) : system_screen === "shipping" ? (
+                        <ShippingScreen
+                            builder={builder}
+                            onClose={handleCloseSystemScreen}
+                        />
+                    ) : system_screen === "discounts" ? (
+                        <DiscountsScreen
+                            builder={builder}
+                            onClose={handleCloseSystemScreen}
+                        />
+                    ) : system_screen === "redirects" ? (
+                        <RedirectsScreen
+                            builder={builder}
+                            onClose={handleCloseSystemScreen}
+                        />
                     ) : (
                         <>
                             <div
@@ -1366,6 +1424,9 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                                 segments={builder.config.segments}
                                 brandKit={builder.config.brand_kit}
                                 onChangeBrandKit={handleBrandKitChange}
+                                pageMeta={activePageMeta}
+                                onChangePageMeta={handlePageMetaChange}
+                                storefrontUrl={storefrontUrl}
                                 config={builder.config}
                                 tenantName={tenant.business_name}
                                 onJumpToSetting={handleSelectSetting}

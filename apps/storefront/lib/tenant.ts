@@ -1,7 +1,20 @@
 import { cache } from "react";
-import { createSupabaseServerClient } from "./supabase/server";
+import { unstable_cache } from "next/cache";
+import {
+  createSupabaseServerClient,
+  createSupabasePublicClient,
+} from "./supabase/server";
 import type { Tables } from "@scheniders/supabase";
 import type { Tenant } from "./types";
+
+/**
+ * EC29: how long a PUBLIC storefront read is served from Next's data cache
+ * before a single request re-fetches it. Caps DB load to ~1 fetch per tenant
+ * per window during a viral spike (instead of one round-trip per request);
+ * merchant publishes appear within this window. The token-gated PREVIEW path
+ * stays uncached so the editor always sees fresh draft state.
+ */
+const STOREFRONT_CACHE_SECONDS = 60;
 
 /** Columns shared between legacy + v2-aware queries. */
 const BASE_TENANT_COLS =
@@ -19,8 +32,16 @@ export const PUBLIC_TENANT_COLS = `${BASE_TENANT_COLS}, store_config_v2`;
  */
 export const PREVIEW_TENANT_COLS = `${BASE_TENANT_COLS}, store_config_v2, store_config_v2_draft`;
 
+/**
+ * Both storefront clients are the same runtime Supabase API, but @supabase/ssr
+ * bundles a different @supabase/supabase-js version than the one installed
+ * directly, so their `SupabaseClient` generics don't unify. `selectTenant` is
+ * typed for the SSR client; the cached path casts its public client to this.
+ */
+type ServerClientLike = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+
 async function selectTenant(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  supabase: ServerClientLike,
   filter: { kind: "slug"; value: string } | { kind: "id"; value: string },
   opts?: { includeDraft?: boolean },
 ): Promise<Tenant | null> {
@@ -56,32 +77,58 @@ async function selectTenant(
  * Cached per-request via React `cache` so multiple components in the same
  * request share the same DB call.
  */
-export const getTenantBySlug = cache(async (slug: string): Promise<Tenant | null> => {
-  if (!slug) return null;
-  const supabase = await createSupabaseServerClient();
-  return selectTenant(supabase, { kind: "slug", value: slug });
-});
+export const getTenantBySlug = cache((slug: string): Promise<Tenant | null> =>
+  // React `cache` dedupes within a request; `unstable_cache` persists ACROSS
+  // requests (the EC29 win). The callback uses the cookie-free public client so
+  // it's safe inside unstable_cache. Tagged for future on-demand revalidation
+  // (a platform→storefront publish webhook); a 60s TTL bounds staleness today.
+  unstable_cache(
+    async (): Promise<Tenant | null> => {
+      if (!slug) return null;
+      // Cross-version cast (see ServerClientLike) — same runtime API.
+      const supabase = createSupabasePublicClient() as unknown as ServerClientLike;
+      return selectTenant(supabase, { kind: "slug", value: slug });
+    },
+    ["storefront-tenant-slug", slug],
+    {
+      revalidate: STOREFRONT_CACHE_SECONDS,
+      tags: ["storefront-tenant", `storefront-tenant-${slug}`],
+    },
+  )(),
+);
 
 /**
  * Resolve tenant by custom domain (Tier 3+ feature).
  * Stub for now — will query a `tenant_domains` table later.
  */
 export const getTenantByCustomDomain = cache(
-  async (domain: string): Promise<Tenant | null> => {
-    if (!domain) return null;
+  (domain: string): Promise<Tenant | null> =>
+    unstable_cache(
+      async (): Promise<Tenant | null> => {
+        if (!domain) return null;
+        // Cross-version cast (see ServerClientLike) — same runtime API.
+        const supabase =
+          createSupabasePublicClient() as unknown as ServerClientLike;
+        const { data } = await supabase
+          .from("tenant_domains")
+          .select("tenant_id")
+          .eq("domain", domain)
+          .eq("verified", true)
+          .maybeSingle()
+          .then((r) => ({
+            ...r,
+            data: r.data as Pick<Tables<"tenant_domains">, "tenant_id"> | null,
+          }));
 
-    const supabase = await createSupabaseServerClient();
-    const { data } = await supabase
-      .from("tenant_domains")
-      .select("tenant_id")
-      .eq("domain", domain)
-      .eq("verified", true)
-      .maybeSingle()
-      .then(r => ({ ...r, data: r.data as Pick<Tables<"tenant_domains">, "tenant_id"> | null }));
-
-    if (!data?.tenant_id) return null;
-    return selectTenant(supabase, { kind: "id", value: data.tenant_id });
-  },
+        if (!data?.tenant_id) return null;
+        return selectTenant(supabase, { kind: "id", value: data.tenant_id });
+      },
+      ["storefront-tenant-domain", domain],
+      {
+        revalidate: STOREFRONT_CACHE_SECONDS,
+        tags: ["storefront-tenant", `storefront-tenant-domain-${domain}`],
+      },
+    )(),
 );
 
 /**

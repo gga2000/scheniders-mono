@@ -14,6 +14,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      abandoned_carts: {
+        Row: {
+          created_at: string
+          governorate: string | null
+          id: string
+          items: Json
+          locale: string | null
+          phone: string
+          recovered_at: string | null
+          reminded_at: string | null
+          subtotal_iqd: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          governorate?: string | null
+          id?: string
+          items?: Json
+          locale?: string | null
+          phone: string
+          recovered_at?: string | null
+          reminded_at?: string | null
+          subtotal_iqd?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          governorate?: string | null
+          id?: string
+          items?: Json
+          locale?: string | null
+          phone?: string
+          recovered_at?: string | null
+          reminded_at?: string | null
+          subtotal_iqd?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "abandoned_carts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       access_requests: {
         Row: {
           created_at: string
@@ -3932,6 +3982,60 @@ export type Database = {
           },
         ]
       }
+      product_reviews: {
+        Row: {
+          author_name: string | null
+          body: string | null
+          created_at: string
+          id: string
+          photo_urls: string[]
+          product_id: string
+          rating: number
+          status: string
+          tenant_id: string
+          title: string | null
+        }
+        Insert: {
+          author_name?: string | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          photo_urls?: string[]
+          product_id: string
+          rating: number
+          status?: string
+          tenant_id: string
+          title?: string | null
+        }
+        Update: {
+          author_name?: string | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          photo_urls?: string[]
+          product_id?: string
+          rating?: number
+          status?: string
+          tenant_id?: string
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_reviews_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_reviews_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_storage: {
         Row: {
           id: string
@@ -6544,6 +6648,13 @@ export type Database = {
         Returns: string
       }
       chat_topic_user: { Args: { p_user_id: string }; Returns: string }
+      chat_unread_counts: {
+        Args: never
+        Returns: {
+          conversation_id: string
+          unread: number
+        }[]
+      }
       compute_lead_predictions: {
         Args: {
           p_avg_order_count?: number

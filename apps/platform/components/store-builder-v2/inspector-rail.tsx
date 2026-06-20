@@ -13,13 +13,14 @@
 // =====================================================================
 
 import { useMemo, useState } from "react";
-import { Blocks as BlocksIcon, HeartPulse, Palette } from "lucide-react";
+import { Blocks as BlocksIcon, HeartPulse, Palette, Search } from "lucide-react";
 import type {
     AudienceSegment,
     BrandKit,
     Experiment,
     LocaleCode,
     PageId,
+    PageMeta,
     SectionInstance,
     StoreConfigV2,
 } from "@scheniders/shared";
@@ -27,9 +28,10 @@ import { cn } from "@/lib/utils";
 import { SectionListPanel } from "./section-list-panel";
 import { BrandKitEditor } from "./brand-kit-editor";
 import { HealthChecklistScreen } from "./health-checklist-screen";
+import { PageSeoPanel } from "./page-seo-panel";
 import type { SettingsSectionId } from "./page-tree";
 
-export type InspectorTab = "blocks" | "style" | "health";
+export type InspectorTab = "blocks" | "style" | "seo" | "health";
 
 export interface InspectorRailProps {
     /** Currently active tab. */
@@ -65,6 +67,11 @@ export interface InspectorRailProps {
     brandKit: BrandKit;
     onChangeBrandKit: (next: BrandKit) => void;
 
+    /* ── SEO tab (per-page meta) ────────────────────────────────── */
+    pageMeta?: PageMeta;
+    onChangePageMeta: (next: PageMeta) => void;
+    storefrontUrl?: string;
+
     /* ── Health tab ─────────────────────────────────────────────── */
     config: StoreConfigV2;
     tenantName: string;
@@ -97,6 +104,9 @@ export function InspectorRail(props: InspectorRailProps): React.ReactElement {
         onEditLayer,
         brandKit,
         onChangeBrandKit,
+        pageMeta,
+        onChangePageMeta,
+        storefrontUrl,
         config,
         tenantName,
         onJumpToSetting,
@@ -116,7 +126,7 @@ export function InspectorRail(props: InspectorRailProps): React.ReactElement {
                 data-testid="inspector-rail-tabs"
                 className="shrink-0 border-b border-(--card-border) p-2"
             >
-                <div className="grid grid-cols-3 gap-0.5 rounded-full border border-(--card-border) bg-(--background-soft) p-1">
+                <div className="grid grid-cols-4 gap-0.5 rounded-full border border-(--card-border) bg-(--background-soft) p-1">
                     <InspectorTabBtn
                         icon={<BlocksIcon className="h-3.5 w-3.5" aria-hidden="true" />}
                         label="Blocks"
@@ -130,6 +140,13 @@ export function InspectorRail(props: InspectorRailProps): React.ReactElement {
                         testId="inspector-tab-style"
                         active={activeTab === "style"}
                         onClick={() => onChangeTab("style")}
+                    />
+                    <InspectorTabBtn
+                        icon={<Search className="h-3.5 w-3.5" aria-hidden="true" />}
+                        label="SEO"
+                        testId="inspector-tab-seo"
+                        active={activeTab === "seo"}
+                        onClick={() => onChangeTab("seo")}
                     />
                     <InspectorTabBtn
                         icon={<HeartPulse className="h-3.5 w-3.5" aria-hidden="true" />}
@@ -174,6 +191,16 @@ export function InspectorRail(props: InspectorRailProps): React.ReactElement {
                             tenantId={tenantId}
                         />
                     </div>
+                ) : activeTab === "seo" ? (
+                    <PageSeoPanel
+                        pageId={pageId}
+                        pageLabel={pageLabel}
+                        meta={pageMeta}
+                        onChange={onChangePageMeta}
+                        activeLocale={activeLocale}
+                        storefrontUrl={storefrontUrl}
+                        businessName={tenantName}
+                    />
                 ) : (
                     <div
                         data-testid="inspector-health-panel"

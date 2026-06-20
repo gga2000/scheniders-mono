@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { z } from "zod";
+import { assignAbArm } from "@scheniders/shared";
+import type { Experiment } from "@scheniders/shared";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +11,9 @@ export const runtime = "nodejs";
 const bodySchema = z.object({
   tenant_id: z.string().uuid(),
   experiment_id: z.string().min(1),
-  arm_id: z.string().min(1),
+  // EC19: accepted for back-compat but IGNORED — the arm is re-derived
+  // server-side from the visitor key, so a client can't credit a chosen arm.
+  arm_id: z.string().min(1).optional(),
   event_type: z.enum(["view", "add_to_cart", "click"]),
 });
 
@@ -28,7 +32,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       return NextResponse.json({ error: "Invalid body" }, { status: 400 });
     }
 
-    const { tenant_id, experiment_id, arm_id, event_type } = parsed.data;
+    const { tenant_id, experiment_id, event_type } = parsed.data;
 
     // 2. Visitor key from httpOnly cookie — written by middleware.
     const visitor_key = (await cookies()).get("sb_vid")?.value;
@@ -52,7 +56,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     }
 
     const storeConfig = tenant.store_config_v2 as
-      | { experiments?: Array<{ id: string; status: string; arms: Array<{ id: string }> }> }
+      | { experiments?: Experiment[] }
       | null
       | undefined;
 
@@ -64,9 +68,12 @@ export async function POST(req: Request): Promise<NextResponse> {
       return new NextResponse(null, { status: 204 });
     }
 
-    const armExists = experiment.arms.some((a) => a.id === arm_id);
-    if (!armExists) {
-      // Unknown arm — silently ignore.
+    // EC19: re-derive the visitor's arm deterministically from their key —
+    // never trust a client-supplied arm_id (which would let an attacker pour
+    // events into whichever arm they want to declare the "winner").
+    const arm_id = assignAbArm(experiment, visitor_key);
+    if (!arm_id) {
+      // Visitor isn't bucketed (experiment paused / no arms) — ignore.
       return new NextResponse(null, { status: 204 });
     }
 

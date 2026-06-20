@@ -48,7 +48,7 @@ const validBody = {
   tenant_id: VALID_TENANT_ID,
   customer_name: "Ali Hassan",
   phone: "07701234567",
-  governorate_code: "BGH",
+  governorate_code: "BG",
   city: "Baghdad",
   address_details: "Street 14, District 5",
   payment_method: "cod",
@@ -81,7 +81,7 @@ describe("checkoutOrderBodySchema", () => {
     tenant_id: VALID_TENANT_ID,
     customer_name: "Ali Hassan",
     phone: "07701234567",
-    governorate_code: "BGH",
+    governorate_code: "BG",
     city: "Baghdad",
     address_details: "Street 14, District 5",
     payment_method: "cod",
@@ -145,7 +145,17 @@ describe("checkoutOrderBodySchema", () => {
 // ---------------------------------------------------------------------------
 describe("POST /api/checkout/orders", () => {
   const mockInsert = vi.fn();
+  const mockSingle = vi.fn();
   const mockFrom = vi.fn();
+
+  // A running experiment with a single 100%-traffic arm → assignAbArm returns
+  // "arm_real" for any visitor, so the SERVER-re-derived attribution (EC19) is
+  // deterministic in tests.
+  const RUNNING_EXP = {
+    id: "exp_real",
+    status: "running",
+    arms: [{ id: "arm_real", traffic_pct: 100 }],
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -163,9 +173,18 @@ describe("POST /api/checkout/orders", () => {
       get: vi.fn().mockReturnValue(undefined),
     } as never);
 
-    // Default: insert succeeds
+    // Default: insert succeeds; tenants.select(...).eq(...).single() returns a
+    // store config carrying one running experiment.
     mockInsert.mockResolvedValue({ error: null });
-    mockFrom.mockReturnValue({ insert: mockInsert });
+    mockSingle.mockResolvedValue({
+      data: { store_config_v2: { experiments: [RUNNING_EXP] } },
+      error: null,
+    });
+    mockFrom.mockImplementation((table: string) =>
+      table === "tenants"
+        ? { select: () => ({ eq: () => ({ single: mockSingle }) }) }
+        : { insert: mockInsert },
+    );
     vi.mocked(createSupabaseServiceClient).mockReturnValue({
       from: mockFrom,
     } as never);
@@ -194,29 +213,41 @@ describe("POST /api/checkout/orders", () => {
     expect(res.status).toBe(400);
   });
 
-  it("(j) records experiment events when visitor cookie and arms are present", async () => {
+  it("(j) records a re-derived experiment event when a visitor cookie is present", async () => {
     vi.mocked(cookies).mockResolvedValue({
       get: vi.fn().mockReturnValue({ value: "visitor-abc" }),
     } as never);
 
-    const bodyWithArms = {
-      ...validBody,
-      ab_test_arms: { exp1: "arm_a" },
-    };
-    const res = await POST(makeRequest(bodyWithArms));
+    const res = await POST(makeRequest(validBody));
     expect(res.status).toBe(200);
 
     expect(mockFrom).toHaveBeenCalledWith("store_config_experiment_events");
+    // Attribution is derived server-side from the store config + visitor key.
     expect(mockInsert).toHaveBeenCalledWith([
       {
         tenant_id: VALID_TENANT_ID,
-        experiment_id: "exp1",
-        arm_id: "arm_a",
+        experiment_id: "exp_real",
+        arm_id: "arm_real",
         visitor_key: "visitor-abc",
         event_type: "order",
         revenue_iqd: 5000,
       },
     ]);
+  });
+
+  it("(k2) forwards idempotency_key to submitCheckout (EC17)", async () => {
+    const res = await POST(
+      makeRequest({ ...validBody, idempotency_key: "ec17-key-abcdef12" }),
+    );
+    expect(res.status).toBe(200);
+    expect(submitCheckout).toHaveBeenCalledWith(
+      expect.objectContaining({ idempotencyKey: "ec17-key-abcdef12" }),
+    );
+  });
+
+  it("(k3) rejects a too-short idempotency_key (400)", async () => {
+    const res = await POST(makeRequest({ ...validBody, idempotency_key: "short" }));
+    expect(res.status).toBe(400);
   });
 
   it("(k) does NOT record events when sb_vid cookie is absent", async () => {
@@ -233,15 +264,43 @@ describe("POST /api/checkout/orders", () => {
     expect(mockFrom).not.toHaveBeenCalled();
   });
 
-  it("(l) does NOT record events when ab_test_arms is empty", async () => {
+  it("(l) ignores client-supplied ab_test_arms — attribution is re-derived (EC19)", async () => {
     vi.mocked(cookies).mockResolvedValue({
       get: vi.fn().mockReturnValue({ value: "visitor-abc" }),
     } as never);
 
-    const bodyWithEmptyArms = { ...validBody, ab_test_arms: {} };
-    const res = await POST(makeRequest(bodyWithEmptyArms));
+    // Attacker tries to credit a forged arm + a non-existent experiment.
+    const forged = {
+      ...validBody,
+      ab_test_arms: { exp_real: "forged_arm", ghost_exp: "ghost_arm" },
+    };
+    const res = await POST(makeRequest(forged));
     expect(res.status).toBe(200);
-    expect(mockFrom).not.toHaveBeenCalled();
+
+    // Only the store's real experiment + its re-derived arm are recorded.
+    expect(mockInsert).toHaveBeenCalledWith([
+      expect.objectContaining({
+        experiment_id: "exp_real",
+        arm_id: "arm_real",
+      }),
+    ]);
+    const inserted = JSON.stringify(mockInsert.mock.calls[0]?.[0]);
+    expect(inserted).not.toContain("forged_arm");
+    expect(inserted).not.toContain("ghost_exp");
+  });
+
+  it("(l2) records no events when the store has no running experiments", async () => {
+    vi.mocked(cookies).mockResolvedValue({
+      get: vi.fn().mockReturnValue({ value: "visitor-abc" }),
+    } as never);
+    mockSingle.mockResolvedValue({
+      data: { store_config_v2: { experiments: [] } },
+      error: null,
+    });
+
+    const res = await POST(makeRequest(validBody));
+    expect(res.status).toBe(200);
+    expect(mockInsert).not.toHaveBeenCalled();
   });
 
   it("(m) does NOT record events on a failed order", async () => {

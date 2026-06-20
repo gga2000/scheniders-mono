@@ -29,6 +29,7 @@ import type {
 } from "@scheniders/shared";
 import { RenderSection } from "@scheniders/sections";
 import type { SectionRenderContext } from "@scheniders/sections";
+import { isAllowedParentOrigin, isSafePreviewNavUrl } from "@/lib/preview-origin";
 
 export interface SchneidersPreviewLiveRendererProps {
   /** Server-rendered initial config (used until the parent sends an update). */
@@ -88,6 +89,10 @@ export function SchneidersPreviewLiveRenderer({
     if (window.parent === window) return;
 
     function onMessage(e: MessageEvent): void {
+      // EC25: only the trusted editor origin may push config/runtime/navigation
+      // into the preview — without this any frame could replace the page config
+      // or navigate the iframe via page_id_change.
+      if (!isAllowedParentOrigin(e.origin)) return;
       const data = e.data as
         | { source?: string; type?: string; payload?: unknown; next_url?: string }
         | null
@@ -109,8 +114,10 @@ export function SchneidersPreviewLiveRenderer({
           // re-fetch server data (products / category / etc.), so we do
           // a full navigation. After reload, the bridge re-establishes
           // and the live render takes over again.
+          // EC25: only navigate to a same-origin /_preview/ URL — never an
+          // arbitrary attacker-supplied target.
           const url = typeof data.next_url === "string" ? data.next_url : null;
-          if (url) window.location.replace(url);
+          if (url && isSafePreviewNavUrl(url)) window.location.replace(url);
           break;
         }
         default: {

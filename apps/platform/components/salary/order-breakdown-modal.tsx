@@ -149,7 +149,11 @@ export function OrderBreakdownModal({
                                         <p className="font-medium text-foreground truncate">
                                             #{o.orderId} <span className="text-muted font-normal">· {o.customerName}</span>
                                         </p>
-                                        <p className="text-xs text-muted">{fmtDate(o.createdAt)}</p>
+                                        <p className="text-xs text-muted">
+                                            {o.completedAt
+                                                ? `Completed ${fmtDate(o.completedAt)}`
+                                                : fmtDate(o.createdAt)}
+                                        </p>
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
                                         <span className="text-xs text-muted tabular-nums">{fmtIQD(o.amount)} IQD</span>

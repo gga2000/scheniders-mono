@@ -23,6 +23,7 @@ const DEEP_LINK_SCREENS: readonly SettingsSectionId[] = [
     "experiments",
     "segments",
     "i18n",
+    "redirects",
 ];
 
 const PREVIEW_PRODUCTS_LIMIT = 24;
@@ -46,6 +47,7 @@ interface TenantMemberRow {
         business_name: string;
         store_config_v2: StoreConfigV2 | null;
         store_config_v2_draft: StoreConfigV2 | null;
+        updated_at: string | null;
     } | null;
 }
 
@@ -95,7 +97,7 @@ export default async function StoreV2Page({
     const { data: member } = await supabase
         .from("tenant_members")
         .select(
-            "tenant_id, tenants(id, slug, business_name, store_config_v2, store_config_v2_draft)",
+            "tenant_id, tenants(id, slug, business_name, store_config_v2, store_config_v2_draft, updated_at)",
         )
         .eq("user_id", user.id)
         .single<TenantMemberRow>();
@@ -110,6 +112,9 @@ export default async function StoreV2Page({
     const hasPublished = !!published;
     // If we started from a draft, the editor begins in a dirty state so Publish enables.
     const initiallyDirty = !!draft;
+    // EC33: the DB row's last-write time, so the editor can reject a stale local
+    // crash backup that predates newer saved/published work (e.g. another device).
+    const initialUpdatedAt = t.updated_at ? Date.parse(t.updated_at) : null;
 
     // Mint the preview token server-side. The client never sees the
     // secret — only the resulting short-lived token.
@@ -156,6 +161,7 @@ export default async function StoreV2Page({
             publishedConfig={published ?? null}
             hasPublished={hasPublished}
             initiallyDirty={initiallyDirty}
+            initialUpdatedAt={initialUpdatedAt}
             previewToken={previewToken}
             previewProducts={previewProducts}
             previewCategories={previewCategories}

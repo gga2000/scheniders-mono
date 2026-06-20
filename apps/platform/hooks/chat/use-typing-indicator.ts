@@ -2,40 +2,62 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
-import { conversationTopic } from "@/lib/chat/topics";
+import { typingTopic } from "@/lib/chat/topics";
+import { diag } from "@/lib/diag";
 
 type TypingPayload = { user_id: string; display_name: string };
+
+const TYPING_TTL_MS = 4000;     // hide a typer this long after their last keystroke
+const SEND_THROTTLE_MS = 2500;  // at most one "typing" broadcast per this window
 
 export function useTypingIndicator(conversationId: string | null) {
     const { user, profile } = useAuth();
     const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
     const [typers, setTypers] = useState<TypingPayload[]>([]);
     const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+    const lastSentRef = useRef(0);
 
     useEffect(() => {
         if (!conversationId) return;
-        const channel = supabase.channel(conversationTopic(conversationId), { config: { private: true } });
+        // Dedicated typing channel (NOT the messages topic) so the two hooks don't
+        // share one realtime-js channel instance and tear down each other.
+        const channel = supabase.channel(typingTopic(conversationId), { config: { private: true } });
+        const localTimers = timers.current;
         channel
             .on("broadcast", { event: "typing" }, ({ payload }) => {
                 const p = payload as TypingPayload;
-                if (p.user_id === user?.id) return;
+                if (!p.user_id || p.user_id === user?.id) return;
                 setTypers((prev) => (prev.some((t) => t.user_id === p.user_id) ? prev : [...prev, p]));
-                const existing = timers.current.get(p.user_id);
+                const existing = localTimers.get(p.user_id);
                 if (existing) clearTimeout(existing);
-                timers.current.set(p.user_id, setTimeout(() => {
+                localTimers.set(p.user_id, setTimeout(() => {
                     setTypers((prev) => prev.filter((t) => t.user_id !== p.user_id));
-                    timers.current.delete(p.user_id);
-                }, 4000));
+                    localTimers.delete(p.user_id);
+                }, TYPING_TTL_MS));
             })
-            .subscribe();
+            .subscribe((status, err) => {
+                if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+                    diag.warn(`[chat] typing channel ${status}${err ? ` ${err.message}` : ""} conv=${conversationId}`);
+                }
+            });
         channelRef.current = channel;
-        return () => { supabase.removeChannel(channel); channelRef.current = null; };
+        return () => {
+            for (const t of localTimers.values()) clearTimeout(t);
+            localTimers.clear();
+            setTypers([]);
+            supabase.removeChannel(channel);
+            channelRef.current = null;
+        };
     }, [conversationId, user?.id]);
 
     const notifyTyping = useCallback(() => {
-        channelRef.current?.send({
+        if (!user?.id || !channelRef.current) return;
+        const now = Date.now();
+        if (now - lastSentRef.current < SEND_THROTTLE_MS) return; // throttle keystroke storm
+        lastSentRef.current = now;
+        channelRef.current.send({
             type: "broadcast", event: "typing",
-            payload: { user_id: user?.id, display_name: profile?.display_name || "Someone" },
+            payload: { user_id: user.id, display_name: profile?.display_name || "Someone" },
         });
     }, [user?.id, profile?.display_name]);
 

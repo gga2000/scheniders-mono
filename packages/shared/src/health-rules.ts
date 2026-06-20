@@ -166,6 +166,51 @@ function findKey(value: unknown, predicate: (key: string) => boolean): unknown {
     return undefined;
 }
 
+/** Visit every plain-object node in a value (recursing through arrays). */
+function walkObjects(
+    value: unknown,
+    visit: (obj: Record<string, unknown>) => void,
+): void {
+    if (value == null) return;
+    if (Array.isArray(value)) {
+        for (const v of value) walkObjects(v, visit);
+        return;
+    }
+    if (typeof value === "object") {
+        const obj = value as Record<string, unknown>;
+        visit(obj);
+        for (const v of Object.values(obj)) walkObjects(v, visit);
+    }
+}
+
+/** Content pages that should stay indexable (functional pages excluded). */
+const SEO_IMPORTANT_PAGES: readonly PageId[] = [
+    "home",
+    "about",
+    "faq",
+    "contact",
+    "policy_shipping",
+    "policy_returns",
+    "policy_privacy",
+    "policy_terms",
+];
+
+/** A link value that points nowhere (placeholder / dead). Empty is NOT dead —
+ *  sections hide the CTA when a link is blank. */
+function isDeadLink(value: unknown): boolean {
+    if (typeof value !== "string") return false;
+    const s = value.trim().toLowerCase();
+    if (s === "") return false;
+    return (
+        s === "#" ||
+        s === "javascript:void(0)" ||
+        s.includes("localhost") ||
+        s.includes("example.com") ||
+        s.includes("yourdomain") ||
+        s.includes("todo")
+    );
+}
+
 const LOCALE_LABEL: Record<LocaleCode, string> = {
     ar: "Arabic",
     en: "English",
@@ -404,6 +449,67 @@ export const HEALTH_CHECKS: HealthCheck[] = [
             fix_action: fixSettings("brand_kit", "Add tagline"),
         };
     }),
+    check("important_pages_indexable", "seo", 1, (cfg) => {
+        // H3: an important content page set to noindex won't be listed by Google.
+        // noindex on the home page is almost always a mistake → fail.
+        const noindexed = SEO_IMPORTANT_PAGES.filter(
+            (id) => getPage(cfg, id)?.meta?.noindex === true,
+        );
+        if (noindexed.length === 0) return { status: "pass" };
+        const homeHidden = noindexed.includes("home");
+        return {
+            status: homeHidden ? "fail" : "warn",
+            message: homeHidden
+                ? "Home page is set to noindex — Google can't list your store. Remove it unless intentional."
+                : `${noindexed.length} important page(s) set to noindex — Google won't list them.`,
+            fix_action: fixPage(noindexed[0], "Review noindex"),
+        };
+    }),
+    check("images_have_alt_text", "seo", 1, (cfg) => {
+        // H5: only flag images on sections that DO expose an alt field but left
+        // it empty (decorative images without an alt field are skipped).
+        let missing = 0;
+        for (const s of allEnabledSections(cfg)) {
+            walkObjects(s.base, (obj) => {
+                const imgKey = Object.keys(obj).find((k) =>
+                    /(^image_url$|_image_url$|^image$|_image$)/.test(k),
+                );
+                if (!imgKey || !resolveStr(obj[imgKey]).trim()) return;
+                const altKey = Object.keys(obj).find((k) =>
+                    /(^alt$|^image_alt$|_alt$)/.test(k),
+                );
+                if (!altKey) return; // no alt field → decorative, skip
+                if (!resolveStr(obj[altKey]).trim()) missing++;
+            });
+        }
+        if (missing === 0) return { status: "pass" };
+        return {
+            status: "warn",
+            message: `${missing} image${missing === 1 ? "" : "s"} missing alt text — hurts accessibility + image SEO.`,
+            fix_action: fixPage("home", "Add image alt text"),
+        };
+    }),
+    check("no_dead_cta_links", "conversion", 1, (cfg) => {
+        // H6: CTA links pointing at placeholders ("#", localhost, example.com)
+        // silently kill conversion. Empty links are intentional (CTA hidden).
+        let dead = 0;
+        for (const s of allEnabledSections(cfg)) {
+            walkObjects(s.base, (obj) => {
+                for (const [k, v] of Object.entries(obj)) {
+                    // CTA/link fields only — not image_url etc.
+                    if (/(href$|^url$|^link_url$)/.test(k) && isDeadLink(v)) {
+                        dead++;
+                    }
+                }
+            });
+        }
+        if (dead === 0) return { status: "pass" };
+        return {
+            status: "warn",
+            message: `${dead} link${dead === 1 ? "" : "s"} point nowhere (#, localhost, placeholder) — fix before launch.`,
+            fix_action: fixPage("home", "Fix broken links"),
+        };
+    }),
 
     /* ── Performance (4) ─────────────────────────────────────────── */
     check("home_section_count_reasonable", "performance", 1, (cfg) => {
@@ -567,7 +673,24 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         };
     }),
 
-    /* ── Content (3) ─────────────────────────────────────────────── */
+    /* ── Content (4) ─────────────────────────────────────────────── */
+    check("home_has_content", "content", 2, (cfg) => {
+        // EC11: a home page with no ENABLED sections renders an empty
+        // storefront (just header/footer chrome). Blocks publish — an empty
+        // home is never intentional, and historically it silently fell back
+        // to the legacy template (split-brain store). All-hidden counts as
+        // empty: a section toggled off contributes nothing to the page.
+        const enabled = pageSections(cfg, "home").filter((s) => s.enabled !== false);
+        if (enabled.length === 0) {
+            return {
+                status: "fail",
+                message: "Home page has no visible sections — add at least one.",
+                blocks_publish: true,
+                fix_action: fixPage("home", "Build home page"),
+            };
+        }
+        return { status: "pass" };
+    }),
     check("at_least_one_image_per_hero", "content", 1, (cfg) => {
         const missing: SectionInstance[] = [];
         for (const s of allEnabledSections(cfg)) {

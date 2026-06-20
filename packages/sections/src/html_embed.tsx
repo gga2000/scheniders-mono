@@ -68,14 +68,17 @@ function HtmlEmbedRender({
   return (
     <section className={bgClass ? `${bgClass} py-6` : "py-6"}>
       {/*
-        allow-same-origin is required for YouTube/Twitter/etc to work
-        but means scripts inside aren't isolated from the parent origin
-        in the strict cross-origin sense — security/compat tradeoff.
+        SECURITY (EC6): NO allow-same-origin. With `srcdoc`, allow-same-origin
+        would put the embed in the PARENT origin — embedded JS could read the
+        storefront's cookies / localStorage (cart, auth) and skim checkout
+        input. Legit embeds (YouTube/Twitter) load their own cross-origin
+        `src` inside the snippet, so they work fine in an opaque-origin
+        sandbox. This section is also excluded from cart/checkout via valid_on.
       */}
       <iframe
         title="Custom HTML embed"
         srcDoc={props.html}
-        sandbox="allow-scripts allow-same-origin"
+        sandbox="allow-scripts allow-popups allow-forms"
         style={{
           border: 0,
           width: "100%",
@@ -96,14 +99,14 @@ const definition: SectionDefinition<Props> = {
     ar: "أضف أي مقطع HTML (يوتيوب، تويتر، أدوات مخصّصة) داخل إطار آمن.",
   },
   thumbnail: "/sections/html_embed.svg",
+  // EC6: deliberately NOT allowed on cart/checkout/checkout_success — a
+  // merchant-authored embed must never run on the COD conversion path where
+  // it could skim form input or read cart state.
   valid_on: [
     "home",
     "category",
     "product",
     "search",
-    "cart",
-    "checkout",
-    "checkout_success",
     "track",
     "about",
     "faq",

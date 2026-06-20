@@ -125,9 +125,12 @@ function unmount(): void {
   });
 }
 
-function fireEditorMessage(payload: Record<string, unknown>): void {
+function fireEditorMessage(
+  payload: Record<string, unknown>,
+  origin = "http://localhost:3000",
+): void {
   act(() => {
-    window.dispatchEvent(new MessageEvent("message", { data: payload }));
+    window.dispatchEvent(new MessageEvent("message", { data: payload, origin }));
   });
 }
 
@@ -241,17 +244,43 @@ describe("SchneidersPreviewLiveRenderer", () => {
     expect(last.runtime.now instanceof Date).toBe(true);
   });
 
-  it("calls `location.replace` on `page_id_change`", () => {
+  it("calls `location.replace` on a same-origin `/_preview/` `page_id_change`", () => {
     mount();
     fireEditorMessage({
       source: "schn-editor",
       type: "page_id_change",
-      next_url: "http://example.test/_preview/foo/product?token=x",
+      next_url: "/_preview/foo/product?token=x",
     });
     expect(replaceMock).toHaveBeenCalledTimes(1);
-    expect(replaceMock).toHaveBeenCalledWith(
-      "http://example.test/_preview/foo/product?token=x",
+    expect(replaceMock).toHaveBeenCalledWith("/_preview/foo/product?token=x");
+  });
+
+  it("ignores a cross-origin / non-preview `page_id_change` target (EC25)", () => {
+    mount();
+    fireEditorMessage({
+      source: "schn-editor",
+      type: "page_id_change",
+      next_url: "https://evil.example.com/_preview/x",
+    });
+    fireEditorMessage({
+      source: "schn-editor",
+      type: "page_id_change",
+      next_url: "/account/settings", // same-origin but not a preview path
+    });
+    expect(replaceMock).not.toHaveBeenCalled();
+  });
+
+  it("ignores editor messages from an untrusted origin (EC25)", () => {
+    mount();
+    fireEditorMessage(
+      {
+        source: "schn-editor",
+        type: "page_id_change",
+        next_url: "/_preview/foo/product",
+      },
+      "https://evil.example.com",
     );
+    expect(replaceMock).not.toHaveBeenCalled();
   });
 
   it("ignores messages with a non-schn-editor source", () => {

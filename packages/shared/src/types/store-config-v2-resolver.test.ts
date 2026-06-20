@@ -242,6 +242,30 @@ describe("matchCondition (via resolveSection)", () => {
       ).tag,
     ).toBe("variant");
   });
+
+  it("time_window: a MALFORMED end_iso must not stay active forever (EC21)", () => {
+    const inst = makeInstance({ tag: "base" }, [
+      variant(
+        "v",
+        [
+          {
+            kind: "time_window",
+            start_iso: "2020-01-01T00:00:00Z",
+            end_iso: "broken",
+          },
+        ],
+        { tag: "variant" },
+      ),
+    ]);
+    // Past the start, but the broken end means the window is misconfigured →
+    // it does NOT apply (old behaviour: stuck active forever).
+    expect(
+      resolveSection<{ tag: string }>(
+        inst,
+        makeCtx({ now: new Date("2099-12-31T23:59:59Z") }),
+      ).tag,
+    ).toBe("base");
+  });
 });
 
 /* ─────────────────────────────────────────────────────────────────── */

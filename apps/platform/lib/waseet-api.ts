@@ -494,10 +494,14 @@ export function mapOrderToWaseet(
     // 5. Items count (sum of quantities)
     const itemsNumber = order.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 1;
 
-    // 6. Price — Al-Waseet wants total INCLUDING delivery fee
-    const price = Math.round((order.price || 0) + (order.delivery_fee || 0));
+    // 6. Price — Al-Waseet wants the amount the courier COLLECTS: line-item
+    // subtotal + delivery − discount (the coupon the customer applied). Without
+    // subtracting the discount the courier would collect the full amount.
+    const price = Math.round(
+        (order.price || 0) + (order.delivery_fee || 0) - (order.discount_amount || 0),
+    );
     if (price <= 0) {
-        errors.push(`Invalid price: ${price} (order.price=${order.price}, delivery_fee=${order.delivery_fee})`);
+        errors.push(`Invalid price: ${price} (order.price=${order.price}, delivery_fee=${order.delivery_fee}, discount=${order.discount_amount})`);
     }
 
     // 7. Replacement flag

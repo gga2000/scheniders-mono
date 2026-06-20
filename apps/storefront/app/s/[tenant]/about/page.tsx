@@ -8,6 +8,30 @@ import { SchneidersPageShell } from "@/components/schneiders/page-shell";
 import { PageHeader, ContentSection } from "@/components/schneiders/content-page";
 import { BentoCard, ChunkyLink, MaterialIcon, ScribbleHeading, Sticker, WhatsAppIcon } from "@/components/schneiders/primitives";
 
+/**
+ * Convert merchant-authored HTML (legacy `about.body`) into plain-text
+ * paragraphs. Block boundaries (</p>, <br>, blank lines) become paragraph
+ * splits; all remaining tags are removed and a few common entities decoded.
+ * Output is rendered as React text (escaped) — no HTML is ever interpreted,
+ * which closes the stored-XSS hole. (EC4)
+ */
+function htmlToSafeParagraphs(html: string | null | undefined): string[] {
+  if (!html) return [];
+  return html
+    .replace(/<\s*br\s*\/?\s*>/gi, "\n")
+    .replace(/<\s*\/\s*(p|div|li|h[1-6])\s*>/gi, "\n\n")
+    .replace(/<[^>]*>/g, "") // strip every remaining tag
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .split(/\n{2,}/)
+    .map((p) => p.replace(/\s+/g, " ").trim())
+    .filter((p) => p.length > 0);
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -37,7 +61,12 @@ export default async function AboutPage({ params }: { params: Promise<{ tenant: 
   }
 
   const categories = await listCategories(tenant.id);
-  const aboutBody = tenant.store_config?.about?.body;
+  // EC4: `about.body` is merchant-authored config rendered on a public page.
+  // It was injected via dangerouslySetInnerHTML → stored XSS (arbitrary JS on
+  // the storefront/checkout origin). With no HTML sanitizer dependency, render
+  // it as plain text instead: strip tags to paragraphs and let React escape it.
+  // (Rich-HTML support can return later behind a real sanitizer like DOMPurify.)
+  const aboutParagraphs = htmlToSafeParagraphs(tenant.store_config?.about?.body);
   const wa = tenant.store_config?.contact?.whatsapp_number ?? null;
 
   return (
@@ -57,8 +86,12 @@ export default async function AboutPage({ params }: { params: Promise<{ tenant: 
       </BentoCard>
 
       <ContentSection bg="white">
-        {aboutBody ? (
-          <div className="prose prose-sm max-w-none font-body" dangerouslySetInnerHTML={{ __html: aboutBody }} />
+        {aboutParagraphs.length > 0 ? (
+          <div className="prose prose-sm max-w-none font-body">
+            {aboutParagraphs.map((para, i) => (
+              <p key={i}>{para}</p>
+            ))}
+          </div>
         ) : (
           <>
             <p>

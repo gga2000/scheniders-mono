@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import type { StoreConfigV2 } from "@scheniders/shared";
-import { emptyStoreConfigV2, runHealthChecks } from "@scheniders/shared";
+import { emptyStoreConfigV2, runHealthChecks, HEALTH_CHECKS } from "@scheniders/shared";
 import { HealthChecklistScreen } from "./health-checklist-screen";
 
 afterEach(() => {
@@ -87,7 +87,7 @@ describe("HealthChecklistScreen", () => {
         expect(value.textContent).toBe(String(expected));
     });
 
-    it("renders 30 check rows when filter is 'all'", () => {
+    it("renders one row per health check when filter is 'all'", () => {
         const cfg = freshEmpty();
         render(
             <HealthChecklistScreen
@@ -100,7 +100,7 @@ describe("HealthChecklistScreen", () => {
         fireEvent.click(screen.getByTestId("health-filter-all"));
         const list = screen.getByTestId("health-check-list");
         const rows = list.querySelectorAll('[data-testid^="health-check-row-"]');
-        expect(rows.length).toBe(30);
+        expect(rows.length).toBe(HEALTH_CHECKS.length);
     });
 
     it("filter chip 'failing' hides passing rows", () => {

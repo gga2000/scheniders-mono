@@ -178,7 +178,7 @@ function PdpInfoTabsRender({
               className="font-body text-sm italic"
               style={{ color: "var(--bk-ink-faint, rgb(26 26 26 / 0.4))" }}
             >
-              {locale === "ar" ? "لا توجد تفاصيل بعد." : "No details yet."}
+              {locale !== "en" ? "لا توجد تفاصيل بعد." : "No details yet."}
             </p>
           )}
         </div>

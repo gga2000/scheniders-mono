@@ -16,9 +16,16 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { resolveI18n, IRAQ_GOVERNORATES } from "@scheniders/shared";
+import {
+  resolveI18n,
+  IRAQ_GOVERNORATES,
+  computeDeliveryFee,
+  computeDiscount,
+  normalizeIraqiMobile,
+} from "@scheniders/shared";
+import type { StoreConfigV2, GovernorateCode } from "@scheniders/shared";
 import {
   BentoCard,
   ChunkyButton,
@@ -30,7 +37,7 @@ import {
 } from "./helpers/primitives";
 import { useCart } from "./helpers/cart-store";
 import { useStoreBase } from "./helpers/store-context";
-import { isPlausiblePhone } from "./helpers/whatsapp";
+import { isPlausiblePhone, whatsappCartLink } from "./helpers/whatsapp";
 import { formatPrice } from "./helpers/format";
 import { i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
@@ -57,9 +64,22 @@ const defaultProps: Props = {
   },
 };
 
-/** Same Baghdad threshold / fee as the cart so the CTA total matches. */
-const FREE_DELIVERY_THRESHOLD = 75_000;
-const BAGHDAD_DELIVERY = 5_000;
+/** A collision-free idempotency key for one checkout submission. Prefers
+ *  crypto.randomUUID (available in the storefront's secure contexts, incl.
+ *  localhost); falls back to a timestamp+random string if ever unavailable. */
+function newIdempotencyKey(): string {
+  const c = globalThis.crypto;
+  if (c && typeof c.randomUUID === "function") return c.randomUUID();
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+/** EC24: the subset of the server's checkout-issue shape the form acts on. */
+interface CheckoutIssue {
+  product_id: string;
+  variant_id: string | null;
+  reason: "unavailable" | "price_changed" | "invalid_quantity";
+  new_price?: number;
+}
 
 function CheckoutFormRender({
   props,
@@ -69,14 +89,25 @@ function CheckoutFormRender({
   ctx: SectionRenderContext;
 }) {
   const locale = ctx.runtime.locale;
-  const t = locale === "ar";
+  const t = locale !== "en";
   const items = useCart((s) => s.items);
   const subtotal = useCart((s) => s.getTotal());
   const clearCart = useCart((s) => s.clearCart);
+  const removeItem = useCart((s) => s.removeItem);
+  const updatePrice = useCart((s) => s.updatePrice);
+  const setGovernorate = useCart((s) => s.setGovernorate);
+  const couponCode = useCart((s) => s.couponCode);
   const base = useStoreBase();
   const [status, setStatus] = useState<"idle" | "submitting" | "ok" | "error">(
     "idle",
   );
+  // EC24: a specific, actionable error message (which items changed) instead of
+  // a generic "something went wrong" dead-end.
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // EC17: one stable idempotency key per cart submission — reused across retries
+  // (flaky-3G re-tap where the first response was lost) so the server dedupes,
+  // then cleared on success so the next order gets a fresh key.
+  const idempotencyKeyRef = useRef<string | null>(null);
   const [form, setForm] = useState({
     customer_name: "",
     phone: "",
@@ -89,15 +120,92 @@ function CheckoutFormRender({
   });
   const reassurance = resolveI18n(props.reassurance_text_i18n, locale);
 
-  const delivery =
-    items.length === 0 || subtotal >= FREE_DELIVERY_THRESHOLD
-      ? 0
-      : BAGHDAD_DELIVERY;
-  const total = subtotal + delivery;
+  // R2b: broadcast the chosen governorate to the cart store so the order-summary
+  // section (rendered separately) shows the SAME per-governorate fee as this CTA.
+  useEffect(() => {
+    setGovernorate(form.governorate_code);
+  }, [form.governorate_code, setGovernorate]);
+
+  // Abandoned-cart capture: once the shopper has items + a plausible Iraqi
+  // phone, beacon the cart so a WhatsApp recovery nudge can go out if they
+  // don't complete. Debounced; best-effort (keepalive) — failures are ignored,
+  // and placing the order marks the cart recovered server-side.
+  const tenantId = ctx.tenant.id;
+  useEffect(() => {
+    if (items.length === 0) return;
+    const recoveryPhone = normalizeIraqiMobile(form.phone);
+    if (!recoveryPhone) return;
+    const handle = setTimeout(() => {
+      fetch("/api/cart/abandoned", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        keepalive: true,
+        body: JSON.stringify({
+          tenant_id: tenantId,
+          phone: recoveryPhone,
+          items: items.map((i) => ({
+            product_id: i.product_id,
+            variant_id: i.variant_id ?? null,
+            name: i.name,
+            quantity: i.quantity,
+            price: i.price,
+          })),
+          governorate: form.governorate_code,
+          locale,
+        }),
+      }).catch(() => {
+        /* best-effort beacon */
+      });
+    }, 1500);
+    return () => clearTimeout(handle);
+  }, [items, form.phone, form.governorate_code, tenantId, locale]);
+
+  // Per-governorate shipping engine — reads the published shipping config off
+  // the tenant + the chosen governorate, so the CTA total matches what the
+  // server records (falls back to the legacy flat fee when unconfigured).
+  const commerce = (
+    ctx.tenant as { store_config_v2?: StoreConfigV2 | null } | undefined
+  )?.store_config_v2?.commerce;
+  const delivery = computeDeliveryFee(subtotal, items.length, {
+    shipping: commerce?.shipping,
+    governorate: form.governorate_code as GovernorateCode,
+  });
+  // Discount: preview the applied coupon (server re-validates + records it).
+  const discount = computeDiscount(subtotal, couponCode, commerce?.discounts);
+  const discountAmount = discount?.amount_iqd ?? 0;
+  const total = subtotal - discountAmount + delivery;
 
   const phone = (ctx.tenant as { contact_phone?: string | null } | undefined)
     ?.contact_phone ?? null;
   const waEnabled = isPlausiblePhone(phone);
+  // EC26: the "order via WhatsApp instead" CTA now carries the WHOLE order —
+  // every line (with variant + qty), the delivery details the shopper has
+  // entered, and the total — so the merchant gets a real order, not a bare ping.
+  // Recomputed each render so it reflects the current form state.
+  const waGovernorate = IRAQ_GOVERNORATES.find(
+    (g) => g.code === form.governorate_code,
+  );
+  const waHref =
+    whatsappCartLink(
+      phone,
+      {
+        items: items.map((i) => ({
+          name: i.name,
+          variant: i.variant_name,
+          quantity: i.quantity,
+        })),
+        customer: {
+          name: form.customer_name || undefined,
+          phone: form.phone || undefined,
+          governorate:
+            (t ? waGovernorate?.name : waGovernorate?.name_en) || undefined,
+          area: form.city || undefined,
+          address: form.address_details || undefined,
+        },
+        total: formatPrice(total, locale),
+      },
+      locale,
+    ) ?? "#";
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((s) => ({ ...s, [k]: v }));
@@ -107,6 +215,11 @@ function CheckoutFormRender({
     e.preventDefault();
     if (items.length === 0 || status === "submitting") return;
     setStatus("submitting");
+    setErrorMsg(null);
+    // Reuse the existing key on a retry; mint one on the first attempt.
+    if (!idempotencyKeyRef.current) {
+      idempotencyKeyRef.current = newIdempotencyKey();
+    }
     try {
       const res = await fetch("/api/checkout/orders", {
         method: "POST",
@@ -117,6 +230,8 @@ function CheckoutFormRender({
           items,
           subtotal,
           locale,
+          idempotency_key: idempotencyKeyRef.current,
+          ...(couponCode ? { coupon_code: couponCode } : {}),
           ab_test_arms: ctx.runtime.ab_test_arms,
         }),
       });
@@ -148,12 +263,35 @@ function CheckoutFormRender({
           /* sessionStorage unavailable — the recap just won't render */
         }
         clearCart();
+        // EC17: order placed — retire the key so a future order isn't deduped
+        // against this one.
+        idempotencyKeyRef.current = null;
         setStatus("ok");
         // Navigate to the celebratory thank-you page (full nav keeps the stash).
         window.location.href = `${base}/checkout/success${
           orderNumber ? `?order=${encodeURIComponent(orderNumber)}` : ""
         }`;
       } else {
+        // EC24: the server reports WHICH lines failed and why — self-heal the
+        // cart (remove unavailable lines, re-price changed ones) so the shopper
+        // can review + re-confirm instead of looping on a generic error. A new
+        // idempotency key marks the corrected cart as a fresh order.
+        const data = (await res.json().catch(() => null)) as
+          | { error?: string; issues?: CheckoutIssue[] }
+          | null;
+        const issues = Array.isArray(data?.issues) ? data!.issues : [];
+        for (const it of issues) {
+          if (it.reason === "price_changed" && typeof it.new_price === "number") {
+            updatePrice(it.product_id, it.variant_id, it.new_price);
+          } else {
+            removeItem(it.product_id, it.variant_id);
+          }
+        }
+        if (issues.length > 0) idempotencyKeyRef.current = null;
+        setErrorMsg(
+          data?.error ??
+            (t ? "حدث خطأ. حاول مرة أخرى." : "Something went wrong. Try again."),
+        );
         setStatus("error");
       }
     } catch {
@@ -464,7 +602,12 @@ function CheckoutFormRender({
               ) : (
                 <>
                   {t ? "أكّد الطلب" : "Place Order"}
-                  {items.length > 0 && ` — ${formatPrice(total)}`}
+                  {items.length > 0 && (
+                    <>
+                      {" — "}
+                      <bdi>{formatPrice(total, locale)}</bdi>
+                    </>
+                  )}
                   <MaterialIcon name="arrow_forward" />
                 </>
               )}
@@ -486,7 +629,7 @@ function CheckoutFormRender({
                   <span className="h-[3px] flex-1 bg-candy-ink/20" />
                 </div>
                 <a
-                  href={`https://wa.me/${phone!.replace(/\D/g, "")}`}
+                  href={waHref}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex w-full items-center justify-center gap-2 px-5 py-3 font-display font-black text-sm uppercase tracking-tight"
@@ -512,7 +655,10 @@ function CheckoutFormRender({
             )}
             {status === "error" && (
               <p className="font-label font-bold text-sm text-bk-danger">
-                {t ? "حدث خطأ. حاول مرة أخرى." : "Something went wrong. Try again."}
+                {errorMsg ??
+                  (t
+                    ? "حدث خطأ. حاول مرة أخرى."
+                    : "Something went wrong. Try again.")}
               </p>
             )}
           </form>

@@ -110,7 +110,7 @@ function NewsletterInlineRender({
       <BentoCard bg={props.bg ?? "butter"} size="md" className="p-bk-lg sm:p-bk-xl relative">
         <div className="absolute -top-3 -right-3">
           <Sticker bg="pink" rotate={6} size="sm">
-            {locale === "ar" ? "✱ النشرة" : "✱ news"}
+            {locale !== "en" ? "✱ النشرة" : "✱ news"}
           </Sticker>
         </div>
         <div className="max-w-xl">
@@ -184,12 +184,12 @@ function NewsletterInlineRender({
           </form>
           {status === "ok" && (
             <p className="mt-bk-xs font-label font-bold text-sm text-bk-ink">
-              {locale === "ar" ? "تم! تحقق من بريدك." : "You're in — check your inbox."}
+              {locale !== "en" ? "تم! تحقق من بريدك." : "You're in — check your inbox."}
             </p>
           )}
           {status === "error" && (
             <p className="mt-bk-xs font-label font-bold text-sm text-bk-danger">
-              {locale === "ar" ? "حدث خطأ. حاول مرة أخرى." : "Something went wrong. Try again."}
+              {locale !== "en" ? "حدث خطأ. حاول مرة أخرى." : "Something went wrong. Try again."}
             </p>
           )}
         </div>

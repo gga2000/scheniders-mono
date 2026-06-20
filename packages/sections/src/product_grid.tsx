@@ -117,7 +117,7 @@ function ProductGridRender({
   const items = selectProducts(props, ctx);
   const heading = resolveI18n(props.heading_i18n, ctx.runtime.locale);
   const locale = ctx.runtime.locale;
-  const t = locale === "ar";
+  const t = locale !== "en";
   // On a category landing page, lead with a mint category hero (breadcrumb +
   // eyebrow sticker + big name + count) instead of the plain section heading.
   const category = ctx.category;

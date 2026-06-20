@@ -15,6 +15,7 @@ import {
     Store,
     Layers,
     Wallet,
+    Star,
 } from "lucide-react";
 import { TransitionLink as Link } from "./transition-link";
 import { usePathname } from "next/navigation";
@@ -35,6 +36,7 @@ const MORE_NAV_ITEMS = [
     { key: "nav.team", icon: UsersRound, href: "/team" },
     { key: "nav.vault", icon: Database, href: "/vault" },
     { key: "nav.store", icon: Store, href: "/store" },
+    { key: "nav.reviews", icon: Star, href: "/reviews" },
     { key: "nav.settings", icon: Settings, href: "/settings" },
 ];
 

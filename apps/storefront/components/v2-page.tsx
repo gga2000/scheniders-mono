@@ -1,6 +1,11 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { RenderPage } from "@scheniders/sections";
-import { assignAbArm, evaluateSegments } from "@scheniders/shared";
+import {
+  assignAbArm,
+  evaluateSegments,
+  resolveVisitorLocale,
+  LOCALE_COOKIE,
+} from "@scheniders/shared";
 import { StorefrontGlobals } from "./storefront-globals";
 import { ExperimentBeacon } from "./experiment-beacon";
 import { CartSignal } from "./cart-signal";
@@ -90,8 +95,20 @@ export async function V2Page({
 
   const audienceSegments = evaluateSegments(v2.segments ?? [], segmentCtx);
 
+  // EC13: resolve the locale to actually render for THIS visitor — explicit
+  // switcher cookie, else Accept-Language, else the store default — constrained
+  // to the store's enabled_locales. The page passed `runtime.locale` (the store
+  // default) as the floor. Without this, enabled en/ku content is unreachable.
+  const resolvedLocale = resolveVisitorLocale({
+    enabledLocales: v2.enabled_locales,
+    defaultLocale: v2.default_locale ?? runtime.locale,
+    cookieLocale: c.get(LOCALE_COOKIE)?.value,
+    acceptLanguage: (await headers()).get("accept-language"),
+  });
+
   const enrichedRuntime: RuntimeContext = {
     ...runtime,
+    locale: resolvedLocale,
     ab_test_arms: abArms,
     audience_segments: audienceSegments,
   };

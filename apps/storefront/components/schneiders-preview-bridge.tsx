@@ -28,17 +28,14 @@
 "use client";
 
 import { useEffect } from "react";
+import {
+  isAllowedParentOrigin,
+  platformTargetOrigin,
+  SAFE_PARENT_ORIGINS,
+} from "@/lib/preview-origin";
 
-/**
- * Allow-list of trusted parent origins. The bridge currently only uses
- * this list for inbound message filtering hardening — outbound messages
- * still target `"*"` because the platform iframe may be embedded under a
- * variety of dev hostnames. Tighten before shipping to production.
- */
-export const SAFE_PARENT_ORIGINS: ReadonlySet<string> = new Set<string>([
-  "http://localhost:3000", // platform dev
-  "https://platform.scheniders.com", // production platform
-]);
+// Re-exported for back-compat — the allow-list now lives in lib/preview-origin.
+export { SAFE_PARENT_ORIGINS };
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Message types                                                       */
@@ -123,7 +120,9 @@ export function SchneidersPreviewBridge(): null {
 
     const post = (msg: PreviewOutboundMessage): void => {
       try {
-        window.parent.postMessage(msg, "*");
+        // EC25: locked to the platform origin in prod so section data can't
+        // leak to a hostile embedder ("*" only in dev).
+        window.parent.postMessage(msg, platformTargetOrigin());
       } catch {
         /* cross-origin best-effort */
       }
@@ -185,7 +184,9 @@ export function SchneidersPreviewBridge(): null {
     /* ───── Inbound: editor → preview ───── */
 
     function onMessage(e: MessageEvent): void {
-      // TODO(prod): tighten with `if (!SAFE_PARENT_ORIGINS.has(e.origin)) return;`
+      // EC25: only the trusted editor origin may drive the bridge — otherwise a
+      // hostile frame could scroll the preview or exfiltrate section rects.
+      if (!isAllowedParentOrigin(e.origin)) return;
       const data = e.data as PreviewInboundMessage | null | undefined;
       if (!data || data.source !== "schn-editor") return;
       switch (data.type) {

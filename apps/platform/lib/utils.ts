@@ -6,7 +6,7 @@ export { cn, formatIQD, formatIQDArabic } from "@scheniders/shared";
  * Mask string shown in place of currency values when the user has hidden
  * financial data via RevealToggle.
  */
-export const FINANCIAL_MASK = "*****";
+export const FINANCIAL_MASK = "••••••";
 
 /**
  * Format an IQD amount conditionally: show the number when `reveal` is true,

@@ -101,6 +101,7 @@ function makeBuilder(
             author_name: "",
         }),
         listVersions: async () => [],
+        getVersionConfig: async () => null,
         restoreVersion: async () => {},
         listSchedules: async () => [],
         createSchedule: async (input) => ({

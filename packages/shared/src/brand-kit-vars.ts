@@ -187,7 +187,11 @@ function buttonShadow(style: BrandShape["shadow_style"]): string {
 export function fontStack(name: string | undefined, fallback: string, kind: "display" | "body"): string {
   const generic = kind === "display" ? "sans-serif" : "sans-serif";
   const cleaned = (name && name.trim()) || fallback;
-  return `'${cleaned}', '${fallback}', ${generic}`;
+  // EC14: 'Noto Sans Arabic' covers the Arabic/Kurdish glyphs that the Latin
+  // brand faces (Bricolage / DM Sans / most Google display fonts) lack — without
+  // it, Arabic text drops to the system font. The browser only fetches it for
+  // glyphs in the Arabic unicode-range, so Latin-only stores never download it.
+  return `'${cleaned}', '${fallback}', 'Noto Sans Arabic', ${generic}`;
 }
 
 /* ─────────────────────────────────────────────────────────────────── */

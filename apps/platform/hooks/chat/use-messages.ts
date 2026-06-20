@@ -6,9 +6,18 @@ import { useAuth } from "@/hooks/use-auth";
 import { conversationTopic } from "@/lib/chat/topics";
 import { chatKeys } from "./use-conversations";
 import { dedupeMentions, dedupeReferences } from "@/lib/chat/parse-references";
+import { diag } from "@/lib/diag";
 import type { ChatMessage, ChatReference, ChatAttachment } from "@/types/chat";
 
 const PAGE = 50;
+
+/** Ascending by created_at, with a stable id tiebreaker for equal timestamps. */
+function sortByCreated(rows: ChatMessage[]): ChatMessage[] {
+    return [...rows].sort((a, b) => {
+        if (a.created_at === b.created_at) return a.id < b.id ? -1 : 1;
+        return a.created_at < b.created_at ? -1 : 1;
+    });
+}
 
 export function useMessages(conversationId: string | null) {
     const { user } = useAuth();
@@ -19,21 +28,28 @@ export function useMessages(conversationId: string | null) {
         enabled: !!conversationId,
         staleTime: 10_000,
         queryFn: async (): Promise<ChatMessage[]> => {
+            // Fetch the NEWEST page (desc + limit), then present ascending. Ordering
+            // ascending + limit returned the OLDEST 50 and hid recent messages once a
+            // conversation passed 50 messages.
             const { data, error } = await supabase
                 .from("chat_messages")
                 .select("*, references:chat_message_references(*), reactions:chat_message_reactions(*), attachments:chat_message_attachments(*)")
                 .eq("conversation_id", conversationId!)
-                .order("created_at", { ascending: true })
+                .order("created_at", { ascending: false })
                 .limit(PAGE);
             if (error) throw error;
-            return (data ?? []) as unknown as ChatMessage[];
+            return ((data ?? []) as unknown as ChatMessage[]).reverse();
         },
     });
 
     // realtime: subscribe to the private conversation topic for new/updated messages
+    const myId = user?.id;
     useEffect(() => {
         if (!conversationId) return;
         const channel = supabase.channel(conversationTopic(conversationId), { config: { private: true } });
+        // Track reconnects so we can catch up on messages missed while the socket
+        // was down (tab backgrounded, network drop, token-expiry CHANNEL_ERROR).
+        let connectedOnce = false;
         channel
             .on("broadcast", { event: "message:new" }, async ({ payload }) => {
                 const incoming = payload as ChatMessage;
@@ -42,7 +58,7 @@ export function useMessages(conversationId: string | null) {
                 // references the composer attached). Do NOT append from the broadcast. We only
                 // guard against a duplicate already present under the broadcast's id while the
                 // optimistic row (keyed by client_msg_id) still lives.
-                if (incoming.sender_id === user?.id) {
+                if (incoming.sender_id === myId) {
                     qc.setQueryData<ChatMessage[]>(chatKeys.messages(conversationId), (old = []) => {
                         const hasOptimistic = old.some(
                             (m) => m.client_msg_id && m.client_msg_id === incoming.client_msg_id
@@ -69,7 +85,9 @@ export function useMessages(conversationId: string | null) {
                     if (withoutOptimistic.some((m) => m.id === full.id)) {
                         return withoutOptimistic.map((m) => (m.id === full.id ? full : m));
                     }
-                    return [...withoutOptimistic, full];
+                    // Re-sort: concurrent hydration awaits can resolve out of order, so
+                    // don't blind-append to the tail.
+                    return sortByCreated([...withoutOptimistic, full]);
                 });
                 qc.invalidateQueries({ queryKey: chatKeys.conversations() });
             })
@@ -85,9 +103,17 @@ export function useMessages(conversationId: string | null) {
                 qc.setQueryData<ChatMessage[]>(chatKeys.messages(conversationId!), (old = []) =>
                     old.map((m) => (m.id === messageId ? { ...m, reactions: (data ?? m.reactions) as ChatMessage["reactions"] } : m)));
             })
-            .subscribe();
+            .subscribe((status, err) => {
+                if (status === "SUBSCRIBED") {
+                    // On a re-subscribe (after a drop) catch up on anything missed.
+                    if (connectedOnce) qc.invalidateQueries({ queryKey: chatKeys.messages(conversationId) });
+                    connectedOnce = true;
+                } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+                    diag.warn(`[chat] messages channel ${status}${err ? ` ${err.message}` : ""} conv=${conversationId}`);
+                }
+            });
         return () => { supabase.removeChannel(channel); };
-    }, [conversationId, qc]);
+    }, [conversationId, qc, myId]);
 
     const sendMessage = useMutation({
         mutationFn: async (args: {
@@ -123,10 +149,21 @@ export function useMessages(conversationId: string | null) {
         onError: (_e, _v, ctx) => {
             if (conversationId && ctx?.previous) qc.setQueryData(chatKeys.messages(conversationId), ctx.previous);
         },
-        onSuccess: (saved) => {
+        onSuccess: (saved, vars) => {
             if (!conversationId) return;
-            qc.setQueryData<ChatMessage[]>(chatKeys.messages(conversationId), (old = []) =>
-                old.map((m) =>
+            qc.setQueryData<ChatMessage[]>(chatKeys.messages(conversationId), (old = []) => {
+                const match = old.find((m) => m.client_msg_id === saved.client_msg_id);
+                if (!match) {
+                    // The optimistic row was already removed (e.g. a refetch landed, or
+                    // this was an idempotent retry). Don't drop the message — append it,
+                    // unless an identical id is already present.
+                    if (old.some((m) => m.id === saved.id)) return old;
+                    return sortByCreated([
+                        ...old,
+                        { ...saved, pending: false, references: vars.references ?? [], reactions: [], attachments: vars.attachments ?? [] },
+                    ]);
+                }
+                return old.map((m) =>
                     m.client_msg_id === saved.client_msg_id
                         ? {
                               ...saved,
@@ -137,8 +174,8 @@ export function useMessages(conversationId: string | null) {
                               attachments: m.attachments,
                           }
                         : m
-                )
-            );
+                );
+            });
         },
     });
 

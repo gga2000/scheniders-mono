@@ -62,7 +62,7 @@ const defaultProps: Props = {
 };
 
 function fmtHours(h: number, locale: "ar" | "en" | "ku"): string {
-  if (locale === "ar") {
+  if (locale !== "en") {
     if (h < 24) return `${h} ساعة`;
     const days = Math.round(h / 24);
     return `${days} ${days === 1 ? "يوم" : "أيام"}`;
@@ -114,14 +114,14 @@ function DeliveryPromise({
             {visitorIsBaghdad && (
               <div className="absolute -top-3 -right-3 animate-sticker-pop motion-reduce:animate-none">
                 <Sticker bg="pink" rotate={6} size="xs">
-                  {locale === "ar" ? "أنت هنا" : "You're here"}
+                  {locale !== "en" ? "أنت هنا" : "You're here"}
                 </Sticker>
               </div>
             )}
             <div className="flex items-center gap-2 mb-1">
               <MaterialIcon name="local_shipping" className="text-xl" />
               <span className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
-                {locale === "ar" ? "بغداد" : "Baghdad"}
+                {locale !== "en" ? "بغداد" : "Baghdad"}
               </span>
             </div>
             <div className="font-display font-black text-3xl uppercase">
@@ -138,14 +138,14 @@ function DeliveryPromise({
             {visitorGov && !visitorIsBaghdad && (
               <div className="absolute -top-3 -right-3 animate-sticker-pop motion-reduce:animate-none">
                 <Sticker bg="pink" rotate={6} size="xs">
-                  {locale === "ar" ? "أنت هنا" : "You're here"}
+                  {locale !== "en" ? "أنت هنا" : "You're here"}
                 </Sticker>
               </div>
             )}
             <div className="flex items-center gap-2 mb-1">
               <MaterialIcon name="map" className="text-xl" />
               <span className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
-                {locale === "ar" ? "بقية المحافظات" : "Other governorates"}
+                {locale !== "en" ? "بقية المحافظات" : "Other governorates"}
               </span>
             </div>
             <div className="font-display font-black text-3xl uppercase">
@@ -156,7 +156,7 @@ function DeliveryPromise({
         {props.governorates_covered.length > 0 && (
           <div className="mt-5">
             <p className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft mb-2">
-              {locale === "ar" ? "نوصل إلى" : "We ship to"}
+              {locale !== "en" ? "نوصل إلى" : "We ship to"}
             </p>
             <div className="flex flex-wrap gap-2">
               {props.governorates_covered.map((g) => (

@@ -63,7 +63,7 @@ export function SchneidersProductCard({
   priority = false,
   showWhatsapp = false,
 }: Props) {
-  const t = locale === "ar";
+  const t = locale !== "en";
   const addItem = useCart((s) => s.addItem);
   const [justAdded, setJustAdded] = useState(false);
   const resolvedTint = tint ?? TINTS[index % TINTS.length];
@@ -82,15 +82,18 @@ export function SchneidersProductCard({
 
   const sticker = { ...SCHNEIDERS_DEFAULTS.sale_sticker, ...(saleSticker ?? {}) };
   const stickerLabel =
-    sticker.style === "percent"
-      ? t
-        ? `خصم ${discountPct}%`
-        : `-${discountPct}% OFF`
-      : sticker.style === "label"
-        ? (sticker.label ?? SCHNEIDERS_DEFAULTS.sale_sticker.label!)
-        : t
-          ? `وفّر ${formatPrice(savings)}`
-          : `Save ${formatPrice(savings)}`;
+    sticker.style === "percent" ? (
+      t ? `خصم ${discountPct}%` : `-${discountPct}% OFF`
+    ) : sticker.style === "label" ? (
+      (sticker.label ?? SCHNEIDERS_DEFAULTS.sale_sticker.label!)
+    ) : (
+      // EC35: isolate the price (Latin digits + Arabic glyph) so it doesn't
+      // bidi-reorder next to the Arabic "وفّر".
+      <>
+        {t ? "وفّر " : "Save "}
+        <bdi>{formatPrice(savings, locale)}</bdi>
+      </>
+    );
 
   function quickAdd() {
     addItem({
@@ -178,11 +181,11 @@ export function SchneidersProductCard({
         <div>
           {onSale && (
             <div className="font-body font-medium text-xs text-bk-ink-soft line-through">
-              {formatPrice(product.compare_at_price!)}
+              <bdi>{formatPrice(product.compare_at_price!, locale)}</bdi>
             </div>
           )}
           <div className="font-display font-black text-xl text-bk-ink">
-            {formatPrice(product.price)}
+            <bdi>{formatPrice(product.price, locale)}</bdi>
           </div>
         </div>
       </div>
@@ -238,7 +241,7 @@ export function SchneidersProductCard({
           {
             name: product.name,
             url: productUrl,
-            price: formatPrice(product.price),
+            price: formatPrice(product.price, locale),
           },
           locale,
         );
@@ -260,7 +263,7 @@ export function SchneidersProductCard({
             }}
           >
             <WhatsAppIcon className="h-4 w-4" />
-            {locale === "ar" ? "اطلب عبر واتساب" : "Order via WhatsApp"}
+            {locale !== "en" ? "اطلب عبر واتساب" : "Order via WhatsApp"}
           </a>
         );
       })()}

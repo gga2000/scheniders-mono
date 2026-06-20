@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
+import { enforceRedirect } from "@/lib/redirects";
 import { getCategoryBySlug, listCategories, listProducts } from "@/lib/queries";
 import { StoreHeader } from "@/components/storefront/StoreHeader";
 import { StoreFooter } from "@/components/storefront/StoreFooter";
@@ -22,7 +23,11 @@ export default async function CategoryPage({ params }: Props) {
   if (!tenant) notFound();
 
   const category = await getCategoryBySlug(tenant.id, slug);
-  if (!category) notFound();
+  if (!category) {
+    // N3: honor a configured redirect before 404ing (e.g. the slug changed).
+    enforceRedirect(tenant.store_config_v2, tenantParam, `/categories/${slug}`);
+    notFound();
+  }
 
   const [products, categories] = await Promise.all([
     listProducts(tenant.id, { categoryId: category.id }),

@@ -88,17 +88,17 @@ function StickyCtaBarRender({
           "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
       }}
       role="region"
-      aria-label={locale === "ar" ? "إجراءات سريعة" : "Quick actions"}
+      aria-label={locale !== "en" ? "إجراءات سريعة" : "Quick actions"}
     >
       {props.show_total && (
         <div className="flex flex-col leading-tight pl-1">
           <span className="font-label font-bold text-[10px] uppercase tracking-[0.2em] text-bk-ink-faint">
-            {locale === "ar"
+            {locale !== "en"
               ? `${itemCount} عنصر`
               : `${itemCount} item${itemCount === 1 ? "" : "s"}`}
           </span>
           <span className="font-display font-black text-base">
-            {formatPrice(subtotal)}
+            <bdi>{formatPrice(subtotal, locale)}</bdi>
           </span>
         </div>
       )}

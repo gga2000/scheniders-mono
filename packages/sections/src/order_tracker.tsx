@@ -97,7 +97,7 @@ function OrderTrackerRender({
 }) {
   const locale = ctx.runtime.locale;
   const heading = resolveI18n(props.heading_i18n, locale);
-  const t = locale === "ar";
+  const t = locale !== "en";
   const [phone, setPhone] = useState("");
   const [orderNumber, setOrderNumber] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">(

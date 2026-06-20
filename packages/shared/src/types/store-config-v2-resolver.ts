@@ -32,7 +32,9 @@ function matchCondition(c: VariantCondition, ctx: RuntimeContext): boolean {
     case "breakpoint":
       return c.values.includes(ctx.breakpoint);
     case "page":
-      return c.values.includes(ctx.page_id);
+      // page_id may be a custom-page slug (non-PageId); it simply matches no
+      // PageId[] entry. Compare as strings to satisfy the widened type.
+      return (c.values as readonly string[]).includes(ctx.page_id);
     case "governorate":
       return ctx.governorate ? c.values.includes(ctx.governorate) : false;
     case "product":
@@ -50,7 +52,10 @@ function matchCondition(c: VariantCondition, ctx: RuntimeContext): boolean {
       if (now < start) return false;
       if (c.end_iso) {
         const end = Date.parse(c.end_iso);
-        if (!Number.isNaN(end) && now > end) return false;
+        // EC21: a malformed end_iso must NOT leave the window active forever —
+        // a window with a broken end is misconfigured, so it doesn't apply.
+        if (Number.isNaN(end)) return false;
+        if (now > end) return false;
       }
       return true;
     }
@@ -117,7 +122,9 @@ export function resolveSection<Props extends Record<string, unknown>>(
   instance: SectionInstance,
   ctx: RuntimeContext,
 ): Props {
-  const matched = (instance.variants ?? [])
+  // EC7/#97: a malformed config could set `variants` to a non-array (e.g. a
+  // jsonb_set that created an object) — guard so `.filter` can't crash render.
+  const matched = (Array.isArray(instance.variants) ? instance.variants : [])
     .filter((v) => variantMatches(v, ctx))
     .sort((a, b) => a.priority - b.priority);
   return matched.reduce(
@@ -163,8 +170,11 @@ export function resolvePage(
   config: StoreConfigV2,
   ctx: RuntimeContext,
 ): Array<{ instance: SectionInstance; props: Record<string, unknown> }> {
-  const page = config.pages.find((p) => p.page_id === ctx.page_id);
-  if (!page) return [];
+  // EC7: tolerate a malformed config (non-array pages / sections).
+  const page = Array.isArray(config.pages)
+    ? config.pages.find((p) => p.page_id === ctx.page_id)
+    : undefined;
+  if (!page || !Array.isArray(page.sections)) return [];
   return page.sections
     .filter((s) => isSectionEnabled(s, ctx))
     .map((s) => ({ instance: s, props: resolveSection(s, ctx) }));
@@ -350,7 +360,9 @@ export function emptyStoreConfigV2(): StoreConfigV2 {
     experiments: [],
     segments: [],
     schedules: [],
-    default_locale: "en",
-    enabled_locales: ["en"],
+    // EC32: the market is Iraq — a fresh store must ship Arabic, not English,
+    // or the merchant unknowingly serves English to Arabic-speaking customers.
+    default_locale: "ar",
+    enabled_locales: ["ar"],
   };
 }

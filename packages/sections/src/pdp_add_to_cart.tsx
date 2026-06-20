@@ -63,7 +63,7 @@ function PdpAddToCartRender({
   const tenantPhone = resolveTenantWhatsapp(ctx.tenant, props.whatsapp_override);
   const whatsappHref = whatsappOrderLink(
     tenantPhone,
-    { name: product.name, price: formatPrice(product.price) },
+    { name: product.name, price: formatPrice(product.price, locale) },
     locale,
   );
 
@@ -88,7 +88,7 @@ function PdpAddToCartRender({
       {props.show_quantity_picker && (
         <div className="flex items-center gap-bk-sm">
           <span className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
-            {locale === "ar" ? "الكمية" : "Qty"}
+            {locale !== "en" ? "الكمية" : "Qty"}
           </span>
           <div
             className="flex items-center bg-white"
@@ -136,7 +136,7 @@ function PdpAddToCartRender({
       >
         <MaterialIcon name="shopping_bag" />
         {oos
-          ? locale === "ar"
+          ? locale !== "en"
             ? "نفد المخزون"
             : "Out of stock"
           : primaryLabel}
@@ -176,11 +176,17 @@ function PdpAddToCartRender({
               disabled={oos}
             >
               <MaterialIcon name="shopping_bag" />
-              {oos
-                ? locale === "ar"
-                  ? "نفد المخزون"
-                  : "Out of stock"
-                : `${primaryLabel} — ${formatPrice(product.price * qty)}`}
+              {oos ? (
+                locale !== "en" ? (
+                  "نفد المخزون"
+                ) : (
+                  "Out of stock"
+                )
+              ) : (
+                <>
+                  {primaryLabel} — <bdi>{formatPrice(product.price * qty, locale)}</bdi>
+                </>
+              )}
             </ChunkyButton>
           </div>
         </div>

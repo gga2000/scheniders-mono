@@ -197,7 +197,7 @@ export default function Home() {
         </div>
 
         {/* Today at a Glance */}
-        <TodayStrip metrics={dashboardMetrics.todayStrip} showRevenue={showFinancials} />
+        <TodayStrip metrics={dashboardMetrics.todayStrip} />
 
         {/* Stats Grid */}
         <StatsGrid stats={stats} onCardClick={handleStatCardClick} />
@@ -232,47 +232,41 @@ export default function Home() {
         {/* Intelligence Row: WoW | Forecast | Rejection */}
         <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-12 gap-6">
           <div className="md:col-span-1 xl:col-span-4 min-h-[240px]">
-            <WeekOverWeek metrics={dashboardMetrics.weekOverWeek} showFinancials={showFinancials} />
+            <WeekOverWeek metrics={dashboardMetrics.weekOverWeek} />
           </div>
           <div className="md:col-span-1 xl:col-span-4 min-h-[240px]">
-            <MonthForecast forecast={dashboardMetrics.monthForecast} showFinancials={showFinancials} />
+            <MonthForecast forecast={dashboardMetrics.monthForecast} />
           </div>
           <div className="md:col-span-1 xl:col-span-4 min-h-[240px]">
             <RejectionBreakdown cityRejectionStats={dashboardMetrics.urgency.cityRejectionStats} />
           </div>
         </div>
 
-        {/* Map (7col) | City Leaderboard + Product Leaderboard (5col) */}
+        {/* Map | Top Cities + Top Products (two tall columns to the right of the map) */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-          <div className="xl:col-span-7 h-[460px]">
+          <div className="xl:col-span-6 h-[400px] xl:h-[460px]">
             <IraqMap orders={orders} />
           </div>
-          <div className="xl:col-span-5 flex flex-col gap-4 h-[460px]">
-            <div className="flex-1 overflow-hidden">
-              <Leaderboard data={{ topCities: dashboardMetrics.enhancedLeaderboard.topCities, topProducts: [] }} />
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <ProductLeaderboard
-                products={dashboardMetrics.enhancedLeaderboard.topProductsEnhanced}
-                showFinancials={showFinancials}
-              />
-            </div>
+          <div className="xl:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-6 xl:h-[460px]">
+            <Leaderboard cities={dashboardMetrics.enhancedLeaderboard.topCities} />
+            <ProductLeaderboard
+              products={dashboardMetrics.enhancedLeaderboard.topProductsEnhanced}
+            />
           </div>
         </div>
 
         {/* Operational Row: Recent Orders | Staff Leaderboard (admin) | Announcements */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
           {/* Recent Orders Feed */}
-          <div className={`xl:col-span-5 min-h-[380px]`}>
+          <div className={`xl:col-span-5 h-[440px]`}>
             <RecentOrdersFeed
               orders={dashboardMetrics.recentOrders}
-              showFinancials={showFinancials}
             />
           </div>
 
           {/* Staff Leaderboard — admin only */}
           {isAdmin ? (
-            <div className="xl:col-span-4 min-h-[380px]">
+            <div className="xl:col-span-4 h-[440px]">
               <StaffLeaderboard staff={dashboardMetrics.staffLeaderboard} />
             </div>
           ) : (
@@ -281,7 +275,7 @@ export default function Home() {
           )}
 
           {/* Team Announcements */}
-          <div className={`${isAdmin ? 'xl:col-span-3' : 'xl:col-span-7'} min-h-[380px]`}>
+          <div className={`${isAdmin ? 'xl:col-span-3' : 'xl:col-span-7'} h-[440px]`}>
             <TeamAnnouncements
               announcements={announcements}
               isAdmin={isAdmin}

@@ -48,6 +48,7 @@ import pdp_info_tabs from "./pdp_info_tabs";
 import pdp_variants from "./pdp_variants";
 import pdp_add_to_cart from "./pdp_add_to_cart";
 import pdp_related_products from "./pdp_related_products";
+import product_reviews from "./product_reviews";
 
 // Cart / checkout / track page sections
 import cart_line_items from "./cart_line_items";
@@ -115,6 +116,7 @@ export const BUILTIN_SECTIONS = [
   pdp_variants,
   pdp_add_to_cart,
   pdp_related_products,
+  product_reviews,
   cart_line_items,
   cart_summary,
   checkout_form,

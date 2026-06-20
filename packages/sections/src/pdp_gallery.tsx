@@ -67,7 +67,7 @@ function PdpGalleryRender({
 
   const productName = ctx.product.name ?? "";
   const product = ctx.product;
-  const t = ctx.runtime.locale === "ar";
+  const t = ctx.runtime.locale !== "en";
   const onSale =
     product.compare_at_price != null && product.compare_at_price > product.price;
   const savings = onSale ? product.compare_at_price! - product.price : 0;
@@ -80,7 +80,8 @@ function PdpGalleryRender({
       {onSale && savings > 0 && (
         <div className="absolute top-3 right-3 z-10">
           <Sticker bg="pink" rotate={-6} size="sm">
-            {t ? `وفّر ${formatPrice(savings)}` : `Save ${formatPrice(savings)}`}
+            {t ? "وفّر " : "Save "}
+            <bdi>{formatPrice(savings, ctx.runtime.locale)}</bdi>
           </Sticker>
         </div>
       )}

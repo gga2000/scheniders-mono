@@ -65,7 +65,7 @@ export function FilterableProductGrid({
   locale: LocaleCode;
   whatsappPhone: string | null;
 }) {
-  const t = locale === "ar";
+  const t = locale !== "en";
   const [onSale, setOnSale] = useState(false);
   const [underPrice, setUnderPrice] = useState(false);
   const [visible, setVisible] = useState(PAGE_SIZE);

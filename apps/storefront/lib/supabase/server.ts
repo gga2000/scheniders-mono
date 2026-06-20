@@ -57,3 +57,25 @@ export function createSupabaseServiceClient() {
     },
   );
 }
+
+/**
+ * EC29: cookie-FREE anon client for PUBLIC, cacheable storefront reads
+ * (published tenant config, visible products/categories). Because it never
+ * touches `cookies()` it can run inside `unstable_cache` (which executes
+ * outside the request scope and throws if cookies are read). It uses the anon
+ * key, so RLS confines it to exactly what an anonymous visitor may see — the
+ * same role anonymous storefront traffic already hits, just without the
+ * per-request cookie wiring, so cross-request caching becomes possible.
+ */
+export function createSupabasePublicClient() {
+  return createClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    },
+  );
+}

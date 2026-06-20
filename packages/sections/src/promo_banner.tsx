@@ -121,10 +121,10 @@ function PromoBanner({
             {tick && !tick.done && (
               <div className="mt-bk-sm flex items-center gap-bk-2xs font-label font-bold text-xs sm:text-sm uppercase tracking-[0.18em]">
                 {[
-                  { v: tick.days, l: locale === "ar" ? "ي" : "d" },
-                  { v: tick.hours, l: locale === "ar" ? "س" : "h" },
-                  { v: tick.minutes, l: locale === "ar" ? "د" : "m" },
-                  { v: tick.seconds, l: locale === "ar" ? "ث" : "s" },
+                  { v: tick.days, l: locale !== "en" ? "ي" : "d" },
+                  { v: tick.hours, l: locale !== "en" ? "س" : "h" },
+                  { v: tick.minutes, l: locale !== "en" ? "د" : "m" },
+                  { v: tick.seconds, l: locale !== "en" ? "ث" : "s" },
                 ].map((seg, i) => (
                   <span
                     key={i}

@@ -7,6 +7,7 @@ import {
     ChevronRight,
     X,
     LogOut,
+    Star,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -79,6 +80,7 @@ const NAV_ITEMS = [
     { key: "nav.team", icon: AnimatedTeamIcon, href: "/team" },
     { key: "nav.vault", icon: AnimatedVaultIcon, href: "/vault" },
     { key: "nav.store", icon: AnimatedStoreIcon, href: "/store" },
+    { key: "nav.reviews", icon: Star, href: "/reviews" },
     { key: "nav.settings", icon: AnimatedSettingsIcon, href: "/settings" },
 ];
 

@@ -58,7 +58,7 @@ function selectCategories(
 }
 
 function pickName(c: Category, locale: "ar" | "en" | "ku"): string {
-  if (locale === "ar" && c.name_ar) return c.name_ar;
+  if (locale !== "en" && c.name_ar) return c.name_ar;
   if (locale === "en" && c.name_en) return c.name_en;
   return c.name;
 }
@@ -176,7 +176,7 @@ function CategoryGridRender({
                       className="font-label font-bold text-[10px] uppercase tracking-[0.2em]"
                       style={{ color: "var(--bk-ink-soft, rgba(26,26,26,0.55))" }}
                     >
-                      {locale === "ar" ? "تسوّق الفئة" : "Shop"}
+                      {locale !== "en" ? "تسوّق الفئة" : "Shop"}
                     </span>
                   </div>
                 )}

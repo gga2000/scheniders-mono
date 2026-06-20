@@ -1,17 +1,21 @@
 import { notFound } from "next/navigation";
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import {
   resolveSchneidersConfig,
   EMPTY_BRAND_KIT,
   buildBrandKitFontsUrl,
   buildBrandKitVars,
   sanitizeCustomCss,
+  resolveVisitorLocale,
+  LOCALE_COOKIE,
 } from "@scheniders/shared";
 import type { BrandKit, StoreConfigV2 } from "@scheniders/shared";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
-import { getRequestOrigin } from "@/lib/seo";
+import { getRequestOrigin, htmlLangFor, ogLocaleFor } from "@/lib/seo";
 import { StoreBaseProvider } from "@/lib/store-context";
 import { CartHydrator } from "@/components/cart-hydrator";
+import { HtmlLang } from "@/components/html-lang";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 import { SchneidersAnalyticsPixels } from "@/components/schneiders/analytics-pixels";
 import { SchneidersNewsletterPopup } from "@/components/schneiders/newsletter-popup";
 import type { Tenant } from "@/lib/types";
@@ -104,6 +108,17 @@ export default async function TenantLayout({ params, children }: Props) {
    * ───────────────────────────────────────────────────────────────── */
   const v2 = (tenant as Tenant & { store_config_v2?: StoreConfigV2 | null })
     .store_config_v2 ?? null;
+
+  // EC13: the locale this visitor sees — same resolution V2Page uses to render,
+  // so `<html lang>` and the switcher highlight match the body. Constrained to
+  // the store's enabled_locales.
+  const localeCookie = (await cookies()).get(LOCALE_COOKIE)?.value;
+  const currentLocale = resolveVisitorLocale({
+    enabledLocales: v2?.enabled_locales,
+    defaultLocale: v2?.default_locale,
+    cookieLocale: localeCookie,
+    acceptLanguage: headerList.get("accept-language"),
+  });
 
   const RADIUS_V2: Record<string, BrandKit["shape"]["radius"]> = {
     none: "none",
@@ -218,6 +233,13 @@ export default async function TenantLayout({ params, children }: Props) {
           <style dangerouslySetInnerHTML={{ __html: sanitizeCustomCss(rawCustomCss) }} />
         ) : null;
       })()}
+      <HtmlLang lang={htmlLangFor(currentLocale)} />
+      {v2 && (v2.enabled_locales?.length ?? 0) > 1 && (
+        <LocaleSwitcher
+          locales={v2.enabled_locales}
+          current={currentLocale}
+        />
+      )}
       <SchneidersAnalyticsPixels
         analytics={{
           // V2 takes precedence — the globals.analytics_pixels section is
@@ -240,8 +262,11 @@ export default async function TenantLayout({ params, children }: Props) {
           // tenant subtree (not only primitives that read the var explicitly),
           // so plain prose/labels render in DM Sans / the tenant body face
           // rather than system-ui.
+          // EC14: 'Noto Sans Arabic' last so Arabic/Kurdish glyphs render in a
+          // real Arabic face when --bk-font-body is unset (Latin brand fonts
+          // carry no Arabic). --bk-font-body already includes it via fontStack.
           fontFamily:
-            "var(--bk-font-body, var(--font-dm-sans), 'DM Sans', sans-serif)",
+            "var(--bk-font-body, var(--font-dm-sans), 'DM Sans', 'Noto Sans Arabic', sans-serif)",
         }}
       >
         {children}
@@ -285,7 +310,10 @@ export async function generateMetadata({ params }: { params: Promise<{ tenant: s
     icons: logoUrl ? [{ url: logoUrl }] : undefined,
     openGraph: {
       type: "website",
-      locale: "ar_IQ",
+      locale: ogLocaleFor(
+        (tenant as Tenant & { store_config_v2?: StoreConfigV2 | null })
+          .store_config_v2?.default_locale,
+      ),
       siteName: tenant.business_name,
       title,
       description,

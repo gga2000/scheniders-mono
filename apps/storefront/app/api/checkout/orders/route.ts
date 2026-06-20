@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { cookies } from "next/headers";
-import { IRAQ_GOVERNORATES, type GovernorateCode } from "@scheniders/shared";
+import {
+  IRAQ_GOVERNORATES,
+  assignAbArm,
+  type GovernorateCode,
+  type Experiment,
+} from "@scheniders/shared";
 import { submitCheckout } from "@/app/actions/checkout";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 
@@ -37,6 +42,11 @@ export const checkoutOrderBodySchema = z.object({
       }),
     )
     .min(1),
+  // EC17: client-generated key to dedupe a re-submitted order (flaky-3G retry).
+  // Length-bounded string (UUID or fallback token) — forwarded to the pipeline.
+  idempotency_key: z.string().min(8).max(100).optional(),
+  /** Discount engine: coupon code (validated + priced server-side). */
+  coupon_code: z.string().min(1).max(64).optional(),
   // accepted and dropped — not forwarded to the order pipeline
   subtotal: z.number().optional(),
   locale: z.string().optional(),
@@ -67,6 +77,8 @@ export async function POST(req: Request): Promise<NextResponse> {
 
     const payload = {
       tenantId: data.tenant_id,
+      idempotencyKey: data.idempotency_key,
+      couponCode: data.coupon_code,
       customer: {
         customer_name: data.customer_name,
         phone: data.phone,
@@ -89,27 +101,42 @@ export async function POST(req: Request): Promise<NextResponse> {
 
     if (result.success) {
       try {
-        const arms = parsed.data.ab_test_arms ?? {};
         const visitorKey = (await cookies()).get("sb_vid")?.value;
-        const entries = Object.entries(arms);
-        if (visitorKey && entries.length > 0) {
+        if (visitorKey) {
           const svc = createSupabaseServiceClient();
-          const rows = entries.map(([experiment_id, arm_id]) => ({
-            tenant_id: parsed.data.tenant_id,
-            experiment_id,
-            arm_id,
-            visitor_key: visitorKey,
-            event_type: "order" as const,
-            revenue_iqd: result.total ?? null,
-          }));
-          const { error: evErr } = await svc
-            .from("store_config_experiment_events")
-            .insert(rows);
-          if (evErr)
-            console.error(
-              "[checkout/orders] experiment event write failed:",
-              evErr,
-            );
+          // EC19: re-derive the visitor's arm per running experiment from the
+          // store config — never trust the client's `ab_test_arms` (which could
+          // forge revenue attribution to a chosen arm). Revenue is the
+          // server-computed total, not a client value.
+          const { data: tenantRow } = await svc
+            .from("tenants")
+            .select("store_config_v2")
+            .eq("id", parsed.data.tenant_id)
+            .single();
+          const experiments =
+            ((tenantRow?.store_config_v2 as { experiments?: Experiment[] } | null)
+              ?.experiments) ?? [];
+          const rows = experiments
+            .map((exp) => ({ exp, arm: assignAbArm(exp, visitorKey) }))
+            .filter((x): x is { exp: Experiment; arm: string } => x.arm !== null)
+            .map(({ exp, arm }) => ({
+              tenant_id: parsed.data.tenant_id,
+              experiment_id: exp.id,
+              arm_id: arm,
+              visitor_key: visitorKey,
+              event_type: "order" as const,
+              revenue_iqd: result.total ?? null,
+            }));
+          if (rows.length > 0) {
+            const { error: evErr } = await svc
+              .from("store_config_experiment_events")
+              .insert(rows);
+            if (evErr)
+              console.error(
+                "[checkout/orders] experiment event write failed:",
+                evErr,
+              );
+          }
         }
       } catch (e) {
         console.error("[checkout/orders] experiment event write threw:", e);

@@ -30,37 +30,31 @@ const renderCtx = {
 };
 
 describe("html_embed section", () => {
-  it("registers correctly with category=content and a valid_on covering all pages", () => {
+  it("registers under content and is allowed on content pages but NOT cart/checkout (EC6)", () => {
     const def = getSection("html_embed");
     expect(def).toBeTruthy();
     expect(def).toBe(html_embed_def);
     expect(def?.category).toBe("content");
-    // Covers every documented page.
+    // Allowed on content pages…
     expect(def?.valid_on).toEqual(
       expect.arrayContaining([
         "home",
         "category",
         "product",
-        "search",
-        "cart",
-        "checkout",
-        "checkout_success",
-        "track",
         "about",
         "faq",
-        "contact",
-        "policy_shipping",
-        "policy_returns",
         "policy_privacy",
-        "policy_terms",
-        "not_found",
       ]),
     );
+    // …but never on the COD conversion path (no merchant embed near checkout).
+    expect(def?.valid_on).not.toContain("cart");
+    expect(def?.valid_on).not.toContain("checkout");
+    expect(def?.valid_on).not.toContain("checkout_success");
     // defaultProps round-trips through the schema.
     expect(def?.schema.safeParse(def.defaultProps).success).toBe(true);
   });
 
-  it("renders a sandboxed iframe with the configured srcDoc + height", () => {
+  it("renders a sandboxed iframe WITHOUT allow-same-origin (EC6)", () => {
     const Render = html_embed_def.render;
     const html = renderToStaticMarkup(
       React.createElement(Render, {
@@ -72,7 +66,9 @@ describe("html_embed section", () => {
       } as never),
     );
     expect(html).toContain("<iframe");
-    expect(html).toContain('sandbox="allow-scripts allow-same-origin"');
+    // The embed must NOT share the parent origin (no cookie/localStorage access).
+    expect(html).not.toContain("allow-same-origin");
+    expect(html).toContain("allow-scripts");
     // React serialises `srcDoc` as `srcdoc` and HTML-escapes the body.
     expect(html.toLowerCase()).toContain("srcdoc=");
     expect(html).toContain("&lt;p&gt;hello&lt;/p&gt;");

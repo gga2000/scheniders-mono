@@ -2,7 +2,7 @@
 
 import { TrendingUp, TrendingDown, Minus, ShoppingBag, DollarSign } from "lucide-react";
 import { TodayStripMetrics } from "@/lib/analytics/dashboard-calculations";
-import { formatIQD } from "@/lib/utils";
+import { FinancialValue } from "@/components/ui/financial-value";
 import { useLanguage } from "@/hooks/use-language";
 
 interface DeltaBadgeProps {
@@ -33,10 +33,9 @@ function DeltaBadge({ delta, pct }: DeltaBadgeProps) {
 
 interface TodayStripProps {
     metrics: TodayStripMetrics;
-    showRevenue: boolean;
 }
 
-export function TodayStrip({ metrics, showRevenue }: TodayStripProps) {
+export function TodayStrip({ metrics }: TodayStripProps) {
     const { t } = useLanguage();
     return (
         <div className="pastel-card p-4 md:p-5">
@@ -57,30 +56,31 @@ export function TodayStrip({ metrics, showRevenue }: TodayStripProps) {
                     <DeltaBadge delta={metrics.ordersDelta} pct={metrics.ordersDeltaPct} />
                 </div>
 
-                {showRevenue && (
-                    <>
-                        <div className="w-px h-10 bg-[var(--card-border)] hidden md:block" />
+                <div className="w-px h-10 bg-[var(--card-border)] hidden md:block" />
 
-                        {/* Revenue Today */}
-                        <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-[var(--pastel-green)]/40 flex items-center justify-center">
-                                <DollarSign className="w-4 h-4 text-green-700" />
-                            </div>
-                            <div>
-                                <p className="text-xs text-muted font-medium">{t("dashboard.today.revenue")}</p>
-                                <p className="text-2xl font-bold text-foreground leading-none">{formatIQD(metrics.revenueToday)}</p>
-                            </div>
-                            <DeltaBadge delta={metrics.revenueDelta} pct={metrics.revenueDeltaPct} />
-                        </div>
-                    </>
-                )}
+                {/* Revenue Today */}
+                <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-[var(--pastel-green)]/40 flex items-center justify-center">
+                        <DollarSign className="w-4 h-4 text-green-700" />
+                    </div>
+                    <div>
+                        <p className="text-xs text-muted font-medium">{t("dashboard.today.revenue")}</p>
+                        <FinancialValue
+                            amount={metrics.revenueToday}
+                            className="text-2xl font-bold text-foreground leading-none"
+                            iconSize={15}
+                        />
+                    </div>
+                    <DeltaBadge delta={metrics.revenueDelta} pct={metrics.revenueDeltaPct} />
+                </div>
 
                 <div className="ml-auto hidden md:flex items-center gap-1.5 text-xs text-muted">
                     <span>{t("dashboard.today.vsYesterday")}</span>
                     <span className="font-semibold text-foreground">{metrics.ordersYesterday} {t("dashboard.today.ordersCount")}</span>
-                    {showRevenue && (
-                        <span className="font-semibold text-foreground">· {formatIQD(metrics.revenueYesterday)}</span>
-                    )}
+                    <span className="font-semibold text-foreground inline-flex items-center gap-1">
+                        ·
+                        <FinancialValue amount={metrics.revenueYesterday} hideToggle />
+                    </span>
                 </div>
             </div>
         </div>

@@ -9,6 +9,7 @@ import { V2Page } from "@/components/v2-page";
 import { JsonLd } from "@/components/json-ld";
 import {
   getStorefrontBase,
+  ogLocaleFor,
   organizationJsonLd,
   websiteJsonLd,
 } from "@/lib/seo";
@@ -41,7 +42,7 @@ export async function generateMetadata({
     ...(baseUrl ? { alternates: { canonical: baseUrl } } : {}),
     openGraph: {
       type: "website",
-      locale: "ar_IQ",
+      locale: ogLocaleFor(v2?.default_locale),
       ...(tenant ? { siteName: tenant.business_name } : {}),
       ...(base.openGraph ?? {}),
       ...(baseUrl ? { url: baseUrl } : {}),
@@ -79,9 +80,17 @@ export default async function StorefrontHome({
 
   // Prefer the published v2 section model unless the admin is previewing a legacy template.
   const v2 = tenant.store_config_v2 ?? null;
-  const homePage = preview ? null : pickV2Page(v2, "home");
 
-  if (v2 && homePage) {
+  // EC11: once a tenant has a v2 config we ALWAYS render the v2 storefront — even
+  // when the home page is empty (0 sections) — so we never silently fall back to
+  // the legacy template, which produced a split-brain store (legacy home design
+  // + v2 PDP/cart). An empty home renders the v2 chrome (header/footer) with an
+  // empty body, signalling "add your home sections", not a stale foreign design.
+  // The legacy template is reserved for genuinely un-ported tenants (no v2) and
+  // for an explicit admin legacy preview.
+  if (!preview && v2) {
+    const homePage =
+      pickV2Page(v2, "home") ?? { page_id: "home" as const, sections: [] };
     const runtime = buildRuntimeContext({
       pageId: "home",
       locale: v2.default_locale ?? "ar",
@@ -109,7 +118,7 @@ export default async function StorefrontHome({
     );
   }
 
-  // Legacy fallback (unchanged): un-ported tenants + preview_template override.
+  // Legacy fallback: un-ported tenants (no v2) or an explicit legacy preview.
   const Template = getTemplate(preview ?? tenant.store_config?.template);
   return <Template tenant={tenant} products={products} categories={categories} />;
 }

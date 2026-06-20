@@ -130,6 +130,7 @@ function makeBuilder(overrides: Partial<UseStoreBuilderV2Return> = {}): UseStore
             author_name: "",
         }),
         listVersions: async () => [],
+        getVersionConfig: async () => null,
         restoreVersion: async () => {},
         listSchedules: async () => [],
         createSchedule: async () => ({

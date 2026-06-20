@@ -11,6 +11,10 @@ import type {
     AudienceSegment,
     Experiment,
 } from "@scheniders/shared";
+import {
+    pruneVariantsForDeletedSegment,
+    pruneVariantsForDeletedExperiment,
+} from "@scheniders/shared";
 import { supabase } from "@/lib/supabase";
 import {
     diffJson,
@@ -69,6 +73,13 @@ export interface UseStoreBuilderV2Options {
     hasPublished: boolean;
     /** Whether the initial config came from a draft (so we start dirty). */
     initiallyDirty?: boolean;
+    /**
+     * EC33: the DB row's `updated_at` (epoch ms) at hydration. A local crash
+     * backup is only offered when it's NEWER than this — otherwise the DB has
+     * been saved/published since the backup was written (e.g. from another
+     * device), so the backup is stale and must not resurrect over newer work.
+     */
+    initialUpdatedAt?: number | null;
 }
 
 export interface UseStoreBuilderV2Return {
@@ -139,6 +150,8 @@ export interface UseStoreBuilderV2Return {
 
     /** Fetch recent versions for this tenant (50 most recent + all named). */
     listVersions: () => Promise<StoredVersion[]>;
+    /** EC28: fetch one version's full config on demand (not in listVersions). */
+    getVersionConfig: (versionId: string) => Promise<StoreConfigV2 | null>;
 
     /** Restore a previous version into the draft. */
     restoreVersion: (versionId: string) => Promise<void>;
@@ -174,7 +187,10 @@ export type ScheduleStatus = "scheduled" | "active" | "expired" | "cancelled";
 
 export interface StoredVersion extends NamedSnapshot {
     is_named: boolean;
-    config: StoreConfigV2;
+    // EC28: NOT shipped by listVersions anymore (50+ full config blobs = multi-MB
+    // payload). Fetched on demand via getVersionConfig(id) for diff/restore/
+    // promote. Optimistic local rows may still carry it.
+    config?: StoreConfigV2;
 }
 
 export interface StoredSchedule extends ScheduledChange {
@@ -190,6 +206,8 @@ const MAX_HISTORY = 50;
 const AUTOSAVE_DEBOUNCE_MS = 2_000;
 const LOCALSTORAGE_BACKUP_MS = 30_000;
 const HISTORY_DEBOUNCE_MS = 400;
+/** Exponential backoff for autosave retries (capped). The last value repeats. */
+const SAVE_BACKOFF_MS = [2_000, 5_000, 15_000] as const;
 
 function localBackupKey(tenantId: string): string {
     return `schn-builder-v2-${tenantId}`;
@@ -220,7 +238,13 @@ function computeDiffSummary(
 export function useStoreBuilderV2(
     options: UseStoreBuilderV2Options,
 ): UseStoreBuilderV2Return {
-    const { tenantId, initialConfig, hasPublished, initiallyDirty = false } = options;
+    const {
+        tenantId,
+        initialConfig,
+        hasPublished,
+        initiallyDirty = false,
+        initialUpdatedAt = null,
+    } = options;
 
     /* ── Draft config ─────────────────────────────────────────────── */
     const [config, setConfigState] = useState<StoreConfigV2>(initialConfig);
@@ -277,9 +301,15 @@ export function useStoreBuilderV2(
         [],
     );
 
+    // EC27: serialize the config ONCE per change. Three effects below
+    // (history snapshot, dirty check, autosave) each used to call
+    // JSON.stringify(config) independently — 3× the cost on every keystroke,
+    // which janks low-end Android. They now share this memo.
+    const serializedConfig = useMemo(() => JSON.stringify(config), [config]);
+
     /* ── Snapshot to history (debounced) ──────────────────────────── */
     useEffect(() => {
-        const serialized = JSON.stringify(config);
+        const serialized = serializedConfig;
         if (serialized === lastSnapshotRef.current) return;
 
         const timer = setTimeout(() => {
@@ -309,14 +339,13 @@ export function useStoreBuilderV2(
         }, HISTORY_DEBOUNCE_MS);
 
         return () => clearTimeout(timer);
-    }, [config]);
+    }, [serializedConfig]);
 
     /* ── Mark dirty whenever config changes ───────────────────────── */
     const initialSerializedRef = useRef<string>(JSON.stringify(initialConfig));
     useEffect(() => {
-        const serialized = JSON.stringify(config);
-        set_has_unpublished_changes(serialized !== initialSerializedRef.current);
-    }, [config]);
+        set_has_unpublished_changes(serializedConfig !== initialSerializedRef.current);
+    }, [serializedConfig]);
 
     /* ── Auto-save to DB (2s debounce) ────────────────────────────── */
     const saveDraftRef = useRef<((cfg: StoreConfigV2) => Promise<void>) | null>(null);
@@ -326,6 +355,31 @@ export function useStoreBuilderV2(
     // from has_unpublished_changes, which stays true after a draft autosave.
     // Drives the beforeunload guard so we only warn on genuine loss risk.
     const pendingDraftWriteRef = useRef(false);
+    // EC9: false until the DB has a full config skeleton (published OR a draft).
+    // While false, edits must persist via a FULL config save, never an atomic
+    // jsonb_set patch — a patch into a NULL/`{}` base would write only the edited
+    // branch (no schema_version / pages array) and corrupt the draft on reload.
+    // Flipped true once any full save / publish succeeds.
+    const draftSeededRef = useRef<boolean>(hasPublished || initiallyDirty);
+    // EC8: the most recent in-flight field PATCH (fire-and-forget). publish /
+    // revert AWAIT this before nulling the draft so a late patch can't resurrect
+    // a discarded draft via the patch RPC's COALESCE(draft, published) seed —
+    // which would re-create a dirty draft holding one stale field after the
+    // merchant explicitly reverted or published.
+    const inFlightPatchRef = useRef<Promise<void> | null>(null);
+    // Always-fresh mirror of `config` for fire-and-forget saves/retries that
+    // must persist the LATEST state, not the value captured at schedule time.
+    const configRef = useRef(config);
+    configRef.current = config;
+    // BUG21: set by patchField so the next config-change effect skips the
+    // redundant whole-jsonb autosave (the atomic patch already persisted it).
+    const suppressAutoSaveRef = useRef(false);
+    // G2: pending retry timer + attempt counter for exponential autosave backoff.
+    const saveRetryRef = useRef<{
+        timer: ReturnType<typeof setTimeout> | null;
+        attempt: number;
+    }>({ timer: null, attempt: 0 });
+    const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const performSaveDraft = useCallback(
         async (cfg: StoreConfigV2): Promise<void> => {
@@ -340,6 +394,13 @@ export function useStoreBuilderV2(
                     .eq("id", tenantId);
                 if (error) throw error;
                 pendingDraftWriteRef.current = false;
+                draftSeededRef.current = true; // EC9: DB now holds a full skeleton.
+                // G2: success clears any scheduled retry.
+                saveRetryRef.current.attempt = 0;
+                if (saveRetryRef.current.timer) {
+                    clearTimeout(saveRetryRef.current.timer);
+                    saveRetryRef.current.timer = null;
+                }
                 set_save_state("saved");
                 set_last_saved_at(new Date());
                 // Drop back to idle after a moment.
@@ -348,16 +409,55 @@ export function useStoreBuilderV2(
                 }, 3000);
             } catch {
                 set_save_state("error");
+                // G2: a single flaky save no longer strands the merchant — keep
+                // retrying the LATEST config with exponential backoff while the
+                // draft is still unsaved (common on intermittent 3G).
+                if (pendingDraftWriteRef.current) {
+                    const attempt = saveRetryRef.current.attempt;
+                    const delay =
+                        SAVE_BACKOFF_MS[
+                            Math.min(attempt, SAVE_BACKOFF_MS.length - 1)
+                        ];
+                    saveRetryRef.current.attempt = attempt + 1;
+                    if (saveRetryRef.current.timer) {
+                        clearTimeout(saveRetryRef.current.timer);
+                    }
+                    saveRetryRef.current.timer = setTimeout(() => {
+                        saveRetryRef.current.timer = null;
+                        // A publish/revert in the meantime clears the pending
+                        // flag — don't resurrect a just-cleared draft.
+                        if (!pendingDraftWriteRef.current) return;
+                        void saveDraftRef.current?.(configRef.current);
+                    }, delay);
+                }
             }
         },
         [tenantId],
     );
     saveDraftRef.current = performSaveDraft;
 
-    const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Arm the debounced full-config save (used as the patchField failure
+    // fallback — BUG21). Always saves the latest config via configRef.
+    const scheduleReconcileSave = useCallback((): void => {
+        pendingDraftWriteRef.current = true;
+        if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = setTimeout(() => {
+            void saveDraftRef.current?.(configRef.current);
+        }, AUTOSAVE_DEBOUNCE_MS);
+    }, []);
     useEffect(() => {
-        const serialized = JSON.stringify(config);
-        if (serialized === initialSerializedRef.current) return;
+        // BUG21: this change went through patchField (atomic, advisory-locked
+        // patch) — that IS the durable write, so skip the redundant whole-jsonb
+        // autosave that would otherwise race and clobber it. patchField manages
+        // pendingDraftWriteRef and reconciles via a full save if the patch fails.
+        // Consumed first (before the baseline check) so it never lingers into a
+        // later structural edit.
+        if (suppressAutoSaveRef.current) {
+            suppressAutoSaveRef.current = false;
+            return;
+        }
+
+        if (serializedConfig === initialSerializedRef.current) return;
 
         // Edits exist that aren't in the DB draft yet — guard against unload.
         pendingDraftWriteRef.current = true;
@@ -369,7 +469,7 @@ export function useStoreBuilderV2(
         return () => {
             if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
         };
-    }, [config]);
+    }, [config, serializedConfig]);
 
     /* ── localStorage backup (every 30s) ──────────────────────────── */
     useEffect(() => {
@@ -422,6 +522,10 @@ export function useStoreBuilderV2(
     const publish = useCallback(async (): Promise<void> => {
         if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
         set_save_state("saving");
+        // EC8: let any in-flight field PATCH land BEFORE this publish nulls the
+        // draft, so a late patch can't resurrect a dirty draft from the freshly
+        // published config via the patch RPC's COALESCE seed.
+        await inFlightPatchRef.current?.catch(() => {});
         try {
             // Summarise what this publish changes vs the last save point so the
             // inserted version row's diff badges aren't empty. Baseline is the
@@ -444,6 +548,7 @@ export function useStoreBuilderV2(
             if (error) throw error;
 
             pendingDraftWriteRef.current = false;
+            draftSeededRef.current = true; // EC9: published config is a full skeleton.
             set_save_state("saved");
             set_last_saved_at(new Date());
             initialSerializedRef.current = JSON.stringify(config);
@@ -467,6 +572,10 @@ export function useStoreBuilderV2(
     const revert_to_published = useCallback(async (): Promise<void> => {
         if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
         set_save_state("saving");
+        // EC8: drain any in-flight field PATCH BEFORE we null the draft, so its
+        // late landing can't resurrect the very draft we're discarding (the
+        // patch RPC seeds a fresh draft from published via COALESCE).
+        await inFlightPatchRef.current?.catch(() => {});
         try {
             const { data, error } = await supabase
                 .from("tenants")
@@ -493,6 +602,15 @@ export function useStoreBuilderV2(
             setConfigState(published);
             initialSerializedRef.current = JSON.stringify(published);
             set_has_unpublished_changes(false);
+            // The draft is nulled server-side — stop any pending autosave/retry
+            // from resurrecting it.
+            pendingDraftWriteRef.current = false;
+            suppressAutoSaveRef.current = false;
+            if (saveRetryRef.current.timer) {
+                clearTimeout(saveRetryRef.current.timer);
+                saveRetryRef.current.timer = null;
+            }
+            saveRetryRef.current.attempt = 0;
             set_save_state("idle");
             set_last_saved_at(new Date());
             pastRef.current = [];
@@ -570,18 +688,37 @@ export function useStoreBuilderV2(
     const patchField = useCallback(
         (path: (string | number)[], value: unknown): void => {
             if (path.length === 0) return;
+            // EC9: until the DB holds a full config skeleton, an atomic jsonb_set
+            // patch would corrupt the draft (writes only this branch into a NULL
+            // base). Persist the FULL config via the debounced save instead. This
+            // path keeps running until a full save succeeds (draftSeededRef flips
+            // true), then the fast patch path below takes over.
+            if (!draftSeededRef.current) {
+                setConfig(
+                    (prev) =>
+                        setByPathRoot(prev as unknown, path, value) as StoreConfigV2,
+                    "Edited field",
+                );
+                scheduleReconcileSave();
+                return;
+            }
+            // BUG21: the atomic patch below is the durable write, so suppress
+            // the redundant whole-jsonb autosave the optimistic setConfig would
+            // trigger (it raced/clobbered the patch). Mark the write in-flight
+            // until the patch confirms; the failure paths reconcile.
+            suppressAutoSaveRef.current = true;
+            pendingDraftWriteRef.current = true;
             // Optimistic in-memory update via the standard setConfig path —
-            // this also pushes an undo entry and keeps the debounced full
-            // save as a safety net.
+            // this also pushes an undo entry.
             setConfig(
                 (prev) =>
                     setByPathRoot(prev as unknown, path, value) as StoreConfigV2,
                 "Edited field",
             );
-            // Fire-and-forget PATCH. On failure we just log — the next
-            // full-config debounced save will reconcile.
+            // Fire-and-forget PATCH. On success the draft is persisted; on
+            // failure, fall back to a full debounced save (configRef = latest).
             try {
-                void fetch("/api/store-config-v2/patch", {
+                const patchPromise = fetch("/api/store-config-v2/patch", {
                     method: "POST",
                     headers: { "content-type": "application/json" },
                     body: JSON.stringify({
@@ -591,23 +728,36 @@ export function useStoreBuilderV2(
                         value,
                     }),
                 }).then((r) => {
-                    if (!r.ok) {
+                    if (r.ok) {
+                        pendingDraftWriteRef.current = false;
+                    } else {
                         // eslint-disable-next-line no-console
                         console.warn(
                             "[patchField] PATCH failed, full-save will reconcile",
                             r.status,
                         );
+                        scheduleReconcileSave();
                     }
                 }).catch((err) => {
                     // eslint-disable-next-line no-console
                     console.warn("[patchField] PATCH error", err);
+                    scheduleReconcileSave();
+                });
+                // EC8: track this patch so revert/publish can await it before
+                // nulling the draft (otherwise its late landing resurrects one).
+                inFlightPatchRef.current = patchPromise;
+                void patchPromise.finally(() => {
+                    if (inFlightPatchRef.current === patchPromise) {
+                        inFlightPatchRef.current = null;
+                    }
                 });
             } catch (err) {
                 // eslint-disable-next-line no-console
                 console.warn("[patchField] PATCH threw", err);
+                scheduleReconcileSave();
             }
         },
-        [setConfig, tenantId],
+        [setConfig, tenantId, scheduleReconcileSave],
     );
 
     /* ── applyConfig (replace entire draft, e.g. version restore) ── */
@@ -646,6 +796,18 @@ export function useStoreBuilderV2(
                 config?: StoreConfigV2;
             };
             if (!parsed?.config || typeof parsed.saved_at !== "number") return;
+            // EC33: the backup is keyed only by tenant, so it can belong to an
+            // OLDER session than what's now in the DB (e.g. another device saved
+            // or published since). If the DB was updated at/after the backup's
+            // timestamp, the backup is stale — drop it rather than offer to
+            // resurrect it over newer work.
+            if (
+                typeof initialUpdatedAt === "number" &&
+                parsed.saved_at <= initialUpdatedAt
+            ) {
+                window.localStorage.removeItem(localBackupKey(tenantId));
+                return;
+            }
             // Only offer recovery when the backup actually diverges from what
             // we hydrated from the DB — otherwise it's a stale duplicate.
             if (JSON.stringify(parsed.config) === initialSerializedRef.current) {
@@ -753,7 +915,7 @@ export function useStoreBuilderV2(
         // 50 most recent overall, plus any named snapshot not in that window.
         const { data: recent, error: recentErr } = await supabase
             .from("store_config_versions")
-            .select("id, label, is_named, config, diff_summary, created_by, author_name, created_at")
+            .select("id, label, is_named, diff_summary, created_by, author_name, created_at")
             .eq("tenant_id", tenantId)
             .order("created_at", { ascending: false })
             .limit(50);
@@ -761,7 +923,7 @@ export function useStoreBuilderV2(
 
         const { data: named, error: namedErr } = await supabase
             .from("store_config_versions")
-            .select("id, label, is_named, config, diff_summary, created_by, author_name, created_at")
+            .select("id, label, is_named, diff_summary, created_by, author_name, created_at")
             .eq("tenant_id", tenantId)
             .eq("is_named", true)
             .order("created_at", { ascending: false });
@@ -779,19 +941,28 @@ export function useStoreBuilderV2(
         return unique;
     }, [tenantId]);
 
-    const restoreVersion = useCallback(
-        async (versionId: string): Promise<void> => {
+    // EC28: fetch ONE version's full config on demand (listVersions no longer
+    // ships them). Used by the version-history diff/restore/promote flows.
+    const getVersionConfig = useCallback(
+        async (versionId: string): Promise<StoreConfigV2 | null> => {
             const { data, error } = await supabase
                 .from("store_config_versions")
                 .select("config")
                 .eq("id", versionId)
                 .single();
             if (error) throw error;
-            const next = (data as { config?: StoreConfigV2 } | null)?.config;
+            return (data as { config?: StoreConfigV2 } | null)?.config ?? null;
+        },
+        [],
+    );
+
+    const restoreVersion = useCallback(
+        async (versionId: string): Promise<void> => {
+            const next = await getVersionConfig(versionId);
             if (!next) throw new Error("Version has no config payload");
             applyConfig(next);
         },
-        [applyConfig],
+        [applyConfig, getVersionConfig],
     );
 
     const listSchedules = useCallback(async (): Promise<StoredSchedule[]> => {
@@ -914,36 +1085,43 @@ export function useStoreBuilderV2(
 
     /* ── Segments CRUD ─────────────────────────────────────────────── */
 
+    // EC31: segment/experiment CRUD now flows through the atomic, advisory-locked
+    // `patchField` (jsonb_set on the specific top-level key) instead of a bare
+    // setConfigState that rode the racy whole-jsonb autosave — closing the
+    // lost-update window for a concurrent edit on another tab/section.
     const createSegment = useCallback(
         (input: Omit<AudienceSegment, "id">): AudienceSegment => {
             const segment: AudienceSegment = { ...input, id: genLocalId("seg") };
-            setConfigState((prev) => ({
-                ...prev,
-                segments: [...prev.segments, segment],
-            }));
+            patchField(["segments"], [...configRef.current.segments, segment]);
             return segment;
         },
-        [],
+        [patchField],
     );
 
     const updateSegment = useCallback(
         (id: string, patch: Partial<AudienceSegment>): void => {
-            setConfigState((prev) => ({
-                ...prev,
-                segments: prev.segments.map((s) =>
-                    s.id === id ? { ...s, ...patch, id: s.id } : s,
-                ),
-            }));
+            const next = configRef.current.segments.map((s) =>
+                s.id === id ? { ...s, ...patch, id: s.id } : s,
+            );
+            patchField(["segments"], next);
         },
-        [],
+        [patchField],
     );
 
-    const deleteSegment = useCallback((id: string): void => {
-        setConfigState((prev) => ({
-            ...prev,
-            segments: prev.segments.filter((s) => s.id !== id),
-        }));
-    }, []);
+    const deleteSegment = useCallback(
+        (id: string): void => {
+            const cur = configRef.current;
+            patchField(
+                ["segments"],
+                cur.segments.filter((s) => s.id !== id),
+            );
+            // EC20: cascade-remove variants that targeted this segment — they can
+            // never match again, so leaving them is a silent orphan.
+            const { pages, removed } = pruneVariantsForDeletedSegment(cur.pages, id);
+            if (removed > 0) patchField(["pages"], pages);
+        },
+        [patchField],
+    );
 
     const findSegmentReferences = useCallback(
         (segmentId: string): VariantReference[] => {
@@ -977,33 +1155,41 @@ export function useStoreBuilderV2(
     const createExperiment = useCallback(
         (input: Omit<Experiment, "id">): Experiment => {
             const experiment: Experiment = { ...input, id: genLocalId("exp") };
-            setConfigState((prev) => ({
-                ...prev,
-                experiments: [...prev.experiments, experiment],
-            }));
+            patchField(["experiments"], [
+                ...configRef.current.experiments,
+                experiment,
+            ]);
             return experiment;
         },
-        [],
+        [patchField],
     );
 
     const updateExperiment = useCallback(
         (id: string, patch: Partial<Experiment>): void => {
-            setConfigState((prev) => ({
-                ...prev,
-                experiments: prev.experiments.map((e) =>
-                    e.id === id ? { ...e, ...patch, id: e.id } : e,
-                ),
-            }));
+            const next = configRef.current.experiments.map((e) =>
+                e.id === id ? { ...e, ...patch, id: e.id } : e,
+            );
+            patchField(["experiments"], next);
         },
-        [],
+        [patchField],
     );
 
-    const deleteExperiment = useCallback((id: string): void => {
-        setConfigState((prev) => ({
-            ...prev,
-            experiments: prev.experiments.filter((e) => e.id !== id),
-        }));
-    }, []);
+    const deleteExperiment = useCallback(
+        (id: string): void => {
+            const cur = configRef.current;
+            patchField(
+                ["experiments"],
+                cur.experiments.filter((e) => e.id !== id),
+            );
+            // EC20: cascade-remove variants gated on this experiment's arms.
+            const { pages, removed } = pruneVariantsForDeletedExperiment(
+                cur.pages,
+                id,
+            );
+            if (removed > 0) patchField(["pages"], pages);
+        },
+        [patchField],
+    );
 
     const findExperimentReferences = useCallback(
         (experimentId: string): VariantReference[] => {
@@ -1036,66 +1222,42 @@ export function useStoreBuilderV2(
 
     const fetchExperimentStats = useCallback(
         async (experimentId: string): Promise<ExperimentStats> => {
-            const { data, error } = await supabase
-                .from("store_config_experiment_events")
-                .select("arm_id, event_type, visitor_key, revenue_iqd")
-                .eq("tenant_id", tenantId)
-                .eq("experiment_id", experimentId);
+            // EC28: aggregate server-side (one row per arm) instead of streaming
+            // every event row to the browser (multi-MB / OOM on a popular test).
+            const { data, error } = await supabase.rpc("aggregate_experiment_stats", {
+                p_tenant_id: tenantId,
+                p_experiment_id: experimentId,
+            });
             if (error) throw error;
+            // The shared client isn't generic-typed, so cast the RPC result
+            // (matches this file's convention for every supabase read).
             const rows = (data ?? []) as Array<{
                 arm_id: string;
-                event_type: string;
-                visitor_key: string;
-                revenue_iqd: number | null;
+                visitors: number;
+                add_to_cart: number;
+                checkout_start: number;
+                orders: number;
+                revenue_iqd: number;
             }>;
 
-            // Find the experiment to know which arms exist (so empty arms
-            // still show up in the dashboard with zero counts).
+            // Find the experiment to know which arms exist (so empty arms still
+            // show up in the dashboard with zero counts).
             const experiment = config.experiments.find((e) => e.id === experimentId);
             const armIds = new Set<string>(experiment?.arms.map((a) => a.id) ?? []);
             for (const r of rows) armIds.add(r.arm_id);
-
-            const visitorsPerArm = new Map<string, Set<string>>();
-            const eventCounts = new Map<string, Map<string, number>>();
-            const revenuePerArm = new Map<string, number>();
-
-            for (const armId of armIds) {
-                visitorsPerArm.set(armId, new Set());
-                eventCounts.set(armId, new Map());
-                revenuePerArm.set(armId, 0);
-            }
-
-            for (const row of rows) {
-                const visitorSet = visitorsPerArm.get(row.arm_id);
-                if (visitorSet) visitorSet.add(row.visitor_key);
-                const counter = eventCounts.get(row.arm_id);
-                if (counter) {
-                    counter.set(
-                        row.event_type,
-                        (counter.get(row.event_type) ?? 0) + 1,
-                    );
-                }
-                if (row.event_type === "order" && typeof row.revenue_iqd === "number") {
-                    revenuePerArm.set(
-                        row.arm_id,
-                        (revenuePerArm.get(row.arm_id) ?? 0) + row.revenue_iqd,
-                    );
-                }
-            }
+            const byArm = new Map(rows.map((r) => [r.arm_id, r]));
 
             const per_arm: Record<string, ExperimentArmStats> = {};
             for (const armId of armIds) {
-                const visitors = visitorsPerArm.get(armId)?.size ?? 0;
-                const counts = eventCounts.get(armId) ?? new Map();
-                // Prefer counting distinct visitors who triggered "view" — but
-                // some test fixtures don't emit view events. We fall back to
-                // the union of all event visitor_keys (already in visitors).
-                const orders = counts.get("order") ?? 0;
-                const revenue = revenuePerArm.get(armId) ?? 0;
+                const r = byArm.get(armId);
+                // Postgres bigint/numeric may arrive as string — coerce.
+                const visitors = Number(r?.visitors ?? 0);
+                const orders = Number(r?.orders ?? 0);
+                const revenue = Number(r?.revenue_iqd ?? 0);
                 per_arm[armId] = {
                     visitors,
-                    add_to_cart: counts.get("add_to_cart") ?? 0,
-                    checkout_start: counts.get("checkout_start") ?? 0,
+                    add_to_cart: Number(r?.add_to_cart ?? 0),
+                    checkout_start: Number(r?.checkout_start ?? 0),
                     orders,
                     revenue_iqd: revenue,
                     conversion_rate: visitors > 0 ? orders / visitors : 0,
@@ -1199,6 +1361,7 @@ export function useStoreBuilderV2(
         dismiss_backup,
         createNamedSnapshot,
         listVersions,
+        getVersionConfig,
         restoreVersion,
         listSchedules,
         createSchedule,

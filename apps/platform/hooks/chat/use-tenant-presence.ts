@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 import { tenantPresenceTopic } from "@/lib/chat/topics";
+import { diag } from "@/lib/diag";
 
 export type PresenceStatus = "online" | "idle" | "away";
 

@@ -148,6 +148,7 @@ describe("SchneidersPreviewBridge", () => {
 
     window.dispatchEvent(
       new MessageEvent("message", {
+        origin: "http://localhost:3000",
         data: {
           source: "schn-editor",
           type: "scroll_to_section",
@@ -170,6 +171,7 @@ describe("SchneidersPreviewBridge", () => {
 
     window.dispatchEvent(
       new MessageEvent("message", {
+        origin: "http://localhost:3000",
         data: {
           source: "schn-editor",
           type: "request_rect",
@@ -195,6 +197,7 @@ describe("SchneidersPreviewBridge", () => {
 
     window.dispatchEvent(
       new MessageEvent("message", {
+        origin: "http://localhost:3000",
         data: {
           source: "schn-editor",
           type: "request_rect",
@@ -220,6 +223,7 @@ describe("SchneidersPreviewBridge", () => {
 
     window.dispatchEvent(
       new MessageEvent("message", {
+        origin: "http://localhost:3000",
         data: { source: "schn-editor", type: "ping" },
       }),
     );
@@ -231,6 +235,26 @@ describe("SchneidersPreviewBridge", () => {
       source: "schn-preview",
       type: "pong",
     });
+  });
+
+  it("ignores inbound messages from an untrusted origin (EC25)", () => {
+    mountBridge();
+    const section = makeSection("guarded-section");
+    const spy = vi.fn();
+    section.scrollIntoView = spy as unknown as typeof section.scrollIntoView;
+
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        origin: "https://evil.example.com",
+        data: {
+          source: "schn-editor",
+          type: "scroll_to_section",
+          section_id: "guarded-section",
+        },
+      }),
+    );
+
+    expect(spy).not.toHaveBeenCalled();
   });
 
   it("does nothing when a click happens outside any section", () => {

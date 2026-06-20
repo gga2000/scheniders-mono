@@ -1,7 +1,7 @@
 "use client";
 
 import { EnhancedProductItem } from "@/lib/analytics/dashboard-calculations";
-import { formatIQD } from "@/lib/utils";
+import { FinancialValue } from "@/components/ui/financial-value";
 import { Package, TrendingUp } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 
@@ -10,15 +10,14 @@ const RANK_TEXT = ['text-amber-900', 'text-gray-700', 'text-amber-900', 'text-gr
 
 interface ProductLeaderboardProps {
     products: EnhancedProductItem[];
-    showFinancials: boolean;
 }
 
-export function ProductLeaderboard({ products, showFinancials }: ProductLeaderboardProps) {
+export function ProductLeaderboard({ products }: ProductLeaderboardProps) {
     const maxCount = products.length > 0 ? products[0].value : 1;
     const { t } = useLanguage();
 
     return (
-        <div className="pastel-card p-5 flex flex-col h-full">
+        <div className="pastel-card p-5 flex flex-col h-full min-h-[400px]">
             <div className="flex items-center gap-2 mb-4">
                 <div className="w-8 h-8 rounded-xl bg-[var(--pastel-blue)]/40 flex items-center justify-center">
                     <Package className="w-4 h-4 text-blue-700" />
@@ -26,7 +25,7 @@ export function ProductLeaderboard({ products, showFinancials }: ProductLeaderbo
                 <div>
                     <h3 className="text-sm font-bold text-foreground">{t("dashboard.products.title")}</h3>
                     <p className="text-xs text-muted">
-                        {showFinancials ? t("dashboard.products.unitsSoldRevenue") : t("dashboard.products.unitsSold")}
+                        {t("dashboard.products.unitsSoldRevenue")}
                     </p>
                 </div>
             </div>
@@ -38,9 +37,9 @@ export function ProductLeaderboard({ products, showFinancials }: ProductLeaderbo
                 </div>
             )}
 
-            <div className="flex flex-col gap-3 flex-1 overflow-y-auto">
+            <div className="flex flex-col justify-between flex-1 gap-2">
                 {products.map((p, i) => (
-                    <div key={p.id} className="space-y-1">
+                    <div key={p.id} className="space-y-1 group">
                         <div className="flex items-center gap-2">
                             {/* Rank badge */}
                             <span className={`w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 ${RANK_COLORS[i]} ${RANK_TEXT[i]}`}>
@@ -53,9 +52,13 @@ export function ProductLeaderboard({ products, showFinancials }: ProductLeaderbo
                             {/* Values */}
                             <div className="text-right shrink-0">
                                 <span className="text-xs font-bold text-foreground">{p.value.toLocaleString()}</span>
-                                {showFinancials && (
-                                    <p className="text-[10px] text-muted leading-none mt-0.5">{formatIQD(p.revenue)}</p>
-                                )}
+                                <p className="text-[10px] text-muted leading-none mt-0.5">
+                                    <FinancialValue
+                                        amount={p.revenue}
+                                        className="text-[10px] text-muted"
+                                        iconSize={13}
+                                    />
+                                </p>
                             </div>
                         </div>
 

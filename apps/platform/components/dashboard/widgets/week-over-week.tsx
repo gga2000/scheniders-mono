@@ -2,12 +2,11 @@
 
 import { WowMetric } from "@/lib/analytics/dashboard-calculations";
 import { TrendingUp, TrendingDown, Minus, ArrowRight } from "lucide-react";
-import { formatIQD } from "@/lib/utils";
+import { FinancialValue } from "@/components/ui/financial-value";
 import { useLanguage } from "@/hooks/use-language";
 
 interface WeekOverWeekProps {
     metrics: WowMetric[];
-    showFinancials: boolean;
 }
 
 // Map original English labels to i18n keys
@@ -36,8 +35,7 @@ function DeltaPill({ delta, deltaPct, unit }: { delta: number; deltaPct: number 
     );
 }
 
-export function WeekOverWeek({ metrics, showFinancials }: WeekOverWeekProps) {
-    const visible = metrics.filter(m => !m.isFinancial || showFinancials);
+export function WeekOverWeek({ metrics }: WeekOverWeekProps) {
     const { t } = useLanguage();
 
     return (
@@ -48,33 +46,29 @@ export function WeekOverWeek({ metrics, showFinancials }: WeekOverWeekProps) {
             </div>
 
             <div className="flex flex-col gap-4 flex-1 justify-center">
-                {visible.map((m) => {
+                {metrics.map((m) => {
                     const translatedLabel = LABEL_KEYS[m.label] ? t(LABEL_KEYS[m.label]) : m.label;
-                    const display = m.unit === '%'
-                        ? `${m.current}%`
-                        : m.isFinancial
-                            ? formatIQD(m.current)
-                            : m.current.toLocaleString();
-
-                    const prevDisplay = m.unit === '%'
-                        ? `${m.previous}%`
-                        : m.isFinancial
-                            ? formatIQD(m.previous)
-                            : m.previous.toLocaleString();
+                    const fmtPlain = (n: number) => m.unit === '%' ? `${n}%` : n.toLocaleString();
 
                     return (
                         <div key={m.label} className="flex items-center justify-between gap-3">
                             <div className="flex-1 min-w-0">
                                 <p className="text-[10px] font-bold text-blue-900/60 uppercase tracking-wider mb-0.5">{translatedLabel}</p>
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="text-xl font-bold text-blue-950 leading-none">{display}</span>
+                                    {m.isFinancial
+                                        ? <FinancialValue amount={m.current} className="text-xl font-bold text-blue-950 leading-none" iconSize={14} />
+                                        : <span className="text-xl font-bold text-blue-950 leading-none">{fmtPlain(m.current)}</span>}
                                     <DeltaPill delta={m.delta} deltaPct={m.deltaPct} unit={m.unit} />
                                 </div>
                                 <div className="flex items-center gap-1 mt-1 text-[10px] text-blue-900/40">
                                     <span>{t("dashboard.wow.prev")}</span>
-                                    <span>{prevDisplay}</span>
+                                    {m.isFinancial
+                                        ? <FinancialValue amount={m.previous} hideToggle className="text-[10px] text-blue-900/40" />
+                                        : <span>{fmtPlain(m.previous)}</span>}
                                     <ArrowRight className="w-2.5 h-2.5" />
-                                    <span>{display}</span>
+                                    {m.isFinancial
+                                        ? <FinancialValue amount={m.current} hideToggle className="text-[10px] text-blue-900/40" />
+                                        : <span>{fmtPlain(m.current)}</span>}
                                 </div>
                             </div>
                         </div>

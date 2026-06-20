@@ -80,7 +80,7 @@ function CountdownCard({
 
   const labelsEn = ["Days", "Hours", "Mins", "Secs"];
   const labelsAr = ["أيام", "ساعات", "دقائق", "ثوانٍ"];
-  const labels = locale === "ar" ? labelsAr : labelsEn;
+  const labels = locale !== "en" ? labelsAr : labelsEn;
   const segments = [tick.days, tick.hours, tick.minutes, tick.seconds];
 
   return (
@@ -91,7 +91,7 @@ function CountdownCard({
         </ScribbleHeading>
         {tick.done ? (
           <p className="font-display font-black text-2xl uppercase text-bk-ink">
-            {expired || (locale === "ar" ? "انتهى" : "Closed")}
+            {expired || (locale !== "en" ? "انتهى" : "Closed")}
           </p>
         ) : (
           <div className="grid grid-cols-4 gap-bk-2xs sm:gap-bk-xs max-w-lg">

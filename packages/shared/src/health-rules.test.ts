@@ -84,8 +84,8 @@ describe("runHealthChecks — empty config", () => {
     const empty = freshEmpty();
     const report = runHealthChecks(empty);
 
-    it("evaluates 31 checks", () => {
-        expect(report.checks).toHaveLength(31);
+    it("evaluates 35 checks", () => {
+        expect(report.checks).toHaveLength(35);
     });
 
     it("scores below 30", () => {
@@ -142,6 +142,34 @@ describe("runHealthChecks — adding policies pushes ad_compliance to 100", () =
 
         const after = runHealthChecks(cfg);
         expect(after.category_scores.ad_compliance).toBe(100);
+    });
+});
+
+describe("runHealthChecks — home_has_content (EC11)", () => {
+    it("blocks publish when the home page has zero sections", () => {
+        const cfg = fullyPopulatedConfig();
+        setPage(cfg, "home", []);
+        const r = runHealthChecks(cfg);
+        const home = r.checks.find((c) => c.id === "home_has_content");
+        expect(home?.status).toBe("fail");
+        expect(home?.blocks_publish).toBe(true);
+    });
+
+    it("blocks publish when every home section is disabled (all-hidden)", () => {
+        const cfg = fullyPopulatedConfig();
+        const homePage = cfg.pages.find((p) => p.page_id === "home")!;
+        homePage.sections = homePage.sections.map((s) => ({ ...s, enabled: false }));
+        const r = runHealthChecks(cfg);
+        const home = r.checks.find((c) => c.id === "home_has_content");
+        expect(home?.status).toBe("fail");
+        expect(home?.blocks_publish).toBe(true);
+    });
+
+    it("passes when the home page has at least one visible section", () => {
+        const cfg = fullyPopulatedConfig();
+        const r = runHealthChecks(cfg);
+        const home = r.checks.find((c) => c.id === "home_has_content");
+        expect(home?.status).toBe("pass");
     });
 });
 
@@ -241,5 +269,80 @@ describe("runHealthChecks — score distribution example", () => {
             ),
         );
         expect(empty.score).toBeLessThan(full.score);
+    });
+});
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* New checks — H3 (noindex), H5 (alt text), H6 (dead links)            */
+/* ─────────────────────────────────────────────────────────────────── */
+
+function checkStatus(cfg: StoreConfigV2, id: string): string | undefined {
+    return runHealthChecks(cfg).checks.find((c) => c.id === id)?.status;
+}
+
+describe("important_pages_indexable (H3)", () => {
+    it("passes when nothing is noindexed", () => {
+        expect(checkStatus(freshEmpty(), "important_pages_indexable")).toBe("pass");
+    });
+    it("fails when the home page is noindex", () => {
+        const cfg = freshEmpty();
+        const home = cfg.pages.find((p) => p.page_id === "home");
+        if (home) home.meta = { noindex: true };
+        expect(checkStatus(cfg, "important_pages_indexable")).toBe("fail");
+    });
+    it("warns when a policy page is noindex", () => {
+        const cfg = freshEmpty();
+        const pol = cfg.pages.find((p) => p.page_id === "policy_returns");
+        if (pol) pol.meta = { noindex: true };
+        expect(checkStatus(cfg, "important_pages_indexable")).toBe("warn");
+    });
+});
+
+describe("images_have_alt_text (H5)", () => {
+    it("warns when an image has an empty alt sibling", () => {
+        const cfg = freshEmpty();
+        setPage(cfg, "home", [
+            s("hero_image", { image_url: "https://cdn/h.jpg", alt: "" }),
+        ]);
+        expect(checkStatus(cfg, "images_have_alt_text")).toBe("warn");
+    });
+    it("passes when alt is filled", () => {
+        const cfg = freshEmpty();
+        setPage(cfg, "home", [
+            s("hero_image", { image_url: "https://cdn/h.jpg", alt: "A hero" }),
+        ]);
+        expect(checkStatus(cfg, "images_have_alt_text")).toBe("pass");
+    });
+    it("skips decorative images with no alt field at all", () => {
+        const cfg = freshEmpty();
+        setPage(cfg, "home", [
+            s("logo_strip", { image_url: "https://cdn/logo.jpg" }),
+        ]);
+        expect(checkStatus(cfg, "images_have_alt_text")).toBe("pass");
+    });
+});
+
+describe("no_dead_cta_links (H6)", () => {
+    it("warns on a '#' CTA href", () => {
+        const cfg = freshEmpty();
+        setPage(cfg, "home", [s("cta_banner", { cta_href: "#" })]);
+        expect(checkStatus(cfg, "no_dead_cta_links")).toBe("warn");
+    });
+    it("warns on a localhost link", () => {
+        const cfg = freshEmpty();
+        setPage(cfg, "home", [s("hero_image", { href: "http://localhost:3001/x" })]);
+        expect(checkStatus(cfg, "no_dead_cta_links")).toBe("warn");
+    });
+    it("passes on a real href and ignores an empty optional url", () => {
+        const cfg = freshEmpty();
+        setPage(cfg, "home", [s("cta_banner", { cta_href: "/products", url: "" })]);
+        expect(checkStatus(cfg, "no_dead_cta_links")).toBe("pass");
+    });
+    it("does not flag a localhost image_url (not a CTA field)", () => {
+        const cfg = freshEmpty();
+        setPage(cfg, "home", [
+            s("hero_image", { image_url: "http://localhost/h.jpg" }),
+        ]);
+        expect(checkStatus(cfg, "no_dead_cta_links")).toBe("pass");
     });
 });

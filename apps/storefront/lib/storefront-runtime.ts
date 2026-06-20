@@ -6,9 +6,15 @@ import { resolveI18n } from "@scheniders/shared";
  *  Returns null otherwise so the caller falls back to the legacy template
  *  (prevents rendering a blank page for empty/un-populated v2 pages). */
 export function pickV2Page(v2: StoreConfigV2 | null | undefined, pageId: PageId): PageConfig | null {
-  if (!v2) return null;
+  // EC7: a malformed config (e.g. `pages` patched to a non-array) must degrade
+  // to the legacy/empty fallback, not crash `.find` on the public store —
+  // generateMetadata isn't wrapped by an error boundary, so a throw here is a
+  // hard 500 reachable by any member who can write the config.
+  if (!v2 || !Array.isArray(v2.pages)) return null;
   const page = v2.pages.find((p) => p.page_id === pageId);
-  if (!page || page.sections.length === 0) return null;
+  if (!page || !Array.isArray(page.sections) || page.sections.length === 0) {
+    return null;
+  }
   return page;
 }
 
@@ -22,7 +28,11 @@ export function resolveV2PageMetadata(
   pageId: PageId,
   locale: LocaleCode,
 ): Metadata {
-  const page = v2?.pages.find((p) => p.page_id === pageId);
+  // EC7: guard non-array `pages` (malformed config) — this runs inside
+  // generateMetadata, which has no error boundary, so a throw is a hard 500.
+  const page = Array.isArray(v2?.pages)
+    ? v2.pages.find((p) => p.page_id === pageId)
+    : undefined;
   const m = page?.meta;
   if (!m) return {};
 
@@ -47,7 +57,9 @@ export function resolveV2PageMetadata(
  *  to "mobile" (SSR-safe; CSS handles responsive). audience_segments / ab_test_arms are
  *  empty in Phase 1 — populated by the segments/experiments phase. */
 export function buildRuntimeContext(opts: {
-  pageId: PageId;
+  /** System PageId, or a custom page's slug (page-conditioned variants match
+   *  only system PageIds, so a slug simply matches none). */
+  pageId: PageId | (string & {});
   locale: LocaleCode;
   now: Date;
   governorate?: GovernorateCode;

@@ -10,6 +10,7 @@
 
 "use client";
 
+import * as React from "react";
 import { isSectionEnabled, resolveSection } from "@scheniders/shared";
 import type {
   PageConfig,
@@ -52,6 +53,7 @@ import "./pdp_info_tabs";
 import "./pdp_variants";
 import "./pdp_add_to_cart";
 import "./pdp_related_products";
+import "./product_reviews";
 import "./cart_line_items";
 import "./cart_summary";
 import "./checkout_form";
@@ -80,7 +82,7 @@ import "./site_footer";
  * degrades to `null`.
  */
 function reportSectionDrop(
-  reason: "unknown_type" | "schema_invalid",
+  reason: "unknown_type" | "schema_invalid" | "render_error",
   type: string,
   detail?: unknown,
 ): void {
@@ -100,13 +102,37 @@ function reportSectionDrop(
   });
 }
 
+/**
+ * Per-section error boundary (EC10). A runtime throw inside ONE section
+ * component (a null deref, a bad `new URL()`, a non-allowlisted next/image
+ * host, a hook error) must NOT take down the whole page — without this it
+ * propagates to the route-level error.tsx and white-screens header + footer +
+ * every other valid section. On error we drop just this section (render null)
+ * and report it via the same path as a schema-invalid degrade.
+ */
+class SectionErrorBoundary extends React.Component<
+  { children: React.ReactNode; onError: () => void },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError(): { hasError: boolean } {
+    return { hasError: true };
+  }
+  componentDidCatch(): void {
+    this.props.onError();
+  }
+  render(): React.ReactNode {
+    return this.state.hasError ? null : this.props.children;
+  }
+}
+
 interface RenderSectionProps {
   instance: SectionInstance;
   runtime: RuntimeContext;
   renderCtx: Omit<SectionRenderContext, "runtime">;
 }
 
-export function RenderSection({
+function RenderSectionImpl({
   instance,
   runtime,
   renderCtx,
@@ -145,10 +171,24 @@ export function RenderSection({
       data-section-enabled={instance.enabled ? "true" : "false"}
       style={wrapperStyle}
     >
-      <Render props={parsed.data} ctx={{ ...renderCtx, runtime }} />
+      <SectionErrorBoundary
+        onError={() => reportSectionDrop("render_error", instance.type)}
+      >
+        <Render props={parsed.data} ctx={{ ...renderCtx, runtime }} />
+      </SectionErrorBoundary>
     </div>
   );
 }
+
+/**
+ * EC27: memoized. A re-render of RenderPage — e.g. one keystroke in the editor
+ * LivePreview, which produces a new `pages` array — would otherwise re-run
+ * `resolveSection` + the Zod `safeParse` for EVERY section. With shallow prop
+ * memoization, only the section whose `instance` ref actually changed re-runs;
+ * unchanged sections (stable `instance`/`runtime`/`renderCtx` refs) skip. Harm-
+ * less on the storefront, which renders each section once per request anyway.
+ */
+export const RenderSection = React.memo(RenderSectionImpl);
 
 /**
  * Pre-render height estimates (px) for `content-visibility` reservation,
@@ -188,8 +228,10 @@ interface RenderPageProps {
 
 export function RenderPage({ page, runtime, renderCtx }: RenderPageProps) {
   // Honour both `enabled` flag and `visibility` rules — sections
-  // hidden by either are skipped before render.
-  const visible = page.sections.filter((s) => isSectionEnabled(s, runtime));
+  // hidden by either are skipped before render. EC7: tolerate a malformed
+  // `sections` (non-array) rather than throwing the whole page.
+  const sections = Array.isArray(page?.sections) ? page.sections : [];
+  const visible = sections.filter((s) => isSectionEnabled(s, runtime));
   return (
     <>
       {visible.map((s, idx) => {

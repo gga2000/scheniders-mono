@@ -10,7 +10,8 @@
 
 import Image from "next/image";
 import { z } from "zod";
-import { resolveI18n } from "@scheniders/shared";
+import { resolveI18n, computeDeliveryFee, computeDiscount } from "@scheniders/shared";
+import type { StoreConfigV2, GovernorateCode } from "@scheniders/shared";
 import {
   BentoCard,
   MaterialIcon,
@@ -41,9 +42,6 @@ const defaultProps: Props = {
   show_thumbnails: true,
 };
 
-const FREE_DELIVERY_THRESHOLD = 50_000;
-const BAGHDAD_DELIVERY = 5_000;
-
 function CheckoutOrderSummaryRender({
   props,
   ctx,
@@ -52,17 +50,27 @@ function CheckoutOrderSummaryRender({
   ctx: SectionRenderContext;
 }) {
   const locale = ctx.runtime.locale;
-  const t = locale === "ar";
+  const t = locale !== "en";
   const items = useCart((s) => s.items);
   const subtotal = useCart((s) => s.getTotal());
+  const governorate = useCart((s) => s.governorate);
+  const couponCode = useCart((s) => s.couponCode);
   const heading = resolveI18n(props.heading_i18n, locale);
   const codNote = resolveI18n(props.cod_note_i18n, locale);
 
-  const delivery =
-    items.length === 0 || subtotal >= FREE_DELIVERY_THRESHOLD
-      ? 0
-      : BAGHDAD_DELIVERY;
-  const total = subtotal + delivery;
+  // R2b: the governorate is broadcast by the checkout form via the cart store,
+  // so this summary shows the SAME per-governorate fee as the form's CTA (and
+  // what the server records). Falls back to the default rate / legacy flat.
+  const commerce = (
+    ctx.tenant as { store_config_v2?: StoreConfigV2 | null } | undefined
+  )?.store_config_v2?.commerce;
+  const delivery = computeDeliveryFee(subtotal, items.length, {
+    shipping: commerce?.shipping,
+    governorate: governorate as GovernorateCode | null,
+  });
+  const discount = computeDiscount(subtotal, couponCode, commerce?.discounts);
+  const discountAmount = discount?.amount_iqd ?? 0;
+  const total = subtotal - discountAmount + delivery;
 
   return (
     <section className="px-4 py-bk-section-dense">
@@ -119,7 +127,7 @@ function CheckoutOrderSummaryRender({
                     </p>
                   </div>
                   <span className="font-display font-black text-sm shrink-0 text-bk-ink">
-                    {formatPrice(item.price * item.quantity)}
+                    <bdi>{formatPrice(item.price * item.quantity, locale)}</bdi>
                   </span>
                 </li>
               ))}
@@ -132,7 +140,7 @@ function CheckoutOrderSummaryRender({
                 {t ? "المجموع الفرعي" : "Subtotal"}
               </dt>
               <dd className="font-display font-black text-bk-ink">
-                {formatPrice(subtotal)}
+                <bdi>{formatPrice(subtotal, locale)}</bdi>
               </dd>
             </div>
             <div className="flex justify-between">
@@ -144,9 +152,20 @@ function CheckoutOrderSummaryRender({
                   ? t
                     ? "مجاني"
                     : "Free"
-                  : formatPrice(delivery)}
+                  : <bdi>{formatPrice(delivery, locale)}</bdi>}
               </dd>
             </div>
+            {discountAmount > 0 && (
+              <div className="flex justify-between">
+                <dt className="text-bk-ink-soft">
+                  {t ? "الخصم" : "Discount"}
+                  {discount ? ` (${discount.code})` : ""}
+                </dt>
+                <dd className="font-display font-black text-bk-success">
+                  <bdi>−{formatPrice(discountAmount, locale)}</bdi>
+                </dd>
+              </div>
+            )}
             <div className="flex justify-between pt-bk-xs border-t-[3px] border-dashed border-bk-divider">
               <dt className="font-display font-black uppercase text-bk-ink">
                 {t ? "المجموع" : "Total"}
@@ -155,7 +174,7 @@ function CheckoutOrderSummaryRender({
                 className="font-display font-black text-xl"
                 style={{ color: "var(--bk-primary, #ff4081)" }}
               >
-                {formatPrice(total)}
+                <bdi>{formatPrice(total, locale)}</bdi>
               </dd>
             </div>
           </dl>

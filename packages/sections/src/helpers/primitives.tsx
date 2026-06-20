@@ -386,7 +386,7 @@ export function CodCard({
   showInspect?: boolean;
   className?: string;
 }) {
-  const t = locale === "ar";
+  const t = locale !== "en";
   const Row = ({ icon, title, sub }: { icon: string; title: string; sub: string }) => (
     <div className="flex items-start gap-3">
       <MaterialIcon

@@ -36,6 +36,29 @@ const bodySchema = z.object({
 });
 
 /**
+ * Editable top-level config keys (M1). A patch may only target one of these
+ * roots — `schema_version` and unknown roots are rejected. MUST stay in sync
+ * with the allowlist in `apply_store_config_v2_patch` (the RPC enforces it too,
+ * so a direct `rpc()` call can't bypass this route).
+ */
+const EDITABLE_PATH_ROOTS = new Set<string>([
+    "brand_kit",
+    "pages",
+    "globals",
+    "experiments",
+    "segments",
+    "schedules",
+    "default_locale",
+    "enabled_locales",
+    "commerce",
+    "custom_css",
+]);
+
+/** Max serialized size of a single patch value (~512KB) and max path depth. */
+const MAX_PATCH_VALUE_BYTES = 524_288;
+const MAX_PATCH_PATH_DEPTH = 64;
+
+/**
  * Immutable clone-and-set: returns a new root with the value at `path`
  * replaced. Intermediate objects/arrays are shallow-cloned along the
  * write path; siblings keep their original references. Creates
@@ -116,6 +139,25 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     const { tenant_id, is_draft, path, value } = parsed.data;
+
+    // M1: only allow patches to known editable top-level roots, bounded depth
+    // and value size. The RPC enforces the same — this is a clean 400 + a guard
+    // for the common case.
+    if (typeof path[0] !== "string" || !EDITABLE_PATH_ROOTS.has(path[0])) {
+        return NextResponse.json({ error: "Field not editable" }, { status: 400 });
+    }
+    if (path.length > MAX_PATCH_PATH_DEPTH) {
+        return NextResponse.json({ error: "Path too deep" }, { status: 400 });
+    }
+    let valueBytes: number;
+    try {
+        valueBytes = JSON.stringify(value ?? null).length;
+    } catch {
+        return NextResponse.json({ error: "Unserializable value" }, { status: 400 });
+    }
+    if (valueBytes > MAX_PATCH_VALUE_BYTES) {
+        return NextResponse.json({ error: "Value too large" }, { status: 400 });
+    }
 
     const supabase = await getServerSupabase();
 

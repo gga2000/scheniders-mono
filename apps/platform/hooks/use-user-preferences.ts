@@ -128,4 +128,5 @@ export const PREFERENCE_KEYS = {
     COMPACT_VIEW: "compactView",
     ANALYTICS_LEVEL: "analyticsLevel",
     SHOW_SEARCH_BAR: "showSearchBar",
+    ORDER_PIPELINE: "orderPipelineLayout",
 } as const;
