@@ -1,6 +1,6 @@
 // apps/platform/components/chat/message-item.tsx
 "use client";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { ChatAvatar } from "./chat-avatar";
 import { formatDistanceToNow } from "date-fns";
 import { FileText, Paperclip } from "lucide-react";
@@ -25,6 +25,7 @@ export function MessageItem({
     senderAvatar?: string | null;
 }) {
     const { t } = useLanguage();
+    const reduceMotion = useReducedMotion();
 
     if (message.deleted_at) {
         return (
@@ -39,8 +40,8 @@ export function MessageItem({
     };
     return (
         <motion.div
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+            animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
             className={`group relative flex gap-2.5 px-4 py-1.5 transition-colors hover:bg-black/[0.025] ${
                 message.pending ? "opacity-60" : ""
