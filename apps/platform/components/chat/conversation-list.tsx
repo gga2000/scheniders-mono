@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { AtSign, Hash, MessagesSquare, Package, Users, Pencil } from "lucide-react";
 import { ChatAvatar } from "./chat-avatar";
+import { ChatEmptyState } from "./chat-empty-state";
 import { usePresenceStore } from "@/store/use-presence-store";
 import { useConversations, useStartDm } from "@/hooks/chat/use-conversations";
 import type { ConversationWithMeta } from "@/hooks/chat/use-conversations";
@@ -222,17 +223,11 @@ export function ConversationList() {
                         startingId={startingId}
                     />
                     {conversations.length === 0 && directoryMembers.length === 0 && (
-                        <div className="flex flex-col items-center justify-center gap-2 px-4 py-10 text-center">
-                            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--card-bg)] text-muted-foreground ring-1 ring-[var(--card-border)]">
-                                <MessagesSquare className="h-5 w-5" />
-                            </span>
-                            <p className="text-xs font-semibold text-foreground">
-                                {t("chat.emptyConversations", "No conversations yet")}
-                            </p>
-                            <p className="text-[11px] leading-snug text-muted-foreground">
-                                {t("chat.emptyTeam", "You're the only member of this workspace so far.")}
-                            </p>
-                        </div>
+                        <ChatEmptyState
+                            icon={MessagesSquare}
+                            title={t("chat.emptyConversations", "No conversations yet")}
+                            description={t("chat.emptyTeam", "You're the only member of this workspace so far.")}
+                        />
                     )}
                 </div>
             )}

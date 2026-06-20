@@ -16,7 +16,7 @@ export function ChatSheet() {
     const { isOpen, close, activeConversationId, setActiveConversation } = useChatStore();
     const isMobile = useIsMobile(768);
     const { t } = useLanguage();
-    const { data: messages = [], sendMessage, markRead } = useMessages(activeConversationId);
+    const { data: messages = [], sendMessage, markRead, isLoading } = useMessages(activeConversationId);
     const { typers, notifyTyping } = useTypingIndicator(activeConversationId);
 
     // Mark read on open / conversation switch only — not on every incoming
@@ -95,7 +95,7 @@ export function ChatSheet() {
                             <div className="flex min-w-0 flex-1 flex-col bg-[var(--background)]">
                                 {activeConversationId ? (
                                     <>
-                                        <MessageList messages={messages} />
+                                        <MessageList messages={messages} loading={isLoading} />
                                         <AnimatePresence>
                                             {typers.length > 0 && (
                                                 <motion.div

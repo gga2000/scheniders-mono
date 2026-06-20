@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isToday, isYesterday } from "date-fns";
 import { ArrowDown, MessageSquareDashed } from "lucide-react";
 import { MessageItem } from "./message-item";
+import { ChatEmptyState } from "./chat-empty-state";
 import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
 import { useLanguage } from "@/components/providers/language-provider";
 import type { ChatMessage } from "@/types/chat";
@@ -20,7 +21,7 @@ function dayLabel(iso: string, locale: string): string {
     });
 }
 
-export function MessageList({ messages }: { messages: ChatMessage[] }) {
+export function MessageList({ messages, loading }: { messages: ChatMessage[]; loading?: boolean }) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const nearBottomRef = useRef(true);
     const [showJump, setShowJump] = useState(false);
@@ -61,21 +62,29 @@ export function MessageList({ messages }: { messages: ChatMessage[] }) {
         else setShowJump(true);
     }, [lastId, messages.length, scrollToBottom]);
 
+    if (loading && messages.length === 0) {
+        return (
+            <div className="flex-1 space-y-4 overflow-hidden px-4 py-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="flex gap-2.5" style={{ opacity: 1 - i * 0.12 }}>
+                        <div className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-foreground/10" />
+                        <div className="flex-1 space-y-1.5">
+                            <div className="h-3 w-24 animate-pulse rounded bg-foreground/10" />
+                            <div className="h-3 animate-pulse rounded bg-foreground/5" style={{ width: `${60 + ((i * 13) % 35)}%` }} />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    }
+
     if (messages.length === 0) {
         return (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-                <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--card-bg)] text-muted-foreground shadow-sm ring-1 ring-[var(--card-border)]">
-                    <MessageSquareDashed className="h-6 w-6" />
-                </span>
-                <div>
-                    <p className="text-sm font-semibold text-foreground">
-                        {t("chat.emptyMessages", "No messages yet")}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                        {t("chat.emptyMessagesDesc", "Say hi 👋 — be the first to post here.")}
-                    </p>
-                </div>
-            </div>
+            <ChatEmptyState
+                icon={MessageSquareDashed}
+                title={t("chat.emptyMessages", "No messages yet")}
+                description={t("chat.emptyMessagesDesc", "Say hi 👋 — be the first to post here.")}
+            />
         );
     }
 
