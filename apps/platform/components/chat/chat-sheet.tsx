@@ -16,7 +16,9 @@ export function ChatSheet() {
     const { data: messages = [], sendMessage, markRead } = useMessages(activeConversationId);
     const { typers, notifyTyping } = useTypingIndicator(activeConversationId);
 
-    useEffect(() => { if (isOpen && activeConversationId) void markRead(); }, [isOpen, activeConversationId, messages.length]);
+    // Mark read on open / conversation switch only — not on every incoming
+    // message (that re-fired markRead per message and churned the unread RPC).
+    useEffect(() => { if (isOpen && activeConversationId) void markRead(); }, [isOpen, activeConversationId]);
 
     return (
         <AnimatePresence>

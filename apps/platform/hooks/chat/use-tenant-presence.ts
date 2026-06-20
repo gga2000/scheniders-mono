@@ -41,6 +41,13 @@ export function useTenantPresence(activity?: string) {
         };
     }, [user, profile]);
 
+    // Always hold the latest buildPayload so the subscribe/activity effects can
+    // read fresh payloads without listing buildPayload in their deps. A `profile`
+    // object-identity change (e.g. on token refresh) would otherwise tear down
+    // and rebuild the whole presence channel.
+    const buildPayloadRef = useRef(buildPayload);
+    buildPayloadRef.current = buildPayload;
+
     useEffect(() => {
         if (!user?.id || !tenantId) return;
         const channel = supabase.channel(tenantPresenceTopic(tenantId), {
@@ -57,19 +64,19 @@ export function useTenantPresence(activity?: string) {
                 setOnlineUsers(unique);
             })
             .subscribe(async (status) => {
-                if (status === "SUBSCRIBED") await channel.track(buildPayload());
+                if (status === "SUBSCRIBED") await channel.track(buildPayloadRef.current());
             });
 
         const markActive = () => { lastActiveRef.current = Date.now(); };
         const onVisible = () => {
-            if (document.visibilityState === "visible") { markActive(); channel.track(buildPayload()); }
+            if (document.visibilityState === "visible") { markActive(); channel.track(buildPayloadRef.current()); }
         };
         window.addEventListener("mousemove", markActive, { passive: true });
         window.addEventListener("keydown", markActive);
         document.addEventListener("visibilitychange", onVisible);
 
         // re-track every 60s so idle status + activity stay fresh
-        const interval = setInterval(() => { channel.track(buildPayload()); }, 60_000);
+        const interval = setInterval(() => { channel.track(buildPayloadRef.current()); }, 60_000);
 
         return () => {
             clearInterval(interval);
@@ -79,12 +86,12 @@ export function useTenantPresence(activity?: string) {
             channel.unsubscribe();
             channelRef.current = null;
         };
-    }, [user?.id, tenantId, buildPayload]);
+    }, [user?.id, tenantId]);
 
     // push a new activity label without re-subscribing
     useEffect(() => {
-        if (channelRef.current) channelRef.current.track(buildPayload());
-    }, [activity, buildPayload]);
+        if (channelRef.current) channelRef.current.track(buildPayloadRef.current());
+    }, [activity]);
 
     const otherUsers = onlineUsers.filter((u) => u.id !== user?.id);
     return { onlineUsers, otherUsers, totalOnline: onlineUsers.length };
