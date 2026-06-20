@@ -2,7 +2,8 @@
   "name": "scheniders",
   "private": true,
   "scripts": {
-    "dev": "turbo dev",
+    "clean:ports": "lsof -ti:3000,3001,3002 | xargs -I{} kill -9 {} 2>/dev/null; exit 0",
+    "dev": "pnpm clean:ports && turbo dev",
     "dev:platform": "turbo dev --filter=@scheniders/platform",
     "dev:storefront": "turbo dev --filter=@scheniders/storefront",
     "dev:admin": "turbo dev --filter=@scheniders/admin",
