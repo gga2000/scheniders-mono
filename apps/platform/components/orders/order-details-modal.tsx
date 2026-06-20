@@ -33,6 +33,8 @@ import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderDetailsForm, useOrderIdEdit } from "@/hooks/use-order-details-form";
 import { useOrderDetailsState } from "@/hooks/use-order-details-state";
 import { useOrderCrud } from "@/hooks/use-order-crud";
+import { useStartOrderConversation } from "@/hooks/chat/use-conversations";
+import { useChatStore } from "@/store/use-chat-store";
 
 import { DateTimePicker } from "@scheniders/ui/datetime-picker";
 import { OrderAssignment, OrderDuty, mockEmployees } from "@/lib/team-types";
@@ -173,6 +175,8 @@ export function OrderDetailsModal({
     });
 
     const { splitOrder, isBlacklisted, getBlacklistEntry, addToBlacklist, removeFromBlacklist } = useOrdersContext();
+    const startOrderConv = useStartOrderConversation();
+    const { open: openChat } = useChatStore();
     const [blacklistDialogOpen, setBlacklistDialogOpen] = useState(false);
     const [blacklistDialogMode, setBlacklistDialogMode] = useState<"add" | "remove">("add");
     const {
@@ -387,6 +391,11 @@ export function OrderDetailsModal({
 
 
 
+
+    const handleDiscuss = async () => {
+        const convId = await startOrderConv.mutateAsync(order.id);
+        openChat(convId);
+    };
 
     const handleWhatsApp = () => {
         if (onOpenTemplatePanel && messageTemplates && messageTemplates.length > 0) {
@@ -816,6 +825,15 @@ export function OrderDetailsModal({
                                 >
                                     <History className="h-3.5 w-3.5" />
                                     {t("orderDetail.history")}
+                                </button>
+                                {/* Discuss Button */}
+                                <button
+                                    onClick={handleDiscuss}
+                                    disabled={startOrderConv.isPending}
+                                    title="Discuss this order"
+                                    className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <MessageCircle className="h-3.5 w-3.5" /> Discuss
                                 </button>
                                 {/* Edit Button */}
                                 {!isEditing && (
