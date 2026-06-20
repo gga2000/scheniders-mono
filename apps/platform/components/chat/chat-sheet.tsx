@@ -1,7 +1,7 @@
 // apps/platform/components/chat/chat-sheet.tsx
 "use client";
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, MessageSquare, X } from "lucide-react";
 import { useChatStore } from "@/store/use-chat-store";
 import { useConversations } from "@/hooks/chat/use-conversations";
@@ -32,6 +32,10 @@ export function ChatSheet() {
     // Freeze my_last_read_at per conversation at open, BEFORE markRead advances it,
     // so the divider boundary doesn't jump while you read. Cleared when the sheet closes.
     const frozenLastRead = useRef<Record<string, string | null>>({});
+    // Bumped when a freeze lands so firstUnreadId recomputes even though the ref
+    // mutation is invisible to React — covers the cold-start race where the
+    // conversations query resolves AFTER messages (otherwise the divider never shows).
+    const [frozenVersion, setFrozenVersion] = useState(0);
     useEffect(() => {
         if (!isOpen) {
             frozenLastRead.current = {};
@@ -39,7 +43,10 @@ export function ChatSheet() {
         }
         if (!activeConversationId || activeConversationId in frozenLastRead.current) return;
         const conv = conversations.find((c) => c.id === activeConversationId);
-        if (conv) frozenLastRead.current[activeConversationId] = conv.my_last_read_at;
+        if (conv) {
+            frozenLastRead.current[activeConversationId] = conv.my_last_read_at;
+            setFrozenVersion((v) => v + 1);
+        }
     }, [isOpen, activeConversationId, conversations]);
 
     const firstUnreadId = useMemo(
@@ -47,7 +54,7 @@ export function ChatSheet() {
             activeConversationId && user
                 ? firstUnreadMessageId(messages, frozenLastRead.current[activeConversationId] ?? null, user.id)
                 : null,
-        [messages, activeConversationId, user]
+        [messages, activeConversationId, user, frozenVersion]
     );
 
     // On mobile the list is hidden inside a conversation, so offer a back
