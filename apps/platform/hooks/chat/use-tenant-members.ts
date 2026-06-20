@@ -19,15 +19,20 @@ export interface TenantMember {
  * so the cache stays per-tenant.
  */
 export function useTenantMembers() {
-    const { tenantId } = useAuth();
+    const { user, tenantId } = useAuth();
     return useQuery({
         queryKey: ["chat", "tenant-members", tenantId],
-        enabled: !!tenantId,
+        // Gate on the user, not tenantId: the tenant_members RLS SELECT policy
+        // already scopes rows to the caller's tenant, so a transient null
+        // tenantId must not blank the team directory.
+        enabled: !!user?.id,
         staleTime: 60_000,
         queryFn: async (): Promise<TenantMember[]> => {
             const { data, error } = await supabase
                 .from("tenant_members")
-                .select("user_id, status, user_profiles!inner(display_name, avatar_url, role)")
+                // tenant_members has TWO FKs to user_profiles (user_id + invited_by),
+                // so the embed MUST name the constraint or PostgREST errors on ambiguity.
+                .select("user_id, status, user_profiles!tenant_members_user_id_fkey(display_name, avatar_url, role)")
                 .eq("status", "active");
             if (error) throw error;
             // The browser client is untyped here, so the embedded relation comes
