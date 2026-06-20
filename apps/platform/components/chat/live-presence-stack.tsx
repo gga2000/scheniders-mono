@@ -8,7 +8,6 @@ import { useStartDm } from "@/hooks/chat/use-conversations";
 import { useChatStore } from "@/store/use-chat-store";
 import { useLanguage } from "@/components/providers/language-provider";
 
-
 export function LivePresenceStack() {
     const { otherUsers, totalOnline } = useTenantPresence();
     const startDm = useStartDm();
