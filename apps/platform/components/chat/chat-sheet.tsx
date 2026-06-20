@@ -1,9 +1,12 @@
 // apps/platform/components/chat/chat-sheet.tsx
 "use client";
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { ChevronLeft, MessageSquare, X } from "lucide-react";
 import { useChatStore } from "@/store/use-chat-store";
+import { useConversations } from "@/hooks/chat/use-conversations";
+import { useAuth } from "@/hooks/use-auth";
+import { firstUnreadMessageId } from "@/lib/chat/unread";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useMessages } from "@/hooks/chat/use-messages";
 import { useTypingIndicator } from "@/hooks/chat/use-typing-indicator";
@@ -19,9 +22,33 @@ export function ChatSheet() {
     const { data: messages = [], sendMessage, markRead, isLoading } = useMessages(activeConversationId);
     const { typers, notifyTyping } = useTypingIndicator(activeConversationId);
 
+    const { user } = useAuth();
+    const { data: conversations = [] } = useConversations();
+
     // Mark read on open / conversation switch only — not on every incoming
     // message (that re-fired markRead per message and churned the unread RPC).
     useEffect(() => { if (isOpen && activeConversationId) void markRead(); }, [isOpen, activeConversationId]);
+
+    // Freeze my_last_read_at per conversation at open, BEFORE markRead advances it,
+    // so the divider boundary doesn't jump while you read. Cleared when the sheet closes.
+    const frozenLastRead = useRef<Record<string, string | null>>({});
+    useEffect(() => {
+        if (!isOpen) {
+            frozenLastRead.current = {};
+            return;
+        }
+        if (!activeConversationId || activeConversationId in frozenLastRead.current) return;
+        const conv = conversations.find((c) => c.id === activeConversationId);
+        if (conv) frozenLastRead.current[activeConversationId] = conv.my_last_read_at;
+    }, [isOpen, activeConversationId, conversations]);
+
+    const firstUnreadId = useMemo(
+        () =>
+            activeConversationId && user
+                ? firstUnreadMessageId(messages, frozenLastRead.current[activeConversationId] ?? null, user.id)
+                : null,
+        [messages, activeConversationId, user]
+    );
 
     // On mobile the list is hidden inside a conversation, so offer a back
     // affordance that clears the active conversation to reveal the list again.
@@ -95,7 +122,7 @@ export function ChatSheet() {
                             <div className="flex min-w-0 flex-1 flex-col bg-[var(--background)]">
                                 {activeConversationId ? (
                                     <>
-                                        <MessageList messages={messages} loading={isLoading} />
+                                        <MessageList messages={messages} loading={isLoading} firstUnreadId={firstUnreadId} />
                                         <AnimatePresence>
                                             {typers.length > 0 && (
                                                 <motion.div

@@ -2,7 +2,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isToday, isYesterday } from "date-fns";
-import { ArrowDown, MessageSquareDashed } from "lucide-react";
+import { ArrowDown, MessageSquareDashed, Sparkles } from "lucide-react";
 import { MessageItem } from "./message-item";
 import { ChatEmptyState } from "./chat-empty-state";
 import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
@@ -21,7 +21,15 @@ function dayLabel(iso: string, locale: string): string {
     });
 }
 
-export function MessageList({ messages, loading }: { messages: ChatMessage[]; loading?: boolean }) {
+export function MessageList({
+    messages,
+    loading,
+    firstUnreadId,
+}: {
+    messages: ChatMessage[];
+    loading?: boolean;
+    firstUnreadId?: string | null;
+}) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const nearBottomRef = useRef(true);
     const [showJump, setShowJump] = useState(false);
@@ -109,7 +117,7 @@ export function MessageList({ messages, loading }: { messages: ChatMessage[]; lo
                 const prev = i > 0 ? messages[i - 1] : null;
                 const showSeparator = !prev || new Date(prev.created_at).toDateString() !== thisDay;
                 return (
-                    <div key={m.id}>
+                    <div key={m.client_msg_id ?? m.id}>
                         {showSeparator && (
                             <div className="sticky top-0 z-[1] flex items-center gap-3 px-4 py-2">
                                 <span className="h-px flex-1 bg-[var(--card-border)]" />
@@ -117,6 +125,16 @@ export function MessageList({ messages, loading }: { messages: ChatMessage[]; lo
                                     {dayLabel(m.created_at, language)}
                                 </span>
                                 <span className="h-px flex-1 bg-[var(--card-border)]" />
+                            </div>
+                        )}
+                        {firstUnreadId === m.id && (
+                            <div className="flex items-center gap-2 px-4 py-1.5">
+                                <span className="h-px flex-1 bg-[var(--pastel-pink)]" />
+                                <span className="inline-flex items-center gap-1 rounded-full bg-[var(--pastel-pink)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--ink)]">
+                                    <Sparkles className="h-3 w-3" />
+                                    {t("chat.newMessages", "New messages")}
+                                </span>
+                                <span className="h-px flex-1 bg-[var(--pastel-pink)]" />
                             </div>
                         )}
                         <MessageItem
