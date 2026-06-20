@@ -28,7 +28,7 @@ export function LivePresenceStack() {
         <Popover>
             <PopoverTrigger asChild>
                 <button
-                    className="flex items-center rounded-full p-0.5 transition-colors hover:bg-black/5"
+                    className="flex items-center rounded-full p-0.5 transition-colors hover:bg-foreground/5"
                     title={onlineLabel}
                     aria-label={onlineLabel}
                 >
@@ -76,7 +76,7 @@ export function LivePresenceStack() {
                 ) : (
                     <div className="max-h-80 overflow-y-auto overscroll-contain p-1">
                         {otherUsers.map((u) => (
-                            <div key={u.id} className="group flex items-center gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-black/5">
+                            <div key={u.id} className="group flex items-center gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-foreground/5">
                                 <span className="relative shrink-0">
                                     <Avatar src={u.avatar_url} alt={u.display_name} size="sm" />
                                     <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--card-bg)] ${dot[u.status]}`} />

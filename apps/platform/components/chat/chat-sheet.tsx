@@ -39,23 +39,33 @@ export function ChatSheet() {
                         transition={{ duration: 0.2 }}
                         onClick={close}
                     />
-                    <motion.aside
-                        className={`fixed z-50 flex flex-col overflow-hidden bg-[var(--background)] shadow-2xl ${
-                            isMobile
-                                ? "inset-0"
-                                : "right-0 top-0 h-full w-[640px] rounded-l-2xl border-l border-[var(--card-border)]"
+                    {/* Centering wrapper is non-interactive so clicks on the empty
+                        padding fall through to the backdrop above (which closes). */}
+                    <div
+                        className={`pointer-events-none fixed inset-0 z-50 flex ${
+                            isMobile ? "p-0" : "items-center justify-center p-4"
                         }`}
-                        initial={{ x: isMobile ? 0 : 640, opacity: isMobile ? 0 : 1 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        exit={{ x: isMobile ? 0 : 640, opacity: isMobile ? 0 : 1 }}
-                        transition={{ type: "spring", damping: 30, stiffness: 300 }}
+                    >
+                    <motion.aside
+                        className={`pointer-events-auto flex flex-col overflow-hidden bg-[var(--background)] shadow-2xl ${
+                            isMobile
+                                ? "h-full w-full"
+                                : "h-[min(680px,86vh)] w-[min(960px,94vw)] rounded-2xl border border-[var(--card-border)]"
+                        }`}
+                        initial={isMobile ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: 8 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={isMobile ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: 8 }}
+                        transition={{ type: "spring", damping: 30, stiffness: 320 }}
                     >
                         {/* Header */}
-                        <div className="flex shrink-0 items-center gap-2 border-b border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2.5">
+                        <div
+                            className="flex shrink-0 items-center gap-2 border-b border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2.5"
+                            style={isMobile ? { paddingTop: "calc(0.625rem + var(--safe-area-top, 0px))" } : undefined}
+                        >
                             {showMobileBack ? (
                                 <button
                                     onClick={() => setActiveConversation(null)}
-                                    className="-ml-1 flex h-8 items-center gap-1 rounded-full px-2 text-sm font-medium text-foreground transition-colors hover:bg-black/5 active:scale-95"
+                                    className="-ml-1 flex h-8 items-center gap-1 rounded-full px-2 text-sm font-medium text-foreground transition-colors hover:bg-foreground/5 active:scale-95"
                                 >
                                     <ChevronLeft className="h-4 w-4" />
                                     {t("chat.back", "Conversations")}
@@ -71,7 +81,7 @@ export function ChatSheet() {
                             <button
                                 onClick={close}
                                 aria-label={t("chat.close", "Close chat")}
-                                className="ml-auto flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground active:scale-95"
+                                className="ml-auto flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground active:scale-95"
                             >
                                 <X className="h-4 w-4" />
                             </button>
@@ -106,7 +116,7 @@ export function ChatSheet() {
                                         <Composer
                                             conversationId={activeConversationId}
                                             onTyping={notifyTyping}
-                                            onSend={(a) => sendMessage.mutate(a)}
+                                            onSend={(a) => sendMessage.mutateAsync(a)}
                                         />
                                     </>
                                 ) : (
@@ -128,6 +138,7 @@ export function ChatSheet() {
                             )}
                         </div>
                     </motion.aside>
+                    </div>
                 </>
             )}
         </AnimatePresence>

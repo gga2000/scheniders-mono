@@ -19,18 +19,20 @@ export type TenantPresenceUser = {
 };
 
 const IDLE_MS = 5 * 60 * 1000;
+const AWAY_MS = 15 * 60 * 1000;
 
 export function useTenantPresence(activity?: string) {
     const { user, profile, tenantId } = useAuth();
     const [onlineUsers, setOnlineUsers] = useState<TenantPresenceUser[]>([]);
     const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+    const subscribedRef = useRef(false);
     const activityRef = useRef(activity);
     activityRef.current = activity;
     const lastActiveRef = useRef<number>(Date.now());
 
     const buildPayload = useCallback((): TenantPresenceUser => {
         const idleFor = Date.now() - lastActiveRef.current;
-        const status: PresenceStatus = idleFor > IDLE_MS ? "idle" : "online";
+        const status: PresenceStatus = idleFor > AWAY_MS ? "away" : idleFor > IDLE_MS ? "idle" : "online";
         return {
             id: user!.id,
             display_name: profile?.display_name || user!.email?.split("@")[0] || "User",
@@ -64,8 +66,14 @@ export function useTenantPresence(activity?: string) {
                 unique.sort((a, b) => new Date(b.online_at).getTime() - new Date(a.online_at).getTime());
                 setOnlineUsers(unique);
             })
-            .subscribe(async (status) => {
-                if (status === "SUBSCRIBED") await channel.track(buildPayloadRef.current());
+            .subscribe(async (status, err) => {
+                if (status === "SUBSCRIBED") {
+                    subscribedRef.current = true;
+                    await channel.track(buildPayloadRef.current());
+                } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+                    subscribedRef.current = false;
+                    diag.warn(`[chat] presence channel ${status}${err ? ` ${err.message}` : ""}`);
+                }
             });
 
         const markActive = () => { lastActiveRef.current = Date.now(); };
@@ -84,14 +92,17 @@ export function useTenantPresence(activity?: string) {
             window.removeEventListener("mousemove", markActive);
             window.removeEventListener("keydown", markActive);
             document.removeEventListener("visibilitychange", onVisible);
-            channel.unsubscribe();
+            subscribedRef.current = false;
+            // removeChannel (not just unsubscribe) so the instance leaves
+            // client.channels and the next mount builds a fresh one.
+            supabase.removeChannel(channel);
             channelRef.current = null;
         };
     }, [user?.id, tenantId]);
 
-    // push a new activity label without re-subscribing
+    // push a new activity label without re-subscribing (only once joined)
     useEffect(() => {
-        if (channelRef.current) channelRef.current.track(buildPayloadRef.current());
+        if (channelRef.current && subscribedRef.current) channelRef.current.track(buildPayloadRef.current());
     }, [activity]);
 
     const otherUsers = onlineUsers.filter((u) => u.id !== user?.id);

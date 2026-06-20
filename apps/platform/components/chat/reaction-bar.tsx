@@ -1,11 +1,12 @@
 // apps/platform/components/chat/reaction-bar.tsx
 "use client";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { SmilePlus } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
+import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/components/providers/language-provider";
 import { chatKeys } from "@/hooks/chat/use-conversations";
 import type { ChatReaction, ChatMessage } from "@/types/chat";
@@ -24,6 +25,7 @@ export function ReactionBar({
     const { user } = useAuth();
     const { t } = useLanguage();
     const qc = useQueryClient();
+    const [pickerOpen, setPickerOpen] = useState(false);
     const grouped = useMemo(() => {
         const map = new Map<string, { count: number; mine: boolean }>();
         for (const r of reactions) {
@@ -38,6 +40,9 @@ export function ReactionBar({
     const toggle = async (emoji: string, mine: boolean) => {
         if (!user?.id) return;
         const uid = user.id;
+        // snapshot for rollback (a failed insert/delete emits no broadcast, so without
+        // this the optimistic state would stay wrong permanently)
+        const previous = qc.getQueryData<ChatMessage[]>(chatKeys.messages(conversationId));
         // optimistic: show instant feedback; the reaction:update broadcast reconciles to truth
         qc.setQueryData<ChatMessage[]>(chatKeys.messages(conversationId), (old = []) =>
             old.map((m) => {
@@ -49,10 +54,12 @@ export function ReactionBar({
                 return { ...m, reactions: next };
             })
         );
-        if (mine) {
-            await supabase.from("chat_message_reactions").delete().match({ message_id: messageId, user_id: uid, emoji });
-        } else {
-            await supabase.from("chat_message_reactions").insert({ message_id: messageId, user_id: uid, emoji });
+        const { error } = mine
+            ? await supabase.from("chat_message_reactions").delete().match({ message_id: messageId, user_id: uid, emoji })
+            : await supabase.from("chat_message_reactions").insert({ message_id: messageId, user_id: uid, emoji });
+        if (error) {
+            if (previous) qc.setQueryData(chatKeys.messages(conversationId), previous);
+            toast.error(t("chat.reactionFailed", "Couldn't update reaction"));
         }
     };
 
@@ -76,26 +83,43 @@ export function ReactionBar({
                     <span className="tabular-nums">{count}</span>
                 </motion.button>
             ))}
-            <div className={`reaction-add group/add relative ${hasReactions ? "" : "opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100"}`}>
+            {/* Add-reaction affordance. The picker opens on CLICK (works on touch,
+                unlike hover-only). On desktop the trigger reveals on message hover when
+                there are no reactions yet; on touch it stays visible. */}
+            <div className={`reaction-add relative ${hasReactions ? "" : "opacity-100 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:focus-within:opacity-100"}`}>
                 <button
                     type="button"
                     aria-label={t("chat.reaction.add", "Add reaction")}
-                    className="flex h-6 w-6 items-center justify-center rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] text-muted-foreground transition-colors hover:border-black/20 hover:text-foreground"
+                    aria-expanded={pickerOpen}
+                    onClick={() => setPickerOpen((o) => !o)}
+                    className={`flex h-6 w-6 items-center justify-center rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] transition-colors hover:border-black/20 hover:text-foreground ${pickerOpen ? "text-foreground" : "text-muted-foreground"}`}
                 >
                     <SmilePlus className="h-3.5 w-3.5" />
                 </button>
-                <div className="absolute bottom-full left-0 z-10 mb-1 hidden gap-0.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-1 shadow-xl group-hover/add:flex">
-                    {QUICK.map((e) => (
+                {pickerOpen && (
+                    <>
+                        {/* click-away catcher */}
                         <button
-                            key={e}
                             type="button"
-                            onClick={() => toggle(e, false)}
-                            className="rounded-lg px-1 py-0.5 text-base leading-none transition-transform hover:scale-125"
-                        >
-                            {e}
-                        </button>
-                    ))}
-                </div>
+                            aria-hidden
+                            tabIndex={-1}
+                            className="fixed inset-0 z-[9] cursor-default"
+                            onClick={() => setPickerOpen(false)}
+                        />
+                        <div className="absolute bottom-full left-0 z-10 mb-1 flex gap-0.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-1 shadow-xl">
+                            {QUICK.map((e) => (
+                                <button
+                                    key={e}
+                                    type="button"
+                                    onClick={() => { setPickerOpen(false); void toggle(e, false); }}
+                                    className="rounded-lg px-1 py-0.5 text-base leading-none transition-transform hover:scale-125"
+                                >
+                                    {e}
+                                </button>
+                            ))}
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );

@@ -45,7 +45,7 @@ function Section({
                             className={`group relative flex w-full items-center gap-1.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors active:scale-[0.99] ${
                                 isActive
                                     ? "bg-[var(--card-bg)] font-semibold text-foreground shadow-sm ring-1 ring-[var(--card-border)]"
-                                    : "text-foreground/80 hover:bg-black/5"
+                                    : "text-foreground/80 hover:bg-foreground/5"
                             }`}
                         >
                             {isActive && (
@@ -96,7 +96,7 @@ function TeamDirectory({
                         onClick={() => onStart(m.user_id)}
                         disabled={startingId === m.user_id}
                         title={hint}
-                        className="group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] text-foreground/80 transition-colors hover:bg-black/5 disabled:opacity-50"
+                        className="group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] text-foreground/80 transition-colors hover:bg-foreground/5 disabled:opacity-50"
                     >
                         <Avatar src={m.avatar_url ?? undefined} alt={m.display_name} size="sm" />
                         <span className="min-w-0 flex-1 truncate">{m.display_name}</span>
@@ -174,7 +174,7 @@ export function ConversationList() {
                     {Array.from({ length: 5 }).map((_, i) => (
                         <div
                             key={i}
-                            className="h-8 animate-pulse rounded-lg bg-black/5"
+                            className="h-8 animate-pulse rounded-lg bg-foreground/5"
                             style={{ animationDelay: `${i * 60}ms` }}
                         />
                     ))}

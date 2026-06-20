@@ -447,6 +447,13 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
                             )}
                         </Link>
                     </div>
+
+                    {/* Mobile-only actions — the desktop block above is hidden on mobile,
+                        so without this chat + notifications are unreachable on phones. */}
+                    <div className="flex md:hidden items-center gap-2">
+                        <ChatTrigger />
+                        <NotificationsDropdown />
+                    </div>
                 </div>
             </div>
         </header>

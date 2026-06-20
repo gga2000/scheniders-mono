@@ -8,6 +8,7 @@ import { Textarea } from "@scheniders/ui/textarea";
 import { Button } from "@scheniders/ui/button";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
+import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/components/providers/language-provider";
 import { useReferenceSearch } from "@/hooks/chat/use-reference-search";
 import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
@@ -15,6 +16,14 @@ import type { ChatReference, ChatAttachment } from "@/types/chat";
 
 const QUICK_EMOJIS = ["👍", "🔥", "✅", "❤️", "😂", "🙏", "👏", "🎉"] as const;
 const MAX_MENTION_RESULTS = 6;
+// Mirror the chat-attachments storage bucket limits so we fail fast in the UI
+// instead of opaquely deep inside the upload.
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"]);
+// Unicode-aware token matchers: the app serves an Arabic market, so `\w` (ASCII
+// only) would never open the #/@ autocomplete for Arabic input.
+const REF_TOKEN = /#([\p{L}\p{N}_]*)$/u;
+const MENTION_TOKEN = /@([\p{L}\p{N}_]*)$/u;
 
 /** A pending attachment paired with an object URL for image previews. */
 interface PendingFile {
@@ -34,7 +43,7 @@ export function Composer({
         mentions: string[];
         attachments: ChatAttachment[];
         clientMsgId: string;
-    }) => void;
+    }) => void | Promise<unknown>;
     onTyping: () => void;
 }) {
     const { user, tenantId } = useAuth();
@@ -79,8 +88,8 @@ export function Composer({
 
     /** Recompute which (if any) trailing token autocomplete should be shown. */
     const syncTokens = (value: string) => {
-        const refMatch = value.match(/#(\w*)$/);
-        const mentionMatch = value.match(/@(\w*)$/);
+        const refMatch = value.match(REF_TOKEN);
+        const mentionMatch = value.match(MENTION_TOKEN);
         if (refMatch) {
             setRefQuery(refMatch[1]);
             setMentionQuery(null);
@@ -105,7 +114,7 @@ export function Composer({
                 ? prev
                 : [...prev, { ref_type: r.ref_type, ref_id: r.ref_id, snapshot: r.snapshot }],
         );
-        setBody((b) => b.replace(/#\w*$/, ""));
+        setBody((b) => b.replace(REF_TOKEN, ""));
         setRefQuery(null);
         textareaRef.current?.focus();
     };
@@ -113,7 +122,7 @@ export function Composer({
     const selectMention = (m: (typeof mentionResults)[number]) => {
         setMentions((prev) => (prev.includes(m.user_id) ? prev : [...prev, m.user_id]));
         // Replace the trailing @token with a readable, space-terminated handle.
-        setBody((b) => b.replace(/@\w*$/, `@${m.display_name} `));
+        setBody((b) => b.replace(MENTION_TOKEN, `@${m.display_name} `));
         setMentionQuery(null);
         textareaRef.current?.focus();
     };
@@ -128,11 +137,24 @@ export function Composer({
 
     const addFiles = (files: FileList | null) => {
         if (!files) return;
-        const next: PendingFile[] = Array.from(files).map((file) => ({
-            file,
-            previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
-        }));
-        setPendingFiles((prev) => [...prev, ...next]);
+        // Validate up-front (size + type) so drag/paste — which bypass the input's
+        // `accept` hint — can't reach the upload and fail opaquely.
+        const accepted: PendingFile[] = [];
+        for (const file of Array.from(files)) {
+            if (file.size > MAX_FILE_BYTES) {
+                toast.error(t("chat.fileTooLarge", "File too large (max 10 MB)"), file.name);
+                continue;
+            }
+            if (file.type && !ALLOWED_MIME.has(file.type)) {
+                toast.error(t("chat.fileType", "Unsupported file type"), file.name);
+                continue;
+            }
+            accepted.push({
+                file,
+                previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
+            });
+        }
+        if (accepted.length) setPendingFiles((prev) => [...prev, ...accepted]);
         // Allow re-selecting the same file later.
         if (fileRef.current) fileRef.current.value = "";
     };
@@ -174,16 +196,20 @@ export function Composer({
         if (!tenantId || !user) return;
 
         setIsUploading(true);
+        let uploaded: ChatAttachment[] = [];
         try {
-            const attachments = await uploadAll();
-            onSend({
+            uploaded = await uploadAll();
+            // Await the send so a failure is observable here — only THEN clear the
+            // composer. Previously this was fire-and-forget, so a failed send wiped
+            // the user's text + attachments with no feedback.
+            await onSend({
                 body: text,
                 references: refs,
                 mentions,
-                attachments,
+                attachments: uploaded,
                 clientMsgId: crypto.randomUUID(),
             });
-            // Clear previews before dropping the list (effect cleanup also guards).
+            // Success: clear previews before dropping the list (effect cleanup also guards).
             for (const pf of pendingFiles) {
                 if (pf.previewUrl) URL.revokeObjectURL(pf.previewUrl);
             }
@@ -193,6 +219,13 @@ export function Composer({
             setPendingFiles([]);
             setRefQuery(null);
             setMentionQuery(null);
+        } catch {
+            // Roll back orphaned storage objects from this failed attempt and keep the
+            // user's input so they can retry.
+            if (uploaded.length > 0) {
+                void supabase.storage.from("chat-attachments").remove(uploaded.map((a) => a.storage_path));
+            }
+            toast.error(t("chat.sendFailed", "Couldn't send your message. Try again."));
         } finally {
             setIsUploading(false);
         }
@@ -203,7 +236,10 @@ export function Composer({
     const canSend = (body.trim().length > 0 || pendingFiles.length > 0) && !isUploading;
 
     return (
-        <div className="relative border-t border-[var(--card-border,rgba(0,0,0,0.08))] bg-[var(--card-bg)] p-2">
+        <div
+            className="relative border-t border-[var(--card-border,rgba(0,0,0,0.08))] bg-[var(--card-bg)] p-2"
+            style={{ paddingBottom: "calc(0.5rem + var(--safe-area-bottom, 0px))" }}
+        >
             {/* Selected reference + mention chips */}
             {(refs.length > 0 || mentions.length > 0) && (
                 <div className="mb-2 flex flex-wrap gap-1.5">
@@ -275,7 +311,7 @@ export function Composer({
                             <button
                                 type="button"
                                 aria-label={t("chat.composer.removeAttachment", "Remove attachment")}
-                                className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
+                                className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
                                 onClick={() => removeFile(i)}
                             >
                                 <X className="h-3.5 w-3.5" />
@@ -292,7 +328,9 @@ export function Composer({
                         value={body}
                         onChange={(e) => onTextChange(e.target.value)}
                         onKeyDown={(e) => {
-                            if (e.key === "Enter" && !e.shiftKey) {
+                            // Don't send mid-IME composition (Arabic/other input methods
+                            // use Enter to confirm candidates).
+                            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                                 e.preventDefault();
                                 void submit();
                             }
@@ -316,7 +354,7 @@ export function Composer({
                                     <button
                                         key={`${r.ref_type}-${r.ref_id}`}
                                         type="button"
-                                        className="block w-full rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-black/5"
+                                        className="block w-full rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-foreground/5"
                                         onClick={() => selectReference(r)}
                                     >
                                         <span className="font-semibold text-foreground">{r.label}</span>{" "}
@@ -341,7 +379,7 @@ export function Composer({
                                     <button
                                         key={m.user_id}
                                         type="button"
-                                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-black/5"
+                                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-foreground/5"
                                         onClick={() => selectMention(m)}
                                     >
                                         {m.avatar_url ? (
@@ -380,8 +418,8 @@ export function Composer({
                                     <button
                                         key={emoji}
                                         type="button"
-                                        aria-label={`Insert ${emoji}`}
-                                        className="rounded-lg px-1.5 py-1 text-lg leading-none transition-transform hover:scale-125 hover:bg-black/5"
+                                        aria-label={`${t("chat.composer.insertEmoji", "Insert")} ${emoji}`}
+                                        className="rounded-lg px-1.5 py-1 text-lg leading-none transition-transform hover:scale-125 hover:bg-foreground/5"
                                         onClick={() => appendEmoji(emoji)}
                                     >
                                         {emoji}

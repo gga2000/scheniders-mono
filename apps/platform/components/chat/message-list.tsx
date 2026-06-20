@@ -1,8 +1,8 @@
 // apps/platform/components/chat/message-list.tsx
 "use client";
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isToday, isYesterday } from "date-fns";
-import { MessageSquareDashed } from "lucide-react";
+import { ArrowDown, MessageSquareDashed } from "lucide-react";
 import { MessageItem } from "./message-item";
 import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
 import { useLanguage } from "@/components/providers/language-provider";
@@ -22,7 +22,23 @@ function dayLabel(iso: string, locale: string): string {
 
 export function MessageList({ messages }: { messages: ChatMessage[] }) {
     const scrollRef = useRef<HTMLDivElement>(null);
+    const nearBottomRef = useRef(true);
+    const [showJump, setShowJump] = useState(false);
     const { t, language } = useLanguage();
+
+    const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+        const el = scrollRef.current;
+        if (el) el.scrollTo({ top: el.scrollHeight, behavior });
+        setShowJump(false);
+    }, []);
+
+    const onScroll = useCallback(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+        const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+        nearBottomRef.current = distance < 120;
+        if (nearBottomRef.current) setShowJump(false);
+    }, []);
 
     // Authoritative sender identity: tenant_members covers offline users too,
     // so names/avatars resolve regardless of online status. The live tenant
@@ -36,11 +52,14 @@ export function MessageList({ messages }: { messages: ChatMessage[] }) {
         return map;
     }, [members]);
 
-    // Auto-scroll to bottom when a new message arrives.
+    // Auto-scroll only when the user is already near the bottom; otherwise surface a
+    // "new messages" pill instead of yanking them away from history they're reading.
+    const lastId = messages[messages.length - 1]?.id;
     useEffect(() => {
-        const el = scrollRef.current;
-        if (el) el.scrollTop = el.scrollHeight;
-    }, [messages.length]);
+        if (messages.length === 0) return;
+        if (nearBottomRef.current) scrollToBottom("auto");
+        else setShowJump(true);
+    }, [lastId, messages.length, scrollToBottom]);
 
     if (messages.length === 0) {
         return (
@@ -63,7 +82,18 @@ export function MessageList({ messages }: { messages: ChatMessage[] }) {
     // First cut uses native scroll. Virtualization (@tanstack/react-virtual)
     // is a future optimization once per-conversation message volume warrants it.
     return (
-        <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain py-2">
+        <div className="relative flex min-h-0 flex-1 flex-col">
+        {showJump && (
+            <button
+                type="button"
+                onClick={() => scrollToBottom("smooth")}
+                className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-[var(--ink)] px-3 py-1.5 text-xs font-semibold text-[var(--background)] shadow-lg transition-transform hover:scale-105 active:scale-95"
+            >
+                <ArrowDown className="h-3.5 w-3.5" />
+                {t("chat.jumpToLatest", "New messages")}
+            </button>
+        )}
+        <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto overscroll-contain py-2">
             {messages.map((m, i) => {
                 const u = memberMap.get(m.sender_id);
                 const thisDay = new Date(m.created_at).toDateString();
@@ -88,6 +118,7 @@ export function MessageList({ messages }: { messages: ChatMessage[] }) {
                     </div>
                 );
             })}
+        </div>
         </div>
     );
 }
