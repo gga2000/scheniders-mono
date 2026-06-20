@@ -35,27 +35,14 @@ export function useConversations() {
                 members: Pick<ChatMember, "user_id" | "last_read_at" | "role">[];
             })[];
 
-            // unread = messages newer than my last_read_at (one count query per conv batched)
-            const ids = rows.map((r) => r.id);
-            const unreadByConv = new Map<string, number>();
-            if (ids.length) {
-                // fetch only created_at + conversation_id of recent messages, count client-side
-                const { data: recent } = await supabase
-                    .from("chat_messages")
-                    .select("conversation_id, created_at")
-                    .in("conversation_id", ids)
-                    .is("deleted_at", null)
-                    .order("created_at", { ascending: false })
-                    .limit(500);
-                for (const r of rows) {
-                    const mine = r.members.find((m) => m.user_id === user!.id);
-                    const lastRead = mine?.last_read_at ? new Date(mine.last_read_at).getTime() : 0;
-                    const count = (recent ?? []).filter(
-                        (m) => m.conversation_id === r.id && new Date(m.created_at).getTime() > lastRead
-                    ).length;
-                    unreadByConv.set(r.id, count);
-                }
-            }
+            // unread counts come from the chat_unread_counts RPC (accurate, server-side)
+            const { data: unreadRows } = await supabase.rpc("chat_unread_counts");
+            const unreadByConv = new Map<string, number>(
+                ((unreadRows ?? []) as { conversation_id: string; unread: number }[]).map((r) => [
+                    r.conversation_id,
+                    r.unread,
+                ])
+            );
 
             return rows.map((r) => {
                 const mine = r.members.find((m) => m.user_id === user!.id);

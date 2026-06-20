@@ -4,6 +4,7 @@ import { Avatar } from "@scheniders/ui";
 import { formatDistanceToNow } from "date-fns";
 import { ReferenceCard } from "./reference-card";
 import { ReactionBar } from "./reaction-bar";
+import { supabase } from "@/lib/supabase";
 import type { ChatMessage } from "@/types/chat";
 
 export function MessageItem({
@@ -18,6 +19,10 @@ export function MessageItem({
     if (message.deleted_at) {
         return <div className="px-4 py-1 text-xs italic text-muted-foreground">message deleted</div>;
     }
+    const openAttachment = async (storagePath: string) => {
+        const { data } = await supabase.storage.from("chat-attachments").createSignedUrl(storagePath, 60);
+        if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    };
     return (
         <div className={`flex gap-2.5 px-4 py-2 ${message.pending ? "opacity-60" : ""}`}>
             <Avatar src={senderAvatar ?? undefined} alt={senderName} size="sm" />
@@ -36,11 +41,22 @@ export function MessageItem({
                     <ReferenceCard key={i} reference={r} />
                 ))}
                 {(message.attachments ?? []).map((a, i) => (
-                    <a key={i} href="#" className="mt-2 inline-block rounded-lg border px-3 py-2 text-xs">
+                    <button
+                        key={i}
+                        type="button"
+                        onClick={() => openAttachment(a.storage_path)}
+                        className="mt-2 inline-block rounded-lg border px-3 py-2 text-xs"
+                    >
                         📎 {a.file_name}
-                    </a>
+                    </button>
                 ))}
-                {!message.pending && <ReactionBar messageId={message.id} reactions={message.reactions ?? []} />}
+                {!message.pending && (
+                    <ReactionBar
+                        messageId={message.id}
+                        conversationId={message.conversation_id}
+                        reactions={message.reactions ?? []}
+                    />
+                )}
             </div>
         </div>
     );

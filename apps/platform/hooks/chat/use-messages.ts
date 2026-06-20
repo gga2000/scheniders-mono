@@ -35,15 +35,41 @@ export function useMessages(conversationId: string | null) {
         if (!conversationId) return;
         const channel = supabase.channel(conversationTopic(conversationId), { config: { private: true } });
         channel
-            .on("broadcast", { event: "message:new" }, ({ payload }) => {
+            .on("broadcast", { event: "message:new" }, async ({ payload }) => {
+                const incoming = payload as ChatMessage;
+
+                // our own echo: the optimistic + onSuccess path owns our row (it keeps the
+                // references the composer attached). Do NOT append from the broadcast. We only
+                // guard against a duplicate already present under the broadcast's id while the
+                // optimistic row (keyed by client_msg_id) still lives.
+                if (incoming.sender_id === user?.id) {
+                    qc.setQueryData<ChatMessage[]>(chatKeys.messages(conversationId), (old = []) => {
+                        const hasOptimistic = old.some(
+                            (m) => m.client_msg_id && m.client_msg_id === incoming.client_msg_id
+                        );
+                        // if our optimistic/saved row exists, strip any stray bare broadcast row
+                        if (hasOptimistic) return old.filter((m) => m.id !== incoming.id);
+                        return old;
+                    });
+                    qc.invalidateQueries({ queryKey: chatKeys.conversations() });
+                    return;
+                }
+
+                // someone else's message: the broadcast has no children, so hydrate the full row.
+                const { data } = await supabase
+                    .from("chat_messages")
+                    .select("*, references:chat_message_references(*), reactions:chat_message_reactions(*), attachments:chat_message_attachments(*)")
+                    .eq("id", incoming.id).single();
+                const full = (data ?? incoming) as ChatMessage;
                 qc.setQueryData<ChatMessage[]>(chatKeys.messages(conversationId), (old = []) => {
-                    // reconcile optimistic by client_msg_id; ignore our own echo if already present
-                    const incoming = payload as ChatMessage;
+                    // dedupe purely on client_msg_id, then on id
                     const withoutOptimistic = old.filter(
-                        (m) => !(m.pending && m.client_msg_id && m.client_msg_id === incoming.client_msg_id)
+                        (m) => !(m.client_msg_id && m.client_msg_id === full.client_msg_id)
                     );
-                    if (withoutOptimistic.some((m) => m.id === incoming.id)) return withoutOptimistic;
-                    return [...withoutOptimistic, { ...incoming, references: [], reactions: [], attachments: [] }];
+                    if (withoutOptimistic.some((m) => m.id === full.id)) {
+                        return withoutOptimistic.map((m) => (m.id === full.id ? full : m));
+                    }
+                    return [...withoutOptimistic, full];
                 });
                 qc.invalidateQueries({ queryKey: chatKeys.conversations() });
             })
@@ -52,6 +78,12 @@ export function useMessages(conversationId: string | null) {
                 qc.setQueryData<ChatMessage[]>(chatKeys.messages(conversationId), (old = []) =>
                     old.map((m) => (m.id === upd.id ? { ...m, ...upd } : m))
                 );
+            })
+            .on("broadcast", { event: "reaction:update" }, async ({ payload }) => {
+                const messageId = (payload as { message_id: string }).message_id;
+                const { data } = await supabase.from("chat_message_reactions").select("*").eq("message_id", messageId);
+                qc.setQueryData<ChatMessage[]>(chatKeys.messages(conversationId!), (old = []) =>
+                    old.map((m) => (m.id === messageId ? { ...m, reactions: (data ?? m.reactions) as ChatMessage["reactions"] } : m)));
             })
             .subscribe();
         return () => { supabase.removeChannel(channel); };
@@ -94,7 +126,18 @@ export function useMessages(conversationId: string | null) {
         onSuccess: (saved) => {
             if (!conversationId) return;
             qc.setQueryData<ChatMessage[]>(chatKeys.messages(conversationId), (old = []) =>
-                old.map((m) => (m.client_msg_id === saved.client_msg_id ? { ...saved, pending: false } : m))
+                old.map((m) =>
+                    m.client_msg_id === saved.client_msg_id
+                        ? {
+                              ...saved,
+                              pending: false,
+                              // RPC return has no children; keep the optimistic ones the composer attached
+                              references: m.references,
+                              reactions: m.reactions,
+                              attachments: m.attachments,
+                          }
+                        : m
+                )
             );
         },
     });
