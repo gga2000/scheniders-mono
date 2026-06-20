@@ -4,6 +4,7 @@ import "./globals.css";
 // Fail-fast: validate all environment variables at app startup
 import "@/lib/env";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { ChatRuntime } from "@/components/chat/chat-runtime";
 import { PWAProvider } from "@/components/pwa/pwa-provider";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { OrdersProvider } from "@/components/providers/orders-provider";
@@ -111,6 +112,7 @@ export default function RootLayout({
                         <LanguageProvider>
                           <DashboardLayout>
                             {children}
+                            <ChatRuntime />
                           </DashboardLayout>
                         </LanguageProvider>
                       </FinancialVisibilityProvider>

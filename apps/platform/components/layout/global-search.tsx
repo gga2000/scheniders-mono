@@ -24,7 +24,8 @@ import { cn } from "@/lib/utils";
 import { formatIQD, getBaseOrderId } from "@/lib/utils";
 import { ThemeToggle } from "./theme-toggle";
 import { LanguageToggle } from "./language-toggle";
-import { GlobalPresenceIndicator } from "./global-presence-indicator";
+import { LivePresenceStack } from "@/components/chat/live-presence-stack";
+import { ChatTrigger } from "@/components/chat/chat-trigger";
 import { NotificationsDropdown } from "./notifications-dropdown";
 import { AutoSendToggle } from "@/components/orders/auto-send-toggle";
 import { MerchantCodeBadge } from "./merchant-code-badge";
@@ -409,8 +410,11 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
                         {/* Language Toggle */}
                         <LanguageToggle />
 
-                        {/* Global Presence Indicator */}
-                        <GlobalPresenceIndicator />
+                        {/* Live Presence Stack */}
+                        <LivePresenceStack />
+
+                        {/* Team Chat Trigger */}
+                        <ChatTrigger />
 
                         {/* Notifications Dropdown */}
                         <NotificationsDropdown />
