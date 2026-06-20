@@ -2,6 +2,7 @@
 "use client";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { ChevronLeft, MessageSquare, X } from "lucide-react";
 import { useChatStore } from "@/store/use-chat-store";
 import { useConversations } from "@/hooks/chat/use-conversations";
@@ -57,6 +58,54 @@ export function ChatSheet() {
         [messages, activeConversationId, user, frozenVersion]
     );
 
+    const dialogRef = useRef<HTMLElement>(null);
+    const previouslyFocused = useRef<HTMLElement | null>(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            previouslyFocused.current = document.activeElement as HTMLElement | null;
+            // Focus the first focusable element inside the dialog on the next frame
+            // (after the panel mounts). Composer textarea wins when a conversation is open.
+            requestAnimationFrame(() => {
+                const root = dialogRef.current;
+                if (!root) return;
+                const first = root.querySelector<HTMLElement>(
+                    'textarea, button, a[href], input, [tabindex]:not([tabindex="-1"])'
+                );
+                first?.focus();
+            });
+        } else {
+            previouslyFocused.current?.focus?.();
+        }
+    }, [isOpen]);
+
+    const onDialogKeyDown = (e: ReactKeyboardEvent) => {
+        if (e.key === "Escape") {
+            e.stopPropagation();
+            close();
+            return;
+        }
+        if (e.key !== "Tab") return;
+        const root = dialogRef.current;
+        if (!root) return;
+        const focusables = Array.from(
+            root.querySelectorAll<HTMLElement>(
+                'textarea, button, a[href], input, [tabindex]:not([tabindex="-1"])'
+            )
+        ).filter((el) => !el.hasAttribute("disabled") && el.offsetParent !== null);
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement as HTMLElement | null;
+        if (e.shiftKey && active === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && active === last) {
+            e.preventDefault();
+            first.focus();
+        }
+    };
+
     // On mobile the list is hidden inside a conversation, so offer a back
     // affordance that clears the active conversation to reveal the list again.
     const showMobileBack = isMobile && activeConversationId !== null;
@@ -90,6 +139,11 @@ export function ChatSheet() {
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={isMobile ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: 8 }}
                         transition={{ type: "spring", damping: 30, stiffness: 320 }}
+                        ref={dialogRef}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label={t("chat.title", "Team chat")}
+                        onKeyDown={onDialogKeyDown}
                     >
                         {/* Header */}
                         <div

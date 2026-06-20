@@ -100,6 +100,14 @@ export function MessageList({
     // is a future optimization once per-conversation message volume warrants it.
     return (
         <div className="relative flex min-h-0 flex-1 flex-col">
+            <div aria-live="polite" className="sr-only">
+                {(() => {
+                    const last = messages[messages.length - 1];
+                    if (!last) return "";
+                    const who = memberMap.get(last.sender_id)?.display_name ?? "Teammate";
+                    return last.deleted_at ? "" : `${who}: ${last.body}`;
+                })()}
+            </div>
         {showJump && (
             <button
                 type="button"
