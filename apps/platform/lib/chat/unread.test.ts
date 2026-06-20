@@ -27,4 +27,8 @@ describe("firstUnreadMessageId", () => {
     it("returns null when lastReadAt is null", () => {
         expect(firstUnreadMessageId(msgs, null, me)).toBeNull();
     });
+    it("treats a message whose created_at equals lastReadAt as read (strict >)", () => {
+        // lastReadAt === c's timestamp → c is read; next unread from others is d
+        expect(firstUnreadMessageId(msgs, "2026-06-21T10:10:00Z", me)).toBe("d");
+    });
 });

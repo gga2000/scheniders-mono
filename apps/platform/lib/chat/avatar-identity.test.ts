@@ -35,4 +35,10 @@ describe("colorFromId", () => {
         const buckets = new Set(ids.map((id) => colorFromId(id).bg));
         expect(buckets.size).toBeGreaterThan(1);
     });
+    it("pins ids to stable palette buckets (catches hash drift)", () => {
+        // Hardcoded expectations so a change to the hash algorithm — which would
+        // re-color every existing user — fails loudly instead of silently.
+        expect(colorFromId("user-123").bg).toBe("var(--pastel-purple)");
+        expect(colorFromId("user-456").bg).toBe("var(--pastel-pink)");
+    });
 });
