@@ -78,7 +78,10 @@ export function ChatSheet() {
                         </div>
 
                         <div className="flex min-h-0 flex-1">
-                            {!isMobile && <ConversationList />}
+                            {/* Desktop: list is always the sidebar. Mobile: list takes over
+                                when no conversation is active (so you can pick/start one). */}
+                            {(!isMobile || !activeConversationId) && <ConversationList />}
+                            {(!isMobile || activeConversationId) && (
                             <div className="flex min-w-0 flex-1 flex-col bg-[var(--background)]">
                                 {activeConversationId ? (
                                     <>
@@ -122,6 +125,7 @@ export function ChatSheet() {
                                     </div>
                                 )}
                             </div>
+                            )}
                         </div>
                     </motion.aside>
                 </>

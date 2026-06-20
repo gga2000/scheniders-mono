@@ -1,9 +1,14 @@
 // apps/platform/components/chat/conversation-list.tsx
 "use client";
-import { AtSign, Hash, MessagesSquare, Package } from "lucide-react";
-import { useConversations } from "@/hooks/chat/use-conversations";
+import { useMemo, useState } from "react";
+import { AtSign, Hash, MessagesSquare, Package, Users, Pencil } from "lucide-react";
+import { Avatar } from "@scheniders/ui";
+import { useConversations, useStartDm } from "@/hooks/chat/use-conversations";
 import type { ConversationWithMeta } from "@/hooks/chat/use-conversations";
+import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
+import type { TenantMember } from "@/hooks/chat/use-tenant-members";
 import { useChatStore } from "@/store/use-chat-store";
+import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/components/providers/language-provider";
 
 type SectionIcon = typeof Hash;
@@ -14,14 +19,14 @@ function Section({
     items,
     activeConversationId,
     onSelect,
-    directLabel,
+    nameFor,
 }: {
     title: string;
     icon: SectionIcon;
     items: ConversationWithMeta[];
     activeConversationId: string | null;
     onSelect: (id: string) => void;
-    directLabel: string;
+    nameFor: (c: ConversationWithMeta) => string;
 }) {
     if (items.length === 0) return null;
     return (
@@ -47,11 +52,8 @@ function Section({
                                 <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-[var(--ink)]" />
                             )}
                             <span className="min-w-0 flex-1 truncate">
-                                {c.kind === "channel" ? (
-                                    <span className="text-muted-foreground">#</span>
-                                ) : null}
-                                {c.kind === "channel" ? " " : ""}
-                                {c.kind === "channel" ? c.name : c.name ?? directLabel}
+                                {c.kind === "channel" ? <span className="text-muted-foreground"># </span> : null}
+                                {nameFor(c)}
                             </span>
                             {c.unread > 0 && (
                                 <span className="ml-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white shadow-sm">
@@ -66,20 +68,107 @@ function Section({
     );
 }
 
+/** Directory of every teammate (online or not) you don't yet have a 1:1 DM with. Click → start a DM. */
+function TeamDirectory({
+    members,
+    onStart,
+    startingId,
+    title,
+    hint,
+}: {
+    members: TenantMember[];
+    onStart: (userId: string) => void;
+    startingId: string | null;
+    title: string;
+    hint: string;
+}) {
+    if (members.length === 0) return null;
+    return (
+        <div className="px-2 pb-2 pt-1">
+            <div className="flex items-center gap-1.5 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <Users className="h-3 w-3" />
+                {title}
+            </div>
+            <div className="space-y-0.5">
+                {members.map((m) => (
+                    <button
+                        key={m.user_id}
+                        onClick={() => onStart(m.user_id)}
+                        disabled={startingId === m.user_id}
+                        title={hint}
+                        className="group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] text-foreground/80 transition-colors hover:bg-black/5 disabled:opacity-50"
+                    >
+                        <Avatar src={m.avatar_url ?? undefined} alt={m.display_name} size="sm" />
+                        <span className="min-w-0 flex-1 truncate">{m.display_name}</span>
+                        <Pencil className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 export function ConversationList() {
+    const { user } = useAuth();
     const { data: conversations = [], isLoading } = useConversations();
+    const { data: members = [] } = useTenantMembers();
+    const startDm = useStartDm();
     const { activeConversationId, setActiveConversation } = useChatStore();
     const { t } = useLanguage();
-    const groups = {
-        channel: conversations.filter((c) => c.kind === "channel"),
-        dm: conversations.filter((c) => c.kind === "dm" || c.kind === "group"),
-        order: conversations.filter((c) => c.kind === "order"),
-    };
+    const [startingId, setStartingId] = useState<string | null>(null);
+
     const directLabel = t("chat.directMessage", "Direct message");
-    const isEmpty = !isLoading && conversations.length === 0;
+
+    const memberMap = useMemo(
+        () => new Map(members.map((m) => [m.user_id, m])),
+        [members]
+    );
+
+    const groups = useMemo(
+        () => ({
+            channel: conversations.filter((c) => c.kind === "channel"),
+            dm: conversations.filter((c) => c.kind === "dm" || c.kind === "group"),
+            order: conversations.filter((c) => c.kind === "order"),
+        }),
+        [conversations]
+    );
+
+    // user ids already reachable via an existing 1:1 DM (so we don't list them twice)
+    const dmUserIds = useMemo(() => {
+        const ids = new Set<string>();
+        for (const c of groups.dm) {
+            if (c.kind !== "dm") continue;
+            const other = c.members.find((m) => m.user_id !== user?.id);
+            if (other) ids.add(other.user_id);
+        }
+        return ids;
+    }, [groups.dm, user?.id]);
+
+    // everyone else in the tenant (excluding me + people I already DM) — start a new DM
+    const directoryMembers = useMemo(
+        () => members.filter((m) => m.user_id !== user?.id && !dmUserIds.has(m.user_id)),
+        [members, user?.id, dmUserIds]
+    );
+
+    const nameFor = (c: ConversationWithMeta): string => {
+        if (c.kind === "channel") return c.name ?? "";
+        if (c.name) return c.name; // group/named
+        const other = c.members.find((m) => m.user_id !== user?.id);
+        return (other && memberMap.get(other.user_id)?.display_name) || directLabel;
+    };
+
+    const startConversation = async (userId: string) => {
+        setStartingId(userId);
+        try {
+            const convId = await startDm.mutateAsync(userId);
+            setActiveConversation(convId);
+        } finally {
+            setStartingId(null);
+        }
+    };
 
     return (
-        <div className="w-[40%] max-w-[260px] overflow-y-auto overscroll-contain border-r border-[var(--card-border)] bg-[var(--background-soft,var(--background))]">
+        <div className="w-full shrink-0 overflow-y-auto overscroll-contain bg-[var(--background-soft,var(--background))] md:w-[40%] md:max-w-[260px] md:border-r md:border-[var(--card-border)]">
             {isLoading ? (
                 <div className="space-y-1 p-3">
                     {Array.from({ length: 5 }).map((_, i) => (
@@ -90,18 +179,6 @@ export function ConversationList() {
                         />
                     ))}
                 </div>
-            ) : isEmpty ? (
-                <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--card-bg)] text-muted-foreground ring-1 ring-[var(--card-border)]">
-                        <MessagesSquare className="h-5 w-5" />
-                    </span>
-                    <p className="text-xs font-semibold text-foreground">
-                        {t("chat.emptyConversations", "No conversations yet")}
-                    </p>
-                    <p className="text-[11px] leading-snug text-muted-foreground">
-                        {t("chat.emptyConversationsDesc", "Start a direct message from the team presence menu.")}
-                    </p>
-                </div>
             ) : (
                 <div className="py-1">
                     <Section
@@ -110,7 +187,7 @@ export function ConversationList() {
                         items={groups.channel}
                         activeConversationId={activeConversationId}
                         onSelect={setActiveConversation}
-                        directLabel={directLabel}
+                        nameFor={nameFor}
                     />
                     <Section
                         title={t("chat.section.direct", "Direct")}
@@ -118,7 +195,7 @@ export function ConversationList() {
                         items={groups.dm}
                         activeConversationId={activeConversationId}
                         onSelect={setActiveConversation}
-                        directLabel={directLabel}
+                        nameFor={nameFor}
                     />
                     <Section
                         title={t("chat.section.orders", "Order threads")}
@@ -126,8 +203,28 @@ export function ConversationList() {
                         items={groups.order}
                         activeConversationId={activeConversationId}
                         onSelect={setActiveConversation}
-                        directLabel={directLabel}
+                        nameFor={nameFor}
                     />
+                    <TeamDirectory
+                        title={t("chat.section.team", "Team members")}
+                        hint={t("chat.startDm", "Start a direct message")}
+                        members={directoryMembers}
+                        onStart={startConversation}
+                        startingId={startingId}
+                    />
+                    {conversations.length === 0 && directoryMembers.length === 0 && (
+                        <div className="flex flex-col items-center justify-center gap-2 px-4 py-10 text-center">
+                            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--card-bg)] text-muted-foreground ring-1 ring-[var(--card-border)]">
+                                <MessagesSquare className="h-5 w-5" />
+                            </span>
+                            <p className="text-xs font-semibold text-foreground">
+                                {t("chat.emptyConversations", "No conversations yet")}
+                            </p>
+                            <p className="text-[11px] leading-snug text-muted-foreground">
+                                {t("chat.emptyTeam", "You're the only member of this workspace so far.")}
+                            </p>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
