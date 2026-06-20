@@ -1,7 +1,7 @@
 // apps/platform/components/chat/message-item.tsx
 "use client";
 import { motion } from "framer-motion";
-import { Avatar } from "@scheniders/ui";
+import { ChatAvatar } from "./chat-avatar";
 import { formatDistanceToNow } from "date-fns";
 import { FileText, Paperclip } from "lucide-react";
 import { ReferenceCard } from "./reference-card";
@@ -46,7 +46,7 @@ export function MessageItem({
                 message.pending ? "opacity-60" : ""
             }`}
         >
-            <Avatar src={senderAvatar ?? undefined} alt={senderName} size="sm" />
+            <ChatAvatar userId={message.sender_id} name={senderName} avatarUrl={senderAvatar} size="sm" />
             <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-2">
                     <span className="text-[13px] font-semibold text-foreground">{senderName}</span>

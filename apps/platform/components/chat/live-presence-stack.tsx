@@ -1,14 +1,13 @@
 "use client";
 import { useState } from "react";
 import { Users } from "lucide-react";
-import { Avatar } from "@scheniders/ui";
+import { ChatAvatar } from "./chat-avatar";
 import { Popover, PopoverTrigger, PopoverContent } from "@scheniders/ui/popover";
 import { useTenantPresence } from "@/hooks/chat/use-tenant-presence";
 import { useStartDm } from "@/hooks/chat/use-conversations";
 import { useChatStore } from "@/store/use-chat-store";
 import { useLanguage } from "@/components/providers/language-provider";
 
-const dot = { online: "bg-green-500", idle: "bg-amber-500", away: "bg-gray-300" };
 
 export function LivePresenceStack() {
     const { otherUsers, totalOnline } = useTenantPresence();
@@ -39,9 +38,16 @@ export function LivePresenceStack() {
                     ) : (
                         <span className="flex items-center -space-x-2">
                             {otherUsers.slice(0, 3).map((u) => (
-                                <span key={u.id} className="relative inline-block rounded-full ring-2 ring-[var(--background)] transition-transform hover:z-10 hover:-translate-y-0.5">
-                                    <Avatar src={u.avatar_url} alt={u.display_name} size="sm" />
-                                    <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[var(--background)] ${dot[u.status]}`} />
+                                <span key={u.id} className="relative inline-block transition-transform hover:z-10 hover:-translate-y-0.5">
+                                    <ChatAvatar
+                                        userId={u.id}
+                                        name={u.display_name}
+                                        avatarUrl={u.avatar_url}
+                                        size="sm"
+                                        status={u.status}
+                                        showStatus
+                                        ringClassName="ring-2 ring-[var(--background)]"
+                                    />
                                 </span>
                             ))}
                             {otherUsers.length > 3 && (
@@ -77,10 +83,15 @@ export function LivePresenceStack() {
                     <div className="max-h-80 overflow-y-auto overscroll-contain p-1">
                         {otherUsers.map((u) => (
                             <div key={u.id} className="group flex items-center gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-foreground/5">
-                                <span className="relative shrink-0">
-                                    <Avatar src={u.avatar_url} alt={u.display_name} size="sm" />
-                                    <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--card-bg)] ${dot[u.status]}`} />
-                                </span>
+                                <ChatAvatar
+                                    userId={u.id}
+                                    name={u.display_name}
+                                    avatarUrl={u.avatar_url}
+                                    size="sm"
+                                    status={u.status}
+                                    showStatus
+                                    dotBorderClassName="border-[var(--card-bg)]"
+                                />
                                 <div className="min-w-0 flex-1">
                                     <div className="truncate text-[13px] font-medium text-foreground">{u.display_name}</div>
                                     <div className="truncate text-[11px] text-muted-foreground">

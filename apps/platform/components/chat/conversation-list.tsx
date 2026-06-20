@@ -2,7 +2,8 @@
 "use client";
 import { useMemo, useState } from "react";
 import { AtSign, Hash, MessagesSquare, Package, Users, Pencil } from "lucide-react";
-import { Avatar } from "@scheniders/ui";
+import { ChatAvatar } from "./chat-avatar";
+import { usePresenceStore } from "@/store/use-presence-store";
 import { useConversations, useStartDm } from "@/hooks/chat/use-conversations";
 import type { ConversationWithMeta } from "@/hooks/chat/use-conversations";
 import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
@@ -82,6 +83,7 @@ function TeamDirectory({
     title: string;
     hint: string;
 }) {
+    const statuses = usePresenceStore((s) => s.statuses);
     if (members.length === 0) return null;
     return (
         <div className="px-2 pb-2 pt-1">
@@ -98,7 +100,14 @@ function TeamDirectory({
                         title={hint}
                         className="group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] text-foreground/80 transition-colors hover:bg-foreground/5 disabled:opacity-50"
                     >
-                        <Avatar src={m.avatar_url ?? undefined} alt={m.display_name} size="sm" />
+                        <ChatAvatar
+                            userId={m.user_id}
+                            name={m.display_name}
+                            avatarUrl={m.avatar_url}
+                            size="sm"
+                            status={statuses[m.user_id] ?? "offline"}
+                            showStatus
+                        />
                         <span className="min-w-0 flex-1 truncate">{m.display_name}</span>
                         <Pencil className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                     </button>

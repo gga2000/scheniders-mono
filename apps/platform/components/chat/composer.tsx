@@ -12,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/components/providers/language-provider";
 import { useReferenceSearch } from "@/hooks/chat/use-reference-search";
 import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
+import { ChatAvatar } from "./chat-avatar";
 import type { ChatReference, ChatAttachment } from "@/types/chat";
 
 const QUICK_EMOJIS = ["👍", "🔥", "✅", "❤️", "😂", "🙏", "👏", "🎉"] as const;
@@ -382,18 +383,7 @@ export function Composer({
                                         className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-foreground/5"
                                         onClick={() => selectMention(m)}
                                     >
-                                        {m.avatar_url ? (
-                                            // eslint-disable-next-line @next/next/no-img-element -- small avatar inside a popover; next/image overhead unwarranted
-                                            <img
-                                                src={m.avatar_url}
-                                                alt=""
-                                                className="h-6 w-6 rounded-full object-cover"
-                                            />
-                                        ) : (
-                                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-bold text-indigo-700">
-                                                {m.display_name.slice(0, 1).toUpperCase()}
-                                            </span>
-                                        )}
+                                        <ChatAvatar userId={m.user_id} name={m.display_name} avatarUrl={m.avatar_url} size="xs" />
                                         <span className="font-medium text-foreground">{m.display_name}</span>
                                         <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground">
                                             {m.role}
