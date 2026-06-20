@@ -68,10 +68,14 @@ export function useOrderActivityNotifications() {
         notifications.filter(n => !n.is_read).length,
         [notifications]);
 
-    // Real-time updates via Supabase
+    // Real-time updates via Supabase.
+    // Unique per-mount topic so a StrictMode double-mount (or a remount while the
+    // previous channel is still tearing down) doesn't hand back an already-subscribed
+    // channel — which makes `.on('postgres_changes', …)` throw "after subscribe()".
     useEffect(() => {
+        const subscriptionId = Math.random().toString(36).substring(7);
         const channel = supabase
-            .channel('order_notifications_db')
+            .channel(`order_notifications_db_${subscriptionId}`)
             .on(
                 'postgres_changes',
                 {
