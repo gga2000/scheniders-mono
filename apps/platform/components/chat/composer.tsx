@@ -2,10 +2,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { FileText, Paperclip, Send, Smile, X } from "lucide-react";
 import { Textarea } from "@scheniders/ui/textarea";
 import { Button } from "@scheniders/ui/button";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
+import { useLanguage } from "@/components/providers/language-provider";
 import { useReferenceSearch } from "@/hooks/chat/use-reference-search";
 import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
 import type { ChatReference, ChatAttachment } from "@/types/chat";
@@ -35,6 +38,7 @@ export function Composer({
     onTyping: () => void;
 }) {
     const { user, tenantId } = useAuth();
+    const { t } = useLanguage();
 
     const [body, setBody] = useState("");
     const [refs, setRefs] = useState<ChatReference[]>([]);
@@ -202,40 +206,44 @@ export function Composer({
         <div className="relative border-t border-[var(--card-border,rgba(0,0,0,0.08))] bg-[var(--card-bg)] p-2">
             {/* Selected reference + mention chips */}
             {(refs.length > 0 || mentions.length > 0) && (
-                <div className="mb-1.5 flex flex-wrap gap-1.5">
+                <div className="mb-2 flex flex-wrap gap-1.5">
                     {refs.map((r, i) => (
-                        <span
+                        <motion.span
                             key={`ref-${r.ref_type}-${r.ref_id}-${i}`}
-                            className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="inline-flex items-center gap-1 rounded-full bg-amber-100 py-1 pl-2.5 pr-1 text-xs font-semibold text-amber-800"
                         >
                             #{String(r.snapshot.order_id ?? r.ref_id)}
                             <button
                                 type="button"
-                                aria-label="Remove reference"
-                                className="rounded-full px-0.5 leading-none text-amber-800/70 hover:text-amber-900"
+                                aria-label={t("chat.composer.removeReference", "Remove reference")}
+                                className="flex h-4 w-4 items-center justify-center rounded-full text-amber-800/70 transition-colors hover:bg-amber-200 hover:text-amber-900"
                                 onClick={() => removeReference(i)}
                             >
-                                ✕
+                                <X className="h-3 w-3" />
                             </button>
-                        </span>
+                        </motion.span>
                     ))}
                     {mentions.map((userId) => {
                         const m = members.find((mem) => mem.user_id === userId);
                         return (
-                            <span
+                            <motion.span
                                 key={`mention-${userId}`}
-                                className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700"
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="inline-flex items-center gap-1 rounded-full bg-indigo-100 py-1 pl-2.5 pr-1 text-xs font-semibold text-indigo-700"
                             >
                                 @{m?.display_name ?? "member"}
                                 <button
                                     type="button"
-                                    aria-label="Remove mention"
-                                    className="rounded-full px-0.5 leading-none text-indigo-700/70 hover:text-indigo-900"
+                                    aria-label={t("chat.composer.removeMention", "Remove mention")}
+                                    className="flex h-4 w-4 items-center justify-center rounded-full text-indigo-700/70 transition-colors hover:bg-indigo-200 hover:text-indigo-900"
                                     onClick={() => removeMention(userId)}
                                 >
-                                    ✕
+                                    <X className="h-3 w-3" />
                                 </button>
-                            </span>
+                            </motion.span>
                         );
                     })}
                 </div>
@@ -243,32 +251,36 @@ export function Composer({
 
             {/* Pending attachment chips */}
             {pendingFiles.length > 0 && (
-                <div className="mb-1.5 flex flex-wrap gap-2">
+                <div className="mb-2 flex flex-wrap gap-2">
                     {pendingFiles.map((pf, i) => (
-                        <div
+                        <motion.div
                             key={`file-${i}-${pf.file.name}`}
-                            className="flex items-center gap-2 rounded-xl border border-black/10 bg-[var(--background)] px-2 py-1"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="flex items-center gap-2 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] py-1 pl-1 pr-1.5 shadow-sm"
                         >
                             {pf.previewUrl ? (
                                 // eslint-disable-next-line @next/next/no-img-element -- local object-URL preview, not a remote asset
                                 <img
                                     src={pf.previewUrl}
                                     alt={pf.file.name}
-                                    className="h-8 w-8 rounded-md object-cover"
+                                    className="h-9 w-9 rounded-lg object-cover"
                                 />
                             ) : (
-                                <span className="text-base leading-none">📄</span>
+                                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--background)] text-muted-foreground">
+                                    <FileText className="h-4 w-4" />
+                                </span>
                             )}
-                            <span className="max-w-[160px] truncate text-xs text-foreground">{pf.file.name}</span>
+                            <span className="max-w-[160px] truncate text-xs font-medium text-foreground">{pf.file.name}</span>
                             <button
                                 type="button"
-                                aria-label="Remove attachment"
-                                className="rounded-full px-0.5 text-xs text-muted-foreground hover:text-foreground"
+                                aria-label={t("chat.composer.removeAttachment", "Remove attachment")}
+                                className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                                 onClick={() => removeFile(i)}
                             >
-                                ✕
+                                <X className="h-3.5 w-3.5" />
                             </button>
-                        </div>
+                        </motion.div>
                     ))}
                 </div>
             )}
@@ -285,75 +297,99 @@ export function Composer({
                                 void submit();
                             }
                         }}
-                        placeholder="Message… use # to reference an order, @ to mention"
+                        placeholder={t("chat.composer.placeholder", "Message… use # to reference an order, @ to mention")}
                         rows={1}
-                        className="min-h-[44px] max-h-40 resize-none"
+                        className="min-h-[44px] max-h-40 resize-none rounded-xl"
                     />
 
                     {/* Reference autocomplete dropdown */}
-                    {showRefDropdown && (
-                        <div className="absolute bottom-full left-0 z-10 mb-1 max-h-64 w-full overflow-y-auto rounded-xl border border-black/10 bg-[var(--card-bg)] shadow-lg">
-                            {refResults.map((r) => (
-                                <button
-                                    key={`${r.ref_type}-${r.ref_id}`}
-                                    type="button"
-                                    className="block w-full px-3 py-2 text-left text-sm hover:bg-black/5"
-                                    onClick={() => selectReference(r)}
-                                >
-                                    <span className="font-semibold">{r.label}</span>{" "}
-                                    <span className="text-muted-foreground">{r.sublabel}</span>
-                                </button>
-                            ))}
-                        </div>
-                    )}
+                    <AnimatePresence>
+                        {showRefDropdown && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 6 }}
+                                transition={{ duration: 0.14 }}
+                                className="absolute bottom-full left-0 z-10 mb-1.5 max-h-64 w-full overflow-y-auto overscroll-contain rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-1 shadow-xl"
+                            >
+                                {refResults.map((r) => (
+                                    <button
+                                        key={`${r.ref_type}-${r.ref_id}`}
+                                        type="button"
+                                        className="block w-full rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-black/5"
+                                        onClick={() => selectReference(r)}
+                                    >
+                                        <span className="font-semibold text-foreground">{r.label}</span>{" "}
+                                        <span className="text-muted-foreground">{r.sublabel}</span>
+                                    </button>
+                                ))}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     {/* Mention autocomplete dropdown */}
-                    {showMentionDropdown && (
-                        <div className="absolute bottom-full left-0 z-10 mb-1 max-h-64 w-full overflow-y-auto rounded-xl border border-black/10 bg-[var(--card-bg)] shadow-lg">
-                            {mentionResults.map((m) => (
-                                <button
-                                    key={m.user_id}
-                                    type="button"
-                                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-black/5"
-                                    onClick={() => selectMention(m)}
-                                >
-                                    {m.avatar_url ? (
-                                        // eslint-disable-next-line @next/next/no-img-element -- small avatar inside a popover; next/image overhead unwarranted
-                                        <img
-                                            src={m.avatar_url}
-                                            alt=""
-                                            className="h-6 w-6 rounded-full object-cover"
-                                        />
-                                    ) : (
-                                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-bold text-indigo-700">
-                                            {m.display_name.slice(0, 1).toUpperCase()}
+                    <AnimatePresence>
+                        {showMentionDropdown && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 6 }}
+                                transition={{ duration: 0.14 }}
+                                className="absolute bottom-full left-0 z-10 mb-1.5 max-h-64 w-full overflow-y-auto overscroll-contain rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-1 shadow-xl"
+                            >
+                                {mentionResults.map((m) => (
+                                    <button
+                                        key={m.user_id}
+                                        type="button"
+                                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-black/5"
+                                        onClick={() => selectMention(m)}
+                                    >
+                                        {m.avatar_url ? (
+                                            // eslint-disable-next-line @next/next/no-img-element -- small avatar inside a popover; next/image overhead unwarranted
+                                            <img
+                                                src={m.avatar_url}
+                                                alt=""
+                                                className="h-6 w-6 rounded-full object-cover"
+                                            />
+                                        ) : (
+                                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-bold text-indigo-700">
+                                                {m.display_name.slice(0, 1).toUpperCase()}
+                                            </span>
+                                        )}
+                                        <span className="font-medium text-foreground">{m.display_name}</span>
+                                        <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground">
+                                            {m.role}
                                         </span>
-                                    )}
-                                    <span className="font-medium">{m.display_name}</span>
-                                    <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground">
-                                        {m.role}
-                                    </span>
-                                </button>
-                            ))}
-                        </div>
-                    )}
+                                    </button>
+                                ))}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     {/* Emoji quick-pick menu */}
-                    {emojiOpen && (
-                        <div className="absolute bottom-full right-0 z-10 mb-1 flex gap-1 rounded-xl border border-black/10 bg-[var(--card-bg)] p-1.5 shadow-lg">
-                            {QUICK_EMOJIS.map((emoji) => (
-                                <button
-                                    key={emoji}
-                                    type="button"
-                                    aria-label={`Insert ${emoji}`}
-                                    className="rounded-lg px-1.5 py-1 text-lg leading-none hover:bg-black/5"
-                                    onClick={() => appendEmoji(emoji)}
-                                >
-                                    {emoji}
-                                </button>
-                            ))}
-                        </div>
-                    )}
+                    <AnimatePresence>
+                        {emojiOpen && (
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.92, y: 6 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.92, y: 6 }}
+                                transition={{ duration: 0.14 }}
+                                className="absolute bottom-full right-0 z-10 mb-1.5 flex gap-0.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-1.5 shadow-xl"
+                            >
+                                {QUICK_EMOJIS.map((emoji) => (
+                                    <button
+                                        key={emoji}
+                                        type="button"
+                                        aria-label={`Insert ${emoji}`}
+                                        className="rounded-lg px-1.5 py-1 text-lg leading-none transition-transform hover:scale-125 hover:bg-black/5"
+                                        onClick={() => appendEmoji(emoji)}
+                                    >
+                                        {emoji}
+                                    </button>
+                                ))}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
 
                 <input
@@ -369,19 +405,21 @@ export function Composer({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    aria-label="Add emoji"
+                    aria-label={t("chat.composer.addEmoji", "Add emoji")}
                     onClick={() => setEmojiOpen((o) => !o)}
+                    className={emojiOpen ? "text-foreground" : "text-muted-foreground"}
                 >
-                    🙂
+                    <Smile className="h-5 w-5" />
                 </Button>
                 <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    aria-label="Attach file"
+                    aria-label={t("chat.composer.attachFile", "Attach file")}
                     onClick={() => fileRef.current?.click()}
+                    className="text-muted-foreground"
                 >
-                    📎
+                    <Paperclip className="h-5 w-5" />
                 </Button>
                 <Button
                     type="button"
@@ -389,8 +427,10 @@ export function Composer({
                     isLoading={isUploading}
                     disabled={!canSend}
                     onClick={() => void submit()}
+                    className="gap-1.5"
                 >
-                    {isUploading ? "Sending…" : "Send"}
+                    {!isUploading && <Send className="h-4 w-4" />}
+                    {isUploading ? t("chat.composer.sending", "Sending…") : t("chat.composer.send", "Send")}
                 </Button>
             </div>
         </div>
