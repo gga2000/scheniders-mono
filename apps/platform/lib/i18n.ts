@@ -2729,6 +2729,10 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.filter.channels": "Channels",
         "chat.filter.direct": "Direct",
         "chat.filter.orders": "Orders",
+        "chat.jumpToUnread": "New messages above",
+        "chat.jumpToDay": "Jump to {day}",
+        "chat.orderMinValue": "Min IQD",
+        "chat.noOrderThreads": "No order threads match",
         "chat.filter.archived": "Archived",
     },
 
@@ -5454,6 +5458,10 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.filter.channels": "القنوات",
         "chat.filter.direct": "مباشرة",
         "chat.filter.orders": "الطلبات",
+        "chat.jumpToUnread": "رسائل جديدة أعلاه",
+        "chat.jumpToDay": "الانتقال إلى {day}",
+        "chat.orderMinValue": "أدنى قيمة (د.ع)",
+        "chat.noOrderThreads": "لا توجد محادثات طلبات مطابقة",
         "chat.filter.archived": "المؤرشفة",
     },
 };

@@ -128,6 +128,7 @@ function OrderSection({
     orderMap: Map<string, Order>;
     showSubFilter: boolean;
 }) {
+    const { t } = useLanguage();
     const [statusFilter, setStatusFilter] = useState<OrderSubFilter>("all");
     const [minValue, setMinValue] = useState("");
 
@@ -182,7 +183,7 @@ function OrderSection({
                                     : "text-muted-foreground hover:bg-foreground/5"
                             }`}
                         >
-                            All
+                            {t("chat.filter.all", "All")}
                         </button>
                         {presentStatuses.map((s) => {
                             const meta = PIPELINE_STAGE_REGISTRY[s];
@@ -211,7 +212,7 @@ function OrderSection({
                             step={1000}
                             value={minValue}
                             onChange={(e) => setMinValue(e.target.value)}
-                            placeholder="Min IQD"
+                            placeholder={t("chat.orderMinValue", "Min IQD")}
                             className="w-full rounded-md border border-(--card-border) bg-(--card-bg) px-2.5 py-1 text-[11px] placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-(--ink)/30"
                         />
                     </div>
@@ -219,7 +220,7 @@ function OrderSection({
             )}
 
             {filteredItems.length === 0 ? (
-                <p className="px-3 py-2 text-[11px] text-muted-foreground">No order threads match</p>
+                <p className="px-3 py-2 text-[11px] text-muted-foreground">{t("chat.noOrderThreads", "No order threads match")}</p>
             ) : (
                 <div className="space-y-0.5">
                     {filteredItems.map((c) => {

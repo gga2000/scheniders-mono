@@ -201,7 +201,7 @@ export function MessageList({
                                     <span className="h-px flex-1 bg-(--card-border)" />
                                     <button
                                         type="button"
-                                        aria-label={t("chat.jumpToDay", "Jump to {{day}}", { day: label })}
+                                        aria-label={t("chat.jumpToDay", "Jump to {day}", { day: label })}
                                         onClick={() => {
                                             // Scroll the message immediately following this separator to the top.
                                             const el = scrollRef.current?.querySelector<HTMLElement>(`[data-msg-id="${m.id}"]`);
