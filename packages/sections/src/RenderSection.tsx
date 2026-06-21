@@ -54,6 +54,7 @@ import "./pdp_variants";
 import "./pdp_add_to_cart";
 import "./pdp_related_products";
 import "./product_reviews";
+import "./product_bundles";
 import "./cart_line_items";
 import "./cart_summary";
 import "./checkout_form";

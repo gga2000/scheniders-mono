@@ -47,6 +47,7 @@ const EXPECTED_TYPES = [
   "pdp_add_to_cart",
   "pdp_related_products",
   "product_reviews",
+  "product_bundles",
   // Cart / checkout / track
   "cart_line_items",
   "cart_summary",
@@ -75,9 +76,9 @@ const EXPECTED_TYPES = [
 ];
 
 describe("section registry", () => {
-  it("registers exactly 49 built-in sections", () => {
-    expect(BUILTIN_SECTIONS).toHaveLength(49);
-    expect(listSections()).toHaveLength(49);
+  it("registers exactly 50 built-in sections", () => {
+    expect(BUILTIN_SECTIONS).toHaveLength(50);
+    expect(listSections()).toHaveLength(50);
   });
 
   it("each section's defaultProps validates against its own schema", () => {

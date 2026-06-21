@@ -10,7 +10,8 @@
 
 import { useState } from "react";
 import { z } from "zod";
-import { resolveI18n } from "@scheniders/shared";
+import { resolveI18n, pixelContentsFromItems } from "@scheniders/shared";
+import { trackPixel } from "./helpers/pixels";
 import {
   ChunkyButton,
   MaterialIcon,
@@ -81,6 +82,12 @@ function PdpAddToCartRender({
       quantity: qty,
       image_url: product!.image_url ?? null,
     });
+    trackPixel(
+      "AddToCart",
+      pixelContentsFromItems([
+        { product_id: product!.id, price: product!.price, quantity: qty },
+      ]),
+    );
   }
 
   const ctaCluster = (

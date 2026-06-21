@@ -23,8 +23,12 @@ import {
   IRAQ_GOVERNORATES,
   computeDeliveryFee,
   computeDiscount,
+  computeBundleDiscounts,
+  computePointsRedemption,
+  pixelContentsFromItems,
   normalizeIraqiMobile,
 } from "@scheniders/shared";
+import { trackPixel, newPixelEventId } from "./helpers/pixels";
 import type { StoreConfigV2, GovernorateCode } from "@scheniders/shared";
 import {
   BentoCard,
@@ -108,6 +112,12 @@ function CheckoutFormRender({
   // (flaky-3G re-tap where the first response was lost) so the server dedupes,
   // then cleared on success so the next order gets a fresh key.
   const idempotencyKeyRef = useRef<string | null>(null);
+  // One Purchase event_id per submission — minted before the POST so the browser
+  // pixel and the server CAPI twin share it (dedup); cleared on success.
+  const purchaseEventIdRef = useRef<string | null>(null);
+  // Loyalty: the customer's balance (fetched by phone) + how many they redeem.
+  const [pointsBalance, setPointsBalance] = useState<number | null>(null);
+  const [redeemPoints, setRedeemPoints] = useState(0);
   const [form, setForm] = useState({
     customer_name: "",
     phone: "",
@@ -160,6 +170,14 @@ function CheckoutFormRender({
     return () => clearTimeout(handle);
   }, [items, form.phone, form.governorate_code, tenantId, locale]);
 
+  // Pixel InitiateCheckout once the cart is on the checkout form (fires once).
+  const initiateCheckoutFired = useRef(false);
+  useEffect(() => {
+    if (initiateCheckoutFired.current || items.length === 0) return;
+    initiateCheckoutFired.current = true;
+    trackPixel("InitiateCheckout", pixelContentsFromItems(items));
+  }, [items]);
+
   // Per-governorate shipping engine — reads the published shipping config off
   // the tenant + the chosen governorate, so the CTA total matches what the
   // server records (falls back to the legacy flat fee when unconfigured).
@@ -172,8 +190,53 @@ function CheckoutFormRender({
   });
   // Discount: preview the applied coupon (server re-validates + records it).
   const discount = computeDiscount(subtotal, couponCode, commerce?.discounts);
-  const discountAmount = discount?.amount_iqd ?? 0;
+  const couponAmount = discount?.amount_iqd ?? 0;
+  const bundleAmount = computeBundleDiscounts(
+    items,
+    commerce?.bundles,
+  ).total_amount_iqd;
+  // Loyalty: preview the points redemption (server re-validates vs the
+  // authoritative balance + config and records the real discount).
+  const loyaltyCfg = commerce?.loyalty;
+  const pointsRedemption = computePointsRedemption({
+    balance: pointsBalance ?? 0,
+    requestedPoints: redeemPoints,
+    subtotalIqd: subtotal,
+    cfg: loyaltyCfg,
+  });
+  const pointsDiscount = pointsRedemption.discount_iqd;
+  const discountAmount = couponAmount + bundleAmount + pointsDiscount;
   const total = subtotal - discountAmount + delivery;
+
+  // Fetch the customer's points balance once they've entered a valid phone
+  // (debounced). Resets the chosen redemption when the phone changes.
+  useEffect(() => {
+    if (!loyaltyCfg?.enabled) return;
+    const recoveryPhone = normalizeIraqiMobile(form.phone);
+    if (!recoveryPhone) {
+      setPointsBalance(null);
+      return;
+    }
+    let active = true;
+    const handle = setTimeout(() => {
+      const params = new URLSearchParams({
+        tenant_id: tenantId,
+        phone: recoveryPhone,
+      });
+      fetch(`/api/loyalty/balance?${params.toString()}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { balance?: number } | null) => {
+          if (active) setPointsBalance(typeof d?.balance === "number" ? d.balance : 0);
+        })
+        .catch(() => {
+          /* balance just won't show */
+        });
+    }, 600);
+    return () => {
+      active = false;
+      clearTimeout(handle);
+    };
+  }, [loyaltyCfg?.enabled, form.phone, tenantId]);
 
   const phone = (ctx.tenant as { contact_phone?: string | null } | undefined)
     ?.contact_phone ?? null;
@@ -220,6 +283,9 @@ function CheckoutFormRender({
     if (!idempotencyKeyRef.current) {
       idempotencyKeyRef.current = newIdempotencyKey();
     }
+    if (!purchaseEventIdRef.current) {
+      purchaseEventIdRef.current = newPixelEventId();
+    }
     try {
       const res = await fetch("/api/checkout/orders", {
         method: "POST",
@@ -232,6 +298,10 @@ function CheckoutFormRender({
           locale,
           idempotency_key: idempotencyKeyRef.current,
           ...(couponCode ? { coupon_code: couponCode } : {}),
+          ...(purchaseEventIdRef.current
+            ? { event_id: purchaseEventIdRef.current }
+            : {}),
+          ...(redeemPoints > 0 ? { redeem_points: redeemPoints } : {}),
           ab_test_arms: ctx.runtime.ab_test_arms,
         }),
       });
@@ -262,10 +332,17 @@ function CheckoutFormRender({
         } catch {
           /* sessionStorage unavailable — the recap just won't render */
         }
+        // Pixel Purchase — same event_id the server sent to CAPI (dedup).
+        trackPixel(
+          "Purchase",
+          pixelContentsFromItems(items),
+          purchaseEventIdRef.current ?? undefined,
+        );
         clearCart();
         // EC17: order placed — retire the key so a future order isn't deduped
         // against this one.
         idempotencyKeyRef.current = null;
+        purchaseEventIdRef.current = null;
         setStatus("ok");
         // Navigate to the celebratory thank-you page (full nav keeps the stash).
         window.location.href = `${base}/checkout/success${
@@ -587,6 +664,64 @@ function CheckoutFormRender({
                 <MaterialIcon name="visibility" className="text-xl text-bk-primary" />
                 {reassurance}
               </p>
+            )}
+
+            {/* Loyalty points redemption */}
+            {loyaltyCfg?.enabled && (pointsBalance ?? 0) > 0 && (
+              <div
+                className="space-y-bk-xs p-bk-sm"
+                style={{
+                  backgroundColor: "var(--bk-accent, #ffd84a)",
+                  border:
+                    "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+                  borderRadius: "var(--bk-radius-input, 0.75rem)",
+                }}
+              >
+                <div className="flex items-center justify-between gap-bk-sm">
+                  <span className="font-display font-black text-sm uppercase inline-flex items-center gap-2">
+                    <MaterialIcon name="loyalty" className="text-xl" />
+                    {t
+                      ? `لديك ${pointsBalance} نقطة`
+                      : `You have ${pointsBalance} points`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setRedeemPoints(pointsBalance ?? 0)}
+                    className="font-label font-bold text-xs uppercase tracking-wide underline"
+                  >
+                    {t ? "استخدم الكل" : "Use all"}
+                  </button>
+                </div>
+                <div className="flex items-center gap-bk-sm" dir="ltr">
+                  <input
+                    type="number"
+                    min={0}
+                    max={pointsBalance ?? 0}
+                    inputMode="numeric"
+                    value={redeemPoints || ""}
+                    placeholder="0"
+                    onChange={(e) => {
+                      const n = Math.max(0, Math.floor(Number(e.target.value) || 0));
+                      setRedeemPoints(Math.min(n, pointsBalance ?? 0));
+                    }}
+                    className="w-24 bg-white px-3 py-2 font-body text-base focus:outline-none"
+                    style={{
+                      border:
+                        "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+                      borderRadius: "var(--bk-radius-input, 0.75rem)",
+                    }}
+                  />
+                  <span className="font-label font-bold text-sm">
+                    {pointsDiscount > 0
+                      ? t
+                        ? `خصم −${formatPrice(pointsDiscount, locale)}`
+                        : `−${formatPrice(pointsDiscount, locale)} off`
+                      : t
+                        ? "أدخل عدد النقاط"
+                        : "Enter points to redeem"}
+                  </span>
+                </div>
+              </div>
             )}
 
             {/* Primary CTA with running total */}
