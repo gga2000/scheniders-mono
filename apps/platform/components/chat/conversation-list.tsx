@@ -6,6 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import { ChatAvatar } from "./chat-avatar";
 import { ChatEmptyState } from "./chat-empty-state";
 import { ConversationMenu } from "./conversation-menu";
+import { ConversationSettingsDialog } from "./conversation-settings-dialog";
 import { CreateChannelDialog } from "./create-channel-dialog";
 import { CreateGroupDialog } from "./create-group-dialog";
 import { usePresenceStore } from "@/store/use-presence-store";
@@ -141,14 +142,12 @@ export function ConversationList() {
     const { data: conversations = [], isLoading } = useConversations();
     const { data: members = [] } = useTenantMembers();
     const startDm = useStartDm();
-    const { activeConversationId, setActiveConversation } = useChatStore();
+    const { activeConversationId, setActiveConversation, settingsConversationId, openSettings, closeSettings } = useChatStore();
     const { t } = useLanguage();
     const [startingId, setStartingId] = useState<string | null>(null);
     const [newMenuOpen, setNewMenuOpen] = useState(false);
     const [channelDialogOpen, setChannelDialogOpen] = useState(false);
     const [groupDialogOpen, setGroupDialogOpen] = useState(false);
-    // settingsForId will drive the settings dialog in Task 7
-    const [settingsForId, setSettingsForId] = useState<string | null>(null);
 
     const directLabel = t("chat.directMessage", "Direct message");
 
@@ -204,6 +203,7 @@ export function ConversationList() {
         <>
             <CreateChannelDialog open={channelDialogOpen} onOpenChange={setChannelDialogOpen} />
             <CreateGroupDialog open={groupDialogOpen} onOpenChange={setGroupDialogOpen} />
+            <ConversationSettingsDialog conversationId={settingsConversationId} onClose={closeSettings} />
             <div className="w-full shrink-0 overflow-y-auto overscroll-contain bg-(--background-soft,var(--background)) md:w-[40%] md:max-w-[260px] md:border-r md:border-(--card-border)">
                 {/* List header */}
                 <div className="flex items-center justify-between px-4 py-2.5">
@@ -270,7 +270,7 @@ export function ConversationList() {
                             currentUserId={user?.id}
                             onSelect={setActiveConversation}
                             nameFor={nameFor}
-                            onOpenSettings={setSettingsForId}
+                            onOpenSettings={openSettings}
                         />
                         <Section
                             title={t("chat.section.direct", "Direct")}
@@ -280,7 +280,7 @@ export function ConversationList() {
                             currentUserId={user?.id}
                             onSelect={setActiveConversation}
                             nameFor={nameFor}
-                            onOpenSettings={setSettingsForId}
+                            onOpenSettings={openSettings}
                         />
                         <Section
                             title={t("chat.section.orders", "Order threads")}
@@ -290,7 +290,7 @@ export function ConversationList() {
                             currentUserId={user?.id}
                             onSelect={setActiveConversation}
                             nameFor={nameFor}
-                            onOpenSettings={setSettingsForId}
+                            onOpenSettings={openSettings}
                         />
                         <TeamDirectory
                             title={t("chat.section.team", "Team members")}

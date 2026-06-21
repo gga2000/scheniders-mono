@@ -18,7 +18,7 @@ import { MessageList } from "./message-list";
 import { Composer } from "./composer";
 
 export function ChatSheet() {
-    const { isOpen, close, activeConversationId, setActiveConversation } = useChatStore();
+    const { isOpen, close, activeConversationId, setActiveConversation, openSettings } = useChatStore();
     const isMobile = useIsMobile(768);
     const { t } = useLanguage();
     const { data: messages = [], sendMessage, markRead, isLoading } = useMessages(activeConversationId);
@@ -192,7 +192,7 @@ export function ChatSheet() {
                                 <ConversationMenu
                                     conversation={activeConversation}
                                     isOwner={isOwner}
-                                    onOpenSettings={() => {/* Task 7 will wire this */}}
+                                    onOpenSettings={() => { if (activeConversationId) openSettings(activeConversationId); }}
                                 />
                             )}
                             <button
