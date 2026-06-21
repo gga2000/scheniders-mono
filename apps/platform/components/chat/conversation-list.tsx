@@ -5,6 +5,7 @@ import { AtSign, ChevronDown, ChevronRight, Hash, MessagesSquare, Package, Plus,
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import { ChatAvatar } from "./chat-avatar";
 import { ChatEmptyState } from "./chat-empty-state";
+import { ConversationJump } from "./conversation-jump";
 import { ConversationMenu } from "./conversation-menu";
 import { ConversationSettingsDialog } from "./conversation-settings-dialog";
 import { CreateChannelDialog } from "./create-channel-dialog";
@@ -14,9 +15,12 @@ import { useConversations, useArchivedConversations, useStartDm } from "@/hooks/
 import type { ConversationWithMeta } from "@/hooks/chat/use-conversations";
 import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
 import type { TenantMember } from "@/hooks/chat/use-tenant-members";
+import { useMentionNotifications } from "@/hooks/chat/use-mention-notifications";
 import { useChatStore } from "@/store/use-chat-store";
 import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/components/providers/language-provider";
+import { filterConversations } from "@/lib/chat/filter-conversations";
+import type { ConvFilter } from "@/lib/chat/filter-conversations";
 
 type SectionIcon = typeof Hash;
 
@@ -137,11 +141,22 @@ function TeamDirectory({
     );
 }
 
+const FILTER_CHIPS: { key: ConvFilter; labelKey: string; fallback: string }[] = [
+    { key: "all",      labelKey: "chat.filter.all",      fallback: "All" },
+    { key: "unread",   labelKey: "chat.filter.unread",   fallback: "Unread" },
+    { key: "mentions", labelKey: "chat.filter.mentions", fallback: "Mentions" },
+    { key: "channels", labelKey: "chat.filter.channels", fallback: "Channels" },
+    { key: "direct",   labelKey: "chat.filter.direct",   fallback: "Direct" },
+    { key: "orders",   labelKey: "chat.filter.orders",   fallback: "Orders" },
+    { key: "archived", labelKey: "chat.filter.archived", fallback: "Archived" },
+];
+
 export function ConversationList() {
     const { user } = useAuth();
     const { data: conversations = [], isLoading } = useConversations();
     const { data: archivedConversations = [] } = useArchivedConversations();
     const { data: members = [] } = useTenantMembers();
+    const { mentions } = useMentionNotifications();
     const startDm = useStartDm();
     const { activeConversationId, setActiveConversation, settingsConversationId, openSettings, closeSettings } = useChatStore();
     const { t } = useLanguage();
@@ -150,6 +165,7 @@ export function ConversationList() {
     const [channelDialogOpen, setChannelDialogOpen] = useState(false);
     const [groupDialogOpen, setGroupDialogOpen] = useState(false);
     const [archivedOpen, setArchivedOpen] = useState(false);
+    const [filter, setFilter] = useState<ConvFilter>("all");
 
     const directLabel = t("chat.directMessage", "Direct message");
 
@@ -158,13 +174,24 @@ export function ConversationList() {
         [members]
     );
 
+    const mentionConvIds = useMemo(
+        () => new Set(mentions.map((n) => n.conversation_id).filter((id): id is string => id !== null)),
+        [mentions]
+    );
+
+    // Apply filter before grouping into sections
+    const filteredConversations = useMemo(
+        () => filterConversations(conversations, filter, mentionConvIds),
+        [conversations, filter, mentionConvIds]
+    );
+
     const groups = useMemo(
         () => ({
-            channel: conversations.filter((c) => c.kind === "channel"),
-            dm: conversations.filter((c) => c.kind === "dm" || c.kind === "group"),
-            order: conversations.filter((c) => c.kind === "order"),
+            channel: filteredConversations.filter((c) => c.kind === "channel"),
+            dm: filteredConversations.filter((c) => c.kind === "dm" || c.kind === "group"),
+            order: filteredConversations.filter((c) => c.kind === "order"),
         }),
-        [conversations]
+        [filteredConversations]
     );
 
     // user ids already reachable via an existing 1:1 DM (so we don't list them twice)
@@ -212,44 +239,68 @@ export function ConversationList() {
                     <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         {t("chat.conversations", "Conversations")}
                     </span>
-                    <Popover open={newMenuOpen} onOpenChange={setNewMenuOpen}>
-                        <PopoverTrigger asChild>
-                            <button
-                                type="button"
-                                aria-label={t("chat.newChannel", "New channel")}
-                                className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+                    <div className="flex items-center gap-1">
+                        <ConversationJump />
+                        <Popover open={newMenuOpen} onOpenChange={setNewMenuOpen}>
+                            <PopoverTrigger asChild>
+                                <button
+                                    type="button"
+                                    aria-label={t("chat.newChannel", "New channel")}
+                                    className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                </button>
+                            </PopoverTrigger>
+                            <PopoverContent
+                                align="end"
+                                className="w-44 border-(--card-border) bg-(--card-bg) p-1 shadow-lg"
                             >
-                                <Plus className="h-4 w-4" />
-                            </button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                            align="end"
-                            className="w-44 border-(--card-border) bg-(--card-bg) p-1 shadow-lg"
-                        >
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setNewMenuOpen(false);
+                                        setChannelDialogOpen(true);
+                                    }}
+                                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-foreground/5"
+                                >
+                                    <Hash className="h-3.5 w-3.5 text-muted-foreground" />
+                                    {t("chat.newChannel", "New channel")}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setNewMenuOpen(false);
+                                        setGroupDialogOpen(true);
+                                    }}
+                                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-foreground/5"
+                                >
+                                    <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                                    {t("chat.newGroup", "New group")}
+                                </button>
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                </div>
+
+                {/* Filter chips */}
+                <div className="flex gap-1 overflow-x-auto px-3 pb-2 scrollbar-none">
+                    {FILTER_CHIPS.map(({ key, labelKey, fallback }) => {
+                        const isActive = filter === key;
+                        return (
                             <button
+                                key={key}
                                 type="button"
-                                onClick={() => {
-                                    setNewMenuOpen(false);
-                                    setChannelDialogOpen(true);
-                                }}
-                                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-foreground/5"
+                                onClick={() => setFilter(key)}
+                                className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors ${
+                                    isActive
+                                        ? "bg-[color-mix(in_srgb,var(--ink)_15%,transparent)] text-foreground"
+                                        : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                                }`}
                             >
-                                <Hash className="h-3.5 w-3.5 text-muted-foreground" />
-                                {t("chat.newChannel", "New channel")}
+                                {t(labelKey, fallback)}
                             </button>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setNewMenuOpen(false);
-                                    setGroupDialogOpen(true);
-                                }}
-                                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-foreground/5"
-                            >
-                                <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                                {t("chat.newGroup", "New group")}
-                            </button>
-                        </PopoverContent>
-                    </Popover>
+                        );
+                    })}
                 </div>
 
                 {isLoading ? (
@@ -262,7 +313,60 @@ export function ConversationList() {
                             />
                         ))}
                     </div>
+                ) : filter === "archived" ? (
+                    /* Archived filter: replace live sections with a flat archived list */
+                    <div className="py-1">
+                        {archivedConversations.length === 0 ? (
+                            <ChatEmptyState
+                                icon={MessagesSquare}
+                                title={t("chat.filter.archived", "Archived")}
+                                description={t("chat.emptyConversations", "No conversations yet")}
+                            />
+                        ) : (
+                            <div className="px-2 pb-2 pt-1">
+                                <div className="flex items-center gap-1.5 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                    {t("chat.archived", "Archived")}
+                                    <span className="ml-auto tabular-nums">{archivedConversations.length}</span>
+                                </div>
+                                <div className="space-y-0.5 pt-0.5">
+                                    {archivedConversations.map((c) => {
+                                        const isActive = activeConversationId === c.id;
+                                        const myMember = c.members.find((m) => m.user_id === user?.id);
+                                        const isOwner = myMember?.role === "owner";
+                                        return (
+                                            <div
+                                                key={c.id}
+                                                className={`group relative flex w-full items-center gap-1.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors ${
+                                                    isActive
+                                                        ? "bg-(--card-bg) font-semibold text-foreground shadow-sm ring-1 ring-(--card-border)"
+                                                        : "text-foreground/60 hover:bg-foreground/5"
+                                                }`}
+                                            >
+                                                {isActive && (
+                                                    <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-(--ink)" />
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setActiveConversation(c.id)}
+                                                    className="min-w-0 flex-1 truncate text-left active:scale-[0.99]"
+                                                >
+                                                    {c.kind === "channel" ? <span className="text-muted-foreground"># </span> : null}
+                                                    {nameFor(c)}
+                                                </button>
+                                                <ConversationMenu
+                                                    conversation={c}
+                                                    isOwner={isOwner}
+                                                    onOpenSettings={() => openSettings(c.id)}
+                                                />
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 ) : (
+                    /* Live sections (All / Unread / Mentions / Channels / Direct / Orders) */
                     <div className="py-1">
                         <Section
                             title={t("chat.section.channels", "Channels")}
