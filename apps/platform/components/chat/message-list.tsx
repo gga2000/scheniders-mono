@@ -2,7 +2,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isToday, isYesterday } from "date-fns";
-import { ArrowDown, MessageSquareDashed, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowUp, MessageSquareDashed, Sparkles } from "lucide-react";
 import { useReducedMotion } from "framer-motion";
 import { MessageItem } from "./message-item";
 import { ChatEmptyState } from "./chat-empty-state";
@@ -37,7 +37,9 @@ export function MessageList({
 }) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const nearBottomRef = useRef(true);
+    const unreadDividerRef = useRef<HTMLDivElement>(null);
     const [showJump, setShowJump] = useState(false);
+    const [showUnreadAbove, setShowUnreadAbove] = useState(false);
     const [highlightedId, setHighlightedId] = useState<string | null>(null);
     const { t, language } = useLanguage();
     const reduceMotion = useReducedMotion();
@@ -48,12 +50,27 @@ export function MessageList({
         setShowJump(false);
     }, []);
 
+    const scrollToUnread = useCallback(() => {
+        const divider = unreadDividerRef.current;
+        if (divider) {
+            divider.scrollIntoView({ block: "center", behavior: reduceMotion ? "auto" : "smooth" });
+        }
+    }, [reduceMotion]);
+
     const onScroll = useCallback(() => {
         const el = scrollRef.current;
         if (!el) return;
         const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
         nearBottomRef.current = distance < 120;
         if (nearBottomRef.current) setShowJump(false);
+        // Detect whether the unread divider is scrolled above the visible area.
+        const divider = unreadDividerRef.current;
+        if (divider) {
+            const containerTop = el.getBoundingClientRect().top;
+            const dividerTop = divider.getBoundingClientRect().top;
+            // Divider is above viewport when its top is less than the scroll container top.
+            setShowUnreadAbove(dividerTop < containerTop);
+        }
     }, []);
 
     // Authoritative sender identity: tenant_members covers offline users too,
@@ -142,11 +159,23 @@ export function MessageList({
             <div aria-live="polite" className="sr-only">
                 {liveAnnouncement}
             </div>
+        {/* Jump-to-unread pill: shown at top when the unread divider is scrolled above viewport.
+             Not shown simultaneously with the bottom jump-to-latest pill (that one is "below"). */}
+        {showUnreadAbove && firstUnreadId && (
+            <button
+                type="button"
+                onClick={scrollToUnread}
+                className="absolute top-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-(--pastel-pink) px-3 py-1.5 text-xs font-semibold text-(--ink) shadow-lg transition-transform hover:scale-105 active:scale-95"
+            >
+                <ArrowUp className="h-3.5 w-3.5" />
+                {t("chat.jumpToUnread", "New messages above")}
+            </button>
+        )}
         {showJump && (
             <button
                 type="button"
                 onClick={() => scrollToBottom("smooth")}
-                className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-[var(--ink)] px-3 py-1.5 text-xs font-semibold text-[var(--background)] shadow-lg transition-transform hover:scale-105 active:scale-95"
+                className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-(--ink) px-3 py-1.5 text-xs font-semibold text-background shadow-lg transition-transform hover:scale-105 active:scale-95"
             >
                 <ArrowDown className="h-3.5 w-3.5" />
                 {t("chat.jumpToLatest", "New messages")}
@@ -165,23 +194,35 @@ export function MessageList({
                         data-msg-id={m.id}
                         className={isHighlighted ? "rounded-lg ring-2 ring-(--pastel-yellow) ring-offset-1 transition-shadow duration-300" : undefined}
                     >
-                        {showSeparator && (
-                            <div className="sticky top-0 z-[1] flex items-center gap-3 px-4 py-2">
-                                <span className="h-px flex-1 bg-[var(--card-border)]" />
-                                <span className="rounded-full bg-[var(--card-bg)] px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground shadow-sm ring-1 ring-[var(--card-border)]">
-                                    {dayLabel(m.created_at, language)}
-                                </span>
-                                <span className="h-px flex-1 bg-[var(--card-border)]" />
-                            </div>
-                        )}
+                        {showSeparator && (() => {
+                            const label = dayLabel(m.created_at, language);
+                            return (
+                                <div className="sticky top-0 z-1 flex items-center gap-3 px-4 py-2">
+                                    <span className="h-px flex-1 bg-(--card-border)" />
+                                    <button
+                                        type="button"
+                                        aria-label={t("chat.jumpToDay", "Jump to {{day}}", { day: label })}
+                                        onClick={() => {
+                                            // Scroll the message immediately following this separator to the top.
+                                            const el = scrollRef.current?.querySelector<HTMLElement>(`[data-msg-id="${m.id}"]`);
+                                            el?.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" });
+                                        }}
+                                        className="rounded-full bg-(--card-bg) px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground shadow-sm ring-1 ring-(--card-border) transition-colors hover:bg-(--card-border) hover:text-foreground"
+                                    >
+                                        {label}
+                                    </button>
+                                    <span className="h-px flex-1 bg-(--card-border)" />
+                                </div>
+                            );
+                        })()}
                         {firstUnreadId === m.id && (
-                            <div className="flex items-center gap-2 px-4 py-1.5">
-                                <span className="h-px flex-1 bg-[var(--pastel-pink)]" />
-                                <span className="inline-flex items-center gap-1 rounded-full bg-[var(--pastel-pink)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--ink)]">
+                            <div ref={unreadDividerRef} className="flex items-center gap-2 px-4 py-1.5">
+                                <span className="h-px flex-1 bg-(--pastel-pink)" />
+                                <span className="inline-flex items-center gap-1 rounded-full bg-(--pastel-pink) px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-(--ink)">
                                     <Sparkles className="h-3 w-3" />
                                     {t("chat.newMessages", "New messages")}
                                 </span>
-                                <span className="h-px flex-1 bg-[var(--pastel-pink)]" />
+                                <span className="h-px flex-1 bg-(--pastel-pink)" />
                             </div>
                         )}
                         <MessageItem
