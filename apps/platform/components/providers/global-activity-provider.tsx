@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
@@ -9,12 +9,15 @@ import { RealtimePostgresInsertPayload } from "@supabase/supabase-js";
 
 export function GlobalActivityProvider({ children }: { children: React.ReactNode }) {
     const { user } = useAuth();
+    // Per-instance channel name so a remount/double-mount doesn't hand back an
+    // already-subscribed channel (which makes `.on()` throw "after subscribe()").
+    const instanceId = useId();
 
     useEffect(() => {
         if (!user) return;
 
         const channel = supabase
-            .channel('global-activity-stream')
+            .channel(`global-activity-stream:${instanceId}`)
             .on(
                 'postgres_changes',
                 {
@@ -53,7 +56,7 @@ export function GlobalActivityProvider({ children }: { children: React.ReactNode
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [user]);
+    }, [user, instanceId]);
 
     return <>{children}</>;
 }

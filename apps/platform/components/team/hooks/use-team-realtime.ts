@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback, useState, useId } from "react";
 import { supabase } from "@/lib/supabase";
 import { RealtimeChannel } from "@supabase/supabase-js";
 
@@ -68,6 +68,10 @@ export function useTeamRealtime(options: UseTeamRealtimeOptions = {}): UseTeamRe
         activeTimeoutsRef.current.set(userId, timeout);
     }, []);
 
+    // Per-instance channel name so a remount/double-mount doesn't hand back an
+    // already-subscribed channel (which makes `.on()` throw "after subscribe()").
+    const instanceId = useId();
+
     useEffect(() => {
         if (!enabled) {
             return;
@@ -75,7 +79,7 @@ export function useTeamRealtime(options: UseTeamRealtimeOptions = {}): UseTeamRe
 
         // Create subscription channel
         const channel = supabase
-            .channel("team-activity-realtime")
+            .channel(`team-activity-realtime:${instanceId}`)
             .on(
                 "postgres_changes",
                 {
@@ -126,7 +130,7 @@ export function useTeamRealtime(options: UseTeamRealtimeOptions = {}): UseTeamRe
                 channelRef.current = null;
             }
         };
-    }, [enabled, onNewActivity, onUserActivity, markUserActive]);
+    }, [enabled, onNewActivity, onUserActivity, markUserActive, instanceId]);
 
     return {
         isConnected,
