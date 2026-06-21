@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isToday, isYesterday } from "date-fns";
 import { ArrowDown, MessageSquareDashed, Sparkles } from "lucide-react";
+import { useReducedMotion } from "framer-motion";
 import { MessageItem } from "./message-item";
 import { ChatEmptyState } from "./chat-empty-state";
 import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
@@ -25,15 +26,21 @@ export function MessageList({
     messages,
     loading,
     firstUnreadId,
+    focusMessageId,
+    onFocused,
 }: {
     messages: ChatMessage[];
     loading?: boolean;
     firstUnreadId?: string | null;
+    focusMessageId?: string | null;
+    onFocused?: () => void;
 }) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const nearBottomRef = useRef(true);
     const [showJump, setShowJump] = useState(false);
+    const [highlightedId, setHighlightedId] = useState<string | null>(null);
     const { t, language } = useLanguage();
+    const reduceMotion = useReducedMotion();
 
     const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
         const el = scrollRef.current;
@@ -69,6 +76,28 @@ export function MessageList({
         if (nearBottomRef.current) scrollToBottom("auto");
         else setShowJump(true);
     }, [lastId, messages.length, scrollToBottom]);
+
+    // Scroll-to-focused-message: when the parent sets focusMessageId (e.g. from a
+    // search result click), find the message element, scroll it into view, flash a
+    // highlight ring, then call onFocused so the store can clear the id.
+    useEffect(() => {
+        if (!focusMessageId) return;
+        const el = scrollRef.current?.querySelector<HTMLElement>(`[data-msg-id="${focusMessageId}"]`);
+        if (!el) {
+            // Message not in the loaded window — acknowledge and no-op scroll.
+            console.log("[chat] focusMessageId not in view:", focusMessageId);
+            onFocused?.();
+            return;
+        }
+        el.scrollIntoView({ block: "center", behavior: reduceMotion ? "auto" : "smooth" });
+        setHighlightedId(focusMessageId);
+        const id = setTimeout(() => {
+            setHighlightedId(null);
+            onFocused?.();
+        }, 1200);
+        return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: only re-run when focusMessageId changes, not onFocused
+    }, [focusMessageId]);
 
     // Announcement for the polite live region. Memoized so frequent UI re-renders
     // (scroll, jump-pill toggle) don't recompute it; an unchanged string is also a
@@ -129,8 +158,13 @@ export function MessageList({
                 const thisDay = new Date(m.created_at).toDateString();
                 const prev = i > 0 ? messages[i - 1] : null;
                 const showSeparator = !prev || new Date(prev.created_at).toDateString() !== thisDay;
+                const isHighlighted = highlightedId === m.id;
                 return (
-                    <div key={m.client_msg_id ?? m.id}>
+                    <div
+                        key={m.client_msg_id ?? m.id}
+                        data-msg-id={m.id}
+                        className={isHighlighted ? "rounded-lg ring-2 ring-(--pastel-yellow) ring-offset-1 transition-shadow duration-300" : undefined}
+                    >
                         {showSeparator && (
                             <div className="sticky top-0 z-[1] flex items-center gap-3 px-4 py-2">
                                 <span className="h-px flex-1 bg-[var(--card-border)]" />

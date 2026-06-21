@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type KeyboardEvent as ReactKeyboardEvent } from "react";
-import { ChevronLeft, MessageSquare, X } from "lucide-react";
+import { ChevronLeft, MessageSquare, Search, X } from "lucide-react";
 import { useChatStore } from "@/store/use-chat-store";
 import { useConversations } from "@/hooks/chat/use-conversations";
 import { useAuth } from "@/hooks/use-auth";
@@ -16,9 +16,11 @@ import { useLanguage } from "@/components/providers/language-provider";
 import { ConversationList } from "./conversation-list";
 import { MessageList } from "./message-list";
 import { Composer } from "./composer";
+import { SearchPanel } from "./search-panel";
 
 export function ChatSheet() {
-    const { isOpen, close, activeConversationId, setActiveConversation, openSettings } = useChatStore();
+    const { isOpen, close, activeConversationId, setActiveConversation, openSettings, focusMessageId, clearFocusMessage } = useChatStore();
+    const [searchOpen, setSearchOpen] = useState(false);
     const isMobile = useIsMobile(768);
     const { t } = useLanguage();
     const { data: messages = [], sendMessage, markRead, isLoading } = useMessages(activeConversationId);
@@ -196,9 +198,21 @@ export function ChatSheet() {
                                 />
                             )}
                             <button
+                                onClick={() => setSearchOpen((v) => !v)}
+                                aria-label={t("chat.search", "Search messages")}
+                                aria-pressed={searchOpen}
+                                className={`ml-auto flex h-8 w-8 items-center justify-center rounded-full transition-colors active:scale-95 ${
+                                    searchOpen
+                                        ? "bg-(--pastel-yellow) text-(--ink)"
+                                        : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                                }`}
+                            >
+                                <Search className="h-4 w-4" />
+                            </button>
+                            <button
                                 onClick={close}
                                 aria-label={t("chat.close", "Close chat")}
-                                className="ml-auto flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground active:scale-95"
+                                className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground active:scale-95"
                             >
                                 <X className="h-4 w-4" />
                             </button>
@@ -206,13 +220,30 @@ export function ChatSheet() {
 
                         <div className="flex min-h-0 flex-1">
                             {/* Desktop: list is always the sidebar. Mobile: list takes over
-                                when no conversation is active (so you can pick/start one). */}
-                            {(!isMobile || !activeConversationId) && <ConversationList />}
+                                when no conversation is active (so you can pick/start one).
+                                SearchPanel overlays the conversation-list column when open. */}
+                            {(!isMobile || !activeConversationId) && (
+                                searchOpen
+                                    ? <div className="flex w-[280px] shrink-0 flex-col border-r border-(--card-border) bg-(--card-bg)"><SearchPanel onClose={() => setSearchOpen(false)} /></div>
+                                    : <ConversationList />
+                            )}
+                            {/* On mobile, search gets the full right panel when no conversation column is shown */}
+                            {isMobile && searchOpen && !activeConversationId && (
+                                <div className="flex min-h-0 flex-1 flex-col bg-background">
+                                    <SearchPanel onClose={() => setSearchOpen(false)} />
+                                </div>
+                            )}
                             {(!isMobile || activeConversationId) && (
-                            <div className="flex min-w-0 flex-1 flex-col bg-[var(--background)]">
+                            <div className="flex min-w-0 flex-1 flex-col bg-background">
                                 {activeConversationId ? (
                                     <>
-                                        <MessageList messages={messages} loading={isLoading} firstUnreadId={firstUnreadId} />
+                                        <MessageList
+                                            messages={messages}
+                                            loading={isLoading}
+                                            firstUnreadId={firstUnreadId}
+                                            focusMessageId={focusMessageId}
+                                            onFocused={clearFocusMessage}
+                                        />
                                         <AnimatePresence>
                                             {typers.length > 0 && (
                                                 <motion.div
@@ -238,7 +269,7 @@ export function ChatSheet() {
                                     </>
                                 ) : (
                                     <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-                                        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--card-bg)] text-muted-foreground shadow-sm ring-1 ring-[var(--card-border)]">
+                                        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-(--card-bg) text-muted-foreground shadow-sm ring-1 ring-(--card-border)">
                                             <MessageSquare className="h-6 w-6" />
                                         </span>
                                         <div>

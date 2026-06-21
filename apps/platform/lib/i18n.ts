@@ -2715,6 +2715,11 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.confirmLeave": "Leave this conversation?",
         "chat.confirmRemoveMember": "Remove this member?",
         "chat.selectMembers": "Select teammates",
+        "chat.search": "Search messages",
+        "chat.searchPlaceholder": "Search messages…",
+        "chat.searchEmpty": "Type at least 2 characters to search.",
+        "chat.searchNoResults": "No results",
+        "chat.searchNoResultsDesc": "Try different keywords.",
     },
 
     ar: {
@@ -5425,5 +5430,10 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.confirmLeave": "مغادرة هذه المحادثة؟",
         "chat.confirmRemoveMember": "إزالة هذا العضو؟",
         "chat.selectMembers": "اختر زملاء الفريق",
+        "chat.search": "البحث في الرسائل",
+        "chat.searchPlaceholder": "البحث في الرسائل…",
+        "chat.searchEmpty": "اكتب حرفين على الأقل للبحث.",
+        "chat.searchNoResults": "لا توجد نتائج",
+        "chat.searchNoResultsDesc": "جرّب كلمات مختلفة.",
     },
 };
