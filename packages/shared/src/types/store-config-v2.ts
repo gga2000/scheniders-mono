@@ -367,6 +367,21 @@ export interface StoreCommerceConfig {
   cart_recovery?: CartRecoveryConfig;
   /** "Frequently bought together" bundles (AOV upsell). */
   bundles?: Bundle[];
+  /** Points-based loyalty program (opt-in per tenant). */
+  loyalty?: LoyaltyConfig;
+}
+
+export interface LoyaltyConfig {
+  /** Off by default — merchant must opt in. */
+  enabled?: boolean;
+  /** Points earned per 1 IQD spent (e.g. 0.001 = 1 point per 1,000 IQD). */
+  earn_per_iqd?: number;
+  /** IQD value of one point on redemption (e.g. 1 = 1 point → 1 IQD off). */
+  redeem_value_iqd?: number;
+  /** Minimum points balance required before any redemption. */
+  min_redeem_points?: number;
+  /** Cap redemption to this % of the order subtotal (0–100). */
+  max_redeem_pct?: number;
 }
 
 export interface Bundle {

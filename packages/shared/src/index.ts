@@ -13,6 +13,8 @@ export * from "./delivery";
 export * from "./discount";
 export * from "./health-rules";
 export * from "./locale";
+export * from "./loyalty";
+export * from "./pixel";
 export * from "./preview-token";
 export * from "./redirects";
 export * from "./review";
