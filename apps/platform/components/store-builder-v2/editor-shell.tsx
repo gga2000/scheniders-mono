@@ -64,6 +64,11 @@ import { RedirectsScreen } from "./redirects-screen";
 import { ShippingScreen } from "./shipping-screen";
 import { DiscountsScreen } from "./discounts-screen";
 import { CartRecoveryScreen } from "./cart-recovery-screen";
+import { BundlesScreen } from "./bundles-screen";
+import { PixelsScreen } from "./pixels-screen";
+import { LoyaltyScreen } from "./loyalty-screen";
+import { CustomPagesScreen } from "./custom-pages-screen";
+import { NavBuilderScreen } from "./nav-builder-screen";
 import { I18nScreen, I18nToolbarPill } from "./i18n-screen";
 import { InspectorRail, type InspectorTab } from "./inspector-rail";
 import { EditorLocaleProvider } from "@/lib/editor-locale-context";
@@ -402,7 +407,12 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                 id === "i18n" ||
                 id === "shipping" ||
                 id === "discounts" ||
+                id === "bundles" ||
                 id === "cart_recovery" ||
+                id === "pixels" ||
+                id === "loyalty" ||
+                id === "custom_pages" ||
+                id === "nav" ||
                 id === "redirects"
             ) {
                 set_system_screen(id);
@@ -981,7 +991,12 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         "i18n",
         "shipping",
         "discounts",
+        "bundles",
         "cart_recovery",
+        "pixels",
+        "loyalty",
+        "custom_pages",
+        "nav",
         "redirects",
     ] as const;
 
@@ -1350,6 +1365,31 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                         />
                     ) : system_screen === "cart_recovery" ? (
                         <CartRecoveryScreen
+                            builder={builder}
+                            onClose={handleCloseSystemScreen}
+                        />
+                    ) : system_screen === "bundles" ? (
+                        <BundlesScreen
+                            builder={builder}
+                            onClose={handleCloseSystemScreen}
+                        />
+                    ) : system_screen === "pixels" ? (
+                        <PixelsScreen
+                            builder={builder}
+                            onClose={handleCloseSystemScreen}
+                        />
+                    ) : system_screen === "loyalty" ? (
+                        <LoyaltyScreen
+                            builder={builder}
+                            onClose={handleCloseSystemScreen}
+                        />
+                    ) : system_screen === "custom_pages" ? (
+                        <CustomPagesScreen
+                            builder={builder}
+                            onClose={handleCloseSystemScreen}
+                        />
+                    ) : system_screen === "nav" ? (
+                        <NavBuilderScreen
                             builder={builder}
                             onClose={handleCloseSystemScreen}
                         />

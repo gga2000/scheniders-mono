@@ -28,6 +28,11 @@ import {
     ShoppingCart,
     Signpost,
     Ticket,
+    Boxes,
+    BarChart3,
+    Award,
+    FileText,
+    Menu,
     Truck,
     Users,
     type LucideIcon,
@@ -132,7 +137,12 @@ export type SettingsSectionId =
     | "i18n"
     | "shipping"
     | "discounts"
+    | "bundles"
     | "cart_recovery"
+    | "pixels"
+    | "loyalty"
+    | "custom_pages"
+    | "nav"
     | "redirects";
 
 interface SettingsNode {
@@ -156,7 +166,12 @@ const ADVANCED_SETTINGS: SettingsNode[] = [
     { id: "scheduled", icon: Calendar, labelKey: "setting_scheduled", label: "Scheduled changes" },
     { id: "shipping", icon: Truck, labelKey: "setting_shipping", label: "Shipping rates" },
     { id: "discounts", icon: Ticket, labelKey: "setting_discounts", label: "Discount codes" },
+    { id: "bundles", icon: Boxes, labelKey: "setting_bundles", label: "Bundles" },
     { id: "cart_recovery", icon: ShoppingCart, labelKey: "setting_cart_recovery", label: "Cart recovery" },
+    { id: "pixels", icon: BarChart3, labelKey: "setting_pixels", label: "Pixels & tracking" },
+    { id: "loyalty", icon: Award, labelKey: "setting_loyalty", label: "Loyalty points" },
+    { id: "custom_pages", icon: FileText, labelKey: "setting_custom_pages", label: "Custom pages" },
+    { id: "nav", icon: Menu, labelKey: "setting_nav", label: "Navigation" },
     { id: "versions", icon: History, labelKey: "setting_versions", label: "Past versions" },
     { id: "redirects", icon: Signpost, labelKey: "setting_redirects", label: "Redirects" },
 ];
@@ -190,7 +205,12 @@ const SETTING_TINT: Record<SettingsSectionId, string> = {
     scheduled: "sb-tile--content",
     shipping: "sb-tile--trust",
     discounts: "sb-tile--conversion",
+    bundles: "sb-tile--conversion",
     cart_recovery: "sb-tile--conversion",
+    pixels: "sb-tile--page",
+    loyalty: "sb-tile--conversion",
+    custom_pages: "sb-tile--page",
+    nav: "sb-tile--page",
     versions: "sb-tile--page",
     redirects: "sb-tile--trust",
 };
