@@ -69,3 +69,14 @@ export interface ChatMentionNotification {
     is_read: boolean;
     created_at: string;
 }
+
+export interface ChatSearchResult {
+    message_id: string;
+    conversation_id: string;
+    conversation_name: string | null;
+    conversation_kind: string;
+    sender_id: string;
+    body: string;
+    snippet: string;
+    created_at: string;
+}
