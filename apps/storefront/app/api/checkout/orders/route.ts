@@ -47,6 +47,10 @@ export const checkoutOrderBodySchema = z.object({
   idempotency_key: z.string().min(8).max(100).optional(),
   /** Discount engine: coupon code (validated + priced server-side). */
   coupon_code: z.string().min(1).max(64).optional(),
+  /** Pixel Purchase event_id — reused by the CAPI server twin for dedup. */
+  event_id: z.string().min(8).max(100).optional(),
+  /** Loyalty: points the customer chose to redeem (server re-validates). */
+  redeem_points: z.number().int().min(0).optional(),
   // accepted and dropped — not forwarded to the order pipeline
   subtotal: z.number().optional(),
   locale: z.string().optional(),
@@ -79,6 +83,8 @@ export async function POST(req: Request): Promise<NextResponse> {
       tenantId: data.tenant_id,
       idempotencyKey: data.idempotency_key,
       couponCode: data.coupon_code,
+      purchaseEventId: data.event_id,
+      redeemPoints: data.redeem_points,
       customer: {
         customer_name: data.customer_name,
         phone: data.phone,

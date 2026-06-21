@@ -3,10 +3,18 @@
 import {
   computeDeliveryFee,
   computeDiscount,
+  computeBundleDiscounts,
+  computePointsEarned,
+  computePointsRedemption,
   normalizeIraqiMobile,
 } from "@scheniders/shared";
-import type { StoreConfigV2, GovernorateCode } from "@scheniders/shared";
+import type {
+  StoreConfigV2,
+  GovernorateCode,
+  AnalyticsConfig,
+} from "@scheniders/shared";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
+import { sendPurchaseCapi } from "@/lib/capi";
 
 interface CheckoutItem {
   product_id: string;
@@ -23,6 +31,10 @@ interface SubmitCheckoutPayload {
   idempotencyKey?: string;
   /** Discount engine: coupon code (validated + priced server-side). */
   couponCode?: string;
+  /** Pixel Purchase event_id — reused by the CAPI server twin for dedup. */
+  purchaseEventId?: string;
+  /** Loyalty: points the customer chose to redeem (server re-validates). */
+  redeemPoints?: number;
   customer: {
     customer_name: string;
     phone: string;
@@ -250,7 +262,52 @@ export async function submitCheckout(
     tenant.store_config_v2?.commerce?.discounts,
     new Date(),
   );
-  const discountAmount = discount?.amount_iqd ?? 0;
+  const couponAmount = discount?.amount_iqd ?? 0;
+  // Bundle engine: re-resolve "frequently bought together" bundles against the
+  // PUBLISHED config (never trust the client). Bundle savings fold into the
+  // order's total discount_amount alongside any coupon, so the recorded total
+  // and the courier-collected amount both reflect them.
+  const bundleSummary = computeBundleDiscounts(
+    verifiedItems,
+    tenant.store_config_v2?.commerce?.bundles,
+  );
+  // Loyalty: redeem the points the customer chose to spend. Re-resolve against
+  // the PUBLISHED config + the AUTHORITATIVE balance, then deduct atomically
+  // (the RPC blocks an overdraw) BEFORE the order so the discount is baked into
+  // discount_amount; refunded below if the order then fails.
+  const loyaltyCfg = tenant.store_config_v2?.commerce?.loyalty;
+  let pointsUsed = 0;
+  let pointsDiscount = 0;
+  if (payload.redeemPoints && payload.redeemPoints > 0 && loyaltyCfg?.enabled) {
+    const { data: bal } = await supabase
+      .from("customer_points")
+      .select("balance")
+      .eq("tenant_id", payload.tenantId)
+      .eq("phone", phone)
+      .maybeSingle();
+    const redemption = computePointsRedemption({
+      balance: bal?.balance ?? 0,
+      requestedPoints: payload.redeemPoints,
+      subtotalIqd: subtotal,
+      cfg: loyaltyCfg,
+    });
+    if (redemption.discount_iqd > 0) {
+      const { error: redeemErr } = await supabase.rpc("adjust_customer_points", {
+        _tenant_id: payload.tenantId,
+        _phone: phone,
+        _delta: -redemption.points_used,
+        _reason: "redeem",
+        _order_id: undefined,
+      });
+      if (!redeemErr) {
+        pointsUsed = redemption.points_used;
+        pointsDiscount = redemption.discount_iqd;
+      }
+    }
+  }
+
+  const discountAmount =
+    couponAmount + bundleSummary.total_amount_iqd + pointsDiscount;
   const grandTotal = subtotal - discountAmount + deliveryFee;
 
   // Build the order payload in the shape create_order_atomic expects.
@@ -290,6 +347,16 @@ export async function submitCheckout(
 
   if (error) {
     console.error("[checkout] create_order_atomic failed:", error);
+    // Refund any points deducted for a redemption — the order didn't go through.
+    if (pointsUsed > 0) {
+      await supabase.rpc("adjust_customer_points", {
+        _tenant_id: payload.tenantId,
+        _phone: phone,
+        _delta: pointsUsed,
+        _reason: "redeem_refund",
+        _order_id: undefined,
+      });
+    }
     return { success: false, error: "فشل إنشاء الطلب. حاول مرة أخرى." };
   }
 
@@ -297,6 +364,20 @@ export async function submitCheckout(
   const raw = Array.isArray(data) ? data[0] : data;
   const orderRow = raw as Record<string, unknown> | null;
   const orderId = (orderRow?.id ?? orderRow?.order_id ?? null) as string | null;
+
+  // Loyalty: award points earned on this order. Best-effort — never fail it.
+  if (loyaltyCfg?.enabled) {
+    const earned = computePointsEarned(subtotal, loyaltyCfg);
+    if (earned > 0) {
+      await supabase.rpc("adjust_customer_points", {
+        _tenant_id: payload.tenantId,
+        _phone: phone,
+        _delta: earned,
+        _reason: "earn",
+        _order_id: orderId ?? undefined,
+      });
+    }
+  }
 
   // Abandoned-cart recovery: this phone just ordered — mark any pending cart
   // recovered so the WhatsApp reminder sweep skips it. Best-effort: a failure
@@ -307,6 +388,29 @@ export async function submitCheckout(
     .eq("tenant_id", payload.tenantId)
     .eq("phone", phone)
     .is("recovered_at", null);
+
+  // Server-side Purchase (Meta/TikTok CAPI), deduped with the browser pixel via
+  // the shared event_id. Best-effort — never block or fail the order.
+  const analytics = tenant.store_config_v2?.globals?.analytics_pixels?.base as
+    | AnalyticsConfig
+    | undefined;
+  if (payload.purchaseEventId && analytics) {
+    try {
+      await sendPurchaseCapi({
+        analytics,
+        eventId: payload.purchaseEventId,
+        customer: { phone, name: payload.customer.customer_name },
+        value: grandTotal,
+        contents: verifiedItems.map((i) => ({
+          id: i.product_id,
+          quantity: i.quantity,
+          item_price: i.price,
+        })),
+      });
+    } catch {
+      /* CAPI is best-effort */
+    }
+  }
 
   return {
     success: true,
