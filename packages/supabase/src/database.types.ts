@@ -6600,6 +6600,26 @@ export type Database = {
         }
         Returns: Json
       }
+      chat_add_members: {
+        Args: { p_conversation_id: string; p_user_ids: string[] }
+        Returns: undefined
+      }
+      chat_archive_conversation: {
+        Args: { p_archived?: boolean; p_conversation_id: string }
+        Returns: undefined
+      }
+      chat_create_channel: {
+        Args: { p_is_private?: boolean; p_name: string; p_topic?: string }
+        Returns: string
+      }
+      chat_create_group: {
+        Args: { p_name: string; p_user_ids: string[] }
+        Returns: string
+      }
+      chat_delete_conversation: {
+        Args: { p_conversation_id: string }
+        Returns: undefined
+      }
       chat_find_or_create_dm: {
         Args: { p_other_user_id: string }
         Returns: string
@@ -6608,9 +6628,25 @@ export type Database = {
         Args: { p_order_id: string }
         Returns: string
       }
+      chat_is_conversation_admin: {
+        Args: { p_conversation_id: string }
+        Returns: boolean
+      }
       chat_is_member: { Args: { p_conversation_id: string }; Returns: boolean }
+      chat_leave_conversation: {
+        Args: { p_conversation_id: string }
+        Returns: undefined
+      }
       chat_mark_read: {
         Args: { p_conversation_id: string }
+        Returns: undefined
+      }
+      chat_remove_member: {
+        Args: { p_conversation_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      chat_rename_conversation: {
+        Args: { p_conversation_id: string; p_name: string; p_topic?: string }
         Returns: undefined
       }
       chat_send_message: {
