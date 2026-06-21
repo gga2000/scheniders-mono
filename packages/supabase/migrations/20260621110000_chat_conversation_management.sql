@@ -28,7 +28,12 @@ RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp
 DECLARE v_tenant uuid; v_id uuid;
 BEGIN
     v_tenant := get_current_tenant_id();
-    IF v_tenant IS NULL THEN RAISE EXCEPTION 'no active tenant' USING ERRCODE = '42501'; END IF;
+    -- current_tenant_id is self-updatable, so trust the membership-verified set,
+    -- not get_current_tenant_id() alone (else a poisoned current_tenant_id could
+    -- plant a conversation into a tenant the caller does not belong to).
+    IF v_tenant IS NULL OR v_tenant NOT IN (SELECT get_user_tenant_ids()) THEN
+        RAISE EXCEPTION 'no active tenant' USING ERRCODE = '42501';
+    END IF;
     IF COALESCE(btrim(p_name), '') = '' THEN RAISE EXCEPTION 'channel name required' USING ERRCODE = '22023'; END IF;
     INSERT INTO public.chat_conversations (tenant_id, kind, name, topic, is_private, created_by)
     VALUES (v_tenant, 'channel', btrim(p_name), NULLIF(btrim(p_topic), ''), COALESCE(p_is_private, true), auth.uid())
@@ -43,7 +48,12 @@ RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp
 DECLARE v_tenant uuid; v_id uuid; v_uid uuid;
 BEGIN
     v_tenant := get_current_tenant_id();
-    IF v_tenant IS NULL THEN RAISE EXCEPTION 'no active tenant' USING ERRCODE = '42501'; END IF;
+    -- current_tenant_id is self-updatable, so trust the membership-verified set,
+    -- not get_current_tenant_id() alone (else a poisoned current_tenant_id could
+    -- plant a conversation into a tenant the caller does not belong to).
+    IF v_tenant IS NULL OR v_tenant NOT IN (SELECT get_user_tenant_ids()) THEN
+        RAISE EXCEPTION 'no active tenant' USING ERRCODE = '42501';
+    END IF;
     INSERT INTO public.chat_conversations (tenant_id, kind, name, is_private, created_by)
     VALUES (v_tenant, 'group', NULLIF(btrim(p_name), ''), true, auth.uid())
     RETURNING id INTO v_id;
@@ -202,6 +212,41 @@ DROP TRIGGER IF EXISTS trg_chat_broadcast_membership ON public.chat_members;
 CREATE TRIGGER trg_chat_broadcast_membership
     AFTER INSERT OR DELETE ON public.chat_members
     FOR EACH ROW EXECUTE FUNCTION public.chat_broadcast_membership();
+
+-- ---- harden pre-existing chat_find_or_create_dm (same poisonable-tenant base) ----
+-- It resolved the tenant from get_current_tenant_id() and verified only the OTHER
+-- user's membership, never the caller's — so a poisoned current_tenant_id could
+-- create a DM row inside a foreign tenant. Add the caller-membership assertion.
+CREATE OR REPLACE FUNCTION public.chat_find_or_create_dm(p_other_user_id uuid)
+RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE
+    v_tenant_id uuid;
+    v_conv_id uuid;
+BEGIN
+    v_tenant_id := get_current_tenant_id();
+    IF v_tenant_id IS NULL OR v_tenant_id NOT IN (SELECT get_user_tenant_ids()) THEN
+        RAISE EXCEPTION 'no active tenant' USING ERRCODE = '42501';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM public.tenant_members WHERE tenant_id = v_tenant_id AND user_id = p_other_user_id AND status = 'active') THEN
+        RAISE EXCEPTION 'other user not in tenant' USING ERRCODE = '42501';
+    END IF;
+
+    SELECT c.id INTO v_conv_id
+    FROM public.chat_conversations c
+    WHERE c.kind = 'dm' AND c.tenant_id = v_tenant_id
+      AND (SELECT count(*) FROM public.chat_members m WHERE m.conversation_id = c.id) = 2
+      AND EXISTS (SELECT 1 FROM public.chat_members m WHERE m.conversation_id = c.id AND m.user_id = auth.uid())
+      AND EXISTS (SELECT 1 FROM public.chat_members m WHERE m.conversation_id = c.id AND m.user_id = p_other_user_id)
+    LIMIT 1;
+
+    IF v_conv_id IS NOT NULL THEN RETURN v_conv_id; END IF;
+
+    INSERT INTO public.chat_conversations (tenant_id, kind, is_private, created_by)
+    VALUES (v_tenant_id, 'dm', true, auth.uid()) RETURNING id INTO v_conv_id;
+    INSERT INTO public.chat_members (conversation_id, user_id, role) VALUES (v_conv_id, auth.uid(), 'owner');
+    INSERT INTO public.chat_members (conversation_id, user_id, role) VALUES (v_conv_id, p_other_user_id, 'member');
+    RETURN v_conv_id;
+END; $$;
 
 -- ---- grants: authenticated-only ----
 REVOKE EXECUTE ON FUNCTION public.chat_is_conversation_admin(uuid) FROM PUBLIC, anon;
