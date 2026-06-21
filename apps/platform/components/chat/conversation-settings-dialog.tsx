@@ -10,7 +10,7 @@ import {
     DialogTitle,
 } from "@scheniders/ui";
 import { useConversationMembers, useAddMembers, useRemoveMember } from "@/hooks/chat/use-conversation-members";
-import { useRenameConversation, useLeaveConversation, useDeleteConversation } from "@/hooks/chat/use-conversations";
+import { useRenameConversation, useLeaveConversation, useDeleteConversation, useConversations, useArchivedConversations } from "@/hooks/chat/use-conversations";
 import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
 import { useChatStore } from "@/store/use-chat-store";
 import { useAuth } from "@/hooks/use-auth";
@@ -36,6 +36,14 @@ export function ConversationSettingsDialog({
     const { data: members = [], isLoading: membersLoading } = useConversationMembers(conversationId);
     const { data: tenantMembers = [] } = useTenantMembers();
 
+    // Resolve the conversation row (may be active or archived) so we can pre-populate the form.
+    const { data: activeConvs = [] } = useConversations();
+    const { data: archivedConvs = [] } = useArchivedConversations();
+    const conversation = useMemo(
+        () => [...activeConvs, ...archivedConvs].find((c) => c.id === conversationId) ?? null,
+        [activeConvs, archivedConvs, conversationId]
+    );
+
     const renameMutation = useRenameConversation();
     const leaveMutation = useLeaveConversation();
     const deleteMutation = useDeleteConversation();
@@ -54,11 +62,12 @@ export function ConversationSettingsDialog({
     const [topic, setTopic] = useState("");
     const [detailsSaving, setDetailsSaving] = useState(false);
 
-    // When the dialog opens/changes conversation, reset form
+    // When the dialog opens/changes conversation, seed the form from the current conversation data.
+    // Keyed on both conversationId and conversation so it fires once the row is resolved.
     useEffect(() => {
-        setName("");
-        setTopic("");
-    }, [conversationId]);
+        setName(conversation?.name ?? "");
+        setTopic(conversation?.topic ?? "");
+    }, [conversationId, conversation]);
 
     // Add members — multi-select from tenant members not already in conversation
     const existingMemberIds = useMemo(() => new Set(members.map((m) => m.user_id)), [members]);

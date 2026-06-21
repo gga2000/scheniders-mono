@@ -7,6 +7,7 @@ import type { ChatConversation, ChatMember } from "@/types/chat";
 export const chatKeys = {
     all: ["chat"] as const,
     conversations: () => [...chatKeys.all, "conversations"] as const,
+    archivedConversations: () => [...chatKeys.all, "conversations", "archived"] as const,
     messages: (conversationId: string) => [...chatKeys.all, "messages", conversationId] as const,
     mentions: () => [...chatKeys.all, "mentions"] as const,
 };
@@ -47,6 +48,32 @@ export function useConversations() {
             return rows.map((r) => {
                 const mine = r.members.find((m) => m.user_id === user!.id);
                 return { ...r, my_last_read_at: mine?.last_read_at ?? null, unread: unreadByConv.get(r.id) ?? 0 };
+            });
+        },
+    });
+}
+
+export function useArchivedConversations() {
+    const { user } = useAuth();
+    return useQuery({
+        queryKey: chatKeys.archivedConversations(),
+        enabled: !!user?.id,
+        staleTime: 30_000,
+        queryFn: async (): Promise<ConversationWithMeta[]> => {
+            const { data: convs, error } = await supabase
+                .from("chat_conversations")
+                .select("*, members:chat_members(user_id,last_read_at,role)")
+                .not("archived_at", "is", null)
+                .order("archived_at", { ascending: false });
+            if (error) throw error;
+
+            const rows = (convs ?? []) as unknown as (ChatConversation & {
+                members: Pick<ChatMember, "user_id" | "last_read_at" | "role">[];
+            })[];
+
+            return rows.map((r) => {
+                const mine = r.members.find((m) => m.user_id === user!.id);
+                return { ...r, my_last_read_at: mine?.last_read_at ?? null, unread: 0 };
             });
         },
     });
@@ -126,7 +153,10 @@ export function useArchiveConversation() {
             });
             if (error) throw error;
         },
-        onSuccess: () => qc.invalidateQueries({ queryKey: chatKeys.conversations() }),
+        onSuccess: () => {
+            void qc.invalidateQueries({ queryKey: chatKeys.conversations() });
+            void qc.invalidateQueries({ queryKey: chatKeys.archivedConversations() });
+        },
     });
 }
 

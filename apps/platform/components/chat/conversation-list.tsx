@@ -1,7 +1,7 @@
 // apps/platform/components/chat/conversation-list.tsx
 "use client";
 import { useMemo, useState } from "react";
-import { AtSign, Hash, MessagesSquare, Package, Plus, Users, Pencil } from "lucide-react";
+import { AtSign, ChevronDown, ChevronRight, Hash, MessagesSquare, Package, Plus, Users, Pencil } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import { ChatAvatar } from "./chat-avatar";
 import { ChatEmptyState } from "./chat-empty-state";
@@ -10,7 +10,7 @@ import { ConversationSettingsDialog } from "./conversation-settings-dialog";
 import { CreateChannelDialog } from "./create-channel-dialog";
 import { CreateGroupDialog } from "./create-group-dialog";
 import { usePresenceStore } from "@/store/use-presence-store";
-import { useConversations, useStartDm } from "@/hooks/chat/use-conversations";
+import { useConversations, useArchivedConversations, useStartDm } from "@/hooks/chat/use-conversations";
 import type { ConversationWithMeta } from "@/hooks/chat/use-conversations";
 import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
 import type { TenantMember } from "@/hooks/chat/use-tenant-members";
@@ -140,6 +140,7 @@ function TeamDirectory({
 export function ConversationList() {
     const { user } = useAuth();
     const { data: conversations = [], isLoading } = useConversations();
+    const { data: archivedConversations = [] } = useArchivedConversations();
     const { data: members = [] } = useTenantMembers();
     const startDm = useStartDm();
     const { activeConversationId, setActiveConversation, settingsConversationId, openSettings, closeSettings } = useChatStore();
@@ -148,6 +149,7 @@ export function ConversationList() {
     const [newMenuOpen, setNewMenuOpen] = useState(false);
     const [channelDialogOpen, setChannelDialogOpen] = useState(false);
     const [groupDialogOpen, setGroupDialogOpen] = useState(false);
+    const [archivedOpen, setArchivedOpen] = useState(false);
 
     const directLabel = t("chat.directMessage", "Direct message");
 
@@ -299,6 +301,59 @@ export function ConversationList() {
                             onStart={startConversation}
                             startingId={startingId}
                         />
+                        {archivedConversations.length > 0 && (
+                            <div className="px-2 pb-2 pt-1">
+                                <button
+                                    type="button"
+                                    onClick={() => setArchivedOpen((o) => !o)}
+                                    className="flex w-full items-center gap-1.5 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
+                                >
+                                    {archivedOpen ? (
+                                        <ChevronDown className="h-3 w-3 shrink-0" />
+                                    ) : (
+                                        <ChevronRight className="h-3 w-3 shrink-0" />
+                                    )}
+                                    {t("chat.archived", "Archived")}
+                                    <span className="ml-auto tabular-nums">{archivedConversations.length}</span>
+                                </button>
+                                {archivedOpen && (
+                                    <div className="space-y-0.5 pt-0.5">
+                                        {archivedConversations.map((c) => {
+                                            const isActive = activeConversationId === c.id;
+                                            const myMember = c.members.find((m) => m.user_id === user?.id);
+                                            const isOwner = myMember?.role === "owner";
+                                            return (
+                                                <div
+                                                    key={c.id}
+                                                    className={`group relative flex w-full items-center gap-1.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors ${
+                                                        isActive
+                                                            ? "bg-(--card-bg) font-semibold text-foreground shadow-sm ring-1 ring-(--card-border)"
+                                                            : "text-foreground/60 hover:bg-foreground/5"
+                                                    }`}
+                                                >
+                                                    {isActive && (
+                                                        <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-(--ink)" />
+                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setActiveConversation(c.id)}
+                                                        className="min-w-0 flex-1 truncate text-left active:scale-[0.99]"
+                                                    >
+                                                        {c.kind === "channel" ? <span className="text-muted-foreground"># </span> : null}
+                                                        {nameFor(c)}
+                                                    </button>
+                                                    <ConversationMenu
+                                                        conversation={c}
+                                                        isOwner={isOwner}
+                                                        onOpenSettings={() => openSettings(c.id)}
+                                                    />
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                         {conversations.length === 0 && directoryMembers.length === 0 && (
                             <ChatEmptyState
                                 icon={MessagesSquare}
