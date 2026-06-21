@@ -21,6 +21,12 @@ import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/components/providers/language-provider";
 import { filterConversations } from "@/lib/chat/filter-conversations";
 import type { ConvFilter } from "@/lib/chat/filter-conversations";
+import { useOrdersContext } from "@/components/providers/orders-provider";
+import type { Order } from "@/types/order";
+import { formatIQD } from "@/lib/utils";
+import { getStatusBadgeStyle } from "@/lib/order-format-utils";
+import { PIPELINE_STAGE_REGISTRY, PIPELINE_STAGE_IDS } from "@/lib/order-pipeline";
+import type { PipelineStageId } from "@/lib/order-pipeline";
 
 type SectionIcon = typeof Hash;
 
@@ -93,6 +99,185 @@ function Section({
     );
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// OrderSection — renders order-thread rows with status chip + IQD total.
+// When the "Orders" filter is active the caller passes subFilter / minValue so
+// rows can be narrowed further client-side.
+// ──────────────────────────────────────────────────────────────────────────────
+
+type OrderSubFilter = "all" | PipelineStageId;
+
+function OrderSection({
+    title,
+    items,
+    activeConversationId,
+    currentUserId,
+    onSelect,
+    nameFor,
+    onOpenSettings,
+    orderMap,
+    showSubFilter,
+}: {
+    title: string;
+    items: ConversationWithMeta[];
+    activeConversationId: string | null;
+    currentUserId: string | undefined;
+    onSelect: (id: string) => void;
+    nameFor: (c: ConversationWithMeta) => string;
+    onOpenSettings: (conversationId: string) => void;
+    orderMap: Map<string, Order>;
+    showSubFilter: boolean;
+}) {
+    const [statusFilter, setStatusFilter] = useState<OrderSubFilter>("all");
+    const [minValue, setMinValue] = useState("");
+
+    // Derive which statuses actually appear in this conversation set so we only
+    // show relevant chips (skip statuses with 0 matching rows).
+    const presentStatuses = useMemo<PipelineStageId[]>(() => {
+        const seen = new Set<string>();
+        for (const c of items) {
+            if (c.order_id) {
+                const order = orderMap.get(c.order_id);
+                if (order) seen.add(order.status);
+            }
+        }
+        return PIPELINE_STAGE_IDS.filter((s) => seen.has(s));
+    }, [items, orderMap]);
+
+    const minNum = minValue.trim() === "" ? null : Number(minValue);
+    const minValueValid = minNum === null || (!isNaN(minNum) && minNum >= 0);
+
+    const filteredItems = useMemo(() => {
+        if (!showSubFilter) return items;
+        return items.filter((c) => {
+            if (!c.order_id) return statusFilter === "all" && (minNum === null || !minValueValid);
+            const order = orderMap.get(c.order_id);
+            if (!order) return statusFilter === "all"; // not loaded → pass status filter only
+            if (statusFilter !== "all" && order.status !== statusFilter) return false;
+            if (minNum !== null && minValueValid && order.price < minNum) return false;
+            return true;
+        });
+    }, [items, showSubFilter, statusFilter, minNum, minValueValid, orderMap]);
+
+    if (filteredItems.length === 0 && !showSubFilter) return null;
+
+    return (
+        <div className="px-2 pb-2 pt-1">
+            <div className="flex items-center gap-1.5 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <Package className="h-3 w-3" />
+                {title}
+            </div>
+
+            {/* Sub-filter bar — only when the Orders chip is active */}
+            {showSubFilter && presentStatuses.length > 0 && (
+                <div className="mb-1.5 space-y-1.5">
+                    {/* Status chips */}
+                    <div className="flex flex-wrap gap-1 px-1">
+                        <button
+                            type="button"
+                            onClick={() => setStatusFilter("all")}
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                                statusFilter === "all"
+                                    ? "bg-[color-mix(in_srgb,var(--ink)_15%,transparent)] text-foreground"
+                                    : "text-muted-foreground hover:bg-foreground/5"
+                            }`}
+                        >
+                            All
+                        </button>
+                        {presentStatuses.map((s) => {
+                            const meta = PIPELINE_STAGE_REGISTRY[s];
+                            const isActive = statusFilter === s;
+                            return (
+                                <button
+                                    key={s}
+                                    type="button"
+                                    onClick={() => setStatusFilter(isActive ? "all" : s)}
+                                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                                        isActive
+                                            ? "bg-[color-mix(in_srgb,var(--ink)_15%,transparent)] text-foreground"
+                                            : "text-muted-foreground hover:bg-foreground/5"
+                                    }`}
+                                >
+                                    {meta?.fallback ?? s}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    {/* Min-value input */}
+                    <div className="px-1">
+                        <input
+                            type="number"
+                            min={0}
+                            step={1000}
+                            value={minValue}
+                            onChange={(e) => setMinValue(e.target.value)}
+                            placeholder="Min IQD"
+                            className="w-full rounded-md border border-(--card-border) bg-(--card-bg) px-2.5 py-1 text-[11px] placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-(--ink)/30"
+                        />
+                    </div>
+                </div>
+            )}
+
+            {filteredItems.length === 0 ? (
+                <p className="px-3 py-2 text-[11px] text-muted-foreground">No order threads match</p>
+            ) : (
+                <div className="space-y-0.5">
+                    {filteredItems.map((c) => {
+                        const isActive = activeConversationId === c.id;
+                        const myMember = c.members.find((m) => m.user_id === currentUserId);
+                        const isOwner = myMember?.role === "owner";
+                        const linkedOrder = c.order_id ? orderMap.get(c.order_id) : undefined;
+
+                        return (
+                            <div
+                                key={c.id}
+                                className={`group relative flex w-full items-center gap-1.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors ${
+                                    isActive
+                                        ? "bg-(--card-bg) font-semibold text-foreground shadow-sm ring-1 ring-(--card-border)"
+                                        : "text-foreground/80 hover:bg-foreground/5"
+                                }`}
+                            >
+                                {isActive && (
+                                    <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-(--ink)" />
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => onSelect(c.id)}
+                                    className="min-w-0 flex-1 text-left active:scale-[0.99]"
+                                >
+                                    <span className="block truncate">{nameFor(c)}</span>
+                                    {linkedOrder && (
+                                        <span className="mt-0.5 flex items-center gap-1.5">
+                                            <span
+                                                className={`inline-flex items-center rounded-full px-1.5 py-px text-[9px] font-semibold leading-none ${getStatusBadgeStyle(linkedOrder.status)}`}
+                                            >
+                                                {PIPELINE_STAGE_REGISTRY[linkedOrder.status as PipelineStageId]?.fallback ?? linkedOrder.status}
+                                            </span>
+                                            <span className="text-[10px] tabular-nums text-muted-foreground">
+                                                {formatIQD(linkedOrder.price)}
+                                            </span>
+                                        </span>
+                                    )}
+                                </button>
+                                {c.unread > 0 && (
+                                    <span className="ml-1 inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white shadow-sm">
+                                        {c.unread > 99 ? "99+" : c.unread}
+                                    </span>
+                                )}
+                                <ConversationMenu
+                                    conversation={c}
+                                    isOwner={isOwner}
+                                    onOpenSettings={() => onOpenSettings(c.id)}
+                                />
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
+
 /** Directory of every teammate (online or not) you don't yet have a 1:1 DM with. Click → start a DM. */
 function TeamDirectory({
     members,
@@ -160,6 +345,7 @@ export function ConversationList() {
     const startDm = useStartDm();
     const { activeConversationId, setActiveConversation, settingsConversationId, openSettings, closeSettings } = useChatStore();
     const { t } = useLanguage();
+    const { orders } = useOrdersContext();
     const [startingId, setStartingId] = useState<string | null>(null);
     const [newMenuOpen, setNewMenuOpen] = useState(false);
     const [channelDialogOpen, setChannelDialogOpen] = useState(false);
@@ -172,6 +358,12 @@ export function ConversationList() {
     const memberMap = useMemo(
         () => new Map(members.map((m) => [m.user_id, m])),
         [members]
+    );
+
+    // Index orders by their DB id (= conversation.order_id) for O(1) lookup.
+    const orderMap = useMemo(
+        () => new Map<string, Order>(orders.map((o) => [o.id, o])),
+        [orders]
     );
 
     const mentionConvIds = useMemo(
@@ -388,15 +580,16 @@ export function ConversationList() {
                             nameFor={nameFor}
                             onOpenSettings={openSettings}
                         />
-                        <Section
+                        <OrderSection
                             title={t("chat.section.orders", "Order threads")}
-                            icon={Package}
                             items={groups.order}
                             activeConversationId={activeConversationId}
                             currentUserId={user?.id}
                             onSelect={setActiveConversation}
                             nameFor={nameFor}
                             onOpenSettings={openSettings}
+                            orderMap={orderMap}
+                            showSubFilter={filter === "orders"}
                         />
                         <TeamDirectory
                             title={t("chat.section.team", "Team members")}
