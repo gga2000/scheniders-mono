@@ -5,6 +5,7 @@ import { AtSign, Hash, MessagesSquare, Package, Plus, Users, Pencil } from "luci
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import { ChatAvatar } from "./chat-avatar";
 import { ChatEmptyState } from "./chat-empty-state";
+import { ConversationMenu } from "./conversation-menu";
 import { CreateChannelDialog } from "./create-channel-dialog";
 import { CreateGroupDialog } from "./create-group-dialog";
 import { usePresenceStore } from "@/store/use-presence-store";
@@ -23,15 +24,19 @@ function Section({
     icon: Icon,
     items,
     activeConversationId,
+    currentUserId,
     onSelect,
     nameFor,
+    onOpenSettings,
 }: {
     title: string;
     icon: SectionIcon;
     items: ConversationWithMeta[];
     activeConversationId: string | null;
+    currentUserId: string | undefined;
     onSelect: (id: string) => void;
     nameFor: (c: ConversationWithMeta) => string;
+    onOpenSettings: (conversationId: string) => void;
 }) {
     if (items.length === 0) return null;
     return (
@@ -43,11 +48,12 @@ function Section({
             <div className="space-y-0.5">
                 {items.map((c) => {
                     const isActive = activeConversationId === c.id;
+                    const myMember = c.members.find((m) => m.user_id === currentUserId);
+                    const isOwner = myMember?.role === "owner";
                     return (
-                        <button
+                        <div
                             key={c.id}
-                            onClick={() => onSelect(c.id)}
-                            className={`group relative flex w-full items-center gap-1.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors active:scale-[0.99] ${
+                            className={`group relative flex w-full items-center gap-1.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors ${
                                 isActive
                                     ? "bg-[var(--card-bg)] font-semibold text-foreground shadow-sm ring-1 ring-[var(--card-border)]"
                                     : "text-foreground/80 hover:bg-foreground/5"
@@ -56,16 +62,25 @@ function Section({
                             {isActive && (
                                 <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-[var(--ink)]" />
                             )}
-                            <span className="min-w-0 flex-1 truncate">
+                            <button
+                                type="button"
+                                onClick={() => onSelect(c.id)}
+                                className="min-w-0 flex-1 truncate text-left active:scale-[0.99]"
+                            >
                                 {c.kind === "channel" ? <span className="text-muted-foreground"># </span> : null}
                                 {nameFor(c)}
-                            </span>
+                            </button>
                             {c.unread > 0 && (
                                 <span className="ml-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white shadow-sm">
                                     {c.unread > 99 ? "99+" : c.unread}
                                 </span>
                             )}
-                        </button>
+                            <ConversationMenu
+                                conversation={c}
+                                isOwner={isOwner}
+                                onOpenSettings={() => onOpenSettings(c.id)}
+                            />
+                        </div>
                     );
                 })}
             </div>
@@ -132,6 +147,8 @@ export function ConversationList() {
     const [newMenuOpen, setNewMenuOpen] = useState(false);
     const [channelDialogOpen, setChannelDialogOpen] = useState(false);
     const [groupDialogOpen, setGroupDialogOpen] = useState(false);
+    // settingsForId will drive the settings dialog in Task 7
+    const [settingsForId, setSettingsForId] = useState<string | null>(null);
 
     const directLabel = t("chat.directMessage", "Direct message");
 
@@ -250,24 +267,30 @@ export function ConversationList() {
                             icon={Hash}
                             items={groups.channel}
                             activeConversationId={activeConversationId}
+                            currentUserId={user?.id}
                             onSelect={setActiveConversation}
                             nameFor={nameFor}
+                            onOpenSettings={setSettingsForId}
                         />
                         <Section
                             title={t("chat.section.direct", "Direct")}
                             icon={AtSign}
                             items={groups.dm}
                             activeConversationId={activeConversationId}
+                            currentUserId={user?.id}
                             onSelect={setActiveConversation}
                             nameFor={nameFor}
+                            onOpenSettings={setSettingsForId}
                         />
                         <Section
                             title={t("chat.section.orders", "Order threads")}
                             icon={Package}
                             items={groups.order}
                             activeConversationId={activeConversationId}
+                            currentUserId={user?.id}
                             onSelect={setActiveConversation}
                             nameFor={nameFor}
+                            onOpenSettings={setSettingsForId}
                         />
                         <TeamDirectory
                             title={t("chat.section.team", "Team members")}

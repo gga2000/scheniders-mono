@@ -7,6 +7,7 @@ import { ChevronLeft, MessageSquare, X } from "lucide-react";
 import { useChatStore } from "@/store/use-chat-store";
 import { useConversations } from "@/hooks/chat/use-conversations";
 import { useAuth } from "@/hooks/use-auth";
+import { ConversationMenu } from "./conversation-menu";
 import { firstUnreadMessageId } from "@/lib/chat/unread";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useMessages } from "@/hooks/chat/use-messages";
@@ -25,6 +26,25 @@ export function ChatSheet() {
 
     const { user } = useAuth();
     const { data: conversations = [] } = useConversations();
+
+    const activeConversation = useMemo(
+        () => (activeConversationId ? conversations.find((c) => c.id === activeConversationId) ?? null : null),
+        [conversations, activeConversationId]
+    );
+
+    const activeConversationName = useMemo(() => {
+        if (!activeConversation) return null;
+        if (activeConversation.name) return activeConversation.name;
+        // DM without a name: peer name resolution
+        const other = activeConversation.members.find((m) => m.user_id !== user?.id);
+        if (other) return null; // caller resolves via memberMap in ConversationList — fallback to topic or title
+        return null;
+    }, [activeConversation, user?.id]);
+
+    const isOwner = useMemo(() => {
+        if (!activeConversation || !user?.id) return false;
+        return activeConversation.members.find((m) => m.user_id === user.id)?.role === "owner";
+    }, [activeConversation, user?.id]);
 
     // Mark read on open / conversation switch only — not on every incoming
     // message (that re-fired markRead per message and churned the unread RPC).
@@ -160,11 +180,20 @@ export function ChatSheet() {
                                 </button>
                             ) : (
                                 <div className="flex items-center gap-2">
-                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--pastel-yellow)] text-[var(--ink)]">
+                                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--pastel-yellow)] text-[var(--ink)]">
                                         <MessageSquare className="h-4 w-4" />
                                     </span>
-                                    <span className="font-semibold text-foreground">{t("chat.title", "Team chat")}</span>
+                                    <span className="font-semibold text-foreground">
+                                        {activeConversationName ?? t("chat.title", "Team chat")}
+                                    </span>
                                 </div>
+                            )}
+                            {activeConversation && (
+                                <ConversationMenu
+                                    conversation={activeConversation}
+                                    isOwner={isOwner}
+                                    onOpenSettings={() => {/* Task 7 will wire this */}}
+                                />
                             )}
                             <button
                                 onClick={close}
