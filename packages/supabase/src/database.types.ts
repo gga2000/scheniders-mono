@@ -1630,6 +1630,73 @@ export type Database = {
           },
         ]
       }
+      customer_points: {
+        Row: {
+          balance: number
+          phone: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          balance?: number
+          phone: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          balance?: number
+          phone?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_points_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_points_ledger: {
+        Row: {
+          created_at: string
+          delta: number
+          id: string
+          order_id: string | null
+          phone: string
+          reason: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          delta: number
+          id?: string
+          order_id?: string | null
+          phone: string
+          reason: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          delta?: number
+          id?: string
+          order_id?: string | null
+          phone?: string
+          reason?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_points_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_risk: {
         Row: {
           last_order_date: string | null
@@ -6566,6 +6633,16 @@ export type Database = {
       }
     }
     Functions: {
+      adjust_customer_points: {
+        Args: {
+          _delta: number
+          _order_id?: string
+          _phone: string
+          _reason: string
+          _tenant_id: string
+        }
+        Returns: number
+      }
       aggregate_experiment_stats: {
         Args: { p_experiment_id: string; p_tenant_id: string }
         Returns: {
@@ -6648,6 +6725,19 @@ export type Database = {
       chat_rename_conversation: {
         Args: { p_conversation_id: string; p_name: string; p_topic?: string }
         Returns: undefined
+      }
+      chat_search_messages: {
+        Args: { p_limit?: number; p_query: string }
+        Returns: {
+          body: string
+          conversation_id: string
+          conversation_kind: string
+          conversation_name: string
+          created_at: string
+          message_id: string
+          sender_id: string
+          snippet: string
+        }[]
       }
       chat_send_message: {
         Args: {
