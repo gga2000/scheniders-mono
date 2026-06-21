@@ -1,9 +1,12 @@
 // apps/platform/components/chat/conversation-list.tsx
 "use client";
 import { useMemo, useState } from "react";
-import { AtSign, Hash, MessagesSquare, Package, Users, Pencil } from "lucide-react";
+import { AtSign, Hash, MessagesSquare, Package, Plus, Users, Pencil } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import { ChatAvatar } from "./chat-avatar";
 import { ChatEmptyState } from "./chat-empty-state";
+import { CreateChannelDialog } from "./create-channel-dialog";
+import { CreateGroupDialog } from "./create-group-dialog";
 import { usePresenceStore } from "@/store/use-presence-store";
 import { useConversations, useStartDm } from "@/hooks/chat/use-conversations";
 import type { ConversationWithMeta } from "@/hooks/chat/use-conversations";
@@ -126,6 +129,9 @@ export function ConversationList() {
     const { activeConversationId, setActiveConversation } = useChatStore();
     const { t } = useLanguage();
     const [startingId, setStartingId] = useState<string | null>(null);
+    const [newMenuOpen, setNewMenuOpen] = useState(false);
+    const [channelDialogOpen, setChannelDialogOpen] = useState(false);
+    const [groupDialogOpen, setGroupDialogOpen] = useState(false);
 
     const directLabel = t("chat.directMessage", "Direct message");
 
@@ -178,59 +184,108 @@ export function ConversationList() {
     };
 
     return (
-        <div className="w-full shrink-0 overflow-y-auto overscroll-contain bg-[var(--background-soft,var(--background))] md:w-[40%] md:max-w-[260px] md:border-r md:border-[var(--card-border)]">
-            {isLoading ? (
-                <div className="space-y-1 p-3">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                        <div
-                            key={i}
-                            className="h-8 animate-pulse rounded-lg bg-foreground/5"
-                            style={{ animationDelay: `${i * 60}ms` }}
-                        />
-                    ))}
+        <>
+            <CreateChannelDialog open={channelDialogOpen} onOpenChange={setChannelDialogOpen} />
+            <CreateGroupDialog open={groupDialogOpen} onOpenChange={setGroupDialogOpen} />
+            <div className="w-full shrink-0 overflow-y-auto overscroll-contain bg-(--background-soft,var(--background)) md:w-[40%] md:max-w-[260px] md:border-r md:border-(--card-border)">
+                {/* List header */}
+                <div className="flex items-center justify-between px-4 py-2.5">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        {t("chat.conversations", "Conversations")}
+                    </span>
+                    <Popover open={newMenuOpen} onOpenChange={setNewMenuOpen}>
+                        <PopoverTrigger asChild>
+                            <button
+                                type="button"
+                                aria-label={t("chat.newChannel", "New channel")}
+                                className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+                            >
+                                <Plus className="h-4 w-4" />
+                            </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                            align="end"
+                            className="w-44 border-(--card-border) bg-(--card-bg) p-1 shadow-lg"
+                        >
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setNewMenuOpen(false);
+                                    setChannelDialogOpen(true);
+                                }}
+                                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-foreground/5"
+                            >
+                                <Hash className="h-3.5 w-3.5 text-muted-foreground" />
+                                {t("chat.newChannel", "New channel")}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setNewMenuOpen(false);
+                                    setGroupDialogOpen(true);
+                                }}
+                                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-foreground/5"
+                            >
+                                <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                                {t("chat.newGroup", "New group")}
+                            </button>
+                        </PopoverContent>
+                    </Popover>
                 </div>
-            ) : (
-                <div className="py-1">
-                    <Section
-                        title={t("chat.section.channels", "Channels")}
-                        icon={Hash}
-                        items={groups.channel}
-                        activeConversationId={activeConversationId}
-                        onSelect={setActiveConversation}
-                        nameFor={nameFor}
-                    />
-                    <Section
-                        title={t("chat.section.direct", "Direct")}
-                        icon={AtSign}
-                        items={groups.dm}
-                        activeConversationId={activeConversationId}
-                        onSelect={setActiveConversation}
-                        nameFor={nameFor}
-                    />
-                    <Section
-                        title={t("chat.section.orders", "Order threads")}
-                        icon={Package}
-                        items={groups.order}
-                        activeConversationId={activeConversationId}
-                        onSelect={setActiveConversation}
-                        nameFor={nameFor}
-                    />
-                    <TeamDirectory
-                        title={t("chat.section.team", "Team members")}
-                        hint={t("chat.startDm", "Start a direct message")}
-                        members={directoryMembers}
-                        onStart={startConversation}
-                        startingId={startingId}
-                    />
-                    {conversations.length === 0 && directoryMembers.length === 0 && (
-                        <ChatEmptyState
-                            icon={MessagesSquare}
-                            title={t("chat.emptyConversations", "No conversations yet")}
-                            description={t("chat.emptyTeam", "You're the only member of this workspace so far.")}
+
+                {isLoading ? (
+                    <div className="space-y-1 p-3">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                            <div
+                                key={i}
+                                className="h-8 animate-pulse rounded-lg bg-foreground/5"
+                                style={{ animationDelay: `${i * 60}ms` }}
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    <div className="py-1">
+                        <Section
+                            title={t("chat.section.channels", "Channels")}
+                            icon={Hash}
+                            items={groups.channel}
+                            activeConversationId={activeConversationId}
+                            onSelect={setActiveConversation}
+                            nameFor={nameFor}
                         />
-                    )}
-                </div>
-            )}
-        </div>
+                        <Section
+                            title={t("chat.section.direct", "Direct")}
+                            icon={AtSign}
+                            items={groups.dm}
+                            activeConversationId={activeConversationId}
+                            onSelect={setActiveConversation}
+                            nameFor={nameFor}
+                        />
+                        <Section
+                            title={t("chat.section.orders", "Order threads")}
+                            icon={Package}
+                            items={groups.order}
+                            activeConversationId={activeConversationId}
+                            onSelect={setActiveConversation}
+                            nameFor={nameFor}
+                        />
+                        <TeamDirectory
+                            title={t("chat.section.team", "Team members")}
+                            hint={t("chat.startDm", "Start a direct message")}
+                            members={directoryMembers}
+                            onStart={startConversation}
+                            startingId={startingId}
+                        />
+                        {conversations.length === 0 && directoryMembers.length === 0 && (
+                            <ChatEmptyState
+                                icon={MessagesSquare}
+                                title={t("chat.emptyConversations", "No conversations yet")}
+                                description={t("chat.emptyTeam", "You're the only member of this workspace so far.")}
+                            />
+                        )}
+                    </div>
+                )}
+            </div>
+        </>
     );
 }
