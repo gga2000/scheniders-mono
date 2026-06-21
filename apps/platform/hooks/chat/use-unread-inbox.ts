@@ -19,6 +19,9 @@ export function useUnreadInbox() {
                 if ((payload as { sender_id?: string }).sender_id === user.id) return;
                 qc.invalidateQueries({ queryKey: chatKeys.conversations() });
             })
+            .on("broadcast", { event: "inbox:refresh" }, () => {
+                qc.invalidateQueries({ queryKey: chatKeys.conversations() });
+            })
             .subscribe();
         return () => { supabase.removeChannel(channel); };
     }, [user?.id, qc]);

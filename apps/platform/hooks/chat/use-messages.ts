@@ -103,6 +103,9 @@ export function useMessages(conversationId: string | null) {
                 qc.setQueryData<ChatMessage[]>(chatKeys.messages(conversationId!), (old = []) =>
                     old.map((m) => (m.id === messageId ? { ...m, reactions: (data ?? m.reactions) as ChatMessage["reactions"] } : m)));
             })
+            .on("broadcast", { event: "conversation:update" }, () => {
+                qc.invalidateQueries({ queryKey: chatKeys.conversations() });
+            })
             .subscribe((status, err) => {
                 if (status === "SUBSCRIBED") {
                     // On a re-subscribe (after a drop) catch up on anything missed.
