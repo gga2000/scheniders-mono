@@ -41,17 +41,24 @@ export interface ChatAttachment {
     mime?: string | null; size_bytes?: number | null; width?: number | null; height?: number | null;
 }
 
+export type ChatSystemEvent =
+    | { type: "status_changed"; from: string | null; to: string; actor_name?: string | null }
+    | { type: "assigned"; to: string | null; actor_name?: string | null }
+    | { type: "delivered" };
+
 export interface ChatMessage {
     id: string;
     conversation_id: string;
     tenant_id: string;
-    sender_id: string;
+    sender_id: string | null;
     body: string;
     reply_to_id: string | null;
     client_msg_id: string | null;
     edited_at: string | null;
     deleted_at: string | null;
     created_at: string;
+    is_system?: boolean;
+    system_event?: ChatSystemEvent | null;
     // hydrated client-side:
     references?: ChatReference[];
     reactions?: ChatReaction[];

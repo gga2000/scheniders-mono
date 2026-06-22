@@ -134,6 +134,8 @@ export interface Order {
     waseet_company_price?: number;
     waseet_submitted_at?: string;
     waseet_invoice_id?: string;
+    assigned_to?: string;
+    assigned_at?: string;
 }
 
 export interface Blacklist {

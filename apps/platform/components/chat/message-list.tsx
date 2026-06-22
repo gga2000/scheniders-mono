@@ -122,6 +122,8 @@ export function MessageList({
     const liveAnnouncement = useMemo(() => {
         const last = messages[messages.length - 1];
         if (!last || last.deleted_at) return "";
+        // System rows (null sender_id) skip the announcement
+        if (!last.sender_id) return "";
         const who = memberMap.get(last.sender_id)?.display_name ?? "Teammate";
         return `${who}: ${last.body}`;
     }, [messages, memberMap]);
@@ -183,7 +185,7 @@ export function MessageList({
         )}
         <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto overscroll-contain py-2">
             {messages.map((m, i) => {
-                const u = memberMap.get(m.sender_id);
+                const u = m.sender_id ? memberMap.get(m.sender_id) : undefined;
                 const thisDay = new Date(m.created_at).toDateString();
                 const prev = i > 0 ? messages[i - 1] : null;
                 const showSeparator = !prev || new Date(prev.created_at).toDateString() !== thisDay;

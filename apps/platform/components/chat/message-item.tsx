@@ -47,7 +47,7 @@ export function MessageItem({
                 message.pending ? "opacity-60" : ""
             }`}
         >
-            <ChatAvatar userId={message.sender_id} name={senderName} avatarUrl={senderAvatar} size="sm" />
+            <ChatAvatar userId={message.sender_id ?? ""} name={senderName} avatarUrl={senderAvatar} size="sm" />
             <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-2">
                     <span className="text-[13px] font-semibold text-foreground">{senderName}</span>
