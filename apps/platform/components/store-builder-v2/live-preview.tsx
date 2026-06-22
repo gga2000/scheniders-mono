@@ -827,6 +827,19 @@ export function LivePreview({
             data-breakpoint={breakpoint}
             className="relative flex h-full w-full items-center justify-center overflow-hidden bg-muted/30 p-4"
         >
+            {/* BUG1: this canvas sizes by width only — section responsiveness keys
+                off the editor window, not this frame, so multi-column layouts don't
+                truly reflow here. Flag it so a merchant verifies mobile on a real
+                device rather than trusting an approximate preview. */}
+            {breakpoint !== "desktop" && (
+                <div
+                    role="status"
+                    data-testid="preview-approx-notice"
+                    className="pointer-events-none absolute left-1/2 top-2 z-20 -translate-x-1/2 rounded-full bg-amber-100 px-3 py-1 text-[11px] font-medium text-amber-900 shadow-sm"
+                >
+                    Approximate {breakpoint} width — layout reflow can differ; verify on a real device
+                </div>
+            )}
             <div
                 ref={viewportRef}
                 data-testid="live-preview-viewport"
