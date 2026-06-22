@@ -9,6 +9,7 @@ import { getStatusBadgeStyle } from "@/lib/order-format-utils";
 import { PIPELINE_STAGE_REGISTRY } from "@/lib/order-pipeline";
 import { generateWhatsAppLink } from "@/lib/utils";
 import type { PipelineStageId } from "@/lib/order-pipeline";
+import { OrderActionBar } from "./order-action-bar";
 
 interface OrderThreadCardProps {
     conversationId: string;
@@ -27,7 +28,7 @@ export function OrderThreadCard({ conversationId }: OrderThreadCardProps) {
     const conv = conversations.find((c) => c.id === conversationId);
     const convName = conv?.name ?? t("chat.orderThread", "Order thread");
 
-    if (!order) {
+    if (!order || !conv) {
         // Minimal header while order data is loading or not yet available
         return (
             <div className="flex shrink-0 items-center gap-2 border-b border-(--card-border) bg-(--card-bg) px-4 py-2.5">
@@ -84,6 +85,9 @@ export function OrderThreadCard({ conversationId }: OrderThreadCardProps) {
                     </svg>
                 </a>
             </div>
+
+            {/* Action bar: status / assign / resolve */}
+            <OrderActionBar order={order} conversation={conv} />
         </div>
     );
 }
