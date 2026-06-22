@@ -107,7 +107,7 @@ export function OrderActionBar({ order, conversation }: OrderActionBarProps) {
                     aria-label={t("chat.changeStatus", "Change status")}
                     className="w-full appearance-none rounded-md border border-(--card-border) bg-background py-1 pl-2.5 pr-6 text-[11px] font-medium text-foreground transition-colors focus:outline-none focus:ring-1 focus:ring-(--ink)/30 disabled:opacity-50"
                 >
-                    {PIPELINE_STAGE_IDS.filter((s): s is PipelineStageId & OrderStatus => true).map((s) => {
+                    {PIPELINE_STAGE_IDS.map((s) => {
                         const meta = PIPELINE_STAGE_REGISTRY[s];
                         return (
                             <option key={s} value={s}>
