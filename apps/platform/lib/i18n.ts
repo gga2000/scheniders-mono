@@ -2746,6 +2746,11 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.unresolve": "Unresolve",
         "chat.resolved": "Resolved",
         "chat.discussOrder": "Discuss",
+        "chat.system": "System",
+        "chat.event.statusChanged": "{actor} changed status to {to}",
+        "chat.event.assigned": "{actor} assigned this to {who}",
+        "chat.event.unassigned": "{actor} unassigned this",
+        "chat.event.delivered": "Order delivered",
         "chat.unresolvedOnly": "Unresolved only",
     },
 
@@ -5488,6 +5493,11 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.unresolve": "إلغاء الحل",
         "chat.resolved": "محلول",
         "chat.discussOrder": "ناقش",
+        "chat.system": "النظام",
+        "chat.event.statusChanged": "{actor} غيّر الحالة إلى {to}",
+        "chat.event.assigned": "{actor} أسند هذا إلى {who}",
+        "chat.event.unassigned": "{actor} ألغى الإسناد",
+        "chat.event.delivered": "تم توصيل الطلب",
         "chat.unresolvedOnly": "غير المحلولة فقط",
     },
 };
