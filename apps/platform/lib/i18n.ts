@@ -2745,6 +2745,8 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.resolve": "Resolve",
         "chat.unresolve": "Unresolve",
         "chat.resolved": "Resolved",
+        "chat.discussOrder": "Discuss",
+        "chat.unresolvedOnly": "Unresolved only",
     },
 
     ar: {
@@ -5485,5 +5487,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.resolve": "حل",
         "chat.unresolve": "إلغاء الحل",
         "chat.resolved": "محلول",
+        "chat.discussOrder": "ناقش",
+        "chat.unresolvedOnly": "غير المحلولة فقط",
     },
 };

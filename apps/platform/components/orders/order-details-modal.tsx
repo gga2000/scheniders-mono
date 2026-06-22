@@ -830,10 +830,11 @@ export function OrderDetailsModal({
                                 <button
                                     onClick={handleDiscuss}
                                     disabled={startOrderConv.isPending}
-                                    title="Discuss this order"
+                                    title={t("chat.discussOrder", "Discuss")}
                                     className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    <MessageCircle className="h-3.5 w-3.5" /> Discuss
+                                    <MessageCircle className="h-3.5 w-3.5" />
+                                    {t("chat.discussOrder", "Discuss")}
                                 </button>
                                 {/* Edit Button */}
                                 {!isEditing && (
