@@ -888,6 +888,7 @@ export type Database = {
           last_message_at: string | null
           name: string | null
           order_id: string | null
+          resolved_at: string | null
           tenant_id: string
           topic: string | null
           updated_at: string
@@ -902,6 +903,7 @@ export type Database = {
           last_message_at?: string | null
           name?: string | null
           order_id?: string | null
+          resolved_at?: string | null
           tenant_id: string
           topic?: string | null
           updated_at?: string
@@ -916,6 +918,7 @@ export type Database = {
           last_message_at?: string | null
           name?: string | null
           order_id?: string | null
+          resolved_at?: string | null
           tenant_id?: string
           topic?: string | null
           updated_at?: string
@@ -1160,8 +1163,10 @@ export type Database = {
           deleted_at: string | null
           edited_at: string | null
           id: string
+          is_system: boolean
           reply_to_id: string | null
-          sender_id: string
+          sender_id: string | null
+          system_event: Json | null
           tenant_id: string
         }
         Insert: {
@@ -1172,8 +1177,10 @@ export type Database = {
           deleted_at?: string | null
           edited_at?: string | null
           id?: string
+          is_system?: boolean
           reply_to_id?: string | null
-          sender_id: string
+          sender_id?: string | null
+          system_event?: Json | null
           tenant_id: string
         }
         Update: {
@@ -1184,8 +1191,10 @@ export type Database = {
           deleted_at?: string | null
           edited_at?: string | null
           id?: string
+          is_system?: boolean
           reply_to_id?: string | null
-          sender_id?: string
+          sender_id?: string | null
+          system_event?: Json | null
           tenant_id?: string
         }
         Relationships: [
@@ -6688,6 +6697,10 @@ export type Database = {
         Args: { p_archived?: boolean; p_conversation_id: string }
         Returns: undefined
       }
+      chat_assign_order: {
+        Args: { p_order_id: string; p_user_id: string }
+        Returns: undefined
+      }
       chat_create_channel: {
         Args: { p_is_private?: boolean; p_name: string; p_topic?: string }
         Returns: string
@@ -6719,6 +6732,10 @@ export type Database = {
       }
       chat_mark_read: {
         Args: { p_conversation_id: string }
+        Returns: undefined
+      }
+      chat_post_order_event: {
+        Args: { p_event: Json; p_order_id: string }
         Returns: undefined
       }
       chat_remove_member: {
@@ -6760,8 +6777,10 @@ export type Database = {
           deleted_at: string | null
           edited_at: string | null
           id: string
+          is_system: boolean
           reply_to_id: string | null
-          sender_id: string
+          sender_id: string | null
+          system_event: Json | null
           tenant_id: string
         }
         SetofOptions: {
@@ -6770,6 +6789,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      chat_set_conversation_resolved: {
+        Args: { p_conversation_id: string; p_resolved: boolean }
+        Returns: undefined
       }
       chat_topic_conv_id: { Args: { p_topic: string }; Returns: string }
       chat_topic_conversation: {
