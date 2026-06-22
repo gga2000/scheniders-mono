@@ -12,6 +12,7 @@ export interface ChatConversation {
     created_by: string | null;
     last_message_at: string | null;
     archived_at: string | null;
+    resolved_at: string | null;
     created_at: string;
     updated_at: string;
 }

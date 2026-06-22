@@ -17,6 +17,7 @@ import { ConversationList } from "./conversation-list";
 import { MessageList } from "./message-list";
 import { Composer } from "./composer";
 import { SearchPanel } from "./search-panel";
+import { OrderThreadCard } from "./order-thread-card";
 
 export function ChatSheet() {
     const { isOpen, close, activeConversationId, setActiveConversation, openSettings, focusMessageId, clearFocusMessage } = useChatStore();
@@ -237,6 +238,9 @@ export function ChatSheet() {
                             <div className="flex min-w-0 flex-1 flex-col bg-background">
                                 {activeConversationId ? (
                                     <>
+                                        {activeConversation?.kind === "order" && (
+                                            <OrderThreadCard conversationId={activeConversationId} />
+                                        )}
                                         <MessageList
                                             messages={messages}
                                             loading={isLoading}
