@@ -1,7 +1,7 @@
 // apps/platform/components/chat/conversation-list.tsx
 "use client";
 import { useMemo, useState } from "react";
-import { AtSign, ChevronDown, ChevronRight, Hash, MessagesSquare, Package, Plus, Users, Pencil } from "lucide-react";
+import { AtSign, CheckCircle, ChevronDown, ChevronRight, Hash, MessagesSquare, Package, Plus, Users, Pencil } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import { ChatAvatar } from "./chat-avatar";
 import { ChatEmptyState } from "./chat-empty-state";
@@ -131,6 +131,7 @@ function OrderSection({
     const { t } = useLanguage();
     const [statusFilter, setStatusFilter] = useState<OrderSubFilter>("all");
     const [minValue, setMinValue] = useState("");
+    const [unresolvedOnly, setUnresolvedOnly] = useState(false);
 
     // Derive which statuses actually appear in this conversation set so we only
     // show relevant chips (skip statuses with 0 matching rows).
@@ -151,6 +152,7 @@ function OrderSection({
     const filteredItems = useMemo(() => {
         if (!showSubFilter) return items;
         return items.filter((c) => {
+            if (unresolvedOnly && c.resolved_at !== null) return false;
             if (!c.order_id) return statusFilter === "all" && (minNum === null || !minValueValid);
             const order = orderMap.get(c.order_id);
             if (!order) return statusFilter === "all"; // not loaded → pass status filter only
@@ -158,7 +160,7 @@ function OrderSection({
             if (minNum !== null && minValueValid && order.price < minNum) return false;
             return true;
         });
-    }, [items, showSubFilter, statusFilter, minNum, minValueValid, orderMap]);
+    }, [items, showSubFilter, statusFilter, minNum, minValueValid, orderMap, unresolvedOnly]);
 
     if (filteredItems.length === 0 && !showSubFilter) return null;
 
@@ -216,6 +218,21 @@ function OrderSection({
                             className="w-full rounded-md border border-(--card-border) bg-(--card-bg) px-2.5 py-1 text-[11px] placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-(--ink)/30"
                         />
                     </div>
+                    {/* Unresolved-only toggle */}
+                    <div className="px-1">
+                        <button
+                            type="button"
+                            onClick={() => setUnresolvedOnly((v) => !v)}
+                            className={`flex w-full items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                                unresolvedOnly
+                                    ? "bg-[color-mix(in_srgb,var(--ink)_12%,transparent)] text-foreground"
+                                    : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                            }`}
+                        >
+                            <CheckCircle className="h-3 w-3 shrink-0" />
+                            {t("chat.unresolvedOnly", "Unresolved only")}
+                        </button>
+                    </div>
                 </div>
             )}
 
@@ -260,6 +277,12 @@ function OrderSection({
                                         </span>
                                     )}
                                 </button>
+                                {c.resolved_at !== null && (
+                                    <CheckCircle
+                                        className="h-3.5 w-3.5 shrink-0 text-emerald-500/70"
+                                        aria-label={t("chat.resolved", "Resolved")}
+                                    />
+                                )}
                                 {c.unread > 0 && (
                                     <span className="ml-1 inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white shadow-sm">
                                         {c.unread > 99 ? "99+" : c.unread}
