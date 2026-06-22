@@ -1,5 +1,6 @@
 // apps/platform/components/chat/message-item.tsx
 "use client";
+import { useMemo } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { ChatAvatar } from "./chat-avatar";
 import { formatDistanceToNow } from "date-fns";
@@ -8,11 +9,55 @@ import { ReferenceCard } from "./reference-card";
 import { ReactionBar } from "./reaction-bar";
 import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/components/providers/language-provider";
-import type { ChatMessage } from "@/types/chat";
+import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
+import { PIPELINE_STAGE_REGISTRY } from "@/lib/order-pipeline";
+import type { PipelineStageId } from "@/lib/order-pipeline";
+import type { ChatMessage, ChatSystemEvent } from "@/types/chat";
 
 /** Image attachments use the paperclip glyph; other files a document glyph. */
 function isImage(mime: string | null | undefined): boolean {
     return !!mime && mime.startsWith("image/");
+}
+
+/** Resolve a localized status label from the pipeline registry, falling back to the raw value. */
+function statusLabel(status: string, t: (key: string, fallback: string) => string): string {
+    const meta = PIPELINE_STAGE_REGISTRY[status as PipelineStageId];
+    if (meta) return t(meta.labelKey, meta.fallback);
+    return status;
+}
+
+/** Centered muted pill rendered for system-generated events (no avatar, no bubble). */
+function SystemEventPill({ event, t, memberMap }: {
+    event: ChatSystemEvent;
+    t: (key: string, fallback: string, params?: Record<string, string>) => string;
+    memberMap: Map<string, { display_name: string }>;
+}) {
+    let text: string;
+
+    if (event.type === "status_changed") {
+        const actor = event.actor_name ?? t("chat.system", "System");
+        const toLabel = statusLabel(event.to, t);
+        text = t("chat.event.statusChanged", "{actor} changed status to {to}", { actor, to: toLabel });
+    } else if (event.type === "assigned") {
+        const actor = event.actor_name ?? t("chat.system", "System");
+        if (event.to === null) {
+            text = t("chat.event.unassigned", "{actor} unassigned this", { actor });
+        } else {
+            const who = memberMap.get(event.to)?.display_name ?? t("chat.teammate", "Teammate");
+            text = t("chat.event.assigned", "{actor} assigned this to {who}", { actor, who });
+        }
+    } else {
+        // delivered
+        text = t("chat.event.delivered", "Order delivered");
+    }
+
+    return (
+        <div className="flex items-center justify-center px-4 py-1">
+            <span className="inline-flex items-center rounded-full bg-(--pastel-mint)/60 px-3 py-0.5 text-[11px] text-muted-foreground ring-1 ring-(--card-border)">
+                {text}
+            </span>
+        </div>
+    );
 }
 
 export function MessageItem({
@@ -26,6 +71,28 @@ export function MessageItem({
 }) {
     const { t } = useLanguage();
     const reduceMotion = useReducedMotion();
+    const { data: members } = useTenantMembers();
+
+    // Memoized member map for resolving assignee display names in system events.
+    // The same query data is already cached (MessageList uses it too), so this
+    // only recomputes when the members list actually changes.
+    const memberMap = useMemo(
+        () => new Map<string, { display_name: string }>(
+            (members ?? []).map((m) => [m.user_id, { display_name: m.display_name }])
+        ),
+        [members]
+    );
+
+    // System events render as a centered muted pill — no avatar, no bubble.
+    if (message.is_system && message.system_event) {
+        return (
+            <SystemEventPill
+                event={message.system_event}
+                t={t}
+                memberMap={memberMap}
+            />
+        );
+    }
 
     if (message.deleted_at) {
         return (
