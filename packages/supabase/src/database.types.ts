@@ -6033,6 +6033,7 @@ export type Database = {
           status: Database["public"]["Enums"]["tenant_status"]
           store_config: Json | null
           store_config_draft: Json | null
+          store_config_rev: number
           store_config_v2: Json | null
           store_config_v2_draft: Json | null
           trial_ends_at: string | null
@@ -6059,6 +6060,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["tenant_status"]
           store_config?: Json | null
           store_config_draft?: Json | null
+          store_config_rev?: number
           store_config_v2?: Json | null
           store_config_v2_draft?: Json | null
           trial_ends_at?: string | null
@@ -6085,6 +6087,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["tenant_status"]
           store_config?: Json | null
           store_config_draft?: Json | null
+          store_config_rev?: number
           store_config_v2?: Json | null
           store_config_v2_draft?: Json | null
           trial_ends_at?: string | null
@@ -6941,7 +6944,12 @@ export type Database = {
       }
       progress_seed_orders: { Args: never; Returns: undefined }
       publish_store_config_v2: {
-        Args: { p_config: Json; p_diff_summary?: Json; p_tenant_id: string }
+        Args: {
+          p_config: Json
+          p_diff_summary?: Json
+          p_expected_rev?: number
+          p_tenant_id: string
+        }
         Returns: {
           author_name: string | null
           config: Json

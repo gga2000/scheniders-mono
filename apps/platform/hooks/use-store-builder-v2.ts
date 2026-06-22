@@ -80,6 +80,8 @@ export interface UseStoreBuilderV2Options {
      * device), so the backup is stale and must not resurrect over newer work.
      */
     initialUpdatedAt?: number | null;
+    /** BUG25: published rev counter at hydration; publish rejects a stale base. */
+    initialRev?: number;
 }
 
 export interface UseStoreBuilderV2Return {
@@ -107,6 +109,10 @@ export interface UseStoreBuilderV2Return {
     save_state: SaveStateV2;
     last_saved_at: Date | null;
     has_unpublished_changes: boolean;
+
+    /** BUG25: true when the last publish was rejected because another editor
+     *  published since this session loaded — the UI should prompt a reload. */
+    publish_conflict: boolean;
 
     /** Actions. */
     save_draft: () => Promise<void>;
@@ -244,10 +250,18 @@ export function useStoreBuilderV2(
         hasPublished,
         initiallyDirty = false,
         initialUpdatedAt = null,
+        initialRev = 0,
     } = options;
 
     /* ── Draft config ─────────────────────────────────────────────── */
     const [config, setConfigState] = useState<StoreConfigV2>(initialConfig);
+
+    /* ── BUG25: published-rev optimistic lock ─────────────────────── */
+    // The published "generation" we're based on. Advances by 1 on each of our
+    // own successful publishes; a mismatch at publish time means another editor
+    // got there first → conflict (reject, prompt reload).
+    const expectedRevRef = useRef<number>(initialRev);
+    const [publish_conflict, set_publish_conflict] = useState<boolean>(false);
 
     /* ── Editor UI state ──────────────────────────────────────────── */
     const [active_page, set_active_page] = useState<PageId>("home");
@@ -544,9 +558,26 @@ export function useStoreBuilderV2(
                 p_tenant_id: tenantId,
                 p_config: config,
                 p_diff_summary: publishDiff,
+                p_expected_rev: expectedRevRef.current,
             });
-            if (error) throw error;
+            if (error) {
+                // BUG25: another editor published since we loaded — reject rather
+                // than clobber their work, and tell the UI to prompt a reload.
+                if (
+                    error.code === "40001" ||
+                    /config_conflict/i.test(error.message ?? "")
+                ) {
+                    set_publish_conflict(true);
+                    set_save_state("error");
+                    return;
+                }
+                throw error;
+            }
 
+            // Our publish landed; the server bumped rev by 1 — track it so a
+            // second publish this session compares against the right base.
+            expectedRevRef.current += 1;
+            set_publish_conflict(false);
             pendingDraftWriteRef.current = false;
             draftSeededRef.current = true; // EC9: published config is a full skeleton.
             set_save_state("saved");
@@ -1341,6 +1372,7 @@ export function useStoreBuilderV2(
         last_saved_at,
         has_unpublished_changes,
 
+        publish_conflict,
         save_draft,
         publish,
         revert_to_published,
