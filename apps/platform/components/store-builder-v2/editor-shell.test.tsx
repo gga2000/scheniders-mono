@@ -217,7 +217,7 @@ describe("EditorShell", () => {
         expect(setActivePage).toHaveBeenCalledWith("cart");
     });
 
-    it("renders the inline live preview at mobile width (390px) when active_breakpoint is mobile", () => {
+    it("sizes the preview iframe to mobile width (390px) when active_breakpoint is mobile", () => {
         const builder = makeBuilder({ active_breakpoint: "mobile" });
         render(
             <EditorShell
@@ -229,7 +229,13 @@ describe("EditorShell", () => {
                 initialSystemScreen={null}
             />,
         );
-        const viewport = screen.getByTestId("live-preview-viewport") as HTMLDivElement;
+        // BUG1: the in-canvas preview is now a cross-origin iframe whose
+        // wrapper carries the device width, giving the page its OWN layout
+        // viewport so media queries reflow. (LivePreview's width-only <div>
+        // did not.) Assert the wrapper width tracks the active breakpoint.
+        const viewport = screen.getByTestId(
+            "preview-frame-viewport",
+        ) as HTMLDivElement;
         expect(viewport.style.width).toBe("390px");
     });
 

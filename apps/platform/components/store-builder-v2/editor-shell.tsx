@@ -51,7 +51,7 @@ import {
     EMPTY_PREVIEW_AS,
     type PreviewAsState,
 } from "./preview-as-controls";
-import { LivePreview } from "./live-preview";
+import { PreviewFrame } from "./preview-frame";
 import { BrandKitEditor } from "./brand-kit-editor";
 import { SectionPicker } from "./section-picker";
 import { PageTemplatePicker } from "./page-template-picker";
@@ -577,8 +577,10 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     });
     const dnd_sensors = useSensors(pointer_sensor);
 
-    const [picker_drag_active, set_picker_drag_active] =
-        useState<boolean>(false);
+    // The drag-active value drove LivePreview's canvas drop-zones, which move
+    // onto the iframe overlay in step 5; the DnD handlers keep the setter
+    // wired meanwhile so re-enabling it is a one-line change.
+    const [, set_picker_drag_active] = useState<boolean>(false);
     const dragged_manifest_type_ref = useRef<string | null>(null);
 
     const handleDndDragStart = useCallback((e: DragStartEvent): void => {
@@ -828,6 +830,27 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             builder.active_locale,
             activePreviewToken,
         ],
+    );
+
+    // Stable iframe src for the in-canvas preview. Breakpoint width is
+    // applied by <PreviewFrame>; locale/page changes flow to the iframe via
+    // the runtime_update / page_id_change postMessage effects above — so a
+    // live edit never swaps `src` and reloads the frame. Only a storefront
+    // ORIGIN change (a custom domain resolving in prod) re-mints the URL.
+    const iframe_initial_page = useRef<PageId>(builder.active_page);
+    const iframe_initial_bp = useRef<Breakpoint>(builder.active_breakpoint);
+    const iframe_initial_locale = useRef<LocaleCode>(builder.active_locale);
+    const iframePreviewUrl = useMemo(
+        () =>
+            buildPreviewUrl(
+                storefrontUrl,
+                tenant.slug,
+                iframe_initial_page.current,
+                iframe_initial_bp.current,
+                iframe_initial_locale.current,
+                activePreviewToken,
+            ),
+        [storefrontUrl, tenant.slug, activePreviewToken],
     );
 
     // Build the `_preview` URL for any device — the PreviewModal swaps the
@@ -1438,39 +1461,26 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                                     visible={isFirstTimeTenant}
                                 />
                                 <div className="relative flex flex-1 overflow-hidden">
-                                    <LivePreview
-                                        config={builder.config}
-                                        pageId={builder.active_page}
+                                    <PreviewFrame
+                                        ref={iframe_ref}
+                                        url={iframePreviewUrl}
                                         breakpoint={builder.active_breakpoint}
-                                        locale={builder.active_locale}
-                                        tenant={{
-                                            id: tenant.id,
-                                            slug: tenant.slug,
-                                            business_name: tenant.business_name,
-                                        }}
-                                        products={previewProducts}
-                                        categories={previewCategories}
-                                        governorate={preview_as.governorate}
-                                        audienceSegments={preview_as.segments}
-                                        abTestArms={preview_as.ab_arms}
-                                        selectedSectionId={selected_section_id}
-                                        selectedSectionLabel={selected_section_label}
-                                        onSectionClick={set_selected_section_id}
-                                        onEditSection={handleEditSection}
-                                        onDeleteSection={handleOverlayDelete}
-                                        onSectionAction={(kind, section_id) =>
-                                            handleOverlayAction({ kind, section_id })
-                                        }
-                                        onInlineEdit={handleInlineEdit}
-                                        onAddVariant={handleAddVariant}
-                                        pickerDragActive={picker_drag_active}
-                                        onSpacingChange={handleSectionSpacingChange}
-                                        onAddAt={(insertAt) => {
-                                            set_picker_insert_at(insertAt);
-                                            set_picker_open(true);
-                                        }}
                                     />
                                 </div>
+                                {/* Click-to-edit overlay — positioned over the
+                                    iframe via bounds relative to the canvas
+                                    (preview_container_ref). Rings + section
+                                    toolbar; inline-edit / insert / spacing-drag
+                                    / context-menu land in steps 4-6. */}
+                                <PreviewOverlay
+                                    bridge={bridge}
+                                    selected_section_id={selected_section_id}
+                                    selected_section_label={selected_section_label}
+                                    onEditRequest={handleEditSection}
+                                    onDeleteRequest={handleOverlayDelete}
+                                    onAction={handleOverlayAction}
+                                    iframeBounds={iframe_bounds}
+                                />
                             </div>
                             <InspectorRail
                                 activeTab={inspector_tab}
