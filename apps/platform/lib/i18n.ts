@@ -2778,6 +2778,11 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.forwardPlaceholder": "Search conversations…",
         "chat.retry": "Retry",
         "chat.sendFailedLabel": "Failed to send",
+        "chat.editHistory": "Edit history",
+        "chat.editedLabel": "edited",
+        "chat.currentVersion": "Current",
+        "chat.noEditHistory": "No earlier versions",
+        "chat.noEditHistoryDesc": "This message hasn't been edited.",
     },
 
     ar: {
@@ -5551,5 +5556,10 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.forwardPlaceholder": "ابحث في المحادثات…",
         "chat.retry": "إعادة المحاولة",
         "chat.sendFailedLabel": "فشل الإرسال",
+        "chat.editHistory": "سجل التعديلات",
+        "chat.editedLabel": "معدّلة",
+        "chat.currentVersion": "الحالية",
+        "chat.noEditHistory": "لا توجد نسخ سابقة",
+        "chat.noEditHistoryDesc": "لم يتم تعديل هذه الرسالة.",
     },
 };

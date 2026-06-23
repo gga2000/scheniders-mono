@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChatAvatar } from "./chat-avatar";
 import { MessageActions } from "./message-actions";
+import { EditHistoryDialog } from "./edit-history-dialog";
 import { formatDistanceToNow } from "date-fns";
 import { AlertCircle, CornerUpLeft, FileText, Paperclip, RefreshCw, Trash2 } from "lucide-react";
 import { ReferenceCard } from "./reference-card";
@@ -133,6 +134,7 @@ export function MessageItem({
 
     const [isEditing, setIsEditing] = useState(false);
     const [editBody, setEditBody] = useState(message.body);
+    const [editHistoryId, setEditHistoryId] = useState<string | null>(null);
 
     // Memoized member map for resolving assignee display names in system events.
     // The same query data is already cached (MessageList uses it too), so this
@@ -242,7 +244,14 @@ export function MessageItem({
                         {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
                     </span>
                     {message.edited_at && (
-                        <span className="text-[10px] text-muted-foreground/80">({t("chat.edited", "edited")})</span>
+                        <button
+                            type="button"
+                            onClick={() => setEditHistoryId(message.id)}
+                            className="text-[10px] text-muted-foreground/80 underline-offset-2 hover:text-muted-foreground hover:underline"
+                            aria-label={t("chat.editHistory", "Edit history")}
+                        >
+                            ({t("chat.editedLabel", "edited")})
+                        </button>
                     )}
                 </div>
 
@@ -368,6 +377,13 @@ export function MessageItem({
                     )
                 )}
             </div>
+
+            {/* Edit-history dialog — lazy; only mounts when the (edited) badge is clicked */}
+            <EditHistoryDialog
+                messageId={editHistoryId}
+                currentBody={message.body}
+                onClose={() => setEditHistoryId(null)}
+            />
         </motion.div>
     );
 }
