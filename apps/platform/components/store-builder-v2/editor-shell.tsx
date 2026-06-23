@@ -306,6 +306,19 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         });
     }, [bridge]);
 
+    // Mirror the editor's selection into the iframe so the bridge knows which
+    // section's text is inline-editable and which to outline. Deduped via a
+    // ref so we don't re-post on every render.
+    const last_posted_selection_ref = useRef<string | null | undefined>(
+        undefined,
+    );
+    useEffect(() => {
+        if (!bridge.state.ready) return;
+        if (last_posted_selection_ref.current === selected_section_id) return;
+        last_posted_selection_ref.current = selected_section_id;
+        bridge.setSelectedSection(selected_section_id);
+    }, [selected_section_id, bridge]);
+
     /* ── Live preview: push config + runtime to the iframe ─────────── */
     //
     // Webflow / Framer pattern: the editor owns the in-memory config and
@@ -316,6 +329,11 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     // `ready` (otherwise the iframe handler isn't mounted yet).
     useEffect(() => {
         if (!bridge.state.ready) return;
+        // While an inline edit is in flight the contenteditable in the iframe
+        // is authoritative — pushing a config update would re-render the
+        // section and reset the caret. We resume (and push the latest config)
+        // when `inline_editing` flips back to false, since it's in the deps.
+        if (bridge.state.inline_editing) return;
         const handle = setTimeout(() => {
             const page = builder.config.pages.find(
                 (p) => p.page_id === builder.active_page,

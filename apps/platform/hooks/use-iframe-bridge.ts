@@ -49,6 +49,13 @@ export interface BridgeClickEvent {
     rect: PreviewRect;
 }
 
+/** A committed inline text edit coming from the iframe contenteditable. */
+export interface BridgeInlineEditEvent {
+    section_id: string;
+    field_path: string;
+    value: string;
+}
+
 export interface BridgeState {
     ready: boolean;
     scroll_y: number;
@@ -56,6 +63,12 @@ export interface BridgeState {
     hovered_rect: PreviewRect | null;
     /** Latest rect for the selected section, refreshed via `request_rect`. */
     rect_updates: Record<string, PreviewRect | null>;
+    /**
+     * True between `inline_edit_begin` and `inline_edit_end`. The editor
+     * pauses config-push while this is set so a re-render doesn't reset the
+     * caret in the iframe's contenteditable.
+     */
+    inline_editing: boolean;
 }
 
 /**
@@ -69,7 +82,12 @@ export type EditorOutboundMessage =
     | { source: "schn-editor"; type: "ping" }
     | { source: "schn-editor"; type: "page_config_update"; payload: PageConfig }
     | { source: "schn-editor"; type: "runtime_update"; payload: RuntimeContext }
-    | { source: "schn-editor"; type: "page_id_change"; next_url: string };
+    | { source: "schn-editor"; type: "page_id_change"; next_url: string }
+    | {
+          source: "schn-editor";
+          type: "set_selected_section";
+          section_id: string | null;
+      };
 
 export interface UseIframeBridgeReturn {
     state: BridgeState;
@@ -81,6 +99,12 @@ export interface UseIframeBridgeReturn {
     ping: () => Promise<void>;
     /** Subscribe to clicks coming from the preview. Returns an unsubscribe fn. */
     onSectionClicked: (cb: (e: BridgeClickEvent) => void) => () => void;
+    /** Tell the preview which section is selected (drives inline-edit). */
+    setSelectedSection: (section_id: string | null) => void;
+    /** Subscribe to committed inline text edits. Returns an unsubscribe fn. */
+    onInlineEditCommit: (
+        cb: (e: BridgeInlineEditEvent) => void,
+    ) => () => void;
     /**
      * Fire-and-forget post of a full page config to the iframe. The
      * iframe-side `SchneidersPreviewLiveRenderer` swaps its state in
@@ -133,11 +157,16 @@ export function useIframeBridge(
         hovered_section_id: null,
         hovered_rect: null,
         rect_updates: {},
+        inline_editing: false,
     }));
 
     // Click subscribers — stored in a ref so subscribe/unsubscribe doesn't
     // tear down the message listener.
     const click_subs_ref = useRef<Set<(e: BridgeClickEvent) => void>>(new Set());
+    // Inline-edit commit subscribers.
+    const inline_edit_subs_ref = useRef<
+        Set<(e: BridgeInlineEditEvent) => void>
+    >(new Set());
     // Pending ping resolvers — resolved on the next `pong` from the iframe.
     const pong_subs_ref = useRef<Set<() => void>>(new Set());
 
@@ -205,6 +234,27 @@ export function useIframeBridge(
             click_subs_ref.current.add(cb);
             return () => {
                 click_subs_ref.current.delete(cb);
+            };
+        },
+        [],
+    );
+
+    const setSelectedSection = useCallback(
+        (section_id: string | null): void => {
+            post({
+                source: "schn-editor",
+                type: "set_selected_section",
+                section_id,
+            });
+        },
+        [post],
+    );
+
+    const onInlineEditCommit = useCallback(
+        (cb: (e: BridgeInlineEditEvent) => void): (() => void) => {
+            inline_edit_subs_ref.current.add(cb);
+            return () => {
+                inline_edit_subs_ref.current.delete(cb);
             };
         },
         [],
@@ -325,6 +375,28 @@ export function useIframeBridge(
                     }));
                     break;
                 }
+                case "inline_edit_begin": {
+                    setState((s) => ({ ...s, inline_editing: true }));
+                    break;
+                }
+                case "inline_edit_commit": {
+                    const d = data as {
+                        section_id: string;
+                        field_path: string;
+                        value: string;
+                    };
+                    const evt: BridgeInlineEditEvent = {
+                        section_id: d.section_id,
+                        field_path: d.field_path,
+                        value: d.value,
+                    };
+                    for (const cb of inline_edit_subs_ref.current) cb(evt);
+                    break;
+                }
+                case "inline_edit_end": {
+                    setState((s) => ({ ...s, inline_editing: false }));
+                    break;
+                }
                 case "pong": {
                     for (const cb of pong_subs_ref.current) cb();
                     break;
@@ -347,6 +419,8 @@ export function useIframeBridge(
         requestRect,
         ping,
         onSectionClicked,
+        setSelectedSection,
+        onInlineEditCommit,
         postPageConfigUpdate,
         postRuntimeUpdate,
         postPageIdChange,
