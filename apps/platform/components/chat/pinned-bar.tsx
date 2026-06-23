@@ -35,7 +35,7 @@ export function PinnedBar({ conversationId }: PinnedBarProps) {
         <div className="shrink-0 border-b border-[var(--card-border)] bg-[var(--card-bg)]">
             {/* Header row */}
             <div className="flex items-center gap-2 px-4 py-2">
-                <Pin className="h-3.5 w-3.5 shrink-0 text-[var(--pastel-yellow-fg,#b45309)]" />
+                <Pin className="h-3.5 w-3.5 shrink-0 text-amber-500" />
                 <span className="text-[12px] font-semibold text-foreground">
                     {t("chat.pinnedMessages", "Pinned")}
                     <span className="ml-1 text-muted-foreground">({pins.length})</span>

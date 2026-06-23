@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { CornerUpLeft, FileText, Paperclip, Send, Smile, X } from "lucide-react";
 import { Textarea } from "@scheniders/ui/textarea";
@@ -12,9 +13,10 @@ import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/components/providers/language-provider";
 import { useReferenceSearch } from "@/hooks/chat/use-reference-search";
 import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
+import { chatKeys } from "@/hooks/chat/use-conversations";
 import { useChatStore } from "@/store/use-chat-store";
 import { ChatAvatar } from "./chat-avatar";
-import type { ChatReference, ChatAttachment } from "@/types/chat";
+import type { ChatReference, ChatAttachment, ChatMessage } from "@/types/chat";
 
 const QUICK_EMOJIS = ["👍", "🔥", "✅", "❤️", "😂", "🙏", "👏", "🎉"] as const;
 const MAX_MENTION_RESULTS = 6;
@@ -81,6 +83,15 @@ export function Composer({
         for (const m of members) map.set(m.user_id, m.display_name);
         return map;
     }, [members]);
+
+    // Resolve the message being replied to (for the chip preview) from the cached
+    // message window — the full quoted preview also renders in the timeline.
+    const qc = useQueryClient();
+    const replyParent = useMemo<ChatMessage | null>(() => {
+        if (!replyToId) return null;
+        const msgs = qc.getQueryData<ChatMessage[]>(chatKeys.messages(conversationId)) ?? [];
+        return msgs.find((m) => m.id === replyToId) ?? null;
+    }, [replyToId, conversationId, qc]);
 
     const mentionResults = useMemo(() => {
         if (mentionQuery === null) return [];
@@ -305,11 +316,9 @@ export function Composer({
                     <CornerUpLeft className="h-3.5 w-3.5 shrink-0 text-indigo-400" />
                     <span className="min-w-0 flex-1 truncate text-[12px] text-indigo-700">
                         <span className="font-semibold">{t("chat.replyingTo", "Replying to")}</span>{" "}
-                        {memberMap.get(
-                            // We don't have the parent message here — the chip just shows the label;
-                            // the full preview lives in message-item's QuotePreview
-                            ""
-                        ) ?? ""}
+                        {replyParent
+                            ? `${memberMap.get(replyParent.sender_id ?? "") ?? t("chat.teammate", "Teammate")}: ${replyParent.body}`
+                            : ""}
                     </span>
                     <button
                         type="button"
