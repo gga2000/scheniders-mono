@@ -69,3 +69,45 @@ export function getRelativeTime(dateStr: string): string {
   if (diffDays < 7) return `منذ ${diffDays} أيام`;
   return date.toLocaleDateString("ar-IQ", { month: "short", day: "numeric" });
 }
+
+export interface CustomerStats {
+  totalOrders: number;
+  totalSpent: number; // realized: delivered + completed
+  deliveredCount: number;
+  completedCount: number;
+  cancelledCount: number;
+  cancelRate: number; // 0..1
+}
+
+export function computeCustomerStats(orders: Order[]): CustomerStats {
+  let totalSpent = 0;
+  let deliveredCount = 0;
+  let completedCount = 0;
+  let cancelledCount = 0;
+
+  for (const o of orders) {
+    if (o.status === "delivered") {
+      deliveredCount++;
+      totalSpent += Number(o.price) || 0;
+    } else if (o.status === "completed") {
+      completedCount++;
+      totalSpent += Number(o.price) || 0;
+    } else if (o.status === "cancelled") {
+      cancelledCount++;
+    }
+  }
+
+  const totalOrders = orders.length;
+  return {
+    totalOrders,
+    totalSpent,
+    deliveredCount,
+    completedCount,
+    cancelledCount,
+    cancelRate: totalOrders > 0 ? cancelledCount / totalOrders : 0,
+  };
+}
+
+export function isRepeatCustomer(stats: CustomerStats): boolean {
+  return stats.totalOrders >= 3 && stats.deliveredCount + stats.completedCount >= 1;
+}

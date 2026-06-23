@@ -57,3 +57,47 @@ describe("getRelativeTime", () => {
     expect(getRelativeTime(past)).toMatch(/ساعة/);
   });
 });
+
+import { computeCustomerStats, isRepeatCustomer } from "./duplicate-comparison";
+
+describe("computeCustomerStats", () => {
+  it("counts realized spend from delivered + completed only", () => {
+    const orders: Order[] = [
+      order({ id: "a", status: "delivered", price: 10000 }),
+      order({ id: "b", status: "completed", price: 5000 }),
+      order({ id: "c", status: "cancelled", price: 99000 }),
+      order({ id: "d", status: "new", price: 7000 }),
+    ];
+    const s = computeCustomerStats(orders);
+    expect(s.totalOrders).toBe(4);
+    expect(s.totalSpent).toBe(15000); // cancelled + new excluded
+    expect(s.deliveredCount).toBe(1);
+    expect(s.completedCount).toBe(1);
+    expect(s.cancelledCount).toBe(1);
+    expect(s.cancelRate).toBeCloseTo(0.25);
+  });
+
+  it("returns zero cancelRate for empty input", () => {
+    const s = computeCustomerStats([]);
+    expect(s.totalOrders).toBe(0);
+    expect(s.cancelRate).toBe(0);
+  });
+});
+
+describe("isRepeatCustomer", () => {
+  it("requires 3+ orders and at least one fulfilled", () => {
+    expect(isRepeatCustomer(computeCustomerStats([
+      order({ id: "a", status: "delivered" }),
+      order({ id: "b", status: "new" }),
+      order({ id: "c", status: "new" }),
+    ]))).toBe(true);
+    expect(isRepeatCustomer(computeCustomerStats([
+      order({ id: "a", status: "new" }),
+      order({ id: "b", status: "new" }),
+      order({ id: "c", status: "new" }),
+    ]))).toBe(false);
+    expect(isRepeatCustomer(computeCustomerStats([
+      order({ id: "a", status: "delivered" }),
+    ]))).toBe(false);
+  });
+});
