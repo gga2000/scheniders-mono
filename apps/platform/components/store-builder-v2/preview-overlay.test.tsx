@@ -21,6 +21,7 @@ function makeBridge(state: Partial<BridgeState> = {}): UseIframeBridgeReturn {
         hovered_section_id: null,
         hovered_rect: null,
         rect_updates: {},
+        inline_editing: false,
         ...state,
     };
     return {
@@ -29,6 +30,8 @@ function makeBridge(state: Partial<BridgeState> = {}): UseIframeBridgeReturn {
         requestRect: vi.fn(),
         ping: vi.fn().mockResolvedValue(undefined),
         onSectionClicked: vi.fn().mockReturnValue(() => {}),
+        setSelectedSection: vi.fn(),
+        onInlineEditCommit: vi.fn().mockReturnValue(() => {}),
         postPageConfigUpdate: vi.fn(),
         postRuntimeUpdate: vi.fn(),
         postPageIdChange: vi.fn(),
