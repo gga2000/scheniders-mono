@@ -28,12 +28,14 @@ export function MessageList({
     firstUnreadId,
     focusMessageId,
     onFocused,
+    onForward,
 }: {
     messages: ChatMessage[];
     loading?: boolean;
     firstUnreadId?: string | null;
     focusMessageId?: string | null;
     onFocused?: () => void;
+    onForward?: (msg: ChatMessage) => void;
 }) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const nearBottomRef = useRef(true);
@@ -239,6 +241,7 @@ export function MessageList({
                             senderName={u?.display_name ?? "Teammate"}
                             senderAvatar={u?.avatar_url}
                             parentMessage={m.reply_to_id ? messageMap.get(m.reply_to_id) : undefined}
+                            onForward={onForward}
                         />
                     </div>
                 );

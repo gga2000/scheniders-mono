@@ -19,10 +19,13 @@ import { Composer } from "./composer";
 import { SearchPanel } from "./search-panel";
 import { OrderThreadCard } from "./order-thread-card";
 import { PinnedBar } from "./pinned-bar";
+import { ForwardDialog } from "./forward-dialog";
+import type { ChatMessage } from "@/types/chat";
 
 export function ChatSheet() {
     const { isOpen, close, activeConversationId, setActiveConversation, openSettings, focusMessageId, clearFocusMessage } = useChatStore();
     const [searchOpen, setSearchOpen] = useState(false);
+    const [forwardMessage, setForwardMessage] = useState<ChatMessage | null>(null);
     const isMobile = useIsMobile(768);
     const { t } = useLanguage();
     const { data: messages = [], sendMessage, markRead, isLoading } = useMessages(activeConversationId);
@@ -249,6 +252,7 @@ export function ChatSheet() {
                                             firstUnreadId={firstUnreadId}
                                             focusMessageId={focusMessageId}
                                             onFocused={clearFocusMessage}
+                                            onForward={setForwardMessage}
                                         />
                                         <AnimatePresence>
                                             {typers.length > 0 && (
@@ -294,6 +298,10 @@ export function ChatSheet() {
                             </div>
                             )}
                         </div>
+                        <ForwardDialog
+                            message={forwardMessage}
+                            onClose={() => setForwardMessage(null)}
+                        />
                     </motion.aside>
                     </div>
                 </>

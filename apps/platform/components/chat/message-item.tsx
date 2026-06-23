@@ -2,10 +2,11 @@
 "use client";
 import { useMemo, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
+import { useQueryClient } from "@tanstack/react-query";
 import { ChatAvatar } from "./chat-avatar";
 import { MessageActions } from "./message-actions";
 import { formatDistanceToNow } from "date-fns";
-import { CornerUpLeft, FileText, Paperclip } from "lucide-react";
+import { AlertCircle, CornerUpLeft, FileText, Paperclip, RefreshCw, Trash2 } from "lucide-react";
 import { ReferenceCard } from "./reference-card";
 import { ReactionBar } from "./reaction-bar";
 import { supabase } from "@/lib/supabase";
@@ -15,6 +16,8 @@ import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
 import { useChatStore } from "@/store/use-chat-store";
 import { useAuth } from "@/hooks/use-auth";
 import { usePins } from "@/hooks/chat/use-pins";
+import { useMessages } from "@/hooks/chat/use-messages";
+import { chatKeys } from "@/hooks/chat/use-conversations";
 import { PIPELINE_STAGE_REGISTRY } from "@/lib/order-pipeline";
 import type { PipelineStageId } from "@/lib/order-pipeline";
 import type { ChatMessage, ChatSystemEvent } from "@/types/chat";
@@ -111,18 +114,22 @@ export function MessageItem({
     senderName,
     senderAvatar,
     parentMessage,
+    onForward,
 }: {
     message: ChatMessage;
     senderName: string;
     senderAvatar?: string | null;
     parentMessage?: ChatMessage;
+    onForward?: (msg: ChatMessage) => void;
 }) {
     const { t } = useLanguage();
     const reduceMotion = useReducedMotion();
     const { data: members } = useTenantMembers();
     const { user } = useAuth();
+    const qc = useQueryClient();
     const setReplyTo = useChatStore((s) => s.setReplyTo);
     const { data: pins } = usePins(message.conversation_id);
+    const { retrySend } = useMessages(message.conversation_id);
 
     const [isEditing, setIsEditing] = useState(false);
     const [editBody, setEditBody] = useState(message.body);
@@ -206,7 +213,7 @@ export function MessageItem({
             animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
             className={`group relative flex gap-2.5 px-4 py-1.5 transition-colors hover:bg-black/2.5 ${
-                message.pending ? "opacity-60" : ""
+                message.pending && !message.failed ? "opacity-60" : ""
             }`}
         >
             {/* Action menu: positioned in the top-right corner, shown on hover */}
@@ -217,9 +224,7 @@ export function MessageItem({
                         isPinned={isPinned}
                         isOwn={isOwn}
                         onReply={() => setReplyTo(message.id)}
-                        onForward={() => {
-                            // Forward dialog is Task 6 — no-op placeholder for now
-                        }}
+                        onForward={() => onForward?.(message)}
                         onEdit={() => {
                             setEditBody(message.body);
                             setIsEditing(true);
@@ -319,12 +324,48 @@ export function MessageItem({
                         ))}
                     </div>
                 )}
-                {!message.pending && (
-                    <ReactionBar
-                        messageId={message.id}
-                        conversationId={message.conversation_id}
-                        reactions={message.reactions ?? []}
-                    />
+                {/* Send-failure affordance — shown instead of the reaction bar */}
+                {message.failed ? (
+                    <div className="mt-1 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50/80 px-2.5 py-1.5 dark:border-red-900/40 dark:bg-red-900/20">
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />
+                        <span className="text-[11px] font-medium text-red-600 dark:text-red-400">
+                            {t("chat.sendFailedLabel", "Failed to send")}
+                        </span>
+                        <div className="ml-auto flex items-center gap-1">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (message.client_msg_id) retrySend(message.client_msg_id);
+                                }}
+                                className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium text-red-600 transition-colors hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/40"
+                            >
+                                <RefreshCw className="h-3 w-3" />
+                                {t("chat.retry", "Retry")}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (!message.client_msg_id) return;
+                                    qc.setQueryData<ChatMessage[]>(
+                                        chatKeys.messages(message.conversation_id),
+                                        (old = []) => old.filter((m) => m.client_msg_id !== message.client_msg_id)
+                                    );
+                                }}
+                                className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+                            >
+                                <Trash2 className="h-3 w-3" />
+                                {t("chat.delete", "Delete")}
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    !message.pending && (
+                        <ReactionBar
+                            messageId={message.id}
+                            conversationId={message.conversation_id}
+                            reactions={message.reactions ?? []}
+                        />
+                    )
                 )}
             </div>
         </motion.div>
