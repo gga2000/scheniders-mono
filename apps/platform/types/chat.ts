@@ -65,6 +65,7 @@ export interface ChatMessage {
     reactions?: ChatReaction[];
     attachments?: ChatAttachment[];
     pending?: boolean;       // optimistic, not yet acked
+    failed?: boolean;        // optimistic send failed; kept visible for retry
 }
 
 export interface ChatMentionNotification {
