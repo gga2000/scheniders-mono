@@ -18,6 +18,7 @@ import { MessageList } from "./message-list";
 import { Composer } from "./composer";
 import { SearchPanel } from "./search-panel";
 import { OrderThreadCard } from "./order-thread-card";
+import { PinnedBar } from "./pinned-bar";
 
 export function ChatSheet() {
     const { isOpen, close, activeConversationId, setActiveConversation, openSettings, focusMessageId, clearFocusMessage } = useChatStore();
@@ -241,6 +242,7 @@ export function ChatSheet() {
                                         {activeConversation?.kind === "order" && (
                                             <OrderThreadCard conversationId={activeConversationId} />
                                         )}
+                                        <PinnedBar conversationId={activeConversationId} />
                                         <MessageList
                                             messages={messages}
                                             loading={isLoading}
