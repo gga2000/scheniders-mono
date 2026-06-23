@@ -11,6 +11,8 @@ interface ChatUIState {
     activeConversationId: string | null;
     settingsConversationId: string | null;
     focusMessageId: string | null;
+    /** Id of the message the composer is replying to (quote-reply). Null = no reply. */
+    replyToId: string | null;
 
     // ------------------------------------------------------------------
     // Persisted: per-conversation draft text
@@ -30,6 +32,7 @@ interface ChatUIState {
     clearFocusMessage: () => void;
     setDraft: (conversationId: string, text: string) => void;
     clearDraft: (conversationId: string) => void;
+    setReplyTo: (messageId: string | null) => void;
 }
 
 export const useChatStore = create<ChatUIState>()(
@@ -43,6 +46,7 @@ export const useChatStore = create<ChatUIState>()(
             activeConversationId: null,
             settingsConversationId: null,
             focusMessageId: null,
+            replyToId: null,
 
             // ------------------------------------------------------------------
             // Persisted defaults
@@ -70,6 +74,7 @@ export const useChatStore = create<ChatUIState>()(
                     delete next[conversationId];
                     return { drafts: next };
                 }),
+            setReplyTo: (messageId) => set({ replyToId: messageId }),
         }),
         {
             name: "chat-drafts",

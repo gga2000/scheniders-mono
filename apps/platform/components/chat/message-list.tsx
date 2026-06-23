@@ -85,6 +85,13 @@ export function MessageList({
         return map;
     }, [members]);
 
+    // id → message map for resolving reply-to parents without an extra fetch.
+    const messageMap = useMemo(() => {
+        const map = new Map<string, ChatMessage>();
+        for (const m of messages) map.set(m.id, m);
+        return map;
+    }, [messages]);
+
     // Auto-scroll only when the user is already near the bottom; otherwise surface a
     // "new messages" pill instead of yanking them away from history they're reading.
     const lastId = messages[messages.length - 1]?.id;
@@ -231,6 +238,7 @@ export function MessageList({
                             message={m}
                             senderName={u?.display_name ?? "Teammate"}
                             senderAvatar={u?.avatar_url}
+                            parentMessage={m.reply_to_id ? messageMap.get(m.reply_to_id) : undefined}
                         />
                     </div>
                 );

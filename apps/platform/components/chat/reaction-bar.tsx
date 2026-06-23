@@ -4,10 +4,12 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { SmilePlus } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui/popover";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/components/providers/language-provider";
+import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
 import { chatKeys } from "@/hooks/chat/use-conversations";
 import type { ChatReaction, ChatMessage } from "@/types/chat";
 
@@ -25,17 +27,27 @@ export function ReactionBar({
     const { user } = useAuth();
     const { t } = useLanguage();
     const qc = useQueryClient();
+    const { data: members } = useTenantMembers();
     const [pickerOpen, setPickerOpen] = useState(false);
+
+    // id → display_name map for resolving reactor names without a new fetch.
+    const memberMap = useMemo(() => {
+        const map = new Map<string, string>();
+        for (const m of members ?? []) map.set(m.user_id, m.display_name);
+        return map;
+    }, [members]);
+
     const grouped = useMemo(() => {
-        const map = new Map<string, { count: number; mine: boolean }>();
+        const map = new Map<string, { count: number; mine: boolean; reactors: string[] }>();
         for (const r of reactions) {
-            const cur = map.get(r.emoji) ?? { count: 0, mine: false };
+            const cur = map.get(r.emoji) ?? { count: 0, mine: false, reactors: [] };
             cur.count += 1;
             if (r.user_id === user?.id) cur.mine = true;
+            cur.reactors.push(memberMap.get(r.user_id) ?? t("chat.teammate", "Teammate"));
             map.set(r.emoji, cur);
         }
         return Array.from(map.entries());
-    }, [reactions, user?.id]);
+    }, [reactions, user?.id, memberMap, t]);
 
     const toggle = async (emoji: string, mine: boolean) => {
         if (!user?.id) return;
@@ -66,22 +78,44 @@ export function ReactionBar({
     const hasReactions = grouped.length > 0;
     return (
         <div className={`flex flex-wrap items-center gap-1.5 ${hasReactions ? "mt-1.5" : "mt-1"}`}>
-            {grouped.map(([emoji, { count, mine }]) => (
-                <motion.button
-                    key={emoji}
-                    onClick={() => toggle(emoji, mine)}
-                    initial={{ scale: 0.85, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    whileTap={{ scale: 0.92 }}
-                    className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors ${
-                        mine
-                            ? "border-indigo-300 bg-indigo-50 text-indigo-700"
-                            : "border-[var(--card-border)] bg-[var(--card-bg)] text-foreground/80 hover:border-black/20"
-                    }`}
-                >
-                    <span className="text-sm leading-none">{emoji}</span>
-                    <span className="tabular-nums">{count}</span>
-                </motion.button>
+            {grouped.map(([emoji, { count, mine, reactors }]) => (
+                <Popover key={emoji}>
+                    <PopoverTrigger asChild>
+                        <motion.button
+                            onClick={() => toggle(emoji, mine)}
+                            initial={{ scale: 0.85, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            whileTap={{ scale: 0.92 }}
+                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors ${
+                                mine
+                                    ? "border-indigo-300 bg-indigo-50 text-indigo-700"
+                                    : "border-(--card-border) bg-(--card-bg) text-foreground/80 hover:border-black/20"
+                            }`}
+                        >
+                            <span className="text-sm leading-none">{emoji}</span>
+                            <span className="tabular-nums">{count}</span>
+                        </motion.button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                        side="top"
+                        align="start"
+                        sideOffset={4}
+                        className="w-auto min-w-[120px] max-w-[220px] p-2 bg-(--card-bg) border-(--card-border)"
+                        // Stop click-through to the toggle handler on the trigger
+                        onOpenAutoFocus={(e) => e.preventDefault()}
+                    >
+                        <p className="mb-1 text-[11px] font-semibold text-muted-foreground">
+                            {t("chat.reactedBy", "Reacted with {emoji}", { emoji })}
+                        </p>
+                        <ul className="space-y-0.5">
+                            {reactors.map((name, i) => (
+                                <li key={i} className="text-[12px] text-foreground/90">
+                                    {name}
+                                </li>
+                            ))}
+                        </ul>
+                    </PopoverContent>
+                </Popover>
             ))}
             {/* Add-reaction affordance. The picker opens on CLICK (works on touch,
                 unlike hover-only). On desktop the trigger reveals on message hover when
@@ -92,7 +126,7 @@ export function ReactionBar({
                     aria-label={t("chat.reaction.add", "Add reaction")}
                     aria-expanded={pickerOpen}
                     onClick={() => setPickerOpen((o) => !o)}
-                    className={`flex h-6 w-6 items-center justify-center rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] transition-colors hover:border-black/20 hover:text-foreground ${pickerOpen ? "text-foreground" : "text-muted-foreground"}`}
+                    className={`flex h-6 w-6 items-center justify-center rounded-full border border-(--card-border) bg-(--card-bg) transition-colors hover:border-black/20 hover:text-foreground ${pickerOpen ? "text-foreground" : "text-muted-foreground"}`}
                 >
                     <SmilePlus className="h-3.5 w-3.5" />
                 </button>
@@ -103,10 +137,10 @@ export function ReactionBar({
                             type="button"
                             aria-hidden
                             tabIndex={-1}
-                            className="fixed inset-0 z-[9] cursor-default"
+                            className="fixed inset-0 z-9 cursor-default"
                             onClick={() => setPickerOpen(false)}
                         />
-                        <div className="absolute bottom-full left-0 z-10 mb-1 flex gap-0.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-1 shadow-xl">
+                        <div className="absolute bottom-full left-0 z-10 mb-1 flex gap-0.5 rounded-xl border border-(--card-border) bg-(--card-bg) p-1 shadow-xl">
                             {QUICK.map((e) => (
                                 <button
                                     key={e}

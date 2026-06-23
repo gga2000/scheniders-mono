@@ -1,15 +1,20 @@
 // apps/platform/components/chat/message-item.tsx
 "use client";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { ChatAvatar } from "./chat-avatar";
+import { MessageActions } from "./message-actions";
 import { formatDistanceToNow } from "date-fns";
-import { FileText, Paperclip } from "lucide-react";
+import { CornerUpLeft, FileText, Paperclip } from "lucide-react";
 import { ReferenceCard } from "./reference-card";
 import { ReactionBar } from "./reaction-bar";
 import { supabase } from "@/lib/supabase";
+import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/components/providers/language-provider";
 import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
+import { useChatStore } from "@/store/use-chat-store";
+import { useAuth } from "@/hooks/use-auth";
+import { usePins } from "@/hooks/chat/use-pins";
 import { PIPELINE_STAGE_REGISTRY } from "@/lib/order-pipeline";
 import type { PipelineStageId } from "@/lib/order-pipeline";
 import type { ChatMessage, ChatSystemEvent } from "@/types/chat";
@@ -60,18 +65,67 @@ function SystemEventPill({ event, t, memberMap }: {
     );
 }
 
+/** Inline quote-reply preview shown above the message body. */
+function QuotePreview({
+    parentMessage,
+    parentSenderName,
+    conversationId,
+    replyToId,
+    t,
+}: {
+    parentMessage: ChatMessage | undefined;
+    parentSenderName: string;
+    conversationId: string;
+    replyToId: string;
+    t: (key: string, fallback: string) => string;
+}) {
+    const openMessage = useChatStore((s) => s.openMessage);
+
+    const handleClick = () => {
+        openMessage(conversationId, replyToId);
+    };
+
+    return (
+        <button
+            type="button"
+            onClick={handleClick}
+            className="mb-1 flex w-full items-start gap-1.5 rounded-lg border-l-2 border-indigo-400 bg-indigo-50/60 px-2.5 py-1.5 text-left transition-colors hover:bg-indigo-50 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/30"
+        >
+            <CornerUpLeft className="mt-0.5 h-3 w-3 shrink-0 text-indigo-400" />
+            <div className="min-w-0 flex-1">
+                <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">
+                    {parentSenderName}
+                </span>
+                <p className="truncate text-[11px] text-muted-foreground">
+                    {parentMessage
+                        ? (parentMessage.body || t("chat.attachment", "Attachment"))
+                        : t("chat.originalMessage", "Original message")}
+                </p>
+            </div>
+        </button>
+    );
+}
+
 export function MessageItem({
     message,
     senderName,
     senderAvatar,
+    parentMessage,
 }: {
     message: ChatMessage;
     senderName: string;
     senderAvatar?: string | null;
+    parentMessage?: ChatMessage;
 }) {
     const { t } = useLanguage();
     const reduceMotion = useReducedMotion();
     const { data: members } = useTenantMembers();
+    const { user } = useAuth();
+    const setReplyTo = useChatStore((s) => s.setReplyTo);
+    const { data: pins } = usePins(message.conversation_id);
+
+    const [isEditing, setIsEditing] = useState(false);
+    const [editBody, setEditBody] = useState(message.body);
 
     // Memoized member map for resolving assignee display names in system events.
     // The same query data is already cached (MessageList uses it too), so this
@@ -82,6 +136,18 @@ export function MessageItem({
         ),
         [members]
     );
+
+    const parentSenderName = useMemo(() => {
+        if (!parentMessage?.sender_id) return t("chat.teammate", "Teammate");
+        return memberMap.get(parentMessage.sender_id)?.display_name ?? t("chat.teammate", "Teammate");
+    }, [parentMessage, memberMap, t]);
+
+    const isPinned = useMemo(
+        () => (pins ?? []).some((p) => p.message_id === message.id),
+        [pins, message.id]
+    );
+
+    const isOwn = message.sender_id === user?.id;
 
     // System events render as a centered muted pill — no avatar, no bubble.
     if (message.is_system && message.system_event) {
@@ -101,19 +167,68 @@ export function MessageItem({
             </div>
         );
     }
+
     const openAttachment = async (storagePath: string) => {
         const { data } = await supabase.storage.from("chat-attachments").createSignedUrl(storagePath, 60);
         if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener,noreferrer");
     };
+
+    const handleEditSave = async () => {
+        const newBody = editBody.trim();
+        if (!newBody || newBody === message.body) {
+            setIsEditing(false);
+            setEditBody(message.body);
+            return;
+        }
+        const { error } = await supabase
+            .from("chat_messages")
+            .update({ body: newBody, edited_at: new Date().toISOString() })
+            .eq("id", message.id);
+        if (error) {
+            toast.error(t("chat.editFailed", "Couldn't edit message"));
+        }
+        setIsEditing(false);
+    };
+
+    const handleDelete = async () => {
+        const { error } = await supabase
+            .from("chat_messages")
+            .update({ deleted_at: new Date().toISOString() })
+            .eq("id", message.id);
+        if (error) {
+            toast.error(t("chat.deleteFailed", "Couldn't delete message"));
+        }
+    };
+
     return (
         <motion.div
             initial={reduceMotion ? false : { opacity: 0, y: 4 }}
             animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
-            className={`group relative flex gap-2.5 px-4 py-1.5 transition-colors hover:bg-black/[0.025] ${
+            className={`group relative flex gap-2.5 px-4 py-1.5 transition-colors hover:bg-black/2.5 ${
                 message.pending ? "opacity-60" : ""
             }`}
         >
+            {/* Action menu: positioned in the top-right corner, shown on hover */}
+            {!message.pending && (
+                <div className="absolute top-1 right-3 z-10">
+                    <MessageActions
+                        message={message}
+                        isPinned={isPinned}
+                        isOwn={isOwn}
+                        onReply={() => setReplyTo(message.id)}
+                        onForward={() => {
+                            // Forward dialog is Task 6 — no-op placeholder for now
+                        }}
+                        onEdit={() => {
+                            setEditBody(message.body);
+                            setIsEditing(true);
+                        }}
+                        onDelete={() => void handleDelete()}
+                    />
+                </div>
+            )}
+
             <ChatAvatar userId={message.sender_id ?? ""} name={senderName} avatarUrl={senderAvatar} size="sm" />
             <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-2">
@@ -125,11 +240,63 @@ export function MessageItem({
                         <span className="text-[10px] text-muted-foreground/80">({t("chat.edited", "edited")})</span>
                     )}
                 </div>
-                {message.body && (
-                    <div className="whitespace-pre-wrap break-words text-[13.5px] leading-relaxed text-foreground/90">
-                        {message.body}
-                    </div>
+
+                {/* Quote-reply preview */}
+                {message.reply_to_id && (
+                    <QuotePreview
+                        parentMessage={parentMessage}
+                        parentSenderName={parentSenderName}
+                        conversationId={message.conversation_id}
+                        replyToId={message.reply_to_id}
+                        t={t}
+                    />
                 )}
+
+                {/* Body: inline edit textarea or rendered text */}
+                {isEditing ? (
+                    <div className="flex flex-col gap-1.5">
+                        <textarea
+                            value={editBody}
+                            onChange={(e) => setEditBody(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                                    e.preventDefault();
+                                    void handleEditSave();
+                                }
+                                if (e.key === "Escape") {
+                                    setIsEditing(false);
+                                    setEditBody(message.body);
+                                }
+                            }}
+                            autoFocus
+                            rows={2}
+                            className="w-full resize-none rounded-lg border border-(--card-border) bg-(--card-bg) px-2.5 py-1.5 text-[13.5px] leading-relaxed text-foreground/90 outline-none focus:ring-2 focus:ring-indigo-400/40"
+                        />
+                        <div className="flex items-center gap-2 text-[11px]">
+                            <button
+                                type="button"
+                                onClick={() => void handleEditSave()}
+                                className="rounded-md bg-indigo-600 px-2.5 py-1 font-semibold text-white transition-colors hover:bg-indigo-700"
+                            >
+                                {t("chat.save", "Save")}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { setIsEditing(false); setEditBody(message.body); }}
+                                className="rounded-md px-2.5 py-1 text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+                            >
+                                {t("chat.cancel", "Cancel")}
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    message.body && (
+                        <div className="whitespace-pre-wrap wrap-break-word text-[13.5px] leading-relaxed text-foreground/90">
+                            {message.body}
+                        </div>
+                    )
+                )}
+
                 {(message.references ?? []).map((r, i) => (
                     <ReferenceCard key={i} reference={r} />
                 ))}
@@ -140,7 +307,7 @@ export function MessageItem({
                                 key={i}
                                 type="button"
                                 onClick={() => openAttachment(a.storage_path)}
-                                className="inline-flex max-w-[220px] items-center gap-2 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-xs text-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
+                                className="inline-flex max-w-[220px] items-center gap-2 rounded-xl border border-(--card-border) bg-(--card-bg) px-3 py-2 text-xs text-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
                             >
                                 {isImage(a.mime) ? (
                                     <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
