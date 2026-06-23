@@ -1,9 +1,9 @@
 // apps/platform/components/chat/composer.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { FileText, Paperclip, Send, Smile, X } from "lucide-react";
+import { CornerUpLeft, FileText, Paperclip, Send, Smile, X } from "lucide-react";
 import { Textarea } from "@scheniders/ui/textarea";
 import { Button } from "@scheniders/ui/button";
 import { supabase } from "@/lib/supabase";
@@ -12,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/components/providers/language-provider";
 import { useReferenceSearch } from "@/hooks/chat/use-reference-search";
 import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
+import { useChatStore } from "@/store/use-chat-store";
 import { ChatAvatar } from "./chat-avatar";
 import type { ChatReference, ChatAttachment } from "@/types/chat";
 
@@ -25,6 +26,8 @@ const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gi
 // only) would never open the #/@ autocomplete for Arabic input.
 const REF_TOKEN = /#([\p{L}\p{N}_]*)$/u;
 const MENTION_TOKEN = /@([\p{L}\p{N}_]*)$/u;
+// Draft write debounce — avoids thrashing localStorage on every keystroke.
+const DRAFT_DEBOUNCE_MS = 400;
 
 /** A pending attachment paired with an object URL for image previews. */
 interface PendingFile {
@@ -44,13 +47,16 @@ export function Composer({
         mentions: string[];
         attachments: ChatAttachment[];
         clientMsgId: string;
+        replyToId: string | null;
     }) => void | Promise<unknown>;
     onTyping: () => void;
 }) {
     const { user, tenantId } = useAuth();
     const { t } = useLanguage();
 
-    const [body, setBody] = useState("");
+    const { drafts, setDraft, clearDraft, replyToId, setReplyTo } = useChatStore();
+
+    const [body, setBody] = useState(() => drafts[conversationId] ?? "");
     const [refs, setRefs] = useState<ChatReference[]>([]);
     const [mentions, setMentions] = useState<string[]>([]);
     const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
@@ -64,9 +70,17 @@ export function Composer({
 
     const fileRef = useRef<HTMLInputElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const refResults = useReferenceSearch(refQuery ?? "");
     const { data: members = [] } = useTenantMembers();
+
+    // Member map for resolving the reply-to sender name in the chip.
+    const memberMap = useMemo(() => {
+        const map = new Map<string, string>();
+        for (const m of members) map.set(m.user_id, m.display_name);
+        return map;
+    }, [members]);
 
     const mentionResults = useMemo(() => {
         if (mentionQuery === null) return [];
@@ -77,6 +91,20 @@ export function Composer({
             .slice(0, MAX_MENTION_RESULTS);
     }, [members, mentionQuery, user?.id]);
 
+    // Seed textarea from the persisted draft when the active conversation changes.
+    // Clear reply-to on conversation switch so stale reply state doesn't carry over.
+    useEffect(() => {
+        setBody(drafts[conversationId] ?? "");
+        setRefs([]);
+        setMentions([]);
+        setRefQuery(null);
+        setMentionQuery(null);
+        setReplyTo(null);
+        textareaRef.current?.focus();
+    // conversationId is the only dep that should trigger a reset
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [conversationId]);
+
     // Revoke any outstanding object URLs when the pending list changes out from
     // under us or the component unmounts, so we don't leak blob handles.
     useEffect(() => {
@@ -86,6 +114,21 @@ export function Composer({
             }
         };
     }, [pendingFiles]);
+
+    /** Write the draft to the store after a debounce delay. */
+    const scheduleDraftWrite = useCallback(
+        (conversationId: string, text: string) => {
+            if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+            draftTimerRef.current = setTimeout(() => {
+                if (text) {
+                    setDraft(conversationId, text);
+                } else {
+                    clearDraft(conversationId);
+                }
+            }, DRAFT_DEBOUNCE_MS);
+        },
+        [setDraft, clearDraft]
+    );
 
     /** Recompute which (if any) trailing token autocomplete should be shown. */
     const syncTokens = (value: string) => {
@@ -107,6 +150,7 @@ export function Composer({
         setBody(value);
         onTyping();
         syncTokens(value);
+        scheduleDraftWrite(conversationId, value);
     };
 
     const selectReference = (r: (typeof refResults)[number]) => {
@@ -196,6 +240,9 @@ export function Composer({
         if ((!text && pendingFiles.length === 0) || isUploading) return;
         if (!tenantId || !user) return;
 
+        // Capture replyToId before clearing it
+        const currentReplyToId = replyToId;
+
         setIsUploading(true);
         let uploaded: ChatAttachment[] = [];
         try {
@@ -209,6 +256,7 @@ export function Composer({
                 mentions,
                 attachments: uploaded,
                 clientMsgId: crypto.randomUUID(),
+                replyToId: currentReplyToId,
             });
             // Success: clear previews before dropping the list (effect cleanup also guards).
             for (const pf of pendingFiles) {
@@ -220,6 +268,11 @@ export function Composer({
             setPendingFiles([]);
             setRefQuery(null);
             setMentionQuery(null);
+            setReplyTo(null);
+            // Clear the persisted draft on successful send
+            clearDraft(conversationId);
+            // Cancel any pending draft write
+            if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
         } catch {
             // Roll back orphaned storage objects from this failed attempt and keep the
             // user's input so they can retry.
@@ -238,9 +291,37 @@ export function Composer({
 
     return (
         <div
-            className="relative border-t border-[var(--card-border,rgba(0,0,0,0.08))] bg-[var(--card-bg)] p-2"
+            className="relative border-t border-(--card-border) bg-(--card-bg) p-2"
             style={{ paddingBottom: "calc(0.5rem + var(--safe-area-bottom, 0px))" }}
         >
+            {/* Reply-to chip: shown when the user has clicked "Reply" on a message */}
+            {replyToId && (
+                <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mb-2 flex items-center gap-2 rounded-lg border-l-2 border-indigo-400 bg-indigo-50/60 px-2.5 py-1.5"
+                >
+                    <CornerUpLeft className="h-3.5 w-3.5 shrink-0 text-indigo-400" />
+                    <span className="min-w-0 flex-1 truncate text-[12px] text-indigo-700">
+                        <span className="font-semibold">{t("chat.replyingTo", "Replying to")}</span>{" "}
+                        {memberMap.get(
+                            // We don't have the parent message here — the chip just shows the label;
+                            // the full preview lives in message-item's QuotePreview
+                            ""
+                        ) ?? ""}
+                    </span>
+                    <button
+                        type="button"
+                        aria-label={t("chat.cancelReply", "Cancel reply")}
+                        onClick={() => setReplyTo(null)}
+                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-indigo-500 transition-colors hover:bg-indigo-100 hover:text-indigo-700"
+                    >
+                        <X className="h-3.5 w-3.5" />
+                    </button>
+                </motion.div>
+            )}
+
             {/* Selected reference + mention chips */}
             {(refs.length > 0 || mentions.length > 0) && (
                 <div className="mb-2 flex flex-wrap gap-1.5">
@@ -294,7 +375,7 @@ export function Composer({
                             key={`file-${i}-${pf.file.name}`}
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="flex items-center gap-2 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] py-1 pl-1 pr-1.5 shadow-sm"
+                            className="flex items-center gap-2 rounded-xl border border-(--card-border) bg-(--card-bg) py-1 pl-1 pr-1.5 shadow-sm"
                         >
                             {pf.previewUrl ? (
                                 // eslint-disable-next-line @next/next/no-img-element -- local object-URL preview, not a remote asset
@@ -304,7 +385,7 @@ export function Composer({
                                     className="h-9 w-9 rounded-lg object-cover"
                                 />
                             ) : (
-                                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--background)] text-muted-foreground">
+                                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-background text-muted-foreground">
                                     <FileText className="h-4 w-4" />
                                 </span>
                             )}
@@ -349,7 +430,7 @@ export function Composer({
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: 6 }}
                                 transition={{ duration: 0.14 }}
-                                className="absolute bottom-full left-0 z-10 mb-1.5 max-h-64 w-full overflow-y-auto overscroll-contain rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-1 shadow-xl"
+                                className="absolute bottom-full left-0 z-10 mb-1.5 max-h-64 w-full overflow-y-auto overscroll-contain rounded-xl border border-(--card-border) bg-(--card-bg) p-1 shadow-xl"
                             >
                                 {refResults.map((r) => (
                                     <button
@@ -374,7 +455,7 @@ export function Composer({
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: 6 }}
                                 transition={{ duration: 0.14 }}
-                                className="absolute bottom-full left-0 z-10 mb-1.5 max-h-64 w-full overflow-y-auto overscroll-contain rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-1 shadow-xl"
+                                className="absolute bottom-full left-0 z-10 mb-1.5 max-h-64 w-full overflow-y-auto overscroll-contain rounded-xl border border-(--card-border) bg-(--card-bg) p-1 shadow-xl"
                             >
                                 {mentionResults.map((m) => (
                                     <button
@@ -402,7 +483,7 @@ export function Composer({
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.92, y: 6 }}
                                 transition={{ duration: 0.14 }}
-                                className="absolute bottom-full right-0 z-10 mb-1.5 flex gap-0.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-1.5 shadow-xl"
+                                className="absolute bottom-full right-0 z-10 mb-1.5 flex gap-0.5 rounded-xl border border-(--card-border) bg-(--card-bg) p-1.5 shadow-xl"
                             >
                                 {QUICK_EMOJIS.map((emoji) => (
                                     <button

@@ -268,7 +268,10 @@ export function ChatSheet() {
                                         <Composer
                                             conversationId={activeConversationId}
                                             onTyping={notifyTyping}
-                                            onSend={(a) => sendMessage.mutateAsync(a)}
+                                            onSend={(a) => sendMessage.mutateAsync({
+                                                ...a,
+                                                replyToId: a.replyToId ?? null,
+                                            })}
                                         />
                                     </>
                                 ) : (
