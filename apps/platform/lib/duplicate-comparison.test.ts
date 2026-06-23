@@ -101,3 +101,49 @@ describe("isRepeatCustomer", () => {
     ]))).toBe(false);
   });
 });
+
+import { sortByScoreDesc, reassignMergeTarget, rowAllMatch } from "./duplicate-comparison";
+
+describe("sortByScoreDesc", () => {
+  it("orders by score descending without mutating input", () => {
+    const a = order({ id: "a" });
+    const b = order({ id: "b" });
+    const c = order({ id: "c" });
+    const input = [a, b, c];
+    const out = sortByScoreDesc(input, { a: 55, b: 85, c: 60 });
+    expect(out.map((o) => o.id)).toEqual(["b", "c", "a"]);
+    expect(input.map((o) => o.id)).toEqual(["a", "b", "c"]); // unmutated
+  });
+});
+
+describe("reassignMergeTarget", () => {
+  const scores = { a: 55, b: 85, c: 60 };
+  it("keeps current target when still displayed", () => {
+    expect(reassignMergeTarget(["a", "b", "c"], "a", scores)).toBe("a");
+  });
+  it("picks highest score when target hidden", () => {
+    expect(reassignMergeTarget(["a", "c"], "b", scores)).toBe("c");
+  });
+  it("returns null when nothing displayed", () => {
+    expect(reassignMergeTarget([], "b", scores)).toBeNull();
+  });
+  it("picks highest score when target is null", () => {
+    expect(reassignMergeTarget(["a", "b"], null, scores)).toBe("b");
+  });
+});
+
+describe("rowAllMatch", () => {
+  it("true when every displayed order equals current accessor value", () => {
+    const cur = order({ city: "Baghdad" });
+    const displayed = [order({ id: "x", city: "Baghdad" }), order({ id: "y", city: "Baghdad" })];
+    expect(rowAllMatch(cur, displayed, (o) => o.city)).toBe(true);
+  });
+  it("false when any differs", () => {
+    const cur = order({ city: "Baghdad" });
+    const displayed = [order({ id: "x", city: "Basra" })];
+    expect(rowAllMatch(cur, displayed, (o) => o.city)).toBe(false);
+  });
+  it("false when nothing displayed", () => {
+    expect(rowAllMatch(order({}), [], (o) => o.city)).toBe(false);
+  });
+});

@@ -111,3 +111,34 @@ export function computeCustomerStats(orders: Order[]): CustomerStats {
 export function isRepeatCustomer(stats: CustomerStats): boolean {
   return stats.totalOrders >= 3 && stats.deliveredCount + stats.completedCount >= 1;
 }
+
+export function sortByScoreDesc(
+  orders: Order[],
+  scores: Record<string, number>,
+): Order[] {
+  return [...orders].sort((a, b) => (scores[b.id] ?? 0) - (scores[a.id] ?? 0));
+}
+
+export function reassignMergeTarget(
+  displayedIds: string[],
+  currentTargetId: string | null,
+  scores: Record<string, number>,
+): string | null {
+  if (currentTargetId && displayedIds.includes(currentTargetId)) {
+    return currentTargetId;
+  }
+  if (displayedIds.length === 0) return null;
+  return [...displayedIds].sort(
+    (a, b) => (scores[b] ?? 0) - (scores[a] ?? 0),
+  )[0];
+}
+
+export function rowAllMatch<T>(
+  current: Order,
+  displayed: Order[],
+  accessor: (o: Order) => T,
+): boolean {
+  if (displayed.length === 0) return false;
+  const cur = accessor(current);
+  return displayed.every((o) => accessor(o) === cur);
+}
