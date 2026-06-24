@@ -41,7 +41,7 @@ interface SearchResult {
     href: string;
 }
 
-export function GlobalSearch() {
+export function GlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) => void }) {
     const router = useRouter();
     // Use shared context instead of direct useOrders() call
     const { orders } = useOrdersContext();
@@ -153,6 +153,8 @@ export function GlobalSearch() {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
+    useEffect(() => { onOpenChange?.(isOpen); }, [isOpen, onOpenChange]);
+
     // Keyboard shortcuts
     useEffect(() => {
         function handleKeyDown(event: KeyboardEvent) {
@@ -262,7 +264,8 @@ export function GlobalSearch() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute top-full left-0 right-0 mt-2 bg-(--card-bg) rounded-2xl border border-(--card-border) shadow-xl overflow-hidden z-50"
+                        className="absolute top-full left-0 right-0 mt-2 bg-(--card-bg) rounded-2xl border border-(--card-border) shadow-xl overflow-hidden"
+                        style={{ zIndex: "var(--z-header-overlay)" }}
                     >
                         {results.length > 0 ? (
                             <div className="py-2">
@@ -331,6 +334,9 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
     const { user, profile } = useAuth();
 
     const [scrolled, setScrolled] = useState(false);
+    const [searchOpen, setSearchOpen] = useState(false);
+    const [notifOpen, setNotifOpen] = useState(false);
+    const anyOverlayOpen = searchOpen || notifOpen;
 
     useEffect(() => {
         if (typeof window === "undefined") return;
@@ -359,7 +365,7 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
 
                 {/* Global Search Centered - Hidden on mobile */}
                 <div className="hidden md:flex flex-1 justify-center w-full max-w-2xl mx-auto">
-                    <GlobalSearch />
+                    <GlobalSearch onOpenChange={setSearchOpen} />
                 </div>
 
                 {/* Right Side Actions */}
@@ -382,7 +388,7 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
                         <ChatTrigger />
 
                         {/* Notifications Dropdown */}
-                        <NotificationsDropdown />
+                        <NotificationsDropdown onOpenChange={setNotifOpen} />
 
                         {/* Settings */}
                         <Link
@@ -417,7 +423,7 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
                         so without this chat + notifications are unreachable on phones. */}
                     <div className="flex md:hidden items-center gap-2">
                         <ChatTrigger />
-                        <NotificationsDropdown />
+                        <NotificationsDropdown onOpenChange={setNotifOpen} />
                     </div>
                 </div>
             </div>
