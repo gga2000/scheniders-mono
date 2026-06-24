@@ -109,7 +109,7 @@ body {
   /* Cream surface that matches the page background (not white) — heavily frosted
      glass: low opacity so content blurs through, paired with a strong backdrop
      blur on the element and a thin specular top edge for depth. */
-  background: color-mix(in srgb, var(--background) 60%, transparent);
+  background: color-mix(in srgb, var(--background) 50%, transparent);
   box-shadow: inset 0 1px 0 color-mix(in srgb, white 22%, transparent);
   /* Full-bleed: extend the surface left behind the floating sidebar so the bar
      reads as one continuous strip across the top. --app-sidebar-gutter is set by
