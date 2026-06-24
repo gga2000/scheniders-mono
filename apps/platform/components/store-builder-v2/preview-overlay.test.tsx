@@ -343,6 +343,55 @@ describe("PreviewOverlay", () => {
         expect(screen.queryByTestId("preview-overlay-insert-gap")).toBeNull();
     });
 
+    it("drags the spacing handle → previews then commits the snapped value", () => {
+        const onSpacingPreview = vi.fn();
+        const onSpacingChange = vi.fn();
+        render(
+            <PreviewOverlay
+                bridge={makeBridge({
+                    rect_updates: {
+                        "sec-S": { top: 0, left: 0, width: 390, height: 100 },
+                    },
+                })}
+                selected_section_id="sec-S"
+                onEditRequest={() => {}}
+                onDeleteRequest={() => {}}
+                onAction={() => {}}
+                iframeBounds={BOUNDS}
+                selectedSpacingBottomPx={0}
+                onSpacingPreview={onSpacingPreview}
+                onSpacingChange={onSpacingChange}
+            />,
+        );
+        const handle = screen.getByTestId("preview-overlay-spacing-handle");
+        fireEvent.mouseDown(handle, { clientY: 100 });
+        fireEvent.mouseMove(window, { clientY: 140 });
+        // 40px delta snaps to the nearest 4px grid → 40.
+        expect(onSpacingPreview).toHaveBeenLastCalledWith("sec-S", 40);
+        fireEvent.mouseUp(window);
+        expect(onSpacingChange).toHaveBeenCalledWith("sec-S", 40);
+    });
+
+    it("does not render the spacing handle without onSpacingChange", () => {
+        render(
+            <PreviewOverlay
+                bridge={makeBridge({
+                    rect_updates: {
+                        "sec-S": { top: 0, left: 0, width: 390, height: 100 },
+                    },
+                })}
+                selected_section_id="sec-S"
+                onEditRequest={() => {}}
+                onDeleteRequest={() => {}}
+                onAction={() => {}}
+                iframeBounds={BOUNDS}
+            />,
+        );
+        expect(
+            screen.queryByTestId("preview-overlay-spacing-handle"),
+        ).toBeNull();
+    });
+
     it("does not render the context menu when contextMenu is null", () => {
         render(
             <PreviewOverlay

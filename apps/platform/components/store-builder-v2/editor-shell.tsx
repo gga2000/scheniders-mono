@@ -271,6 +271,9 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
 
     const iframe_ref = useRef<HTMLIFrameElement | null>(null);
     const preview_container_ref = useRef<HTMLDivElement | null>(null);
+    // True while a spacing-drag is streaming transient configs to the iframe —
+    // pauses config-push so the committed config doesn't overwrite the preview.
+    const spacing_dragging_ref = useRef<boolean>(false);
     const bridge = useIframeBridge(iframe_ref);
     const [iframe_bounds, set_iframe_bounds] = useState<DOMRect | null>(null);
 
@@ -368,6 +371,9 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         // section and reset the caret. We resume (and push the latest config)
         // when `inline_editing` flips back to false, since it's in the deps.
         if (bridge.state.inline_editing) return;
+        // While a spacing-drag streams transient configs, don't clobber them
+        // with the committed config (resumes on the commit's setConfig).
+        if (spacing_dragging_ref.current) return;
         const handle = setTimeout(() => {
             const page = builder.config.pages.find(
                 (p) => p.page_id === builder.active_page,
@@ -590,6 +596,9 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
 
     const handleSectionSpacingChange = useCallback(
         (section_id: string, bottom_px: number): void => {
+            // Drag committed → resume config-push (the setConfig below re-fires
+            // the effect, which posts the committed config to the iframe).
+            spacing_dragging_ref.current = false;
             builder.setConfig(
                 (prev) => {
                     const page_idx = prev.pages.findIndex(
@@ -619,6 +628,29 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             );
         },
         [builder, builder.active_page],
+    );
+
+    // Live spacing-drag feedback: stream a transient page config (selected
+    // section's bottom spacing only) to the iframe without committing — the
+    // iframe reflows in place; the commit happens on mouseup.
+    const handleSpacingPreview = useCallback(
+        (section_id: string, bottom_px: number): void => {
+            spacing_dragging_ref.current = true;
+            const page = builder.config.pages.find(
+                (p) => p.page_id === builder.active_page,
+            );
+            if (!page) return;
+            const nextPage: PageConfig = {
+                ...page,
+                sections: page.sections.map((s) =>
+                    s.id === section_id
+                        ? { ...s, spacing: { ...(s.spacing ?? {}), bottom_px } }
+                        : s,
+                ),
+            };
+            bridge.postPageConfigUpdate(nextPage);
+        },
+        [builder.config, builder.active_page, bridge],
     );
 
     /* ── DnD: picker card → preview insertion ─────────────────── */
@@ -917,6 +949,13 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         if (s.label?.trim()) return s.label;
         const manifest = getManifestEntry(s.type);
         return manifest?.name.en ?? s.type;
+    }, [activeSections, selected_section_id]);
+
+    // Current bottom spacing of the selected section — seeds the drag handle.
+    const selected_spacing_bottom_px = useMemo<number>(() => {
+        if (!selected_section_id) return 0;
+        const s = activeSections.find((x) => x.id === selected_section_id);
+        return s?.spacing?.bottom_px ?? 0;
     }, [activeSections, selected_section_id]);
 
     const previewUrl = useMemo(
@@ -1596,6 +1635,11 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                                         set_picker_insert_at(insertAt);
                                         set_picker_open(true);
                                     }}
+                                    selectedSpacingBottomPx={
+                                        selected_spacing_bottom_px
+                                    }
+                                    onSpacingPreview={handleSpacingPreview}
+                                    onSpacingChange={handleSectionSpacingChange}
                                 />
                             </div>
                             <InspectorRail

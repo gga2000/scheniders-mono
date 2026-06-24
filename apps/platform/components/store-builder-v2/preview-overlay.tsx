@@ -69,7 +69,16 @@ export interface PreviewOverlayProps {
      * Derived from `bridge.state.all_rects`.
      */
     onAddAt?: (insertAt: number) => void;
+    /** Current bottom spacing (px) of the selected section — seeds the drag. */
+    selectedSpacingBottomPx?: number;
+    /** Live drag feedback — editor posts a transient config to the iframe. */
+    onSpacingPreview?: (section_id: string, bottom_px: number) => void;
+    /** Drag committed — editor writes the spacing into the config (undoable). */
+    onSpacingChange?: (section_id: string, bottom_px: number) => void;
 }
+
+const SPACING_SNAP_PX = 4;
+const SPACING_MAX_PX = 200;
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Helpers                                                              */
@@ -94,6 +103,9 @@ export function PreviewOverlay(props: PreviewOverlayProps): ReactElement | null 
         onContextMenuClose,
         onContextMenuAction,
         onAddAt,
+        selectedSpacingBottomPx,
+        onSpacingPreview,
+        onSpacingChange,
     } = props;
 
     const { state, requestRect } = bridge;
@@ -173,6 +185,64 @@ export function PreviewOverlay(props: PreviewOverlayProps): ReactElement | null 
         [onAction, selected_section_id],
     );
 
+    /* ── Spacing-drag handle ──────────────────────────────────────── */
+    // The handle sits at the selected section's bottom edge. Dragging it
+    // streams a transient config to the iframe (live reflow) and commits on
+    // release. `current` extends the handle visually while we wait for the
+    // re-measured rect to catch up.
+    const [spacingDrag, setSpacingDrag] = useState<{
+        section_id: string;
+        startY: number;
+        startBottom: number;
+        current: number;
+    } | null>(null);
+    // Mirror of `current` so the mouseup handler reads the latest value
+    // without re-installing the listeners on every mousemove.
+    const spacingValueRef = useRef<number>(0);
+
+    const beginSpacingDrag = useCallback(
+        (e: React.MouseEvent): void => {
+            if (!selected_section_id) return;
+            e.preventDefault();
+            const start = selectedSpacingBottomPx ?? 0;
+            spacingValueRef.current = start;
+            setSpacingDrag({
+                section_id: selected_section_id,
+                startY: e.clientY,
+                startBottom: start,
+                current: start,
+            });
+        },
+        [selected_section_id, selectedSpacingBottomPx],
+    );
+
+    useEffect(() => {
+        if (!spacingDrag) return;
+        const { section_id, startY, startBottom } = spacingDrag;
+        const onMove = (e: MouseEvent): void => {
+            const raw = startBottom + (e.clientY - startY);
+            const snapped = Math.round(raw / SPACING_SNAP_PX) * SPACING_SNAP_PX;
+            const clamped = Math.max(0, Math.min(SPACING_MAX_PX, snapped));
+            spacingValueRef.current = clamped;
+            setSpacingDrag((cur) =>
+                cur && cur.current !== clamped ? { ...cur, current: clamped } : cur,
+            );
+            onSpacingPreview?.(section_id, clamped);
+        };
+        const onUp = (): void => {
+            onSpacingChange?.(section_id, spacingValueRef.current);
+            setSpacingDrag(null);
+        };
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", onUp, { once: true });
+        return () => {
+            window.removeEventListener("mousemove", onMove);
+            window.removeEventListener("mouseup", onUp);
+        };
+        // Re-install only when a new drag starts, not on every value tick.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [spacingDrag?.section_id]);
+
     if (!iframeBounds) return null;
 
     return (
@@ -224,6 +294,24 @@ export function PreviewOverlay(props: PreviewOverlayProps): ReactElement | null 
                         onUp={() => handleAction("up")}
                         onDown={() => handleAction("down")}
                     />
+                    {onSpacingChange && onSpacingPreview && !state.inline_editing ? (
+                        <SpacingHandle
+                            rect={selected_rect}
+                            dragValue={
+                                spacingDrag &&
+                                spacingDrag.section_id === selected_section_id
+                                    ? spacingDrag.current
+                                    : null
+                            }
+                            dragDelta={
+                                spacingDrag &&
+                                spacingDrag.section_id === selected_section_id
+                                    ? spacingDrag.current - spacingDrag.startBottom
+                                    : 0
+                            }
+                            onMouseDown={beginSpacingDrag}
+                        />
+                    ) : null}
                 </>
             ) : null}
 
@@ -269,6 +357,56 @@ function InsertGap({ top, left, width, onClick }: InsertGapProps): ReactElement 
                 <Plus className="h-3.5 w-3.5" aria-hidden="true" />
             </span>
         </button>
+    );
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* SpacingHandle — drag the selected section's bottom spacing             */
+/* ─────────────────────────────────────────────────────────────────── */
+
+interface SpacingHandleProps {
+    rect: PreviewRect;
+    /** Current px value while dragging (null when idle). */
+    dragValue: number | null;
+    /** How far the handle has moved from the drag start (px). */
+    dragDelta: number;
+    onMouseDown: (e: React.MouseEvent) => void;
+}
+
+function SpacingHandle({
+    rect,
+    dragValue,
+    dragDelta,
+    onMouseDown,
+}: SpacingHandleProps): ReactElement {
+    const dragging = dragValue !== null;
+    // Sit at the section's bottom edge; while dragging, follow the cursor by
+    // the delta until the re-measured rect catches up.
+    const top = rect.top + rect.height + dragDelta;
+    return (
+        <div
+            data-testid="preview-overlay-spacing-handle"
+            onMouseDown={onMouseDown}
+            className="group pointer-events-auto absolute flex -translate-y-1/2 cursor-ns-resize items-center justify-center"
+            style={{ top, left: rect.left, width: rect.width, height: 16 }}
+        >
+            <span
+                className={cn(
+                    "h-1 w-12 rounded-full transition-colors",
+                    dragging
+                        ? "bg-pink-500"
+                        : "bg-pink-500/50 group-hover:bg-pink-500",
+                )}
+            />
+            {dragging ? (
+                <span
+                    data-testid="preview-overlay-spacing-readout"
+                    className="absolute right-1 rounded bg-pink-500 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow"
+                >
+                    {dragValue}px
+                </span>
+            ) : null}
+        </div>
     );
 }
 
