@@ -2843,6 +2843,8 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.uploading": "Uploading…",
         "chat.image.open": "Open image",
         "chat.image.altText": "Image",
+        // ── Phase 4 Task 8: link unfurl preview ──
+        "chat.linkPreview.open": "Open link",
     },
 
     ar: {
@@ -5681,5 +5683,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.uploading": "جارٍ الرفع…",
         "chat.image.open": "فتح الصورة",
         "chat.image.altText": "صورة",
+        // ── Phase 4 Task 8: link unfurl preview ──
+        "chat.linkPreview.open": "فتح الرابط",
     },
 };

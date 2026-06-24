@@ -21,12 +21,32 @@ import { useMessages } from "@/hooks/chat/use-messages";
 import { chatKeys } from "@/hooks/chat/use-conversations";
 import { PIPELINE_STAGE_REGISTRY } from "@/lib/order-pipeline";
 import { VoiceMessage } from "./voice-message";
+import { LinkPreview } from "./link-preview";
 import type { PipelineStageId } from "@/lib/order-pipeline";
 import type { ChatMessage, ChatSystemEvent } from "@/types/chat";
 
 /** Image attachments use the paperclip glyph; other files a document glyph. */
 function isImage(mime: string | null | undefined): boolean {
     return !!mime && mime.startsWith("image/");
+}
+
+/**
+ * Extract up to the first 2 bare http(s) URLs from a message body, deduped,
+ * for inline link-preview cards. Trailing punctuation is trimmed so common
+ * sentence endings ("see https://a.test.") don't break the URL.
+ */
+const URL_RE = /https?:\/\/[^\s<>"')\]]+/gi;
+function extractPreviewUrls(body: string): string[] {
+    const seen = new Set<string>();
+    const urls: string[] = [];
+    for (const match of body.matchAll(URL_RE)) {
+        const cleaned = match[0].replace(/[.,;:!?)\]'"]+$/, "");
+        if (!cleaned || seen.has(cleaned)) continue;
+        seen.add(cleaned);
+        urls.push(cleaned);
+        if (urls.length >= 2) break;
+    }
+    return urls;
 }
 
 /** Resolve a localized status label from the pipeline registry, falling back to the raw value. */
@@ -239,6 +259,12 @@ export function MessageItem({
         [pins, message.id]
     );
 
+    // First 1–2 bare URLs in the body → inline link-preview cards (deduped).
+    const previewUrls = useMemo(
+        () => extractPreviewUrls(message.body ?? ""),
+        [message.body]
+    );
+
     const isOwn = message.sender_id === user?.id;
 
     // System events render as a centered muted pill — no avatar, no bubble.
@@ -385,6 +411,15 @@ export function MessageItem({
                             {renderMarkdown(message.body)}
                         </div>
                     )
+                )}
+
+                {/* Inline link previews for the first 1–2 URLs in the body. */}
+                {!isEditing && previewUrls.length > 0 && (
+                    <div className="flex flex-col gap-1.5">
+                        {previewUrls.map((u) => (
+                            <LinkPreview key={u} url={u} />
+                        ))}
+                    </div>
                 )}
 
                 {(message.references ?? []).map((r, i) => (

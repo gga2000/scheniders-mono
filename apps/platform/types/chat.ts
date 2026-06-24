@@ -89,3 +89,12 @@ export interface ChatSearchResult {
     snippet: string;
     created_at: string;
 }
+
+/** Link-unfurl payload returned by `GET /api/chat/unfurl`. All metadata is
+ *  nullable — a blocked/failed unfurl returns an all-null payload (200). */
+export interface UnfurlResult {
+    url: string;
+    title: string | null;
+    description: string | null;
+    image: string | null;
+}
