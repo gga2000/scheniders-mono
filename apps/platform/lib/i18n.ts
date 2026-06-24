@@ -2494,6 +2494,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "orders.duplicate.confirmYes": "Yes",
         "orders.duplicate.confirmNo": "Back",
         "orders.duplicate.timeline": "Order history",
+        "orders.duplicate.timelineHint": "Tap an order to show / hide its column",
         "orders.duplicate.noColumns": "All orders hidden — click to show",
 
         // ── Import Orders Modal ──
@@ -2749,6 +2750,8 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.archive": "Archive",
         "chat.unarchive": "Unarchive",
         "chat.archived": "Archived",
+        "chat.mute": "Mute",
+        "chat.unmute": "Unmute",
         "chat.leave": "Leave",
         "chat.delete": "Delete",
         "chat.members": "Members",
@@ -5334,6 +5337,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "orders.duplicate.confirmYes": "نعم",
         "orders.duplicate.confirmNo": "تراجع",
         "orders.duplicate.timeline": "سجل الطلبات",
+        "orders.duplicate.timelineHint": "اضغط على طلب لإظهار/إخفاء عموده",
         "orders.duplicate.noColumns": "كل الطلبات مخفية — اضغط لعرضها",
 
         // ── Import Orders Modal ──
@@ -5589,6 +5593,8 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.archive": "أرشفة",
         "chat.unarchive": "إلغاء الأرشفة",
         "chat.archived": "المؤرشفة",
+        "chat.mute": "كتم",
+        "chat.unmute": "إلغاء الكتم",
         "chat.leave": "مغادرة",
         "chat.delete": "حذف",
         "chat.members": "الأعضاء",

@@ -1,7 +1,7 @@
 // apps/platform/components/chat/conversation-menu.tsx
 "use client";
 import { useState } from "react";
-import { MoreHorizontal, Settings, Archive, ArchiveRestore, LogOut, Trash2 } from "lucide-react";
+import { MoreHorizontal, Settings, Archive, ArchiveRestore, LogOut, Trash2, BellOff, Bell } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import {
     Dialog,
@@ -14,6 +14,7 @@ import {
     useArchiveConversation,
     useLeaveConversation,
     useDeleteConversation,
+    useToggleMute,
 } from "@/hooks/chat/use-conversations";
 import type { ConversationWithMeta } from "@/hooks/chat/use-conversations";
 import { useChatStore } from "@/store/use-chat-store";
@@ -37,6 +38,7 @@ export function ConversationMenu({
     const archiveMutation = useArchiveConversation();
     const leaveMutation = useLeaveConversation();
     const deleteMutation = useDeleteConversation();
+    const { toggle: toggleMute } = useToggleMute();
 
     const [popoverOpen, setPopoverOpen] = useState(false);
     const [confirmKind, setConfirmKind] = useState<ConfirmKind>(null);
@@ -61,6 +63,11 @@ export function ConversationMenu({
                 variant: "error",
             });
         }
+    };
+
+    const handleMute = () => {
+        setPopoverOpen(false);
+        toggleMute({ conversationId: conversation.id, muted: !conversation.my_muted });
     };
 
     const openConfirm = (kind: ConfirmKind) => {
@@ -149,6 +156,24 @@ export function ConversationMenu({
                             <>
                                 <Archive className="h-3.5 w-3.5 text-muted-foreground" />
                                 {t("chat.archive", "Archive")}
+                            </>
+                        )}
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={handleMute}
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-foreground/5"
+                    >
+                        {conversation.my_muted ? (
+                            <>
+                                <Bell className="h-3.5 w-3.5 text-muted-foreground" />
+                                {t("chat.unmute", "Unmute")}
+                            </>
+                        ) : (
+                            <>
+                                <BellOff className="h-3.5 w-3.5 text-muted-foreground" />
+                                {t("chat.mute", "Mute")}
                             </>
                         )}
                     </button>

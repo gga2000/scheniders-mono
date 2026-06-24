@@ -1,7 +1,7 @@
 // apps/platform/components/chat/conversation-list.tsx
 "use client";
 import { useMemo, useState } from "react";
-import { AtSign, CheckCircle, ChevronDown, ChevronRight, Hash, MessagesSquare, Package, Plus, Users, Pencil } from "lucide-react";
+import { AtSign, BellOff, CheckCircle, ChevronDown, ChevronRight, Hash, MessagesSquare, Package, Plus, Users, Pencil } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import { ChatAvatar } from "./chat-avatar";
 import { ChatEmptyState } from "./chat-empty-state";
@@ -68,7 +68,7 @@ function Section({
                                 isActive
                                     ? "bg-[var(--card-bg)] font-semibold text-foreground shadow-sm ring-1 ring-[var(--card-border)]"
                                     : "text-foreground/80 hover:bg-foreground/5"
-                            }`}
+                            } ${c.my_muted ? "opacity-60" : ""}`}
                         >
                             {isActive && (
                                 <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-[var(--ink)]" />
@@ -81,7 +81,10 @@ function Section({
                                 {c.kind === "channel" ? <span className="text-muted-foreground"># </span> : null}
                                 {nameFor(c)}
                             </button>
-                            {c.unread > 0 && (
+                            {c.my_muted && (
+                                <BellOff className="h-3 w-3 shrink-0 text-muted-foreground" aria-label="Muted" />
+                            )}
+                            {c.unread > 0 && !c.my_muted && (
                                 <span className="ml-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white shadow-sm">
                                     {c.unread > 99 ? "99+" : c.unread}
                                 </span>
@@ -253,7 +256,7 @@ function OrderSection({
                                     isActive
                                         ? "bg-(--card-bg) font-semibold text-foreground shadow-sm ring-1 ring-(--card-border)"
                                         : "text-foreground/80 hover:bg-foreground/5"
-                                }`}
+                                } ${c.my_muted ? "opacity-60" : ""}`}
                             >
                                 {isActive && (
                                     <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-(--ink)" />
@@ -283,7 +286,10 @@ function OrderSection({
                                         aria-label={t("chat.resolved", "Resolved")}
                                     />
                                 )}
-                                {c.unread > 0 && (
+                                {c.my_muted && (
+                                    <BellOff className="h-3 w-3 shrink-0 text-muted-foreground" aria-label="Muted" />
+                                )}
+                                {c.unread > 0 && !c.my_muted && (
                                     <span className="ml-1 inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white shadow-sm">
                                         {c.unread > 99 ? "99+" : c.unread}
                                     </span>
