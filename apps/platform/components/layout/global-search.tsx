@@ -329,55 +329,6 @@ interface TopBarProps {
 
 export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
     const { user, profile } = useAuth();
-    const router = useRouter();
-    const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
-
-    // Track if toolbars are collapsed (read from localStorage)
-    const [isOrdersToolbarCollapsed, setIsOrdersToolbarCollapsed] = useState(false);
-    const [isCustomersToolbarCollapsed, setIsCustomersToolbarCollapsed] = useState(false);
-    const isOrdersPage = pathname === '/orders' || pathname.startsWith('/orders?');
-    const isCustomersPage = pathname === '/customers' || pathname.startsWith('/customers?');
-
-    // Listen for localStorage changes and initial load
-    useEffect(() => {
-        // Initial check
-        const checkCollapsed = () => {
-            const ordersCollapsed = localStorage.getItem("ordersToolbarCollapsed") === "true";
-            setIsOrdersToolbarCollapsed(ordersCollapsed);
-
-            const customersCollapsed = localStorage.getItem("customersToolbarCollapsed") === "true";
-            setIsCustomersToolbarCollapsed(customersCollapsed);
-        };
-        checkCollapsed();
-
-        // Listen for storage events (cross-tab sync)
-        const handleStorage = (e: StorageEvent) => {
-            if (e.key === "ordersToolbarCollapsed") {
-                setIsOrdersToolbarCollapsed(e.newValue === "true");
-            }
-            if (e.key === "customersToolbarCollapsed") {
-                setIsCustomersToolbarCollapsed(e.newValue === "true");
-            }
-        };
-        window.addEventListener("storage", handleStorage);
-
-        // Also poll for same-tab changes (localStorage doesn't fire events for same tab)
-        const interval = setInterval(checkCollapsed, 200);
-
-        return () => {
-            window.removeEventListener("storage", handleStorage);
-            clearInterval(interval);
-        };
-    }, []);
-
-    // Hide TopBar when on orders or customers page and their respective toolbars are collapsed
-    if (isOrdersPage && isOrdersToolbarCollapsed) {
-        return null;
-    }
-
-    if (isCustomersPage && isCustomersToolbarCollapsed) {
-        return null;
-    }
 
     return (
         <header className="sticky top-0 z-40">
