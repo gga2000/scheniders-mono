@@ -8,7 +8,7 @@ import { useLanguage } from "@/components/providers/language-provider";
 export function ChatTrigger() {
     const { data: conversations = [] } = useConversations();
     const total = conversations.reduce((n, c) => n + c.unread, 0);
-    const { open } = useChatStore();
+    const open = useChatStore((s) => s.open);
     const { t } = useLanguage();
     return (
         <button

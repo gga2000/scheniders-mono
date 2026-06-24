@@ -11,7 +11,7 @@ import { useLanguage } from "@/components/providers/language-provider";
 export function LivePresenceStack() {
     const { otherUsers, totalOnline } = useTenantPresence();
     const startDm = useStartDm();
-    const { open } = useChatStore();
+    const open = useChatStore((s) => s.open);
     const { t } = useLanguage();
     const [busy, setBusy] = useState<string | null>(null);
 
@@ -26,12 +26,12 @@ export function LivePresenceStack() {
         <Popover>
             <PopoverTrigger asChild>
                 <button
-                    className="flex items-center rounded-full p-0.5 transition-colors hover:bg-foreground/5"
+                    className="flex h-10 min-w-10 items-center justify-center rounded-full px-1 transition-colors hover:bg-foreground/5"
                     title={onlineLabel}
                     aria-label={onlineLabel}
                 >
                     {otherUsers.length === 0 ? (
-                        <span className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground">
                             <Users className="h-5 w-5" />
                         </span>
                     ) : (
@@ -100,7 +100,7 @@ export function LivePresenceStack() {
                                 <button
                                     onClick={() => message(u.id)}
                                     disabled={busy === u.id}
-                                    className="shrink-0 rounded-lg bg-indigo-50 px-2.5 py-1.5 text-[11px] font-semibold text-indigo-600 transition-all hover:bg-indigo-100 active:scale-95 disabled:opacity-60"
+                                    className="shrink-0 rounded-lg bg-[color-mix(in_srgb,var(--ink)_8%,transparent)] px-2.5 py-1.5 text-[11px] font-semibold text-foreground transition-all hover:bg-[color-mix(in_srgb,var(--ink)_14%,transparent)] active:scale-95 disabled:opacity-60"
                                 >
                                     {t("chat.presence.message", "Message")}
                                 </button>

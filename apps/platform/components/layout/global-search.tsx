@@ -17,7 +17,9 @@ import {
     User,
     Hash,
     Bell,
-    Settings,
+    MoreHorizontal,
+    Settings as SettingsIcon,
+    LogOut,
     ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,6 +31,9 @@ import { ChatTrigger } from "@/components/chat/chat-trigger";
 import { NotificationsDropdown } from "./notifications-dropdown";
 import { AutoSendToggle } from "@/components/orders/auto-send-toggle";
 import { MerchantCodeBadge } from "./merchant-code-badge";
+import { useHeadroom } from "@/hooks/use-headroom";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@scheniders/ui/dropdown-menu";
+import { HEADER_ACTION_CLASS } from "./header-action-button";
 
 type SearchCategory = "all" | "orders" | "customers" | "products";
 
@@ -41,7 +46,7 @@ interface SearchResult {
     href: string;
 }
 
-export function GlobalSearch() {
+export function GlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) => void }) {
     const router = useRouter();
     // Use shared context instead of direct useOrders() call
     const { orders } = useOrdersContext();
@@ -153,6 +158,8 @@ export function GlobalSearch() {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
+    useEffect(() => { onOpenChange?.(isOpen); }, [isOpen, onOpenChange]);
+
     // Keyboard shortcuts
     useEffect(() => {
         function handleKeyDown(event: KeyboardEvent) {
@@ -262,7 +269,8 @@ export function GlobalSearch() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute top-full left-0 right-0 mt-2 bg-(--card-bg) rounded-2xl border border-(--card-border) shadow-xl overflow-hidden z-50"
+                        className="absolute top-full left-0 right-0 mt-2 bg-(--card-bg) rounded-2xl border border-(--card-border) shadow-xl overflow-hidden"
+                        style={{ zIndex: "var(--z-header-overlay)" }}
                     >
                         {results.length > 0 ? (
                             <div className="py-2">
@@ -328,63 +336,33 @@ interface TopBarProps {
 }
 
 export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
-    const { user, profile } = useAuth();
+    const { user, profile, signOut } = useAuth();
     const router = useRouter();
-    const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
 
-    // Track if toolbars are collapsed (read from localStorage)
-    const [isOrdersToolbarCollapsed, setIsOrdersToolbarCollapsed] = useState(false);
-    const [isCustomersToolbarCollapsed, setIsCustomersToolbarCollapsed] = useState(false);
-    const isOrdersPage = pathname === '/orders' || pathname.startsWith('/orders?');
-    const isCustomersPage = pathname === '/customers' || pathname.startsWith('/customers?');
+    const [scrolled, setScrolled] = useState(false);
+    const [searchOpen, setSearchOpen] = useState(false);
+    const [notifOpen, setNotifOpen] = useState(false);
+    const anyOverlayOpen = searchOpen || notifOpen;
+    const { hidden } = useHeadroom({ locked: anyOverlayOpen, disabled: isMobile });
 
-    // Listen for localStorage changes and initial load
     useEffect(() => {
-        // Initial check
-        const checkCollapsed = () => {
-            const ordersCollapsed = localStorage.getItem("ordersToolbarCollapsed") === "true";
-            setIsOrdersToolbarCollapsed(ordersCollapsed);
-
-            const customersCollapsed = localStorage.getItem("customersToolbarCollapsed") === "true";
-            setIsCustomersToolbarCollapsed(customersCollapsed);
+        if (typeof window === "undefined") return;
+        let ticking = false;
+        const onScroll = () => {
+            if (ticking) return;
+            ticking = true;
+            requestAnimationFrame(() => {
+                ticking = false;
+                setScrolled(window.scrollY > 0);
+            });
         };
-        checkCollapsed();
-
-        // Listen for storage events (cross-tab sync)
-        const handleStorage = (e: StorageEvent) => {
-            if (e.key === "ordersToolbarCollapsed") {
-                setIsOrdersToolbarCollapsed(e.newValue === "true");
-            }
-            if (e.key === "customersToolbarCollapsed") {
-                setIsCustomersToolbarCollapsed(e.newValue === "true");
-            }
-        };
-        window.addEventListener("storage", handleStorage);
-
-        // Also poll for same-tab changes (localStorage doesn't fire events for same tab)
-        const interval = setInterval(checkCollapsed, 200);
-
-        return () => {
-            window.removeEventListener("storage", handleStorage);
-            clearInterval(interval);
-        };
+        onScroll();
+        window.addEventListener("scroll", onScroll, { passive: true });
+        return () => window.removeEventListener("scroll", onScroll);
     }, []);
 
-    // Hide TopBar when on orders or customers page and their respective toolbars are collapsed
-    if (isOrdersPage && isOrdersToolbarCollapsed) {
-        return null;
-    }
-
-    if (isCustomersPage && isCustomersToolbarCollapsed) {
-        return null;
-    }
-
     return (
-        <header className="sticky top-0 z-40">
-            {/* Header Background - Removed blur to stop flashing/glitching issues */}
-            <div
-                className="absolute inset-0 bg-background border-b border-(--card-border)/80 pointer-events-none"
-            />
+        <header className="app-header backdrop-blur-md backdrop-saturate-150" data-scrolled={scrolled} data-hidden={hidden}>
             {/* Header Content */}
             <div className="relative flex items-center justify-between gap-3 md:gap-6 w-full px-4 md:px-6 py-3 md:py-4">
                 {/* Left: merchant code badge */}
@@ -394,65 +372,79 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
 
                 {/* Global Search Centered - Hidden on mobile */}
                 <div className="hidden md:flex flex-1 justify-center w-full max-w-2xl mx-auto">
-                    <GlobalSearch />
+                    <GlobalSearch onOpenChange={setSearchOpen} />
                 </div>
 
                 {/* Right Side Actions */}
                 <div className="flex items-center justify-end gap-2 md:flex-1 md:min-w-[200px]">
                     {/* Desktop Actions - Hidden on mobile */}
                     <div className="hidden md:flex items-center gap-2">
-                        {/* Auto-Send WhatsApp Toggle */}
+                        {/* Work tools */}
                         <AutoSendToggle variant="navbar" />
 
-                        {/* Theme Toggle */}
-                        <ThemeToggle />
+                        {/* Divider: work tools | identity & comms */}
+                        <div className="w-px h-6 bg-[var(--card-border)]/60 mx-1" />
 
-                        {/* Language Toggle */}
-                        <LanguageToggle />
-
-                        {/* Live Presence Stack */}
+                        {/* Presence · Chat · Notifications */}
                         <LivePresenceStack />
-
-                        {/* Team Chat Trigger */}
                         <ChatTrigger />
+                        <NotificationsDropdown onOpenChange={setNotifOpen} />
 
-                        {/* Notifications Dropdown */}
-                        <NotificationsDropdown />
+                        {/* Overflow: Theme + Language */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button className={HEADER_ACTION_CLASS} title="More" aria-label="More options">
+                                    <MoreHorizontal className="w-5 h-5" />
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" style={{ zIndex: "var(--z-header-overlay)" }} className="w-48">
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="flex items-center justify-between gap-3 cursor-pointer">
+                                    <span className="text-sm">Theme</span>
+                                    <ThemeToggle />
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="flex items-center justify-between gap-3 cursor-pointer">
+                                    <span className="text-sm">Language</span>
+                                    <LanguageToggle />
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
 
-                        {/* Settings */}
-                        <Link
-                            href="/settings"
-                            className="w-10 h-10 rounded-full bg-(--card-bg) border border-(--card-border) flex items-center justify-center text-muted hover:text-foreground hover:border-(--foreground-muted) transition-all"
-                            title="Settings"
-                        >
-                            <Settings className="w-5 h-5" />
-                        </Link>
-
-                        {/* User Avatar */}
-                        <Link
-                            href="/settings"
-                            className="w-10 h-10 rounded-full bg-linear-to-br from-[#FBE38E] to-[#F4C7CF] flex items-center justify-center text-[#1E1E1E] font-bold text-sm hover:scale-105 transition-transform overflow-hidden shadow-sm"
-                            title="Profile"
-                        >
-                            {profile?.avatar_url ? (
-                                <img
-                                    src={profile.avatar_url}
-                                    alt={profile.display_name || "User"}
-                                    className="w-full h-full object-cover"
-                                />
-                            ) : (
-                                <span>
-                                    {(profile?.display_name || user?.email || "U")?.charAt(0).toUpperCase()}
-                                </span>
-                            )}
-                        </Link>
+                        {/* Account menu (replaces the duplicate Settings gear) */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button
+                                    className="w-10 h-10 rounded-full bg-linear-to-br from-[#FBE38E] to-[#F4C7CF] flex items-center justify-center text-[#1E1E1E] font-bold text-sm hover:scale-105 transition-transform overflow-hidden shadow-sm"
+                                    title="Account"
+                                    aria-label="Account menu"
+                                >
+                                    {profile?.avatar_url ? (
+                                        <img src={profile.avatar_url} alt={profile.display_name || "User"} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span>{(profile?.display_name || user?.email || "U")?.charAt(0).toUpperCase()}</span>
+                                    )}
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" style={{ zIndex: "var(--z-header-overlay)" }} className="w-48">
+                                <DropdownMenuItem asChild className="cursor-pointer">
+                                    <Link href="/settings" className="flex items-center gap-2">
+                                        <SettingsIcon className="w-4 h-4" /> Settings
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    onSelect={async () => { await signOut(); router.push("/login"); }}
+                                    className="flex items-center gap-2 text-rose-600 cursor-pointer"
+                                >
+                                    <LogOut className="w-4 h-4" /> Sign out
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
 
                     {/* Mobile-only actions — the desktop block above is hidden on mobile,
                         so without this chat + notifications are unreachable on phones. */}
                     <div className="flex md:hidden items-center gap-2">
                         <ChatTrigger />
-                        <NotificationsDropdown />
+                        <NotificationsDropdown onOpenChange={setNotifOpen} />
                     </div>
                 </div>
             </div>
