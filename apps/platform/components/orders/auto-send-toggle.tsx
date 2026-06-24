@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
+import { useAutoSend } from "@/hooks/use-auto-send";
 
 interface AutoSendToggleProps {
     /** "navbar" = round 40px button matching theme/language toggles. "mobile" = inline bar segment */
@@ -10,37 +10,7 @@ interface AutoSendToggleProps {
 }
 
 export function AutoSendToggle({ variant = "mobile" }: AutoSendToggleProps) {
-    const [enabled, setEnabled] = useState(false);
-    const [loading, setLoading] = useState(true);
-    const [toggling, setToggling] = useState(false);
-
-    useEffect(() => {
-        fetch("/api/settings/auto-send")
-            .then((res) => res.json())
-            .then((data) => setEnabled(data.enabled === true))
-            .catch(() => setEnabled(false))
-            .finally(() => setLoading(false));
-    }, []);
-
-    const handleToggle = useCallback(async () => {
-        if (toggling) return;
-        setToggling(true);
-        const newState = !enabled;
-
-        try {
-            const res = await fetch("/api/settings/auto-send", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ enabled: newState }),
-            });
-            const data = await res.json();
-            setEnabled(data.enabled === true);
-        } catch {
-            setEnabled(enabled);
-        } finally {
-            setToggling(false);
-        }
-    }, [enabled, toggling]);
+    const { enabled, isLoading: loading, isToggling: toggling, toggle: handleToggle } = useAutoSend();
 
     const title = enabled
         ? "Auto-send: ON — WhatsApp templates sent automatically"
@@ -64,7 +34,7 @@ export function AutoSendToggle({ variant = "mobile" }: AutoSendToggleProps) {
                     className={cn(
                         "w-10 h-10 rounded-full flex items-center justify-center transition-all",
                         enabled
-                            ? "bg-green-50 border-2 border-green-400 text-green-600 hover:bg-green-100 shadow-sm shadow-green-200/50"
+                            ? "bg-[color-mix(in_srgb,var(--button-success)_14%,transparent)] border border-(--button-success) text-(--button-success) hover:bg-[color-mix(in_srgb,var(--button-success)_22%,transparent)]"
                             : "bg-[var(--card-bg)] border border-[var(--card-border)] text-muted hover:text-foreground hover:border-[var(--foreground-muted)]",
                         toggling && "opacity-60"
                     )}
@@ -80,7 +50,7 @@ export function AutoSendToggle({ variant = "mobile" }: AutoSendToggleProps) {
                 {enabled && (
                     <span className="absolute top-0 right-0 flex h-3 w-3 pointer-events-none">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500 border-2 border-white" />
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-(--button-success) border-2 border-(--card-bg)" />
                     </span>
                 )}
             </div>
