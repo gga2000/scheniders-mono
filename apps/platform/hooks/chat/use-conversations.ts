@@ -3,6 +3,7 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 import type { ChatConversation, ChatMember } from "@/types/chat";
+import { useCallback } from "react";
 
 export const chatKeys = {
     all: ["chat"] as const,
@@ -13,8 +14,9 @@ export const chatKeys = {
 };
 
 export interface ConversationWithMeta extends ChatConversation {
-    members: Pick<ChatMember, "user_id" | "last_read_at" | "role">[];
+    members: Pick<ChatMember, "user_id" | "last_read_at" | "role" | "muted">[];
     my_last_read_at: string | null;
+    my_muted: boolean;
     unread: number;
 }
 
@@ -27,13 +29,13 @@ export function useConversations() {
         queryFn: async (): Promise<ConversationWithMeta[]> => {
             const { data: convs, error } = await supabase
                 .from("chat_conversations")
-                .select("*, members:chat_members(user_id,last_read_at,role)")
+                .select("*, members:chat_members(user_id,last_read_at,role,muted)")
                 .is("archived_at", null)
                 .order("last_message_at", { ascending: false, nullsFirst: false });
             if (error) throw error;
 
             const rows = (convs ?? []) as unknown as (ChatConversation & {
-                members: Pick<ChatMember, "user_id" | "last_read_at" | "role">[];
+                members: Pick<ChatMember, "user_id" | "last_read_at" | "role" | "muted">[];
             })[];
 
             // unread counts come from the chat_unread_counts RPC (accurate, server-side)
@@ -47,7 +49,12 @@ export function useConversations() {
 
             return rows.map((r) => {
                 const mine = r.members.find((m) => m.user_id === user!.id);
-                return { ...r, my_last_read_at: mine?.last_read_at ?? null, unread: unreadByConv.get(r.id) ?? 0 };
+                return {
+                    ...r,
+                    my_last_read_at: mine?.last_read_at ?? null,
+                    my_muted: mine?.muted ?? false,
+                    unread: unreadByConv.get(r.id) ?? 0,
+                };
             });
         },
     });
@@ -62,18 +69,23 @@ export function useArchivedConversations() {
         queryFn: async (): Promise<ConversationWithMeta[]> => {
             const { data: convs, error } = await supabase
                 .from("chat_conversations")
-                .select("*, members:chat_members(user_id,last_read_at,role)")
+                .select("*, members:chat_members(user_id,last_read_at,role,muted)")
                 .not("archived_at", "is", null)
                 .order("archived_at", { ascending: false });
             if (error) throw error;
 
             const rows = (convs ?? []) as unknown as (ChatConversation & {
-                members: Pick<ChatMember, "user_id" | "last_read_at" | "role">[];
+                members: Pick<ChatMember, "user_id" | "last_read_at" | "role" | "muted">[];
             })[];
 
             return rows.map((r) => {
                 const mine = r.members.find((m) => m.user_id === user!.id);
-                return { ...r, my_last_read_at: mine?.last_read_at ?? null, unread: 0 };
+                return {
+                    ...r,
+                    my_last_read_at: mine?.last_read_at ?? null,
+                    my_muted: mine?.muted ?? false,
+                    unread: 0,
+                };
             });
         },
     });
@@ -180,4 +192,27 @@ export function useDeleteConversation() {
         },
         onSuccess: () => qc.invalidateQueries({ queryKey: chatKeys.conversations() }),
     });
+}
+
+export function useToggleMute() {
+    const { user } = useAuth();
+    const qc = useQueryClient();
+    const mutate = useMutation({
+        mutationFn: async ({ conversationId, muted }: { conversationId: string; muted: boolean }) => {
+            if (!user?.id) throw new Error("Not authenticated");
+            const { error } = await supabase
+                .from("chat_members")
+                .update({ muted })
+                .eq("conversation_id", conversationId)
+                .eq("user_id", user.id);
+            if (error) throw error;
+        },
+        onSuccess: () => qc.invalidateQueries({ queryKey: chatKeys.conversations() }),
+    });
+    // Stable callback so consumers don't need to stabilise the reference themselves
+    const toggle = useCallback(
+        (args: { conversationId: string; muted: boolean }) => mutate.mutate(args),
+        [mutate]
+    );
+    return { ...mutate, toggle };
 }
