@@ -11,20 +11,14 @@ import {
     Phone,
     User,
     Package,
-    Hash,
     AlertTriangle,
     Coins,
     Truck,
     ShieldX,
     MessageSquare,
-    History,
     Ban,
     Sparkles,
-    ChevronRight,
     Filter,
-    ArrowRightLeft,
-    Equal,
-    AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD, formatDate, getBaseOrderId } from "@/lib/utils";
@@ -781,6 +775,9 @@ export function DuplicateComparisonModal({
                             "bg-[var(--background-soft)]/95 backdrop-blur-xl border-[var(--card-border)]",
                             "dark:bg-[#1A1A1A]/95 dark:border-[#3F3F3F]"
                         )}>
+                            {/* Note caption */}
+                            <span className="block mb-1 text-[10px] text-[var(--foreground-subtle)]">{t("orders.duplicate.addNote")}</span>
+
                             {/* Note input — inline compact */}
                             <div className="flex items-center gap-2 mb-3">
                                 <MessageSquare className="w-4 h-4 text-[var(--foreground-subtle)] flex-shrink-0" />
@@ -801,85 +798,112 @@ export function DuplicateComparisonModal({
                                 />
                             </div>
 
-                            {/* Action buttons — horizontal pill strip */}
+                            {/* Action buttons — grouped pill strip */}
                             <div className="flex items-center gap-2 flex-wrap">
-                                {/* Primary: Merge */}
-                                <button
-                                    onClick={handleMerge}
-                                    disabled={isProcessing || !mergeTarget || !canMerge(currentOrder) || !canMerge(mergeTarget)}
-                                    title={!mergeTarget ? t("orders.duplicate.pickMergeTarget") : undefined}
-                                    className={cn(
-                                        "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
-                                        "disabled:opacity-35 disabled:cursor-not-allowed disabled:pointer-events-none",
-                                        // Light
-                                        "bg-[var(--ink)] text-[var(--ink-contrast)]",
-                                        "hover:bg-[var(--ink-hover)] shadow-sm",
-                                        // Dark: neon cyan primary
-                                        "dark:bg-[rgba(0,255,255,0.1)] dark:text-[#00FFFF] dark:border dark:border-[rgba(0,255,255,0.25)]",
-                                        "dark:hover:bg-[rgba(0,255,255,0.15)] dark:hover:border-[rgba(0,255,255,0.4)]",
-                                        "dark:hover:shadow-[0_0_14px_rgba(0,255,255,0.12)]",
-                                    )}
-                                >
-                                    <GitMerge className="w-4 h-4" />
-                                    <span>{actionType === "merge" ? t("orders.duplicate.merging") : t("orders.duplicate.mergeOrders")}</span>
-                                </button>
+                                {/* Primary group: Merge + Same Customer */}
+                                <div className="flex gap-2 p-1 rounded-2xl bg-[var(--pastel-yellow)]/10 border border-dashed border-[var(--pastel-yellow)]/40">
+                                    {/* Primary: Merge */}
+                                    <button
+                                        onClick={handleMerge}
+                                        disabled={isProcessing || !mergeTarget || !canMerge(currentOrder) || !canMerge(mergeTarget)}
+                                        title={!mergeTarget ? t("orders.duplicate.pickMergeTarget") : undefined}
+                                        className={cn(
+                                            "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
+                                            "disabled:opacity-35 disabled:cursor-not-allowed disabled:pointer-events-none",
+                                            // Light
+                                            "bg-[var(--ink)] text-[var(--ink-contrast)]",
+                                            "hover:bg-[var(--ink-hover)] shadow-sm",
+                                            // Dark: neon cyan primary
+                                            "dark:bg-[rgba(0,255,255,0.1)] dark:text-[#00FFFF] dark:border dark:border-[rgba(0,255,255,0.25)]",
+                                            "dark:hover:bg-[rgba(0,255,255,0.15)] dark:hover:border-[rgba(0,255,255,0.4)]",
+                                            "dark:hover:shadow-[0_0_14px_rgba(0,255,255,0.12)]",
+                                        )}
+                                    >
+                                        <GitMerge className="w-4 h-4" />
+                                        <span>{actionType === "merge" ? t("orders.duplicate.merging") : t("orders.duplicate.mergeOrders")}</span>
+                                    </button>
 
-                                {/* Same Customer */}
-                                <button
-                                    onClick={handleMarkAsSameCustomer}
-                                    disabled={isProcessing}
-                                    className={cn(
-                                        "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
-                                        "disabled:opacity-35 disabled:cursor-not-allowed",
-                                        "bg-emerald-500/10 text-emerald-700 border border-emerald-200",
-                                        "hover:bg-emerald-500/20 hover:border-emerald-300",
-                                        "dark:bg-[rgba(0,255,100,0.06)] dark:text-[#66FFAA] dark:border-[rgba(0,255,100,0.2)]",
-                                        "dark:hover:bg-[rgba(0,255,100,0.12)] dark:hover:border-[rgba(0,255,100,0.4)]",
-                                        "dark:hover:shadow-[0_0_14px_rgba(0,255,100,0.1)]",
-                                    )}
-                                >
-                                    <UserPlus className="w-4 h-4" />
-                                    <span>{t("orders.duplicate.sameCustomer")}</span>
-                                </button>
+                                    {/* Same Customer */}
+                                    <button
+                                        onClick={handleMarkAsSameCustomer}
+                                        disabled={isProcessing}
+                                        className={cn(
+                                            "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
+                                            "disabled:opacity-35 disabled:cursor-not-allowed",
+                                            "bg-emerald-500/10 text-emerald-700 border border-emerald-200",
+                                            "hover:bg-emerald-500/20 hover:border-emerald-300",
+                                            "dark:bg-[rgba(0,255,100,0.06)] dark:text-[#66FFAA] dark:border-[rgba(0,255,100,0.2)]",
+                                            "dark:hover:bg-[rgba(0,255,100,0.12)] dark:hover:border-[rgba(0,255,100,0.4)]",
+                                            "dark:hover:shadow-[0_0_14px_rgba(0,255,100,0.1)]",
+                                        )}
+                                    >
+                                        <UserPlus className="w-4 h-4" />
+                                        <span>{t("orders.duplicate.sameCustomer")}</span>
+                                    </button>
+                                </div>
 
-                                {/* Cancel New */}
-                                <button
-                                    onClick={handleCancelNew}
-                                    disabled={isProcessing || !canCancel(currentOrder)}
-                                    className={cn(
-                                        "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
-                                        "disabled:opacity-35 disabled:cursor-not-allowed",
-                                        "bg-rose-500/10 text-rose-600 border border-rose-200",
-                                        "hover:bg-rose-500/20 hover:border-rose-300",
-                                        "dark:bg-[rgba(255,107,138,0.06)] dark:text-[#FF6B8A] dark:border-[rgba(255,107,138,0.2)]",
-                                        "dark:hover:bg-[rgba(255,107,138,0.12)] dark:hover:border-[rgba(255,107,138,0.4)]",
-                                        "dark:hover:shadow-[0_0_14px_rgba(255,107,138,0.1)]",
+                                {/* Destructive group with inline confirm */}
+                                <div className="flex gap-2 p-1 rounded-2xl bg-rose-500/5 border border-dashed border-rose-200 dark:border-[rgba(255,107,138,0.2)]">
+                                    {/* Cancel New */}
+                                    {confirmingCancel === "new" ? (
+                                        <InlineConfirm
+                                            label={t("orders.duplicate.confirmCancel")}
+                                            yes={t("orders.duplicate.confirmYes")}
+                                            no={t("orders.duplicate.confirmNo")}
+                                            onYes={() => { setConfirmingCancel(null); handleCancelNew(); }}
+                                            onNo={() => setConfirmingCancel(null)}
+                                        />
+                                    ) : (
+                                        <button
+                                            onClick={() => setConfirmingCancel("new")}
+                                            disabled={isProcessing || !canCancel(currentOrder)}
+                                            className={cn(
+                                                "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
+                                                "disabled:opacity-35 disabled:cursor-not-allowed",
+                                                "bg-rose-500/10 text-rose-600 border border-rose-200",
+                                                "hover:bg-rose-500/20 hover:border-rose-300",
+                                                "dark:bg-[rgba(255,107,138,0.06)] dark:text-[#FF6B8A] dark:border-[rgba(255,107,138,0.2)]",
+                                                "dark:hover:bg-[rgba(255,107,138,0.12)] dark:hover:border-[rgba(255,107,138,0.4)]",
+                                                "dark:hover:shadow-[0_0_14px_rgba(255,107,138,0.1)]",
+                                            )}
+                                        >
+                                            <XCircle className="w-4 h-4" />
+                                            <span>{actionType === "cancelNew" ? t("orders.duplicate.cancelling") : t("orders.duplicate.cancelNew")}</span>
+                                        </button>
                                     )}
-                                >
-                                    <XCircle className="w-4 h-4" />
-                                    <span>{actionType === "cancelNew" ? t("orders.duplicate.cancelling") : t("orders.duplicate.cancelNew")}</span>
-                                </button>
 
-                                {/* Cancel Old */}
-                                <button
-                                    onClick={handleCancelOld}
-                                    disabled={isProcessing || !mergeTarget || !canCancel(mergeTarget)}
-                                    className={cn(
-                                        "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
-                                        "disabled:opacity-35 disabled:cursor-not-allowed",
-                                        "bg-gray-500/10 text-gray-600 border border-gray-200",
-                                        "hover:bg-gray-500/15 hover:border-gray-300",
-                                        "dark:bg-[rgba(255,255,255,0.04)] dark:text-[#A1A1A1] dark:border-[rgba(255,255,255,0.1)]",
-                                        "dark:hover:bg-[rgba(255,255,255,0.08)] dark:hover:border-[rgba(255,255,255,0.2)]",
+                                    {/* Cancel Old */}
+                                    {confirmingCancel === "old" ? (
+                                        <InlineConfirm
+                                            label={t("orders.duplicate.confirmCancel")}
+                                            yes={t("orders.duplicate.confirmYes")}
+                                            no={t("orders.duplicate.confirmNo")}
+                                            onYes={() => { setConfirmingCancel(null); handleCancelOld(); }}
+                                            onNo={() => setConfirmingCancel(null)}
+                                        />
+                                    ) : (
+                                        <button
+                                            onClick={() => setConfirmingCancel("old")}
+                                            disabled={isProcessing || !mergeTarget || !canCancel(mergeTarget)}
+                                            className={cn(
+                                                "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
+                                                "disabled:opacity-35 disabled:cursor-not-allowed",
+                                                "bg-gray-500/10 text-gray-600 border border-gray-200",
+                                                "hover:bg-gray-500/15 hover:border-gray-300",
+                                                "dark:bg-[rgba(255,255,255,0.04)] dark:text-[#A1A1A1] dark:border-[rgba(255,255,255,0.1)]",
+                                                "dark:hover:bg-[rgba(255,255,255,0.08)] dark:hover:border-[rgba(255,255,255,0.2)]",
+                                            )}
+                                        >
+                                            <XCircle className="w-4 h-4" />
+                                            <span>{actionType === "cancelOld" ? t("orders.duplicate.cancelling") : t("orders.duplicate.cancelOld")}</span>
+                                        </button>
                                     )}
-                                >
-                                    <XCircle className="w-4 h-4" />
-                                    <span>{actionType === "cancelOld" ? t("orders.duplicate.cancelling") : t("orders.duplicate.cancelOld")}</span>
-                                </button>
+                                </div>
 
                                 {/* Spacer */}
                                 <div className="flex-1" />
 
+                                {/* Neutral group: Show-all-in-list + Not Duplicate */}
                                 {/* Filter All Duplicates */}
                                 {onFilterDuplicates && (
                                     <button
@@ -917,5 +941,27 @@ export function DuplicateComparisonModal({
                 </motion.div>
             </motion.div>
         </AnimatePresence>
+    );
+}
+
+function InlineConfirm({
+    label,
+    yes,
+    no,
+    onYes,
+    onNo,
+}: {
+    label: string;
+    yes: string;
+    no: string;
+    onYes: () => void;
+    onNo: () => void;
+}) {
+    return (
+        <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-xl bg-rose-50 border border-rose-200 dark:bg-[rgba(255,107,138,0.08)] dark:border-[rgba(255,107,138,0.3)]">
+            <span className="text-xs font-semibold text-rose-700 dark:text-[#FF8899]">{label}</span>
+            <button type="button" onClick={onYes} className="text-xs font-bold px-2 py-1 rounded-lg bg-rose-600 text-white hover:bg-rose-700">{yes}</button>
+            <button type="button" onClick={onNo} className="text-xs px-2 py-1 rounded-lg text-rose-700 dark:text-[#FF8899] hover:bg-rose-100 dark:hover:bg-[rgba(255,107,138,0.12)]">{no}</button>
+        </div>
     );
 }
