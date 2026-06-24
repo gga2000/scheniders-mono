@@ -26,12 +26,12 @@ export function LivePresenceStack() {
         <Popover>
             <PopoverTrigger asChild>
                 <button
-                    className="flex items-center rounded-full p-0.5 transition-colors hover:bg-foreground/5"
+                    className="flex h-10 min-w-10 items-center justify-center rounded-full px-1 transition-colors hover:bg-foreground/5"
                     title={onlineLabel}
                     aria-label={onlineLabel}
                 >
                     {otherUsers.length === 0 ? (
-                        <span className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground">
                             <Users className="h-5 w-5" />
                         </span>
                     ) : (
