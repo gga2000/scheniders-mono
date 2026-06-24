@@ -330,12 +330,26 @@ interface TopBarProps {
 export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
     const { user, profile } = useAuth();
 
+    const [scrolled, setScrolled] = useState(false);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        let ticking = false;
+        const onScroll = () => {
+            if (ticking) return;
+            ticking = true;
+            requestAnimationFrame(() => {
+                ticking = false;
+                setScrolled(window.scrollY > 0);
+            });
+        };
+        onScroll();
+        window.addEventListener("scroll", onScroll, { passive: true });
+        return () => window.removeEventListener("scroll", onScroll);
+    }, []);
+
     return (
-        <header className="sticky top-0 z-40">
-            {/* Header Background - Removed blur to stop flashing/glitching issues */}
-            <div
-                className="absolute inset-0 bg-background border-b border-(--card-border)/80 pointer-events-none"
-            />
+        <header className="app-header" data-scrolled={scrolled}>
             {/* Header Content */}
             <div className="relative flex items-center justify-between gap-3 md:gap-6 w-full px-4 md:px-6 py-3 md:py-4">
                 {/* Left: merchant code badge */}
