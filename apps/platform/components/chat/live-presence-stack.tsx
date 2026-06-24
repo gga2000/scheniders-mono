@@ -100,7 +100,7 @@ export function LivePresenceStack() {
                                 <button
                                     onClick={() => message(u.id)}
                                     disabled={busy === u.id}
-                                    className="shrink-0 rounded-lg bg-indigo-50 px-2.5 py-1.5 text-[11px] font-semibold text-indigo-600 transition-all hover:bg-indigo-100 active:scale-95 disabled:opacity-60"
+                                    className="shrink-0 rounded-lg bg-[color-mix(in_srgb,var(--ink)_8%,transparent)] px-2.5 py-1.5 text-[11px] font-semibold text-foreground transition-all hover:bg-[color-mix(in_srgb,var(--ink)_14%,transparent)] active:scale-95 disabled:opacity-60"
                                 >
                                     {t("chat.presence.message", "Message")}
                                 </button>
