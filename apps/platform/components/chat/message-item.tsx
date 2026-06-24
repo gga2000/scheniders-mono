@@ -20,6 +20,7 @@ import { usePins } from "@/hooks/chat/use-pins";
 import { useMessages } from "@/hooks/chat/use-messages";
 import { chatKeys } from "@/hooks/chat/use-conversations";
 import { PIPELINE_STAGE_REGISTRY } from "@/lib/order-pipeline";
+import { VoiceMessage } from "./voice-message";
 import type { PipelineStageId } from "@/lib/order-pipeline";
 import type { ChatMessage, ChatSystemEvent } from "@/types/chat";
 
@@ -308,21 +309,28 @@ export function MessageItem({
                 ))}
                 {(message.attachments ?? []).length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2">
-                        {(message.attachments ?? []).map((a, i) => (
-                            <button
-                                key={i}
-                                type="button"
-                                onClick={() => openAttachment(a.storage_path)}
-                                className="inline-flex max-w-[220px] items-center gap-2 rounded-xl border border-(--card-border) bg-(--card-bg) px-3 py-2 text-xs text-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
-                            >
-                                {isImage(a.mime) ? (
-                                    <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                ) : (
-                                    <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                )}
-                                <span className="truncate">{a.file_name}</span>
-                            </button>
-                        ))}
+                        {(message.attachments ?? []).map((a, i) => {
+                            // Audio attachments render as a compact voice-note player.
+                            if (a.mime?.startsWith("audio/")) {
+                                return <VoiceMessage key={i} attachment={a} />;
+                            }
+                            // All other attachments render as the generic file chip.
+                            return (
+                                <button
+                                    key={i}
+                                    type="button"
+                                    onClick={() => openAttachment(a.storage_path)}
+                                    className="inline-flex max-w-[220px] items-center gap-2 rounded-xl border border-(--card-border) bg-(--card-bg) px-3 py-2 text-xs text-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
+                                >
+                                    {isImage(a.mime) ? (
+                                        <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                    ) : (
+                                        <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                    )}
+                                    <span className="truncate">{a.file_name}</span>
+                                </button>
+                            );
+                        })}
                     </div>
                 )}
                 {/* Send-failure affordance — shown instead of the reaction bar */}

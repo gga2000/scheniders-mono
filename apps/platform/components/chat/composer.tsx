@@ -20,12 +20,12 @@ import { useUpdateStatusMutation } from "@/hooks/use-orders-query";
 import { useChatStore } from "@/store/use-chat-store";
 import { parseSlash, slashCommandsFor } from "@/lib/chat/slash-commands";
 import { PIPELINE_STAGE_IDS, PIPELINE_STAGE_REGISTRY } from "@/lib/order-pipeline";
+import { EmojiPicker, recordFrequent } from "./emoji-picker";
+import { VoiceRecorder } from "./voice-recorder";
 import { ChatAvatar } from "./chat-avatar";
 import type { ChatReference, ChatAttachment, ChatMessage } from "@/types/chat";
 import type { OrderStatus } from "@/types/order";
 import type { PipelineStageId } from "@/lib/order-pipeline";
-
-const QUICK_EMOJIS = ["👍", "🔥", "✅", "❤️", "😂", "🙏", "👏", "🎉"] as const;
 const MAX_MENTION_RESULTS = 6;
 // Mirror the chat-attachments storage bucket limits so we fail fast in the UI
 // instead of opaquely deep inside the upload.
@@ -253,6 +253,21 @@ export function Composer({
         if (fileRef.current) fileRef.current.value = "";
     };
 
+    /**
+     * Accept a recorded voice File directly from VoiceRecorder.
+     * Audio files (audio/*) are intentionally NOT in ALLOWED_MIME because the
+     * file-picker path only supports images + PDF. Voice blobs bypass that
+     * check and go directly into the pending queue so they use the same
+     * upload path as every other attachment.
+     */
+    const addVoiceFile = (file: File) => {
+        if (file.size > MAX_FILE_BYTES) {
+            toast.error(t("chat.fileTooLarge", "File too large (max 10 MB)"), file.name);
+            return;
+        }
+        setPendingFiles((prev) => [...prev, { file, previewUrl: null }]);
+    };
+
     const removeFile = (index: number) => {
         setPendingFiles((prev) => {
             const target = prev[index];
@@ -261,11 +276,34 @@ export function Composer({
         });
     };
 
-    const appendEmoji = (emoji: string) => {
-        setBody((b) => b + emoji);
-        setEmojiOpen(false);
-        textareaRef.current?.focus();
-    };
+    /**
+     * Insert an emoji at the current caret position (or append if no focus).
+     * Records it as frequently used and closes the picker.
+     */
+    const insertEmoji = useCallback(
+        (emoji: string) => {
+            recordFrequent(emoji);
+            const el = textareaRef.current;
+            let newBody: string;
+            if (el) {
+                const start = el.selectionStart;
+                const end = el.selectionEnd;
+                newBody = body.slice(0, start) + emoji + body.slice(end);
+                setBody(newBody);
+                const caretPos = start + [...emoji].length;
+                requestAnimationFrame(() => {
+                    el.focus();
+                    el.setSelectionRange(caretPos, caretPos);
+                });
+            } else {
+                newBody = body + emoji;
+                setBody(newBody);
+            }
+            setEmojiOpen(false);
+            scheduleDraftWrite(conversationId, newBody);
+        },
+        [body, conversationId, scheduleDraftWrite]
+    );
 
     /**
      * Wrap the current textarea selection with the given prefix/suffix markers.
@@ -765,7 +803,7 @@ export function Composer({
                         )}
                     </AnimatePresence>
 
-                    {/* Emoji quick-pick menu */}
+                    {/* Full emoji picker */}
                     <AnimatePresence>
                         {emojiOpen && (
                             <motion.div
@@ -773,19 +811,12 @@ export function Composer({
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.92, y: 6 }}
                                 transition={{ duration: 0.14 }}
-                                className="absolute bottom-full right-0 z-10 mb-1.5 flex gap-0.5 rounded-xl border border-(--card-border) bg-(--card-bg) p-1.5 shadow-xl"
+                                className="absolute bottom-full right-0 z-20 mb-1.5"
                             >
-                                {QUICK_EMOJIS.map((emoji) => (
-                                    <button
-                                        key={emoji}
-                                        type="button"
-                                        aria-label={`${t("chat.composer.insertEmoji", "Insert")} ${emoji}`}
-                                        className="rounded-lg px-1.5 py-1 text-lg leading-none transition-transform hover:scale-125 hover:bg-foreground/5"
-                                        onClick={() => appendEmoji(emoji)}
-                                    >
-                                        {emoji}
-                                    </button>
-                                ))}
+                                <EmojiPicker
+                                    onPick={insertEmoji}
+                                    onClose={() => setEmojiOpen(false)}
+                                />
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -820,6 +851,10 @@ export function Composer({
                 >
                     <Paperclip className="h-5 w-5" />
                 </Button>
+                <VoiceRecorder
+                    onRecorded={addVoiceFile}
+                    disabled={isUploading}
+                />
                 <Button
                     type="button"
                     size="md"
