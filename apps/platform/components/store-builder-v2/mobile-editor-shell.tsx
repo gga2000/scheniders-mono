@@ -49,7 +49,6 @@ import type {
 } from "@scheniders/sections";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
-import { LivePreview } from "./live-preview";
 import { SectionListPanel } from "./section-list-panel";
 import { PageTree, type SettingsSectionId } from "./page-tree";
 import {
@@ -110,6 +109,10 @@ export interface MobileEditorShellProps {
      *  panel. EditorShell builds this lazily so we don't import the
      *  edit panel here. */
     renderEditPanel?: (sectionId: string) => React.ReactNode;
+    /** Render-prop for the preview canvas — EditorShell builds the iframe
+     *  PreviewFrame + PreviewOverlay (it owns the bridge/refs/handlers). The
+     *  arg lets the overlay's Edit action open the mobile inspector drawer. */
+    renderPreview: (onEditRequest: (sectionId: string) => void) => React.ReactNode;
     /** Stub-screen renderer for desktop-only system screens. */
     renderDesktopOnlyStub?: (id: SettingsSectionId) => React.ReactNode;
     brandKit: BrandKit;
@@ -141,23 +144,16 @@ export function MobileEditorShell(props: MobileEditorShellProps): React.ReactEle
         onToggleExpanded,
         onSelectPage,
         onSelectSetting,
-        previewProducts,
-        previewCategories,
         previewAs,
         onChangePreviewAs,
-        onInlineEdit,
-        onAddVariant,
-        onOverlayDelete,
-        onOverlayAction,
-        onSpacingChange,
         onEditSectionFromCanvas,
         onPublish,
         publishDisabled,
         publishBusy,
         publishBlockedReason,
         isFirstTimeTenant,
-        onAddAtIndex,
         renderEditPanel,
+        renderPreview,
         experiments,
         segments,
         config,
@@ -314,37 +310,10 @@ export function MobileEditorShell(props: MobileEditorShellProps): React.ReactEle
                         </button>
                     </div>
                 )}
-                <div className="relative flex flex-1 overflow-hidden">
-                    <LivePreview
-                        config={builder.config}
-                        pageId={builder.active_page}
-                        breakpoint="mobile"
-                        locale={builder.active_locale}
-                        tenant={{
-                            id: tenant.id,
-                            slug: tenant.slug,
-                            business_name: tenant.business_name,
-                        }}
-                        products={previewProducts}
-                        categories={previewCategories}
-                        governorate={previewAs.governorate}
-                        audienceSegments={previewAs.segments}
-                        abTestArms={previewAs.ab_arms}
-                        selectedSectionId={selectedSectionId}
-                        selectedSectionLabel={null}
-                        onSectionClick={onSelectSection}
-                        onEditSection={openInspectorWithSection}
-                        onDeleteSection={onOverlayDelete}
-                        onSectionAction={(kind, section_id) =>
-                            onOverlayAction(kind, section_id)
-                        }
-                        onInlineEdit={onInlineEdit}
-                        onAddVariant={onAddVariant}
-                        pickerDragActive={false}
-                        onSpacingChange={onSpacingChange}
-                        onAddAt={onAddAtIndex}
-                    />
-                </div>
+                {/* Preview canvas: the iframe PreviewFrame + PreviewOverlay
+                    built by EditorShell (it owns the bridge/refs/handlers).
+                    The overlay's Edit action opens the mobile inspector. */}
+                {renderPreview(openInspectorWithSection)}
             </div>
 
             {/* ── Bottom bar ────────────────────────────────────── */}

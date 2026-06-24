@@ -1248,6 +1248,30 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                             set_picker_open(true);
                         }}
                         renderEditPanel={renderMobileEditPanel}
+                        renderPreview={(onEditRequest) => (
+                            <div
+                                ref={preview_container_ref}
+                                className="relative flex flex-1 overflow-hidden"
+                            >
+                                <PreviewFrame
+                                    ref={iframe_ref}
+                                    url={iframePreviewUrl}
+                                    breakpoint="mobile"
+                                />
+                                <PreviewOverlay
+                                    bridge={bridge}
+                                    selected_section_id={selected_section_id}
+                                    selected_section_label={selected_section_label}
+                                    onEditRequest={onEditRequest}
+                                    onDeleteRequest={handleOverlayDelete}
+                                    onAction={handleOverlayAction}
+                                    iframeBounds={iframe_bounds}
+                                    contextMenu={preview_context_menu}
+                                    onContextMenuClose={closePreviewContextMenu}
+                                    onContextMenuAction={handlePreviewContextMenuAction}
+                                />
+                            </div>
+                        )}
                         brandKit={builder.config.brand_kit}
                         onChangeBrandKit={handleBrandKitChange}
                         experiments={builder.config.experiments}
