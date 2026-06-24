@@ -492,8 +492,8 @@ export function DuplicateComparisonModal({
                         relativeTime={getRelativeTime}
                     />
 
-                    {/* ═══ Scrollable Content — Comparison Table + Actions ═══ */}
-                    <div className="flex-1 overflow-y-auto">
+                    {/* ═══ Scrollable Content — Comparison Table ═══ */}
+                    <div className="flex-1 overflow-y-auto min-h-0">
                         {displayedOrders.length === 0 ? (
                             <button
                                 type="button"
@@ -768,13 +768,14 @@ export function DuplicateComparisonModal({
                                 </div>
                             </div>
                         )}
+                    </div>
 
-                        {/* ═══ Action Bar — Premium glass strip ═══ */}
-                        <div className={cn(
-                            "sticky bottom-0 px-5 py-3 border-t",
-                            "bg-[var(--background-soft)]/95 backdrop-blur-xl border-[var(--card-border)]",
-                            "dark:bg-[#1A1A1A]/95 dark:border-[#3F3F3F]"
-                        )}>
+                    {/* ═══ Action Bar — Premium glass footer ═══ */}
+                    <div className={cn(
+                        "flex-shrink-0 px-5 py-3 border-t",
+                        "bg-[var(--background-soft)] border-[var(--card-border)]",
+                        "dark:bg-[#1A1A1A] dark:border-[#3F3F3F]"
+                    )}>
                             {/* Note caption */}
                             <span className="block mb-1 text-[10px] text-[var(--foreground-subtle)]">{t("orders.duplicate.noteCaption")}</span>
 
@@ -937,7 +938,6 @@ export function DuplicateComparisonModal({
                                 </button>
                             </div>
                         </div>
-                    </div>
                 </motion.div>
             </motion.div>
         </AnimatePresence>
