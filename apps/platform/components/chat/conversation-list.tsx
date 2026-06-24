@@ -1,7 +1,7 @@
 // apps/platform/components/chat/conversation-list.tsx
 "use client";
 import { useMemo, useState } from "react";
-import { AtSign, BellOff, CheckCircle, ChevronDown, ChevronRight, Hash, MessagesSquare, Package, Plus, Users, Pencil } from "lucide-react";
+import { AtSign, BellOff, CheckCheck, CheckCircle, ChevronDown, ChevronRight, Hash, MessagesSquare, Package, Plus, Users, Pencil } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import { ChatAvatar } from "./chat-avatar";
 import { ChatEmptyState } from "./chat-empty-state";
@@ -12,6 +12,7 @@ import { CreateChannelDialog } from "./create-channel-dialog";
 import { CreateGroupDialog } from "./create-group-dialog";
 import { usePresenceStore } from "@/store/use-presence-store";
 import { useConversations, useArchivedConversations, useStartDm } from "@/hooks/chat/use-conversations";
+import { useMarkAllRead } from "@/hooks/chat/use-mark-all-read";
 import type { ConversationWithMeta } from "@/hooks/chat/use-conversations";
 import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
 import type { TenantMember } from "@/hooks/chat/use-tenant-members";
@@ -383,7 +384,15 @@ export function ConversationList() {
     const [archivedOpen, setArchivedOpen] = useState(false);
     const [filter, setFilter] = useState<ConvFilter>("all");
 
+    const markAllRead = useMarkAllRead();
+
     const directLabel = t("chat.directMessage", "Direct message");
+
+    // Total unread across non-muted conversations — used to show the mark-all-read button
+    const totalUnread = useMemo(
+        () => conversations.reduce((sum, c) => sum + (c.my_muted ? 0 : c.unread), 0),
+        [conversations]
+    );
 
     const memberMap = useMemo(
         () => new Map(members.map((m) => [m.user_id, m])),
@@ -462,6 +471,18 @@ export function ConversationList() {
                         {t("chat.conversations", "Conversations")}
                     </span>
                     <div className="flex items-center gap-1">
+                        {totalUnread > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => markAllRead.mutate()}
+                                disabled={markAllRead.isPending}
+                                aria-label={t("chat.markAllRead", "Mark all read")}
+                                title={t("chat.markAllRead", "Mark all read")}
+                                className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground disabled:opacity-50"
+                            >
+                                <CheckCheck className="h-3.5 w-3.5" />
+                            </button>
+                        )}
                         <ConversationJump />
                         <Popover open={newMenuOpen} onOpenChange={setNewMenuOpen}>
                             <PopoverTrigger asChild>
