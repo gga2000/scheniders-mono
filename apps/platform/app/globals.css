@@ -95,6 +95,36 @@ body {
   -webkit-backdrop-filter: blur(24px) saturate(1.5);
 }
 
+/* ============================================
+   Global Header / TopBar — token-driven glass.
+   Light & dark resolve from --card-bg / --foreground, no class-string matching.
+   ============================================ */
+:root { --z-header: 40; --z-header-overlay: 60; }
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header);
+  isolation: isolate;                 /* own stacking context for the glass */
+  background: color-mix(in srgb, var(--card-bg) 72%, transparent);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  transition: transform .28s cubic-bezier(.22, 1, .36, 1),
+              box-shadow .2s ease, background-color .2s ease;
+  will-change: transform;
+}
+/* No backdrop-filter support → solid token surface (never see-through-broken). */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .app-header { background: var(--card-bg); }
+}
+/* Elevation appears only after scrolling — a soft shadow separates, not a border. */
+.app-header[data-scrolled="true"] {
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--foreground) 6%, transparent),
+              0 10px 22px -14px color-mix(in srgb, var(--foreground) 30%, transparent);
+}
+.app-header[data-hidden="true"] { transform: translateY(-115%); }
+@media (prefers-reduced-motion: reduce) { .app-header { transition: none; } }
+
 /* Recessed design canvas: warm surface + faint dot grid, like a pro design tool. */
 .sb-canvas {
   background-color: var(--background);
@@ -1220,105 +1250,6 @@ body {
 .dark .customer-modal-surface .btn-secondary:hover {
   background: #333333 !important;
   color: #FFFFFF !important;
-}
-
-/* ============================================
-   Global Header / TopBar — Dark Mode
-   ============================================ */
-
-/* TopBar header background */
-.dark header[class*="bg-[var(--background)]"] {
-  background: #121212 !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-/* Search bar styling */
-.dark header div[class*="bg-[var(--card-bg)]"][class*="rounded-full"] {
-  background: #2A2A2A !important;
-  border-color: #3F3F3F !important;
-}
-
-.dark header div[class*="bg-[var(--card-bg)]"][class*="rounded-full"][class*="ring-2"] {
-  box-shadow: 0 0 15px rgba(239, 255, 0, 0.15) !important;
-}
-
-/* Search icon circle */
-.dark header div[class*="bg-[var(--ink)]"][class*="rounded-full"] {
-  background: #EFFF00 !important;
-}
-
-.dark header div[class*="bg-[var(--ink)]"][class*="rounded-full"] svg {
-  color: #000000 !important;
-}
-
-/* Search category pills */
-.dark header button[class*="bg-[var(--ink)]"][class*="rounded-full"] {
-  background: #EFFF00 !important;
-  color: #000000 !important;
-}
-
-.dark header button[class*="bg-"][class*="background"][class*="rounded-full"] {
-  background: #333333 !important;
-  border-color: #3F3F3F !important;
-  color: #A1A1A1 !important;
-}
-
-.dark header button[class*="bg-"][class*="background"][class*="rounded-full"]:hover {
-  background: #3F3F3F !important;
-  color: #FFFFFF !important;
-}
-
-/* Search results dropdown */
-.dark header div[class*="bg-"][class*="card-bg"][class*="rounded-2xl"][class*="shadow-xl"] {
-  background: #2A2A2A !important;
-  border-color: #3F3F3F !important;
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6) !important;
-}
-
-.dark header button[class*="hover:bg-"][class*="background"]:hover {
-  background: #333333 !important;
-}
-
-/* Search result icon backgrounds (pastel → neon muted) */
-.dark header div[class*="bg-"][class*="pastel-yellow"] {
-  background: rgba(239, 255, 0, 0.15) !important;
-  color: #EFFF00 !important;
-}
-
-.dark header div[class*="bg-"][class*="pastel-green"] {
-  background: rgba(0, 255, 100, 0.15) !important;
-  color: #66FFAA !important;
-}
-
-.dark header div[class*="bg-"][class*="pastel-mint"] {
-  background: rgba(0, 255, 255, 0.15) !important;
-  color: #00FFFF !important;
-}
-
-/* Keyboard hints bar */
-.dark header div[class*="bg-"][class*="background"][class*="border-t"] {
-  background: #1A1A1A !important;
-  border-color: #3F3F3F !important;
-}
-
-.dark header kbd {
-  background: #333333 !important;
-  border-color: #3F3F3F !important;
-  color: #A1A1A1 !important;
-}
-
-/* TopBar action buttons (Notifications, Settings) */
-.dark header a[class*="bg-"][class*="card-bg"][class*="rounded-full"],
-.dark header button[class*="bg-"][class*="card-bg"][class*="rounded-full"] {
-  background: #2A2A2A !important;
-  border-color: #3F3F3F !important;
-}
-
-.dark header a[class*="bg-"][class*="card-bg"][class*="rounded-full"]:hover,
-.dark header button[class*="bg-"][class*="card-bg"][class*="rounded-full"]:hover {
-  background: #333333 !important;
-  border-color: #555555 !important;
-  box-shadow: 0 0 10px rgba(0, 255, 255, 0.1) !important;
 }
 
 /* ============================================
