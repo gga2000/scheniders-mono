@@ -106,7 +106,14 @@ body {
   top: 0;
   z-index: var(--z-header);
   isolation: isolate;                 /* own stacking context for the glass */
-  background: color-mix(in srgb, var(--card-bg) 72%, transparent);
+  /* Cream surface that matches the page background (not white) — frosted. */
+  background: color-mix(in srgb, var(--background) 82%, transparent);
+  /* Full-bleed: extend the surface left behind the floating sidebar so the bar
+     reads as one continuous strip across the top. --app-sidebar-gutter is set by
+     DashboardLayout to the current sidebar offset (0 on mobile); padding-left
+     keeps the header content in place while the background bleeds left. */
+  margin-left: calc(-1 * var(--app-sidebar-gutter, 0px));
+  padding-left: var(--app-sidebar-gutter, 0px);
   /* NOTE: the blur is applied via Tailwind's `backdrop-blur-*` utility on the
      <header> element, NOT here. This project's Lightning CSS pipeline strips a
      bare `backdrop-filter` declaration from custom rules (the same reason the
@@ -118,7 +125,7 @@ body {
 }
 /* No backdrop-filter support → solid token surface (never see-through-broken). */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .app-header { background: var(--card-bg); }
+  .app-header { background: var(--background); }
 }
 /* Elevation appears only after scrolling — a soft shadow separates, not a border. */
 .app-header[data-scrolled="true"] {

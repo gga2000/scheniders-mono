@@ -102,6 +102,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                         style={{
                             marginLeft: getMainMargin(),
                             paddingBottom: "0",
+                            // Exposes the sidebar offset to the sticky header so its
+                            // surface can bleed full-width behind the floating sidebar.
+                            ["--app-sidebar-gutter" as string]: getMainMargin(),
                         }}
                     >
                         <TrialBanner />
