@@ -566,7 +566,7 @@ export function DuplicateComparisonModal({
                                                     base: t("orders.duplicate.base"),
                                                     merge: t("orders.duplicate.mergeTarget"),
                                                     view: t("orders.duplicate.viewDetails"),
-                                                    hide: t("orders.duplicate.toggleColumns"),
+                                                    hide: t("orders.duplicate.hideColumn"),
                                                 }}
                                             />
                                         </div>
@@ -776,7 +776,7 @@ export function DuplicateComparisonModal({
                             "dark:bg-[#1A1A1A]/95 dark:border-[#3F3F3F]"
                         )}>
                             {/* Note caption */}
-                            <span className="block mb-1 text-[10px] text-[var(--foreground-subtle)]">{t("orders.duplicate.addNote")}</span>
+                            <span className="block mb-1 text-[10px] text-[var(--foreground-subtle)]">{t("orders.duplicate.noteCaption")}</span>
 
                             {/* Note input — inline compact */}
                             <div className="flex items-center gap-2 mb-3">
