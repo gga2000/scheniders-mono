@@ -17,7 +17,9 @@ import {
     User,
     Hash,
     Bell,
-    Settings,
+    MoreHorizontal,
+    Settings as SettingsIcon,
+    LogOut,
     ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,6 +32,8 @@ import { NotificationsDropdown } from "./notifications-dropdown";
 import { AutoSendToggle } from "@/components/orders/auto-send-toggle";
 import { MerchantCodeBadge } from "./merchant-code-badge";
 import { useHeadroom } from "@/hooks/use-headroom";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@scheniders/ui/dropdown-menu";
+import { HEADER_ACTION_CLASS } from "./header-action-button";
 
 type SearchCategory = "all" | "orders" | "customers" | "products";
 
@@ -332,7 +336,8 @@ interface TopBarProps {
 }
 
 export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
-    const { user, profile } = useAuth();
+    const { user, profile, signOut } = useAuth();
+    const router = useRouter();
 
     const [scrolled, setScrolled] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
@@ -374,51 +379,65 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
                 <div className="flex items-center justify-end gap-2 md:flex-1 md:min-w-[200px]">
                     {/* Desktop Actions - Hidden on mobile */}
                     <div className="hidden md:flex items-center gap-2">
-                        {/* Auto-Send WhatsApp Toggle */}
+                        {/* Work tools */}
                         <AutoSendToggle variant="navbar" />
 
-                        {/* Theme Toggle */}
-                        <ThemeToggle />
+                        {/* Divider: work tools | identity & comms */}
+                        <div className="w-px h-6 bg-[var(--card-border)]/60 mx-1" />
 
-                        {/* Language Toggle */}
-                        <LanguageToggle />
-
-                        {/* Live Presence Stack */}
+                        {/* Presence · Chat · Notifications */}
                         <LivePresenceStack />
-
-                        {/* Team Chat Trigger */}
                         <ChatTrigger />
-
-                        {/* Notifications Dropdown */}
                         <NotificationsDropdown onOpenChange={setNotifOpen} />
 
-                        {/* Settings */}
-                        <Link
-                            href="/settings"
-                            className="w-10 h-10 rounded-full bg-(--card-bg) border border-(--card-border) flex items-center justify-center text-muted hover:text-foreground hover:border-(--foreground-muted) transition-all"
-                            title="Settings"
-                        >
-                            <Settings className="w-5 h-5" />
-                        </Link>
+                        {/* Overflow: Theme + Language */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button className={HEADER_ACTION_CLASS} title="More" aria-label="More options">
+                                    <MoreHorizontal className="w-5 h-5" />
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" style={{ zIndex: "var(--z-header-overlay)" }} className="w-48">
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="flex items-center justify-between gap-3 cursor-pointer">
+                                    <span className="text-sm">Theme</span>
+                                    <ThemeToggle />
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="flex items-center justify-between gap-3 cursor-pointer">
+                                    <span className="text-sm">Language</span>
+                                    <LanguageToggle />
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
 
-                        {/* User Avatar */}
-                        <Link
-                            href="/settings"
-                            className="w-10 h-10 rounded-full bg-linear-to-br from-[#FBE38E] to-[#F4C7CF] flex items-center justify-center text-[#1E1E1E] font-bold text-sm hover:scale-105 transition-transform overflow-hidden shadow-sm"
-                            title="Profile"
-                        >
-                            {profile?.avatar_url ? (
-                                <img
-                                    src={profile.avatar_url}
-                                    alt={profile.display_name || "User"}
-                                    className="w-full h-full object-cover"
-                                />
-                            ) : (
-                                <span>
-                                    {(profile?.display_name || user?.email || "U")?.charAt(0).toUpperCase()}
-                                </span>
-                            )}
-                        </Link>
+                        {/* Account menu (replaces the duplicate Settings gear) */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button
+                                    className="w-10 h-10 rounded-full bg-linear-to-br from-[#FBE38E] to-[#F4C7CF] flex items-center justify-center text-[#1E1E1E] font-bold text-sm hover:scale-105 transition-transform overflow-hidden shadow-sm"
+                                    title="Account"
+                                    aria-label="Account menu"
+                                >
+                                    {profile?.avatar_url ? (
+                                        <img src={profile.avatar_url} alt={profile.display_name || "User"} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span>{(profile?.display_name || user?.email || "U")?.charAt(0).toUpperCase()}</span>
+                                    )}
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" style={{ zIndex: "var(--z-header-overlay)" }} className="w-48">
+                                <DropdownMenuItem asChild className="cursor-pointer">
+                                    <Link href="/settings" className="flex items-center gap-2">
+                                        <SettingsIcon className="w-4 h-4" /> Settings
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    onSelect={async () => { await signOut(); router.push("/login"); }}
+                                    className="flex items-center gap-2 text-rose-600 cursor-pointer"
+                                >
+                                    <LogOut className="w-4 h-4" /> Sign out
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
 
                     {/* Mobile-only actions — the desktop block above is hidden on mobile,
