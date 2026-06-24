@@ -29,6 +29,7 @@ import { ChatTrigger } from "@/components/chat/chat-trigger";
 import { NotificationsDropdown } from "./notifications-dropdown";
 import { AutoSendToggle } from "@/components/orders/auto-send-toggle";
 import { MerchantCodeBadge } from "./merchant-code-badge";
+import { useHeadroom } from "@/hooks/use-headroom";
 
 type SearchCategory = "all" | "orders" | "customers" | "products";
 
@@ -337,6 +338,7 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
     const [searchOpen, setSearchOpen] = useState(false);
     const [notifOpen, setNotifOpen] = useState(false);
     const anyOverlayOpen = searchOpen || notifOpen;
+    const { hidden } = useHeadroom({ locked: anyOverlayOpen, disabled: isMobile });
 
     useEffect(() => {
         if (typeof window === "undefined") return;
@@ -355,7 +357,7 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
     }, []);
 
     return (
-        <header className="app-header" data-scrolled={scrolled}>
+        <header className="app-header" data-scrolled={scrolled} data-hidden={hidden}>
             {/* Header Content */}
             <div className="relative flex items-center justify-between gap-3 md:gap-6 w-full px-4 md:px-6 py-3 md:py-4">
                 {/* Left: merchant code badge */}
