@@ -18,10 +18,15 @@ CREATE POLICY chat_notification_prefs_self ON public.chat_notification_prefs
     FOR ALL USING (user_id = auth.uid())
     WITH CHECK (user_id = auth.uid() AND tenant_id IN (SELECT get_user_tenant_ids()));
 
--- mark-all-read RPC (caller's own memberships only)
+-- mark-all-read RPC (caller's own memberships, tenant-scoped)
 CREATE OR REPLACE FUNCTION public.chat_mark_all_read()
 RETURNS void LANGUAGE sql SECURITY DEFINER SET search_path = public, pg_temp AS $$
-    UPDATE public.chat_members SET last_read_at = now() WHERE user_id = auth.uid();
+    UPDATE public.chat_members cm
+    SET    last_read_at = now()
+    FROM   public.chat_conversations cc
+    WHERE  cm.conversation_id = cc.id
+      AND  cm.user_id         = auth.uid()
+      AND  cc.tenant_id       IN (SELECT get_user_tenant_ids());
 $$;
 REVOKE EXECUTE ON FUNCTION public.chat_mark_all_read() FROM PUBLIC, anon;
 GRANT  EXECUTE ON FUNCTION public.chat_mark_all_read() TO authenticated;

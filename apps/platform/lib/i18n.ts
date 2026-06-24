@@ -2853,6 +2853,10 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.alsoViewing": "Also viewing",
         "chat.activeNow": "Active now",
         "chat.activeAgo": "Active {ago}",
+        // ── Phase 6A: sound toggle ──
+        "chat.soundOn": "Notifications: sound on",
+        "chat.soundOff": "Notifications: sound off",
+        "chat.notificationSettings": "Notification settings",
     },
 
     ar: {
@@ -5701,5 +5705,9 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.alsoViewing": "يشاهد أيضاً",
         "chat.activeNow": "نشط الآن",
         "chat.activeAgo": "نشط {ago}",
+        // ── Phase 6A: sound toggle ──
+        "chat.soundOn": "الإشعارات: الصوت مفعّل",
+        "chat.soundOff": "الإشعارات: الصوت معطّل",
+        "chat.notificationSettings": "إعدادات الإشعارات",
     },
 };

@@ -1,7 +1,7 @@
 // apps/platform/components/chat/conversation-list.tsx
 "use client";
 import { useMemo, useState } from "react";
-import { AtSign, BellOff, CheckCheck, CheckCircle, ChevronDown, ChevronRight, Hash, MessagesSquare, Package, Plus, Users, Pencil } from "lucide-react";
+import { AtSign, Bell, BellOff, CheckCheck, CheckCircle, ChevronDown, ChevronRight, Hash, MessagesSquare, Package, Plus, Users, Pencil } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import { ChatAvatar } from "./chat-avatar";
 import { ChatEmptyState } from "./chat-empty-state";
@@ -374,7 +374,7 @@ export function ConversationList() {
     const { data: members = [] } = useTenantMembers();
     const { mentions } = useMentionNotifications();
     const startDm = useStartDm();
-    const { activeConversationId, setActiveConversation, settingsConversationId, openSettings, closeSettings } = useChatStore();
+    const { activeConversationId, setActiveConversation, settingsConversationId, openSettings, closeSettings, soundEnabled, setSoundEnabled } = useChatStore();
     const { t } = useLanguage();
     const { orders } = useOrdersContext();
     const [startingId, setStartingId] = useState<string | null>(null);
@@ -471,6 +471,15 @@ export function ConversationList() {
                         {t("chat.conversations", "Conversations")}
                     </span>
                     <div className="flex items-center gap-1">
+                        <button
+                            type="button"
+                            onClick={() => setSoundEnabled(!soundEnabled)}
+                            aria-label={soundEnabled ? t("chat.soundOn", "Notifications: sound on") : t("chat.soundOff", "Notifications: sound off")}
+                            title={soundEnabled ? t("chat.soundOn", "Notifications: sound on") : t("chat.soundOff", "Notifications: sound off")}
+                            className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+                        >
+                            {soundEnabled ? <Bell className="h-3.5 w-3.5" /> : <BellOff className="h-3.5 w-3.5" />}
+                        </button>
                         {totalUnread > 0 && (
                             <button
                                 type="button"
