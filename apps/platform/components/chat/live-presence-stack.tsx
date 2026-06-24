@@ -11,7 +11,7 @@ import { useLanguage } from "@/components/providers/language-provider";
 export function LivePresenceStack() {
     const { otherUsers, totalOnline } = useTenantPresence();
     const startDm = useStartDm();
-    const { open } = useChatStore();
+    const open = useChatStore((s) => s.open);
     const { t } = useLanguage();
     const [busy, setBusy] = useState<string | null>(null);
 
