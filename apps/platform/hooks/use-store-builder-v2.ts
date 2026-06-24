@@ -10,10 +10,12 @@ import type {
     ScheduledChange,
     AudienceSegment,
     Experiment,
+    CustomPage,
 } from "@scheniders/shared";
 import {
     pruneVariantsForDeletedSegment,
     pruneVariantsForDeletedExperiment,
+    findCustomPageById,
 } from "@scheniders/shared";
 import { supabase } from "@/lib/supabase";
 import {
@@ -100,6 +102,16 @@ export interface UseStoreBuilderV2Return {
     /** Editor UI state. */
     active_page: PageId;
     set_active_page: (p: PageId) => void;
+    /**
+     * Custom page currently being authored (id), or null when the canvas is
+     * editing the system `active_page`. Setting a system page via
+     * `set_active_page` clears this; the two are mutually exclusive edit
+     * targets (E4).
+     */
+    active_custom_page_id: string | null;
+    set_active_custom_page_id: (id: string | null) => void;
+    /** Resolved custom page for `active_custom_page_id` (null if none/dangling). */
+    active_custom_page: CustomPage | null;
     active_breakpoint: Breakpoint;
     set_active_breakpoint: (b: Breakpoint) => void;
     active_locale: LocaleCode;
@@ -264,7 +276,29 @@ export function useStoreBuilderV2(
     const [publish_conflict, set_publish_conflict] = useState<boolean>(false);
 
     /* ── Editor UI state ──────────────────────────────────────────── */
-    const [active_page, set_active_page] = useState<PageId>("home");
+    const [active_page, _set_active_page] = useState<PageId>("home");
+    const [active_custom_page_id, _set_active_custom_page_id] = useState<
+        string | null
+    >(null);
+    // Selecting a system page exits custom-page authoring (mutually exclusive).
+    const set_active_page = useCallback((p: PageId): void => {
+        _set_active_page(p);
+        _set_active_custom_page_id(null);
+    }, []);
+    const set_active_custom_page_id = useCallback((id: string | null): void => {
+        _set_active_custom_page_id(id);
+    }, []);
+    // Resolved custom page (null when not authoring one, or the id is dangling
+    // because the page was deleted while selected — the canvas falls back to
+    // the system `active_page` in that case).
+    const active_custom_page = useMemo<CustomPage | null>(
+        () =>
+            active_custom_page_id
+                ? (findCustomPageById(config.custom_pages, active_custom_page_id) ??
+                  null)
+                : null,
+        [config.custom_pages, active_custom_page_id],
+    );
     const [active_breakpoint, set_active_breakpoint] = useState<Breakpoint>("desktop");
     const [active_locale, set_active_locale] = useState<LocaleCode>(
         initialConfig.default_locale ?? "en",
@@ -1363,6 +1397,9 @@ export function useStoreBuilderV2(
 
         active_page,
         set_active_page,
+        active_custom_page_id,
+        set_active_custom_page_id,
+        active_custom_page,
         active_breakpoint,
         set_active_breakpoint,
         active_locale,
