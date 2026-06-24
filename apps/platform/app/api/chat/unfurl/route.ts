@@ -10,8 +10,16 @@
 //   3. Host/DNS  — literal-IP hosts are checked directly; named hosts are
 //                  resolved with dns.lookup({ all: true }) and rejected if ANY
 //                  resolved address is private / loopback / link-local /
-//                  unique-local (covers DNS-rebinding, since we re-resolve and
-//                  re-check on every hop). `localhost` is rejected outright.
+//                  unique-local (v4, v6, IPv4-mapped, 6to4, NAT64).
+//                  `localhost` is rejected outright.
+//                  KNOWN LIMITATION (fast-follow): the validated address is NOT
+//                  pinned for the actual fetch — Node's fetch re-resolves the
+//                  hostname, so a low-TTL attacker-controlled resolver could
+//                  rebind public→private between validate and fetch (DNS
+//                  rebinding TOCTOU). This endpoint is authenticated-only, which
+//                  bounds the risk. Proper fix: pin the resolved IP via an
+//                  undici Agent whose `connect.lookup` re-checks isPrivateAddress
+//                  at connection time (needs runtime verification before shipping).
 //   4. Redirects — fetch(..., { redirect: "manual" }); 3xx responses are NOT
 //                  auto-followed. Each redirect target is re-validated through
 //                  the SAME scheme + host + DNS checks before following, capped

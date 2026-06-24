@@ -74,10 +74,26 @@ export function isPrivateAddress(ip: string): boolean {
         return isPrivateIpv4(v4);
     }
 
+    // 6to4 (2002::/16) embeds an IPv4 in the first two hextets after 2002.
+    const sixToFour = lower.match(/^2002:([0-9a-f]{1,4}):([0-9a-f]{1,4})(?::|$)/);
+    if (sixToFour) {
+        const hi = parseInt(sixToFour[1], 16);
+        const lo = parseInt(sixToFour[2], 16);
+        if (isPrivateIpv4(`${(hi >> 8) & 0xff}.${hi & 0xff}.${(lo >> 8) & 0xff}.${lo & 0xff}`)) return true;
+    }
+    // NAT64 (64:ff9b::/96) embeds an IPv4 in the last 32 bits (hex or dotted).
+    const nat64 = lower.match(/^64:ff9b::(?:([0-9a-f]{1,4}):([0-9a-f]{1,4})|(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}))$/);
+    if (nat64) {
+        if (nat64[3]) return isPrivateIpv4(nat64[3]);
+        const hi = parseInt(nat64[1], 16);
+        const lo = parseInt(nat64[2], 16);
+        return isPrivateIpv4(`${(hi >> 8) & 0xff}.${hi & 0xff}.${(lo >> 8) & 0xff}.${lo & 0xff}`);
+    }
+
     // fc00::/7 — unique-local (fc00:: – fdff::)
     if (/^f[cd][0-9a-f]{0,2}:/.test(lower)) return true;
-    // fe80::/10 — link-local (fe80 – febf)
-    if (/^fe[89ab][0-9a-f]:/.test(lower)) return true;
+    // fe80::/10 link-local + fec0::/10 deprecated site-local (fe80 – feff)
+    if (/^fe[89a-f][0-9a-f]:/.test(lower)) return true;
 
     return false;
 }

@@ -39,9 +39,19 @@ describe("isPrivateAddress", () => {
         expect(isPrivateAddress("::ffff:7f00:1")).toBe(true);
     });
 
-    it("allows public IPv6 addresses", () => {
+    it("blocks IPv6 transitional/embedded forms of private addresses", () => {
+        expect(isPrivateAddress("2002:7f00:1::")).toBe(true);      // 6to4 of 127.0.0.1
+        expect(isPrivateAddress("2002:c0a8:101::")).toBe(true);    // 6to4 of 192.168.1.1
+        expect(isPrivateAddress("64:ff9b::7f00:1")).toBe(true);    // NAT64 of 127.0.0.1 (hex)
+        expect(isPrivateAddress("64:ff9b::127.0.0.1")).toBe(true); // NAT64 of 127.0.0.1 (dotted)
+        expect(isPrivateAddress("fec0::1")).toBe(true);            // deprecated site-local
+    });
+
+    it("allows public IPv6 addresses (incl. public transitional forms)", () => {
         expect(isPrivateAddress("2001:4860:4860::8888")).toBe(false); // Google DNS
         expect(isPrivateAddress("::ffff:8.8.8.8")).toBe(false);
+        expect(isPrivateAddress("2002:808:808::")).toBe(false);       // 6to4 of 8.8.8.8
+        expect(isPrivateAddress("64:ff9b::8.8.8.8")).toBe(false);     // NAT64 of 8.8.8.8
     });
 
     it("returns false for non-IP-literal input (named hosts resolved separately)", () => {
