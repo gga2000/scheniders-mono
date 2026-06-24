@@ -423,8 +423,13 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             return;
         }
         if (last_pushed_page_ref.current === builder.active_page) return;
-        last_pushed_page_ref.current = builder.active_page;
+        // Wait for `ready` WITHOUT advancing the ref — otherwise a page switch
+        // during the ~1s before the bridge is ready would strand the iframe on
+        // the old page (the ref would already match `active_page`, so the
+        // ready-triggered re-run would skip the navigation). This effect
+        // re-runs when `ready` flips because `bridge` is in its deps.
         if (!bridge.state.ready) return;
+        last_pushed_page_ref.current = builder.active_page;
         // Build the URL inline (rather than reading `previewUrlRef`) so
         // we never race the ref-sync effect, which commits in its own
         // declaration order.

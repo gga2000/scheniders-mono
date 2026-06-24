@@ -623,6 +623,69 @@ describe("EditorShell", () => {
         expect(url).toContain("page=cart");
     });
 
+    it("navigates a page switched BEFORE the bridge was ready, once ready flips (step 8)", async () => {
+        (globalThis as { __editorShellBridge?: MockBridgeSpies }).__editorShellBridge = {
+            state: { ready: false, inline_editing: false },
+            postPageConfigUpdate: vi.fn(),
+            postRuntimeUpdate: vi.fn(),
+            postPageIdChange: vi.fn(),
+            scrollToSection: vi.fn(),
+            requestRect: vi.fn(),
+            ping: vi.fn().mockResolvedValue(undefined),
+            onSectionClicked: vi.fn(() => () => {}),
+            setSelectedSection: vi.fn(),
+            onInlineEditCommit: vi.fn(() => () => {}),
+            requestAllRects: vi.fn(),
+            onContextMenu: vi.fn(() => () => {}),
+        };
+
+        const builder = makeBuilder();
+        const { rerender } = render(
+            <EditorShell
+                tenant={TENANT}
+                initialConfig={emptyStoreConfigV2()}
+                hasPublished
+                builderOverride={builder}
+                storefrontUrlOverride="http://localhost:3001/s/test-store"
+            />,
+        );
+
+        // Switch page while the bridge is still NOT ready → no nav yet, and the
+        // ref must NOT advance (the bug stranded the iframe here).
+        rerender(
+            <EditorShell
+                tenant={TENANT}
+                initialConfig={emptyStoreConfigV2()}
+                hasPublished
+                builderOverride={{ ...builder, active_page: "cart" as PageId }}
+                storefrontUrlOverride="http://localhost:3001/s/test-store"
+            />,
+        );
+        await act(async () => {
+            await new Promise((r) => setTimeout(r, 30));
+        });
+        expect(getBridgeSpies().postPageIdChange).not.toHaveBeenCalled();
+
+        // Bridge becomes ready → the pending page switch must now navigate.
+        getBridgeSpies().state.ready = true;
+        rerender(
+            <EditorShell
+                tenant={TENANT}
+                initialConfig={emptyStoreConfigV2()}
+                hasPublished
+                builderOverride={{ ...builder, active_page: "cart" as PageId }}
+                storefrontUrlOverride="http://localhost:3001/s/test-store"
+            />,
+        );
+        await act(async () => {
+            await new Promise((r) => setTimeout(r, 30));
+        });
+
+        const spies = getBridgeSpies();
+        expect(spies.postPageIdChange).toHaveBeenCalledTimes(1);
+        expect(spies.postPageIdChange.mock.calls[0][0]).toContain("page=cart");
+    });
+
     /* ── Phase 2d: responsive layout switch ─────────────────────── */
 
     function setViewportWidth(px: number): void {
