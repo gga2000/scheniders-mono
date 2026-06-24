@@ -4,6 +4,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { ChevronLeft, MessageSquare, Search, X } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { ar as arLocale } from "date-fns/locale";
 import { useChatStore } from "@/store/use-chat-store";
 import { useConversations } from "@/hooks/chat/use-conversations";
 import { useAuth } from "@/hooks/use-auth";
@@ -20,6 +22,8 @@ import { SearchPanel } from "./search-panel";
 import { OrderThreadCard } from "./order-thread-card";
 import { PinnedBar } from "./pinned-bar";
 import { ForwardDialog } from "./forward-dialog";
+import { usePresenceStatus } from "@/store/use-presence-store";
+import { useLastSeen } from "@/hooks/chat/use-last-seen";
 import type { ChatMessage } from "@/types/chat";
 
 export function ChatSheet() {
@@ -27,7 +31,7 @@ export function ChatSheet() {
     const [searchOpen, setSearchOpen] = useState(false);
     const [forwardMessage, setForwardMessage] = useState<ChatMessage | null>(null);
     const isMobile = useIsMobile(768);
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const { data: messages = [], sendMessage, markRead, isLoading } = useMessages(activeConversationId);
     const { typers, notifyTyping } = useTypingIndicator(activeConversationId);
 
@@ -52,6 +56,29 @@ export function ChatSheet() {
         if (!activeConversation || !user?.id) return false;
         return activeConversation.members.find((m) => m.user_id === user.id)?.role === "owner";
     }, [activeConversation, user?.id]);
+
+    // F4: DM last-seen — resolve the peer's user_id (the other member in a DM).
+    // Hooks are called unconditionally; rendering is gated on kind === "dm".
+    const dmPeerId = useMemo(() => {
+        if (!activeConversation || activeConversation.kind !== "dm" || !user?.id) return null;
+        return activeConversation.members.find((m) => m.user_id !== user.id)?.user_id ?? null;
+    }, [activeConversation, user?.id]);
+
+    const dmPeerStatus = usePresenceStatus(dmPeerId);
+    const { data: dmPeerLastSeen } = useLastSeen(dmPeerId);
+
+    const dmStatusLabel = useMemo((): string | null => {
+        if (!dmPeerId || activeConversation?.kind !== "dm") return null;
+        if (dmPeerStatus === "online") return t("chat.activeNow", "Active now");
+        if (dmPeerLastSeen) {
+            const ago = formatDistanceToNow(new Date(dmPeerLastSeen), {
+                addSuffix: true,
+                locale: language === "ar" ? arLocale : undefined,
+            });
+            return t("chat.activeAgo", "Active {ago}").replace("{ago}", ago);
+        }
+        return null;
+    }, [dmPeerId, activeConversation?.kind, dmPeerStatus, dmPeerLastSeen, t, language]);
 
     // Mark read on open / conversation switch only — not on every incoming
     // message (that re-fired markRead per message and churned the unread RPC).
@@ -190,9 +217,17 @@ export function ChatSheet() {
                                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--pastel-yellow)] text-[var(--ink)]">
                                         <MessageSquare className="h-4 w-4" />
                                     </span>
-                                    <span className="font-semibold text-foreground">
-                                        {activeConversationName ?? t("chat.title", "Team chat")}
-                                    </span>
+                                    <div className="flex flex-col">
+                                        <span className="font-semibold leading-tight text-foreground">
+                                            {activeConversationName ?? t("chat.title", "Team chat")}
+                                        </span>
+                                        {/* F4: DM last-seen / active-now subtitle */}
+                                        {dmStatusLabel && (
+                                            <span className="text-[11px] leading-tight text-muted-foreground">
+                                                {dmStatusLabel}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             )}
                             {activeConversation && (

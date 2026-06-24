@@ -2849,6 +2849,10 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.image.altText": "Image",
         // ── Phase 4 Task 8: link unfurl preview ──
         "chat.linkPreview.open": "Open link",
+        // ── Phase 6A Task 7: on-order viewers (F1) + last-seen DM header (F4) ──
+        "chat.alsoViewing": "Also viewing",
+        "chat.activeNow": "Active now",
+        "chat.activeAgo": "Active {ago}",
     },
 
     ar: {
@@ -5693,5 +5697,9 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.image.altText": "صورة",
         // ── Phase 4 Task 8: link unfurl preview ──
         "chat.linkPreview.open": "فتح الرابط",
+        // ── Phase 6A Task 7: on-order viewers (F1) + last-seen DM header (F4) ──
+        "chat.alsoViewing": "يشاهد أيضاً",
+        "chat.activeNow": "نشط الآن",
+        "chat.activeAgo": "نشط {ago}",
     },
 };

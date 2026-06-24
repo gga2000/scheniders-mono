@@ -10,6 +10,8 @@ import { PIPELINE_STAGE_REGISTRY } from "@/lib/order-pipeline";
 import { generateWhatsAppLink } from "@/lib/utils";
 import type { PipelineStageId } from "@/lib/order-pipeline";
 import { OrderActionBar } from "./order-action-bar";
+import { usePresence } from "@/hooks/use-presence";
+import { ChatAvatar } from "./chat-avatar";
 
 interface OrderThreadCardProps {
     conversationId: string;
@@ -27,6 +29,16 @@ export function OrderThreadCard({ conversationId }: OrderThreadCardProps) {
 
     const conv = conversations.find((c) => c.id === conversationId);
     const convName = conv?.name ?? t("chat.orderThread", "Order thread");
+
+    // F1: per-resource presence on the order — uses the existing usePresence hook
+    // (a separate channel keyed by orderId). Only active while this card is mounted,
+    // i.e. while the order thread is open. Does NOT touch the tenant-wide channel.
+    const orderId = conv?.order_id ?? null;
+    const { otherUsers } = usePresence(orderId ?? "");
+
+    // Presence is only meaningful when we have a real orderId; suppress the hook's
+    // output when the conv has no order_id yet (loading / edge case).
+    const viewers = orderId ? otherUsers : [];
 
     if (!order || !conv) {
         // Minimal header while order data is loading or not yet available
@@ -85,6 +97,30 @@ export function OrderThreadCard({ conversationId }: OrderThreadCardProps) {
                     </svg>
                 </a>
             </div>
+
+            {/* F1: also-viewing cluster — shown when another teammate is looking at this order */}
+            {viewers.length > 0 && (
+                <div className="flex items-center gap-1.5 px-4 pb-1.5">
+                    <span className="text-[10px] text-muted-foreground">
+                        {t("chat.alsoViewing", "Also viewing")}
+                    </span>
+                    <div className="flex -space-x-1">
+                        {viewers.slice(0, 5).map((v) => (
+                            <ChatAvatar
+                                key={v.id}
+                                userId={v.id}
+                                name={v.display_name}
+                                avatarUrl={v.avatar_url}
+                                size="xs"
+                                ringClassName="ring-1 ring-(--card-bg)"
+                            />
+                        ))}
+                    </div>
+                    {viewers.length > 5 && (
+                        <span className="text-[10px] text-muted-foreground">+{viewers.length - 5}</span>
+                    )}
+                </div>
+            )}
 
             {/* Action bar: status / assign / resolve */}
             <OrderActionBar order={order} conversation={conv} />
