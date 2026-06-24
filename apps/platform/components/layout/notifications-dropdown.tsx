@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { motion } from "framer-motion";
 import { useOrderActivityNotifications } from "@/hooks/use-order-activity-notifications";
 import { useMentionNotifications } from "@/hooks/chat/use-mention-notifications";
 import { useChatStore } from "@/store/use-chat-store";
-import { motion, AnimatePresence } from "framer-motion";
+import { Popover, PopoverTrigger, PopoverContent } from "@scheniders/ui/popover";
 import { Bell, Check, CheckCheck, Trash2, Package, RefreshCw, Plus, Clock, Bot, Sparkles, ArrowRight, AtSign } from "lucide-react";
 import { cn, getStatusLabel } from "@/lib/utils";
 import { getStatusBadgeStyle } from "@/lib/order-format-utils";
@@ -12,7 +12,11 @@ import { formatDistanceToNow } from "date-fns";
 import { Order } from "@/lib/supabase";
 import { useLanguage } from "@/components/providers/language-provider";
 
-export function NotificationsDropdown() {
+interface NotificationsDropdownProps {
+    onOpenChange?: (open: boolean) => void;
+}
+
+export function NotificationsDropdown({ onOpenChange }: NotificationsDropdownProps) {
     const {
         notifications,
         unreadCount,
@@ -31,27 +35,11 @@ export function NotificationsDropdown() {
     const totalUnread = unreadCount + mentionUnreadCount;
 
     const { t } = useLanguage();
-    const [isOpen, setIsOpen] = useState(false);
-    const containerRef = useRef<HTMLDivElement>(null);
 
     const handleMentionClick = (mention: (typeof mentions)[number]) => {
         if (mention.conversation_id) openChat(mention.conversation_id);
         if (!mention.is_read) markMentionAsRead(mention.id);
     };
-
-    // Close dropdown when clicking outside
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-                setIsOpen(false);
-            }
-        }
-
-        if (isOpen) {
-            document.addEventListener("mousedown", handleClickOutside);
-            return () => document.removeEventListener("mousedown", handleClickOutside);
-        }
-    }, [isOpen]);
 
     const getActivityIcon = (type: string) => {
         switch (type) {
@@ -67,40 +55,27 @@ export function NotificationsDropdown() {
     };
 
     return (
-        <div ref={containerRef} className="relative">
-            {/* Notification Bell Button */}
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className={cn(
-                    "relative w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-muted hover:text-foreground hover:border-[var(--foreground-muted)] transition-all",
-                    isOpen && "ring-2 ring-[var(--pastel-yellow)] border-transparent"
-                )}
-                title="Notifications"
+        <Popover onOpenChange={onOpenChange}>
+            <PopoverTrigger asChild>
+                <button
+                    className="relative w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-muted hover:text-foreground hover:border-[var(--foreground-muted)] transition-all data-[state=open]:ring-2 data-[state=open]:ring-[var(--pastel-yellow)] data-[state=open]:border-transparent"
+                    title="Notifications"
+                >
+                    <Bell className="w-5 h-5" />
+
+                    {/* Unread Count Badge */}
+                    {totalUnread > 0 && (
+                        <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center shadow-lg">
+                            {totalUnread > 99 ? '99+' : totalUnread}
+                        </span>
+                    )}
+                </button>
+            </PopoverTrigger>
+            <PopoverContent
+                align="end"
+                className="w-96 p-0 overflow-hidden rounded-2xl bg-[var(--card-bg)] border-[var(--card-border)] shadow-xl"
+                style={{ zIndex: "var(--z-header-overlay)" }}
             >
-                <Bell className="w-5 h-5" />
-
-                {/* Unread Count Badge */}
-                {totalUnread > 0 && (
-                    <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center shadow-lg"
-                    >
-                        {totalUnread > 99 ? '99+' : totalUnread}
-                    </motion.div>
-                )}
-            </button>
-
-            {/* Dropdown */}
-            <AnimatePresence>
-                {isOpen && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                        transition={{ duration: 0.15 }}
-                        className="absolute top-full right-0 mt-2 w-96 bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)] shadow-xl overflow-hidden z-50"
-                    >
                         {/* Header */}
                         <div className="px-4 py-3 bg-[var(--background)] border-b border-[var(--card-border)] flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -336,9 +311,7 @@ export function NotificationsDropdown() {
                                 </p>
                             </div>
                         )}
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
+            </PopoverContent>
+        </Popover>
     );
 }
