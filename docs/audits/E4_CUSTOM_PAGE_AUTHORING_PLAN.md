@@ -1,6 +1,19 @@
 # E4 — Custom-page section authoring — implementation plan
 
-**Status:** planned. Foundation already shipped (CustomPage type, `config.custom_pages[]`,
+**Status: COMPLETE (2026-06-24).** Steps 1–4 + 3b shipped on
+`feat/store-builder-preview-iframe` (commits a31ed38, 7e3e9bc, ec9f41c, 9d12482,
+8a86232), all green (full platform type-check, lint 0 errors, shared 18/18,
+store-builder 256/256). **Step 5 (`_preview` route custom-slug rendering) was NOT
+needed** — custom pages are pure section trees, so they render via the existing
+live-config swap (postMessage `page_config_update` with the slug as `page_id`)
+without any iframe navigation or route change. Merchants now select a custom page
+in the page-tree "Custom pages" group (or "Edit sections" in the manager), author
+its sections in the canvas exactly like a system page, and see it live in the
+iframe. Only manual cross-origin browser smoke is unrun (same env block as BUG1).
+
+---
+
+**Original plan below.** Foundation already shipped (CustomPage type, `config.custom_pages[]`,
 CustomPagesScreen CRUD, storefront `/s/<tenant>/p/<slug>` route). This plan adds the
 missing half: **authoring a custom page's section tree in the builder canvas**, the
 same way system pages are edited. Approach A (separate `active_custom_page_id` edit
