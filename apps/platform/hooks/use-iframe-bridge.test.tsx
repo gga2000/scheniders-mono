@@ -49,6 +49,12 @@ const Harness = forwardRef<HarnessHandle, HarnessProps>(function Harness(
     return null;
 });
 
+// The hook pins both directions to the storefront origin (EC25). With
+// NEXT_PUBLIC_STOREFRONT_ORIGIN unset (as in tests) it falls back to the local
+// storefront, so inbound events must carry this origin and outbound posts
+// target it.
+const STOREFRONT_ORIGIN = "http://localhost:3001";
+
 let container: HTMLDivElement;
 let root: Root;
 let postMessage: ReturnType<typeof vi.fn>;
@@ -75,6 +81,7 @@ function sendFromPreview(data: Record<string, unknown>): void {
     act(() => {
         window.dispatchEvent(
             new MessageEvent("message", {
+                origin: STOREFRONT_ORIGIN,
                 data: { source: "schn-preview", ...data },
             }),
         );
@@ -112,6 +119,7 @@ describe("useIframeBridge", () => {
         expect(s.hovered_section_id).toBeNull();
         expect(s.hovered_rect).toBeNull();
         expect(s.rect_updates).toEqual({});
+        expect(s.inline_editing).toBe(false);
     });
 
     it("flips ready=true on inbound `ready` message", () => {
@@ -213,7 +221,7 @@ describe("useIframeBridge", () => {
         });
         expect(postMessage).toHaveBeenCalledWith(
             { source: "schn-editor", type: "scroll_to_section", section_id: "sec-D" },
-            "*",
+            STOREFRONT_ORIGIN,
         );
     });
 
@@ -224,7 +232,7 @@ describe("useIframeBridge", () => {
         });
         expect(postMessage).toHaveBeenCalledWith(
             { source: "schn-editor", type: "request_rect", section_id: "sec-E" },
-            "*",
+            STOREFRONT_ORIGIN,
         );
     });
 
@@ -237,7 +245,7 @@ describe("useIframeBridge", () => {
         // Should have sent ping
         expect(postMessage).toHaveBeenCalledWith(
             { source: "schn-editor", type: "ping" },
-            "*",
+            STOREFRONT_ORIGIN,
         );
         sendFromPreview({ type: "pong" });
         await expect(promise).resolves.toBeUndefined();
@@ -248,10 +256,89 @@ describe("useIframeBridge", () => {
         act(() => {
             window.dispatchEvent(
                 new MessageEvent("message", {
+                    origin: STOREFRONT_ORIGIN,
                     data: { source: "other", type: "ready", url: "x" },
                 }),
             );
         });
         expect(harnessRef.current!.api.state.ready).toBe(false);
+    });
+
+    it("ignores inbound messages from an untrusted origin (EC25)", () => {
+        mount();
+        act(() => {
+            window.dispatchEvent(
+                new MessageEvent("message", {
+                    origin: "https://evil.example.com",
+                    data: { source: "schn-preview", type: "ready", url: "x" },
+                }),
+            );
+        });
+        expect(harnessRef.current!.api.state.ready).toBe(false);
+    });
+
+    /* ───── Selection sync + inline edit (BUG1 affordance parity) ───── */
+
+    it("setSelectedSection posts `set_selected_section`", () => {
+        mount();
+        act(() => {
+            harnessRef.current!.api.setSelectedSection("sec-S");
+        });
+        expect(postMessage).toHaveBeenCalledWith(
+            {
+                source: "schn-editor",
+                type: "set_selected_section",
+                section_id: "sec-S",
+            },
+            STOREFRONT_ORIGIN,
+        );
+        act(() => {
+            harnessRef.current!.api.setSelectedSection(null);
+        });
+        expect(postMessage).toHaveBeenCalledWith(
+            {
+                source: "schn-editor",
+                type: "set_selected_section",
+                section_id: null,
+            },
+            STOREFRONT_ORIGIN,
+        );
+    });
+
+    it("flips inline_editing on begin/end and notifies commit subscribers", () => {
+        mount();
+        const cb = vi.fn();
+        let unsubscribe!: () => void;
+        act(() => {
+            unsubscribe = harnessRef.current!.api.onInlineEditCommit(cb);
+        });
+
+        sendFromPreview({ type: "inline_edit_begin", section_id: "sec-I" });
+        expect(harnessRef.current!.api.state.inline_editing).toBe(true);
+
+        sendFromPreview({
+            type: "inline_edit_commit",
+            section_id: "sec-I",
+            field_path: "headline.title",
+            value: "Hello",
+        });
+        expect(cb).toHaveBeenCalledTimes(1);
+        expect(cb.mock.calls[0][0]).toEqual({
+            section_id: "sec-I",
+            field_path: "headline.title",
+            value: "Hello",
+        });
+
+        sendFromPreview({ type: "inline_edit_end", reverted: false });
+        expect(harnessRef.current!.api.state.inline_editing).toBe(false);
+
+        unsubscribe();
+        sendFromPreview({
+            type: "inline_edit_commit",
+            section_id: "sec-I",
+            field_path: "headline.title",
+            value: "Ignored",
+        });
+        expect(cb).toHaveBeenCalledTimes(1);
     });
 });

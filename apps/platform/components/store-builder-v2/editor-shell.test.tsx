@@ -34,7 +34,7 @@ vi.mock("@/hooks/use-storefront-url", () => ({
 // reference these via closure (vitest hoists `vi.mock`), so we attach
 // them to globalThis and resolve at call time inside the factory.
 interface MockBridgeSpies {
-    state: { ready: boolean };
+    state: { ready: boolean; inline_editing?: boolean };
     postPageConfigUpdate: ReturnType<typeof vi.fn>;
     postRuntimeUpdate: ReturnType<typeof vi.fn>;
     postPageIdChange: ReturnType<typeof vi.fn>;
@@ -42,6 +42,8 @@ interface MockBridgeSpies {
     requestRect: ReturnType<typeof vi.fn>;
     ping: ReturnType<typeof vi.fn>;
     onSectionClicked: ReturnType<typeof vi.fn>;
+    setSelectedSection: ReturnType<typeof vi.fn>;
+    onInlineEditCommit: ReturnType<typeof vi.fn>;
 }
 
 declare global {
@@ -54,7 +56,7 @@ vi.mock("@/hooks/use-iframe-bridge", () => ({
         const g = globalThis as { __editorShellBridge?: MockBridgeSpies };
         if (!g.__editorShellBridge) {
             g.__editorShellBridge = {
-                state: { ready: false },
+                state: { ready: false, inline_editing: false },
                 postPageConfigUpdate: vi.fn(),
                 postRuntimeUpdate: vi.fn(),
                 postPageIdChange: vi.fn(),
@@ -62,15 +64,26 @@ vi.mock("@/hooks/use-iframe-bridge", () => ({
                 requestRect: vi.fn(),
                 ping: vi.fn().mockResolvedValue(undefined),
                 onSectionClicked: vi.fn(() => () => {}),
+                setSelectedSection: vi.fn(),
+                onInlineEditCommit: vi.fn(() => () => {}),
             };
         }
         // Editor reads `bridge.state.ready` + the post methods.
         return {
-            state: { ...g.__editorShellBridge.state, scroll_y: 0, hovered_section_id: null, hovered_rect: null, rect_updates: {} },
+            state: {
+                ...g.__editorShellBridge.state,
+                inline_editing: g.__editorShellBridge.state.inline_editing ?? false,
+                scroll_y: 0,
+                hovered_section_id: null,
+                hovered_rect: null,
+                rect_updates: {},
+            },
             scrollToSection: g.__editorShellBridge.scrollToSection,
             requestRect: g.__editorShellBridge.requestRect,
             ping: g.__editorShellBridge.ping,
             onSectionClicked: g.__editorShellBridge.onSectionClicked,
+            setSelectedSection: g.__editorShellBridge.setSelectedSection,
+            onInlineEditCommit: g.__editorShellBridge.onInlineEditCommit,
             postPageConfigUpdate: g.__editorShellBridge.postPageConfigUpdate,
             postRuntimeUpdate: g.__editorShellBridge.postRuntimeUpdate,
             postPageIdChange: g.__editorShellBridge.postPageIdChange,
@@ -337,7 +350,7 @@ describe("EditorShell", () => {
     it("posts page_config_update + runtime_update once the bridge is ready", async () => {
         // Pre-seed the bridge as ready so the effect fires on first mount.
         (globalThis as { __editorShellBridge?: MockBridgeSpies }).__editorShellBridge = {
-            state: { ready: true },
+            state: { ready: true, inline_editing: false },
             postPageConfigUpdate: vi.fn(),
             postRuntimeUpdate: vi.fn(),
             postPageIdChange: vi.fn(),
@@ -345,6 +358,8 @@ describe("EditorShell", () => {
             requestRect: vi.fn(),
             ping: vi.fn().mockResolvedValue(undefined),
             onSectionClicked: vi.fn(() => () => {}),
+            setSelectedSection: vi.fn(),
+            onInlineEditCommit: vi.fn(() => () => {}),
         };
 
         const builder = makeBuilder();
@@ -397,7 +412,7 @@ describe("EditorShell", () => {
 
     it("posts a runtime_update with the new breakpoint when active_breakpoint changes", async () => {
         (globalThis as { __editorShellBridge?: MockBridgeSpies }).__editorShellBridge = {
-            state: { ready: true },
+            state: { ready: true, inline_editing: false },
             postPageConfigUpdate: vi.fn(),
             postRuntimeUpdate: vi.fn(),
             postPageIdChange: vi.fn(),
@@ -405,6 +420,8 @@ describe("EditorShell", () => {
             requestRect: vi.fn(),
             ping: vi.fn().mockResolvedValue(undefined),
             onSectionClicked: vi.fn(() => () => {}),
+            setSelectedSection: vi.fn(),
+            onInlineEditCommit: vi.fn(() => () => {}),
         };
 
         let currentBreakpoint: Breakpoint = "desktop";
@@ -537,7 +554,7 @@ describe("EditorShell", () => {
 
     it("posts page_id_change when active_page changes after the bridge is ready", async () => {
         (globalThis as { __editorShellBridge?: MockBridgeSpies }).__editorShellBridge = {
-            state: { ready: true },
+            state: { ready: true, inline_editing: false },
             postPageConfigUpdate: vi.fn(),
             postRuntimeUpdate: vi.fn(),
             postPageIdChange: vi.fn(),
@@ -545,6 +562,8 @@ describe("EditorShell", () => {
             requestRect: vi.fn(),
             ping: vi.fn().mockResolvedValue(undefined),
             onSectionClicked: vi.fn(() => () => {}),
+            setSelectedSection: vi.fn(),
+            onInlineEditCommit: vi.fn(() => () => {}),
         };
 
         const builder = makeBuilder();

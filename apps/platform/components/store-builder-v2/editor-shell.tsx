@@ -744,6 +744,20 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         [builder, builder.active_page, builder.config],
     );
 
+    // Inline edits happen inside the iframe (contenteditable); the bridge
+    // streams committed values out. The editor supplies the active locale and
+    // routes them through the same patch path the legacy DOM preview used.
+    useEffect(() => {
+        return bridge.onInlineEditCommit((e) => {
+            handleInlineEdit(
+                e.section_id,
+                e.field_path,
+                builder.active_locale,
+                e.value,
+            );
+        });
+    }, [bridge, handleInlineEdit, builder.active_locale]);
+
     const handleAddVariant = useCallback(
         (section_id: string): void => {
             set_editing_section_id(section_id);
