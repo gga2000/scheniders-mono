@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { LocaleCode, PageId } from "@scheniders/shared";
+import type { CustomPage, LocaleCode, PageId } from "@scheniders/shared";
+import { resolveI18n } from "@scheniders/shared";
 import {
     Ban,
     BookOpen,
@@ -9,6 +10,8 @@ import {
     CheckCircle2,
     ChevronDown,
     ChevronRight,
+    EyeOff,
+    Plus,
     CreditCard,
     FlaskConical,
     FolderOpen,
@@ -231,6 +234,15 @@ export interface PageTreeProps {
     sectionCounts?: Partial<Record<PageId, number>>;
     /** Override the editor locale (otherwise read from EditorLocaleContext). */
     activeLocale?: LocaleCode;
+    /** Merchant-authored custom pages (E4). When provided, a selectable
+     *  "Custom pages" group is rendered below the system pages. */
+    customPages?: CustomPage[];
+    /** Id of the custom page currently being authored (null = a system page). */
+    activeCustomPageId?: string | null;
+    /** Select a custom page → author its sections in the canvas. */
+    onSelectCustomPage?: (id: string) => void;
+    /** Open the custom-pages manager (create / slug / hide / delete). */
+    onManageCustomPages?: () => void;
 }
 
 export function PageTree({
@@ -239,6 +251,10 @@ export function PageTree({
     onSelectSetting,
     sectionCounts,
     activeLocale,
+    customPages,
+    activeCustomPageId,
+    onSelectCustomPage,
+    onManageCustomPages,
 }: PageTreeProps) {
     const locale = useResolvedEditorLocale(activeLocale);
     const [comingSoon, setComingSoon] = useState<SettingsSectionId | null>(null);
@@ -369,6 +385,102 @@ export function PageTree({
                         </ul>
                     </div>
                 ))}
+
+                {/* Custom pages (E4) — selectable; authored in the canvas. */}
+                {onSelectCustomPage && (
+                    <div className="mb-4">
+                        <div className="mb-1.5 flex items-center justify-between px-2">
+                            <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                                {t(STRINGS.page_tree.group_custom_pages, locale)}
+                            </span>
+                            {onManageCustomPages && (
+                                <button
+                                    type="button"
+                                    data-testid="page-tree-custom-manage"
+                                    aria-label={t(
+                                        STRINGS.page_tree.manage_custom_pages,
+                                        locale,
+                                    )}
+                                    onClick={onManageCustomPages}
+                                    className="inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
+                                >
+                                    <Plus className="h-3.5 w-3.5" />
+                                </button>
+                            )}
+                        </div>
+                        <ul className="space-y-0.5">
+                            {(customPages ?? []).map((p) => {
+                                const isActive = p.id === activeCustomPageId;
+                                const label =
+                                    resolveI18n(p.title, locale).trim() || p.slug;
+                                return (
+                                    <li key={p.id}>
+                                        <button
+                                            type="button"
+                                            data-testid={`page-tree-custom-${p.id}`}
+                                            onClick={() => onSelectCustomPage(p.id)}
+                                            aria-current={isActive ? "page" : undefined}
+                                            className={cn(
+                                                "group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all duration-150",
+                                                isActive
+                                                    ? "sb-active-bar bg-background font-semibold text-foreground shadow-(--card-shadow)"
+                                                    : "text-foreground/75 hover:bg-black/3 hover:text-foreground",
+                                                p.hidden && !isActive && "opacity-60",
+                                            )}
+                                        >
+                                            <span
+                                                aria-hidden="true"
+                                                className="sb-tile sb-tile--page flex h-7 w-7 shrink-0"
+                                            >
+                                                <FileText className="h-4 w-4" />
+                                            </span>
+                                            <span className="truncate">{label}</span>
+                                            {p.hidden && (
+                                                <EyeOff
+                                                    className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                                                    aria-hidden="true"
+                                                />
+                                            )}
+                                            {p.sections.length > 0 && (
+                                                <span
+                                                    data-testid={`page-tree-custom-count-${p.id}`}
+                                                    className={cn(
+                                                        "ml-auto inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none tabular-nums",
+                                                        isActive
+                                                            ? "bg-foreground/10 text-foreground"
+                                                            : "bg-black/5 text-muted-foreground group-hover:bg-black/10",
+                                                    )}
+                                                >
+                                                    {p.sections.length}
+                                                </span>
+                                            )}
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                            {(customPages ?? []).length === 0 && onManageCustomPages && (
+                                <li>
+                                    <button
+                                        type="button"
+                                        data-testid="page-tree-custom-empty"
+                                        onClick={onManageCustomPages}
+                                        className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-muted-foreground transition-colors hover:bg-black/3 hover:text-foreground"
+                                    >
+                                        <span
+                                            aria-hidden="true"
+                                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-dashed border-(--card-border)"
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                        </span>
+                                        <span className="truncate">
+                                            {t(STRINGS.page_tree.add_custom_page, locale)}
+                                        </span>
+                                    </button>
+                                </li>
+                            )}
+                        </ul>
+                    </div>
+                )}
             </div>
 
             <div className="mt-auto border-t border-(--card-border) p-3">

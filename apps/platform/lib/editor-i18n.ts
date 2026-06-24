@@ -129,6 +129,9 @@ export const STRINGS = {
         setting_nav: { en: "Navigation", ar: "التنقّل", ku: "ڕێنیشاندان" },
         setting_versions: { en: "Past versions", ar: "النسخ", ku: "وەشانەکان" },
         setting_redirects: { en: "Redirects", ar: "إعادة التوجيه", ku: "ئاراستەکردن" },
+        group_custom_pages: { en: "Custom pages", ar: "صفحات مخصّصة", ku: "پەڕە تایبەتەکان" },
+        manage_custom_pages: { en: "Manage custom pages", ar: "إدارة الصفحات المخصّصة", ku: "بەڕێوەبردنی پەڕە تایبەتەکان" },
+        add_custom_page: { en: "Add custom page", ar: "إضافة صفحة مخصّصة", ku: "زیادکردنی پەڕەی تایبەت" },
     },
 
     /* ── Section list panel (Inspector "Blocks" tab) ───────────── */

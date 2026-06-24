@@ -57,4 +57,28 @@ describe("CustomPagesScreen", () => {
         fireEvent.click(screen.getByTestId("custom-page-remove-0"));
         expect(applyLast(setConfig, config).custom_pages).toHaveLength(0);
     });
+
+    it("fires onEditSections(id) when 'Edit sections' is clicked (E4)", () => {
+        const { builder } = makeBuilder([
+            { id: "cp9", slug: "lookbook", title: { en: "Lookbook" }, sections: [], hidden: false },
+        ]);
+        const onEditSections = vi.fn();
+        render(
+            <CustomPagesScreen
+                builder={builder}
+                onClose={() => {}}
+                onEditSections={onEditSections}
+            />,
+        );
+        fireEvent.click(screen.getByTestId("custom-page-edit-sections-0"));
+        expect(onEditSections).toHaveBeenCalledWith("cp9");
+    });
+
+    it("hides the 'Edit sections' button when no handler is given", () => {
+        const { builder } = makeBuilder([
+            { id: "cp9", slug: "lookbook", title: { en: "L" }, sections: [], hidden: false },
+        ]);
+        render(<CustomPagesScreen builder={builder} onClose={() => {}} />);
+        expect(screen.queryByTestId("custom-page-edit-sections-0")).toBeNull();
+    });
 });

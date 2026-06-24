@@ -10,7 +10,7 @@
 // =====================================================================
 
 import { useCallback, useState } from "react";
-import { X, Plus, Trash2, FileText, EyeOff } from "lucide-react";
+import { X, Plus, Trash2, FileText, EyeOff, PencilRuler } from "lucide-react";
 import {
     normalizeSlug,
     validateSlug,
@@ -24,6 +24,9 @@ import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 export interface CustomPagesScreenProps {
     builder: UseStoreBuilderV2Return;
     onClose: () => void;
+    /** Author a page's sections — selects it as the canvas edit target and
+     *  closes this manager. */
+    onEditSections?: (id: string) => void;
 }
 
 function newId(): string {
@@ -46,6 +49,7 @@ const inputCls =
 export function CustomPagesScreen({
     builder,
     onClose,
+    onEditSections,
 }: CustomPagesScreenProps): React.ReactElement {
     const pages: CustomPage[] = builder.config.custom_pages ?? [];
     const [draftTitle, setDraftTitle] = useState("");
@@ -185,12 +189,26 @@ export function CustomPagesScreen({
                                             <EyeOff className="h-3.5 w-3.5" />
                                             Hidden
                                         </label>
+                                        {onEditSections && (
+                                            <button
+                                                type="button"
+                                                data-testid={`custom-page-edit-sections-${i}`}
+                                                onClick={() => onEditSections(p.id)}
+                                                className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-full border border-(--card-border) px-3 text-xs font-medium text-foreground/80 transition-colors hover:border-(--border-hover) hover:text-foreground"
+                                            >
+                                                <PencilRuler className="h-3.5 w-3.5" />
+                                                Edit sections
+                                            </button>
+                                        )}
                                         <button
                                             type="button"
                                             aria-label="Delete page"
                                             data-testid={`custom-page-remove-${i}`}
                                             onClick={() => removePage(i)}
-                                            className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-600"
+                                            className={cn(
+                                                "inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-600",
+                                                !onEditSections && "ml-auto",
+                                            )}
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </button>

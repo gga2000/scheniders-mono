@@ -514,6 +514,18 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         [builder],
     );
 
+    // Author a custom page's sections in the canvas (E4). Exits any system
+    // screen + clears the section selection so the canvas opens fresh.
+    const handleSelectCustomPage = useCallback(
+        (id: string): void => {
+            set_system_screen(null);
+            set_selected_section_id(null);
+            set_editing_section_id(null);
+            builder.set_active_custom_page_id(id);
+        },
+        [builder],
+    );
+
     const handleBrandKitChange = useCallback(
         (next: BrandKit): void => {
             builder.setConfig((prev) => ({ ...prev, brand_kit: next }));
@@ -1535,6 +1547,10 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                     onSelect={handleSelectPage}
                     onSelectSetting={handleSelectSetting}
                     sectionCounts={sectionCounts}
+                    customPages={builder.config.custom_pages}
+                    activeCustomPageId={builder.active_custom_page_id}
+                    onSelectCustomPage={handleSelectCustomPage}
+                    onManageCustomPages={() => handleSelectSetting("custom_pages")}
                 />
                 <main
                     data-testid="editor-shell-main"
@@ -1615,6 +1631,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                         <CustomPagesScreen
                             builder={builder}
                             onClose={handleCloseSystemScreen}
+                            onEditSections={handleSelectCustomPage}
                         />
                     ) : system_screen === "nav" ? (
                         <NavBuilderScreen
