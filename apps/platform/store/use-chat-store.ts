@@ -20,6 +20,11 @@ interface ChatUIState {
     drafts: Record<string, string>;
 
     // ------------------------------------------------------------------
+    // Persisted: notification sound toggle
+    // ------------------------------------------------------------------
+    soundEnabled: boolean;
+
+    // ------------------------------------------------------------------
     // Actions
     // ------------------------------------------------------------------
     open: (conversationId?: string) => void;
@@ -33,6 +38,7 @@ interface ChatUIState {
     setDraft: (conversationId: string, text: string) => void;
     clearDraft: (conversationId: string) => void;
     setReplyTo: (messageId: string | null) => void;
+    setSoundEnabled: (v: boolean) => void;
 }
 
 export const useChatStore = create<ChatUIState>()(
@@ -52,6 +58,7 @@ export const useChatStore = create<ChatUIState>()(
             // Persisted defaults
             // ------------------------------------------------------------------
             drafts: {},
+            soundEnabled: true,
 
             // ------------------------------------------------------------------
             // Actions
@@ -75,12 +82,13 @@ export const useChatStore = create<ChatUIState>()(
                     return { drafts: next };
                 }),
             setReplyTo: (messageId) => set({ replyToId: messageId }),
+            setSoundEnabled: (v) => set({ soundEnabled: v }),
         }),
         {
             name: "chat-drafts",
             storage: createJSONStorage(() => localStorage),
-            // Only persist drafts — all UI/navigation state is transient
-            partialize: (state) => ({ drafts: state.drafts }),
+            // Persist drafts + sound preference; all UI/navigation state is transient
+            partialize: (state) => ({ drafts: state.drafts, soundEnabled: state.soundEnabled }),
         }
     )
 );
