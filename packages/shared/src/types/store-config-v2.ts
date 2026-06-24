@@ -38,11 +38,32 @@ export const LOCALE_LABELS: Record<LocaleCode, string> = {
  */
 export type I18nString = Partial<Record<LocaleCode, string>>;
 
+// Per-locale fallback chains. Iraq market: Kurdish falls back to Arabic before
+// English, and Arabic to English. (The old code sent `ku` straight to `en`,
+// skipping Arabic.)
+const LOCALE_FALLBACKS: Record<LocaleCode, readonly LocaleCode[]> = {
+  ar: ["ar", "en"],
+  ku: ["ku", "ar", "en"],
+  en: ["en", "ar"],
+};
+
 /** Helper: resolve a localized string against a runtime locale. */
-export function resolveI18n(s: I18nString | string | undefined, locale: LocaleCode): string {
+export function resolveI18n(
+  s: I18nString | string | undefined,
+  locale: LocaleCode,
+): string {
   if (typeof s === "string") return s;
   if (!s) return "";
-  return s[locale] ?? s.en ?? Object.values(s).find((v) => !!v) ?? "";
+  // Walk the locale's fallback chain, skipping empty/whitespace values so a
+  // blank `{ en: "" }` falls through to a populated locale instead of rendering
+  // nothing.
+  for (const loc of LOCALE_FALLBACKS[locale]) {
+    const v = s[loc];
+    if (v && v.trim()) return v;
+  }
+  // Last resort: any non-empty value (covers a locale outside the chain).
+  const any = Object.values(s).find((v) => typeof v === "string" && v.trim());
+  return any ?? "";
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
