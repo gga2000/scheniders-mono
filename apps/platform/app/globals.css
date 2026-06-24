@@ -106,8 +106,11 @@ body {
   top: 0;
   z-index: var(--z-header);
   isolation: isolate;                 /* own stacking context for the glass */
-  /* Cream surface that matches the page background (not white) — frosted. */
-  background: color-mix(in srgb, var(--background) 82%, transparent);
+  /* Cream surface that matches the page background (not white) — heavily frosted
+     glass: low opacity so content blurs through, paired with a strong backdrop
+     blur on the element and a thin specular top edge for depth. */
+  background: color-mix(in srgb, var(--background) 60%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 22%, transparent);
   /* Full-bleed: extend the surface left behind the floating sidebar so the bar
      reads as one continuous strip across the top. --app-sidebar-gutter is set by
      DashboardLayout to the current sidebar offset (0 on mobile); padding-left
@@ -127,10 +130,12 @@ body {
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .app-header { background: var(--background); }
 }
-/* Elevation appears only after scrolling — a soft shadow separates, not a border. */
+/* Elevation appears only after scrolling — keeps the specular top edge, adds a
+   soft shadow that separates without a hard border. */
 .app-header[data-scrolled="true"] {
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--foreground) 6%, transparent),
-              0 10px 22px -14px color-mix(in srgb, var(--foreground) 30%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 22%, transparent),
+              0 1px 0 color-mix(in srgb, var(--foreground) 6%, transparent),
+              0 10px 24px -14px color-mix(in srgb, var(--foreground) 32%, transparent);
 }
 .app-header[data-hidden="true"] { transform: translateY(-115%); }
 @media (prefers-reduced-motion: reduce) { .app-header { transition: none; } }
