@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { CornerUpLeft, FileText, Paperclip, Send, Smile, X } from "lucide-react";
+import { Bold, CornerUpLeft, FileText, Italic, Link2, Paperclip, Send, Smile, X } from "lucide-react";
 import { Textarea } from "@scheniders/ui/textarea";
 import { Button } from "@scheniders/ui/button";
 import { supabase } from "@/lib/supabase";
@@ -229,6 +229,45 @@ export function Composer({
         textareaRef.current?.focus();
     };
 
+    /**
+     * Wrap the current textarea selection with the given prefix/suffix markers.
+     * For the link format, prompts for a URL and builds `[text](url)`.
+     * Restores focus and positions the caret after the wrapped text.
+     */
+    const wrapSelection = (kind: "bold" | "italic" | "link") => {
+        const el = textareaRef.current;
+        if (!el) return;
+        const start = el.selectionStart;
+        const end = el.selectionEnd;
+        const selected = body.slice(start, end);
+
+        let replacement: string;
+        let cursorOffset: number;
+
+        if (kind === "link") {
+            const url = window.prompt(t("chat.composer.linkUrl", "Enter URL")) ?? "";
+            if (!url) {
+                el.focus();
+                return;
+            }
+            replacement = `[${selected || t("chat.composer.linkText", "text")}](${url})`;
+            cursorOffset = start + replacement.length;
+        } else {
+            const marker = kind === "bold" ? "**" : "*";
+            replacement = `${marker}${selected}${marker}`;
+            // Place caret inside the markers when no text was selected
+            cursorOffset = selected ? start + replacement.length : start + marker.length;
+        }
+
+        const next = body.slice(0, start) + replacement + body.slice(end);
+        setBody(next);
+        // Restore caret after React re-render via a microtask
+        requestAnimationFrame(() => {
+            el.focus();
+            el.setSelectionRange(cursorOffset, cursorOffset);
+        });
+    };
+
     const uploadAll = async (): Promise<ChatAttachment[]> => {
         if (!tenantId) return [];
         const out: ChatAttachment[] = [];
@@ -411,6 +450,37 @@ export function Composer({
                     ))}
                 </div>
             )}
+
+            {/* Format toolbar: bold, italic, link */}
+            <div className="mb-1.5 flex items-center gap-0.5">
+                <button
+                    type="button"
+                    title={t("chat.composer.bold", "Bold")}
+                    aria-label={t("chat.composer.bold", "Bold")}
+                    onClick={() => wrapSelection("bold")}
+                    className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+                >
+                    <Bold className="h-3.5 w-3.5" />
+                </button>
+                <button
+                    type="button"
+                    title={t("chat.composer.italic", "Italic")}
+                    aria-label={t("chat.composer.italic", "Italic")}
+                    onClick={() => wrapSelection("italic")}
+                    className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+                >
+                    <Italic className="h-3.5 w-3.5" />
+                </button>
+                <button
+                    type="button"
+                    title={t("chat.composer.link", "Link")}
+                    aria-label={t("chat.composer.link", "Link")}
+                    onClick={() => wrapSelection("link")}
+                    className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+                >
+                    <Link2 className="h-3.5 w-3.5" />
+                </button>
+            </div>
 
             <div className="flex items-end gap-2">
                 <div className="relative flex-1">

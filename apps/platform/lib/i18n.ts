@@ -2778,6 +2778,11 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.forwardPlaceholder": "Search conversations…",
         "chat.retry": "Retry",
         "chat.sendFailedLabel": "Failed to send",
+        "chat.composer.bold": "Bold",
+        "chat.composer.italic": "Italic",
+        "chat.composer.link": "Link",
+        "chat.composer.linkUrl": "Enter URL",
+        "chat.composer.linkText": "text",
     },
 
     ar: {
@@ -5551,5 +5556,10 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.forwardPlaceholder": "ابحث في المحادثات…",
         "chat.retry": "إعادة المحاولة",
         "chat.sendFailedLabel": "فشل الإرسال",
+        "chat.composer.bold": "عريض",
+        "chat.composer.italic": "مائل",
+        "chat.composer.link": "رابط",
+        "chat.composer.linkUrl": "أدخل الرابط",
+        "chat.composer.linkText": "نص",
     },
 };

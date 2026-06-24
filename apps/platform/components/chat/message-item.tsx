@@ -7,6 +7,7 @@ import { ChatAvatar } from "./chat-avatar";
 import { MessageActions } from "./message-actions";
 import { formatDistanceToNow } from "date-fns";
 import { AlertCircle, CornerUpLeft, FileText, Paperclip, RefreshCw, Trash2 } from "lucide-react";
+import { renderMarkdown } from "@/lib/chat/markdown";
 import { ReferenceCard } from "./reference-card";
 import { ReactionBar } from "./reaction-bar";
 import { supabase } from "@/lib/supabase";
@@ -297,7 +298,7 @@ export function MessageItem({
                 ) : (
                     message.body && (
                         <div className="whitespace-pre-wrap wrap-break-word text-[13.5px] leading-relaxed text-foreground/90">
-                            {message.body}
+                            {renderMarkdown(message.body)}
                         </div>
                     )
                 )}
