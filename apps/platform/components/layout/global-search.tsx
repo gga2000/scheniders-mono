@@ -362,7 +362,7 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
     }, []);
 
     return (
-        <header className="app-header backdrop-blur-md backdrop-saturate-150" data-scrolled={scrolled} data-hidden={hidden}>
+        <header className="app-header backdrop-blur-xl backdrop-saturate-150" data-scrolled={scrolled} data-hidden={hidden}>
             {/* Header Content */}
             <div className="relative flex items-center justify-between gap-3 md:gap-6 w-full px-4 md:px-6 py-3 md:py-4">
                 {/* Left: merchant code badge */}
