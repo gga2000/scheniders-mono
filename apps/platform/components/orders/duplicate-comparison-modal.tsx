@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     X,
@@ -164,14 +164,19 @@ export function DuplicateComparisonModal({
         return scores;
     }, [currentOrder, duplicateOrders]);
 
-    // Default: show ALL previous orders, target = highest score.
+    // Seed once per opened order: show ALL previous orders, target = highest score.
+    // Keyed by currentOrder.id (via ref) so the user emptying the list with the
+    // master "hide all" toggle is NOT re-filled by this effect, while reopening
+    // the modal for a different order still re-seeds.
+    const seededForOrderRef = useRef<string | null>(null);
     useEffect(() => {
-        if (duplicateOrders.length > 0 && displayedOrderIds.length === 0) {
+        if (duplicateOrders.length > 0 && seededForOrderRef.current !== currentOrder.id) {
+            seededForOrderRef.current = currentOrder.id;
             const allIds = duplicateOrders.map((o) => o.id);
             setDisplayedOrderIds(allIds);
             setMergeTargetId(reassignMergeTarget(allIds, null, matchScores));
         }
-    }, [duplicateOrders, displayedOrderIds.length, matchScores]);
+    }, [duplicateOrders, currentOrder.id, matchScores]);
 
     const displayedOrders = useMemo(
         () => sortByScoreDesc(
@@ -590,10 +595,10 @@ export function DuplicateComparisonModal({
                                             // Compare order ID
                                             const currentOrderId = getBaseOrderId(currentOrder.order_id);
                                             const thisOrderId = getBaseOrderId(order.order_id);
-                                            const orderIdMatch = duplicateOrders.every(o => getBaseOrderId(o.order_id) === currentOrderId);
+                                            const orderIdMatch = displayedOrders.every(o => getBaseOrderId(o.order_id) === currentOrderId);
 
                                             // Compare customer name
-                                            const nameMatch = duplicateOrders.every(o => o.customer_name === currentOrder.customer_name);
+                                            const nameMatch = displayedOrders.every(o => o.customer_name === currentOrder.customer_name);
 
                                             return (
                                                 <div
