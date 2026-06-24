@@ -4,19 +4,26 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { Bold, CornerUpLeft, FileText, Italic, Link2, Paperclip, Send, Smile, X } from "lucide-react";
+import { Bold, Check, ChevronDown, CornerUpLeft, FileText, Italic, Link2, Paperclip, Send, Smile, UserPlus, X } from "lucide-react";
 import { Textarea } from "@scheniders/ui/textarea";
 import { Button } from "@scheniders/ui/button";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/components/providers/language-provider";
 import { useReferenceSearch } from "@/hooks/chat/use-reference-search";
 import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
-import { chatKeys } from "@/hooks/chat/use-conversations";
+import { chatKeys, useConversations } from "@/hooks/chat/use-conversations";
+import { useAssignOrder } from "@/hooks/chat/use-order-actions";
+import { useUpdateStatusMutation } from "@/hooks/use-orders-query";
 import { useChatStore } from "@/store/use-chat-store";
+import { parseSlash, slashCommandsFor } from "@/lib/chat/slash-commands";
+import { PIPELINE_STAGE_IDS, PIPELINE_STAGE_REGISTRY } from "@/lib/order-pipeline";
 import { ChatAvatar } from "./chat-avatar";
 import type { ChatReference, ChatAttachment, ChatMessage } from "@/types/chat";
+import type { OrderStatus } from "@/types/order";
+import type { PipelineStageId } from "@/lib/order-pipeline";
 
 const QUICK_EMOJIS = ["👍", "🔥", "✅", "❤️", "😂", "🙏", "👏", "🎉"] as const;
 const MAX_MENTION_RESULTS = 6;
@@ -65,10 +72,15 @@ export function Composer({
     const [isUploading, setIsUploading] = useState(false);
     const [emojiOpen, setEmojiOpen] = useState(false);
 
-    // Only one autocomplete (# references OR @ mentions) is active at a time,
+    // Only one autocomplete (# references OR @ mentions OR / commands) is active at a time,
     // determined by which trailing token the caret is currently sitting on.
     const [refQuery, setRefQuery] = useState<string | null>(null);
     const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+    // Slash-command menu: non-null when body starts with "/"
+    const [slashQuery, setSlashQuery] = useState<string | null>(null);
+    // Sub-menus for /assign and /status
+    const [slashAssignOpen, setSlashAssignOpen] = useState(false);
+    const [slashStatusOpen, setSlashStatusOpen] = useState(false);
 
     const fileRef = useRef<HTMLInputElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -76,6 +88,19 @@ export function Composer({
 
     const refResults = useReferenceSearch(refQuery ?? "");
     const { data: members = [] } = useTenantMembers();
+    const { data: conversations = [] } = useConversations();
+    const { toast: toastHook } = useToast();
+    const assignOrder = useAssignOrder();
+    const updateStatus = useUpdateStatusMutation();
+    const { profile } = useAuth();
+
+    // Resolve the active conversation's kind + order_id for slash command gating.
+    const activeConv = useMemo(
+        () => conversations.find((c) => c.id === conversationId) ?? null,
+        [conversations, conversationId]
+    );
+    const convKind = activeConv?.kind ?? "channel";
+    const convOrderId = activeConv?.order_id ?? null;
 
     // Member map for resolving the reply-to sender name in the chip.
     const memberMap = useMemo(() => {
@@ -110,6 +135,9 @@ export function Composer({
         setMentions([]);
         setRefQuery(null);
         setMentionQuery(null);
+        setSlashQuery(null);
+        setSlashAssignOpen(false);
+        setSlashStatusOpen(false);
         setReplyTo(null);
         textareaRef.current?.focus();
     // conversationId is the only dep that should trigger a reset
@@ -143,6 +171,16 @@ export function Composer({
 
     /** Recompute which (if any) trailing token autocomplete should be shown. */
     const syncTokens = (value: string) => {
+        // Slash menu: active when the entire body starts with "/" (no other text before it)
+        const parsed = parseSlash(value);
+        if (parsed !== null) {
+            setSlashQuery(parsed.name);
+            setRefQuery(null);
+            setMentionQuery(null);
+            return;
+        }
+        setSlashQuery(null);
+
         const refMatch = value.match(REF_TOKEN);
         const mentionMatch = value.match(MENTION_TOKEN);
         if (refMatch) {
@@ -268,6 +306,89 @@ export function Composer({
         });
     };
 
+    /**
+     * Handle a slash-command selection from the menu.
+     * - shrug: inserts the shrug text and clears the composer body.
+     * - order: triggers the existing # reference-search flow by inserting "#"
+     *   (which opens the ref autocomplete on the next keystroke).
+     * - assign: opens the inline assign sub-menu (order threads only).
+     * - status: opens the inline status sub-menu (order threads only).
+     */
+    const selectSlashCommand = (name: string) => {
+        if (name === "shrug") {
+            setBody(String.raw`¯\_(ツ)_/¯`);
+            setSlashQuery(null);
+            textareaRef.current?.focus();
+            return;
+        }
+        if (name === "order") {
+            // Reuse the # reference flow: replace body with "#" so syncTokens
+            // opens the ref autocomplete immediately.
+            setBody("#");
+            setSlashQuery(null);
+            setRefQuery("");
+            textareaRef.current?.focus();
+            return;
+        }
+        if (name === "assign") {
+            setSlashAssignOpen(true);
+            setSlashStatusOpen(false);
+            return;
+        }
+        if (name === "status") {
+            setSlashStatusOpen(true);
+            setSlashAssignOpen(false);
+            return;
+        }
+    };
+
+    /** Execute assign from the slash /assign sub-menu. */
+    const handleSlashAssign = (userId: string | null) => {
+        if (!convOrderId) return;
+        setSlashAssignOpen(false);
+        setSlashQuery(null);
+        setBody("");
+        assignOrder.mutate(
+            { orderId: convOrderId, userId },
+            {
+                onError: (err) => {
+                    toastHook({
+                        title: t("chat.assign", "Assign"),
+                        description: err instanceof Error ? err.message : String(err),
+                        variant: "error",
+                    });
+                },
+            }
+        );
+        textareaRef.current?.focus();
+    };
+
+    /** Execute status change from the slash /status sub-menu. */
+    const handleSlashStatus = (status: OrderStatus) => {
+        if (!convOrderId) return;
+        setSlashStatusOpen(false);
+        setSlashQuery(null);
+        setBody("");
+        updateStatus.mutate(
+            {
+                orderId: convOrderId,
+                status,
+                last_status_changed_by_name: profile?.display_name ?? undefined,
+                last_status_changed_by_avatar: profile?.avatar_url ?? undefined,
+            },
+            {
+                onError: (err) => {
+                    toastHook({
+                        title: t("chat.changeStatus", "Change status"),
+                        description: err instanceof Error ? err.message : String(err),
+                        variant: "error",
+                    });
+                },
+            }
+        );
+        textareaRef.current?.focus();
+    };
+
     const uploadAll = async (): Promise<ChatAttachment[]> => {
         if (!tenantId) return [];
         const out: ChatAttachment[] = [];
@@ -318,6 +439,7 @@ export function Composer({
             setPendingFiles([]);
             setRefQuery(null);
             setMentionQuery(null);
+            setSlashQuery(null);
             setReplyTo(null);
             // Clear the persisted draft on successful send
             clearDraft(conversationId);
@@ -337,6 +459,15 @@ export function Composer({
 
     const showRefDropdown = refQuery !== null && refResults.length > 0;
     const showMentionDropdown = mentionQuery !== null && mentionResults.length > 0;
+
+    // Slash menu: filter available commands by typed prefix and conversation kind.
+    const slashResults = useMemo(() => {
+        if (slashQuery === null) return [];
+        const q = slashQuery.toLowerCase();
+        return slashCommandsFor(convKind).filter((cmd) => cmd.name.startsWith(q));
+    }, [slashQuery, convKind]);
+    const showSlashDropdown = slashQuery !== null && (slashResults.length > 0 || slashAssignOpen || slashStatusOpen);
+
     const canSend = (body.trim().length > 0 || pendingFiles.length > 0) && !isUploading;
 
     return (
@@ -550,6 +681,86 @@ export function Composer({
                                         </span>
                                     </button>
                                 ))}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Slash-command menu */}
+                    <AnimatePresence>
+                        {showSlashDropdown && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 6 }}
+                                transition={{ duration: 0.14 }}
+                                className="absolute bottom-full left-0 z-10 mb-1.5 w-full overflow-hidden rounded-xl border border-(--card-border) bg-(--card-bg) p-1 shadow-xl"
+                            >
+                                {/* Command list — hidden when a sub-menu is active */}
+                                {!slashAssignOpen && !slashStatusOpen && slashResults.map((cmd) => (
+                                    <button
+                                        key={cmd.name}
+                                        type="button"
+                                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-foreground/5"
+                                        onClick={() => selectSlashCommand(cmd.name)}
+                                    >
+                                        <span className="font-semibold text-foreground">/{cmd.name}</span>
+                                        <span className="text-muted-foreground">{t(cmd.descriptionKey, cmd.name)}</span>
+                                        {(cmd.name === "assign" || cmd.name === "status") && (
+                                            <ChevronDown className="ml-auto h-3 w-3 shrink-0 text-muted-foreground" />
+                                        )}
+                                    </button>
+                                ))}
+
+                                {/* /assign sub-menu */}
+                                {slashAssignOpen && (
+                                    <>
+                                        <p className="px-2 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                            {t("chat.assignTo", "Assign to…")}
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleSlashAssign(null)}
+                                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[12px] text-muted-foreground hover:bg-foreground/5"
+                                        >
+                                            <UserPlus className="h-3.5 w-3.5 shrink-0" />
+                                            {t("chat.unassigned", "Unassigned")}
+                                        </button>
+                                        {members.map((m) => (
+                                            <button
+                                                key={m.user_id}
+                                                type="button"
+                                                onClick={() => handleSlashAssign(m.user_id)}
+                                                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[12px] text-foreground hover:bg-foreground/5"
+                                            >
+                                                <ChatAvatar userId={m.user_id} name={m.display_name} avatarUrl={m.avatar_url} size="sm" />
+                                                <span className="min-w-0 flex-1 truncate">{m.display_name}</span>
+                                            </button>
+                                        ))}
+                                    </>
+                                )}
+
+                                {/* /status sub-menu */}
+                                {slashStatusOpen && (
+                                    <>
+                                        <p className="px-2 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                            {t("chat.changeStatus", "Change status")}
+                                        </p>
+                                        {PIPELINE_STAGE_IDS.map((s) => {
+                                            const meta = PIPELINE_STAGE_REGISTRY[s as PipelineStageId];
+                                            return (
+                                                <button
+                                                    key={s}
+                                                    type="button"
+                                                    onClick={() => handleSlashStatus(s as OrderStatus)}
+                                                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[12px] text-foreground hover:bg-foreground/5"
+                                                >
+                                                    <Check className="h-3.5 w-3.5 shrink-0 opacity-0" />
+                                                    {meta?.fallback ?? s}
+                                                </button>
+                                            );
+                                        })}
+                                    </>
+                                )}
                             </motion.div>
                         )}
                     </AnimatePresence>

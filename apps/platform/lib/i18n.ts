@@ -2783,6 +2783,10 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.composer.link": "Link",
         "chat.composer.linkUrl": "Enter URL",
         "chat.composer.linkText": "text",
+        "chat.slash.shrug": "Insert shrug emoticon",
+        "chat.slash.order": "Attach an order reference",
+        "chat.slash.assign": "Assign this order to a teammate",
+        "chat.slash.status": "Change order status",
     },
 
     ar: {
@@ -5561,5 +5565,9 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.composer.link": "رابط",
         "chat.composer.linkUrl": "أدخل الرابط",
         "chat.composer.linkText": "نص",
+        "chat.slash.shrug": "أدخل رمز الكتف",
+        "chat.slash.order": "إرفاق مرجع طلب",
+        "chat.slash.assign": "إسناد هذا الطلب إلى زميل",
+        "chat.slash.status": "تغيير حالة الطلب",
     },
 };
