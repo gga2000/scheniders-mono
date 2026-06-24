@@ -20,7 +20,26 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
-import type { PageConfig, RuntimeContext } from "@scheniders/shared";
+import type {
+    PageConfig,
+    PageId,
+    PageMeta,
+    RuntimeContext,
+    SectionInstance,
+} from "@scheniders/shared";
+
+/**
+ * Page config as streamed to the preview iframe. Identical to `PageConfig`
+ * except `page_id` also accepts a custom-page slug (custom pages have a
+ * non-enum identity; the live renderer treats `page_id` as an opaque string,
+ * and page-conditioned variants simply match no custom slug). `PageConfig` is
+ * assignable to this, so system-page pushes are unaffected.
+ */
+export type PreviewPageConfig = {
+    page_id: PageId | (string & {});
+    sections: SectionInstance[];
+    meta?: PageMeta;
+};
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Trusted storefront origin                                            */
@@ -98,7 +117,11 @@ export type EditorOutboundMessage =
     | { source: "schn-editor"; type: "scroll_to_section"; section_id: string }
     | { source: "schn-editor"; type: "request_rect"; section_id: string }
     | { source: "schn-editor"; type: "ping" }
-    | { source: "schn-editor"; type: "page_config_update"; payload: PageConfig }
+    | {
+          source: "schn-editor";
+          type: "page_config_update";
+          payload: PreviewPageConfig;
+      }
     | { source: "schn-editor"; type: "runtime_update"; payload: RuntimeContext }
     | { source: "schn-editor"; type: "page_id_change"; next_url: string }
     | {
@@ -135,7 +158,7 @@ export interface UseIframeBridgeReturn {
      * iframe-side `SchneidersPreviewLiveRenderer` swaps its state in
      * response, causing an in-place re-render with no reload.
      */
-    postPageConfigUpdate: (page: PageConfig) => void;
+    postPageConfigUpdate: (page: PreviewPageConfig) => void;
     /** Fire-and-forget runtime (locale / breakpoint / page_id) update. */
     postRuntimeUpdate: (runtime: RuntimeContext) => void;
     /**
@@ -305,7 +328,7 @@ export function useIframeBridge(
     );
 
     const postPageConfigUpdate = useCallback(
-        (page: PageConfig): void => {
+        (page: PreviewPageConfig): void => {
             post({
                 source: "schn-editor",
                 type: "page_config_update",

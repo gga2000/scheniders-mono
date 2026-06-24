@@ -31,7 +31,10 @@ import {
     useStoreBuilderV2,
     type UseStoreBuilderV2Return,
 } from "@/hooks/use-store-builder-v2";
-import { useIframeBridge } from "@/hooks/use-iframe-bridge";
+import {
+    useIframeBridge,
+    type PreviewPageConfig,
+} from "@/hooks/use-iframe-bridge";
 import { useStorefrontUrl } from "@/hooks/use-storefront-url";
 import { getManifestEntry } from "@/lib/sections-manifest";
 import { PageTree, getPageLabel, type SettingsSectionId } from "./page-tree";
@@ -364,6 +367,40 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         bridge.setSelectedSection(selected_section_id);
     }, [selected_section_id, bridge]);
 
+    // The page the canvas is currently authoring — a system PageId or a
+    // custom page (E4). All section/meta mutations + the iframe preview key
+    // off this.
+    const editTarget = useMemo<EditTarget>(
+        () =>
+            builder.active_custom_page_id
+                ? { kind: "custom", id: builder.active_custom_page_id }
+                : { kind: "system", page_id: builder.active_page },
+        [builder.active_custom_page_id, builder.active_page],
+    );
+
+    // The active edit target as a PageConfig for the iframe live-renderer.
+    // Custom pages are sent with their slug as `page_id` (the renderer treats
+    // it as opaque; page-conditioned variants never match a custom slug).
+    const activePageConfig = useMemo<PreviewPageConfig | null>(() => {
+        if (editTarget.kind === "custom") {
+            const cp = builder.active_custom_page;
+            return cp
+                ? { page_id: cp.slug, sections: cp.sections, meta: cp.meta }
+                : null;
+        }
+        return (
+            builder.config.pages.find(
+                (p) => p.page_id === editTarget.page_id,
+            ) ?? null
+        );
+    }, [editTarget, builder.config.pages, builder.active_custom_page]);
+
+    // Runtime `page_id` for the iframe — the custom slug when authoring one.
+    const activeRuntimePageId: PageId | (string & {}) =
+        editTarget.kind === "custom"
+            ? (builder.active_custom_page?.slug ?? builder.active_page)
+            : builder.active_page;
+
     /* ── Live preview: push config + runtime to the iframe ─────────── */
     //
     // Webflow / Framer pattern: the editor owns the in-memory config and
@@ -383,14 +420,11 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         // with the committed config (resumes on the commit's setConfig).
         if (spacing_dragging_ref.current) return;
         const handle = setTimeout(() => {
-            const page = builder.config.pages.find(
-                (p) => p.page_id === builder.active_page,
-            );
-            if (page) {
-                bridge.postPageConfigUpdate(page as PageConfig);
+            if (activePageConfig) {
+                bridge.postPageConfigUpdate(activePageConfig);
             }
             const runtime: RuntimeContext = {
-                page_id: builder.active_page,
+                page_id: activeRuntimePageId,
                 breakpoint: builder.active_breakpoint,
                 locale: builder.active_locale,
                 audience_segments: preview_as.segments,
@@ -404,8 +438,8 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         }, 100);
         return () => clearTimeout(handle);
     }, [
-        builder.config,
-        builder.active_page,
+        activePageConfig,
+        activeRuntimePageId,
         builder.active_breakpoint,
         builder.active_locale,
         preview_as,
@@ -535,16 +569,6 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
 
     /* ── Section list <-> config plumbing ─────────────────────────── */
 
-    // The page the canvas is currently authoring — a system PageId or a
-    // custom page (E4). All section/meta mutations route through this.
-    const editTarget = useMemo<EditTarget>(
-        () =>
-            builder.active_custom_page_id
-                ? { kind: "custom", id: builder.active_custom_page_id }
-                : { kind: "system", page_id: builder.active_page },
-        [builder.active_custom_page_id, builder.active_page],
-    );
-
     const activeSections = useMemo<SectionInstance[]>(
         () => activePageSections(builder.config, editTarget),
         [builder.config, editTarget],
@@ -643,13 +667,10 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     const handleSpacingPreview = useCallback(
         (section_id: string, bottom_px: number): void => {
             spacing_dragging_ref.current = true;
-            const page = builder.config.pages.find(
-                (p) => p.page_id === builder.active_page,
-            );
-            if (!page) return;
-            const nextPage: PageConfig = {
-                ...page,
-                sections: page.sections.map((s) =>
+            if (!activePageConfig) return;
+            const nextPage: PreviewPageConfig = {
+                ...activePageConfig,
+                sections: activePageConfig.sections.map((s) =>
                     s.id === section_id
                         ? { ...s, spacing: { ...(s.spacing ?? {}), bottom_px } }
                         : s,
@@ -657,7 +678,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             };
             bridge.postPageConfigUpdate(nextPage);
         },
-        [builder.config, builder.active_page, bridge],
+        [activePageConfig, bridge],
     );
 
     /* ── DnD: picker card → preview insertion ─────────────────── */
