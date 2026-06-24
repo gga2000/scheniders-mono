@@ -26,6 +26,10 @@ import type {
     PreviewRect,
     UseIframeBridgeReturn,
 } from "@/hooks/use-iframe-bridge";
+import {
+    LivePreviewContextMenu,
+    type LivePreviewContextMenuAction,
+} from "./live-preview-context-menu";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Public API                                                           */
@@ -38,6 +42,13 @@ export interface PreviewOverlayAction {
     section_id: string;
 }
 
+/** Open right-click menu state, in iframe-local viewport coords. */
+export interface PreviewOverlayContextMenu {
+    section_id: string;
+    x: number;
+    y: number;
+}
+
 export interface PreviewOverlayProps {
     bridge: UseIframeBridgeReturn;
     selected_section_id: string | null;
@@ -47,6 +58,10 @@ export interface PreviewOverlayProps {
     onAction: (action: PreviewOverlayAction) => void;
     /** Bounds of the iframe in the editor viewport — aligns overlay coords. */
     iframeBounds: DOMRect | null;
+    /** Open context menu (null when closed). Coords are iframe-local. */
+    contextMenu?: PreviewOverlayContextMenu | null;
+    onContextMenuClose?: () => void;
+    onContextMenuAction?: (action: LivePreviewContextMenuAction) => void;
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -68,6 +83,9 @@ export function PreviewOverlay(props: PreviewOverlayProps): ReactElement | null 
         onDeleteRequest,
         onAction,
         iframeBounds,
+        contextMenu,
+        onContextMenuClose,
+        onContextMenuAction,
     } = props;
 
     const { state, requestRect } = bridge;
@@ -162,6 +180,17 @@ export function PreviewOverlay(props: PreviewOverlayProps): ReactElement | null 
                         onDown={() => handleAction("down")}
                     />
                 </>
+            ) : null}
+
+            {/* Right-click context menu — coords are iframe-local, which maps
+                directly to this container (positioned at the iframe bounds). */}
+            {contextMenu && onContextMenuClose && onContextMenuAction ? (
+                <LivePreviewContextMenu
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    onClose={onContextMenuClose}
+                    onAction={onContextMenuAction}
+                />
             ) : null}
         </div>
     );

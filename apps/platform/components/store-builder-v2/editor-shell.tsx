@@ -39,7 +39,9 @@ import { PreviewModal } from "./preview-modal";
 import {
     PreviewOverlay,
     type PreviewOverlayAction,
+    type PreviewOverlayContextMenu,
 } from "./preview-overlay";
+import type { LivePreviewContextMenuAction } from "./live-preview-context-menu";
 import {
     BreakpointToggle,
     LocaleSelect,
@@ -258,6 +260,10 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     // Currently selected section (click-to-edit overlay highlight).
     const [selected_section_id, set_selected_section_id] = useState<string | null>(null);
 
+    // Open right-click context menu over the iframe preview (null = closed).
+    const [preview_context_menu, set_preview_context_menu] =
+        useState<PreviewOverlayContextMenu | null>(null);
+
     // "Preview as" simulator state — drives runtime context to test variants.
     const [preview_as, set_preview_as] = useState<PreviewAsState>(EMPTY_PREVIEW_AS);
 
@@ -303,6 +309,19 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     useEffect(() => {
         return bridge.onSectionClicked((e) => {
             set_selected_section_id(e.section_id);
+        });
+    }, [bridge]);
+
+    // Subscribe to iframe right-clicks → select the section + open the menu at
+    // the iframe-local coords the bridge reported.
+    useEffect(() => {
+        return bridge.onContextMenu((e) => {
+            set_selected_section_id(e.section_id);
+            set_preview_context_menu({
+                section_id: e.section_id,
+                x: e.x,
+                y: e.y,
+            });
         });
     }, [bridge]);
 
@@ -804,6 +823,47 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             }
         },
         [activeSections, handleSectionsChange],
+    );
+
+    /* ── Preview context-menu actions ──────────────────────────── */
+
+    const closePreviewContextMenu = useCallback((): void => {
+        set_preview_context_menu(null);
+    }, []);
+
+    const handlePreviewContextMenuAction = useCallback(
+        (action: LivePreviewContextMenuAction): void => {
+            const id = preview_context_menu?.section_id;
+            set_preview_context_menu(null);
+            if (!id) return;
+            switch (action) {
+                case "edit":
+                    handleEditSection(id);
+                    break;
+                case "duplicate":
+                    handleOverlayAction({ kind: "duplicate", section_id: id });
+                    break;
+                case "up":
+                    handleOverlayAction({ kind: "up", section_id: id });
+                    break;
+                case "down":
+                    handleOverlayAction({ kind: "down", section_id: id });
+                    break;
+                case "add_variant":
+                    handleAddVariant(id);
+                    break;
+                case "delete":
+                    handleOverlayDelete(id);
+                    break;
+            }
+        },
+        [
+            preview_context_menu,
+            handleEditSection,
+            handleOverlayAction,
+            handleAddVariant,
+            handleOverlayDelete,
+        ],
     );
 
     /* ── Section selection scroll-sync helpers ─────────────────── */
@@ -1512,6 +1572,11 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                                     onDeleteRequest={handleOverlayDelete}
                                     onAction={handleOverlayAction}
                                     iframeBounds={iframe_bounds}
+                                    contextMenu={preview_context_menu}
+                                    onContextMenuClose={closePreviewContextMenu}
+                                    onContextMenuAction={
+                                        handlePreviewContextMenuAction
+                                    }
                                 />
                             </div>
                             <InspectorRail

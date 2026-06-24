@@ -44,6 +44,8 @@ interface MockBridgeSpies {
     onSectionClicked: ReturnType<typeof vi.fn>;
     setSelectedSection: ReturnType<typeof vi.fn>;
     onInlineEditCommit: ReturnType<typeof vi.fn>;
+    requestAllRects: ReturnType<typeof vi.fn>;
+    onContextMenu: ReturnType<typeof vi.fn>;
 }
 
 declare global {
@@ -66,6 +68,8 @@ vi.mock("@/hooks/use-iframe-bridge", () => ({
                 onSectionClicked: vi.fn(() => () => {}),
                 setSelectedSection: vi.fn(),
                 onInlineEditCommit: vi.fn(() => () => {}),
+                requestAllRects: vi.fn(),
+                onContextMenu: vi.fn(() => () => {}),
             };
         }
         // Editor reads `bridge.state.ready` + the post methods.
@@ -84,6 +88,8 @@ vi.mock("@/hooks/use-iframe-bridge", () => ({
             onSectionClicked: g.__editorShellBridge.onSectionClicked,
             setSelectedSection: g.__editorShellBridge.setSelectedSection,
             onInlineEditCommit: g.__editorShellBridge.onInlineEditCommit,
+            requestAllRects: g.__editorShellBridge.requestAllRects,
+            onContextMenu: g.__editorShellBridge.onContextMenu,
             postPageConfigUpdate: g.__editorShellBridge.postPageConfigUpdate,
             postRuntimeUpdate: g.__editorShellBridge.postRuntimeUpdate,
             postPageIdChange: g.__editorShellBridge.postPageIdChange,
@@ -360,6 +366,8 @@ describe("EditorShell", () => {
             onSectionClicked: vi.fn(() => () => {}),
             setSelectedSection: vi.fn(),
             onInlineEditCommit: vi.fn(() => () => {}),
+            requestAllRects: vi.fn(),
+            onContextMenu: vi.fn(() => () => {}),
         };
 
         const builder = makeBuilder();
@@ -422,6 +430,8 @@ describe("EditorShell", () => {
             onSectionClicked: vi.fn(() => () => {}),
             setSelectedSection: vi.fn(),
             onInlineEditCommit: vi.fn(() => () => {}),
+            requestAllRects: vi.fn(),
+            onContextMenu: vi.fn(() => () => {}),
         };
 
         let currentBreakpoint: Breakpoint = "desktop";
@@ -564,6 +574,8 @@ describe("EditorShell", () => {
             onSectionClicked: vi.fn(() => () => {}),
             setSelectedSection: vi.fn(),
             onInlineEditCommit: vi.fn(() => () => {}),
+            requestAllRects: vi.fn(),
+            onContextMenu: vi.fn(() => () => {}),
         };
 
         const builder = makeBuilder();

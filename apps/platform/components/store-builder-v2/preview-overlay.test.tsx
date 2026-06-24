@@ -22,6 +22,7 @@ function makeBridge(state: Partial<BridgeState> = {}): UseIframeBridgeReturn {
         hovered_rect: null,
         rect_updates: {},
         inline_editing: false,
+        all_rects: [],
         ...state,
     };
     return {
@@ -32,6 +33,8 @@ function makeBridge(state: Partial<BridgeState> = {}): UseIframeBridgeReturn {
         onSectionClicked: vi.fn().mockReturnValue(() => {}),
         setSelectedSection: vi.fn(),
         onInlineEditCommit: vi.fn().mockReturnValue(() => {}),
+        requestAllRects: vi.fn(),
+        onContextMenu: vi.fn().mockReturnValue(() => {}),
         postPageConfigUpdate: vi.fn(),
         postRuntimeUpdate: vi.fn(),
         postPageIdChange: vi.fn(),
@@ -262,5 +265,45 @@ describe("PreviewOverlay", () => {
             />,
         );
         expect(screen.queryByTestId("preview-overlay-hover-ring")).toBeNull();
+    });
+
+    it("renders the context menu at the given coords and routes actions", () => {
+        const onAction = vi.fn();
+        const onClose = vi.fn();
+        render(
+            <PreviewOverlay
+                bridge={makeBridge()}
+                selected_section_id="sec-CM"
+                onEditRequest={() => {}}
+                onDeleteRequest={() => {}}
+                onAction={() => {}}
+                iframeBounds={BOUNDS}
+                contextMenu={{ section_id: "sec-CM", x: 40, y: 60 }}
+                onContextMenuClose={onClose}
+                onContextMenuAction={onAction}
+            />,
+        );
+        expect(screen.getByTestId("live-preview-context-menu")).toBeTruthy();
+        fireEvent.click(
+            screen.getByTestId("live-preview-context-menu-duplicate"),
+        );
+        expect(onAction).toHaveBeenCalledWith("duplicate");
+    });
+
+    it("does not render the context menu when contextMenu is null", () => {
+        render(
+            <PreviewOverlay
+                bridge={makeBridge()}
+                selected_section_id={null}
+                onEditRequest={() => {}}
+                onDeleteRequest={() => {}}
+                onAction={() => {}}
+                iframeBounds={BOUNDS}
+                contextMenu={null}
+                onContextMenuClose={() => {}}
+                onContextMenuAction={() => {}}
+            />,
+        );
+        expect(screen.queryByTestId("live-preview-context-menu")).toBeNull();
     });
 });

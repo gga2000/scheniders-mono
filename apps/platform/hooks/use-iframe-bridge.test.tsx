@@ -341,4 +341,64 @@ describe("useIframeBridge", () => {
         });
         expect(cb).toHaveBeenCalledTimes(1);
     });
+
+    /* ───── Insert/spacing rects + context menu ───── */
+
+    it("requestAllRects posts `request_all_rects`", () => {
+        mount();
+        act(() => {
+            harnessRef.current!.api.requestAllRects();
+        });
+        expect(postMessage).toHaveBeenCalledWith(
+            { source: "schn-editor", type: "request_all_rects" },
+            STOREFRONT_ORIGIN,
+        );
+    });
+
+    it("stores section rects on inbound `all_rects`", () => {
+        mount();
+        sendFromPreview({
+            type: "all_rects",
+            rects: [
+                { section_id: "a", rect: { x: 0, y: 0, width: 10, height: 20 } },
+                { section_id: "b", rect: { x: 0, y: 20, width: 10, height: 30 } },
+            ],
+        });
+        const rects = harnessRef.current!.api.state.all_rects;
+        expect(rects).toHaveLength(2);
+        expect(rects[0]).toEqual({
+            section_id: "a",
+            rect: { top: 0, left: 0, width: 10, height: 20 },
+        });
+        expect(rects[1].section_id).toBe("b");
+    });
+
+    it("notifies context-menu subscribers on `section_context_menu`", () => {
+        mount();
+        const cb = vi.fn();
+        let unsubscribe!: () => void;
+        act(() => {
+            unsubscribe = harnessRef.current!.api.onContextMenu(cb);
+        });
+        sendFromPreview({
+            type: "section_context_menu",
+            section_id: "sec-X",
+            x: 50,
+            y: 80,
+        });
+        expect(cb).toHaveBeenCalledTimes(1);
+        expect(cb.mock.calls[0][0]).toEqual({
+            section_id: "sec-X",
+            x: 50,
+            y: 80,
+        });
+        unsubscribe();
+        sendFromPreview({
+            type: "section_context_menu",
+            section_id: "sec-X",
+            x: 1,
+            y: 2,
+        });
+        expect(cb).toHaveBeenCalledTimes(1);
+    });
 });

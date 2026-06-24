@@ -56,6 +56,19 @@ export interface BridgeInlineEditEvent {
     value: string;
 }
 
+/** A right-click on a section, in iframe-local viewport coords. */
+export interface BridgeContextMenuEvent {
+    section_id: string;
+    x: number;
+    y: number;
+}
+
+/** A section's bounding rect, as reported by `all_rects` (document order). */
+export interface BridgeSectionRect {
+    section_id: string;
+    rect: PreviewRect;
+}
+
 export interface BridgeState {
     ready: boolean;
     scroll_y: number;
@@ -69,6 +82,11 @@ export interface BridgeState {
      * caret in the iframe's contenteditable.
      */
     inline_editing: boolean;
+    /**
+     * Every section's rect in document order, refreshed via `request_all_rects`.
+     * Drives the insert-`+` gap buttons and spacing-drag handles.
+     */
+    all_rects: BridgeSectionRect[];
 }
 
 /**
@@ -87,7 +105,8 @@ export type EditorOutboundMessage =
           source: "schn-editor";
           type: "set_selected_section";
           section_id: string | null;
-      };
+      }
+    | { source: "schn-editor"; type: "request_all_rects" };
 
 export interface UseIframeBridgeReturn {
     state: BridgeState;
@@ -104,6 +123,12 @@ export interface UseIframeBridgeReturn {
     /** Subscribe to committed inline text edits. Returns an unsubscribe fn. */
     onInlineEditCommit: (
         cb: (e: BridgeInlineEditEvent) => void,
+    ) => () => void;
+    /** Ask the preview for every section's rect (gap + spacing handles). */
+    requestAllRects: () => void;
+    /** Subscribe to section right-clicks. Returns an unsubscribe fn. */
+    onContextMenu: (
+        cb: (e: BridgeContextMenuEvent) => void,
     ) => () => void;
     /**
      * Fire-and-forget post of a full page config to the iframe. The
@@ -158,11 +183,16 @@ export function useIframeBridge(
         hovered_rect: null,
         rect_updates: {},
         inline_editing: false,
+        all_rects: [],
     }));
 
     // Click subscribers — stored in a ref so subscribe/unsubscribe doesn't
     // tear down the message listener.
     const click_subs_ref = useRef<Set<(e: BridgeClickEvent) => void>>(new Set());
+    // Section right-click subscribers.
+    const context_menu_subs_ref = useRef<
+        Set<(e: BridgeContextMenuEvent) => void>
+    >(new Set());
     // Inline-edit commit subscribers.
     const inline_edit_subs_ref = useRef<
         Set<(e: BridgeInlineEditEvent) => void>
@@ -248,6 +278,20 @@ export function useIframeBridge(
             });
         },
         [post],
+    );
+
+    const requestAllRects = useCallback((): void => {
+        post({ source: "schn-editor", type: "request_all_rects" });
+    }, [post]);
+
+    const onContextMenu = useCallback(
+        (cb: (e: BridgeContextMenuEvent) => void): (() => void) => {
+            context_menu_subs_ref.current.add(cb);
+            return () => {
+                context_menu_subs_ref.current.delete(cb);
+            };
+        },
+        [],
     );
 
     const onInlineEditCommit = useCallback(
@@ -397,6 +441,33 @@ export function useIframeBridge(
                     setState((s) => ({ ...s, inline_editing: false }));
                     break;
                 }
+                case "all_rects": {
+                    const d = data as {
+                        rects?: { section_id: string; rect: RectLike }[];
+                    };
+                    const rects: BridgeSectionRect[] = (d.rects ?? [])
+                        .map((r) => {
+                            const rect = toPreviewRect(r.rect);
+                            return rect ? { section_id: r.section_id, rect } : null;
+                        })
+                        .filter((r): r is BridgeSectionRect => r !== null);
+                    setState((s) => ({ ...s, all_rects: rects }));
+                    break;
+                }
+                case "section_context_menu": {
+                    const d = data as {
+                        section_id: string;
+                        x: number;
+                        y: number;
+                    };
+                    const evt: BridgeContextMenuEvent = {
+                        section_id: d.section_id,
+                        x: d.x,
+                        y: d.y,
+                    };
+                    for (const cb of context_menu_subs_ref.current) cb(evt);
+                    break;
+                }
                 case "pong": {
                     for (const cb of pong_subs_ref.current) cb();
                     break;
@@ -421,6 +492,8 @@ export function useIframeBridge(
         onSectionClicked,
         setSelectedSection,
         onInlineEditCommit,
+        requestAllRects,
+        onContextMenu,
         postPageConfigUpdate,
         postRuntimeUpdate,
         postPageIdChange,
