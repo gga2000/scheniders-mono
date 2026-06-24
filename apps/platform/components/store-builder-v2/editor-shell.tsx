@@ -75,7 +75,15 @@ import { I18nScreen, I18nToolbarPill } from "./i18n-screen";
 import { InspectorRail, type InspectorTab } from "./inspector-rail";
 import { EditorLocaleProvider } from "@/lib/editor-locale-context";
 import { PublishConfirmSheet } from "./publish-confirm-sheet";
-import { runHealthChecks, blockingChecks } from "@scheniders/shared";
+import {
+    runHealthChecks,
+    blockingChecks,
+    activePageSections,
+    withActivePageSections,
+    withActivePageMeta,
+    customPageIndexById,
+    type EditTarget,
+} from "@scheniders/shared";
 import { useIsMobileEditor } from "@/hooks/use-is-mobile-editor";
 import {
     MobileEditorShell,
@@ -515,12 +523,20 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
 
     /* ── Section list <-> config plumbing ─────────────────────────── */
 
-    const activeSections = useMemo<SectionInstance[]>(() => {
-        const page = builder.config.pages.find(
-            (p) => p.page_id === builder.active_page,
-        );
-        return page?.sections ?? [];
-    }, [builder.config.pages, builder.active_page]);
+    // The page the canvas is currently authoring — a system PageId or a
+    // custom page (E4). All section/meta mutations route through this.
+    const editTarget = useMemo<EditTarget>(
+        () =>
+            builder.active_custom_page_id
+                ? { kind: "custom", id: builder.active_custom_page_id }
+                : { kind: "system", page_id: builder.active_page },
+        [builder.active_custom_page_id, builder.active_page],
+    );
+
+    const activeSections = useMemo<SectionInstance[]>(
+        () => activePageSections(builder.config, editTarget),
+        [builder.config, editTarget],
+    );
 
     /** Per-page counts → badge in the tree. */
     const sectionCounts = useMemo<Partial<Record<PageId, number>>>(() => {
@@ -533,49 +549,31 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
 
     const handleSectionsChange = useCallback(
         (next: SectionInstance[]): void => {
-            builder.setConfig((prev) => {
-                const idx = prev.pages.findIndex(
-                    (p) => p.page_id === builder.active_page,
-                );
-                const nextPages = [...prev.pages];
-                if (idx >= 0) {
-                    nextPages[idx] = { ...nextPages[idx], sections: next };
-                } else {
-                    nextPages.push({ page_id: builder.active_page, sections: next });
-                }
-                return { ...prev, pages: nextPages };
-            });
+            builder.setConfig((prev) =>
+                withActivePageSections(prev, editTarget, () => next),
+            );
         },
-        [builder, builder.active_page],
+        [builder, editTarget],
     );
 
     // The active page's SEO meta (E1) + its update handler.
     const activePageMeta = useMemo(
         () =>
-            builder.config.pages.find((p) => p.page_id === builder.active_page)
-                ?.meta,
-        [builder.config.pages, builder.active_page],
+            editTarget.kind === "custom"
+                ? builder.active_custom_page?.meta
+                : builder.config.pages.find(
+                      (p) => p.page_id === editTarget.page_id,
+                  )?.meta,
+        [editTarget, builder.config.pages, builder.active_custom_page],
     );
     const handlePageMetaChange = useCallback(
         (next: PageMeta): void => {
-            builder.setConfig((prev) => {
-                const idx = prev.pages.findIndex(
-                    (p) => p.page_id === builder.active_page,
-                );
-                const nextPages = [...prev.pages];
-                if (idx >= 0) {
-                    nextPages[idx] = { ...nextPages[idx], meta: next };
-                } else {
-                    nextPages.push({
-                        page_id: builder.active_page,
-                        sections: [],
-                        meta: next,
-                    });
-                }
-                return { ...prev, pages: nextPages };
-            }, "Edited page SEO");
+            builder.setConfig(
+                (prev) => withActivePageMeta(prev, editTarget, next),
+                "Edited page SEO",
+            );
         },
-        [builder, builder.active_page],
+        [builder, editTarget],
     );
 
     const handleAddSection = useCallback(
@@ -605,34 +603,26 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             // the effect, which posts the committed config to the iframe).
             spacing_dragging_ref.current = false;
             builder.setConfig(
-                (prev) => {
-                    const page_idx = prev.pages.findIndex(
-                        (p) => p.page_id === builder.active_page,
-                    );
-                    if (page_idx < 0) return prev;
-                    const page = prev.pages[page_idx];
-                    const sec_idx = page.sections.findIndex(
-                        (s) => s.id === section_id,
-                    );
-                    if (sec_idx < 0) return prev;
-                    const section = page.sections[sec_idx];
-                    const next_section: SectionInstance = {
-                        ...section,
-                        spacing: {
-                            ...(section.spacing ?? {}),
-                            bottom_px,
-                        },
-                    };
-                    const next_sections = page.sections.slice();
-                    next_sections[sec_idx] = next_section;
-                    const next_pages = prev.pages.slice();
-                    next_pages[page_idx] = { ...page, sections: next_sections };
-                    return { ...prev, pages: next_pages };
-                },
+                (prev) =>
+                    withActivePageSections(prev, editTarget, (sections) => {
+                        const sec_idx = sections.findIndex(
+                            (s) => s.id === section_id,
+                        );
+                        if (sec_idx < 0) return sections;
+                        const next = sections.slice();
+                        next[sec_idx] = {
+                            ...next[sec_idx],
+                            spacing: {
+                                ...(next[sec_idx].spacing ?? {}),
+                                bottom_px,
+                            },
+                        };
+                        return next;
+                    }),
                 "Resized spacing",
             );
         },
-        [builder, builder.active_page],
+        [builder, editTarget],
     );
 
     // Live spacing-drag feedback: stream a transient page config (selected
@@ -793,16 +783,27 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             locale: LocaleCode,
             next_value: string,
         ): void => {
-            const page_idx = builder.config.pages.findIndex(
-                (p) => p.page_id === builder.active_page,
-            );
+            // Resolve the page's location in the config so we can build a
+            // path-based patch. Custom pages live under `custom_pages[]`
+            // (keyed by id), system pages under `pages[]` (keyed by page_id).
+            const rootKey =
+                editTarget.kind === "custom" ? "custom_pages" : "pages";
+            const page_idx =
+                editTarget.kind === "custom"
+                    ? customPageIndexById(
+                          builder.config.custom_pages,
+                          editTarget.id,
+                      )
+                    : builder.config.pages.findIndex(
+                          (p) => p.page_id === editTarget.page_id,
+                      );
             if (page_idx < 0) return;
-            const page = builder.config.pages[page_idx];
-            const sec_idx = page.sections.findIndex((s) => s.id === section_id);
+            const sections = activePageSections(builder.config, editTarget);
+            const sec_idx = sections.findIndex((s) => s.id === section_id);
             if (sec_idx < 0) return;
             const baseSegs = parsePathSegments(field_path);
             const absolutePath: (string | number)[] = [
-                "pages",
+                rootKey,
                 page_idx,
                 "sections",
                 sec_idx,
@@ -812,7 +813,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             ];
             builder.patchField(absolutePath, next_value);
         },
-        [builder, builder.active_page, builder.config],
+        [builder, editTarget, builder.config],
     );
 
     // Inline edits happen inside the iframe (contenteditable); the bridge
