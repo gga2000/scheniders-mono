@@ -42,6 +42,11 @@ const DRAFT_DEBOUNCE_MS = 400;
 interface PendingFile {
     file: File;
     previewUrl: string | null;
+    /** Natural pixel dimensions — only set for image files, populated asynchronously. */
+    width?: number;
+    height?: number;
+    /** True while this file is being uploaded to storage. */
+    uploading?: boolean;
 }
 
 export function Composer({
@@ -229,7 +234,7 @@ export function Composer({
         setMentions((prev) => prev.filter((id) => id !== userId));
     };
 
-    const addFiles = (files: FileList | null) => {
+    const addFiles = (files: FileList | File[] | null) => {
         if (!files) return;
         // Validate up-front (size + type) so drag/paste — which bypass the input's
         // `accept` hint — can't reach the upload and fail opaquely.
@@ -248,9 +253,51 @@ export function Composer({
                 previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
             });
         }
-        if (accepted.length) setPendingFiles((prev) => [...prev, ...accepted]);
+        if (accepted.length) {
+            setPendingFiles((prev) => [...prev, ...accepted]);
+            // Asynchronously read natural dimensions for image files and patch
+            // them into the pending state. createImageBitmap is the most direct
+            // API — it decodes the file without creating a DOM element, and the
+            // dimensions are available synchronously on the returned bitmap.
+            for (const pf of accepted) {
+                if (!pf.file.type.startsWith("image/")) continue;
+                createImageBitmap(pf.file)
+                    .then((bmp) => {
+                        const { width, height } = bmp;
+                        bmp.close();
+                        setPendingFiles((prev) =>
+                            prev.map((p) =>
+                                p.file === pf.file ? { ...p, width, height } : p
+                            )
+                        );
+                    })
+                    .catch(() => {
+                        // Dimensions unavailable — the upload will proceed without them.
+                    });
+            }
+        }
         // Allow re-selecting the same file later.
         if (fileRef.current) fileRef.current.value = "";
+    };
+
+    /**
+     * Paste handler for the textarea: intercepts clipboard image items and
+     * routes them into the same pending-attachment flow as a file pick.
+     * Text paste is not intercepted — only image items trigger the custom path.
+     */
+    const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+        const items = Array.from(e.clipboardData.items);
+        const imageItems = items.filter((item) => item.type.startsWith("image/"));
+        if (imageItems.length === 0) return;
+        // There are image items — prevent the default for each, but we also
+        // prevent the overall event default so the raw bytes aren't pasted as text.
+        e.preventDefault();
+        const imageFiles: File[] = [];
+        for (const item of imageItems) {
+            const file = item.getAsFile();
+            if (file) imageFiles.push(file);
+        }
+        if (imageFiles.length) addFiles(imageFiles);
     };
 
     /**
@@ -430,15 +477,26 @@ export function Composer({
     const uploadAll = async (): Promise<ChatAttachment[]> => {
         if (!tenantId) return [];
         const out: ChatAttachment[] = [];
-        for (const { file } of pendingFiles) {
-            const path = `${tenantId}/${conversationId}/${crypto.randomUUID()}-${file.name}`;
-            const { error } = await supabase.storage.from("chat-attachments").upload(path, file);
+        for (const pf of pendingFiles) {
+            // Mark this individual file as uploading so the chip shows a spinner.
+            setPendingFiles((prev) =>
+                prev.map((p) => (p.file === pf.file ? { ...p, uploading: true } : p))
+            );
+            const path = `${tenantId}/${conversationId}/${crypto.randomUUID()}-${pf.file.name}`;
+            const { error } = await supabase.storage.from("chat-attachments").upload(path, pf.file);
             if (error) throw error;
+            // Supabase storage .upload() does not expose byte-level progress — we
+            // show an indeterminate spinner per chip while the upload is in-flight
+            // (set above) rather than faking a percentage.
             out.push({
                 storage_path: path,
-                file_name: file.name,
-                mime: file.type || null,
-                size_bytes: file.size,
+                file_name: pf.file.name,
+                mime: pf.file.type || null,
+                size_bytes: pf.file.size,
+                // Pass natural dimensions for image files (null if not yet resolved
+                // or not an image — the DB columns accept null).
+                width: pf.width ?? null,
+                height: pf.height ?? null,
             });
         }
         return out;
@@ -594,27 +652,62 @@ export function Composer({
                             animate={{ opacity: 1, scale: 1 }}
                             className="flex items-center gap-2 rounded-xl border border-(--card-border) bg-(--card-bg) py-1 pl-1 pr-1.5 shadow-sm"
                         >
-                            {pf.previewUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element -- local object-URL preview, not a remote asset
-                                <img
-                                    src={pf.previewUrl}
-                                    alt={pf.file.name}
-                                    className="h-9 w-9 rounded-lg object-cover"
-                                />
-                            ) : (
-                                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-background text-muted-foreground">
-                                    <FileText className="h-4 w-4" />
-                                </span>
+                            {/* Thumbnail or file icon — overlaid with spinner while uploading */}
+                            <span className="relative flex h-9 w-9 shrink-0 items-center justify-center">
+                                {pf.previewUrl ? (
+                                    // eslint-disable-next-line @next/next/no-img-element -- local object-URL preview, not a remote asset
+                                    <img
+                                        src={pf.previewUrl}
+                                        alt={pf.file.name}
+                                        className="h-9 w-9 rounded-lg object-cover"
+                                    />
+                                ) : (
+                                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-background text-muted-foreground">
+                                        <FileText className="h-4 w-4" />
+                                    </span>
+                                )}
+                                {/* Indeterminate upload-in-progress overlay */}
+                                {pf.uploading && (
+                                    <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/40">
+                                        <svg
+                                            className="h-4 w-4 animate-spin text-white"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            aria-label={t("chat.uploading", "Uploading…")}
+                                        >
+                                            <circle
+                                                className="opacity-25"
+                                                cx="12"
+                                                cy="12"
+                                                r="10"
+                                                stroke="currentColor"
+                                                strokeWidth="4"
+                                            />
+                                            <path
+                                                className="opacity-75"
+                                                fill="currentColor"
+                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                            />
+                                        </svg>
+                                    </span>
+                                )}
+                            </span>
+                            <span className="max-w-[160px] truncate text-xs font-medium text-foreground">
+                                {pf.uploading
+                                    ? t("chat.uploading", "Uploading…")
+                                    : pf.file.name}
+                            </span>
+                            {/* Hide remove button while the file is uploading */}
+                            {!pf.uploading && (
+                                <button
+                                    type="button"
+                                    aria-label={t("chat.composer.removeAttachment", "Remove attachment")}
+                                    className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+                                    onClick={() => removeFile(i)}
+                                >
+                                    <X className="h-3.5 w-3.5" />
+                                </button>
                             )}
-                            <span className="max-w-[160px] truncate text-xs font-medium text-foreground">{pf.file.name}</span>
-                            <button
-                                type="button"
-                                aria-label={t("chat.composer.removeAttachment", "Remove attachment")}
-                                className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
-                                onClick={() => removeFile(i)}
-                            >
-                                <X className="h-3.5 w-3.5" />
-                            </button>
                         </motion.div>
                     ))}
                 </div>
@@ -665,6 +758,7 @@ export function Composer({
                                 void submit();
                             }
                         }}
+                        onPaste={handlePaste}
                         placeholder={t("chat.composer.placeholder", "Message… use # to reference an order, @ to mention")}
                         rows={1}
                         className="min-h-[44px] max-h-40 resize-none rounded-xl"

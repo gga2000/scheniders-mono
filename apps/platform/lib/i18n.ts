@@ -2839,6 +2839,10 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.voice.permissionDenied": "Microphone access denied. Please allow access and try again.",
         "chat.voice.micError": "Couldn't access the microphone. Please check your device.",
         "chat.voice.notSupported": "Voice recording is not supported in this browser.",
+        // ── Phase 4 Task 7: paste-image + multi-file upload + image dimensions ──
+        "chat.uploading": "Uploading…",
+        "chat.image.open": "Open image",
+        "chat.image.altText": "Image",
     },
 
     ar: {
@@ -5673,5 +5677,9 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.voice.permissionDenied": "تم رفض الوصول إلى الميكروفون. يرجى السماح بالوصول والمحاولة مجدداً.",
         "chat.voice.micError": "تعذّر الوصول إلى الميكروفون. يرجى التحقق من جهازك.",
         "chat.voice.notSupported": "تسجيل الصوت غير مدعوم في هذا المتصفح.",
+        // ── Phase 4 Task 7: paste-image + multi-file upload + image dimensions ──
+        "chat.uploading": "جارٍ الرفع…",
+        "chat.image.open": "فتح الصورة",
+        "chat.image.altText": "صورة",
     },
 };

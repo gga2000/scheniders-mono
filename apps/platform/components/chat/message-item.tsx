@@ -1,12 +1,12 @@
 // apps/platform/components/chat/message-item.tsx
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChatAvatar } from "./chat-avatar";
 import { MessageActions } from "./message-actions";
 import { formatDistanceToNow } from "date-fns";
-import { AlertCircle, CornerUpLeft, FileText, Paperclip, RefreshCw, Trash2 } from "lucide-react";
+import { AlertCircle, CornerUpLeft, FileText, RefreshCw, Trash2 } from "lucide-react";
 import { renderMarkdown } from "@/lib/chat/markdown";
 import { ReferenceCard } from "./reference-card";
 import { ReactionBar } from "./reaction-bar";
@@ -107,6 +107,89 @@ function QuotePreview({
                         : t("chat.originalMessage", "Original message")}
                 </p>
             </div>
+        </button>
+    );
+}
+
+/**
+ * Renders an image attachment as an inline thumbnail.
+ * A signed URL is fetched from Supabase Storage on mount (1-hour TTL).
+ * While loading the thumbnail is shown as a skeleton; on error it degrades
+ * to the generic file chip. Clicking opens the same signed URL full-size.
+ */
+function ImageAttachment({ attachment, t }: {
+    attachment: import("@/types/chat").ChatAttachment;
+    t: (key: string, fallback: string) => string;
+}) {
+    const [signedUrl, setSignedUrl] = useState<string | null>(null);
+    const [failed, setFailed] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+        supabase.storage
+            .from("chat-attachments")
+            .createSignedUrl(attachment.storage_path, 3600)
+            .then(({ data }) => {
+                if (!cancelled && data?.signedUrl) setSignedUrl(data.signedUrl);
+            })
+            .catch(() => {
+                if (!cancelled) setFailed(true);
+            });
+        return () => { cancelled = true; };
+    }, [attachment.storage_path]);
+
+    const openFull = () => {
+        if (signedUrl) window.open(signedUrl, "_blank", "noopener,noreferrer");
+    };
+
+    if (failed) {
+        // Degrade to the generic file chip on error.
+        return (
+            <button
+                type="button"
+                onClick={() => void openFull()}
+                className="inline-flex max-w-[220px] items-center gap-2 rounded-xl border border-(--card-border) bg-(--card-bg) px-3 py-2 text-xs text-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
+            >
+                <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <span className="truncate">{attachment.file_name}</span>
+            </button>
+        );
+    }
+
+    // Build an inline style for aspect-ratio preservation only when both
+    // dimensions are known — avoids layout shift as the image loads.
+    const knownAspect =
+        attachment.width && attachment.height
+            ? { aspectRatio: `${attachment.width} / ${attachment.height}` }
+            : undefined;
+
+    if (!signedUrl) {
+        // Skeleton placeholder at the known aspect ratio while the signed URL loads.
+        return (
+            <div
+                className="animate-pulse rounded-xl bg-foreground/5"
+                style={{ width: 120, height: 80, ...(knownAspect ?? {}) }}
+            />
+        );
+    }
+
+    return (
+        <button
+            type="button"
+            onClick={openFull}
+            aria-label={t("chat.image.open", "Open image")}
+            className="overflow-hidden rounded-xl border border-(--card-border) shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
+        >
+            {/* eslint-disable-next-line @next/next/no-img-element -- signed storage URL, not a static asset */}
+            <img
+                src={signedUrl}
+                alt={attachment.file_name ?? t("chat.image.altText", "Image")}
+                width={attachment.width ?? undefined}
+                height={attachment.height ?? undefined}
+                className="block max-h-[280px] max-w-[240px] object-cover"
+                style={knownAspect}
+                onError={() => setFailed(true)}
+            />
         </button>
     );
 }
@@ -314,19 +397,21 @@ export function MessageItem({
                             if (a.mime?.startsWith("audio/")) {
                                 return <VoiceMessage key={i} attachment={a} />;
                             }
-                            // All other attachments render as the generic file chip.
+                            // Image attachments render as an inline thumbnail at their
+                            // natural aspect ratio (using stored width/height to reserve
+                            // space and avoid layout shift), capped to a max display size.
+                            if (isImage(a.mime)) {
+                                return <ImageAttachment key={i} attachment={a} t={t} />;
+                            }
+                            // Non-image, non-audio attachments render as the generic file chip.
                             return (
                                 <button
                                     key={i}
                                     type="button"
-                                    onClick={() => openAttachment(a.storage_path)}
+                                    onClick={() => void openAttachment(a.storage_path)}
                                     className="inline-flex max-w-[220px] items-center gap-2 rounded-xl border border-(--card-border) bg-(--card-bg) px-3 py-2 text-xs text-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
                                 >
-                                    {isImage(a.mime) ? (
-                                        <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                    ) : (
-                                        <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                    )}
+                                    <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                                     <span className="truncate">{a.file_name}</span>
                                 </button>
                             );
