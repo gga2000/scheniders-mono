@@ -81,6 +81,7 @@ vi.mock("@/hooks/use-iframe-bridge", () => ({
                 hovered_section_id: null,
                 hovered_rect: null,
                 rect_updates: {},
+                all_rects: [],
             },
             scrollToSection: g.__editorShellBridge.scrollToSection,
             requestRect: g.__editorShellBridge.requestRect,

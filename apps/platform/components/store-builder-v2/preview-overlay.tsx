@@ -12,13 +12,14 @@
 // only the toolbar opts back into `pointer-events-auto`.
 // =====================================================================
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import {
     ArrowDown,
     ArrowUp,
     Copy,
     Pencil,
+    Plus,
     Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -62,6 +63,12 @@ export interface PreviewOverlayProps {
     contextMenu?: PreviewOverlayContextMenu | null;
     onContextMenuClose?: () => void;
     onContextMenuAction?: (action: LivePreviewContextMenuAction) => void;
+    /**
+     * Click a Notion-style `+` between sections. `insertAt` is the index the
+     * new section should land at (0 = before the first, length = after last).
+     * Derived from `bridge.state.all_rects`.
+     */
+    onAddAt?: (insertAt: number) => void;
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -86,6 +93,7 @@ export function PreviewOverlay(props: PreviewOverlayProps): ReactElement | null 
         contextMenu,
         onContextMenuClose,
         onContextMenuAction,
+        onAddAt,
     } = props;
 
     const { state, requestRect } = bridge;
@@ -125,6 +133,29 @@ export function PreviewOverlay(props: PreviewOverlayProps): ReactElement | null 
         ? (state.rect_updates[selected_section_id] ?? null)
         : null;
 
+    // Insert-`+` gap slots derived from every section's rect (document order):
+    // one above each section, plus one below the last. Coords are iframe-local,
+    // which map directly to this container (positioned at the iframe bounds).
+    const insert_gaps = useMemo<{ top: number; left: number; width: number; insertAt: number }[]>(() => {
+        if (!onAddAt) return [];
+        const rects = state.all_rects;
+        if (rects.length === 0) return [];
+        const gaps = rects.map((r, i) => ({
+            top: r.rect.top,
+            left: r.rect.left,
+            width: r.rect.width,
+            insertAt: i,
+        }));
+        const last = rects[rects.length - 1].rect;
+        gaps.push({
+            top: last.top + last.height,
+            left: last.left,
+            width: last.width,
+            insertAt: rects.length,
+        });
+        return gaps;
+    }, [state.all_rects, onAddAt]);
+
     const handleEdit = useCallback(() => {
         if (selected_section_id) onEditRequest(selected_section_id);
     }, [onEditRequest, selected_section_id]);
@@ -156,6 +187,20 @@ export function PreviewOverlay(props: PreviewOverlayProps): ReactElement | null 
                 height: iframeBounds.height,
             }}
         >
+            {/* Insert-`+` gaps between sections — hidden while scrolling (rects
+                go stale), inline-editing, or the context menu is open. */}
+            {onAddAt && !scrolling && !state.inline_editing && !contextMenu
+                ? insert_gaps.map((g) => (
+                      <InsertGap
+                          key={g.insertAt}
+                          top={g.top}
+                          left={g.left}
+                          width={g.width}
+                          onClick={() => onAddAt(g.insertAt)}
+                      />
+                  ))
+                : null}
+
             {/* Hover ring (mint, dashed) — hidden during scroll */}
             {hovered_rect && !scrolling ? (
                 <Ring rect={hovered_rect} kind="hover" testId="preview-overlay-hover-ring" />
@@ -193,6 +238,37 @@ export function PreviewOverlay(props: PreviewOverlayProps): ReactElement | null 
                 />
             ) : null}
         </div>
+    );
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* InsertGap — Notion-style `+` between sections                         */
+/* ─────────────────────────────────────────────────────────────────── */
+
+interface InsertGapProps {
+    top: number;
+    left: number;
+    width: number;
+    onClick: () => void;
+}
+
+/** Slim full-width hit-zone centred on a section boundary; the `+` pill and
+ *  hairline only appear on hover so the canvas stays uncluttered. */
+function InsertGap({ top, left, width, onClick }: InsertGapProps): ReactElement {
+    return (
+        <button
+            type="button"
+            data-testid="preview-overlay-insert-gap"
+            aria-label="Insert section here"
+            onClick={onClick}
+            className="group pointer-events-auto absolute flex -translate-y-1/2 items-center justify-center"
+            style={{ top, left, width, height: 20 }}
+        >
+            <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-pink-500 opacity-0 transition-opacity group-hover:opacity-100" />
+            <span className="relative inline-flex h-5 w-5 items-center justify-center rounded-full bg-pink-500 text-white opacity-0 shadow transition-opacity group-hover:opacity-100">
+                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+            </span>
+        </button>
     );
 }
 

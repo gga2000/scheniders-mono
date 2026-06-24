@@ -325,6 +325,21 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         });
     }, [bridge]);
 
+    // Ask the iframe for every section's rect so the overlay can place the
+    // insert-`+` gaps. Re-request (debounced) whenever the section list,
+    // page, or breakpoint changes, and on scroll (via the new `bridge`
+    // identity each render → `state.scroll_y` change).
+    useEffect(() => {
+        if (!bridge.state.ready) return;
+        const t = setTimeout(() => bridge.requestAllRects(), 150);
+        return () => clearTimeout(t);
+    }, [
+        bridge,
+        builder.config,
+        builder.active_page,
+        builder.active_breakpoint,
+    ]);
+
     // Mirror the editor's selection into the iframe so the bridge knows which
     // section's text is inline-editable and which to outline. Deduped via a
     // ref so we don't re-post on every render.
@@ -1577,6 +1592,10 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                                     onContextMenuAction={
                                         handlePreviewContextMenuAction
                                     }
+                                    onAddAt={(insertAt) => {
+                                        set_picker_insert_at(insertAt);
+                                        set_picker_open(true);
+                                    }}
                                 />
                             </div>
                             <InspectorRail

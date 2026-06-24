@@ -290,6 +290,59 @@ describe("PreviewOverlay", () => {
         expect(onAction).toHaveBeenCalledWith("duplicate");
     });
 
+    it("renders an insert `+` per gap (one above each section + one below last)", () => {
+        const onAddAt = vi.fn();
+        render(
+            <PreviewOverlay
+                bridge={makeBridge({
+                    all_rects: [
+                        {
+                            section_id: "a",
+                            rect: { top: 0, left: 0, width: 390, height: 100 },
+                        },
+                        {
+                            section_id: "b",
+                            rect: { top: 100, left: 0, width: 390, height: 200 },
+                        },
+                    ],
+                })}
+                selected_section_id={null}
+                onEditRequest={() => {}}
+                onDeleteRequest={() => {}}
+                onAction={() => {}}
+                iframeBounds={BOUNDS}
+                onAddAt={onAddAt}
+            />,
+        );
+        const gaps = screen.getAllByTestId("preview-overlay-insert-gap");
+        // 2 sections → 3 gaps (above a, above b, below b).
+        expect(gaps).toHaveLength(3);
+        // Last gap inserts at the end (index = section count).
+        fireEvent.click(gaps[2]);
+        expect(onAddAt).toHaveBeenCalledWith(2);
+    });
+
+    it("renders no insert gaps when onAddAt is omitted", () => {
+        render(
+            <PreviewOverlay
+                bridge={makeBridge({
+                    all_rects: [
+                        {
+                            section_id: "a",
+                            rect: { top: 0, left: 0, width: 390, height: 100 },
+                        },
+                    ],
+                })}
+                selected_section_id={null}
+                onEditRequest={() => {}}
+                onDeleteRequest={() => {}}
+                onAction={() => {}}
+                iframeBounds={BOUNDS}
+            />,
+        );
+        expect(screen.queryByTestId("preview-overlay-insert-gap")).toBeNull();
+    });
+
     it("does not render the context menu when contextMenu is null", () => {
         render(
             <PreviewOverlay
