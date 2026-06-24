@@ -54,6 +54,5 @@ EN+AR for: emoji search/recent, format labels, slash-command names/descriptions,
 ## 6. Verification
 type-check + lint (0); unit tests for `markdown` + `slash-commands` (pure); manual: emoji insert, markdown render (incl. injection attempt renders as text), slash `/order`/`/assign`/`/status`, voice record→play, paste image, multi-file progress + aspect ratio, link unfurl card + SSRF guard (private URL rejected). The unfurl route's SSRF guard is the security-sensitive bit — test it.
 
-## 7. Decision needed
-**Markdown renderer:** (a) a tiny **hand-rolled tokenizer** (~150 lines, zero deps, emits React nodes, only the subset we want — fully controlled + injection-safe by construction), or (b) a **library** (`react-markdown` + `remark-gfm` + a sanitizer) — more complete (tables, nested), but adds deps + a sanitization surface, and can over-render?
-Recommendation: **(a) hand-rolled tokenizer** — the subset is small, zero new deps, injection-safe by construction (we only ever emit known React elements), and matches the "no heavy deps" rule. A library is overkill for chat-message formatting.
+## 7. Decision (LOCKED 2026-06-24)
+**Markdown renderer → HAND-ROLLED TOKENIZER.** A small pure tokenizer (`lib/chat/markdown.tsx`) that emits React nodes for only the subset (bold/italic/inline-code/strike/link/list/blockquote). Zero new deps, injection-safe by construction (only ever emits known React elements — never `dangerouslySetInnerHTML`), unit-tested. No markdown library.
