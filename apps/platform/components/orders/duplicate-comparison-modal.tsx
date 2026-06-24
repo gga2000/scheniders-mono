@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     X,
@@ -11,36 +11,36 @@ import {
     Phone,
     User,
     Package,
-    Hash,
-    CheckCircle,
     AlertTriangle,
-    Clock,
+    Coins,
     Truck,
-    Eye,
     ShieldX,
     MessageSquare,
-    History,
     Ban,
     Sparkles,
-    ChevronRight,
     Filter,
-    ArrowRightLeft,
-    Equal,
-    AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD, formatDate, getBaseOrderId } from "@/lib/utils";
 import { formatPhoneForDisplay, normalizePhoneForSearch } from "@/lib/order-utils";
 import type { Order } from "@/lib/supabase";
 import { useLanguage } from "@/hooks/use-language";
-
-interface CustomerStats {
-    totalOrders: number;
-    totalSpent: number;
-    deliveredCount: number;
-    rejectedCount: number;
-    cancelledCount: number;
-}
+import {
+    likelihoodTier,
+    deriveSignals,
+    getRelativeTime,
+    computeCustomerStats,
+    isRepeatCustomer,
+    sortByScoreDesc,
+    reassignMergeTarget,
+    rowAllMatch,
+    type CustomerStats,
+} from "@/lib/duplicate-comparison";
+import { LikelihoodMeter } from "./duplicate-comparison/likelihood-meter";
+import { WhyFlaggedChips } from "./duplicate-comparison/why-flagged-chips";
+import { CustomerIntelStrip } from "./duplicate-comparison/customer-intel-strip";
+import { OrderTimeline } from "./duplicate-comparison/order-timeline";
+import { ColumnHeaderControls } from "./duplicate-comparison/column-header-controls";
 
 interface DuplicateComparisonModalProps {
     open: boolean;
@@ -101,23 +101,6 @@ function formatDateEN(dateStr: string): string {
     return `${y}/${m}/${day} ${h12}:${mins} ${ampm}`;
 }
 
-// Calculate relative time
-function getRelativeTime(dateStr: string): string {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return "الآن";
-    if (diffMins < 60) return `منذ ${diffMins} دقيقة`;
-    if (diffHours < 24) return `منذ ${diffHours} ساعة`;
-    if (diffDays === 1) return "أمس";
-    if (diffDays < 7) return `منذ ${diffDays} أيام`;
-    return date.toLocaleDateString("ar-IQ", { month: "short", day: "numeric" });
-}
-
 // Calculate match confidence score
 function calculateMatchScore(order1: Order, order2: Order): number {
     let score = 0;
@@ -158,78 +141,128 @@ export function DuplicateComparisonModal({
     isBlacklisted,
     getCustomerOrders,
 }: DuplicateComparisonModalProps) {
-    const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+    const [displayedOrderIds, setDisplayedOrderIds] = useState<string[]>([]);
+    const [mergeTargetId, setMergeTargetId] = useState<string | null>(null);
+    const [diffOnly, setDiffOnly] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [actionType, setActionType] = useState<string | null>(null);
     const [actionNote, setActionNote] = useState("");
+    const [confirmingCancel, setConfirmingCancel] = useState<null | "new" | "old">(null);
     const { t } = useLanguage();
-
-    useEffect(() => {
-        if (duplicateOrders.length > 0 && selectedOrderIds.length === 0) {
-            setSelectedOrderIds([duplicateOrders[0].id]);
-        }
-    }, [duplicateOrders, selectedOrderIds.length]);
-
-    const selectedOrders = useMemo(() =>
-        duplicateOrders.filter(o => selectedOrderIds.includes(o.id)),
-        [duplicateOrders, selectedOrderIds]
-    );
-
-    const allDisplayOrders = useMemo(() =>
-        [currentOrder, ...selectedOrders],
-        [currentOrder, selectedOrders]
-    );
-
-    const isCustomerBlacklisted = isBlacklisted?.(currentOrder.phone) || false;
 
     const matchScores = useMemo(() => {
         const scores: Record<string, number> = {};
-        duplicateOrders.forEach(order => {
+        duplicateOrders.forEach((order) => {
             scores[order.id] = calculateMatchScore(currentOrder, order);
         });
         return scores;
     }, [currentOrder, duplicateOrders]);
 
-    const avgMatchScore = useMemo(() => {
-        const scores = Object.values(matchScores);
-        return scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
-    }, [matchScores]);
+    // Seed once per opened order: show ALL previous orders, target = highest score.
+    // Keyed by currentOrder.id (via ref) so the user emptying the list with the
+    // master "hide all" toggle is NOT re-filled by this effect, while reopening
+    // the modal for a different order still re-seeds.
+    const seededForOrderRef = useRef<string | null>(null);
+    useEffect(() => {
+        if (duplicateOrders.length > 0 && seededForOrderRef.current !== currentOrder.id) {
+            seededForOrderRef.current = currentOrder.id;
+            const allIds = duplicateOrders.map((o) => o.id);
+            setDisplayedOrderIds(allIds);
+            setMergeTargetId(reassignMergeTarget(allIds, null, matchScores));
+        }
+    }, [duplicateOrders, currentOrder.id, matchScores]);
 
-    const toggleOrderSelection = (orderId: string) => {
-        setSelectedOrderIds(prev =>
-            prev.includes(orderId)
-                ? prev.filter(id => id !== orderId)
-                : [...prev, orderId]
-        );
+    const displayedOrders = useMemo(
+        () => sortByScoreDesc(
+            duplicateOrders.filter((o) => displayedOrderIds.includes(o.id)),
+            matchScores,
+        ),
+        [duplicateOrders, displayedOrderIds, matchScores],
+    );
+
+    const allDisplayOrders = useMemo(
+        () => [currentOrder, ...displayedOrders],
+        [currentOrder, displayedOrders],
+    );
+
+    const mergeTarget = useMemo(
+        () => duplicateOrders.find((o) => o.id === mergeTargetId) ?? null,
+        [duplicateOrders, mergeTargetId],
+    );
+
+    const hideColumn = (orderId: string) => {
+        const next = displayedOrderIds.filter((id) => id !== orderId);
+        setDisplayedOrderIds(next);
+        setMergeTargetId((prev) => reassignMergeTarget(next, prev, matchScores));
     };
 
+    const toggleAllColumns = () => {
+        if (displayedOrderIds.length > 0) {
+            setDisplayedOrderIds([]);
+            setMergeTargetId(null);
+        } else {
+            const allIds = duplicateOrders.map((o) => o.id);
+            setDisplayedOrderIds(allIds);
+            setMergeTargetId(reassignMergeTarget(allIds, null, matchScores));
+        }
+    };
+
+    const isCustomerBlacklisted = isBlacklisted?.(currentOrder.phone) || false;
+
+    const avgMatchScore = useMemo(() => {
+        const scores = Object.values(matchScores);
+        return scores.length > 0
+            ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+            : 0;
+    }, [matchScores]);
+
+    const signals = useMemo(
+        () => deriveSignals(currentOrder, displayedOrders[0] ?? duplicateOrders[0]),
+        [currentOrder, displayedOrders, duplicateOrders],
+    );
+
+    const customerOrders = useMemo(
+        () => getCustomerOrders?.(currentOrder.phone) ?? [],
+        [getCustomerOrders, currentOrder.phone],
+    );
+    const customerStats: CustomerStats = useMemo(
+        () => computeCustomerStats(customerOrders),
+        [customerOrders],
+    );
+    const lastOrderRelative = useMemo(() => {
+        const others = customerOrders
+            .filter((o) => o.id !== currentOrder.id)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        return others[0] ? getRelativeTime(others[0].created_at) : "";
+    }, [customerOrders, currentOrder.id]);
+
     const mergedItemsPreview = useMemo(() => {
-        if (selectedOrders.length !== 1) return null;
+        if (!mergeTarget) return null;
         const allItems: { name: string; quantity: number; price: number }[] = [];
-        currentOrder.items?.forEach(item => {
-            const existing = allItems.find(i => i.name === item.name);
+        currentOrder.items?.forEach((item) => {
+            const existing = allItems.find((i) => i.name === item.name);
             if (existing) existing.quantity += item.quantity;
             else allItems.push({ ...item });
         });
-        selectedOrders[0].items?.forEach(item => {
-            const existing = allItems.find(i => i.name === item.name);
+        mergeTarget.items?.forEach((item) => {
+            const existing = allItems.find((i) => i.name === item.name);
             if (existing) existing.quantity += item.quantity;
             else allItems.push({ ...item });
         });
         return {
             items: allItems,
-            total: allItems.reduce((sum, i) => sum + (i.price * i.quantity), 0),
+            total: allItems.reduce((sum, i) => sum + i.price * i.quantity, 0),
         };
-    }, [currentOrder, selectedOrders]);
+    }, [currentOrder, mergeTarget]);
 
     const canMerge = (order: Order) => !["delivered", "rejected", "completed", "cancelled"].includes(order.status);
     const canCancel = (order: Order) => !["delivered", "completed"].includes(order.status);
 
     const handleMerge = async () => {
-        if (selectedOrders.length !== 1) return;
+        if (!mergeTarget) return;
         setIsProcessing(true);
         setActionType("merge");
-        const result = await onMerge(currentOrder.id, selectedOrders[0].id, actionNote || undefined);
+        const result = await onMerge(currentOrder.id, mergeTarget.id, actionNote || undefined);
         setIsProcessing(false);
         setActionType(null);
         if (result.success) onClose();
@@ -250,10 +283,10 @@ export function DuplicateComparisonModal({
     };
 
     const handleCancelOld = async () => {
-        if (selectedOrders.length !== 1) return;
+        if (!mergeTarget) return;
         setIsProcessing(true);
         setActionType("cancelOld");
-        await onCancelOrder(selectedOrders[0].id, actionNote || undefined);
+        await onCancelOrder(mergeTarget.id, actionNote || undefined);
         setIsProcessing(false);
         setActionType(null);
         onClose();
@@ -277,15 +310,15 @@ export function DuplicateComparisonModal({
         getVal: (order: Order) => React.ReactNode,
     ) => {
         const val1 = getVal(currentOrder);
-        const orderVals = duplicateOrders.map(getVal);
-        const allMatch = orderVals.every(v => v === val1);
+        const orderVals = displayedOrders.map(getVal);
+        const allMatch = orderVals.length > 0 && orderVals.every(v => v === val1);
 
         return (
             <div className={cn(
                 "grid gap-3 py-2 border-b border-dashed last:border-0",
                 "border-[var(--card-border)]",
-            )} style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, 1fr)` }}>
-                <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
+            )} style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, minmax(190px, 1fr))` }}>
+                <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)] sticky left-0 z-10 bg-white dark:bg-[#1E1E1E]">
                     <span className="text-[var(--foreground-subtle)] w-4 h-4 flex-shrink-0">{icon}</span>
                     {label}
                 </div>
@@ -367,36 +400,35 @@ export function DuplicateComparisonModal({
                             </div>
 
                             <div className="flex items-center gap-3">
-                                {/* Match Score */}
-                                <div className={cn(
-                                    "flex items-center gap-2.5 rounded-full px-3 py-1.5",
-                                    "bg-[var(--card-bg)] border border-[var(--card-border)]",
-                                    "dark:bg-[#2A2A2A] dark:border-[#3F3F3F]",
-                                    avgMatchScore >= 80 && "dark:border-[rgba(255,80,100,0.3)]",
-                                    avgMatchScore >= 60 && avgMatchScore < 80 && "dark:border-[rgba(255,179,71,0.3)]",
-                                )}>
-                                    <div className="w-16 h-1.5 bg-gray-200 dark:bg-[#333333] rounded-full overflow-hidden">
-                                        <div
-                                            className={cn(
-                                                "h-full rounded-full transition-all",
-                                                avgMatchScore >= 80
-                                                    ? "bg-rose-400 dark:bg-[#FF6B8A]"
-                                                    : avgMatchScore >= 60
-                                                        ? "bg-amber-400 dark:bg-[#FFB347]"
-                                                        : "bg-yellow-400 dark:bg-[#EFFF00]"
-                                            )}
-                                            style={{ width: `${avgMatchScore}%` }}
-                                        />
-                                    </div>
-                                    <span className={cn(
-                                        "font-bold text-sm",
-                                        avgMatchScore >= 80 ? "text-rose-600 dark:text-[#FF6B8A]"
-                                            : avgMatchScore >= 60 ? "text-amber-600 dark:text-[#FFB347]"
-                                                : "text-yellow-600 dark:text-[#EFFF00]"
-                                    )}>
-                                        {avgMatchScore}%
-                                    </span>
-                                </div>
+                                {/* Likelihood meter */}
+                                <LikelihoodMeter
+                                    score={avgMatchScore}
+                                    title={t("orders.duplicate.likelihood")}
+                                    tierLabel={t(
+                                        likelihoodTier(avgMatchScore) === "high"
+                                            ? "orders.duplicate.likelihoodHigh"
+                                            : likelihoodTier(avgMatchScore) === "medium"
+                                                ? "orders.duplicate.likelihoodMedium"
+                                                : "orders.duplicate.likelihoodLow",
+                                    )}
+                                />
+
+                                {/* Master show/hide columns toggle */}
+                                {duplicateOrders.length > 1 && (
+                                    <button
+                                        type="button"
+                                        onClick={toggleAllColumns}
+                                        className={cn(
+                                            "px-2.5 py-1.5 rounded-full text-[11px] font-medium border transition-all",
+                                            "text-[var(--foreground-muted)] border-[var(--card-border)] bg-[var(--card-bg)]",
+                                            "hover:text-[var(--foreground)] dark:bg-[#2A2A2A] dark:border-[#3F3F3F]",
+                                        )}
+                                    >
+                                        {displayedOrderIds.length > 0
+                                            ? t("orders.duplicate.toggleColumns")
+                                            : t("orders.duplicate.showColumns")}
+                                    </button>
+                                )}
 
                                 {/* Close */}
                                 <button
@@ -426,64 +458,86 @@ export function DuplicateComparisonModal({
                             </div>
                         )}
 
-                        {/* Order Selector — compact chips inline */}
-                        {duplicateOrders.length > 1 && (
-                            <div className="flex items-center gap-2 mt-3 flex-wrap">
-                                <span className="text-xs text-[var(--foreground-subtle)]">{t("orders.duplicate.selectToCompare")}</span>
-                                {duplicateOrders.map((order) => {
-                                    const score = matchScores[order.id];
-                                    const isSelected = selectedOrderIds.includes(order.id);
-                                    return (
-                                        <button
-                                            key={order.id}
-                                            onClick={() => toggleOrderSelection(order.id)}
-                                            className={cn(
-                                                "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all border",
-                                                isSelected
-                                                    ? cn(
-                                                        "bg-[var(--ink)] text-[var(--ink-contrast)] border-[var(--ink)]",
-                                                        "dark:bg-[rgba(239,255,0,0.12)] dark:text-[#EFFF00] dark:border-[rgba(239,255,0,0.4)]"
-                                                    )
-                                                    : cn(
-                                                        "bg-[var(--card-bg)] text-[var(--foreground-muted)] border-[var(--card-border)]",
-                                                        "dark:bg-[#2A2A2A] dark:border-[#3F3F3F]",
-                                                        "hover:border-[var(--pastel-yellow)] dark:hover:border-[rgba(239,255,0,0.3)]"
-                                                    )
-                                            )}
-                                        >
-                                            <span>#{getBaseOrderId(order.order_id)}</span>
-                                            <span className={cn(
-                                                "px-1 py-0.5 rounded text-[9px] font-bold",
-                                                score >= 80 ? "text-red-600 dark:text-[#FF8899]"
-                                                    : score >= 60 ? "text-amber-600 dark:text-[#FFB347]"
-                                                        : "text-yellow-600 dark:text-[#EFFF00]"
-                                            )}>
-                                                {score}%
-                                            </span>
-                                            {isSelected && <CheckCircle className="w-3 h-3" />}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        )}
+                        {/* Why flagged — duplicate signal chips */}
+                        <WhyFlaggedChips
+                            signals={signals}
+                            label={t("orders.duplicate.whyFlagged")}
+                            chipLabel={(key) => {
+                                if (key === "timeDelta") {
+                                    const nearest = displayedOrders[0] ?? duplicateOrders[0];
+                                    return nearest ? getRelativeTime(nearest.created_at) : t("orders.duplicate.signalTimeDelta");
+                                }
+                                return t(`orders.duplicate.signal${key.charAt(0).toUpperCase()}${key.slice(1)}`);
+                            }}
+                        />
                     </div>
+
+                    {/* ═══ Customer intelligence + order timeline ═══ */}
+                    <CustomerIntelStrip
+                        stats={customerStats}
+                        isRepeat={isRepeatCustomer(customerStats)}
+                        lastOrderRelative={lastOrderRelative}
+                        labels={{
+                            repeat: t("orders.duplicate.repeatCustomer"),
+                            totalOrders: t("orders.duplicate.totalOrders"),
+                            totalSpent: t("orders.duplicate.totalSpent"),
+                            cancelRate: t("orders.duplicate.cancelRate"),
+                            lastOrder: t("orders.duplicate.lastOrder"),
+                        }}
+                    />
+                    <OrderTimeline
+                        orders={customerOrders.length >= 2 ? customerOrders : allDisplayOrders}
+                        currentOrderId={currentOrder.id}
+                        label={t("orders.duplicate.timeline")}
+                        relativeTime={getRelativeTime}
+                    />
 
                     {/* ═══ Scrollable Content — Comparison Table + Actions ═══ */}
                     <div className="flex-1 overflow-y-auto">
-                        {selectedOrders.length > 0 && (
+                        {displayedOrders.length === 0 ? (
+                            <button
+                                type="button"
+                                onClick={toggleAllColumns}
+                                className="w-full py-8 text-sm text-[var(--foreground-subtle)] hover:text-[var(--foreground)]"
+                            >
+                                {t("orders.duplicate.noColumns")}
+                            </button>
+                        ) : (
                             <div className="flex flex-col">
+                                {/* Diff-only filter + match/diff legend */}
+                                <div className="flex items-center justify-between px-5 py-2 border-b border-dashed border-[var(--card-border)]">
+                                    <label className="flex items-center gap-2 text-xs text-[var(--foreground-muted)] cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={diffOnly}
+                                            onChange={(e) => setDiffOnly(e.target.checked)}
+                                            className="accent-[var(--ink)]"
+                                        />
+                                        {t("orders.duplicate.diffOnly")}
+                                    </label>
+                                    <div className="flex items-center gap-3 text-[10px] text-[var(--foreground-subtle)]">
+                                        <span className="flex items-center gap-1">
+                                            <span className="w-2 h-2 rounded-full bg-emerald-400" /> {t("orders.duplicate.legendMatch")}
+                                        </span>
+                                        <span className="flex items-center gap-1">
+                                            <span className="w-2 h-2 rounded-full bg-amber-400" /> {t("orders.duplicate.legendDiff")}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="overflow-x-auto">
+                                <div className="min-w-max flex flex-col">
                                 {/* ─── Table Header ─── */}
                                 <div
                                     className={cn(
-                                        "grid gap-3 px-5 py-3 border-b sticky top-0 z-10",
+                                        "grid gap-3 px-5 py-3 border-b sticky top-0 z-20",
                                         "bg-[var(--background-soft)] border-[var(--card-border)]",
                                         "dark:bg-[#1E1E1E] dark:border-[#3F3F3F]"
                                     )}
-                                    style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, 1fr)` }}
+                                    style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, minmax(190px, 1fr))` }}
                                 >
-                                    <div className="text-xs font-bold text-[var(--foreground-muted)]">{t("orders.duplicate.field")}</div>
+                                    <div className="text-xs font-bold text-[var(--foreground-muted)] sticky left-0 z-10 bg-[var(--background-soft)] dark:bg-[#1E1E1E]">{t("orders.duplicate.field")}</div>
                                     {allDisplayOrders.map((order, idx) => (
-                                        <div key={order.id} className="flex items-center justify-center gap-2">
+                                        <div key={order.id} className="flex flex-col items-center justify-center gap-1.5">
                                             <span className={cn(
                                                 "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border",
                                                 idx === 0
@@ -502,16 +556,19 @@ export function DuplicateComparisonModal({
                                                 )} />}
                                                 {idx === 0 ? t("orders.duplicate.newOrder") : t("orders.duplicate.previousOrder")}
                                             </span>
-                                            <button
-                                                onClick={() => onViewOrder(order)}
-                                                className={cn(
-                                                    "w-5 h-5 rounded flex items-center justify-center transition-colors",
-                                                    "bg-gray-200 hover:bg-gray-300 dark:bg-[#333333] dark:hover:bg-[#444444]"
-                                                )}
-                                                title={t("orders.duplicate.viewDetails")}
-                                            >
-                                                <Eye className="w-3 h-3 text-gray-500 dark:text-[#A1A1A1]" />
-                                            </button>
+                                            <ColumnHeaderControls
+                                                isNew={idx === 0}
+                                                isMergeTarget={order.id === mergeTargetId}
+                                                onPickTarget={() => setMergeTargetId(order.id)}
+                                                onView={() => onViewOrder(order)}
+                                                onHide={() => hideColumn(order.id)}
+                                                labels={{
+                                                    base: t("orders.duplicate.base"),
+                                                    merge: t("orders.duplicate.mergeTarget"),
+                                                    view: t("orders.duplicate.viewDetails"),
+                                                    hide: t("orders.duplicate.hideColumn"),
+                                                }}
+                                            />
                                         </div>
                                     ))}
                                 </div>
@@ -519,24 +576,23 @@ export function DuplicateComparisonModal({
                                 {/* ─── Comparison Rows ─── */}
                                 <div className="px-5 py-2">
                                     {/* Custom Customer Details Row to support individual highlighting */}
+                                    {(!diffOnly || !rowAllMatch(currentOrder, displayedOrders, (o) => o.customer_name ?? "")) && (
                                     <div
                                         className="grid gap-3 py-2 border-b border-dashed border-[var(--card-border)] last:border-0"
-                                        style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, 1fr)` }}
+                                        style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, minmax(190px, 1fr))` }}
                                     >
-                                        <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
+                                        <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)] sticky left-0 z-10 bg-white dark:bg-[#1E1E1E]">
                                             <span className="text-[var(--foreground-subtle)] w-4 h-4 flex-shrink-0"><User className="w-3.5 h-3.5" /></span>
                                             {t("orders.duplicate.customerDetails")}
                                         </div>
                                         {allDisplayOrders.map((order) => {
-                                            const isCurrent = order.id === currentOrder.id;
-
                                             // Compare order ID
                                             const currentOrderId = getBaseOrderId(currentOrder.order_id);
                                             const thisOrderId = getBaseOrderId(order.order_id);
-                                            const orderIdMatch = duplicateOrders.every(o => getBaseOrderId(o.order_id) === currentOrderId);
+                                            const orderIdMatch = displayedOrders.every(o => getBaseOrderId(o.order_id) === currentOrderId);
 
                                             // Compare customer name
-                                            const nameMatch = duplicateOrders.every(o => o.customer_name === currentOrder.customer_name);
+                                            const nameMatch = displayedOrders.every(o => o.customer_name === currentOrder.customer_name);
 
                                             return (
                                                 <div
@@ -575,27 +631,29 @@ export function DuplicateComparisonModal({
                                             );
                                         })}
                                     </div>
-                                    {compareField(t("orders.duplicate.date"), <Calendar className="w-3.5 h-3.5" />,
-                                        (o) => formatDateEN(o.created_at))}
-                                    {compareField(t("orders.duplicate.phone"), <Phone className="w-3.5 h-3.5" />,
-                                        (o) => formatPhoneForDisplay(o.phone))}
-                                    {compareField(t("orders.duplicate.city"), <Truck className="w-3.5 h-3.5" />,
-                                        (o) => o.city || "—")}
+                                    )}
+                                    {(!diffOnly || !rowAllMatch(currentOrder, displayedOrders, (o) => o.created_at)) &&
+                                        compareField(t("orders.duplicate.date"), <Calendar className="w-3.5 h-3.5" />,
+                                            (o) => formatDateEN(o.created_at))}
+                                    {(!diffOnly || !rowAllMatch(currentOrder, displayedOrders, (o) => normalizePhoneForSearch(o.phone))) &&
+                                        compareField(t("orders.duplicate.phone"), <Phone className="w-3.5 h-3.5" />,
+                                            (o) => formatPhoneForDisplay(o.phone))}
+                                    {(!diffOnly || !rowAllMatch(currentOrder, displayedOrders, (o) => o.city ?? "")) &&
+                                        compareField(t("orders.duplicate.city"), <Truck className="w-3.5 h-3.5" />,
+                                            (o) => o.city || "—")}
 
                                     {/* Products */}
+                                    {(!diffOnly || !rowAllMatch(currentOrder, displayedOrders, (o) => (o.items ?? []).map((i) => i.name + "x" + i.quantity).sort().join("|"))) && (
                                     <div
                                         className="grid gap-3 py-2.5 border-b border-dashed border-[var(--card-border)]"
-                                        style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, 1fr)` }}
+                                        style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, minmax(190px, 1fr))` }}
                                     >
-                                        <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
+                                        <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)] sticky left-0 z-10 bg-white dark:bg-[#1E1E1E]">
                                             <Package className="w-3.5 h-3.5 text-[var(--foreground-subtle)]" />
                                             {t("orders.duplicate.products")}
                                         </div>
                                         {allDisplayOrders.map((order) => {
                                             const currentOrderItems = currentOrder.items || [];
-                                            const currentItemsMatch = (order.items || []).every(item =>
-                                                currentOrderItems.some(cItem => cItem.name === item.name && cItem.quantity === item.quantity)
-                                            ) && (order.items || []).length === currentOrderItems.length;
 
                                             return (
                                                 <div key={order.id} className="space-y-1.5">
@@ -651,13 +709,15 @@ export function DuplicateComparisonModal({
                                             );
                                         })}
                                     </div>
+                                    )}
 
                                     {/* Status row */}
+                                    {(!diffOnly || !rowAllMatch(currentOrder, displayedOrders, (o) => o.status)) && (
                                     <div
                                         className="grid gap-3 py-2.5 border-b border-dashed border-[var(--card-border)]"
-                                        style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, 1fr)` }}
+                                        style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, minmax(190px, 1fr))` }}
                                     >
-                                        <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
+                                        <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)] sticky left-0 z-10 bg-white dark:bg-[#1E1E1E]">
                                             <Sparkles className="w-3.5 h-3.5 text-[var(--foreground-subtle)]" />
                                             {t("orders.duplicate.status")}
                                         </div>
@@ -672,13 +732,15 @@ export function DuplicateComparisonModal({
                                             </div>
                                         ))}
                                     </div>
+                                    )}
 
-                                    {compareField(t("orders.duplicate.amount"), <Clock className="w-3.5 h-3.5" />,
-                                        (o) => formatIQD(Number(o.price)))}
+                                    {(!diffOnly || !rowAllMatch(currentOrder, displayedOrders, (o) => Number(o.price))) &&
+                                        compareField(t("orders.duplicate.amount"), <Coins className="w-3.5 h-3.5" />,
+                                            (o) => formatIQD(Number(o.price)))}
                                 </div>
 
                                 {/* ─── Merge Preview (compact) ─── */}
-                                {selectedOrders.length === 1 && mergedItemsPreview && (
+                                {mergeTarget && mergedItemsPreview && (
                                     <div className={cn(
                                         "mx-5 mb-3 p-3 rounded-xl border",
                                         "bg-[var(--pastel-purple)]/8 border-[var(--pastel-purple)]/20",
@@ -702,6 +764,8 @@ export function DuplicateComparisonModal({
                                         </div>
                                     </div>
                                 )}
+                                </div>
+                                </div>
                             </div>
                         )}
 
@@ -711,6 +775,9 @@ export function DuplicateComparisonModal({
                             "bg-[var(--background-soft)]/95 backdrop-blur-xl border-[var(--card-border)]",
                             "dark:bg-[#1A1A1A]/95 dark:border-[#3F3F3F]"
                         )}>
+                            {/* Note caption */}
+                            <span className="block mb-1 text-[10px] text-[var(--foreground-subtle)]">{t("orders.duplicate.noteCaption")}</span>
+
                             {/* Note input — inline compact */}
                             <div className="flex items-center gap-2 mb-3">
                                 <MessageSquare className="w-4 h-4 text-[var(--foreground-subtle)] flex-shrink-0" />
@@ -731,84 +798,112 @@ export function DuplicateComparisonModal({
                                 />
                             </div>
 
-                            {/* Action buttons — horizontal pill strip */}
+                            {/* Action buttons — grouped pill strip */}
                             <div className="flex items-center gap-2 flex-wrap">
-                                {/* Primary: Merge */}
-                                <button
-                                    onClick={handleMerge}
-                                    disabled={isProcessing || selectedOrders.length !== 1 || !canMerge(currentOrder) || !canMerge(selectedOrders[0])}
-                                    className={cn(
-                                        "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
-                                        "disabled:opacity-35 disabled:cursor-not-allowed disabled:pointer-events-none",
-                                        // Light
-                                        "bg-[var(--ink)] text-[var(--ink-contrast)]",
-                                        "hover:bg-[var(--ink-hover)] shadow-sm",
-                                        // Dark: neon cyan primary
-                                        "dark:bg-[rgba(0,255,255,0.1)] dark:text-[#00FFFF] dark:border dark:border-[rgba(0,255,255,0.25)]",
-                                        "dark:hover:bg-[rgba(0,255,255,0.15)] dark:hover:border-[rgba(0,255,255,0.4)]",
-                                        "dark:hover:shadow-[0_0_14px_rgba(0,255,255,0.12)]",
-                                    )}
-                                >
-                                    <GitMerge className="w-4 h-4" />
-                                    <span>{actionType === "merge" ? t("orders.duplicate.merging") : t("orders.duplicate.mergeOrders")}</span>
-                                </button>
+                                {/* Primary group: Merge + Same Customer */}
+                                <div className="flex gap-2 p-1 rounded-2xl bg-[var(--pastel-yellow)]/10 border border-dashed border-[var(--pastel-yellow)]/40">
+                                    {/* Primary: Merge */}
+                                    <button
+                                        onClick={handleMerge}
+                                        disabled={isProcessing || !mergeTarget || !canMerge(currentOrder) || !canMerge(mergeTarget)}
+                                        title={!mergeTarget ? t("orders.duplicate.pickMergeTarget") : undefined}
+                                        className={cn(
+                                            "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
+                                            "disabled:opacity-35 disabled:cursor-not-allowed disabled:pointer-events-none",
+                                            // Light
+                                            "bg-[var(--ink)] text-[var(--ink-contrast)]",
+                                            "hover:bg-[var(--ink-hover)] shadow-sm",
+                                            // Dark: neon cyan primary
+                                            "dark:bg-[rgba(0,255,255,0.1)] dark:text-[#00FFFF] dark:border dark:border-[rgba(0,255,255,0.25)]",
+                                            "dark:hover:bg-[rgba(0,255,255,0.15)] dark:hover:border-[rgba(0,255,255,0.4)]",
+                                            "dark:hover:shadow-[0_0_14px_rgba(0,255,255,0.12)]",
+                                        )}
+                                    >
+                                        <GitMerge className="w-4 h-4" />
+                                        <span>{actionType === "merge" ? t("orders.duplicate.merging") : t("orders.duplicate.mergeOrders")}</span>
+                                    </button>
 
-                                {/* Same Customer */}
-                                <button
-                                    onClick={handleMarkAsSameCustomer}
-                                    disabled={isProcessing}
-                                    className={cn(
-                                        "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
-                                        "disabled:opacity-35 disabled:cursor-not-allowed",
-                                        "bg-emerald-500/10 text-emerald-700 border border-emerald-200",
-                                        "hover:bg-emerald-500/20 hover:border-emerald-300",
-                                        "dark:bg-[rgba(0,255,100,0.06)] dark:text-[#66FFAA] dark:border-[rgba(0,255,100,0.2)]",
-                                        "dark:hover:bg-[rgba(0,255,100,0.12)] dark:hover:border-[rgba(0,255,100,0.4)]",
-                                        "dark:hover:shadow-[0_0_14px_rgba(0,255,100,0.1)]",
-                                    )}
-                                >
-                                    <UserPlus className="w-4 h-4" />
-                                    <span>{t("orders.duplicate.sameCustomer")}</span>
-                                </button>
+                                    {/* Same Customer */}
+                                    <button
+                                        onClick={handleMarkAsSameCustomer}
+                                        disabled={isProcessing}
+                                        className={cn(
+                                            "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
+                                            "disabled:opacity-35 disabled:cursor-not-allowed",
+                                            "bg-emerald-500/10 text-emerald-700 border border-emerald-200",
+                                            "hover:bg-emerald-500/20 hover:border-emerald-300",
+                                            "dark:bg-[rgba(0,255,100,0.06)] dark:text-[#66FFAA] dark:border-[rgba(0,255,100,0.2)]",
+                                            "dark:hover:bg-[rgba(0,255,100,0.12)] dark:hover:border-[rgba(0,255,100,0.4)]",
+                                            "dark:hover:shadow-[0_0_14px_rgba(0,255,100,0.1)]",
+                                        )}
+                                    >
+                                        <UserPlus className="w-4 h-4" />
+                                        <span>{t("orders.duplicate.sameCustomer")}</span>
+                                    </button>
+                                </div>
 
-                                {/* Cancel New */}
-                                <button
-                                    onClick={handleCancelNew}
-                                    disabled={isProcessing || !canCancel(currentOrder)}
-                                    className={cn(
-                                        "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
-                                        "disabled:opacity-35 disabled:cursor-not-allowed",
-                                        "bg-rose-500/10 text-rose-600 border border-rose-200",
-                                        "hover:bg-rose-500/20 hover:border-rose-300",
-                                        "dark:bg-[rgba(255,107,138,0.06)] dark:text-[#FF6B8A] dark:border-[rgba(255,107,138,0.2)]",
-                                        "dark:hover:bg-[rgba(255,107,138,0.12)] dark:hover:border-[rgba(255,107,138,0.4)]",
-                                        "dark:hover:shadow-[0_0_14px_rgba(255,107,138,0.1)]",
+                                {/* Destructive group with inline confirm */}
+                                <div className="flex gap-2 p-1 rounded-2xl bg-rose-500/5 border border-dashed border-rose-200 dark:border-[rgba(255,107,138,0.2)]">
+                                    {/* Cancel New */}
+                                    {confirmingCancel === "new" ? (
+                                        <InlineConfirm
+                                            label={t("orders.duplicate.confirmCancel")}
+                                            yes={t("orders.duplicate.confirmYes")}
+                                            no={t("orders.duplicate.confirmNo")}
+                                            onYes={() => { setConfirmingCancel(null); handleCancelNew(); }}
+                                            onNo={() => setConfirmingCancel(null)}
+                                        />
+                                    ) : (
+                                        <button
+                                            onClick={() => setConfirmingCancel("new")}
+                                            disabled={isProcessing || !canCancel(currentOrder)}
+                                            className={cn(
+                                                "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
+                                                "disabled:opacity-35 disabled:cursor-not-allowed",
+                                                "bg-rose-500/10 text-rose-600 border border-rose-200",
+                                                "hover:bg-rose-500/20 hover:border-rose-300",
+                                                "dark:bg-[rgba(255,107,138,0.06)] dark:text-[#FF6B8A] dark:border-[rgba(255,107,138,0.2)]",
+                                                "dark:hover:bg-[rgba(255,107,138,0.12)] dark:hover:border-[rgba(255,107,138,0.4)]",
+                                                "dark:hover:shadow-[0_0_14px_rgba(255,107,138,0.1)]",
+                                            )}
+                                        >
+                                            <XCircle className="w-4 h-4" />
+                                            <span>{actionType === "cancelNew" ? t("orders.duplicate.cancelling") : t("orders.duplicate.cancelNew")}</span>
+                                        </button>
                                     )}
-                                >
-                                    <XCircle className="w-4 h-4" />
-                                    <span>{actionType === "cancelNew" ? t("orders.duplicate.cancelling") : t("orders.duplicate.cancelNew")}</span>
-                                </button>
 
-                                {/* Cancel Old */}
-                                <button
-                                    onClick={handleCancelOld}
-                                    disabled={isProcessing || selectedOrders.length !== 1 || !canCancel(selectedOrders[0])}
-                                    className={cn(
-                                        "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
-                                        "disabled:opacity-35 disabled:cursor-not-allowed",
-                                        "bg-gray-500/10 text-gray-600 border border-gray-200",
-                                        "hover:bg-gray-500/15 hover:border-gray-300",
-                                        "dark:bg-[rgba(255,255,255,0.04)] dark:text-[#A1A1A1] dark:border-[rgba(255,255,255,0.1)]",
-                                        "dark:hover:bg-[rgba(255,255,255,0.08)] dark:hover:border-[rgba(255,255,255,0.2)]",
+                                    {/* Cancel Old */}
+                                    {confirmingCancel === "old" ? (
+                                        <InlineConfirm
+                                            label={t("orders.duplicate.confirmCancel")}
+                                            yes={t("orders.duplicate.confirmYes")}
+                                            no={t("orders.duplicate.confirmNo")}
+                                            onYes={() => { setConfirmingCancel(null); handleCancelOld(); }}
+                                            onNo={() => setConfirmingCancel(null)}
+                                        />
+                                    ) : (
+                                        <button
+                                            onClick={() => setConfirmingCancel("old")}
+                                            disabled={isProcessing || !mergeTarget || !canCancel(mergeTarget)}
+                                            className={cn(
+                                                "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
+                                                "disabled:opacity-35 disabled:cursor-not-allowed",
+                                                "bg-gray-500/10 text-gray-600 border border-gray-200",
+                                                "hover:bg-gray-500/15 hover:border-gray-300",
+                                                "dark:bg-[rgba(255,255,255,0.04)] dark:text-[#A1A1A1] dark:border-[rgba(255,255,255,0.1)]",
+                                                "dark:hover:bg-[rgba(255,255,255,0.08)] dark:hover:border-[rgba(255,255,255,0.2)]",
+                                            )}
+                                        >
+                                            <XCircle className="w-4 h-4" />
+                                            <span>{actionType === "cancelOld" ? t("orders.duplicate.cancelling") : t("orders.duplicate.cancelOld")}</span>
+                                        </button>
                                     )}
-                                >
-                                    <XCircle className="w-4 h-4" />
-                                    <span>{actionType === "cancelOld" ? t("orders.duplicate.cancelling") : t("orders.duplicate.cancelOld")}</span>
-                                </button>
+                                </div>
 
                                 {/* Spacer */}
                                 <div className="flex-1" />
 
+                                {/* Neutral group: Show-all-in-list + Not Duplicate */}
                                 {/* Filter All Duplicates */}
                                 {onFilterDuplicates && (
                                     <button
@@ -846,5 +941,27 @@ export function DuplicateComparisonModal({
                 </motion.div>
             </motion.div>
         </AnimatePresence>
+    );
+}
+
+function InlineConfirm({
+    label,
+    yes,
+    no,
+    onYes,
+    onNo,
+}: {
+    label: string;
+    yes: string;
+    no: string;
+    onYes: () => void;
+    onNo: () => void;
+}) {
+    return (
+        <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-xl bg-rose-50 border border-rose-200 dark:bg-[rgba(255,107,138,0.08)] dark:border-[rgba(255,107,138,0.3)]">
+            <span className="text-xs font-semibold text-rose-700 dark:text-[#FF8899]">{label}</span>
+            <button type="button" onClick={onYes} className="text-xs font-bold px-2 py-1 rounded-lg bg-rose-600 text-white hover:bg-rose-700">{yes}</button>
+            <button type="button" onClick={onNo} className="text-xs px-2 py-1 rounded-lg text-rose-700 dark:text-[#FF8899] hover:bg-rose-100 dark:hover:bg-[rgba(255,107,138,0.12)]">{no}</button>
+        </div>
     );
 }
