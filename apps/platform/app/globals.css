@@ -107,8 +107,11 @@ body {
   z-index: var(--z-header);
   isolation: isolate;                 /* own stacking context for the glass */
   background: color-mix(in srgb, var(--card-bg) 72%, transparent);
-  backdrop-filter: blur(16px) saturate(1.4);
-  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  /* NOTE: the blur is applied via Tailwind's `backdrop-blur-*` utility on the
+     <header> element, NOT here. This project's Lightning CSS pipeline strips a
+     bare `backdrop-filter` declaration from custom rules (the same reason the
+     legacy `.sb-glass` blur silently no-ops), whereas the utility's
+     `--tw-backdrop-*` variable composition survives. */
   transition: transform .28s cubic-bezier(.22, 1, .36, 1),
               box-shadow .2s ease, background-color .2s ease;
   will-change: transform;
