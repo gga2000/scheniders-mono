@@ -12,7 +12,7 @@ export function WhyFlaggedChips({
 }) {
   if (signals.length === 0) return null;
   return (
-    <div className="flex items-center gap-2 mt-3 flex-wrap">
+    <div className="flex items-center gap-2 flex-wrap">
       <span className="text-[11px] text-[var(--foreground-subtle)]">{label}:</span>
       {signals.map((s) => (
         <span

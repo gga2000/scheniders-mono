@@ -43,7 +43,7 @@ export function LikelihoodMeter({
         </span>
       </div>
       <div className="leading-tight">
-        <div className="text-[10px] text-[var(--foreground-subtle)]">{title}</div>
+        {title && <div className="text-[10px] text-[var(--foreground-subtle)]">{title}</div>}
         <div className={cn("text-xs font-bold", textColor)}>{tierLabel}</div>
       </div>
     </div>
