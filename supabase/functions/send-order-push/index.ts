@@ -68,8 +68,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const { data: dndRows } = await sb
         .from("chat_user_status").select("user_id").eq("dnd", true).in("user_id", userIds);
     const dnd = new Set((dndRows ?? []).map((r) => r.user_id as string));
-    const recipients = userIds.filter((u) => !dnd.has(u));
-    if (recipients.length === 0) return json({ sent: 0, skipped: "all_dnd" });
+    const afterDnd = userIds.filter((u) => !dnd.has(u));
+    if (afterDnd.length === 0) return json({ sent: 0, skipped: "all_dnd" });
+
+    // Per-user opt-out of new-order push (chat_notification_prefs kind='order_alert'
+    // level='none'; no row = opted in). Lets a user keep chat push but mute orders.
+    const { data: optRows } = await sb
+        .from("chat_notification_prefs").select("user_id")
+        .eq("tenant_id", tenant_id).eq("kind", "order_alert").eq("level", "none").in("user_id", afterDnd);
+    const optedOut = new Set((optRows ?? []).map((r) => r.user_id as string));
+    const recipients = afterDnd.filter((u) => !optedOut.has(u));
+    if (recipients.length === 0) return json({ sent: 0, skipped: "all_opted_out" });
 
     const { data: subs } = await sb
         .from("chat_push_subscriptions").select("id, endpoint, p256dh, auth").in("user_id", recipients);
