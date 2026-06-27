@@ -6,27 +6,25 @@ import { ColumnHeaderControls } from "./column-header-controls";
 
 afterEach(cleanup);
 
-const labels = { base: "الأساس", merge: "دمج", view: "عرض", hide: "إخفاء" };
+const labels = { base: "الأساس", merge: "دمج", view: "عرض" };
 
 describe("ColumnHeaderControls", () => {
-  it("new-order column shows base label and no radio/hide", () => {
+  it("new-order column shows base label and no merge radio", () => {
     render(
       <ColumnHeaderControls
         isNew
         isMergeTarget={false}
         onPickTarget={() => {}}
         onView={() => {}}
-        onHide={() => {}}
         labels={labels}
       />,
     );
     expect(screen.getByText("الأساس")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "إخفاء" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /دمج/ })).toBeNull();
   });
 
   it("previous-order column fires callbacks", () => {
     const onPickTarget = vi.fn();
-    const onHide = vi.fn();
     const onView = vi.fn();
     render(
       <ColumnHeaderControls
@@ -34,15 +32,12 @@ describe("ColumnHeaderControls", () => {
         isMergeTarget={false}
         onPickTarget={onPickTarget}
         onView={onView}
-        onHide={onHide}
         labels={labels}
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: /دمج/ }));
-    fireEvent.click(screen.getByRole("button", { name: "إخفاء" }));
     fireEvent.click(screen.getByRole("button", { name: "عرض" }));
     expect(onPickTarget).toHaveBeenCalledOnce();
-    expect(onHide).toHaveBeenCalledOnce();
     expect(onView).toHaveBeenCalledOnce();
   });
 
@@ -53,7 +48,6 @@ describe("ColumnHeaderControls", () => {
         isMergeTarget
         onPickTarget={() => {}}
         onView={() => {}}
-        onHide={() => {}}
         labels={labels}
       />,
     );

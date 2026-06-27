@@ -1,11 +1,10 @@
 import { cn } from "@/lib/utils";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye } from "lucide-react";
 
 interface ColumnLabels {
   base: string;
   merge: string;
   view: string;
-  hide: string;
 }
 
 export function ColumnHeaderControls({
@@ -13,14 +12,12 @@ export function ColumnHeaderControls({
   isMergeTarget,
   onPickTarget,
   onView,
-  onHide,
   labels,
 }: {
   isNew: boolean;
   isMergeTarget: boolean;
   onPickTarget: () => void;
   onView: () => void;
-  onHide: () => void;
   labels: ColumnLabels;
 }) {
   if (isNew) {
@@ -68,14 +65,6 @@ export function ColumnHeaderControls({
         className="w-5 h-5 rounded flex items-center justify-center bg-gray-200 hover:bg-gray-300 dark:bg-[#333] dark:hover:bg-[#444]"
       >
         <Eye className="w-3 h-3 text-gray-500 dark:text-[#A1A1A1]" />
-      </button>
-      <button
-        type="button"
-        aria-label={labels.hide}
-        onClick={onHide}
-        className="w-5 h-5 rounded flex items-center justify-center bg-gray-200 hover:bg-rose-200 dark:bg-[#333] dark:hover:bg-[rgba(255,107,138,0.2)]"
-      >
-        <EyeOff className="w-3 h-3 text-gray-500 dark:text-[#A1A1A1]" />
       </button>
     </div>
   );

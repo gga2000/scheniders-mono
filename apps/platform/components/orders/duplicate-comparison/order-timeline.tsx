@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import { getBaseOrderId } from "@/lib/utils";
 import { Eye, EyeOff } from "lucide-react";
 import type { Order } from "@/lib/supabase";
+import type { ReactNode } from "react";
 
 export function OrderTimeline({
   orders,
@@ -9,8 +10,7 @@ export function OrderTimeline({
   displayedIds,
   toggleableIds,
   onToggle,
-  label,
-  hint,
+  rightSlot,
   formatDate,
 }: {
   orders: Order[];
@@ -18,24 +18,18 @@ export function OrderTimeline({
   displayedIds: string[];
   toggleableIds: string[];
   onToggle: (id: string) => void;
-  label: string;
-  hint: string;
+  rightSlot?: ReactNode;
   formatDate: (iso: string) => string;
 }) {
   if (orders.length < 2) return null;
   const ordered = [...orders].sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
   );
 
   return (
-    <div className="px-5 py-2 border-b border-dashed border-[var(--card-border)]">
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[10px] uppercase tracking-wide text-[var(--foreground-subtle)]">
-          {label}
-        </span>
-        <span className="text-[10px] text-[var(--foreground-subtle)]">{hint}</span>
-      </div>
-      <div className="flex items-center gap-1 overflow-x-auto pb-1">
+    <div className="px-5 py-1.5 border-b border-dashed border-[var(--card-border)]">
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1 overflow-x-auto pt-2.5 pb-1 pr-2 flex-1">
         {ordered.map((o, idx) => {
           const isCurrent = o.id === currentOrderId;
           const toggleable = !isCurrent && toggleableIds.includes(o.id);
@@ -73,19 +67,19 @@ export function OrderTimeline({
                   onClick={() => onToggle(o.id)}
                   className={cn(
                     baseCls,
-                    "cursor-pointer hover:border-[var(--pastel-yellow)]",
+                    "cursor-pointer",
                     shown
-                      ? "bg-[var(--card-bg)] border-[var(--card-border)] dark:bg-[#2A2A2A] dark:border-[#3F3F3F]"
-                      : "border-dashed opacity-50 hover:opacity-100 bg-transparent border-[var(--card-border)]",
+                      ? "bg-emerald-50/70 border-emerald-300 dark:bg-[rgba(0,255,100,0.08)] dark:border-[rgba(0,255,100,0.35)]"
+                      : "border-dashed border-gray-300 opacity-45 bg-transparent hover:opacity-90 dark:border-[#3F3F3F]",
                   )}
                 >
                   {inner}
                   <span
                     className={cn(
-                      "absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center border",
+                      "absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center",
                       shown
-                        ? "bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-[rgba(0,255,100,0.1)] dark:border-[rgba(0,255,100,0.3)] dark:text-[#66FFAA]"
-                        : "bg-[var(--card-bg)] border-[var(--card-border)] text-[var(--foreground-subtle)]",
+                        ? "bg-emerald-500 text-white"
+                        : "bg-gray-300 text-gray-600 dark:bg-[#444] dark:text-[#999]",
                     )}
                   >
                     {shown ? <Eye className="w-2.5 h-2.5" /> : <EyeOff className="w-2.5 h-2.5" />}
@@ -104,6 +98,8 @@ export function OrderTimeline({
             </div>
           );
         })}
+        </div>
+        {rightSlot && <div className="flex-shrink-0">{rightSlot}</div>}
       </div>
     </div>
   );

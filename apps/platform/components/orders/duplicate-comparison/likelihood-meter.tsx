@@ -20,32 +20,33 @@ export function LikelihoodMeter({
         ? "text-amber-600 dark:text-[#FFB347]"
         : "text-yellow-600 dark:text-[#C9B400]";
 
+  const r = 15.5;
+  const circ = 2 * Math.PI * r;
+  const offset = circ * (1 - Math.min(100, Math.max(0, score)) / 100);
+
   return (
-    <div
-      data-tier={tier}
-      className={cn(
-        "flex items-center gap-2.5 rounded-full px-3 py-1.5",
-        "bg-[var(--card-bg)] border border-[var(--card-border)]",
-        "dark:bg-[#2A2A2A] dark:border-[#3F3F3F]",
-      )}
-    >
-      <div
-        className="w-8 h-8 rounded-full flex items-center justify-center"
-        style={{ background: `conic-gradient(${ringColor} ${score}%, #e5e5e5 0)` }}
-      >
-        <span
-          className={cn(
-            "w-6 h-6 rounded-full bg-[var(--card-bg)] dark:bg-[#2A2A2A] flex items-center justify-center text-[10px] font-extrabold",
-            textColor,
-          )}
-        >
+    <div data-tier={tier} className="flex items-center gap-2">
+      <div className="relative w-9 h-9">
+        <svg viewBox="0 0 36 36" className="w-9 h-9 -rotate-90">
+          <circle cx="18" cy="18" r={r} fill="none" stroke="var(--card-border)" strokeWidth="3.5" />
+          <circle
+            cx="18"
+            cy="18"
+            r={r}
+            fill="none"
+            stroke={ringColor}
+            strokeWidth="3.5"
+            strokeLinecap="round"
+            strokeDasharray={circ}
+            strokeDashoffset={offset}
+          />
+        </svg>
+        <span className={cn("absolute inset-0 flex items-center justify-center text-[10px] font-extrabold", textColor)}>
           {score}%
         </span>
       </div>
-      <div className="leading-tight">
-        {title && <div className="text-[10px] text-[var(--foreground-subtle)]">{title}</div>}
-        <div className={cn("text-xs font-bold", textColor)}>{tierLabel}</div>
-      </div>
+      {title && <span className="text-[10px] text-[var(--foreground-subtle)]">{title}</span>}
+      <span className={cn("text-xs font-bold", textColor)}>{tierLabel}</span>
     </div>
   );
 }
