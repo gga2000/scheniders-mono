@@ -486,15 +486,15 @@ export function DuplicateComparisonModal({
                                 {/* ─── Table Header ─── */}
                                 <div
                                     className={cn(
-                                        "grid gap-3 px-5 py-3 border-b sticky top-0 z-20",
-                                        "bg-[var(--background-soft)] border-[var(--card-border)]",
-                                        "dark:bg-[#1E1E1E] dark:border-[#3F3F3F]"
+                                        "grid gap-3 px-5 py-3 border-b-2 sticky top-0 z-20",
+                                        "bg-gray-50 border-gray-200",
+                                        "dark:bg-[#1E1E1E] dark:border-[#2A2A2A]"
                                     )}
                                     style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, minmax(190px, 1fr))` }}
                                 >
-                                    <div className="text-xs font-bold text-[var(--foreground-muted)] sticky left-0 z-10 bg-[var(--background-soft)] dark:bg-[#1E1E1E]">{t("orders.duplicate.field")}</div>
+                                    <div className="text-xs font-bold text-[var(--foreground)] sticky left-0 z-10 bg-gray-50 dark:bg-[#1E1E1E]">{t("orders.duplicate.field")}</div>
                                     {allDisplayOrders.map((order, idx) => (
-                                        <div key={order.id} className="flex items-center justify-center gap-2 flex-wrap">
+                                        <div key={order.id} className="flex items-center justify-center gap-2 flex-wrap border-l border-gray-200 dark:border-[#2A2A2A]">
                                             <span className={cn(
                                                 "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border",
                                                 idx === 0
