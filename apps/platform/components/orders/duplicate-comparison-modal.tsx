@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     X,
     GitMerge,
+    ChevronDown,
     UserPlus,
     XCircle,
     Calendar,
@@ -18,7 +19,9 @@ import {
     MessageSquare,
     Ban,
     Sparkles,
-    Filter,
+    Eye,
+    EyeOff,
+    Diff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD, formatDate, getBaseOrderId } from "@/lib/utils";
@@ -27,16 +30,11 @@ import type { Order } from "@/lib/supabase";
 import { useLanguage } from "@/hooks/use-language";
 import {
     likelihoodTier,
-    deriveSignals,
-    computeCustomerStats,
-    isRepeatCustomer,
     sortByScoreDesc,
     reassignMergeTarget,
     rowAllMatch,
-    type CustomerStats,
 } from "@/lib/duplicate-comparison";
 import { LikelihoodMeter } from "./duplicate-comparison/likelihood-meter";
-import { WhyFlaggedChips } from "./duplicate-comparison/why-flagged-chips";
 import { OrderTimeline } from "./duplicate-comparison/order-timeline";
 import { ColumnHeaderControls } from "./duplicate-comparison/column-header-controls";
 
@@ -105,6 +103,16 @@ function formatDateShort(dateStr: string): string {
     return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
 }
 
+// Time-only: 9:10 PM
+function formatTimeShort(dateStr: string): string {
+    const d = new Date(dateStr);
+    const hours = d.getHours();
+    const mins = d.getMinutes().toString().padStart(2, "0");
+    const ampm = hours >= 12 ? "PM" : "AM";
+    const h12 = hours % 12 || 12;
+    return `${h12}:${mins} ${ampm}`;
+}
+
 // Calculate match confidence score
 function calculateMatchScore(order1: Order, order2: Order): number {
     let score = 0;
@@ -141,7 +149,6 @@ export function DuplicateComparisonModal({
     onCancelOrder,
     onViewOrder,
     onDismissDuplicate,
-    onFilterDuplicates,
     isBlacklisted,
     getCustomerOrders,
 }: DuplicateComparisonModalProps) {
@@ -153,6 +160,7 @@ export function DuplicateComparisonModal({
     const [actionNote, setActionNote] = useState("");
     const [confirmingCancel, setConfirmingCancel] = useState<null | "new" | "old">(null);
     const [showNote, setShowNote] = useState(false);
+    const [showMergePreview, setShowMergePreview] = useState(false);
     const { t } = useLanguage();
 
     const matchScores = useMemo(() => {
@@ -195,12 +203,6 @@ export function DuplicateComparisonModal({
         [duplicateOrders, mergeTargetId],
     );
 
-    const hideColumn = (orderId: string) => {
-        const next = displayedOrderIds.filter((id) => id !== orderId);
-        setDisplayedOrderIds(next);
-        setMergeTargetId((prev) => reassignMergeTarget(next, prev, matchScores));
-    };
-
     const toggleAllColumns = () => {
         if (displayedOrderIds.length > 0) {
             setDisplayedOrderIds([]);
@@ -229,18 +231,9 @@ export function DuplicateComparisonModal({
             : 0;
     }, [matchScores]);
 
-    const signals = useMemo(
-        () => deriveSignals(currentOrder, displayedOrders[0] ?? duplicateOrders[0]),
-        [currentOrder, displayedOrders, duplicateOrders],
-    );
-
     const customerOrders = useMemo(
         () => getCustomerOrders?.(currentOrder.phone) ?? [],
         [getCustomerOrders, currentOrder.phone],
-    );
-    const customerStats: CustomerStats = useMemo(
-        () => computeCustomerStats(customerOrders),
-        [customerOrders],
     );
     // All customer orders + current + every comparison candidate (deduped),
     // so the timeline can re-add any order that was hidden.
@@ -329,10 +322,10 @@ export function DuplicateComparisonModal({
 
         return (
             <div className={cn(
-                "grid gap-3 py-2 border-b border-dashed last:border-0",
+                "grid gap-3 py-1.5 border-b border-dashed last:border-0",
                 "border-[var(--card-border)]",
             )} style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, minmax(190px, 1fr))` }}>
-                <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)] sticky left-0 z-10 bg-[var(--background-soft)] dark:bg-[#1E1E1E]">
+                <div className="flex items-center gap-2 text-xs text-[var(--foreground)] sticky left-0 z-10 bg-white dark:bg-[#181818]">
                     <span className="text-[var(--foreground-subtle)] w-4 h-4 flex-shrink-0">{icon}</span>
                     {label}
                 </div>
@@ -385,7 +378,7 @@ export function DuplicateComparisonModal({
                 >
                     {/* ═══ Compact Header ═══ */}
                     <div className={cn(
-                        "relative px-5 py-4 flex-shrink-0 border-b",
+                        "relative px-5 py-3 flex-shrink-0 border-b",
                         "bg-gradient-to-r from-[#F5F0E8] via-[#FBE38E]/20 to-[#F4C7CF]/15",
                         "border-[var(--card-border)]",
                         "dark:bg-[#1E1E1E] dark:border-[#3F3F3F]",
@@ -422,23 +415,6 @@ export function DuplicateComparisonModal({
                                     )}
                                 />
 
-                                {/* Master show/hide columns toggle */}
-                                {duplicateOrders.length > 1 && (
-                                    <button
-                                        type="button"
-                                        onClick={toggleAllColumns}
-                                        className={cn(
-                                            "px-2.5 py-1.5 rounded-full text-[11px] font-medium border transition-all",
-                                            "text-[var(--foreground-muted)] border-[var(--card-border)] bg-[var(--card-bg)]",
-                                            "hover:text-[var(--foreground)] dark:bg-[#2A2A2A] dark:border-[#3F3F3F]",
-                                        )}
-                                    >
-                                        {displayedOrderIds.length > 0
-                                            ? t("orders.duplicate.toggleColumns")
-                                            : t("orders.duplicate.showColumns")}
-                                    </button>
-                                )}
-
                                 {/* Close */}
                                 <button
                                     onClick={onClose}
@@ -466,31 +442,6 @@ export function DuplicateComparisonModal({
                                 <span className="font-semibold">{t("orders.duplicate.blacklistWarning")}</span>
                             </div>
                         )}
-
-                        {/* Why flagged + customer intel — one minimal row */}
-                        <div className="flex items-center justify-between gap-4 flex-wrap mt-3">
-                            <WhyFlaggedChips
-                                signals={signals.filter((s) => s.key !== "timeDelta")}
-                                label={t("orders.duplicate.whyFlagged")}
-                                chipLabel={(key) => {
-                                    if (key === "timeDelta") {
-                                        const nearest = displayedOrders[0] ?? duplicateOrders[0];
-                                        return nearest ? formatDateShort(nearest.created_at) : t("orders.duplicate.signalTimeDelta");
-                                    }
-                                    return t(`orders.duplicate.signal${key.charAt(0).toUpperCase()}${key.slice(1)}`);
-                                }}
-                            />
-                            {customerStats.totalOrders > 0 && (
-                                <div className="flex items-center gap-x-2.5 gap-y-1 text-[11px] text-[var(--foreground-muted)] flex-wrap">
-                                    {isRepeatCustomer(customerStats) && (
-                                        <span className="font-semibold text-emerald-700 dark:text-[#66FFAA]">★ {t("orders.duplicate.repeatCustomer")}</span>
-                                    )}
-                                    <span>{t("orders.duplicate.totalOrders")}: <b className="text-[var(--foreground)]">{customerStats.totalOrders}</b></span>
-                                    <span>{t("orders.duplicate.totalSpent")}: <b className="text-[var(--foreground)]">{formatIQD(customerStats.totalSpent)}</b></span>
-                                    <span>{t("orders.duplicate.cancelRate")}: <b className="text-[var(--foreground)]">{Math.round(customerStats.cancelRate * 100)}%</b></span>
-                                </div>
-                            )}
-                        </div>
                     </div>
                     <OrderTimeline
                         orders={timelineOrders}
@@ -498,8 +449,23 @@ export function DuplicateComparisonModal({
                         displayedIds={displayedOrderIds}
                         toggleableIds={duplicateOrders.map((o) => o.id)}
                         onToggle={toggleColumn}
-                        label={t("orders.duplicate.timeline")}
-                        hint={t("orders.duplicate.timelineHint")}
+                        rightSlot={
+                            <button
+                                type="button"
+                                onClick={() => setDiffOnly((v) => !v)}
+                                aria-pressed={diffOnly}
+                                aria-label={t("orders.duplicate.diffOnly")}
+                                title={t("orders.duplicate.diffOnly")}
+                                className={cn(
+                                    "inline-flex items-center justify-center w-8 h-8 rounded-lg border transition-all flex-shrink-0",
+                                    diffOnly
+                                        ? "bg-[var(--ink)] text-[var(--ink-contrast)] border-[var(--ink)]"
+                                        : "text-[var(--foreground-muted)] border-[var(--card-border)] hover:bg-[var(--card-bg)] hover:text-[var(--foreground)]",
+                                )}
+                            >
+                                <Diff className="w-4 h-4" />
+                            </button>
+                        }
                         formatDate={formatDateShort}
                     />
 
@@ -515,26 +481,6 @@ export function DuplicateComparisonModal({
                             </button>
                         ) : (
                             <div className="flex flex-col">
-                                {/* Diff-only filter + match/diff legend */}
-                                <div className="flex items-center justify-between px-5 py-2 border-b border-dashed border-[var(--card-border)]">
-                                    <label className="flex items-center gap-2 text-xs text-[var(--foreground-muted)] cursor-pointer select-none">
-                                        <input
-                                            type="checkbox"
-                                            checked={diffOnly}
-                                            onChange={(e) => setDiffOnly(e.target.checked)}
-                                            className="accent-[var(--ink)]"
-                                        />
-                                        {t("orders.duplicate.diffOnly")}
-                                    </label>
-                                    <div className="flex items-center gap-3 text-[10px] text-[var(--foreground-subtle)]">
-                                        <span className="flex items-center gap-1">
-                                            <span className="w-2 h-2 rounded-full bg-emerald-400" /> {t("orders.duplicate.legendMatch")}
-                                        </span>
-                                        <span className="flex items-center gap-1">
-                                            <span className="w-2 h-2 rounded-full bg-amber-400" /> {t("orders.duplicate.legendDiff")}
-                                        </span>
-                                    </div>
-                                </div>
                                 <div className="overflow-x-auto">
                                 <div className="min-w-max flex flex-col">
                                 {/* ─── Table Header ─── */}
@@ -548,7 +494,7 @@ export function DuplicateComparisonModal({
                                 >
                                     <div className="text-xs font-bold text-[var(--foreground-muted)] sticky left-0 z-10 bg-[var(--background-soft)] dark:bg-[#1E1E1E]">{t("orders.duplicate.field")}</div>
                                     {allDisplayOrders.map((order, idx) => (
-                                        <div key={order.id} className="flex flex-col items-center justify-center gap-1.5">
+                                        <div key={order.id} className="flex items-center justify-center gap-2 flex-wrap">
                                             <span className={cn(
                                                 "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border",
                                                 idx === 0
@@ -572,12 +518,10 @@ export function DuplicateComparisonModal({
                                                 isMergeTarget={order.id === mergeTargetId}
                                                 onPickTarget={() => setMergeTargetId(order.id)}
                                                 onView={() => onViewOrder(order)}
-                                                onHide={() => hideColumn(order.id)}
                                                 labels={{
                                                     base: t("orders.duplicate.base"),
                                                     merge: t("orders.duplicate.mergeTarget"),
                                                     view: t("orders.duplicate.viewDetails"),
-                                                    hide: t("orders.duplicate.hideColumn"),
                                                 }}
                                             />
                                         </div>
@@ -585,14 +529,14 @@ export function DuplicateComparisonModal({
                                 </div>
 
                                 {/* ─── Comparison Rows ─── */}
-                                <div className="px-5 py-2">
+                                <div className="px-5 py-2 bg-white dark:bg-[#181818]">
                                     {/* Custom Customer Details Row to support individual highlighting */}
                                     {(!diffOnly || !rowAllMatch(currentOrder, displayedOrders, (o) => o.customer_name ?? "")) && (
                                     <div
-                                        className="grid gap-3 py-2 border-b border-dashed border-[var(--card-border)] last:border-0"
+                                        className="grid gap-3 py-1 border-b border-dashed border-[var(--card-border)] last:border-0"
                                         style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, minmax(190px, 1fr))` }}
                                     >
-                                        <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)] sticky left-0 z-10 bg-[var(--background-soft)] dark:bg-[#1E1E1E]">
+                                        <div className="flex items-center gap-2 text-xs text-[var(--foreground)] sticky left-0 z-10 bg-white dark:bg-[#181818]">
                                             <span className="text-[var(--foreground-subtle)] w-4 h-4 flex-shrink-0"><User className="w-3.5 h-3.5" /></span>
                                             {t("orders.duplicate.customerDetails")}
                                         </div>
@@ -643,9 +587,27 @@ export function DuplicateComparisonModal({
                                         })}
                                     </div>
                                     )}
-                                    {(!diffOnly || !rowAllMatch(currentOrder, displayedOrders, (o) => o.created_at)) &&
-                                        compareField(t("orders.duplicate.date"), <Calendar className="w-3.5 h-3.5" />,
-                                            (o) => formatDateEN(o.created_at))}
+                                    {(!diffOnly || !rowAllMatch(currentOrder, displayedOrders, (o) => o.created_at)) && (
+                                    <div
+                                        className="grid gap-3 py-1.5 border-b border-dashed border-[var(--card-border)] last:border-0"
+                                        style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, minmax(190px, 1fr))` }}
+                                    >
+                                        <div className="flex items-center gap-2 text-xs text-[var(--foreground)] sticky left-0 z-10 bg-white dark:bg-[#181818]">
+                                            <span className="text-[var(--foreground-subtle)] w-4 h-4 flex-shrink-0"><Calendar className="w-3.5 h-3.5" /></span>
+                                            {t("orders.duplicate.date")}
+                                        </div>
+                                        {allDisplayOrders.map((order) => (
+                                            <div key={order.id} className="flex w-full items-stretch gap-1.5">
+                                                <span className="flex-1 flex items-center justify-center text-xs font-medium px-2 py-1 rounded-md border bg-amber-50/80 text-amber-700 border-amber-200/60 dark:bg-[rgba(255,179,71,0.08)] dark:text-[#FFB347] dark:border-[rgba(255,179,71,0.2)]">
+                                                    {formatDateShort(order.created_at)}
+                                                </span>
+                                                <span className="flex items-center justify-center text-xs font-medium px-2 py-1 flex-shrink-0 rounded-md border bg-amber-50/80 text-amber-700 border-amber-200/60 dark:bg-[rgba(255,179,71,0.08)] dark:text-[#FFB347] dark:border-[rgba(255,179,71,0.2)]">
+                                                    {formatTimeShort(order.created_at)}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    )}
                                     {(!diffOnly || !rowAllMatch(currentOrder, displayedOrders, (o) => normalizePhoneForSearch(o.phone))) &&
                                         compareField(t("orders.duplicate.phone"), <Phone className="w-3.5 h-3.5" />,
                                             (o) => formatPhoneForDisplay(o.phone))}
@@ -656,18 +618,18 @@ export function DuplicateComparisonModal({
                                     {/* Products */}
                                     {(!diffOnly || !rowAllMatch(currentOrder, displayedOrders, (o) => (o.items ?? []).map((i) => i.name + "x" + i.quantity).sort().join("|"))) && (
                                     <div
-                                        className="grid gap-3 py-2.5 border-b border-dashed border-[var(--card-border)]"
+                                        className="grid gap-3 py-1.5 border-b border-dashed border-[var(--card-border)]"
                                         style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, minmax(190px, 1fr))` }}
                                     >
-                                        <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)] sticky left-0 z-10 bg-[var(--background-soft)] dark:bg-[#1E1E1E]">
-                                            <Package className="w-3.5 h-3.5 text-[var(--foreground-subtle)]" />
+                                        <div className="flex items-center gap-2 text-xs text-[var(--foreground)] sticky left-0 z-10 bg-white dark:bg-[#181818]">
+                                            <Package className="w-3.5 h-3.5 text-[var(--foreground-subtle)] flex-shrink-0" />
                                             {t("orders.duplicate.products")}
                                         </div>
                                         {allDisplayOrders.map((order) => {
                                             const currentOrderItems = currentOrder.items || [];
 
                                             return (
-                                                <div key={order.id} className="space-y-1.5">
+                                                <div key={order.id} className="space-y-1">
                                                     {order.items?.map((item, idx) => {
                                                         const matchingItemInCurrent = currentOrderItems.find(c => c.name === item.name);
                                                         const nameMatches = !!matchingItemInCurrent;
@@ -676,7 +638,7 @@ export function DuplicateComparisonModal({
 
                                                         return (
                                                             <div key={idx} className={cn(
-                                                                "flex items-center gap-2 rounded-lg p-1.5 border transition-all",
+                                                                "flex items-center gap-2 rounded-lg p-1 border transition-all",
                                                                 isExactMatch
                                                                     ? cn(
                                                                         "bg-emerald-50/40 border-emerald-100/50",
@@ -689,9 +651,9 @@ export function DuplicateComparisonModal({
                                                             )}>
                                                                 {item.image_url ? (
                                                                     <img loading="lazy" decoding="async" src={item.image_url} alt={item.name}
-                                                                        className="w-8 h-8 rounded-md object-cover" />
+                                                                        className="w-7 h-7 rounded-md object-cover" />
                                                                 ) : (
-                                                                    <div className="w-8 h-8 rounded-md bg-gray-200 dark:bg-[#333333] flex items-center justify-center flex-shrink-0">
+                                                                    <div className="w-7 h-7 rounded-md bg-gray-200 dark:bg-[#333333] flex items-center justify-center flex-shrink-0">
                                                                         <Package className="w-3 h-3 text-gray-400 dark:text-[#6B6B6B]" />
                                                                     </div>
                                                                 )}
@@ -728,7 +690,7 @@ export function DuplicateComparisonModal({
                                         className="grid gap-3 py-2.5 border-b border-dashed border-[var(--card-border)]"
                                         style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, minmax(190px, 1fr))` }}
                                     >
-                                        <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)] sticky left-0 z-10 bg-[var(--background-soft)] dark:bg-[#1E1E1E]">
+                                        <div className="flex items-center gap-2 text-xs text-[var(--foreground)] sticky left-0 z-10 bg-white dark:bg-[#181818]">
                                             <Sparkles className="w-3.5 h-3.5 text-[var(--foreground-subtle)]" />
                                             {t("orders.duplicate.status")}
                                         </div>
@@ -757,22 +719,30 @@ export function DuplicateComparisonModal({
                                         "bg-[var(--pastel-purple)]/8 border-[var(--pastel-purple)]/20",
                                         "dark:bg-[rgba(0,255,255,0.03)] dark:border-[rgba(0,255,255,0.12)]"
                                     )}>
-                                        <div className="flex items-center gap-2 mb-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowMergePreview((v) => !v)}
+                                            className="w-full flex items-center gap-2"
+                                        >
                                             <GitMerge className="w-4 h-4 text-purple-600 dark:text-[#00FFFF]" />
                                             <span className="font-bold text-sm text-purple-800 dark:text-[#00FFFF]">{t("orders.duplicate.mergePreview")}</span>
-                                        </div>
-                                        <div className="space-y-1">
-                                            {mergedItemsPreview.items.map((item, idx) => (
-                                                <div key={idx} className="flex items-center justify-between text-xs">
-                                                    <span className="text-purple-700 dark:text-[var(--foreground-muted)]">{item.name} ×{item.quantity}</span>
-                                                    <span className="font-mono text-purple-800 dark:text-[var(--foreground)]">{formatIQD(item.price * item.quantity)}</span>
+                                            <span className="ml-auto font-bold text-xs font-mono text-purple-900 dark:text-[#EFFF00]">{formatIQD(mergedItemsPreview.total)}</span>
+                                            <ChevronDown className={cn("w-4 h-4 text-purple-600 dark:text-[#00FFFF] transition-transform", showMergePreview && "rotate-180")} />
+                                        </button>
+                                        {showMergePreview && (
+                                            <div className="space-y-1 mt-2">
+                                                {mergedItemsPreview.items.map((item, idx) => (
+                                                    <div key={idx} className="flex items-center justify-between text-xs">
+                                                        <span className="text-purple-700 dark:text-[var(--foreground-muted)]">{item.name} ×{item.quantity}</span>
+                                                        <span className="font-mono text-purple-800 dark:text-[var(--foreground)]">{formatIQD(item.price * item.quantity)}</span>
+                                                    </div>
+                                                ))}
+                                                <div className="pt-1.5 mt-1.5 border-t border-purple-200/50 dark:border-[rgba(0,255,255,0.12)] flex items-center justify-between">
+                                                    <span className="font-bold text-xs text-purple-900 dark:text-[#00FFFF]">{t("orders.duplicate.totalAfterMerge")}</span>
+                                                    <span className="font-bold text-xs font-mono text-purple-900 dark:text-[#EFFF00]">{formatIQD(mergedItemsPreview.total)}</span>
                                                 </div>
-                                            ))}
-                                            <div className="pt-1.5 mt-1.5 border-t border-purple-200/50 dark:border-[rgba(0,255,255,0.12)] flex items-center justify-between">
-                                                <span className="font-bold text-xs text-purple-900 dark:text-[#00FFFF]">{t("orders.duplicate.totalAfterMerge")}</span>
-                                                <span className="font-bold text-xs font-mono text-purple-900 dark:text-[#EFFF00]">{formatIQD(mergedItemsPreview.total)}</span>
                                             </div>
-                                        </div>
+                                        )}
                                     </div>
                                 )}
                                 </div>
@@ -787,8 +757,8 @@ export function DuplicateComparisonModal({
                         "bg-[var(--background-soft)] border-[var(--card-border)]",
                         "dark:bg-[#1A1A1A] dark:border-[#3F3F3F]"
                     )}>
-                            {/* Note — collapsed behind a toggle */}
-                            {showNote ? (
+                            {/* Note input — shown above actions only when expanded */}
+                            {showNote && (
                                 <div className="flex items-center gap-2 mb-3">
                                     <MessageSquare className="w-4 h-4 text-[var(--foreground-subtle)] flex-shrink-0" />
                                     <input
@@ -815,18 +785,6 @@ export function DuplicateComparisonModal({
                                         <X className="w-4 h-4" />
                                     </button>
                                 </div>
-                            ) : (
-                                <button
-                                    type="button"
-                                    onClick={() => setShowNote(true)}
-                                    className={cn(
-                                        "inline-flex items-center gap-1.5 mb-3 px-2.5 py-1 -ml-1 rounded-lg text-xs transition-all",
-                                        "text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--card-bg)]",
-                                    )}
-                                >
-                                    <MessageSquare className="w-3.5 h-3.5" />
-                                    <span className="truncate max-w-[260px]">{actionNote || t("orders.duplicate.addNote")}</span>
-                                </button>
                             )}
 
                             {/* Action buttons — grouped pill strip */}
@@ -934,20 +892,39 @@ export function DuplicateComparisonModal({
                                 {/* Spacer */}
                                 <div className="flex-1" />
 
-                                {/* Neutral group: Show-all-in-list + Not Duplicate */}
-                                {/* Filter All Duplicates */}
-                                {onFilterDuplicates && (
+                                {/* Add note toggle */}
+                                {!showNote && (
                                     <button
-                                        onClick={() => { onFilterDuplicates(); onClose(); }}
+                                        type="button"
+                                        onClick={() => setShowNote(true)}
+                                        aria-label={t("orders.duplicate.addNoteShort")}
+                                        title={actionNote || t("orders.duplicate.addNoteShort")}
                                         className={cn(
-                                            "inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all",
+                                            "relative inline-flex items-center justify-center w-9 h-9 rounded-xl transition-all",
                                             "text-[var(--foreground-muted)] border border-[var(--card-border)]",
                                             "hover:bg-[var(--card-bg)] hover:text-[var(--foreground)]",
-                                            "dark:border-[#3F3F3F] dark:hover:border-[rgba(255,179,71,0.3)] dark:hover:text-[#FFB347]",
                                         )}
                                     >
-                                        <Filter className="w-3.5 h-3.5" />
-                                        <span>{t("orders.duplicate.showAll")}</span>
+                                        <MessageSquare className="w-4 h-4" />
+                                        {actionNote && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-500" />}
+                                    </button>
+                                )}
+
+                                {/* Show / hide all comparison columns */}
+                                {duplicateOrders.length > 1 && (
+                                    <button
+                                        type="button"
+                                        onClick={toggleAllColumns}
+                                        aria-label={displayedOrderIds.length > 0 ? t("orders.duplicate.toggleColumns") : t("orders.duplicate.showColumns")}
+                                        title={displayedOrderIds.length > 0 ? t("orders.duplicate.toggleColumns") : t("orders.duplicate.showColumns")}
+                                        className={cn(
+                                            "inline-flex items-center justify-center w-9 h-9 rounded-xl transition-all",
+                                            "text-[var(--foreground-muted)] border border-[var(--card-border)]",
+                                            "hover:bg-[var(--card-bg)] hover:text-[var(--foreground)]",
+                                            "dark:border-[#3F3F3F] dark:hover:text-[#FFB347]",
+                                        )}
+                                    >
+                                        {displayedOrderIds.length > 0 ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                     </button>
                                 )}
 
