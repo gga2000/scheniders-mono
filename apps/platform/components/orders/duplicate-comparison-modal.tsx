@@ -325,7 +325,7 @@ export function DuplicateComparisonModal({
                 "grid gap-3 py-1.5 border-b last:border-0",
                 "border-gray-200 dark:border-[#2A2A2A]",
             )} style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, minmax(190px, 1fr))` }}>
-                <div className="flex items-center gap-2 text-xs text-[var(--foreground)] sticky left-0 z-10 bg-white dark:bg-[#181818]">
+                <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-[#6B6B6B] sticky left-0 z-10 bg-gray-50 border-r border-gray-200 pr-2 dark:bg-[#1A1A1A] dark:border-[#2A2A2A]">
                     <span className="text-[var(--foreground-subtle)] w-4 h-4 flex-shrink-0">{icon}</span>
                     {label}
                 </div>
@@ -492,7 +492,7 @@ export function DuplicateComparisonModal({
                                     )}
                                     style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, minmax(190px, 1fr))` }}
                                 >
-                                    <div className="text-xs font-bold text-[var(--foreground)] sticky left-0 z-10 bg-gray-50 dark:bg-[#1E1E1E]">{t("orders.duplicate.field")}</div>
+                                    <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-[#6B6B6B] sticky left-0 z-10 bg-gray-50 border-r border-gray-200 pr-2 dark:bg-[#1E1E1E] dark:border-[#2A2A2A]">{t("orders.duplicate.field")}</div>
                                     {allDisplayOrders.map((order, idx) => (
                                         <div key={order.id} className="flex items-center justify-center gap-2 flex-wrap border-l border-gray-200 dark:border-[#2A2A2A]">
                                             <span className={cn(
@@ -536,7 +536,7 @@ export function DuplicateComparisonModal({
                                         className="grid gap-3 py-1 border-b border-gray-200 dark:border-[#2A2A2A] last:border-0"
                                         style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, minmax(190px, 1fr))` }}
                                     >
-                                        <div className="flex items-center gap-2 text-xs text-[var(--foreground)] sticky left-0 z-10 bg-white dark:bg-[#181818]">
+                                        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-[#6B6B6B] sticky left-0 z-10 bg-gray-50 border-r border-gray-200 pr-2 dark:bg-[#1A1A1A] dark:border-[#2A2A2A]">
                                             <span className="text-[var(--foreground-subtle)] w-4 h-4 flex-shrink-0"><User className="w-3.5 h-3.5" /></span>
                                             {t("orders.duplicate.customerDetails")}
                                         </div>
@@ -592,7 +592,7 @@ export function DuplicateComparisonModal({
                                         className="grid gap-3 py-1.5 border-b border-gray-200 dark:border-[#2A2A2A] last:border-0"
                                         style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, minmax(190px, 1fr))` }}
                                     >
-                                        <div className="flex items-center gap-2 text-xs text-[var(--foreground)] sticky left-0 z-10 bg-white dark:bg-[#181818]">
+                                        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-[#6B6B6B] sticky left-0 z-10 bg-gray-50 border-r border-gray-200 pr-2 dark:bg-[#1A1A1A] dark:border-[#2A2A2A]">
                                             <span className="text-[var(--foreground-subtle)] w-4 h-4 flex-shrink-0"><Calendar className="w-3.5 h-3.5" /></span>
                                             {t("orders.duplicate.date")}
                                         </div>
@@ -621,7 +621,7 @@ export function DuplicateComparisonModal({
                                         className="grid gap-3 py-1.5 border-b border-gray-200 dark:border-[#2A2A2A]"
                                         style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, minmax(190px, 1fr))` }}
                                     >
-                                        <div className="flex items-center gap-2 text-xs text-[var(--foreground)] sticky left-0 z-10 bg-white dark:bg-[#181818]">
+                                        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-[#6B6B6B] sticky left-0 z-10 bg-gray-50 border-r border-gray-200 pr-2 dark:bg-[#1A1A1A] dark:border-[#2A2A2A]">
                                             <Package className="w-3.5 h-3.5 text-[var(--foreground-subtle)] flex-shrink-0" />
                                             {t("orders.duplicate.products")}
                                         </div>
@@ -638,15 +638,15 @@ export function DuplicateComparisonModal({
 
                                                         return (
                                                             <div key={idx} className={cn(
-                                                                "flex items-center gap-2 rounded-lg p-1 border transition-all",
+                                                                "flex items-center gap-2 rounded-lg p-1 border border-dashed transition-all",
                                                                 isExactMatch
                                                                     ? cn(
-                                                                        "bg-emerald-100/80 border-emerald-200/70",
-                                                                        "dark:bg-[rgba(0,255,100,0.03)] dark:border-[rgba(0,255,100,0.1)]"
+                                                                        "bg-[#FAF8F5] border-emerald-300/60",
+                                                                        "dark:bg-[rgba(0,255,100,0.03)] dark:border-[rgba(0,255,100,0.15)]"
                                                                     )
                                                                     : cn(
-                                                                        "bg-amber-100/80 border-amber-200",
-                                                                        "dark:bg-[rgba(255,179,71,0.05)] dark:border-[rgba(255,179,71,0.15)]"
+                                                                        "bg-[#FAF8F5] border-amber-300/60",
+                                                                        "dark:bg-[rgba(255,179,71,0.05)] dark:border-[rgba(255,179,71,0.2)]"
                                                                     )
                                                             )}>
                                                                 {item.image_url ? (
@@ -690,7 +690,7 @@ export function DuplicateComparisonModal({
                                         className="grid gap-3 py-2.5 border-b border-gray-200 dark:border-[#2A2A2A]"
                                         style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, minmax(190px, 1fr))` }}
                                     >
-                                        <div className="flex items-center gap-2 text-xs text-[var(--foreground)] sticky left-0 z-10 bg-white dark:bg-[#181818]">
+                                        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-[#6B6B6B] sticky left-0 z-10 bg-gray-50 border-r border-gray-200 pr-2 dark:bg-[#1A1A1A] dark:border-[#2A2A2A]">
                                             <Sparkles className="w-3.5 h-3.5 text-[var(--foreground-subtle)]" />
                                             {t("orders.duplicate.status")}
                                         </div>
