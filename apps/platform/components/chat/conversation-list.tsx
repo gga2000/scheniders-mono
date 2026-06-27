@@ -1,7 +1,7 @@
 // apps/platform/components/chat/conversation-list.tsx
 "use client";
 import { useMemo, useState } from "react";
-import { AtSign, Bell, BellOff, CheckCheck, CheckCircle, ChevronDown, ChevronRight, Hash, MessagesSquare, Package, Plus, Users, Pencil } from "lucide-react";
+import { AtSign, Bell, BellOff, BellRing, CheckCheck, CheckCircle, ChevronDown, ChevronRight, Hash, MessagesSquare, Package, Plus, Users, Pencil } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import { ChatAvatar } from "./chat-avatar";
 import { ChatEmptyState } from "./chat-empty-state";
@@ -19,6 +19,7 @@ import type { TenantMember } from "@/hooks/chat/use-tenant-members";
 import { useMentionNotifications } from "@/hooks/chat/use-mention-notifications";
 import { useChatStore } from "@/store/use-chat-store";
 import { useAuth } from "@/hooks/use-auth";
+import { useWebPush } from "@/hooks/chat/use-web-push";
 import { useLanguage } from "@/components/providers/language-provider";
 import { filterConversations } from "@/lib/chat/filter-conversations";
 import type { ConvFilter } from "@/lib/chat/filter-conversations";
@@ -385,6 +386,7 @@ export function ConversationList() {
     const [filter, setFilter] = useState<ConvFilter>("all");
 
     const markAllRead = useMarkAllRead();
+    const push = useWebPush();
 
     const directLabel = t("chat.directMessage", "Direct message");
 
@@ -480,6 +482,42 @@ export function ConversationList() {
                         >
                             {soundEnabled ? <Bell className="h-3.5 w-3.5" /> : <BellOff className="h-3.5 w-3.5" />}
                         </button>
+                        {/* Push-notification toggle — hidden when not supported */}
+                        {push.supported && (
+                            <button
+                                type="button"
+                                disabled={!push.configured || push.busy}
+                                onClick={() => {
+                                    if (push.permission === "denied") return;
+                                    if (push.subscribed) {
+                                        void push.disable();
+                                    } else {
+                                        void push.enable();
+                                    }
+                                }}
+                                aria-label={
+                                    !push.configured
+                                        ? t("chat.pushNotConfigured", "Push notifications not configured")
+                                        : push.permission === "denied"
+                                          ? t("chat.pushDenied", "Push notifications blocked — enable in browser settings")
+                                          : push.subscribed
+                                            ? t("chat.disablePush", "Disable push notifications")
+                                            : t("chat.enablePush", "Enable push notifications")
+                                }
+                                title={
+                                    !push.configured
+                                        ? t("chat.pushNotConfigured", "Push notifications not configured")
+                                        : push.permission === "denied"
+                                          ? t("chat.pushDenied", "Push notifications blocked — enable in browser settings")
+                                          : push.subscribed
+                                            ? t("chat.disablePush", "Disable push notifications")
+                                            : t("chat.enablePush", "Enable push notifications")
+                                }
+                                className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                                <BellRing className={`h-3.5 w-3.5 ${push.subscribed ? "text-emerald-500" : ""}`} />
+                            </button>
+                        )}
                         {totalUnread > 0 && (
                             <button
                                 type="button"

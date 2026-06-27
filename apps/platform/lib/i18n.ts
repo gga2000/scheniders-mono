@@ -2857,6 +2857,14 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.soundOn": "Notifications: sound on",
         "chat.soundOff": "Notifications: sound off",
         "chat.notificationSettings": "Notification settings",
+        // ── Phase 6B: push-notification toggle ──
+        "chat.enablePush": "Enable push notifications",
+        "chat.disablePush": "Disable push notifications",
+        "chat.pushDenied": "Push notifications blocked — enable in browser settings",
+        "chat.pushUnsupported": "Push not supported in this browser",
+        "chat.pushIosHint": "Install the app to your home screen to enable push notifications",
+        "chat.pushNotConfigured": "Push notifications not configured",
+        "chat.pushEnabled": "Push notifications enabled",
     },
 
     ar: {
@@ -5709,5 +5717,13 @@ export const translations: Record<Locale, Record<string, string>> = {
         "chat.soundOn": "الإشعارات: الصوت مفعّل",
         "chat.soundOff": "الإشعارات: الصوت معطّل",
         "chat.notificationSettings": "إعدادات الإشعارات",
+        // ── Phase 6B: push-notification toggle ──
+        "chat.enablePush": "تفعيل إشعارات الدفع",
+        "chat.disablePush": "تعطيل إشعارات الدفع",
+        "chat.pushDenied": "إشعارات الدفع محجوبة — فعّلها من إعدادات المتصفح",
+        "chat.pushUnsupported": "إشعارات الدفع غير مدعومة في هذا المتصفح",
+        "chat.pushIosHint": "أضف التطبيق إلى الشاشة الرئيسية لتفعيل إشعارات الدفع",
+        "chat.pushNotConfigured": "إشعارات الدفع غير مُهيأة",
+        "chat.pushEnabled": "إشعارات الدفع مفعّلة",
     },
 };
