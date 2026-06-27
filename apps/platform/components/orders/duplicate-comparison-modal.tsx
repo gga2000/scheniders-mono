@@ -333,14 +333,14 @@ export function DuplicateComparisonModal({
                     <div
                         key={order.id}
                         className={cn(
-                            "text-sm font-medium text-center px-2 py-1 rounded-lg transition-all flex items-center justify-center",
+                            "text-sm font-medium text-center px-2 py-1 rounded-lg transition-all flex items-center justify-center border-l border-gray-100 dark:border-[#262626]",
                             allMatch
                                 ? cn(
-                                    "bg-emerald-50/60 text-emerald-700 border border-emerald-200/60",
+                                    "bg-emerald-100 text-emerald-800 border border-emerald-300/70",
                                     "dark:bg-[rgba(0,255,100,0.06)] dark:text-[#66FFAA] dark:border-[rgba(0,255,100,0.15)]"
                                 )
                                 : cn(
-                                    "bg-amber-50/80 text-amber-700 border border-amber-200/60",
+                                    "bg-amber-100 text-amber-800 border border-amber-300/70",
                                     "dark:bg-[rgba(255,179,71,0.08)] dark:text-[#FFB347] dark:border-[rgba(255,179,71,0.2)]"
                                 )
                         )}
