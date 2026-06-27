@@ -67,7 +67,8 @@ self.addEventListener('push', (event) => {
         body: payload.body || '',
         icon: '/icons/icon-192.png',
         badge: '/icons/icon-192.png',
-        data: { conversationId: payload.conversationId || null },
+        tag: payload.tag || undefined,
+        data: { conversationId: payload.conversationId || null, url: payload.url || null },
     };
     event.waitUntil(self.registration.showNotification(title, options));
 });
@@ -79,26 +80,30 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
-    const conversationId = event.notification.data && event.notification.data.conversationId;
+    const data = event.notification.data || {};
+    const conversationId = data.conversationId;
+    const url = data.url;
 
     event.waitUntil(
         self.clients
             .matchAll({ type: 'window', includeUncontrolled: true })
             .then((clientList) => {
-                // Focus the first open app window and send a message.
+                // Focus the first open app window and route it.
                 for (const client of clientList) {
                     if (client.url && 'focus' in client) {
                         client.focus();
                         if (conversationId) {
                             client.postMessage({ type: 'open-conversation', conversationId });
+                        } else if (url && 'navigate' in client) {
+                            client.navigate(url);
                         }
                         return;
                     }
                 }
-                // No open tab — open a new one.
+                // No open tab — open a new one at the right place.
                 const target = conversationId
                     ? '/?chat=' + conversationId
-                    : '/';
+                    : (url || '/');
                 return self.clients.openWindow(target);
             })
     );
