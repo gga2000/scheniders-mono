@@ -333,7 +333,7 @@ export function DuplicateComparisonModal({
                     <div
                         key={order.id}
                         className={cn(
-                            "text-sm font-medium text-center px-2 py-1 rounded-lg transition-all flex items-center justify-center border-l border-gray-100 dark:border-[#262626]",
+                            "text-sm font-medium text-center px-2 py-1 rounded-lg transition-all flex items-center justify-center",
                             allMatch
                                 ? cn(
                                     "bg-emerald-100 text-emerald-800 border border-emerald-300/70",
