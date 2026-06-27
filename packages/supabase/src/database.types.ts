@@ -1050,6 +1050,35 @@ export type Database = {
           },
         ]
       }
+      chat_message_edits: {
+        Row: {
+          edited_at: string
+          id: string
+          message_id: string
+          prev_body: string
+        }
+        Insert: {
+          edited_at?: string
+          id?: string
+          message_id: string
+          prev_body: string
+        }
+        Update: {
+          edited_at?: string
+          id?: string
+          message_id?: string
+          prev_body?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_message_edits_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_message_mentions: {
         Row: {
           id: string
@@ -1228,6 +1257,45 @@ export type Database = {
           },
         ]
       }
+      chat_notification_prefs: {
+        Row: {
+          kind: string
+          level: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          kind: string
+          level?: string
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          kind?: string
+          level?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_notification_prefs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_notification_prefs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_notifications: {
         Row: {
           actor_avatar: string | null
@@ -1236,6 +1304,7 @@ export type Database = {
           conversation_id: string | null
           created_at: string
           id: string
+          is_mention: boolean
           is_read: boolean
           message_id: string | null
           preview: string
@@ -1249,6 +1318,7 @@ export type Database = {
           conversation_id?: string | null
           created_at?: string
           id?: string
+          is_mention?: boolean
           is_read?: boolean
           message_id?: string | null
           preview?: string
@@ -1262,6 +1332,7 @@ export type Database = {
           conversation_id?: string | null
           created_at?: string
           id?: string
+          is_mention?: boolean
           is_read?: boolean
           message_id?: string | null
           preview?: string
@@ -1349,11 +1420,83 @@ export type Database = {
           },
         ]
       }
+      chat_push_config: {
+        Row: {
+          edge_secret: string | null
+          function_url: string | null
+          id: number
+          updated_at: string
+        }
+        Insert: {
+          edge_secret?: string | null
+          function_url?: string | null
+          id?: number
+          updated_at?: string
+        }
+        Update: {
+          edge_secret?: string | null
+          function_url?: string | null
+          id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      chat_push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          tenant_id: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          tenant_id?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          tenant_id?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_push_subscriptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_push_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_user_status: {
         Row: {
           custom_emoji: string | null
           custom_text: string | null
+          dnd: boolean
+          expires_at: string | null
           last_seen_at: string | null
+          preset: string | null
           tenant_id: string | null
           updated_at: string
           user_id: string
@@ -1361,7 +1504,10 @@ export type Database = {
         Insert: {
           custom_emoji?: string | null
           custom_text?: string | null
+          dnd?: boolean
+          expires_at?: string | null
           last_seen_at?: string | null
+          preset?: string | null
           tenant_id?: string | null
           updated_at?: string
           user_id: string
@@ -1369,7 +1515,10 @@ export type Database = {
         Update: {
           custom_emoji?: string | null
           custom_text?: string | null
+          dnd?: boolean
+          expires_at?: string | null
           last_seen_at?: string | null
+          preset?: string | null
           tenant_id?: string | null
           updated_at?: string
           user_id?: string
@@ -6730,6 +6879,7 @@ export type Database = {
         Args: { p_conversation_id: string }
         Returns: undefined
       }
+      chat_mark_all_read: { Args: never; Returns: undefined }
       chat_mark_read: {
         Args: { p_conversation_id: string }
         Returns: undefined
