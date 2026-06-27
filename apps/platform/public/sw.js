@@ -50,6 +50,60 @@ self.addEventListener('activate', (event) => {
     );
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Web Push — receive a push notification from the server and show it.
+// ─────────────────────────────────────────────────────────────────────────────
+
+self.addEventListener('push', (event) => {
+    if (!event.data) return;
+    let payload;
+    try {
+        payload = event.data.json();
+    } catch {
+        return;
+    }
+    const title = payload.title || 'New message';
+    const options = {
+        body: payload.body || '',
+        icon: '/icons/icon-192.png',
+        badge: '/icons/icon-192.png',
+        data: { conversationId: payload.conversationId || null },
+    };
+    event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// notificationclick — focus an existing app tab or open a new one, then hand
+// off the conversationId to the app via postMessage.
+// ─────────────────────────────────────────────────────────────────────────────
+
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    const conversationId = event.notification.data && event.notification.data.conversationId;
+
+    event.waitUntil(
+        self.clients
+            .matchAll({ type: 'window', includeUncontrolled: true })
+            .then((clientList) => {
+                // Focus the first open app window and send a message.
+                for (const client of clientList) {
+                    if (client.url && 'focus' in client) {
+                        client.focus();
+                        if (conversationId) {
+                            client.postMessage({ type: 'open-conversation', conversationId });
+                        }
+                        return;
+                    }
+                }
+                // No open tab — open a new one.
+                const target = conversationId
+                    ? '/?chat=' + conversationId
+                    : '/';
+                return self.clients.openWindow(target);
+            })
+    );
+});
+
 self.addEventListener('fetch', (event) => {
     // Skip cross-origin requests
     if (!event.request.url.startsWith(self.location.origin)) return;
