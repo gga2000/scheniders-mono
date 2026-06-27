@@ -45,7 +45,8 @@ Until `edge_secret` is set, the trigger no-ops (chat keeps working; nothing send
 - DMs notify the peer; mentions notify the mentioned; a mention-in-a-DM does not double-notify.
 
 ## Known follow-ups
-- Phase-4 unfurl DNS-rebind IP-pinning (separate, documented in that route).
+- None blocking. (Both prior fast-follows resolved below.)
 
 ## Resolved
 - `chat_notification_prefs.level='mentions'` now silences non-mention (plain DM) pushes — `chat_notifications.is_mention` flag (migration `20260628100000`) + edge-fn `pref_mentions_only` skip.
+- Unfurl DNS-rebind TOCTOU closed — fetch pinned via undici `Agent.connect.lookup` (connect-time private-IP re-validation); commit `a8bcf97`.
