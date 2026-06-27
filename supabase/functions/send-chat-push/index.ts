@@ -36,6 +36,7 @@ interface NotificationRow {
     actor_name?: string;
     preview?: string;
     conversation_id?: string;
+    is_mention?: boolean;
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -56,7 +57,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
     // pg_net sends the row directly; a DB webhook would wrap it in { record }.
     const row: NotificationRow = payloadIn.record ?? payloadIn;
-    const { recipient_id, actor_name, preview, conversation_id } = row;
+    const { recipient_id, actor_name, preview, conversation_id, is_mention } = row;
     if (!recipient_id || !conversation_id) return json({ skipped: "incomplete" });
 
     const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
@@ -72,9 +73,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
         .eq("conversation_id", conversation_id).eq("user_id", recipient_id).maybeSingle();
     if (member?.muted) return json({ skipped: "muted" });
 
-    // Per-kind notification preference (level 'none' silences). 'mentions'-level
-    // refinement (push only on mentions) needs a mention flag on the row — a
-    // follow-up; for now 'all' and 'mentions' both notify, 'none' does not.
+    // Per-kind notification preference: 'none' silences everything; 'mentions'
+    // silences non-mention rows (e.g. plain DM notifications); 'all' notifies.
     const { data: conv } = await sb
         .from("chat_conversations").select("kind, tenant_id").eq("id", conversation_id).maybeSingle();
     if (conv) {
@@ -82,6 +82,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
             .from("chat_notification_prefs").select("level")
             .eq("user_id", recipient_id).eq("tenant_id", conv.tenant_id).eq("kind", conv.kind).maybeSingle();
         if (pref?.level === "none") return json({ skipped: "pref_none" });
+        if (pref?.level === "mentions" && !is_mention) return json({ skipped: "pref_mentions_only" });
     }
 
     const { data: subs } = await sb
