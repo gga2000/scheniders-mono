@@ -597,11 +597,11 @@ export function DuplicateComparisonModal({
                                             {t("orders.duplicate.date")}
                                         </div>
                                         {allDisplayOrders.map((order) => (
-                                            <div key={order.id} className="flex w-full items-stretch gap-1.5">
-                                                <span className="flex-1 flex items-center justify-center text-xs font-medium px-2 py-1 rounded-md border bg-amber-50/80 text-amber-700 border-amber-200/60 dark:bg-[rgba(255,179,71,0.08)] dark:text-[#FFB347] dark:border-[rgba(255,179,71,0.2)]">
+                                            <div key={order.id} className="flex w-full items-stretch gap-1.5 border-l border-gray-100 dark:border-[#262626]">
+                                                <span className="flex-1 flex items-center justify-center text-xs font-medium px-2 py-1 rounded-md border bg-amber-100 text-amber-800 border-amber-300/70 dark:bg-[rgba(255,179,71,0.08)] dark:text-[#FFB347] dark:border-[rgba(255,179,71,0.2)]">
                                                     {formatDateShort(order.created_at)}
                                                 </span>
-                                                <span className="flex items-center justify-center text-xs font-medium px-2 py-1 flex-shrink-0 rounded-md border bg-amber-50/80 text-amber-700 border-amber-200/60 dark:bg-[rgba(255,179,71,0.08)] dark:text-[#FFB347] dark:border-[rgba(255,179,71,0.2)]">
+                                                <span className="flex items-center justify-center text-xs font-medium px-2 py-1 flex-shrink-0 rounded-md border bg-amber-100 text-amber-800 border-amber-300/70 dark:bg-[rgba(255,179,71,0.08)] dark:text-[#FFB347] dark:border-[rgba(255,179,71,0.2)]">
                                                     {formatTimeShort(order.created_at)}
                                                 </span>
                                             </div>
