@@ -629,7 +629,7 @@ export function DuplicateComparisonModal({
                                             const currentOrderItems = currentOrder.items || [];
 
                                             return (
-                                                <div key={order.id} className="space-y-1">
+                                                <div key={order.id} className="space-y-1 border-l border-gray-100 dark:border-[#262626] pl-1">
                                                     {order.items?.map((item, idx) => {
                                                         const matchingItemInCurrent = currentOrderItems.find(c => c.name === item.name);
                                                         const nameMatches = !!matchingItemInCurrent;
@@ -641,11 +641,11 @@ export function DuplicateComparisonModal({
                                                                 "flex items-center gap-2 rounded-lg p-1 border transition-all",
                                                                 isExactMatch
                                                                     ? cn(
-                                                                        "bg-emerald-50/40 border-emerald-100/50",
+                                                                        "bg-emerald-100/80 border-emerald-200/70",
                                                                         "dark:bg-[rgba(0,255,100,0.03)] dark:border-[rgba(0,255,100,0.1)]"
                                                                     )
                                                                     : cn(
-                                                                        "bg-amber-50/60 border-amber-200/50",
+                                                                        "bg-amber-100/80 border-amber-200",
                                                                         "dark:bg-[rgba(255,179,71,0.05)] dark:border-[rgba(255,179,71,0.15)]"
                                                                     )
                                                             )}>
@@ -661,8 +661,8 @@ export function DuplicateComparisonModal({
                                                                     <p className={cn(
                                                                         "text-[11px] font-bold truncate",
                                                                         nameMatches
-                                                                            ? "text-emerald-700 dark:text-[#66FFAA]"
-                                                                            : "text-amber-700 dark:text-[#FFB347]"
+                                                                            ? "text-emerald-800 dark:text-[#66FFAA]"
+                                                                            : "text-amber-800 dark:text-[#FFB347]"
                                                                     )}>
                                                                         {item.name}
                                                                     </p>
