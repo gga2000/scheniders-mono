@@ -322,8 +322,8 @@ export function DuplicateComparisonModal({
 
         return (
             <div className={cn(
-                "grid gap-3 py-1.5 border-b border-dashed last:border-0",
-                "border-[var(--card-border)]",
+                "grid gap-3 py-1.5 border-b last:border-0",
+                "border-gray-200 dark:border-[#2A2A2A]",
             )} style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, minmax(190px, 1fr))` }}>
                 <div className="flex items-center gap-2 text-xs text-[var(--foreground)] sticky left-0 z-10 bg-white dark:bg-[#181818]">
                     <span className="text-[var(--foreground-subtle)] w-4 h-4 flex-shrink-0">{icon}</span>
@@ -533,7 +533,7 @@ export function DuplicateComparisonModal({
                                     {/* Custom Customer Details Row to support individual highlighting */}
                                     {(!diffOnly || !rowAllMatch(currentOrder, displayedOrders, (o) => o.customer_name ?? "")) && (
                                     <div
-                                        className="grid gap-3 py-1 border-b border-dashed border-[var(--card-border)] last:border-0"
+                                        className="grid gap-3 py-1 border-b border-gray-200 dark:border-[#2A2A2A] last:border-0"
                                         style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, minmax(190px, 1fr))` }}
                                     >
                                         <div className="flex items-center gap-2 text-xs text-[var(--foreground)] sticky left-0 z-10 bg-white dark:bg-[#181818]">
@@ -589,7 +589,7 @@ export function DuplicateComparisonModal({
                                     )}
                                     {(!diffOnly || !rowAllMatch(currentOrder, displayedOrders, (o) => o.created_at)) && (
                                     <div
-                                        className="grid gap-3 py-1.5 border-b border-dashed border-[var(--card-border)] last:border-0"
+                                        className="grid gap-3 py-1.5 border-b border-gray-200 dark:border-[#2A2A2A] last:border-0"
                                         style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, minmax(190px, 1fr))` }}
                                     >
                                         <div className="flex items-center gap-2 text-xs text-[var(--foreground)] sticky left-0 z-10 bg-white dark:bg-[#181818]">
@@ -618,7 +618,7 @@ export function DuplicateComparisonModal({
                                     {/* Products */}
                                     {(!diffOnly || !rowAllMatch(currentOrder, displayedOrders, (o) => (o.items ?? []).map((i) => i.name + "x" + i.quantity).sort().join("|"))) && (
                                     <div
-                                        className="grid gap-3 py-1.5 border-b border-dashed border-[var(--card-border)]"
+                                        className="grid gap-3 py-1.5 border-b border-gray-200 dark:border-[#2A2A2A]"
                                         style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, minmax(190px, 1fr))` }}
                                     >
                                         <div className="flex items-center gap-2 text-xs text-[var(--foreground)] sticky left-0 z-10 bg-white dark:bg-[#181818]">
@@ -687,7 +687,7 @@ export function DuplicateComparisonModal({
                                     {/* Status row */}
                                     {(!diffOnly || !rowAllMatch(currentOrder, displayedOrders, (o) => o.status)) && (
                                     <div
-                                        className="grid gap-3 py-2.5 border-b border-dashed border-[var(--card-border)]"
+                                        className="grid gap-3 py-2.5 border-b border-gray-200 dark:border-[#2A2A2A]"
                                         style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, minmax(190px, 1fr))` }}
                                     >
                                         <div className="flex items-center gap-2 text-xs text-[var(--foreground)] sticky left-0 z-10 bg-white dark:bg-[#181818]">
