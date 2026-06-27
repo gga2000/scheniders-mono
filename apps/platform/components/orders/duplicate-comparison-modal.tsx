@@ -552,17 +552,17 @@ export function DuplicateComparisonModal({
                                             return (
                                                 <div
                                                     key={order.id}
-                                                    className="flex w-full items-stretch gap-1.5"
+                                                    className="flex w-full items-stretch gap-1.5 border-l border-gray-100 dark:border-[#262626]"
                                                 >
                                                     <span className={cn(
                                                         "inline-flex items-center justify-center font-mono text-[11px] px-2 py-1 flex-shrink-0 rounded-md transition-all border",
                                                         orderIdMatch
                                                             ? cn(
-                                                                "bg-emerald-50/60 text-emerald-700 border-emerald-200/60",
+                                                                "bg-emerald-100 text-emerald-800 border-emerald-300/70",
                                                                 "dark:bg-[rgba(0,255,100,0.06)] dark:text-[#66FFAA] dark:border-[rgba(0,255,100,0.15)]"
                                                             )
                                                             : cn(
-                                                                "bg-amber-50/80 text-amber-700 border-amber-200/60",
+                                                                "bg-amber-100 text-amber-800 border-amber-300/70",
                                                                 "dark:bg-[rgba(255,179,71,0.08)] dark:text-[#FFB347] dark:border-[rgba(255,179,71,0.2)]"
                                                             )
                                                     )}>
@@ -572,11 +572,11 @@ export function DuplicateComparisonModal({
                                                         "flex-1 flex items-center justify-center text-xs font-semibold px-2 py-1 rounded-md transition-all border min-w-0 truncate",
                                                         nameMatch
                                                             ? cn(
-                                                                "bg-emerald-50/60 text-emerald-700 border-emerald-200/60",
+                                                                "bg-emerald-100 text-emerald-800 border-emerald-300/70",
                                                                 "dark:bg-[rgba(0,255,100,0.06)] dark:text-[#66FFAA] dark:border-[rgba(0,255,100,0.15)]"
                                                             )
                                                             : cn(
-                                                                "bg-amber-50/80 text-amber-700 border-amber-200/60",
+                                                                "bg-amber-100 text-amber-800 border-amber-300/70",
                                                                 "dark:bg-[rgba(255,179,71,0.08)] dark:text-[#FFB347] dark:border-[rgba(255,179,71,0.2)]"
                                                             )
                                                     )} title={order.customer_name}>
