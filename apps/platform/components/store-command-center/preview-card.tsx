@@ -1,16 +1,32 @@
 "use client";
 
 import { useState } from "react";
-import { Monitor, Smartphone, Globe } from "lucide-react";
+import Link from "next/link";
+import { Monitor, Smartphone, Globe, Rocket, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface PreviewCardProps {
     storefrontUrl: string;
+    /**
+     * Only published stores have a public storefront to embed. For an
+     * unpublished/draft store the public URL renders an empty or 404 page,
+     * so we show an onboarding placeholder instead of a broken iframe.
+     */
+    published: boolean;
+    /**
+     * A truly fresh store (nothing built) → the placeholder CTA opens the
+     * onboarding wizard. A built-but-unpublished store → it opens the editor.
+     */
+    isBrandNew?: boolean;
 }
 
 type ViewMode = "desktop" | "mobile";
 
-export function PreviewCard({ storefrontUrl }: PreviewCardProps) {
+export function PreviewCard({
+    storefrontUrl,
+    published,
+    isBrandNew = false,
+}: PreviewCardProps) {
     const [mode, setMode] = useState<ViewMode>("desktop");
     const [loaded, setLoaded] = useState(false);
 
@@ -24,72 +40,111 @@ export function PreviewCard({ storefrontUrl }: PreviewCardProps) {
                     </div>
                     <span className="text-sm font-semibold text-foreground">Live preview</span>
                 </div>
-                <div className="flex items-center gap-1 bg-background rounded-lg border border-border p-0.5">
-                    <button
-                        onClick={() => setMode("desktop")}
-                        className={cn(
-                            "flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
-                            mode === "desktop"
-                                ? "bg-foreground text-background"
-                                : "text-muted-foreground hover:text-foreground"
-                        )}
-                    >
-                        <Monitor className="w-3 h-3" />
-                        Desktop
-                    </button>
-                    <button
-                        onClick={() => setMode("mobile")}
-                        className={cn(
-                            "flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
-                            mode === "mobile"
-                                ? "bg-foreground text-background"
-                                : "text-muted-foreground hover:text-foreground"
-                        )}
-                    >
-                        <Smartphone className="w-3 h-3" />
-                        Mobile
-                    </button>
-                </div>
+                {published && (
+                    <div className="flex items-center gap-1 bg-background rounded-lg border border-border p-0.5">
+                        <button
+                            onClick={() => setMode("desktop")}
+                            className={cn(
+                                "flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
+                                mode === "desktop"
+                                    ? "bg-foreground text-background"
+                                    : "text-muted-foreground hover:text-foreground"
+                            )}
+                        >
+                            <Monitor className="w-3 h-3" />
+                            Desktop
+                        </button>
+                        <button
+                            onClick={() => setMode("mobile")}
+                            className={cn(
+                                "flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
+                                mode === "mobile"
+                                    ? "bg-foreground text-background"
+                                    : "text-muted-foreground hover:text-foreground"
+                            )}
+                        >
+                            <Smartphone className="w-3 h-3" />
+                            Mobile
+                        </button>
+                    </div>
+                )}
             </div>
 
-            {/* Faux browser chrome */}
-            <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-muted/20">
-                <div className="flex items-center gap-1">
-                    <div className="w-2.5 h-2.5 rounded-full bg-rose-400" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                </div>
-                <div className="flex-1 bg-background border border-border rounded-md px-3 py-1 text-xs text-muted-foreground font-mono truncate">
-                    {storefrontUrl}
-                </div>
-            </div>
-
-            {/* iframe container */}
-            <div className="flex justify-center bg-muted/10 p-4" style={{ minHeight: 480 }}>
+            {!published ? (
+                /* Unpublished store — no public storefront to embed yet. */
                 <div
-                    className={cn(
-                        "relative rounded-xl overflow-hidden border border-border shadow-md transition-all duration-300 bg-white",
-                        mode === "desktop" ? "w-full" : "w-[390px]"
-                    )}
-                    style={{ height: 480 }}
+                    className="flex flex-col items-center justify-center gap-4 px-6 py-12 text-center"
+                    style={{ minHeight: 480 }}
                 >
-                    {!loaded && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-muted/30">
-                            <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                                <div className="w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                <span className="text-xs">Loading preview…</span>
-                            </div>
-                        </div>
-                    )}
-                    <iframe
-                        src={storefrontUrl}
-                        className="w-full h-full"
-                        onLoad={() => setLoaded(true)}
-                        title="Store preview"
-                        sandbox="allow-scripts allow-same-origin allow-forms"
-                    />
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-100">
+                        <Rocket className="h-6 w-6 text-violet-700" />
+                    </div>
+                    <div className="space-y-1.5 max-w-sm">
+                        <p className="text-base font-semibold text-foreground">
+                            Your store isn&apos;t published yet
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                            {isBrandNew
+                                ? "Set up your store to get a branded home page, then publish to see it live here."
+                                : "Build your home page in the editor and hit Publish — your live storefront will appear here."}
+                        </p>
+                    </div>
+                    <Link
+                        href={isBrandNew ? "/store/onboarding" : "/store/edit"}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-4 py-2 text-sm font-semibold text-background shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)"
+                    >
+                        <Pencil className="h-3.5 w-3.5" />
+                        {isBrandNew ? "Set up your store" : "Open editor"}
+                    </Link>
                 </div>
-            </div>
+            ) : (
+                <>
+                    {/* Faux browser chrome */}
+                    <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-muted/20">
+                        <div className="flex items-center gap-1">
+                            <div className="w-2.5 h-2.5 rounded-full bg-rose-400" />
+                            <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+                        </div>
+                        <div className="flex-1 bg-background border border-border rounded-md px-3 py-1 text-xs text-muted-foreground font-mono truncate">
+                            {storefrontUrl}
+                        </div>
+                    </div>
+
+                    {/* iframe container */}
+                    <div className="flex justify-center bg-muted/10 p-4" style={{ minHeight: 480 }}>
+                        <div
+                            className={cn(
+                                "relative rounded-xl overflow-hidden border border-border shadow-md transition-all duration-300 bg-white",
+                                mode === "desktop" ? "w-full" : "w-[390px]"
+                            )}
+                            style={{ height: 480 }}
+                        >
+                            {!loaded && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-muted/30">
+                                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                        <div className="w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                        <span className="text-xs">Loading preview…</span>
+                                    </div>
+                                </div>
+                            )}
+                            {/* The embedded page is the merchant's own storefront, which
+                             * is cross-origin to the platform (separate subdomain in
+                             * prod, :3001 in dev). `allow-same-origin` therefore grants
+                             * the frame access to its OWN origin — needed for the
+                             * storefront's client session/cart — and cannot reach the
+                             * platform DOM. `allow-scripts` is required for hydration. */}
+                            <iframe
+                                src={storefrontUrl}
+                                className="w-full h-full"
+                                onLoad={() => setLoaded(true)}
+                                title="Store preview"
+                                sandbox="allow-scripts allow-same-origin allow-forms"
+                            />
+                        </div>
+                    </div>
+                </>
+            )}
         </div>
     );
 }

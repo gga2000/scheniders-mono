@@ -59,13 +59,18 @@ export function CommandCenter({ tenant, tenantId }: CommandCenterProps) {
                 status={storeStatus}
                 storefrontUrl={storefrontUrl}
                 published={storeStatus.published}
+                isBrandNew={isBrandNew}
             />
 
             {/* 2-column desktop layout, stacked on mobile */}
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
                 {/* Left column */}
                 <div className="space-y-6">
-                    <PreviewCard storefrontUrl={storefrontUrl} />
+                    <PreviewCard
+                        storefrontUrl={storefrontUrl}
+                        published={storeStatus.published}
+                        isBrandNew={isBrandNew}
+                    />
                     <KpiStrip
                         analytics={analyticsQuery.data}
                         isLoading={analyticsQuery.isLoading}

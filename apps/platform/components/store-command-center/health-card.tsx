@@ -96,7 +96,7 @@ export function HealthCard({ config, isBrandNew = false }: HealthCardProps) {
                     score will appear once you&apos;ve started.
                 </p>
                 <Link
-                    href="/store/edit"
+                    href="/store/onboarding"
                     className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-4 py-2 text-sm font-semibold text-background shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)"
                 >
                     Get started <ArrowRight className="w-3.5 h-3.5" />

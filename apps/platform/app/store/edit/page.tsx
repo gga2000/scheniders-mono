@@ -9,6 +9,7 @@ import type {
 } from "@scheniders/sections";
 import { env } from "@/lib/env";
 import { EditorShell } from "@/components/store-builder-v2/editor-shell";
+import type { InspectorTab } from "@/components/store-builder-v2/inspector-rail";
 import type { SettingsSectionId } from "@/components/store-builder-v2/page-tree";
 
 /**
@@ -25,6 +26,13 @@ const DEEP_LINK_SCREENS: readonly SettingsSectionId[] = [
     "i18n",
     "redirects",
 ];
+
+/**
+ * Inspector-rail tabs reachable via a `?tab=` deep-link (e.g. the Command
+ * Center "SEO" tile). These are inline tabs alongside the canvas, not
+ * full-screen `?screen=` takeovers.
+ */
+const DEEP_LINK_TABS: readonly InspectorTab[] = ["blocks", "style", "seo", "health"];
 
 const PREVIEW_PRODUCTS_LIMIT = 24;
 
@@ -89,6 +97,11 @@ export default async function StoreV2Page({
         typeof sp.page === "string" ? (sp.page as PageId) : null;
     const initialSectionId =
         typeof sp.section === "string" ? sp.section : null;
+    const rawTab = typeof sp.tab === "string" ? sp.tab : undefined;
+    const initialInspectorTab =
+        rawTab && (DEEP_LINK_TABS as readonly string[]).includes(rawTab)
+            ? (rawTab as InspectorTab)
+            : null;
 
     const {
         data: { user },
@@ -173,6 +186,7 @@ export default async function StoreV2Page({
             initialSystemScreen={initialSystemScreen}
             initialPageId={initialPageId}
             initialSectionId={initialSectionId}
+            initialInspectorTab={initialInspectorTab}
         />
     );
 }

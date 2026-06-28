@@ -154,6 +154,13 @@ export interface EditorShellProps {
      */
     initialPageId?: PageId | null;
     initialSectionId?: string | null;
+    /**
+     * Deep-link the Inspector rail to a specific tab on mount (e.g. the
+     * Command Center "SEO" tile opens the per-page SEO tab). Defaults to
+     * "blocks". SEO/Health are inspector tabs, not full-screen system
+     * screens, so they travel via this prop rather than `?screen=`.
+     */
+    initialInspectorTab?: InspectorTab | null;
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -180,13 +187,17 @@ function buildPreviewUrl(
     } catch {
         // Treat as already-an-origin.
     }
+    // The page id is a PATH segment — the storefront route is
+    // `/_preview/[tenant]/[page_id]`. A `?page=` query is only a
+    // lower-priority alias there, so emitting the page as a query alone
+    // (with no path segment) 404s the iframe. Keep token/breakpoint/locale
+    // in the query.
     const params = new URLSearchParams({
         token,
-        page,
         breakpoint,
         locale,
     });
-    return `${origin}/_preview/${tenantSlug}?${params.toString()}`;
+    return `${origin}/_preview/${tenantSlug}/${encodeURIComponent(page)}?${params.toString()}`;
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -211,6 +222,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         initialSystemScreen,
         initialPageId,
         initialSectionId,
+        initialInspectorTab,
     } = props;
 
     const activePreviewToken = previewToken ?? DEV_PREVIEW_TOKEN;
@@ -244,8 +256,11 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         initialSystemScreen !== undefined ? initialSystemScreen : null,
     );
 
-    // Inspector rail tab (Blocks / Style / Health).
-    const [inspector_tab, set_inspector_tab] = useState<InspectorTab>("blocks");
+    // Inspector rail tab (Blocks / Style / SEO / Health). A Command Center
+    // deep-link (?tab=) can preselect a tab on mount.
+    const [inspector_tab, set_inspector_tab] = useState<InspectorTab>(
+        initialInspectorTab ?? "blocks",
+    );
 
     // Publish confirm sheet state.
     const [publish_sheet_open, set_publish_sheet_open] = useState<boolean>(false);

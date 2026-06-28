@@ -15,6 +15,9 @@ interface HeaderBarProps {
     /** When the store is not yet published the public URL 404s, so the
      * "Visit store" control is rendered disabled instead of navigating. */
     published: boolean;
+    /** A fresh store routes the primary CTA into the onboarding wizard
+     * instead of dropping the merchant into an empty editor. */
+    isBrandNew?: boolean;
 }
 
 function StatusPill({ status }: { status: StoreStatus }) {
@@ -42,7 +45,7 @@ function StatusPill({ status }: { status: StoreStatus }) {
     );
 }
 
-export function HeaderBar({ businessName, status, storefrontUrl, published }: HeaderBarProps) {
+export function HeaderBar({ businessName, status, storefrontUrl, published, isBrandNew = false }: HeaderBarProps) {
     return (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
             <div className="flex items-center gap-3 min-w-0">
@@ -71,11 +74,11 @@ export function HeaderBar({ businessName, status, storefrontUrl, published }: He
                     </span>
                 )}
                 <Link
-                    href="/store/edit"
+                    href={isBrandNew ? "/store/onboarding" : "/store/edit"}
                     className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-4 py-2 text-sm font-semibold text-background shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)"
                 >
                     <Pencil className="w-3.5 h-3.5" />
-                    Customize
+                    {isBrandNew ? "Set up store" : "Customize"}
                 </Link>
             </div>
         </div>
