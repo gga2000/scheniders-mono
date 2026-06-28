@@ -38,11 +38,32 @@ export const LOCALE_LABELS: Record<LocaleCode, string> = {
  */
 export type I18nString = Partial<Record<LocaleCode, string>>;
 
+// Per-locale fallback chains. Iraq market: Kurdish falls back to Arabic before
+// English, and Arabic to English. (The old code sent `ku` straight to `en`,
+// skipping Arabic.)
+const LOCALE_FALLBACKS: Record<LocaleCode, readonly LocaleCode[]> = {
+  ar: ["ar", "en"],
+  ku: ["ku", "ar", "en"],
+  en: ["en", "ar"],
+};
+
 /** Helper: resolve a localized string against a runtime locale. */
-export function resolveI18n(s: I18nString | string | undefined, locale: LocaleCode): string {
+export function resolveI18n(
+  s: I18nString | string | undefined,
+  locale: LocaleCode,
+): string {
   if (typeof s === "string") return s;
   if (!s) return "";
-  return s[locale] ?? s.en ?? Object.values(s).find((v) => !!v) ?? "";
+  // Walk the locale's fallback chain, skipping empty/whitespace values so a
+  // blank `{ en: "" }` falls through to a populated locale instead of rendering
+  // nothing.
+  for (const loc of LOCALE_FALLBACKS[locale]) {
+    const v = s[loc];
+    if (v && v.trim()) return v;
+  }
+  // Last resort: any non-empty value (covers a locale outside the chain).
+  const any = Object.values(s).find((v) => typeof v === "string" && v.trim());
+  return any ?? "";
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -367,6 +388,21 @@ export interface StoreCommerceConfig {
   cart_recovery?: CartRecoveryConfig;
   /** "Frequently bought together" bundles (AOV upsell). */
   bundles?: Bundle[];
+  /** Points-based loyalty program (opt-in per tenant). */
+  loyalty?: LoyaltyConfig;
+}
+
+export interface LoyaltyConfig {
+  /** Off by default — merchant must opt in. */
+  enabled?: boolean;
+  /** Points earned per 1 IQD spent (e.g. 0.001 = 1 point per 1,000 IQD). */
+  earn_per_iqd?: number;
+  /** IQD value of one point on redemption (e.g. 1 = 1 point → 1 IQD off). */
+  redeem_value_iqd?: number;
+  /** Minimum points balance required before any redemption. */
+  min_redeem_points?: number;
+  /** Cap redemption to this % of the order subtotal (0–100). */
+  max_redeem_pct?: number;
 }
 
 export interface Bundle {

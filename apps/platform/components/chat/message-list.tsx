@@ -2,7 +2,8 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isToday, isYesterday } from "date-fns";
-import { ArrowDown, MessageSquareDashed, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowUp, MessageSquareDashed, Sparkles } from "lucide-react";
+import { useReducedMotion } from "framer-motion";
 import { MessageItem } from "./message-item";
 import { ChatEmptyState } from "./chat-empty-state";
 import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
@@ -25,15 +26,25 @@ export function MessageList({
     messages,
     loading,
     firstUnreadId,
+    focusMessageId,
+    onFocused,
+    onForward,
 }: {
     messages: ChatMessage[];
     loading?: boolean;
     firstUnreadId?: string | null;
+    focusMessageId?: string | null;
+    onFocused?: () => void;
+    onForward?: (msg: ChatMessage) => void;
 }) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const nearBottomRef = useRef(true);
+    const unreadDividerRef = useRef<HTMLDivElement>(null);
     const [showJump, setShowJump] = useState(false);
+    const [showUnreadAbove, setShowUnreadAbove] = useState(false);
+    const [highlightedId, setHighlightedId] = useState<string | null>(null);
     const { t, language } = useLanguage();
+    const reduceMotion = useReducedMotion();
 
     const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
         const el = scrollRef.current;
@@ -41,12 +52,27 @@ export function MessageList({
         setShowJump(false);
     }, []);
 
+    const scrollToUnread = useCallback(() => {
+        const divider = unreadDividerRef.current;
+        if (divider) {
+            divider.scrollIntoView({ block: "center", behavior: reduceMotion ? "auto" : "smooth" });
+        }
+    }, [reduceMotion]);
+
     const onScroll = useCallback(() => {
         const el = scrollRef.current;
         if (!el) return;
         const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
         nearBottomRef.current = distance < 120;
         if (nearBottomRef.current) setShowJump(false);
+        // Detect whether the unread divider is scrolled above the visible area.
+        const divider = unreadDividerRef.current;
+        if (divider) {
+            const containerTop = el.getBoundingClientRect().top;
+            const dividerTop = divider.getBoundingClientRect().top;
+            // Divider is above viewport when its top is less than the scroll container top.
+            setShowUnreadAbove(dividerTop < containerTop);
+        }
     }, []);
 
     // Authoritative sender identity: tenant_members covers offline users too,
@@ -61,6 +87,13 @@ export function MessageList({
         return map;
     }, [members]);
 
+    // id → message map for resolving reply-to parents without an extra fetch.
+    const messageMap = useMemo(() => {
+        const map = new Map<string, ChatMessage>();
+        for (const m of messages) map.set(m.id, m);
+        return map;
+    }, [messages]);
+
     // Auto-scroll only when the user is already near the bottom; otherwise surface a
     // "new messages" pill instead of yanking them away from history they're reading.
     const lastId = messages[messages.length - 1]?.id;
@@ -70,12 +103,36 @@ export function MessageList({
         else setShowJump(true);
     }, [lastId, messages.length, scrollToBottom]);
 
+    // Scroll-to-focused-message: when the parent sets focusMessageId (e.g. from a
+    // search result click), find the message element, scroll it into view, flash a
+    // highlight ring, then call onFocused so the store can clear the id.
+    useEffect(() => {
+        if (!focusMessageId) return;
+        const el = scrollRef.current?.querySelector<HTMLElement>(`[data-msg-id="${focusMessageId}"]`);
+        if (!el) {
+            // Message not in the loaded window — acknowledge and no-op scroll.
+            console.log("[chat] focusMessageId not in view:", focusMessageId);
+            onFocused?.();
+            return;
+        }
+        el.scrollIntoView({ block: "center", behavior: reduceMotion ? "auto" : "smooth" });
+        setHighlightedId(focusMessageId);
+        const id = setTimeout(() => {
+            setHighlightedId(null);
+            onFocused?.();
+        }, 1200);
+        return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: only re-run when focusMessageId changes, not onFocused
+    }, [focusMessageId]);
+
     // Announcement for the polite live region. Memoized so frequent UI re-renders
     // (scroll, jump-pill toggle) don't recompute it; an unchanged string is also a
     // no-op DOM write, so screen readers only re-read when the latest message changes.
     const liveAnnouncement = useMemo(() => {
         const last = messages[messages.length - 1];
         if (!last || last.deleted_at) return "";
+        // System rows (null sender_id) skip the announcement
+        if (!last.sender_id) return "";
         const who = memberMap.get(last.sender_id)?.display_name ?? "Teammate";
         return `${who}: ${last.body}`;
     }, [messages, memberMap]);
@@ -113,11 +170,23 @@ export function MessageList({
             <div aria-live="polite" className="sr-only">
                 {liveAnnouncement}
             </div>
+        {/* Jump-to-unread pill: shown at top when the unread divider is scrolled above viewport.
+             Not shown simultaneously with the bottom jump-to-latest pill (that one is "below"). */}
+        {showUnreadAbove && firstUnreadId && (
+            <button
+                type="button"
+                onClick={scrollToUnread}
+                className="absolute top-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-(--pastel-pink) px-3 py-1.5 text-xs font-semibold text-(--ink) shadow-lg transition-transform hover:scale-105 active:scale-95"
+            >
+                <ArrowUp className="h-3.5 w-3.5" />
+                {t("chat.jumpToUnread", "New messages above")}
+            </button>
+        )}
         {showJump && (
             <button
                 type="button"
                 onClick={() => scrollToBottom("smooth")}
-                className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-[var(--ink)] px-3 py-1.5 text-xs font-semibold text-[var(--background)] shadow-lg transition-transform hover:scale-105 active:scale-95"
+                className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-(--ink) px-3 py-1.5 text-xs font-semibold text-background shadow-lg transition-transform hover:scale-105 active:scale-95"
             >
                 <ArrowDown className="h-3.5 w-3.5" />
                 {t("chat.jumpToLatest", "New messages")}
@@ -125,35 +194,54 @@ export function MessageList({
         )}
         <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto overscroll-contain py-2">
             {messages.map((m, i) => {
-                const u = memberMap.get(m.sender_id);
+                const u = m.sender_id ? memberMap.get(m.sender_id) : undefined;
                 const thisDay = new Date(m.created_at).toDateString();
                 const prev = i > 0 ? messages[i - 1] : null;
                 const showSeparator = !prev || new Date(prev.created_at).toDateString() !== thisDay;
+                const isHighlighted = highlightedId === m.id;
                 return (
-                    <div key={m.client_msg_id ?? m.id}>
-                        {showSeparator && (
-                            <div className="sticky top-0 z-[1] flex items-center gap-3 px-4 py-2">
-                                <span className="h-px flex-1 bg-[var(--card-border)]" />
-                                <span className="rounded-full bg-[var(--card-bg)] px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground shadow-sm ring-1 ring-[var(--card-border)]">
-                                    {dayLabel(m.created_at, language)}
-                                </span>
-                                <span className="h-px flex-1 bg-[var(--card-border)]" />
-                            </div>
-                        )}
+                    <div
+                        key={m.client_msg_id ?? m.id}
+                        data-msg-id={m.id}
+                        className={isHighlighted ? "rounded-lg ring-2 ring-(--pastel-yellow) ring-offset-1 transition-shadow duration-300" : undefined}
+                    >
+                        {showSeparator && (() => {
+                            const label = dayLabel(m.created_at, language);
+                            return (
+                                <div className="sticky top-0 z-1 flex items-center gap-3 px-4 py-2">
+                                    <span className="h-px flex-1 bg-(--card-border)" />
+                                    <button
+                                        type="button"
+                                        aria-label={t("chat.jumpToDay", "Jump to {day}", { day: label })}
+                                        onClick={() => {
+                                            // Scroll the message immediately following this separator to the top.
+                                            const el = scrollRef.current?.querySelector<HTMLElement>(`[data-msg-id="${m.id}"]`);
+                                            el?.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" });
+                                        }}
+                                        className="rounded-full bg-(--card-bg) px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground shadow-sm ring-1 ring-(--card-border) transition-colors hover:bg-(--card-border) hover:text-foreground"
+                                    >
+                                        {label}
+                                    </button>
+                                    <span className="h-px flex-1 bg-(--card-border)" />
+                                </div>
+                            );
+                        })()}
                         {firstUnreadId === m.id && (
-                            <div className="flex items-center gap-2 px-4 py-1.5">
-                                <span className="h-px flex-1 bg-[var(--pastel-pink)]" />
-                                <span className="inline-flex items-center gap-1 rounded-full bg-[var(--pastel-pink)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--ink)]">
+                            <div ref={unreadDividerRef} className="flex items-center gap-2 px-4 py-1.5">
+                                <span className="h-px flex-1 bg-(--pastel-pink)" />
+                                <span className="inline-flex items-center gap-1 rounded-full bg-(--pastel-pink) px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-(--ink)">
                                     <Sparkles className="h-3 w-3" />
                                     {t("chat.newMessages", "New messages")}
                                 </span>
-                                <span className="h-px flex-1 bg-[var(--pastel-pink)]" />
+                                <span className="h-px flex-1 bg-(--pastel-pink)" />
                             </div>
                         )}
                         <MessageItem
                             message={m}
                             senderName={u?.display_name ?? "Teammate"}
                             senderAvatar={u?.avatar_url}
+                            parentMessage={m.reply_to_id ? messageMap.get(m.reply_to_id) : undefined}
+                            onForward={onForward}
                         />
                     </div>
                 );

@@ -32,6 +32,28 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
     );
 }
 
+/**
+ * Map a non-empty array of objects by a stable string `id`, or null when the
+ * array can't be safely keyed (empty, a non-object element, a missing/blank id,
+ * or duplicate ids). Used to diff section/page lists by identity instead of by
+ * index — so reordering one section doesn't report every later section as
+ * "changed".
+ */
+function keyById(
+    arr: unknown[],
+): Map<string, Record<string, unknown>> | null {
+    if (arr.length === 0) return null;
+    const map = new Map<string, Record<string, unknown>>();
+    for (const el of arr) {
+        if (!isPlainObject(el) || typeof el.id !== "string" || !el.id) {
+            return null;
+        }
+        if (map.has(el.id)) return null;
+        map.set(el.id, el);
+    }
+    return map;
+}
+
 export function diffJson(
     before: unknown,
     after: unknown,
@@ -50,6 +72,47 @@ export function diffJson(
 
     // Arrays.
     if (Array.isArray(before) && Array.isArray(after)) {
+        const beforeById = keyById(before);
+        const afterById = keyById(after);
+
+        // Both sides are id-keyed object lists (sections, pages, …) → align by
+        // identity so a reorder doesn't masquerade as N content changes.
+        if (beforeById && afterById) {
+            const out: DiffEntry[] = [];
+            const handled = new Set<string>();
+            // Content diffs, in after-order (added ids surface as "added").
+            for (const item of after as Record<string, unknown>[]) {
+                const id = item.id as string;
+                handled.add(id);
+                out.push(...diffJson(beforeById.get(id), item, [...path, id]));
+            }
+            // Ids removed entirely.
+            for (const item of before as Record<string, unknown>[]) {
+                const id = item.id as string;
+                if (!handled.has(id)) {
+                    out.push(...diffJson(item, undefined, [...path, id]));
+                }
+            }
+            // Reorder of the surviving (common) ids → a single "changed" at the
+            // array path, instead of one per moved element.
+            const orderBefore = (before as Record<string, unknown>[])
+                .map((o) => o.id as string)
+                .filter((id) => afterById.has(id));
+            const orderAfter = (after as Record<string, unknown>[])
+                .map((o) => o.id as string)
+                .filter((id) => beforeById.has(id));
+            if (orderBefore.some((id, i) => id !== orderAfter[i])) {
+                out.push({
+                    path,
+                    kind: "changed",
+                    before: orderBefore,
+                    after: orderAfter,
+                });
+            }
+            return out;
+        }
+
+        // Fallback: align by index (mixed/primitive arrays, dup/blank ids).
         const out: DiffEntry[] = [];
         const len = Math.max(before.length, after.length);
         for (let i = 0; i < len; i++) {

@@ -103,6 +103,9 @@ export function useMessages(conversationId: string | null) {
                 qc.setQueryData<ChatMessage[]>(chatKeys.messages(conversationId!), (old = []) =>
                     old.map((m) => (m.id === messageId ? { ...m, reactions: (data ?? m.reactions) as ChatMessage["reactions"] } : m)));
             })
+            .on("broadcast", { event: "conversation:update" }, () => {
+                qc.invalidateQueries({ queryKey: chatKeys.conversations() });
+            })
             .subscribe((status, err) => {
                 if (status === "SUBSCRIBED") {
                     // On a re-subscribe (after a drop) catch up on anything missed.
@@ -146,8 +149,18 @@ export function useMessages(conversationId: string | null) {
             qc.setQueryData<ChatMessage[]>(chatKeys.messages(conversationId), (old = []) => [...old, optimistic]);
             return { previous };
         },
-        onError: (_e, _v, ctx) => {
-            if (conversationId && ctx?.previous) qc.setQueryData(chatKeys.messages(conversationId), ctx.previous);
+        onError: (_e, vars, _ctx) => {
+            // Keep the optimistic row visible but mark it failed so the UI can
+            // offer a "Retry / Delete" affordance. The row is keyed by client_msg_id
+            // so retrySend can find it and re-run the mutation (the RPC is idempotent).
+            if (!conversationId) return;
+            qc.setQueryData<ChatMessage[]>(chatKeys.messages(conversationId), (old = []) =>
+                old.map((m) =>
+                    m.client_msg_id === vars.clientMsgId
+                        ? { ...m, pending: false, failed: true }
+                        : m
+                )
+            );
         },
         onSuccess: (saved, vars) => {
             if (!conversationId) return;
@@ -183,5 +196,31 @@ export function useMessages(conversationId: string | null) {
         if (conversationId) await supabase.rpc("chat_mark_read", { p_conversation_id: conversationId });
     };
 
-    return { ...query, sendMessage, markRead };
+    /**
+     * Re-attempt sending a previously failed optimistic message.
+     * Looks up the failed row by clientMsgId, clears its `failed` flag (marks
+     * it pending again), then re-invokes the mutation reusing the same
+     * clientMsgId — the `chat_send_message` RPC is idempotent on that key.
+     */
+    const retrySend = (clientMsgId: string) => {
+        if (!conversationId) return;
+        const messages = qc.getQueryData<ChatMessage[]>(chatKeys.messages(conversationId)) ?? [];
+        const failed = messages.find((m) => m.client_msg_id === clientMsgId && m.failed);
+        if (!failed) return;
+        // Reset flag so the UI shows it as pending while the retry is in flight
+        qc.setQueryData<ChatMessage[]>(chatKeys.messages(conversationId), (old = []) =>
+            old.map((m) =>
+                m.client_msg_id === clientMsgId ? { ...m, pending: true, failed: false } : m
+            )
+        );
+        sendMessage.mutate({
+            body: failed.body,
+            references: failed.references,
+            attachments: failed.attachments,
+            replyToId: failed.reply_to_id,
+            clientMsgId,
+        });
+    };
+
+    return { ...query, sendMessage, markRead, retrySend };
 }

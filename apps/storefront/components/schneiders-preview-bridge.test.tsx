@@ -310,4 +310,185 @@ describe("SchneidersPreviewBridge", () => {
 
     expect(evt.defaultPrevented).toBe(true);
   });
+
+  /* ───── Selection sync + inline edit (BUG1 affordance parity) ───── */
+
+  function selectSection(id: string | null): void {
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        origin: "http://localhost:3000",
+        data: {
+          source: "schn-editor",
+          type: "set_selected_section",
+          section_id: id,
+        },
+      }),
+    );
+  }
+
+  function makeField(section: HTMLElement, field: string, text: string): HTMLElement {
+    const el = document.createElement("h2");
+    el.setAttribute("data-i18n-field", field);
+    el.textContent = text;
+    section.appendChild(el);
+    return el;
+  }
+
+  it("toggles data-selected-section on set_selected_section", () => {
+    mountBridge();
+    const section = makeSection("sel-1");
+    selectSection("sel-1");
+    expect(section.getAttribute("data-selected-section")).toBe("true");
+    selectSection(null);
+    expect(section.hasAttribute("data-selected-section")).toBe(false);
+  });
+
+  it("single-click on editable text inside the SELECTED section enters inline edit", () => {
+    mountBridge();
+    const section = makeSection("edit-sec");
+    const field = makeField(section, "headline.title", "Old");
+    selectSection("edit-sec");
+    parentPostMessage.mockClear();
+
+    field.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+
+    expect(field.getAttribute("contenteditable")).toBe("true");
+    const begin = parentPostMessage.mock.calls.find(
+      ([m]) => m?.type === "inline_edit_begin",
+    );
+    expect(begin?.[0]).toMatchObject({
+      source: "schn-preview",
+      type: "inline_edit_begin",
+      section_id: "edit-sec",
+    });
+    // It must NOT also post a section_clicked navigation.
+    const clicked = parentPostMessage.mock.calls.find(
+      ([m]) => m?.type === "section_clicked",
+    );
+    expect(clicked).toBeUndefined();
+  });
+
+  it("does NOT enter inline edit when the field's section is not selected", () => {
+    mountBridge();
+    const section = makeSection("other-sec");
+    const field = makeField(section, "headline.title", "Old");
+    // No selection set → click falls through to section_clicked.
+    parentPostMessage.mockClear();
+
+    field.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+
+    expect(field.hasAttribute("contenteditable")).toBe(false);
+    const clicked = parentPostMessage.mock.calls.find(
+      ([m]) => m?.type === "section_clicked",
+    );
+    expect(clicked?.[0]).toMatchObject({ section_id: "other-sec" });
+  });
+
+  it("commits the edited value and ends on Enter", () => {
+    mountBridge();
+    const section = makeSection("commit-sec");
+    const field = makeField(section, "headline.title", "Old");
+    selectSection("commit-sec");
+    field.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+    parentPostMessage.mockClear();
+
+    field.textContent = "New Heading";
+    field.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
+
+    const commit = parentPostMessage.mock.calls.find(
+      ([m]) => m?.type === "inline_edit_commit",
+    );
+    expect(commit?.[0]).toMatchObject({
+      section_id: "commit-sec",
+      field_path: "headline.title",
+      value: "New Heading",
+    });
+    const end = parentPostMessage.mock.calls.find(
+      ([m]) => m?.type === "inline_edit_end",
+    );
+    expect(end?.[0]).toMatchObject({ reverted: false });
+    expect(field.hasAttribute("contenteditable")).toBe(false);
+  });
+
+  it("reverts the value and ends (no commit) on Escape", () => {
+    mountBridge();
+    const section = makeSection("revert-sec");
+    const field = makeField(section, "headline.title", "Original");
+    selectSection("revert-sec");
+    field.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+    parentPostMessage.mockClear();
+
+    field.textContent = "scratch edit";
+    field.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+
+    expect(field.textContent).toBe("Original");
+    const commit = parentPostMessage.mock.calls.find(
+      ([m]) => m?.type === "inline_edit_commit",
+    );
+    expect(commit).toBeUndefined();
+    const end = parentPostMessage.mock.calls.find(
+      ([m]) => m?.type === "inline_edit_end",
+    );
+    expect(end?.[0]).toMatchObject({ reverted: true });
+  });
+
+  it("responds to request_all_rects with every section rect", () => {
+    mountBridge();
+    makeSection("rects-a");
+    makeSection("rects-b");
+    parentPostMessage.mockClear();
+
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        origin: "http://localhost:3000",
+        data: { source: "schn-editor", type: "request_all_rects" },
+      }),
+    );
+
+    const all = parentPostMessage.mock.calls.find(
+      ([m]) => m?.type === "all_rects",
+    );
+    expect(all?.[0].rects).toHaveLength(2);
+    expect(all?.[0].rects.map((r: { section_id: string }) => r.section_id)).toEqual(
+      ["rects-a", "rects-b"],
+    );
+  });
+
+  it("posts section_context_menu on right-click", () => {
+    mountBridge();
+    const section = makeSection("ctx-sec");
+    parentPostMessage.mockClear();
+
+    section.dispatchEvent(
+      new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        clientX: 120,
+        clientY: 240,
+      }),
+    );
+
+    const ctx = parentPostMessage.mock.calls.find(
+      ([m]) => m?.type === "section_context_menu",
+    );
+    expect(ctx?.[0]).toMatchObject({
+      source: "schn-preview",
+      type: "section_context_menu",
+      section_id: "ctx-sec",
+      x: 120,
+      y: 240,
+    });
+  });
 });

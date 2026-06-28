@@ -4,6 +4,7 @@ import {
   createSupabaseServerClient,
   createSupabasePublicClient,
 } from "./supabase/server";
+import { redactServerOnlyConfig } from "@scheniders/shared";
 import type { Tables } from "@scheniders/supabase";
 import type { Tenant } from "./types";
 
@@ -54,7 +55,7 @@ async function selectTenant(
 
   // Try with v2 columns first.
   const v2 = await apply(primaryCols);
-  if (!v2.error) return (v2.data as Tenant | null) ?? null;
+  if (!v2.error) return redactTenant((v2.data as Tenant | null) ?? null);
 
   // Fallback: legacy schema (v2 columns not yet migrated).
   // Postgres error 42703 = "column does not exist".
@@ -68,7 +69,31 @@ async function selectTenant(
     console.error("[tenant] legacy resolution error:", legacy.error);
     return null;
   }
-  return (legacy.data as Tenant | null) ?? null;
+  return redactTenant((legacy.data as Tenant | null) ?? null);
+}
+
+/**
+ * Strip server-only secrets (CAPI tokens) from the resolved tenant's config
+ * BEFORE it reaches any client component. The storefront serializes the full
+ * config into the section tree, so this is the single chokepoint that keeps
+ * tokens out of the browser. The checkout server action fetches the tenant
+ * separately (its own query) and therefore still sees the tokens for CAPI.
+ */
+function redactTenant(tenant: Tenant | null): Tenant | null {
+  if (!tenant) return null;
+  const t = tenant as Tenant & {
+    store_config_v2?: unknown;
+    store_config_v2_draft?: unknown;
+  };
+  return {
+    ...t,
+    store_config_v2: redactServerOnlyConfig(
+      t.store_config_v2 as Parameters<typeof redactServerOnlyConfig>[0],
+    ),
+    store_config_v2_draft: redactServerOnlyConfig(
+      t.store_config_v2_draft as Parameters<typeof redactServerOnlyConfig>[0],
+    ),
+  } as Tenant;
 }
 
 /**

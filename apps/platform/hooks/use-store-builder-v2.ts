@@ -10,10 +10,12 @@ import type {
     ScheduledChange,
     AudienceSegment,
     Experiment,
+    CustomPage,
 } from "@scheniders/shared";
 import {
     pruneVariantsForDeletedSegment,
     pruneVariantsForDeletedExperiment,
+    findCustomPageById,
 } from "@scheniders/shared";
 import { supabase } from "@/lib/supabase";
 import {
@@ -80,6 +82,8 @@ export interface UseStoreBuilderV2Options {
      * device), so the backup is stale and must not resurrect over newer work.
      */
     initialUpdatedAt?: number | null;
+    /** BUG25: published rev counter at hydration; publish rejects a stale base. */
+    initialRev?: number;
 }
 
 export interface UseStoreBuilderV2Return {
@@ -98,6 +102,16 @@ export interface UseStoreBuilderV2Return {
     /** Editor UI state. */
     active_page: PageId;
     set_active_page: (p: PageId) => void;
+    /**
+     * Custom page currently being authored (id), or null when the canvas is
+     * editing the system `active_page`. Setting a system page via
+     * `set_active_page` clears this; the two are mutually exclusive edit
+     * targets (E4).
+     */
+    active_custom_page_id: string | null;
+    set_active_custom_page_id: (id: string | null) => void;
+    /** Resolved custom page for `active_custom_page_id` (null if none/dangling). */
+    active_custom_page: CustomPage | null;
     active_breakpoint: Breakpoint;
     set_active_breakpoint: (b: Breakpoint) => void;
     active_locale: LocaleCode;
@@ -107,6 +121,10 @@ export interface UseStoreBuilderV2Return {
     save_state: SaveStateV2;
     last_saved_at: Date | null;
     has_unpublished_changes: boolean;
+
+    /** BUG25: true when the last publish was rejected because another editor
+     *  published since this session loaded — the UI should prompt a reload. */
+    publish_conflict: boolean;
 
     /** Actions. */
     save_draft: () => Promise<void>;
@@ -244,13 +262,43 @@ export function useStoreBuilderV2(
         hasPublished,
         initiallyDirty = false,
         initialUpdatedAt = null,
+        initialRev = 0,
     } = options;
 
     /* ── Draft config ─────────────────────────────────────────────── */
     const [config, setConfigState] = useState<StoreConfigV2>(initialConfig);
 
+    /* ── BUG25: published-rev optimistic lock ─────────────────────── */
+    // The published "generation" we're based on. Advances by 1 on each of our
+    // own successful publishes; a mismatch at publish time means another editor
+    // got there first → conflict (reject, prompt reload).
+    const expectedRevRef = useRef<number>(initialRev);
+    const [publish_conflict, set_publish_conflict] = useState<boolean>(false);
+
     /* ── Editor UI state ──────────────────────────────────────────── */
-    const [active_page, set_active_page] = useState<PageId>("home");
+    const [active_page, _set_active_page] = useState<PageId>("home");
+    const [active_custom_page_id, _set_active_custom_page_id] = useState<
+        string | null
+    >(null);
+    // Selecting a system page exits custom-page authoring (mutually exclusive).
+    const set_active_page = useCallback((p: PageId): void => {
+        _set_active_page(p);
+        _set_active_custom_page_id(null);
+    }, []);
+    const set_active_custom_page_id = useCallback((id: string | null): void => {
+        _set_active_custom_page_id(id);
+    }, []);
+    // Resolved custom page (null when not authoring one, or the id is dangling
+    // because the page was deleted while selected — the canvas falls back to
+    // the system `active_page` in that case).
+    const active_custom_page = useMemo<CustomPage | null>(
+        () =>
+            active_custom_page_id
+                ? (findCustomPageById(config.custom_pages, active_custom_page_id) ??
+                  null)
+                : null,
+        [config.custom_pages, active_custom_page_id],
+    );
     const [active_breakpoint, set_active_breakpoint] = useState<Breakpoint>("desktop");
     const [active_locale, set_active_locale] = useState<LocaleCode>(
         initialConfig.default_locale ?? "en",
@@ -544,9 +592,26 @@ export function useStoreBuilderV2(
                 p_tenant_id: tenantId,
                 p_config: config,
                 p_diff_summary: publishDiff,
+                p_expected_rev: expectedRevRef.current,
             });
-            if (error) throw error;
+            if (error) {
+                // BUG25: another editor published since we loaded — reject rather
+                // than clobber their work, and tell the UI to prompt a reload.
+                if (
+                    error.code === "40001" ||
+                    /config_conflict/i.test(error.message ?? "")
+                ) {
+                    set_publish_conflict(true);
+                    set_save_state("error");
+                    return;
+                }
+                throw error;
+            }
 
+            // Our publish landed; the server bumped rev by 1 — track it so a
+            // second publish this session compares against the right base.
+            expectedRevRef.current += 1;
+            set_publish_conflict(false);
             pendingDraftWriteRef.current = false;
             draftSeededRef.current = true; // EC9: published config is a full skeleton.
             set_save_state("saved");
@@ -1332,6 +1397,9 @@ export function useStoreBuilderV2(
 
         active_page,
         set_active_page,
+        active_custom_page_id,
+        set_active_custom_page_id,
+        active_custom_page,
         active_breakpoint,
         set_active_breakpoint,
         active_locale,
@@ -1341,6 +1409,7 @@ export function useStoreBuilderV2(
         last_saved_at,
         has_unpublished_changes,
 
+        publish_conflict,
         save_draft,
         publish,
         revert_to_published,

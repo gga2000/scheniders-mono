@@ -18,7 +18,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
-import { resolveI18n } from "@scheniders/shared";
+import {
+  resolveI18n,
+  pixelContentFromProduct,
+  pixelContentsFromItems,
+} from "@scheniders/shared";
+import { trackPixel } from "./helpers/pixels";
 import {
   BentoCard,
   ChunkyButton,
@@ -91,6 +96,17 @@ function PdpBuyBoxRender({
   const locale = ctx.runtime.locale;
   const t = locale !== "en";
   const addItem = useCart((s) => s.addItem);
+
+  // Pixel ViewContent on product view (no-op when no pixel is initialised).
+  const viewedId = product?.id;
+  const viewedPrice = product?.price;
+  useEffect(() => {
+    if (!viewedId || typeof viewedPrice !== "number") return;
+    trackPixel(
+      "ViewContent",
+      pixelContentFromProduct({ id: viewedId, price: viewedPrice }),
+    );
+  }, [viewedId, viewedPrice]);
 
   const variants = useMemo(
     () =>
@@ -188,6 +204,12 @@ function PdpBuyBoxRender({
       quantity: qty,
       image_url: product.image_url ?? null,
     });
+    trackPixel(
+      "AddToCart",
+      pixelContentsFromItems([
+        { product_id: product.id, price: unitPrice, quantity: qty },
+      ]),
+    );
   }
 
   const VariantPill = ({

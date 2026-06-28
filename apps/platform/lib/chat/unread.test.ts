@@ -31,4 +31,12 @@ describe("firstUnreadMessageId", () => {
         // lastReadAt === c's timestamp → c is read; next unread from others is d
         expect(firstUnreadMessageId(msgs, "2026-06-21T10:10:00Z", me)).toBe("d");
     });
+    it("skips system rows (null sender_id) when finding the boundary", () => {
+        const withSystem = [
+            { id: "sys", created_at: "2026-06-21T10:12:00Z", sender_id: null },
+            { id: "x", created_at: "2026-06-21T10:13:00Z", sender_id: "other" },
+        ];
+        // system row is skipped → boundary is the next real message from others
+        expect(firstUnreadMessageId(withSystem, "2026-06-21T10:11:00Z", me)).toBe("x");
+    });
 });

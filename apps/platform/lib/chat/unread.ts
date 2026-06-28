@@ -7,7 +7,7 @@
 interface UnreadMsg {
     id: string;
     created_at: string;
-    sender_id: string;
+    sender_id: string | null;
 }
 
 export function firstUnreadMessageId(
@@ -17,6 +17,8 @@ export function firstUnreadMessageId(
 ): string | null {
     if (!lastReadAt) return null;
     for (const m of messages) {
+        // Skip system rows (null sender_id) — they never count as unread
+        if (!m.sender_id) continue;
         if (m.sender_id === myUserId) continue;
         if (m.created_at > lastReadAt) return m.id;
     }

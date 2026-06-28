@@ -12,13 +12,14 @@
 // only the toolbar opts back into `pointer-events-auto`.
 // =====================================================================
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import {
     ArrowDown,
     ArrowUp,
     Copy,
     Pencil,
+    Plus,
     Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,10 @@ import type {
     PreviewRect,
     UseIframeBridgeReturn,
 } from "@/hooks/use-iframe-bridge";
+import {
+    LivePreviewContextMenu,
+    type LivePreviewContextMenuAction,
+} from "./live-preview-context-menu";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Public API                                                           */
@@ -38,6 +43,13 @@ export interface PreviewOverlayAction {
     section_id: string;
 }
 
+/** Open right-click menu state, in iframe-local viewport coords. */
+export interface PreviewOverlayContextMenu {
+    section_id: string;
+    x: number;
+    y: number;
+}
+
 export interface PreviewOverlayProps {
     bridge: UseIframeBridgeReturn;
     selected_section_id: string | null;
@@ -47,7 +59,26 @@ export interface PreviewOverlayProps {
     onAction: (action: PreviewOverlayAction) => void;
     /** Bounds of the iframe in the editor viewport — aligns overlay coords. */
     iframeBounds: DOMRect | null;
+    /** Open context menu (null when closed). Coords are iframe-local. */
+    contextMenu?: PreviewOverlayContextMenu | null;
+    onContextMenuClose?: () => void;
+    onContextMenuAction?: (action: LivePreviewContextMenuAction) => void;
+    /**
+     * Click a Notion-style `+` between sections. `insertAt` is the index the
+     * new section should land at (0 = before the first, length = after last).
+     * Derived from `bridge.state.all_rects`.
+     */
+    onAddAt?: (insertAt: number) => void;
+    /** Current bottom spacing (px) of the selected section — seeds the drag. */
+    selectedSpacingBottomPx?: number;
+    /** Live drag feedback — editor posts a transient config to the iframe. */
+    onSpacingPreview?: (section_id: string, bottom_px: number) => void;
+    /** Drag committed — editor writes the spacing into the config (undoable). */
+    onSpacingChange?: (section_id: string, bottom_px: number) => void;
 }
+
+const SPACING_SNAP_PX = 4;
+const SPACING_MAX_PX = 200;
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Helpers                                                              */
@@ -68,6 +99,13 @@ export function PreviewOverlay(props: PreviewOverlayProps): ReactElement | null 
         onDeleteRequest,
         onAction,
         iframeBounds,
+        contextMenu,
+        onContextMenuClose,
+        onContextMenuAction,
+        onAddAt,
+        selectedSpacingBottomPx,
+        onSpacingPreview,
+        onSpacingChange,
     } = props;
 
     const { state, requestRect } = bridge;
@@ -107,6 +145,29 @@ export function PreviewOverlay(props: PreviewOverlayProps): ReactElement | null 
         ? (state.rect_updates[selected_section_id] ?? null)
         : null;
 
+    // Insert-`+` gap slots derived from every section's rect (document order):
+    // one above each section, plus one below the last. Coords are iframe-local,
+    // which map directly to this container (positioned at the iframe bounds).
+    const insert_gaps = useMemo<{ top: number; left: number; width: number; insertAt: number }[]>(() => {
+        if (!onAddAt) return [];
+        const rects = state.all_rects;
+        if (rects.length === 0) return [];
+        const gaps = rects.map((r, i) => ({
+            top: r.rect.top,
+            left: r.rect.left,
+            width: r.rect.width,
+            insertAt: i,
+        }));
+        const last = rects[rects.length - 1].rect;
+        gaps.push({
+            top: last.top + last.height,
+            left: last.left,
+            width: last.width,
+            insertAt: rects.length,
+        });
+        return gaps;
+    }, [state.all_rects, onAddAt]);
+
     const handleEdit = useCallback(() => {
         if (selected_section_id) onEditRequest(selected_section_id);
     }, [onEditRequest, selected_section_id]);
@@ -124,6 +185,64 @@ export function PreviewOverlay(props: PreviewOverlayProps): ReactElement | null 
         [onAction, selected_section_id],
     );
 
+    /* ── Spacing-drag handle ──────────────────────────────────────── */
+    // The handle sits at the selected section's bottom edge. Dragging it
+    // streams a transient config to the iframe (live reflow) and commits on
+    // release. `current` extends the handle visually while we wait for the
+    // re-measured rect to catch up.
+    const [spacingDrag, setSpacingDrag] = useState<{
+        section_id: string;
+        startY: number;
+        startBottom: number;
+        current: number;
+    } | null>(null);
+    // Mirror of `current` so the mouseup handler reads the latest value
+    // without re-installing the listeners on every mousemove.
+    const spacingValueRef = useRef<number>(0);
+
+    const beginSpacingDrag = useCallback(
+        (e: React.MouseEvent): void => {
+            if (!selected_section_id) return;
+            e.preventDefault();
+            const start = selectedSpacingBottomPx ?? 0;
+            spacingValueRef.current = start;
+            setSpacingDrag({
+                section_id: selected_section_id,
+                startY: e.clientY,
+                startBottom: start,
+                current: start,
+            });
+        },
+        [selected_section_id, selectedSpacingBottomPx],
+    );
+
+    useEffect(() => {
+        if (!spacingDrag) return;
+        const { section_id, startY, startBottom } = spacingDrag;
+        const onMove = (e: MouseEvent): void => {
+            const raw = startBottom + (e.clientY - startY);
+            const snapped = Math.round(raw / SPACING_SNAP_PX) * SPACING_SNAP_PX;
+            const clamped = Math.max(0, Math.min(SPACING_MAX_PX, snapped));
+            spacingValueRef.current = clamped;
+            setSpacingDrag((cur) =>
+                cur && cur.current !== clamped ? { ...cur, current: clamped } : cur,
+            );
+            onSpacingPreview?.(section_id, clamped);
+        };
+        const onUp = (): void => {
+            onSpacingChange?.(section_id, spacingValueRef.current);
+            setSpacingDrag(null);
+        };
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", onUp, { once: true });
+        return () => {
+            window.removeEventListener("mousemove", onMove);
+            window.removeEventListener("mouseup", onUp);
+        };
+        // Re-install only when a new drag starts, not on every value tick.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [spacingDrag?.section_id]);
+
     if (!iframeBounds) return null;
 
     return (
@@ -138,6 +257,20 @@ export function PreviewOverlay(props: PreviewOverlayProps): ReactElement | null 
                 height: iframeBounds.height,
             }}
         >
+            {/* Insert-`+` gaps between sections — hidden while scrolling (rects
+                go stale), inline-editing, or the context menu is open. */}
+            {onAddAt && !scrolling && !state.inline_editing && !contextMenu
+                ? insert_gaps.map((g) => (
+                      <InsertGap
+                          key={g.insertAt}
+                          top={g.top}
+                          left={g.left}
+                          width={g.width}
+                          onClick={() => onAddAt(g.insertAt)}
+                      />
+                  ))
+                : null}
+
             {/* Hover ring (mint, dashed) — hidden during scroll */}
             {hovered_rect && !scrolling ? (
                 <Ring rect={hovered_rect} kind="hover" testId="preview-overlay-hover-ring" />
@@ -161,7 +294,117 @@ export function PreviewOverlay(props: PreviewOverlayProps): ReactElement | null 
                         onUp={() => handleAction("up")}
                         onDown={() => handleAction("down")}
                     />
+                    {onSpacingChange && onSpacingPreview && !state.inline_editing ? (
+                        <SpacingHandle
+                            rect={selected_rect}
+                            dragValue={
+                                spacingDrag &&
+                                spacingDrag.section_id === selected_section_id
+                                    ? spacingDrag.current
+                                    : null
+                            }
+                            dragDelta={
+                                spacingDrag &&
+                                spacingDrag.section_id === selected_section_id
+                                    ? spacingDrag.current - spacingDrag.startBottom
+                                    : 0
+                            }
+                            onMouseDown={beginSpacingDrag}
+                        />
+                    ) : null}
                 </>
+            ) : null}
+
+            {/* Right-click context menu — coords are iframe-local, which maps
+                directly to this container (positioned at the iframe bounds). */}
+            {contextMenu && onContextMenuClose && onContextMenuAction ? (
+                <LivePreviewContextMenu
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    onClose={onContextMenuClose}
+                    onAction={onContextMenuAction}
+                />
+            ) : null}
+        </div>
+    );
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* InsertGap — Notion-style `+` between sections                         */
+/* ─────────────────────────────────────────────────────────────────── */
+
+interface InsertGapProps {
+    top: number;
+    left: number;
+    width: number;
+    onClick: () => void;
+}
+
+/** Slim full-width hit-zone centred on a section boundary; the `+` pill and
+ *  hairline only appear on hover so the canvas stays uncluttered. */
+function InsertGap({ top, left, width, onClick }: InsertGapProps): ReactElement {
+    return (
+        <button
+            type="button"
+            data-testid="preview-overlay-insert-gap"
+            aria-label="Insert section here"
+            onClick={onClick}
+            className="group pointer-events-auto absolute flex -translate-y-1/2 items-center justify-center"
+            style={{ top, left, width, height: 20 }}
+        >
+            <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-pink-500 opacity-0 transition-opacity group-hover:opacity-100" />
+            <span className="relative inline-flex h-5 w-5 items-center justify-center rounded-full bg-pink-500 text-white opacity-0 shadow transition-opacity group-hover:opacity-100">
+                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+            </span>
+        </button>
+    );
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* SpacingHandle — drag the selected section's bottom spacing             */
+/* ─────────────────────────────────────────────────────────────────── */
+
+interface SpacingHandleProps {
+    rect: PreviewRect;
+    /** Current px value while dragging (null when idle). */
+    dragValue: number | null;
+    /** How far the handle has moved from the drag start (px). */
+    dragDelta: number;
+    onMouseDown: (e: React.MouseEvent) => void;
+}
+
+function SpacingHandle({
+    rect,
+    dragValue,
+    dragDelta,
+    onMouseDown,
+}: SpacingHandleProps): ReactElement {
+    const dragging = dragValue !== null;
+    // Sit at the section's bottom edge; while dragging, follow the cursor by
+    // the delta until the re-measured rect catches up.
+    const top = rect.top + rect.height + dragDelta;
+    return (
+        <div
+            data-testid="preview-overlay-spacing-handle"
+            onMouseDown={onMouseDown}
+            className="group pointer-events-auto absolute flex -translate-y-1/2 cursor-ns-resize items-center justify-center"
+            style={{ top, left: rect.left, width: rect.width, height: 16 }}
+        >
+            <span
+                className={cn(
+                    "h-1 w-12 rounded-full transition-colors",
+                    dragging
+                        ? "bg-pink-500"
+                        : "bg-pink-500/50 group-hover:bg-pink-500",
+                )}
+            />
+            {dragging ? (
+                <span
+                    data-testid="preview-overlay-spacing-readout"
+                    className="absolute right-1 rounded bg-pink-500 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow"
+                >
+                    {dragValue}px
+                </span>
             ) : null}
         </div>
     );

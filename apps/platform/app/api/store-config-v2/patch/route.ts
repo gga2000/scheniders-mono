@@ -151,7 +151,9 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
     let valueBytes: number;
     try {
-        valueBytes = JSON.stringify(value ?? null).length;
+        // Byte length, not String.length (UTF-16 code units) — Arabic/Kurdish
+        // text is multi-byte in UTF-8, so .length undercounts the real payload.
+        valueBytes = Buffer.byteLength(JSON.stringify(value ?? null), "utf8");
     } catch {
         return NextResponse.json({ error: "Unserializable value" }, { status: 400 });
     }

@@ -11,7 +11,12 @@
 
 import { useState } from "react";
 import { z } from "zod";
-import { resolveI18n, computeDeliveryFee, computeDiscount } from "@scheniders/shared";
+import {
+  resolveI18n,
+  computeDeliveryFee,
+  computeDiscount,
+  computeBundleDiscounts,
+} from "@scheniders/shared";
 import type { StoreConfigV2 } from "@scheniders/shared";
 import {
   BentoCard,
@@ -73,7 +78,13 @@ function CartSummaryRender({
   // Discount: a client-side PREVIEW of the applied coupon (the server
   // re-validates + records the authoritative amount at checkout).
   const discount = computeDiscount(subtotal, couponCode, commerce?.discounts);
-  const discountAmount = discount?.amount_iqd ?? 0;
+  const couponAmount = discount?.amount_iqd ?? 0;
+  // Bundle savings preview ("frequently bought together"); server re-resolves.
+  const bundleAmount = computeBundleDiscounts(
+    items,
+    commerce?.bundles,
+  ).total_amount_iqd;
+  const discountAmount = couponAmount + bundleAmount;
   const total = subtotal - discountAmount + delivery;
 
   function applyPromo(): void {

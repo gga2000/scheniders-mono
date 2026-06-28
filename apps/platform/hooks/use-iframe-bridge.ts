@@ -20,7 +20,26 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
-import type { PageConfig, RuntimeContext } from "@scheniders/shared";
+import type {
+    PageConfig,
+    PageId,
+    PageMeta,
+    RuntimeContext,
+    SectionInstance,
+} from "@scheniders/shared";
+
+/**
+ * Page config as streamed to the preview iframe. Identical to `PageConfig`
+ * except `page_id` also accepts a custom-page slug (custom pages have a
+ * non-enum identity; the live renderer treats `page_id` as an opaque string,
+ * and page-conditioned variants simply match no custom slug). `PageConfig` is
+ * assignable to this, so system-page pushes are unaffected.
+ */
+export type PreviewPageConfig = {
+    page_id: PageId | (string & {});
+    sections: SectionInstance[];
+    meta?: PageMeta;
+};
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Trusted storefront origin                                            */
@@ -49,6 +68,26 @@ export interface BridgeClickEvent {
     rect: PreviewRect;
 }
 
+/** A committed inline text edit coming from the iframe contenteditable. */
+export interface BridgeInlineEditEvent {
+    section_id: string;
+    field_path: string;
+    value: string;
+}
+
+/** A right-click on a section, in iframe-local viewport coords. */
+export interface BridgeContextMenuEvent {
+    section_id: string;
+    x: number;
+    y: number;
+}
+
+/** A section's bounding rect, as reported by `all_rects` (document order). */
+export interface BridgeSectionRect {
+    section_id: string;
+    rect: PreviewRect;
+}
+
 export interface BridgeState {
     ready: boolean;
     scroll_y: number;
@@ -56,6 +95,17 @@ export interface BridgeState {
     hovered_rect: PreviewRect | null;
     /** Latest rect for the selected section, refreshed via `request_rect`. */
     rect_updates: Record<string, PreviewRect | null>;
+    /**
+     * True between `inline_edit_begin` and `inline_edit_end`. The editor
+     * pauses config-push while this is set so a re-render doesn't reset the
+     * caret in the iframe's contenteditable.
+     */
+    inline_editing: boolean;
+    /**
+     * Every section's rect in document order, refreshed via `request_all_rects`.
+     * Drives the insert-`+` gap buttons and spacing-drag handles.
+     */
+    all_rects: BridgeSectionRect[];
 }
 
 /**
@@ -67,9 +117,19 @@ export type EditorOutboundMessage =
     | { source: "schn-editor"; type: "scroll_to_section"; section_id: string }
     | { source: "schn-editor"; type: "request_rect"; section_id: string }
     | { source: "schn-editor"; type: "ping" }
-    | { source: "schn-editor"; type: "page_config_update"; payload: PageConfig }
+    | {
+          source: "schn-editor";
+          type: "page_config_update";
+          payload: PreviewPageConfig;
+      }
     | { source: "schn-editor"; type: "runtime_update"; payload: RuntimeContext }
-    | { source: "schn-editor"; type: "page_id_change"; next_url: string };
+    | { source: "schn-editor"; type: "page_id_change"; next_url: string }
+    | {
+          source: "schn-editor";
+          type: "set_selected_section";
+          section_id: string | null;
+      }
+    | { source: "schn-editor"; type: "request_all_rects" };
 
 export interface UseIframeBridgeReturn {
     state: BridgeState;
@@ -81,12 +141,24 @@ export interface UseIframeBridgeReturn {
     ping: () => Promise<void>;
     /** Subscribe to clicks coming from the preview. Returns an unsubscribe fn. */
     onSectionClicked: (cb: (e: BridgeClickEvent) => void) => () => void;
+    /** Tell the preview which section is selected (drives inline-edit). */
+    setSelectedSection: (section_id: string | null) => void;
+    /** Subscribe to committed inline text edits. Returns an unsubscribe fn. */
+    onInlineEditCommit: (
+        cb: (e: BridgeInlineEditEvent) => void,
+    ) => () => void;
+    /** Ask the preview for every section's rect (gap + spacing handles). */
+    requestAllRects: () => void;
+    /** Subscribe to section right-clicks. Returns an unsubscribe fn. */
+    onContextMenu: (
+        cb: (e: BridgeContextMenuEvent) => void,
+    ) => () => void;
     /**
      * Fire-and-forget post of a full page config to the iframe. The
      * iframe-side `SchneidersPreviewLiveRenderer` swaps its state in
      * response, causing an in-place re-render with no reload.
      */
-    postPageConfigUpdate: (page: PageConfig) => void;
+    postPageConfigUpdate: (page: PreviewPageConfig) => void;
     /** Fire-and-forget runtime (locale / breakpoint / page_id) update. */
     postRuntimeUpdate: (runtime: RuntimeContext) => void;
     /**
@@ -133,11 +205,21 @@ export function useIframeBridge(
         hovered_section_id: null,
         hovered_rect: null,
         rect_updates: {},
+        inline_editing: false,
+        all_rects: [],
     }));
 
     // Click subscribers — stored in a ref so subscribe/unsubscribe doesn't
     // tear down the message listener.
     const click_subs_ref = useRef<Set<(e: BridgeClickEvent) => void>>(new Set());
+    // Section right-click subscribers.
+    const context_menu_subs_ref = useRef<
+        Set<(e: BridgeContextMenuEvent) => void>
+    >(new Set());
+    // Inline-edit commit subscribers.
+    const inline_edit_subs_ref = useRef<
+        Set<(e: BridgeInlineEditEvent) => void>
+    >(new Set());
     // Pending ping resolvers — resolved on the next `pong` from the iframe.
     const pong_subs_ref = useRef<Set<() => void>>(new Set());
 
@@ -210,8 +292,43 @@ export function useIframeBridge(
         [],
     );
 
+    const setSelectedSection = useCallback(
+        (section_id: string | null): void => {
+            post({
+                source: "schn-editor",
+                type: "set_selected_section",
+                section_id,
+            });
+        },
+        [post],
+    );
+
+    const requestAllRects = useCallback((): void => {
+        post({ source: "schn-editor", type: "request_all_rects" });
+    }, [post]);
+
+    const onContextMenu = useCallback(
+        (cb: (e: BridgeContextMenuEvent) => void): (() => void) => {
+            context_menu_subs_ref.current.add(cb);
+            return () => {
+                context_menu_subs_ref.current.delete(cb);
+            };
+        },
+        [],
+    );
+
+    const onInlineEditCommit = useCallback(
+        (cb: (e: BridgeInlineEditEvent) => void): (() => void) => {
+            inline_edit_subs_ref.current.add(cb);
+            return () => {
+                inline_edit_subs_ref.current.delete(cb);
+            };
+        },
+        [],
+    );
+
     const postPageConfigUpdate = useCallback(
-        (page: PageConfig): void => {
+        (page: PreviewPageConfig): void => {
             post({
                 source: "schn-editor",
                 type: "page_config_update",
@@ -325,6 +442,55 @@ export function useIframeBridge(
                     }));
                     break;
                 }
+                case "inline_edit_begin": {
+                    setState((s) => ({ ...s, inline_editing: true }));
+                    break;
+                }
+                case "inline_edit_commit": {
+                    const d = data as {
+                        section_id: string;
+                        field_path: string;
+                        value: string;
+                    };
+                    const evt: BridgeInlineEditEvent = {
+                        section_id: d.section_id,
+                        field_path: d.field_path,
+                        value: d.value,
+                    };
+                    for (const cb of inline_edit_subs_ref.current) cb(evt);
+                    break;
+                }
+                case "inline_edit_end": {
+                    setState((s) => ({ ...s, inline_editing: false }));
+                    break;
+                }
+                case "all_rects": {
+                    const d = data as {
+                        rects?: { section_id: string; rect: RectLike }[];
+                    };
+                    const rects: BridgeSectionRect[] = (d.rects ?? [])
+                        .map((r) => {
+                            const rect = toPreviewRect(r.rect);
+                            return rect ? { section_id: r.section_id, rect } : null;
+                        })
+                        .filter((r): r is BridgeSectionRect => r !== null);
+                    setState((s) => ({ ...s, all_rects: rects }));
+                    break;
+                }
+                case "section_context_menu": {
+                    const d = data as {
+                        section_id: string;
+                        x: number;
+                        y: number;
+                    };
+                    const evt: BridgeContextMenuEvent = {
+                        section_id: d.section_id,
+                        x: d.x,
+                        y: d.y,
+                    };
+                    for (const cb of context_menu_subs_ref.current) cb(evt);
+                    break;
+                }
                 case "pong": {
                     for (const cb of pong_subs_ref.current) cb();
                     break;
@@ -347,6 +513,10 @@ export function useIframeBridge(
         requestRect,
         ping,
         onSectionClicked,
+        setSelectedSection,
+        onInlineEditCommit,
+        requestAllRects,
+        onContextMenu,
         postPageConfigUpdate,
         postRuntimeUpdate,
         postPageIdChange,

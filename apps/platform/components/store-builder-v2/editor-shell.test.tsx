@@ -34,7 +34,7 @@ vi.mock("@/hooks/use-storefront-url", () => ({
 // reference these via closure (vitest hoists `vi.mock`), so we attach
 // them to globalThis and resolve at call time inside the factory.
 interface MockBridgeSpies {
-    state: { ready: boolean };
+    state: { ready: boolean; inline_editing?: boolean };
     postPageConfigUpdate: ReturnType<typeof vi.fn>;
     postRuntimeUpdate: ReturnType<typeof vi.fn>;
     postPageIdChange: ReturnType<typeof vi.fn>;
@@ -42,6 +42,10 @@ interface MockBridgeSpies {
     requestRect: ReturnType<typeof vi.fn>;
     ping: ReturnType<typeof vi.fn>;
     onSectionClicked: ReturnType<typeof vi.fn>;
+    setSelectedSection: ReturnType<typeof vi.fn>;
+    onInlineEditCommit: ReturnType<typeof vi.fn>;
+    requestAllRects: ReturnType<typeof vi.fn>;
+    onContextMenu: ReturnType<typeof vi.fn>;
 }
 
 declare global {
@@ -54,7 +58,7 @@ vi.mock("@/hooks/use-iframe-bridge", () => ({
         const g = globalThis as { __editorShellBridge?: MockBridgeSpies };
         if (!g.__editorShellBridge) {
             g.__editorShellBridge = {
-                state: { ready: false },
+                state: { ready: false, inline_editing: false },
                 postPageConfigUpdate: vi.fn(),
                 postRuntimeUpdate: vi.fn(),
                 postPageIdChange: vi.fn(),
@@ -62,15 +66,31 @@ vi.mock("@/hooks/use-iframe-bridge", () => ({
                 requestRect: vi.fn(),
                 ping: vi.fn().mockResolvedValue(undefined),
                 onSectionClicked: vi.fn(() => () => {}),
+                setSelectedSection: vi.fn(),
+                onInlineEditCommit: vi.fn(() => () => {}),
+                requestAllRects: vi.fn(),
+                onContextMenu: vi.fn(() => () => {}),
             };
         }
         // Editor reads `bridge.state.ready` + the post methods.
         return {
-            state: { ...g.__editorShellBridge.state, scroll_y: 0, hovered_section_id: null, hovered_rect: null, rect_updates: {} },
+            state: {
+                ...g.__editorShellBridge.state,
+                inline_editing: g.__editorShellBridge.state.inline_editing ?? false,
+                scroll_y: 0,
+                hovered_section_id: null,
+                hovered_rect: null,
+                rect_updates: {},
+                all_rects: [],
+            },
             scrollToSection: g.__editorShellBridge.scrollToSection,
             requestRect: g.__editorShellBridge.requestRect,
             ping: g.__editorShellBridge.ping,
             onSectionClicked: g.__editorShellBridge.onSectionClicked,
+            setSelectedSection: g.__editorShellBridge.setSelectedSection,
+            onInlineEditCommit: g.__editorShellBridge.onInlineEditCommit,
+            requestAllRects: g.__editorShellBridge.requestAllRects,
+            onContextMenu: g.__editorShellBridge.onContextMenu,
             postPageConfigUpdate: g.__editorShellBridge.postPageConfigUpdate,
             postRuntimeUpdate: g.__editorShellBridge.postRuntimeUpdate,
             postPageIdChange: g.__editorShellBridge.postPageIdChange,
@@ -102,6 +122,9 @@ function makeBuilder(overrides: Partial<UseStoreBuilderV2Return> = {}): UseStore
         patchField: noop,
         active_page: "home" as PageId,
         set_active_page: noop,
+        active_custom_page_id: null,
+        set_active_custom_page_id: noop,
+        active_custom_page: null,
         active_breakpoint: "desktop" as Breakpoint,
         set_active_breakpoint: noop,
         active_locale: "en" as LocaleCode,
@@ -110,6 +133,7 @@ function makeBuilder(overrides: Partial<UseStoreBuilderV2Return> = {}): UseStore
         last_saved_at: null,
         has_unpublished_changes: false,
         save_draft: asyncNoop,
+        publish_conflict: false,
         publish: asyncNoop,
         revert_to_published: asyncNoop,
         undo: noop,
@@ -216,7 +240,7 @@ describe("EditorShell", () => {
         expect(setActivePage).toHaveBeenCalledWith("cart");
     });
 
-    it("renders the inline live preview at mobile width (390px) when active_breakpoint is mobile", () => {
+    it("sizes the preview iframe to mobile width (390px) when active_breakpoint is mobile", () => {
         const builder = makeBuilder({ active_breakpoint: "mobile" });
         render(
             <EditorShell
@@ -228,7 +252,13 @@ describe("EditorShell", () => {
                 initialSystemScreen={null}
             />,
         );
-        const viewport = screen.getByTestId("live-preview-viewport") as HTMLDivElement;
+        // BUG1: the in-canvas preview is now a cross-origin iframe whose
+        // wrapper carries the device width, giving the page its OWN layout
+        // viewport so media queries reflow. (LivePreview's width-only <div>
+        // did not.) Assert the wrapper width tracks the active breakpoint.
+        const viewport = screen.getByTestId(
+            "preview-frame-viewport",
+        ) as HTMLDivElement;
         expect(viewport.style.width).toBe("390px");
     });
 
@@ -330,7 +360,7 @@ describe("EditorShell", () => {
     it("posts page_config_update + runtime_update once the bridge is ready", async () => {
         // Pre-seed the bridge as ready so the effect fires on first mount.
         (globalThis as { __editorShellBridge?: MockBridgeSpies }).__editorShellBridge = {
-            state: { ready: true },
+            state: { ready: true, inline_editing: false },
             postPageConfigUpdate: vi.fn(),
             postRuntimeUpdate: vi.fn(),
             postPageIdChange: vi.fn(),
@@ -338,6 +368,10 @@ describe("EditorShell", () => {
             requestRect: vi.fn(),
             ping: vi.fn().mockResolvedValue(undefined),
             onSectionClicked: vi.fn(() => () => {}),
+            setSelectedSection: vi.fn(),
+            onInlineEditCommit: vi.fn(() => () => {}),
+            requestAllRects: vi.fn(),
+            onContextMenu: vi.fn(() => () => {}),
         };
 
         const builder = makeBuilder();
@@ -390,7 +424,7 @@ describe("EditorShell", () => {
 
     it("posts a runtime_update with the new breakpoint when active_breakpoint changes", async () => {
         (globalThis as { __editorShellBridge?: MockBridgeSpies }).__editorShellBridge = {
-            state: { ready: true },
+            state: { ready: true, inline_editing: false },
             postPageConfigUpdate: vi.fn(),
             postRuntimeUpdate: vi.fn(),
             postPageIdChange: vi.fn(),
@@ -398,6 +432,10 @@ describe("EditorShell", () => {
             requestRect: vi.fn(),
             ping: vi.fn().mockResolvedValue(undefined),
             onSectionClicked: vi.fn(() => () => {}),
+            setSelectedSection: vi.fn(),
+            onInlineEditCommit: vi.fn(() => () => {}),
+            requestAllRects: vi.fn(),
+            onContextMenu: vi.fn(() => () => {}),
         };
 
         let currentBreakpoint: Breakpoint = "desktop";
@@ -530,7 +568,7 @@ describe("EditorShell", () => {
 
     it("posts page_id_change when active_page changes after the bridge is ready", async () => {
         (globalThis as { __editorShellBridge?: MockBridgeSpies }).__editorShellBridge = {
-            state: { ready: true },
+            state: { ready: true, inline_editing: false },
             postPageConfigUpdate: vi.fn(),
             postRuntimeUpdate: vi.fn(),
             postPageIdChange: vi.fn(),
@@ -538,6 +576,10 @@ describe("EditorShell", () => {
             requestRect: vi.fn(),
             ping: vi.fn().mockResolvedValue(undefined),
             onSectionClicked: vi.fn(() => () => {}),
+            setSelectedSection: vi.fn(),
+            onInlineEditCommit: vi.fn(() => () => {}),
+            requestAllRects: vi.fn(),
+            onContextMenu: vi.fn(() => () => {}),
         };
 
         const builder = makeBuilder();
@@ -582,6 +624,69 @@ describe("EditorShell", () => {
         const url = spies.postPageIdChange.mock.calls[0][0];
         expect(url).toContain("/_preview/test-store");
         expect(url).toContain("page=cart");
+    });
+
+    it("navigates a page switched BEFORE the bridge was ready, once ready flips (step 8)", async () => {
+        (globalThis as { __editorShellBridge?: MockBridgeSpies }).__editorShellBridge = {
+            state: { ready: false, inline_editing: false },
+            postPageConfigUpdate: vi.fn(),
+            postRuntimeUpdate: vi.fn(),
+            postPageIdChange: vi.fn(),
+            scrollToSection: vi.fn(),
+            requestRect: vi.fn(),
+            ping: vi.fn().mockResolvedValue(undefined),
+            onSectionClicked: vi.fn(() => () => {}),
+            setSelectedSection: vi.fn(),
+            onInlineEditCommit: vi.fn(() => () => {}),
+            requestAllRects: vi.fn(),
+            onContextMenu: vi.fn(() => () => {}),
+        };
+
+        const builder = makeBuilder();
+        const { rerender } = render(
+            <EditorShell
+                tenant={TENANT}
+                initialConfig={emptyStoreConfigV2()}
+                hasPublished
+                builderOverride={builder}
+                storefrontUrlOverride="http://localhost:3001/s/test-store"
+            />,
+        );
+
+        // Switch page while the bridge is still NOT ready → no nav yet, and the
+        // ref must NOT advance (the bug stranded the iframe here).
+        rerender(
+            <EditorShell
+                tenant={TENANT}
+                initialConfig={emptyStoreConfigV2()}
+                hasPublished
+                builderOverride={{ ...builder, active_page: "cart" as PageId }}
+                storefrontUrlOverride="http://localhost:3001/s/test-store"
+            />,
+        );
+        await act(async () => {
+            await new Promise((r) => setTimeout(r, 30));
+        });
+        expect(getBridgeSpies().postPageIdChange).not.toHaveBeenCalled();
+
+        // Bridge becomes ready → the pending page switch must now navigate.
+        getBridgeSpies().state.ready = true;
+        rerender(
+            <EditorShell
+                tenant={TENANT}
+                initialConfig={emptyStoreConfigV2()}
+                hasPublished
+                builderOverride={{ ...builder, active_page: "cart" as PageId }}
+                storefrontUrlOverride="http://localhost:3001/s/test-store"
+            />,
+        );
+        await act(async () => {
+            await new Promise((r) => setTimeout(r, 30));
+        });
+
+        const spies = getBridgeSpies();
+        expect(spies.postPageIdChange).toHaveBeenCalledTimes(1);
+        expect(spies.postPageIdChange.mock.calls[0][0]).toContain("page=cart");
     });
 
     /* ── Phase 2d: responsive layout switch ─────────────────────── */

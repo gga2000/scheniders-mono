@@ -48,6 +48,7 @@ interface TenantMemberRow {
         store_config_v2: StoreConfigV2 | null;
         store_config_v2_draft: StoreConfigV2 | null;
         updated_at: string | null;
+        store_config_rev: number | null;
     } | null;
 }
 
@@ -97,7 +98,7 @@ export default async function StoreV2Page({
     const { data: member } = await supabase
         .from("tenant_members")
         .select(
-            "tenant_id, tenants(id, slug, business_name, store_config_v2, store_config_v2_draft, updated_at)",
+            "tenant_id, tenants(id, slug, business_name, store_config_v2, store_config_v2_draft, updated_at, store_config_rev)",
         )
         .eq("user_id", user.id)
         .single<TenantMemberRow>();
@@ -115,6 +116,9 @@ export default async function StoreV2Page({
     // EC33: the DB row's last-write time, so the editor can reject a stale local
     // crash backup that predates newer saved/published work (e.g. another device).
     const initialUpdatedAt = t.updated_at ? Date.parse(t.updated_at) : null;
+    // BUG25: the published "generation" counter at hydration — publish rejects
+    // if the live rev has moved on (another editor published in the meantime).
+    const initialRev = t.store_config_rev ?? 0;
 
     // Mint the preview token server-side. The client never sees the
     // secret — only the resulting short-lived token.
@@ -162,6 +166,7 @@ export default async function StoreV2Page({
             hasPublished={hasPublished}
             initiallyDirty={initiallyDirty}
             initialUpdatedAt={initialUpdatedAt}
+            initialRev={initialRev}
             previewToken={previewToken}
             previewProducts={previewProducts}
             previewCategories={previewCategories}

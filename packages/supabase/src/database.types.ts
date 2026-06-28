@@ -888,6 +888,7 @@ export type Database = {
           last_message_at: string | null
           name: string | null
           order_id: string | null
+          resolved_at: string | null
           tenant_id: string
           topic: string | null
           updated_at: string
@@ -902,6 +903,7 @@ export type Database = {
           last_message_at?: string | null
           name?: string | null
           order_id?: string | null
+          resolved_at?: string | null
           tenant_id: string
           topic?: string | null
           updated_at?: string
@@ -916,6 +918,7 @@ export type Database = {
           last_message_at?: string | null
           name?: string | null
           order_id?: string | null
+          resolved_at?: string | null
           tenant_id?: string
           topic?: string | null
           updated_at?: string
@@ -1047,6 +1050,35 @@ export type Database = {
           },
         ]
       }
+      chat_message_edits: {
+        Row: {
+          edited_at: string
+          id: string
+          message_id: string
+          prev_body: string
+        }
+        Insert: {
+          edited_at?: string
+          id?: string
+          message_id: string
+          prev_body: string
+        }
+        Update: {
+          edited_at?: string
+          id?: string
+          message_id?: string
+          prev_body?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_message_edits_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_message_mentions: {
         Row: {
           id: string
@@ -1160,8 +1192,10 @@ export type Database = {
           deleted_at: string | null
           edited_at: string | null
           id: string
+          is_system: boolean
           reply_to_id: string | null
-          sender_id: string
+          sender_id: string | null
+          system_event: Json | null
           tenant_id: string
         }
         Insert: {
@@ -1172,8 +1206,10 @@ export type Database = {
           deleted_at?: string | null
           edited_at?: string | null
           id?: string
+          is_system?: boolean
           reply_to_id?: string | null
-          sender_id: string
+          sender_id?: string | null
+          system_event?: Json | null
           tenant_id: string
         }
         Update: {
@@ -1184,8 +1220,10 @@ export type Database = {
           deleted_at?: string | null
           edited_at?: string | null
           id?: string
+          is_system?: boolean
           reply_to_id?: string | null
-          sender_id?: string
+          sender_id?: string | null
+          system_event?: Json | null
           tenant_id?: string
         }
         Relationships: [
@@ -1219,6 +1257,45 @@ export type Database = {
           },
         ]
       }
+      chat_notification_prefs: {
+        Row: {
+          kind: string
+          level: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          kind: string
+          level?: string
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          kind?: string
+          level?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_notification_prefs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_notification_prefs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_notifications: {
         Row: {
           actor_avatar: string | null
@@ -1227,6 +1304,7 @@ export type Database = {
           conversation_id: string | null
           created_at: string
           id: string
+          is_mention: boolean
           is_read: boolean
           message_id: string | null
           preview: string
@@ -1240,6 +1318,7 @@ export type Database = {
           conversation_id?: string | null
           created_at?: string
           id?: string
+          is_mention?: boolean
           is_read?: boolean
           message_id?: string | null
           preview?: string
@@ -1253,6 +1332,7 @@ export type Database = {
           conversation_id?: string | null
           created_at?: string
           id?: string
+          is_mention?: boolean
           is_read?: boolean
           message_id?: string | null
           preview?: string
@@ -1340,11 +1420,83 @@ export type Database = {
           },
         ]
       }
+      chat_push_config: {
+        Row: {
+          edge_secret: string | null
+          function_url: string | null
+          id: number
+          updated_at: string
+        }
+        Insert: {
+          edge_secret?: string | null
+          function_url?: string | null
+          id?: number
+          updated_at?: string
+        }
+        Update: {
+          edge_secret?: string | null
+          function_url?: string | null
+          id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      chat_push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          tenant_id: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          tenant_id?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          tenant_id?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_push_subscriptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_push_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_user_status: {
         Row: {
           custom_emoji: string | null
           custom_text: string | null
+          dnd: boolean
+          expires_at: string | null
           last_seen_at: string | null
+          preset: string | null
           tenant_id: string | null
           updated_at: string
           user_id: string
@@ -1352,7 +1504,10 @@ export type Database = {
         Insert: {
           custom_emoji?: string | null
           custom_text?: string | null
+          dnd?: boolean
+          expires_at?: string | null
           last_seen_at?: string | null
+          preset?: string | null
           tenant_id?: string | null
           updated_at?: string
           user_id: string
@@ -1360,7 +1515,10 @@ export type Database = {
         Update: {
           custom_emoji?: string | null
           custom_text?: string | null
+          dnd?: boolean
+          expires_at?: string | null
           last_seen_at?: string | null
+          preset?: string | null
           tenant_id?: string | null
           updated_at?: string
           user_id?: string
@@ -1623,6 +1781,73 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "customer_notes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_points: {
+        Row: {
+          balance: number
+          phone: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          balance?: number
+          phone: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          balance?: number
+          phone?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_points_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_points_ledger: {
+        Row: {
+          created_at: string
+          delta: number
+          id: string
+          order_id: string | null
+          phone: string
+          reason: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          delta: number
+          id?: string
+          order_id?: string | null
+          phone: string
+          reason: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          delta?: number
+          id?: string
+          order_id?: string | null
+          phone?: string
+          reason?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_points_ledger_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -5966,6 +6191,7 @@ export type Database = {
           status: Database["public"]["Enums"]["tenant_status"]
           store_config: Json | null
           store_config_draft: Json | null
+          store_config_rev: number
           store_config_v2: Json | null
           store_config_v2_draft: Json | null
           trial_ends_at: string | null
@@ -5992,6 +6218,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["tenant_status"]
           store_config?: Json | null
           store_config_draft?: Json | null
+          store_config_rev?: number
           store_config_v2?: Json | null
           store_config_v2_draft?: Json | null
           trial_ends_at?: string | null
@@ -6018,6 +6245,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["tenant_status"]
           store_config?: Json | null
           store_config_draft?: Json | null
+          store_config_rev?: number
           store_config_v2?: Json | null
           store_config_v2_draft?: Json | null
           trial_ends_at?: string | null
@@ -6566,6 +6794,16 @@ export type Database = {
       }
     }
     Functions: {
+      adjust_customer_points: {
+        Args: {
+          _delta: number
+          _order_id?: string
+          _phone: string
+          _reason: string
+          _tenant_id: string
+        }
+        Returns: number
+      }
       aggregate_experiment_stats: {
         Args: { p_experiment_id: string; p_tenant_id: string }
         Returns: {
@@ -6600,6 +6838,30 @@ export type Database = {
         }
         Returns: Json
       }
+      chat_add_members: {
+        Args: { p_conversation_id: string; p_user_ids: string[] }
+        Returns: undefined
+      }
+      chat_archive_conversation: {
+        Args: { p_archived?: boolean; p_conversation_id: string }
+        Returns: undefined
+      }
+      chat_assign_order: {
+        Args: { p_order_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      chat_create_channel: {
+        Args: { p_is_private?: boolean; p_name: string; p_topic?: string }
+        Returns: string
+      }
+      chat_create_group: {
+        Args: { p_name: string; p_user_ids: string[] }
+        Returns: string
+      }
+      chat_delete_conversation: {
+        Args: { p_conversation_id: string }
+        Returns: undefined
+      }
       chat_find_or_create_dm: {
         Args: { p_other_user_id: string }
         Returns: string
@@ -6608,10 +6870,44 @@ export type Database = {
         Args: { p_order_id: string }
         Returns: string
       }
+      chat_is_conversation_admin: {
+        Args: { p_conversation_id: string }
+        Returns: boolean
+      }
       chat_is_member: { Args: { p_conversation_id: string }; Returns: boolean }
+      chat_leave_conversation: {
+        Args: { p_conversation_id: string }
+        Returns: undefined
+      }
+      chat_mark_all_read: { Args: never; Returns: undefined }
       chat_mark_read: {
         Args: { p_conversation_id: string }
         Returns: undefined
+      }
+      chat_post_order_event: {
+        Args: { p_event: Json; p_order_id: string }
+        Returns: undefined
+      }
+      chat_remove_member: {
+        Args: { p_conversation_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      chat_rename_conversation: {
+        Args: { p_conversation_id: string; p_name: string; p_topic?: string }
+        Returns: undefined
+      }
+      chat_search_messages: {
+        Args: { p_limit?: number; p_query: string }
+        Returns: {
+          body: string
+          conversation_id: string
+          conversation_kind: string
+          conversation_name: string
+          created_at: string
+          message_id: string
+          sender_id: string
+          snippet: string
+        }[]
       }
       chat_send_message: {
         Args: {
@@ -6631,8 +6927,10 @@ export type Database = {
           deleted_at: string | null
           edited_at: string | null
           id: string
+          is_system: boolean
           reply_to_id: string | null
-          sender_id: string
+          sender_id: string | null
+          system_event: Json | null
           tenant_id: string
         }
         SetofOptions: {
@@ -6641,6 +6939,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      chat_set_conversation_resolved: {
+        Args: { p_conversation_id: string; p_resolved: boolean }
+        Returns: undefined
       }
       chat_topic_conv_id: { Args: { p_topic: string }; Returns: string }
       chat_topic_conversation: {
@@ -6815,7 +7117,12 @@ export type Database = {
       }
       progress_seed_orders: { Args: never; Returns: undefined }
       publish_store_config_v2: {
-        Args: { p_config: Json; p_diff_summary?: Json; p_tenant_id: string }
+        Args: {
+          p_config: Json
+          p_diff_summary?: Json
+          p_expected_rev?: number
+          p_tenant_id: string
+        }
         Returns: {
           author_name: string | null
           config: Json

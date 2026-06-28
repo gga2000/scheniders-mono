@@ -258,6 +258,12 @@ export interface AnalyticsConfig {
   snapchat_pixel_id?: string;
   /** Custom GTM container (overrides individual pixels if set). */
   gtm_container_id?: string;
+  /** Meta Conversions API access token (server-side Purchase dedup). */
+  meta_capi_token?: string;
+  /** TikTok Events API access token (server-side Purchase dedup). */
+  tiktok_capi_token?: string;
+  /** Meta test_event_code for validating CAPI events in the dashboard. */
+  capi_test_event_code?: string;
 }
 
 /** #20 — Empty-state recovery (404 + empty-cart suggestions). */

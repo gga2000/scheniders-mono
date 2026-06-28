@@ -32,6 +32,7 @@
 //      still work for smoke testing.
 // =====================================================================
 
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import {
   EMPTY_BRAND_KIT,
@@ -492,3 +493,10 @@ export default async function PreviewPage({
 }
 
 export const dynamic = "force-dynamic";
+
+// Draft editor preview — must never be indexed even if a short-lived token
+// leaks into a shared/crawled link. robots.txt is advisory; this emits an
+// authoritative `noindex, nofollow` on every response from this route.
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};

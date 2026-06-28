@@ -10,7 +10,12 @@
 
 import Image from "next/image";
 import { z } from "zod";
-import { resolveI18n, computeDeliveryFee, computeDiscount } from "@scheniders/shared";
+import {
+  resolveI18n,
+  computeDeliveryFee,
+  computeDiscount,
+  computeBundleDiscounts,
+} from "@scheniders/shared";
 import type { StoreConfigV2, GovernorateCode } from "@scheniders/shared";
 import {
   BentoCard,
@@ -69,7 +74,12 @@ function CheckoutOrderSummaryRender({
     governorate: governorate as GovernorateCode | null,
   });
   const discount = computeDiscount(subtotal, couponCode, commerce?.discounts);
-  const discountAmount = discount?.amount_iqd ?? 0;
+  const couponAmount = discount?.amount_iqd ?? 0;
+  const bundleAmount = computeBundleDiscounts(
+    items,
+    commerce?.bundles,
+  ).total_amount_iqd;
+  const discountAmount = couponAmount + bundleAmount;
   const total = subtotal - discountAmount + delivery;
 
   return (

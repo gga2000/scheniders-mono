@@ -64,12 +64,50 @@ export type PreviewOutboundMessage =
       section_id: string;
       rect: DOMRectInit | null;
     }
+  // Inline-edit lifecycle — the contenteditable lives inside the iframe, so
+  // the editor pauses its config-push between `begin` and `end` (otherwise a
+  // re-render would reset the caret) and applies each `commit` to the config.
+  | { source: "schn-preview"; type: "inline_edit_begin"; section_id: string }
+  | {
+      source: "schn-preview";
+      type: "inline_edit_commit";
+      section_id: string;
+      field_path: string;
+      value: string;
+    }
+  | { source: "schn-preview"; type: "inline_edit_end"; reverted: boolean }
+  // All section rects in document order — the editor derives insert-`+` gap
+  // positions and spacing-drag handles from these.
+  | {
+      source: "schn-preview";
+      type: "all_rects";
+      rects: { section_id: string; rect: DOMRectInit }[];
+    }
+  // Right-click on a section — the editor renders the context menu over the
+  // iframe at these iframe-local coords.
+  | {
+      source: "schn-preview";
+      type: "section_context_menu";
+      section_id: string;
+      x: number;
+      y: number;
+    }
   | { source: "schn-preview"; type: "pong" };
 
 export type PreviewInboundMessage =
   | { source: "schn-editor"; type: "scroll_to_section"; section_id: string }
   | { source: "schn-editor"; type: "request_rect"; section_id: string }
   | { source: "schn-editor"; type: "ping" }
+  // Selection sync — drives the inline-edit affordance (which i18n fields are
+  // editable) and the `data-selected-section` attribute the affordance CSS
+  // keys off. `null` clears the selection.
+  | {
+      source: "schn-editor";
+      type: "set_selected_section";
+      section_id: string | null;
+    }
+  // Ask for every section's rect (insert gaps + spacing handles).
+  | { source: "schn-editor"; type: "request_all_rects" }
   // Live-render messages — consumed by `SchneidersPreviewLiveRenderer`,
   // which installs its own `message` listener. Declared here for contract
   // completeness; the bridge itself falls through to `default` for these.
@@ -112,6 +150,56 @@ function findSection(el: EventTarget | null): HTMLElement | null {
   return null;
 }
 
+/** Nearest `[data-i18n-field]` ancestor (the editable text node). */
+function findI18nField(
+  el: EventTarget | null,
+): { el: HTMLElement; field: string } | null {
+  const node = (el as HTMLElement | null)?.closest("[data-i18n-field]") as
+    | HTMLElement
+    | null;
+  const field = node?.getAttribute("data-i18n-field");
+  if (!node || !field) return null;
+  return { el: node, field };
+}
+
+/**
+ * True when the event target sits inside an interactive control (link,
+ * button, input…) that lives BELOW the i18n field — we still allow editing a
+ * heading that wraps a link, so only block when the interactive node is a
+ * strict descendant of the field.
+ */
+function isInteractiveDescendant(
+  target: EventTarget | null,
+  fieldEl: HTMLElement,
+): boolean {
+  const tgt = target as HTMLElement | null;
+  const interactive = tgt?.closest(
+    "a, button, input, textarea, select, label, [role='button']",
+  ) as HTMLElement | null;
+  if (!interactive) return false;
+  return fieldEl.contains(interactive) && interactive !== fieldEl;
+}
+
+// Click-to-edit affordance: dashed outline on editable text inside the
+// selected section. Injected into the iframe document (the live-render route
+// doesn't ship it — it was LivePreview-only). `data-selected-section` is set
+// by the bridge on the selected section in response to `set_selected_section`.
+const INLINE_EDIT_AFFORDANCE_CSS = `
+[data-selected-section="true"] [data-i18n-field] {
+  cursor: text;
+  outline: 1px dashed transparent;
+  outline-offset: 2px;
+  border-radius: 2px;
+  transition: outline-color 120ms ease-out;
+}
+[data-selected-section="true"] [data-i18n-field]:hover {
+  outline-color: var(--bk-primary, #ec4899);
+}
+[data-selected-section="true"] [data-i18n-field][data-inline-editing="true"] {
+  outline: none;
+}
+`;
+
 export function SchneidersPreviewBridge(): null {
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -128,11 +216,150 @@ export function SchneidersPreviewBridge(): null {
       }
     };
 
+    /* ───── Selection + inline-edit state ─────
+       Kept in closures (not React state) so the listener set is installed
+       once and never tears down. Inbound messages mutate these. */
+    let selectedSectionId: string | null = null;
+    let inlineEdit:
+      | { el: HTMLElement; sectionId: string; field: string; original: string }
+      | null = null;
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let inlineCleanup: (() => void) | null = null;
+
+    // Inject the click-to-edit affordance CSS once (the live-render route
+    // doesn't ship it).
+    const styleEl = document.createElement("style");
+    styleEl.setAttribute("data-schn-inline-edit", "");
+    styleEl.textContent = INLINE_EDIT_AFFORDANCE_CSS;
+    document.head.appendChild(styleEl);
+
+    const applySelected = (id: string | null): void => {
+      document
+        .querySelectorAll('[data-selected-section="true"]')
+        .forEach((el) => el.removeAttribute("data-selected-section"));
+      selectedSectionId = id;
+      if (!id) return;
+      const node = document.querySelector(
+        `[data-section-id="${cssEscape(id)}"]`,
+      );
+      if (node instanceof HTMLElement) {
+        node.setAttribute("data-selected-section", "true");
+      }
+    };
+
+    const commitInline = (value: string): void => {
+      if (!inlineEdit) return;
+      post({
+        source: "schn-preview",
+        type: "inline_edit_commit",
+        section_id: inlineEdit.sectionId,
+        field_path: inlineEdit.field,
+        value,
+      });
+    };
+
+    const exitInline = (revert: boolean): void => {
+      if (!inlineEdit) return;
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+        debounceTimer = null;
+      }
+      const { el, original } = inlineEdit;
+      if (revert) {
+        el.textContent = original;
+      } else {
+        // Final commit in case the last debounce hadn't fired.
+        commitInline(el.textContent ?? "");
+      }
+      el.removeAttribute("contenteditable");
+      el.removeAttribute("data-inline-editing");
+      inlineCleanup?.();
+      inlineCleanup = null;
+      inlineEdit = null;
+      post({
+        source: "schn-preview",
+        type: "inline_edit_end",
+        reverted: revert,
+      });
+    };
+
+    const enterInline = (
+      sectionId: string,
+      hit: { el: HTMLElement; field: string },
+    ): void => {
+      if (inlineEdit && inlineEdit.el === hit.el) return;
+      if (inlineEdit) exitInline(false);
+      const original = hit.el.textContent ?? "";
+      hit.el.setAttribute("contenteditable", "true");
+      hit.el.setAttribute("data-inline-editing", "true");
+      hit.el.focus();
+      try {
+        const sel = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(hit.el);
+        range.collapse(false);
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      } catch {
+        /* selection best-effort */
+      }
+      inlineEdit = { el: hit.el, sectionId, field: hit.field, original };
+      post({
+        source: "schn-preview",
+        type: "inline_edit_begin",
+        section_id: sectionId,
+      });
+
+      const onInput = (): void => {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          commitInline(hit.el.textContent ?? "");
+        }, 300);
+      };
+      const onKeyDown = (ev: KeyboardEvent): void => {
+        if (ev.key === "Enter" && !ev.shiftKey) {
+          ev.preventDefault();
+          exitInline(false);
+        } else if (ev.key === "Escape") {
+          ev.preventDefault();
+          exitInline(true);
+        }
+      };
+      const onBlur = (): void => exitInline(false);
+      hit.el.addEventListener("input", onInput);
+      hit.el.addEventListener("keydown", onKeyDown);
+      hit.el.addEventListener("blur", onBlur);
+      inlineCleanup = (): void => {
+        hit.el.removeEventListener("input", onInput);
+        hit.el.removeEventListener("keydown", onKeyDown);
+        hit.el.removeEventListener("blur", onBlur);
+      };
+    };
+
     /* ───── Outbound: clicks ───── */
 
     function onClickCapture(e: MouseEvent): void {
+      // Clicks inside the active contenteditable manage their own caret.
+      if (
+        inlineEdit &&
+        e.target instanceof Node &&
+        inlineEdit.el.contains(e.target)
+      ) {
+        return;
+      }
       const section = findSection(e.target);
       if (!section || !section.dataset.sectionId) return;
+      const sectionId = section.dataset.sectionId;
+      // Single-click editable text inside the SELECTED section → inline edit.
+      if (sectionId === selectedSectionId && !e.metaKey && !e.ctrlKey) {
+        const hit = findI18nField(e.target);
+        if (hit && !isInteractiveDescendant(e.target, hit.el)) {
+          e.preventDefault();
+          e.stopPropagation();
+          enterInline(sectionId, hit);
+          return;
+        }
+      }
       // Suppress navigation only when ctrl/cmd not held — power users can
       // still cmd-click to open links in a new tab for genuine browsing.
       if (!e.metaKey && !e.ctrlKey) {
@@ -142,9 +369,39 @@ export function SchneidersPreviewBridge(): null {
       post({
         source: "schn-preview",
         type: "section_clicked",
-        section_id: section.dataset.sectionId,
+        section_id: sectionId,
         section_type: section.dataset.sectionType ?? "",
         rect: rectToJSON(section.getBoundingClientRect()),
+      });
+    }
+
+    /* ───── Outbound: double-click (inline-edit fallback) ───── */
+
+    function onDblClick(e: MouseEvent): void {
+      const section = findSection(e.target);
+      const sectionId = section?.dataset.sectionId;
+      if (!sectionId || sectionId !== selectedSectionId) return;
+      const hit = findI18nField(e.target);
+      if (!hit || isInteractiveDescendant(e.target, hit.el)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      enterInline(sectionId, hit);
+    }
+
+    /* ───── Outbound: right-click → context menu ───── */
+
+    function onContextMenu(e: MouseEvent): void {
+      const section = findSection(e.target);
+      const sectionId = section?.dataset.sectionId;
+      if (!sectionId) return;
+      e.preventDefault();
+      // iframe-local viewport coords; the editor offsets by the iframe bounds.
+      post({
+        source: "schn-preview",
+        type: "section_context_menu",
+        section_id: sectionId,
+        x: e.clientX,
+        y: e.clientY,
       });
     }
 
@@ -224,6 +481,34 @@ export function SchneidersPreviewBridge(): null {
           }
           break;
         }
+        case "set_selected_section": {
+          const next = data.section_id ?? null;
+          // Switching selection away from an active edit commits it first.
+          if (inlineEdit && inlineEdit.sectionId !== next) exitInline(false);
+          applySelected(next);
+          break;
+        }
+        case "request_all_rects": {
+          const nodes = Array.from(
+            document.querySelectorAll("[data-section-id]"),
+          ) as HTMLElement[];
+          const rects = nodes
+            .map((n) => {
+              const id = n.dataset.sectionId;
+              return id
+                ? {
+                    section_id: id,
+                    rect: rectToJSON(n.getBoundingClientRect()),
+                  }
+                : null;
+            })
+            .filter(
+              (r): r is { section_id: string; rect: DOMRectInit } =>
+                r !== null,
+            );
+          post({ source: "schn-preview", type: "all_rects", rects });
+          break;
+        }
         case "ping":
           post({ source: "schn-preview", type: "pong" });
           break;
@@ -234,13 +519,25 @@ export function SchneidersPreviewBridge(): null {
     }
 
     document.addEventListener("click", onClickCapture, true);
+    document.addEventListener("dblclick", onDblClick, true);
+    document.addEventListener("contextmenu", onContextMenu, true);
     document.addEventListener("mouseover", onMouseOver, true);
     document.addEventListener("mouseleave", onMouseLeave, true);
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("message", onMessage);
 
     return () => {
+      if (inlineEdit) {
+        // Leave the DOM clean if we unmount mid-edit.
+        inlineEdit.el.removeAttribute("contenteditable");
+        inlineEdit.el.removeAttribute("data-inline-editing");
+      }
+      inlineCleanup?.();
+      if (debounceTimer) clearTimeout(debounceTimer);
+      styleEl.remove();
       document.removeEventListener("click", onClickCapture, true);
+      document.removeEventListener("dblclick", onDblClick, true);
+      document.removeEventListener("contextmenu", onContextMenu, true);
       document.removeEventListener("mouseover", onMouseOver, true);
       document.removeEventListener("mouseleave", onMouseLeave, true);
       window.removeEventListener("scroll", onScroll);

@@ -12,6 +12,7 @@ export interface ChatConversation {
     created_by: string | null;
     last_message_at: string | null;
     archived_at: string | null;
+    resolved_at: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -41,22 +42,30 @@ export interface ChatAttachment {
     mime?: string | null; size_bytes?: number | null; width?: number | null; height?: number | null;
 }
 
+export type ChatSystemEvent =
+    | { type: "status_changed"; from: string | null; to: string; actor_name?: string | null }
+    | { type: "assigned"; to: string | null; actor_name?: string | null }
+    | { type: "delivered" };
+
 export interface ChatMessage {
     id: string;
     conversation_id: string;
     tenant_id: string;
-    sender_id: string;
+    sender_id: string | null;
     body: string;
     reply_to_id: string | null;
     client_msg_id: string | null;
     edited_at: string | null;
     deleted_at: string | null;
     created_at: string;
+    is_system?: boolean;
+    system_event?: ChatSystemEvent | null;
     // hydrated client-side:
     references?: ChatReference[];
     reactions?: ChatReaction[];
     attachments?: ChatAttachment[];
     pending?: boolean;       // optimistic, not yet acked
+    failed?: boolean;        // optimistic send failed; kept visible for retry
 }
 
 export interface ChatMentionNotification {
@@ -68,4 +77,24 @@ export interface ChatMentionNotification {
     preview: string;
     is_read: boolean;
     created_at: string;
+}
+
+export interface ChatSearchResult {
+    message_id: string;
+    conversation_id: string;
+    conversation_name: string | null;
+    conversation_kind: string;
+    sender_id: string;
+    body: string;
+    snippet: string;
+    created_at: string;
+}
+
+/** Link-unfurl payload returned by `GET /api/chat/unfurl`. All metadata is
+ *  nullable — a blocked/failed unfurl returns an all-null payload (200). */
+export interface UnfurlResult {
+    url: string;
+    title: string | null;
+    description: string | null;
+    image: string | null;
 }

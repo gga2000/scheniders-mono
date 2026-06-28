@@ -84,8 +84,8 @@ describe("runHealthChecks — empty config", () => {
     const empty = freshEmpty();
     const report = runHealthChecks(empty);
 
-    it("evaluates 35 checks", () => {
-        expect(report.checks).toHaveLength(35);
+    it("evaluates 36 checks", () => {
+        expect(report.checks).toHaveLength(36);
     });
 
     it("scores below 30", () => {
@@ -344,5 +344,28 @@ describe("no_dead_cta_links (H6)", () => {
             s("hero_image", { image_url: "http://localhost/h.jpg" }),
         ]);
         expect(checkStatus(cfg, "no_dead_cta_links")).toBe("pass");
+    });
+});
+
+describe("default_locale_enabled", () => {
+    it("passes when the default locale is enabled", () => {
+        const cfg = freshEmpty();
+        cfg.default_locale = "ar";
+        cfg.enabled_locales = ["ar", "en"];
+        expect(checkStatus(cfg, "default_locale_enabled")).toBe("pass");
+    });
+
+    it("passes when no locales are explicitly enabled (all supported)", () => {
+        const cfg = freshEmpty();
+        cfg.default_locale = "ku";
+        cfg.enabled_locales = [];
+        expect(checkStatus(cfg, "default_locale_enabled")).toBe("pass");
+    });
+
+    it("warns when the default locale is not in the enabled list", () => {
+        const cfg = freshEmpty();
+        cfg.default_locale = "ku";
+        cfg.enabled_locales = ["ar", "en"];
+        expect(checkStatus(cfg, "default_locale_enabled")).toBe("warn");
     });
 });

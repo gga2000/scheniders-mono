@@ -5,7 +5,8 @@ import { useOrderActivityNotifications } from "@/hooks/use-order-activity-notifi
 import { useMentionNotifications } from "@/hooks/chat/use-mention-notifications";
 import { useChatStore } from "@/store/use-chat-store";
 import { Popover, PopoverTrigger, PopoverContent } from "@scheniders/ui/popover";
-import { Bell, Check, CheckCheck, Trash2, Package, RefreshCw, Plus, Clock, Bot, Sparkles, ArrowRight, AtSign } from "lucide-react";
+import { Bell, BellOff, BellRing, Check, CheckCheck, Trash2, Package, RefreshCw, Plus, Clock, Bot, Sparkles, ArrowRight, AtSign } from "lucide-react";
+import { useOrderPushPref } from "@/hooks/use-order-push-pref";
 import { cn, getStatusLabel } from "@/lib/utils";
 import { getStatusBadgeStyle } from "@/lib/order-format-utils";
 import { formatDistanceToNow } from "date-fns";
@@ -31,6 +32,7 @@ export function NotificationsDropdown({ onOpenChange }: NotificationsDropdownPro
         markAsRead: markMentionAsRead,
     } = useMentionNotifications();
     const { open: openChat } = useChatStore();
+    const orderPush = useOrderPushPref();
 
     const totalUnread = unreadCount + mentionUnreadCount;
 
@@ -89,6 +91,24 @@ export function NotificationsDropdown({ onOpenChange }: NotificationsDropdownPro
                             </div>
 
                             <div className="flex items-center gap-1">
+                                {orderPush.ready && (
+                                    <button
+                                        onClick={orderPush.toggle}
+                                        disabled={orderPush.busy}
+                                        className="p-1.5 rounded-lg hover:bg-muted transition-colors disabled:opacity-40"
+                                        title={
+                                            orderPush.enabled
+                                                ? t("notifications.orderPushOn")
+                                                : t("notifications.orderPushOff")
+                                        }
+                                    >
+                                        {orderPush.enabled ? (
+                                            <BellRing className="w-4 h-4 text-primary" />
+                                        ) : (
+                                            <BellOff className="w-4 h-4 text-muted-foreground" />
+                                        )}
+                                    </button>
+                                )}
                                 {unreadCount > 0 && (
                                     <button
                                         onClick={markAllAsRead}

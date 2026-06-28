@@ -29,7 +29,10 @@ type Props = z.infer<typeof schema>;
 
 const defaultProps: Props = {
   show_stock_urgency: true,
-  show_5_star_rating: true,
+  // Off by default: this is a static decorative "5.0" with no real data behind
+  // it. Genuine ratings come from the product_reviews section. Merchants can
+  // still opt in, but no store ships a fake rating unknowingly.
+  show_5_star_rating: false,
   show_sku: false,
   sale_sticker_label_i18n: { en: "On sale", ar: "تخفيض" },
 };

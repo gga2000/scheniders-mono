@@ -188,7 +188,14 @@ export function resolveGlobals(
   ctx: RuntimeContext,
 ): Partial<Record<keyof GlobalSections, Record<string, unknown>>> {
   const out: Partial<Record<keyof GlobalSections, Record<string, unknown>>> = {};
-  for (const [slot, instance] of Object.entries(globals)) {
+  // `globals` is typed as an object, but it's jsonb from the DB — corrupt/legacy
+  // rows can be null or an array, and `Object.entries(null)` throws (whole
+  // storefront 500). Fall back to no globals rather than crash.
+  const safeGlobals =
+    globals && typeof globals === "object" && !Array.isArray(globals)
+      ? globals
+      : ({} as GlobalSections);
+  for (const [slot, instance] of Object.entries(safeGlobals)) {
     if (!instance || !isSectionEnabled(instance, ctx)) continue;
     out[slot as keyof GlobalSections] = resolveSection(instance, ctx);
   }

@@ -122,8 +122,16 @@ export const STRINGS = {
         setting_shipping: { en: "Shipping rates", ar: "أسعار التوصيل", ku: "نرخی گەیاندن" },
         setting_discounts: { en: "Discount codes", ar: "أكواد الخصم", ku: "کۆدی داشکاندن" },
         setting_cart_recovery: { en: "Cart recovery", ar: "استرجاع السلات", ku: "گەڕاندنەوەی سەبەتە" },
+        setting_bundles: { en: "Bundles", ar: "الحزم", ku: "پاکێجەکان" },
+        setting_pixels: { en: "Pixels & tracking", ar: "البكسلات والتتبّع", ku: "پیکسڵ و شوێنکەوتن" },
+        setting_loyalty: { en: "Loyalty points", ar: "نقاط الولاء", ku: "خاڵی دڵسۆزی" },
+        setting_custom_pages: { en: "Custom pages", ar: "صفحات مخصّصة", ku: "پەڕە تایبەتەکان" },
+        setting_nav: { en: "Navigation", ar: "التنقّل", ku: "ڕێنیشاندان" },
         setting_versions: { en: "Past versions", ar: "النسخ", ku: "وەشانەکان" },
         setting_redirects: { en: "Redirects", ar: "إعادة التوجيه", ku: "ئاراستەکردن" },
+        group_custom_pages: { en: "Custom pages", ar: "صفحات مخصّصة", ku: "پەڕە تایبەتەکان" },
+        manage_custom_pages: { en: "Manage custom pages", ar: "إدارة الصفحات المخصّصة", ku: "بەڕێوەبردنی پەڕە تایبەتەکان" },
+        add_custom_page: { en: "Add custom page", ar: "إضافة صفحة مخصّصة", ku: "زیادکردنی پەڕەی تایبەت" },
     },
 
     /* ── Section list panel (Inspector "Blocks" tab) ───────────── */

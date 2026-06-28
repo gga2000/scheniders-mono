@@ -3,10 +3,13 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type KeyboardEvent as ReactKeyboardEvent } from "react";
-import { ChevronLeft, MessageSquare, X } from "lucide-react";
+import { ChevronLeft, MessageSquare, Search, X } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { ar as arLocale } from "date-fns/locale";
 import { useChatStore } from "@/store/use-chat-store";
 import { useConversations } from "@/hooks/chat/use-conversations";
 import { useAuth } from "@/hooks/use-auth";
+import { ConversationMenu } from "./conversation-menu";
 import { firstUnreadMessageId } from "@/lib/chat/unread";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useMessages } from "@/hooks/chat/use-messages";
@@ -15,16 +18,67 @@ import { useLanguage } from "@/components/providers/language-provider";
 import { ConversationList } from "./conversation-list";
 import { MessageList } from "./message-list";
 import { Composer } from "./composer";
+import { SearchPanel } from "./search-panel";
+import { OrderThreadCard } from "./order-thread-card";
+import { PinnedBar } from "./pinned-bar";
+import { ForwardDialog } from "./forward-dialog";
+import { usePresenceStatus } from "@/store/use-presence-store";
+import { useLastSeen } from "@/hooks/chat/use-last-seen";
+import type { ChatMessage } from "@/types/chat";
 
 export function ChatSheet() {
-    const { isOpen, close, activeConversationId, setActiveConversation } = useChatStore();
+    const { isOpen, close, activeConversationId, setActiveConversation, openSettings, focusMessageId, clearFocusMessage } = useChatStore();
+    const [searchOpen, setSearchOpen] = useState(false);
+    const [forwardMessage, setForwardMessage] = useState<ChatMessage | null>(null);
     const isMobile = useIsMobile(768);
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const { data: messages = [], sendMessage, markRead, isLoading } = useMessages(activeConversationId);
     const { typers, notifyTyping } = useTypingIndicator(activeConversationId);
 
     const { user } = useAuth();
     const { data: conversations = [] } = useConversations();
+
+    const activeConversation = useMemo(
+        () => (activeConversationId ? conversations.find((c) => c.id === activeConversationId) ?? null : null),
+        [conversations, activeConversationId]
+    );
+
+    const activeConversationName = useMemo(() => {
+        if (!activeConversation) return null;
+        if (activeConversation.name) return activeConversation.name;
+        // DM without a name: peer name resolution
+        const other = activeConversation.members.find((m) => m.user_id !== user?.id);
+        if (other) return null; // caller resolves via memberMap in ConversationList — fallback to topic or title
+        return null;
+    }, [activeConversation, user?.id]);
+
+    const isOwner = useMemo(() => {
+        if (!activeConversation || !user?.id) return false;
+        return activeConversation.members.find((m) => m.user_id === user.id)?.role === "owner";
+    }, [activeConversation, user?.id]);
+
+    // F4: DM last-seen — resolve the peer's user_id (the other member in a DM).
+    // Hooks are called unconditionally; rendering is gated on kind === "dm".
+    const dmPeerId = useMemo(() => {
+        if (!activeConversation || activeConversation.kind !== "dm" || !user?.id) return null;
+        return activeConversation.members.find((m) => m.user_id !== user.id)?.user_id ?? null;
+    }, [activeConversation, user?.id]);
+
+    const dmPeerStatus = usePresenceStatus(dmPeerId);
+    const { data: dmPeerLastSeen } = useLastSeen(dmPeerId);
+
+    const dmStatusLabel = useMemo((): string | null => {
+        if (!dmPeerId || activeConversation?.kind !== "dm") return null;
+        if (dmPeerStatus === "online") return t("chat.activeNow", "Active now");
+        if (dmPeerLastSeen) {
+            const ago = formatDistanceToNow(new Date(dmPeerLastSeen), {
+                addSuffix: true,
+                locale: language === "ar" ? arLocale : undefined,
+            });
+            return t("chat.activeAgo", "Active {ago}").replace("{ago}", ago);
+        }
+        return null;
+    }, [dmPeerId, activeConversation?.kind, dmPeerStatus, dmPeerLastSeen, t, language]);
 
     // Mark read on open / conversation switch only — not on every incoming
     // message (that re-fired markRead per message and churned the unread RPC).
@@ -160,16 +214,45 @@ export function ChatSheet() {
                                 </button>
                             ) : (
                                 <div className="flex items-center gap-2">
-                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--pastel-yellow)] text-[var(--ink)]">
+                                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--pastel-yellow)] text-[var(--ink)]">
                                         <MessageSquare className="h-4 w-4" />
                                     </span>
-                                    <span className="font-semibold text-foreground">{t("chat.title", "Team chat")}</span>
+                                    <div className="flex flex-col">
+                                        <span className="font-semibold leading-tight text-foreground">
+                                            {activeConversationName ?? t("chat.title", "Team chat")}
+                                        </span>
+                                        {/* F4: DM last-seen / active-now subtitle */}
+                                        {dmStatusLabel && (
+                                            <span className="text-[11px] leading-tight text-muted-foreground">
+                                                {dmStatusLabel}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             )}
+                            {activeConversation && (
+                                <ConversationMenu
+                                    conversation={activeConversation}
+                                    isOwner={isOwner}
+                                    onOpenSettings={() => { if (activeConversationId) openSettings(activeConversationId); }}
+                                />
+                            )}
+                            <button
+                                onClick={() => setSearchOpen((v) => !v)}
+                                aria-label={t("chat.search", "Search messages")}
+                                aria-pressed={searchOpen}
+                                className={`ml-auto flex h-8 w-8 items-center justify-center rounded-full transition-colors active:scale-95 ${
+                                    searchOpen
+                                        ? "bg-(--pastel-yellow) text-(--ink)"
+                                        : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                                }`}
+                            >
+                                <Search className="h-4 w-4" />
+                            </button>
                             <button
                                 onClick={close}
                                 aria-label={t("chat.close", "Close chat")}
-                                className="ml-auto flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground active:scale-95"
+                                className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground active:scale-95"
                             >
                                 <X className="h-4 w-4" />
                             </button>
@@ -177,13 +260,35 @@ export function ChatSheet() {
 
                         <div className="flex min-h-0 flex-1">
                             {/* Desktop: list is always the sidebar. Mobile: list takes over
-                                when no conversation is active (so you can pick/start one). */}
-                            {(!isMobile || !activeConversationId) && <ConversationList />}
+                                when no conversation is active (so you can pick/start one).
+                                SearchPanel overlays the conversation-list column when open. */}
+                            {(!isMobile || !activeConversationId) && (
+                                searchOpen
+                                    ? <div className="flex w-[280px] shrink-0 flex-col border-r border-(--card-border) bg-(--card-bg)"><SearchPanel onClose={() => setSearchOpen(false)} /></div>
+                                    : <ConversationList />
+                            )}
+                            {/* On mobile, search gets the full right panel when no conversation column is shown */}
+                            {isMobile && searchOpen && !activeConversationId && (
+                                <div className="flex min-h-0 flex-1 flex-col bg-background">
+                                    <SearchPanel onClose={() => setSearchOpen(false)} />
+                                </div>
+                            )}
                             {(!isMobile || activeConversationId) && (
-                            <div className="flex min-w-0 flex-1 flex-col bg-[var(--background)]">
+                            <div className="flex min-w-0 flex-1 flex-col bg-background">
                                 {activeConversationId ? (
                                     <>
-                                        <MessageList messages={messages} loading={isLoading} firstUnreadId={firstUnreadId} />
+                                        {activeConversation?.kind === "order" && (
+                                            <OrderThreadCard conversationId={activeConversationId} />
+                                        )}
+                                        <PinnedBar conversationId={activeConversationId} />
+                                        <MessageList
+                                            messages={messages}
+                                            loading={isLoading}
+                                            firstUnreadId={firstUnreadId}
+                                            focusMessageId={focusMessageId}
+                                            onFocused={clearFocusMessage}
+                                            onForward={setForwardMessage}
+                                        />
                                         <AnimatePresence>
                                             {typers.length > 0 && (
                                                 <motion.div
@@ -204,12 +309,15 @@ export function ChatSheet() {
                                         <Composer
                                             conversationId={activeConversationId}
                                             onTyping={notifyTyping}
-                                            onSend={(a) => sendMessage.mutateAsync(a)}
+                                            onSend={(a) => sendMessage.mutateAsync({
+                                                ...a,
+                                                replyToId: a.replyToId ?? null,
+                                            })}
                                         />
                                     </>
                                 ) : (
                                     <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-                                        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--card-bg)] text-muted-foreground shadow-sm ring-1 ring-[var(--card-border)]">
+                                        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-(--card-bg) text-muted-foreground shadow-sm ring-1 ring-(--card-border)">
                                             <MessageSquare className="h-6 w-6" />
                                         </span>
                                         <div>
@@ -225,6 +333,10 @@ export function ChatSheet() {
                             </div>
                             )}
                         </div>
+                        <ForwardDialog
+                            message={forwardMessage}
+                            onClose={() => setForwardMessage(null)}
+                        />
                     </motion.aside>
                     </div>
                 </>

@@ -31,7 +31,10 @@ import {
     useStoreBuilderV2,
     type UseStoreBuilderV2Return,
 } from "@/hooks/use-store-builder-v2";
-import { useIframeBridge } from "@/hooks/use-iframe-bridge";
+import {
+    useIframeBridge,
+    type PreviewPageConfig,
+} from "@/hooks/use-iframe-bridge";
 import { useStorefrontUrl } from "@/hooks/use-storefront-url";
 import { getManifestEntry } from "@/lib/sections-manifest";
 import { PageTree, getPageLabel, type SettingsSectionId } from "./page-tree";
@@ -39,7 +42,9 @@ import { PreviewModal } from "./preview-modal";
 import {
     PreviewOverlay,
     type PreviewOverlayAction,
+    type PreviewOverlayContextMenu,
 } from "./preview-overlay";
+import type { LivePreviewContextMenuAction } from "./live-preview-context-menu";
 import {
     BreakpointToggle,
     LocaleSelect,
@@ -51,7 +56,7 @@ import {
     EMPTY_PREVIEW_AS,
     type PreviewAsState,
 } from "./preview-as-controls";
-import { LivePreview } from "./live-preview";
+import { PreviewFrame } from "./preview-frame";
 import { BrandKitEditor } from "./brand-kit-editor";
 import { SectionPicker } from "./section-picker";
 import { PageTemplatePicker } from "./page-template-picker";
@@ -64,11 +69,24 @@ import { RedirectsScreen } from "./redirects-screen";
 import { ShippingScreen } from "./shipping-screen";
 import { DiscountsScreen } from "./discounts-screen";
 import { CartRecoveryScreen } from "./cart-recovery-screen";
+import { BundlesScreen } from "./bundles-screen";
+import { PixelsScreen } from "./pixels-screen";
+import { LoyaltyScreen } from "./loyalty-screen";
+import { CustomPagesScreen } from "./custom-pages-screen";
+import { NavBuilderScreen } from "./nav-builder-screen";
 import { I18nScreen, I18nToolbarPill } from "./i18n-screen";
 import { InspectorRail, type InspectorTab } from "./inspector-rail";
 import { EditorLocaleProvider } from "@/lib/editor-locale-context";
 import { PublishConfirmSheet } from "./publish-confirm-sheet";
-import { runHealthChecks, blockingChecks } from "@scheniders/shared";
+import {
+    runHealthChecks,
+    blockingChecks,
+    activePageSections,
+    withActivePageSections,
+    withActivePageMeta,
+    customPageIndexById,
+    type EditTarget,
+} from "@scheniders/shared";
 import { useIsMobileEditor } from "@/hooks/use-is-mobile-editor";
 import {
     MobileEditorShell,
@@ -100,6 +118,8 @@ export interface EditorShellProps {
     initiallyDirty?: boolean;
     /** EC33: DB `updated_at` (epoch ms) — gates stale crash-backup recovery. */
     initialUpdatedAt?: number | null;
+    /** BUG25: published rev at hydration — publish rejects on a stale base. */
+    initialRev?: number;
     /**
      * Short-lived HMAC-signed preview token for the iframe. Minted
      * server-side from `PREVIEW_TOKEN_SECRET` with a 1h TTL, scoped to
@@ -181,6 +201,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         hasPublished,
         initiallyDirty,
         initialUpdatedAt,
+        initialRev,
         previewToken,
         previewProducts,
         previewCategories,
@@ -203,6 +224,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         hasPublished,
         initiallyDirty,
         initialUpdatedAt,
+        initialRev,
     });
     const liveStorefrontUrl = useStorefrontUrl(tenant.slug, tenant.id);
 
@@ -249,6 +271,10 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     // Currently selected section (click-to-edit overlay highlight).
     const [selected_section_id, set_selected_section_id] = useState<string | null>(null);
 
+    // Open right-click context menu over the iframe preview (null = closed).
+    const [preview_context_menu, set_preview_context_menu] =
+        useState<PreviewOverlayContextMenu | null>(null);
+
     // "Preview as" simulator state — drives runtime context to test variants.
     const [preview_as, set_preview_as] = useState<PreviewAsState>(EMPTY_PREVIEW_AS);
 
@@ -256,6 +282,9 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
 
     const iframe_ref = useRef<HTMLIFrameElement | null>(null);
     const preview_container_ref = useRef<HTMLDivElement | null>(null);
+    // True while a spacing-drag is streaming transient configs to the iframe —
+    // pauses config-push so the committed config doesn't overwrite the preview.
+    const spacing_dragging_ref = useRef<boolean>(false);
     const bridge = useIframeBridge(iframe_ref);
     const [iframe_bounds, set_iframe_bounds] = useState<DOMRect | null>(null);
 
@@ -297,6 +326,81 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         });
     }, [bridge]);
 
+    // Subscribe to iframe right-clicks → select the section + open the menu at
+    // the iframe-local coords the bridge reported.
+    useEffect(() => {
+        return bridge.onContextMenu((e) => {
+            set_selected_section_id(e.section_id);
+            set_preview_context_menu({
+                section_id: e.section_id,
+                x: e.x,
+                y: e.y,
+            });
+        });
+    }, [bridge]);
+
+    // Ask the iframe for every section's rect so the overlay can place the
+    // insert-`+` gaps. Re-request (debounced) whenever the section list,
+    // page, or breakpoint changes, and on scroll (via the new `bridge`
+    // identity each render → `state.scroll_y` change).
+    useEffect(() => {
+        if (!bridge.state.ready) return;
+        const t = setTimeout(() => bridge.requestAllRects(), 150);
+        return () => clearTimeout(t);
+    }, [
+        bridge,
+        builder.config,
+        builder.active_page,
+        builder.active_breakpoint,
+    ]);
+
+    // Mirror the editor's selection into the iframe so the bridge knows which
+    // section's text is inline-editable and which to outline. Deduped via a
+    // ref so we don't re-post on every render.
+    const last_posted_selection_ref = useRef<string | null | undefined>(
+        undefined,
+    );
+    useEffect(() => {
+        if (!bridge.state.ready) return;
+        if (last_posted_selection_ref.current === selected_section_id) return;
+        last_posted_selection_ref.current = selected_section_id;
+        bridge.setSelectedSection(selected_section_id);
+    }, [selected_section_id, bridge]);
+
+    // The page the canvas is currently authoring — a system PageId or a
+    // custom page (E4). All section/meta mutations + the iframe preview key
+    // off this.
+    const editTarget = useMemo<EditTarget>(
+        () =>
+            builder.active_custom_page_id
+                ? { kind: "custom", id: builder.active_custom_page_id }
+                : { kind: "system", page_id: builder.active_page },
+        [builder.active_custom_page_id, builder.active_page],
+    );
+
+    // The active edit target as a PageConfig for the iframe live-renderer.
+    // Custom pages are sent with their slug as `page_id` (the renderer treats
+    // it as opaque; page-conditioned variants never match a custom slug).
+    const activePageConfig = useMemo<PreviewPageConfig | null>(() => {
+        if (editTarget.kind === "custom") {
+            const cp = builder.active_custom_page;
+            return cp
+                ? { page_id: cp.slug, sections: cp.sections, meta: cp.meta }
+                : null;
+        }
+        return (
+            builder.config.pages.find(
+                (p) => p.page_id === editTarget.page_id,
+            ) ?? null
+        );
+    }, [editTarget, builder.config.pages, builder.active_custom_page]);
+
+    // Runtime `page_id` for the iframe — the custom slug when authoring one.
+    const activeRuntimePageId: PageId | (string & {}) =
+        editTarget.kind === "custom"
+            ? (builder.active_custom_page?.slug ?? builder.active_page)
+            : builder.active_page;
+
     /* ── Live preview: push config + runtime to the iframe ─────────── */
     //
     // Webflow / Framer pattern: the editor owns the in-memory config and
@@ -307,15 +411,20 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     // `ready` (otherwise the iframe handler isn't mounted yet).
     useEffect(() => {
         if (!bridge.state.ready) return;
+        // While an inline edit is in flight the contenteditable in the iframe
+        // is authoritative — pushing a config update would re-render the
+        // section and reset the caret. We resume (and push the latest config)
+        // when `inline_editing` flips back to false, since it's in the deps.
+        if (bridge.state.inline_editing) return;
+        // While a spacing-drag streams transient configs, don't clobber them
+        // with the committed config (resumes on the commit's setConfig).
+        if (spacing_dragging_ref.current) return;
         const handle = setTimeout(() => {
-            const page = builder.config.pages.find(
-                (p) => p.page_id === builder.active_page,
-            );
-            if (page) {
-                bridge.postPageConfigUpdate(page as PageConfig);
+            if (activePageConfig) {
+                bridge.postPageConfigUpdate(activePageConfig);
             }
             const runtime: RuntimeContext = {
-                page_id: builder.active_page,
+                page_id: activeRuntimePageId,
                 breakpoint: builder.active_breakpoint,
                 locale: builder.active_locale,
                 audience_segments: preview_as.segments,
@@ -329,8 +438,8 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         }, 100);
         return () => clearTimeout(handle);
     }, [
-        builder.config,
-        builder.active_page,
+        activePageConfig,
+        activeRuntimePageId,
         builder.active_breakpoint,
         builder.active_locale,
         preview_as,
@@ -356,8 +465,13 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             return;
         }
         if (last_pushed_page_ref.current === builder.active_page) return;
-        last_pushed_page_ref.current = builder.active_page;
+        // Wait for `ready` WITHOUT advancing the ref — otherwise a page switch
+        // during the ~1s before the bridge is ready would strand the iframe on
+        // the old page (the ref would already match `active_page`, so the
+        // ready-triggered re-run would skip the navigation). This effect
+        // re-runs when `ready` flips because `bridge` is in its deps.
         if (!bridge.state.ready) return;
+        last_pushed_page_ref.current = builder.active_page;
         // Build the URL inline (rather than reading `previewUrlRef`) so
         // we never race the ref-sync effect, which commits in its own
         // declaration order.
@@ -402,7 +516,12 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                 id === "i18n" ||
                 id === "shipping" ||
                 id === "discounts" ||
+                id === "bundles" ||
                 id === "cart_recovery" ||
+                id === "pixels" ||
+                id === "loyalty" ||
+                id === "custom_pages" ||
+                id === "nav" ||
                 id === "redirects"
             ) {
                 set_system_screen(id);
@@ -429,6 +548,18 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         [builder],
     );
 
+    // Author a custom page's sections in the canvas (E4). Exits any system
+    // screen + clears the section selection so the canvas opens fresh.
+    const handleSelectCustomPage = useCallback(
+        (id: string): void => {
+            set_system_screen(null);
+            set_selected_section_id(null);
+            set_editing_section_id(null);
+            builder.set_active_custom_page_id(id);
+        },
+        [builder],
+    );
+
     const handleBrandKitChange = useCallback(
         (next: BrandKit): void => {
             builder.setConfig((prev) => ({ ...prev, brand_kit: next }));
@@ -438,12 +569,10 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
 
     /* ── Section list <-> config plumbing ─────────────────────────── */
 
-    const activeSections = useMemo<SectionInstance[]>(() => {
-        const page = builder.config.pages.find(
-            (p) => p.page_id === builder.active_page,
-        );
-        return page?.sections ?? [];
-    }, [builder.config.pages, builder.active_page]);
+    const activeSections = useMemo<SectionInstance[]>(
+        () => activePageSections(builder.config, editTarget),
+        [builder.config, editTarget],
+    );
 
     /** Per-page counts → badge in the tree. */
     const sectionCounts = useMemo<Partial<Record<PageId, number>>>(() => {
@@ -456,49 +585,31 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
 
     const handleSectionsChange = useCallback(
         (next: SectionInstance[]): void => {
-            builder.setConfig((prev) => {
-                const idx = prev.pages.findIndex(
-                    (p) => p.page_id === builder.active_page,
-                );
-                const nextPages = [...prev.pages];
-                if (idx >= 0) {
-                    nextPages[idx] = { ...nextPages[idx], sections: next };
-                } else {
-                    nextPages.push({ page_id: builder.active_page, sections: next });
-                }
-                return { ...prev, pages: nextPages };
-            });
+            builder.setConfig((prev) =>
+                withActivePageSections(prev, editTarget, () => next),
+            );
         },
-        [builder, builder.active_page],
+        [builder, editTarget],
     );
 
     // The active page's SEO meta (E1) + its update handler.
     const activePageMeta = useMemo(
         () =>
-            builder.config.pages.find((p) => p.page_id === builder.active_page)
-                ?.meta,
-        [builder.config.pages, builder.active_page],
+            editTarget.kind === "custom"
+                ? builder.active_custom_page?.meta
+                : builder.config.pages.find(
+                      (p) => p.page_id === editTarget.page_id,
+                  )?.meta,
+        [editTarget, builder.config.pages, builder.active_custom_page],
     );
     const handlePageMetaChange = useCallback(
         (next: PageMeta): void => {
-            builder.setConfig((prev) => {
-                const idx = prev.pages.findIndex(
-                    (p) => p.page_id === builder.active_page,
-                );
-                const nextPages = [...prev.pages];
-                if (idx >= 0) {
-                    nextPages[idx] = { ...nextPages[idx], meta: next };
-                } else {
-                    nextPages.push({
-                        page_id: builder.active_page,
-                        sections: [],
-                        meta: next,
-                    });
-                }
-                return { ...prev, pages: nextPages };
-            }, "Edited page SEO");
+            builder.setConfig(
+                (prev) => withActivePageMeta(prev, editTarget, next),
+                "Edited page SEO",
+            );
         },
-        [builder, builder.active_page],
+        [builder, editTarget],
     );
 
     const handleAddSection = useCallback(
@@ -524,35 +635,50 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
 
     const handleSectionSpacingChange = useCallback(
         (section_id: string, bottom_px: number): void => {
+            // Drag committed → resume config-push (the setConfig below re-fires
+            // the effect, which posts the committed config to the iframe).
+            spacing_dragging_ref.current = false;
             builder.setConfig(
-                (prev) => {
-                    const page_idx = prev.pages.findIndex(
-                        (p) => p.page_id === builder.active_page,
-                    );
-                    if (page_idx < 0) return prev;
-                    const page = prev.pages[page_idx];
-                    const sec_idx = page.sections.findIndex(
-                        (s) => s.id === section_id,
-                    );
-                    if (sec_idx < 0) return prev;
-                    const section = page.sections[sec_idx];
-                    const next_section: SectionInstance = {
-                        ...section,
-                        spacing: {
-                            ...(section.spacing ?? {}),
-                            bottom_px,
-                        },
-                    };
-                    const next_sections = page.sections.slice();
-                    next_sections[sec_idx] = next_section;
-                    const next_pages = prev.pages.slice();
-                    next_pages[page_idx] = { ...page, sections: next_sections };
-                    return { ...prev, pages: next_pages };
-                },
+                (prev) =>
+                    withActivePageSections(prev, editTarget, (sections) => {
+                        const sec_idx = sections.findIndex(
+                            (s) => s.id === section_id,
+                        );
+                        if (sec_idx < 0) return sections;
+                        const next = sections.slice();
+                        next[sec_idx] = {
+                            ...next[sec_idx],
+                            spacing: {
+                                ...(next[sec_idx].spacing ?? {}),
+                                bottom_px,
+                            },
+                        };
+                        return next;
+                    }),
                 "Resized spacing",
             );
         },
-        [builder, builder.active_page],
+        [builder, editTarget],
+    );
+
+    // Live spacing-drag feedback: stream a transient page config (selected
+    // section's bottom spacing only) to the iframe without committing — the
+    // iframe reflows in place; the commit happens on mouseup.
+    const handleSpacingPreview = useCallback(
+        (section_id: string, bottom_px: number): void => {
+            spacing_dragging_ref.current = true;
+            if (!activePageConfig) return;
+            const nextPage: PreviewPageConfig = {
+                ...activePageConfig,
+                sections: activePageConfig.sections.map((s) =>
+                    s.id === section_id
+                        ? { ...s, spacing: { ...(s.spacing ?? {}), bottom_px } }
+                        : s,
+                ),
+            };
+            bridge.postPageConfigUpdate(nextPage);
+        },
+        [activePageConfig, bridge],
     );
 
     /* ── DnD: picker card → preview insertion ─────────────────── */
@@ -563,8 +689,10 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     });
     const dnd_sensors = useSensors(pointer_sensor);
 
-    const [picker_drag_active, set_picker_drag_active] =
-        useState<boolean>(false);
+    // The drag-active value drove LivePreview's canvas drop-zones, which move
+    // onto the iframe overlay in step 5; the DnD handlers keep the setter
+    // wired meanwhile so re-enabling it is a one-line change.
+    const [, set_picker_drag_active] = useState<boolean>(false);
     const dragged_manifest_type_ref = useRef<string | null>(null);
 
     const handleDndDragStart = useCallback((e: DragStartEvent): void => {
@@ -688,16 +816,27 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             locale: LocaleCode,
             next_value: string,
         ): void => {
-            const page_idx = builder.config.pages.findIndex(
-                (p) => p.page_id === builder.active_page,
-            );
+            // Resolve the page's location in the config so we can build a
+            // path-based patch. Custom pages live under `custom_pages[]`
+            // (keyed by id), system pages under `pages[]` (keyed by page_id).
+            const rootKey =
+                editTarget.kind === "custom" ? "custom_pages" : "pages";
+            const page_idx =
+                editTarget.kind === "custom"
+                    ? customPageIndexById(
+                          builder.config.custom_pages,
+                          editTarget.id,
+                      )
+                    : builder.config.pages.findIndex(
+                          (p) => p.page_id === editTarget.page_id,
+                      );
             if (page_idx < 0) return;
-            const page = builder.config.pages[page_idx];
-            const sec_idx = page.sections.findIndex((s) => s.id === section_id);
+            const sections = activePageSections(builder.config, editTarget);
+            const sec_idx = sections.findIndex((s) => s.id === section_id);
             if (sec_idx < 0) return;
             const baseSegs = parsePathSegments(field_path);
             const absolutePath: (string | number)[] = [
-                "pages",
+                rootKey,
                 page_idx,
                 "sections",
                 sec_idx,
@@ -707,8 +846,22 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             ];
             builder.patchField(absolutePath, next_value);
         },
-        [builder, builder.active_page, builder.config],
+        [builder, editTarget, builder.config],
     );
+
+    // Inline edits happen inside the iframe (contenteditable); the bridge
+    // streams committed values out. The editor supplies the active locale and
+    // routes them through the same patch path the legacy DOM preview used.
+    useEffect(() => {
+        return bridge.onInlineEditCommit((e) => {
+            handleInlineEdit(
+                e.section_id,
+                e.field_path,
+                builder.active_locale,
+                e.value,
+            );
+        });
+    }, [bridge, handleInlineEdit, builder.active_locale]);
 
     const handleAddVariant = useCallback(
         (section_id: string): void => {
@@ -758,6 +911,47 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         [activeSections, handleSectionsChange],
     );
 
+    /* ── Preview context-menu actions ──────────────────────────── */
+
+    const closePreviewContextMenu = useCallback((): void => {
+        set_preview_context_menu(null);
+    }, []);
+
+    const handlePreviewContextMenuAction = useCallback(
+        (action: LivePreviewContextMenuAction): void => {
+            const id = preview_context_menu?.section_id;
+            set_preview_context_menu(null);
+            if (!id) return;
+            switch (action) {
+                case "edit":
+                    handleEditSection(id);
+                    break;
+                case "duplicate":
+                    handleOverlayAction({ kind: "duplicate", section_id: id });
+                    break;
+                case "up":
+                    handleOverlayAction({ kind: "up", section_id: id });
+                    break;
+                case "down":
+                    handleOverlayAction({ kind: "down", section_id: id });
+                    break;
+                case "add_variant":
+                    handleAddVariant(id);
+                    break;
+                case "delete":
+                    handleOverlayDelete(id);
+                    break;
+            }
+        },
+        [
+            preview_context_menu,
+            handleEditSection,
+            handleOverlayAction,
+            handleAddVariant,
+            handleOverlayDelete,
+        ],
+    );
+
     /* ── Section selection scroll-sync helpers ─────────────────── */
 
     const section_row_refs = useRef<Map<string, HTMLElement | null>>(new Map());
@@ -796,6 +990,13 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         return manifest?.name.en ?? s.type;
     }, [activeSections, selected_section_id]);
 
+    // Current bottom spacing of the selected section — seeds the drag handle.
+    const selected_spacing_bottom_px = useMemo<number>(() => {
+        if (!selected_section_id) return 0;
+        const s = activeSections.find((x) => x.id === selected_section_id);
+        return s?.spacing?.bottom_px ?? 0;
+    }, [activeSections, selected_section_id]);
+
     const previewUrl = useMemo(
         () =>
             buildPreviewUrl(
@@ -814,6 +1015,27 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             builder.active_locale,
             activePreviewToken,
         ],
+    );
+
+    // Stable iframe src for the in-canvas preview. Breakpoint width is
+    // applied by <PreviewFrame>; locale/page changes flow to the iframe via
+    // the runtime_update / page_id_change postMessage effects above — so a
+    // live edit never swaps `src` and reloads the frame. Only a storefront
+    // ORIGIN change (a custom domain resolving in prod) re-mints the URL.
+    const iframe_initial_page = useRef<PageId>(builder.active_page);
+    const iframe_initial_bp = useRef<Breakpoint>(builder.active_breakpoint);
+    const iframe_initial_locale = useRef<LocaleCode>(builder.active_locale);
+    const iframePreviewUrl = useMemo(
+        () =>
+            buildPreviewUrl(
+                storefrontUrl,
+                tenant.slug,
+                iframe_initial_page.current,
+                iframe_initial_bp.current,
+                iframe_initial_locale.current,
+                activePreviewToken,
+            ),
+        [storefrontUrl, tenant.slug, activePreviewToken],
     );
 
     // Build the `_preview` URL for any device — the PreviewModal swaps the
@@ -981,7 +1203,12 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         "i18n",
         "shipping",
         "discounts",
+        "bundles",
         "cart_recovery",
+        "pixels",
+        "loyalty",
+        "custom_pages",
+        "nav",
         "redirects",
     ] as const;
 
@@ -1060,6 +1287,30 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                             set_picker_open(true);
                         }}
                         renderEditPanel={renderMobileEditPanel}
+                        renderPreview={(onEditRequest) => (
+                            <div
+                                ref={preview_container_ref}
+                                className="relative flex flex-1 overflow-hidden"
+                            >
+                                <PreviewFrame
+                                    ref={iframe_ref}
+                                    url={iframePreviewUrl}
+                                    breakpoint="mobile"
+                                />
+                                <PreviewOverlay
+                                    bridge={bridge}
+                                    selected_section_id={selected_section_id}
+                                    selected_section_label={selected_section_label}
+                                    onEditRequest={onEditRequest}
+                                    onDeleteRequest={handleOverlayDelete}
+                                    onAction={handleOverlayAction}
+                                    iframeBounds={iframe_bounds}
+                                    contextMenu={preview_context_menu}
+                                    onContextMenuClose={closePreviewContextMenu}
+                                    onContextMenuAction={handlePreviewContextMenuAction}
+                                />
+                            </div>
+                        )}
                         brandKit={builder.config.brand_kit}
                         onChangeBrandKit={handleBrandKitChange}
                         experiments={builder.config.experiments}
@@ -1285,6 +1536,31 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                 </div>
             </header>
 
+            {/* BUG25: another editor published since we loaded — publishing was
+                rejected to avoid clobbering their work; prompt a reload. */}
+            {builder.publish_conflict && (
+                <div
+                    role="alert"
+                    data-testid="publish-conflict-banner"
+                    className="flex items-center justify-between gap-3 border-b border-amber-300 bg-amber-50 px-5 py-2.5 text-sm text-amber-900"
+                >
+                    <span>
+                        Someone else published changes since you opened the editor.
+                        Reload to get the latest before publishing again — your draft is
+                        kept.
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (typeof window !== "undefined") window.location.reload();
+                        }}
+                        className="shrink-0 rounded-full bg-amber-900 px-3 py-1 text-xs font-semibold text-amber-50 transition-opacity hover:opacity-90"
+                    >
+                        Reload
+                    </button>
+                </div>
+            )}
+
             {/* Main */}
             <div className="flex flex-1 overflow-hidden">
                 <PageTree
@@ -1292,6 +1568,10 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                     onSelect={handleSelectPage}
                     onSelectSetting={handleSelectSetting}
                     sectionCounts={sectionCounts}
+                    customPages={builder.config.custom_pages}
+                    activeCustomPageId={builder.active_custom_page_id}
+                    onSelectCustomPage={handleSelectCustomPage}
+                    onManageCustomPages={() => handleSelectSetting("custom_pages")}
                 />
                 <main
                     data-testid="editor-shell-main"
@@ -1353,6 +1633,32 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                             builder={builder}
                             onClose={handleCloseSystemScreen}
                         />
+                    ) : system_screen === "bundles" ? (
+                        <BundlesScreen
+                            builder={builder}
+                            onClose={handleCloseSystemScreen}
+                        />
+                    ) : system_screen === "pixels" ? (
+                        <PixelsScreen
+                            builder={builder}
+                            onClose={handleCloseSystemScreen}
+                        />
+                    ) : system_screen === "loyalty" ? (
+                        <LoyaltyScreen
+                            builder={builder}
+                            onClose={handleCloseSystemScreen}
+                        />
+                    ) : system_screen === "custom_pages" ? (
+                        <CustomPagesScreen
+                            builder={builder}
+                            onClose={handleCloseSystemScreen}
+                            onEditSections={handleSelectCustomPage}
+                        />
+                    ) : system_screen === "nav" ? (
+                        <NavBuilderScreen
+                            builder={builder}
+                            onClose={handleCloseSystemScreen}
+                        />
                     ) : system_screen === "redirects" ? (
                         <RedirectsScreen
                             builder={builder}
@@ -1369,39 +1675,40 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                                     visible={isFirstTimeTenant}
                                 />
                                 <div className="relative flex flex-1 overflow-hidden">
-                                    <LivePreview
-                                        config={builder.config}
-                                        pageId={builder.active_page}
+                                    <PreviewFrame
+                                        ref={iframe_ref}
+                                        url={iframePreviewUrl}
                                         breakpoint={builder.active_breakpoint}
-                                        locale={builder.active_locale}
-                                        tenant={{
-                                            id: tenant.id,
-                                            slug: tenant.slug,
-                                            business_name: tenant.business_name,
-                                        }}
-                                        products={previewProducts}
-                                        categories={previewCategories}
-                                        governorate={preview_as.governorate}
-                                        audienceSegments={preview_as.segments}
-                                        abTestArms={preview_as.ab_arms}
-                                        selectedSectionId={selected_section_id}
-                                        selectedSectionLabel={selected_section_label}
-                                        onSectionClick={set_selected_section_id}
-                                        onEditSection={handleEditSection}
-                                        onDeleteSection={handleOverlayDelete}
-                                        onSectionAction={(kind, section_id) =>
-                                            handleOverlayAction({ kind, section_id })
-                                        }
-                                        onInlineEdit={handleInlineEdit}
-                                        onAddVariant={handleAddVariant}
-                                        pickerDragActive={picker_drag_active}
-                                        onSpacingChange={handleSectionSpacingChange}
-                                        onAddAt={(insertAt) => {
-                                            set_picker_insert_at(insertAt);
-                                            set_picker_open(true);
-                                        }}
                                     />
                                 </div>
+                                {/* Click-to-edit overlay — positioned over the
+                                    iframe via bounds relative to the canvas
+                                    (preview_container_ref). Rings + section
+                                    toolbar; inline-edit / insert / spacing-drag
+                                    / context-menu land in steps 4-6. */}
+                                <PreviewOverlay
+                                    bridge={bridge}
+                                    selected_section_id={selected_section_id}
+                                    selected_section_label={selected_section_label}
+                                    onEditRequest={handleEditSection}
+                                    onDeleteRequest={handleOverlayDelete}
+                                    onAction={handleOverlayAction}
+                                    iframeBounds={iframe_bounds}
+                                    contextMenu={preview_context_menu}
+                                    onContextMenuClose={closePreviewContextMenu}
+                                    onContextMenuAction={
+                                        handlePreviewContextMenuAction
+                                    }
+                                    onAddAt={(insertAt) => {
+                                        set_picker_insert_at(insertAt);
+                                        set_picker_open(true);
+                                    }}
+                                    selectedSpacingBottomPx={
+                                        selected_spacing_bottom_px
+                                    }
+                                    onSpacingPreview={handleSpacingPreview}
+                                    onSpacingChange={handleSectionSpacingChange}
+                                />
                             </div>
                             <InspectorRail
                                 activeTab={inspector_tab}

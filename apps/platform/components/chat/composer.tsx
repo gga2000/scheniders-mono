@@ -1,21 +1,31 @@
 // apps/platform/components/chat/composer.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { FileText, Paperclip, Send, Smile, X } from "lucide-react";
+import { Bold, Check, ChevronDown, CornerUpLeft, FileText, Italic, Link2, Paperclip, Send, Smile, UserPlus, X } from "lucide-react";
 import { Textarea } from "@scheniders/ui/textarea";
 import { Button } from "@scheniders/ui/button";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/components/providers/language-provider";
 import { useReferenceSearch } from "@/hooks/chat/use-reference-search";
 import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
+import { chatKeys, useConversations } from "@/hooks/chat/use-conversations";
+import { useAssignOrder } from "@/hooks/chat/use-order-actions";
+import { useUpdateStatusMutation } from "@/hooks/use-orders-query";
+import { useChatStore } from "@/store/use-chat-store";
+import { parseSlash, slashCommandsFor } from "@/lib/chat/slash-commands";
+import { PIPELINE_STAGE_IDS, PIPELINE_STAGE_REGISTRY } from "@/lib/order-pipeline";
+import { EmojiPicker, recordFrequent } from "./emoji-picker";
+import { VoiceRecorder } from "./voice-recorder";
 import { ChatAvatar } from "./chat-avatar";
-import type { ChatReference, ChatAttachment } from "@/types/chat";
-
-const QUICK_EMOJIS = ["👍", "🔥", "✅", "❤️", "😂", "🙏", "👏", "🎉"] as const;
+import type { ChatReference, ChatAttachment, ChatMessage } from "@/types/chat";
+import type { OrderStatus } from "@/types/order";
+import type { PipelineStageId } from "@/lib/order-pipeline";
 const MAX_MENTION_RESULTS = 6;
 // Mirror the chat-attachments storage bucket limits so we fail fast in the UI
 // instead of opaquely deep inside the upload.
@@ -25,11 +35,18 @@ const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gi
 // only) would never open the #/@ autocomplete for Arabic input.
 const REF_TOKEN = /#([\p{L}\p{N}_]*)$/u;
 const MENTION_TOKEN = /@([\p{L}\p{N}_]*)$/u;
+// Draft write debounce — avoids thrashing localStorage on every keystroke.
+const DRAFT_DEBOUNCE_MS = 400;
 
 /** A pending attachment paired with an object URL for image previews. */
 interface PendingFile {
     file: File;
     previewUrl: string | null;
+    /** Natural pixel dimensions — only set for image files, populated asynchronously. */
+    width?: number;
+    height?: number;
+    /** True while this file is being uploaded to storage. */
+    uploading?: boolean;
 }
 
 export function Composer({
@@ -44,29 +61,67 @@ export function Composer({
         mentions: string[];
         attachments: ChatAttachment[];
         clientMsgId: string;
+        replyToId: string | null;
     }) => void | Promise<unknown>;
     onTyping: () => void;
 }) {
     const { user, tenantId } = useAuth();
     const { t } = useLanguage();
 
-    const [body, setBody] = useState("");
+    const { drafts, setDraft, clearDraft, replyToId, setReplyTo } = useChatStore();
+
+    const [body, setBody] = useState(() => drafts[conversationId] ?? "");
     const [refs, setRefs] = useState<ChatReference[]>([]);
     const [mentions, setMentions] = useState<string[]>([]);
     const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
     const [isUploading, setIsUploading] = useState(false);
     const [emojiOpen, setEmojiOpen] = useState(false);
 
-    // Only one autocomplete (# references OR @ mentions) is active at a time,
+    // Only one autocomplete (# references OR @ mentions OR / commands) is active at a time,
     // determined by which trailing token the caret is currently sitting on.
     const [refQuery, setRefQuery] = useState<string | null>(null);
     const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+    // Slash-command menu: non-null when body starts with "/"
+    const [slashQuery, setSlashQuery] = useState<string | null>(null);
+    // Sub-menus for /assign and /status
+    const [slashAssignOpen, setSlashAssignOpen] = useState(false);
+    const [slashStatusOpen, setSlashStatusOpen] = useState(false);
 
     const fileRef = useRef<HTMLInputElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const refResults = useReferenceSearch(refQuery ?? "");
     const { data: members = [] } = useTenantMembers();
+    const { data: conversations = [] } = useConversations();
+    const { toast: toastHook } = useToast();
+    const assignOrder = useAssignOrder();
+    const updateStatus = useUpdateStatusMutation();
+    const { profile } = useAuth();
+
+    // Resolve the active conversation's kind + order_id for slash command gating.
+    const activeConv = useMemo(
+        () => conversations.find((c) => c.id === conversationId) ?? null,
+        [conversations, conversationId]
+    );
+    const convKind = activeConv?.kind ?? "channel";
+    const convOrderId = activeConv?.order_id ?? null;
+
+    // Member map for resolving the reply-to sender name in the chip.
+    const memberMap = useMemo(() => {
+        const map = new Map<string, string>();
+        for (const m of members) map.set(m.user_id, m.display_name);
+        return map;
+    }, [members]);
+
+    // Resolve the message being replied to (for the chip preview) from the cached
+    // message window — the full quoted preview also renders in the timeline.
+    const qc = useQueryClient();
+    const replyParent = useMemo<ChatMessage | null>(() => {
+        if (!replyToId) return null;
+        const msgs = qc.getQueryData<ChatMessage[]>(chatKeys.messages(conversationId)) ?? [];
+        return msgs.find((m) => m.id === replyToId) ?? null;
+    }, [replyToId, conversationId, qc]);
 
     const mentionResults = useMemo(() => {
         if (mentionQuery === null) return [];
@@ -76,6 +131,23 @@ export function Composer({
             .filter((m) => (q === "" ? true : m.display_name.toLowerCase().includes(q)))
             .slice(0, MAX_MENTION_RESULTS);
     }, [members, mentionQuery, user?.id]);
+
+    // Seed textarea from the persisted draft when the active conversation changes.
+    // Clear reply-to on conversation switch so stale reply state doesn't carry over.
+    useEffect(() => {
+        setBody(drafts[conversationId] ?? "");
+        setRefs([]);
+        setMentions([]);
+        setRefQuery(null);
+        setMentionQuery(null);
+        setSlashQuery(null);
+        setSlashAssignOpen(false);
+        setSlashStatusOpen(false);
+        setReplyTo(null);
+        textareaRef.current?.focus();
+    // conversationId is the only dep that should trigger a reset
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [conversationId]);
 
     // Revoke any outstanding object URLs when the pending list changes out from
     // under us or the component unmounts, so we don't leak blob handles.
@@ -87,8 +159,33 @@ export function Composer({
         };
     }, [pendingFiles]);
 
+    /** Write the draft to the store after a debounce delay. */
+    const scheduleDraftWrite = useCallback(
+        (conversationId: string, text: string) => {
+            if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+            draftTimerRef.current = setTimeout(() => {
+                if (text) {
+                    setDraft(conversationId, text);
+                } else {
+                    clearDraft(conversationId);
+                }
+            }, DRAFT_DEBOUNCE_MS);
+        },
+        [setDraft, clearDraft]
+    );
+
     /** Recompute which (if any) trailing token autocomplete should be shown. */
     const syncTokens = (value: string) => {
+        // Slash menu: active when the entire body starts with "/" (no other text before it)
+        const parsed = parseSlash(value);
+        if (parsed !== null) {
+            setSlashQuery(parsed.name);
+            setRefQuery(null);
+            setMentionQuery(null);
+            return;
+        }
+        setSlashQuery(null);
+
         const refMatch = value.match(REF_TOKEN);
         const mentionMatch = value.match(MENTION_TOKEN);
         if (refMatch) {
@@ -107,6 +204,7 @@ export function Composer({
         setBody(value);
         onTyping();
         syncTokens(value);
+        scheduleDraftWrite(conversationId, value);
     };
 
     const selectReference = (r: (typeof refResults)[number]) => {
@@ -136,7 +234,7 @@ export function Composer({
         setMentions((prev) => prev.filter((id) => id !== userId));
     };
 
-    const addFiles = (files: FileList | null) => {
+    const addFiles = (files: FileList | File[] | null) => {
         if (!files) return;
         // Validate up-front (size + type) so drag/paste — which bypass the input's
         // `accept` hint — can't reach the upload and fail opaquely.
@@ -155,9 +253,66 @@ export function Composer({
                 previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
             });
         }
-        if (accepted.length) setPendingFiles((prev) => [...prev, ...accepted]);
+        if (accepted.length) {
+            setPendingFiles((prev) => [...prev, ...accepted]);
+            // Asynchronously read natural dimensions for image files and patch
+            // them into the pending state. createImageBitmap is the most direct
+            // API — it decodes the file without creating a DOM element, and the
+            // dimensions are available synchronously on the returned bitmap.
+            for (const pf of accepted) {
+                if (!pf.file.type.startsWith("image/")) continue;
+                createImageBitmap(pf.file)
+                    .then((bmp) => {
+                        const { width, height } = bmp;
+                        bmp.close();
+                        setPendingFiles((prev) =>
+                            prev.map((p) =>
+                                p.file === pf.file ? { ...p, width, height } : p
+                            )
+                        );
+                    })
+                    .catch(() => {
+                        // Dimensions unavailable — the upload will proceed without them.
+                    });
+            }
+        }
         // Allow re-selecting the same file later.
         if (fileRef.current) fileRef.current.value = "";
+    };
+
+    /**
+     * Paste handler for the textarea: intercepts clipboard image items and
+     * routes them into the same pending-attachment flow as a file pick.
+     * Text paste is not intercepted — only image items trigger the custom path.
+     */
+    const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+        const items = Array.from(e.clipboardData.items);
+        const imageItems = items.filter((item) => item.type.startsWith("image/"));
+        if (imageItems.length === 0) return;
+        // There are image items — prevent the default for each, but we also
+        // prevent the overall event default so the raw bytes aren't pasted as text.
+        e.preventDefault();
+        const imageFiles: File[] = [];
+        for (const item of imageItems) {
+            const file = item.getAsFile();
+            if (file) imageFiles.push(file);
+        }
+        if (imageFiles.length) addFiles(imageFiles);
+    };
+
+    /**
+     * Accept a recorded voice File directly from VoiceRecorder.
+     * Audio files (audio/*) are intentionally NOT in ALLOWED_MIME because the
+     * file-picker path only supports images + PDF. Voice blobs bypass that
+     * check and go directly into the pending queue so they use the same
+     * upload path as every other attachment.
+     */
+    const addVoiceFile = (file: File) => {
+        if (file.size > MAX_FILE_BYTES) {
+            toast.error(t("chat.fileTooLarge", "File too large (max 10 MB)"), file.name);
+            return;
+        }
+        setPendingFiles((prev) => [...prev, { file, previewUrl: null }]);
     };
 
     const removeFile = (index: number) => {
@@ -168,24 +323,180 @@ export function Composer({
         });
     };
 
-    const appendEmoji = (emoji: string) => {
-        setBody((b) => b + emoji);
-        setEmojiOpen(false);
+    /**
+     * Insert an emoji at the current caret position (or append if no focus).
+     * Records it as frequently used and closes the picker.
+     */
+    const insertEmoji = useCallback(
+        (emoji: string) => {
+            recordFrequent(emoji);
+            const el = textareaRef.current;
+            let newBody: string;
+            if (el) {
+                const start = el.selectionStart;
+                const end = el.selectionEnd;
+                newBody = body.slice(0, start) + emoji + body.slice(end);
+                setBody(newBody);
+                const caretPos = start + [...emoji].length;
+                requestAnimationFrame(() => {
+                    el.focus();
+                    el.setSelectionRange(caretPos, caretPos);
+                });
+            } else {
+                newBody = body + emoji;
+                setBody(newBody);
+            }
+            setEmojiOpen(false);
+            scheduleDraftWrite(conversationId, newBody);
+        },
+        [body, conversationId, scheduleDraftWrite]
+    );
+
+    /**
+     * Wrap the current textarea selection with the given prefix/suffix markers.
+     * For the link format, prompts for a URL and builds `[text](url)`.
+     * Restores focus and positions the caret after the wrapped text.
+     */
+    const wrapSelection = (kind: "bold" | "italic" | "link") => {
+        const el = textareaRef.current;
+        if (!el) return;
+        const start = el.selectionStart;
+        const end = el.selectionEnd;
+        const selected = body.slice(start, end);
+
+        let replacement: string;
+        let cursorOffset: number;
+
+        if (kind === "link") {
+            const url = window.prompt(t("chat.composer.linkUrl", "Enter URL")) ?? "";
+            if (!url) {
+                el.focus();
+                return;
+            }
+            replacement = `[${selected || t("chat.composer.linkText", "text")}](${url})`;
+            cursorOffset = start + replacement.length;
+        } else {
+            const marker = kind === "bold" ? "**" : "*";
+            replacement = `${marker}${selected}${marker}`;
+            // Place caret inside the markers when no text was selected
+            cursorOffset = selected ? start + replacement.length : start + marker.length;
+        }
+
+        const next = body.slice(0, start) + replacement + body.slice(end);
+        setBody(next);
+        // Restore caret after React re-render via a microtask
+        requestAnimationFrame(() => {
+            el.focus();
+            el.setSelectionRange(cursorOffset, cursorOffset);
+        });
+    };
+
+    /**
+     * Handle a slash-command selection from the menu.
+     * - shrug: inserts the shrug text and clears the composer body.
+     * - order: triggers the existing # reference-search flow by inserting "#"
+     *   (which opens the ref autocomplete on the next keystroke).
+     * - assign: opens the inline assign sub-menu (order threads only).
+     * - status: opens the inline status sub-menu (order threads only).
+     */
+    const selectSlashCommand = (name: string) => {
+        if (name === "shrug") {
+            setBody(String.raw`¯\_(ツ)_/¯`);
+            setSlashQuery(null);
+            textareaRef.current?.focus();
+            return;
+        }
+        if (name === "order") {
+            // Reuse the # reference flow: replace body with "#" so syncTokens
+            // opens the ref autocomplete immediately.
+            setBody("#");
+            setSlashQuery(null);
+            setRefQuery("");
+            textareaRef.current?.focus();
+            return;
+        }
+        if (name === "assign") {
+            setSlashAssignOpen(true);
+            setSlashStatusOpen(false);
+            return;
+        }
+        if (name === "status") {
+            setSlashStatusOpen(true);
+            setSlashAssignOpen(false);
+            return;
+        }
+    };
+
+    /** Execute assign from the slash /assign sub-menu. */
+    const handleSlashAssign = (userId: string | null) => {
+        if (!convOrderId) return;
+        setSlashAssignOpen(false);
+        setSlashQuery(null);
+        setBody("");
+        assignOrder.mutate(
+            { orderId: convOrderId, userId },
+            {
+                onError: (err) => {
+                    toastHook({
+                        title: t("chat.assign", "Assign"),
+                        description: err instanceof Error ? err.message : String(err),
+                        variant: "error",
+                    });
+                },
+            }
+        );
+        textareaRef.current?.focus();
+    };
+
+    /** Execute status change from the slash /status sub-menu. */
+    const handleSlashStatus = (status: OrderStatus) => {
+        if (!convOrderId) return;
+        setSlashStatusOpen(false);
+        setSlashQuery(null);
+        setBody("");
+        updateStatus.mutate(
+            {
+                orderId: convOrderId,
+                status,
+                last_status_changed_by_name: profile?.display_name ?? undefined,
+                last_status_changed_by_avatar: profile?.avatar_url ?? undefined,
+            },
+            {
+                onError: (err) => {
+                    toastHook({
+                        title: t("chat.changeStatus", "Change status"),
+                        description: err instanceof Error ? err.message : String(err),
+                        variant: "error",
+                    });
+                },
+            }
+        );
         textareaRef.current?.focus();
     };
 
     const uploadAll = async (): Promise<ChatAttachment[]> => {
         if (!tenantId) return [];
         const out: ChatAttachment[] = [];
-        for (const { file } of pendingFiles) {
-            const path = `${tenantId}/${conversationId}/${crypto.randomUUID()}-${file.name}`;
-            const { error } = await supabase.storage.from("chat-attachments").upload(path, file);
+        for (const pf of pendingFiles) {
+            // Mark this individual file as uploading so the chip shows a spinner.
+            setPendingFiles((prev) =>
+                prev.map((p) => (p.file === pf.file ? { ...p, uploading: true } : p))
+            );
+            const path = `${tenantId}/${conversationId}/${crypto.randomUUID()}-${pf.file.name}`;
+            const { error } = await supabase.storage.from("chat-attachments").upload(path, pf.file);
             if (error) throw error;
+            // Supabase storage .upload() does not expose byte-level progress — we
+            // show an indeterminate spinner per chip while the upload is in-flight
+            // (set above) rather than faking a percentage.
             out.push({
                 storage_path: path,
-                file_name: file.name,
-                mime: file.type || null,
-                size_bytes: file.size,
+                file_name: pf.file.name,
+                mime: pf.file.type || null,
+                size_bytes: pf.file.size,
+                // Pass natural dimensions for image files (null if not yet resolved
+                // or not an image — the DB columns accept null).
+                width: pf.width ?? null,
+                height: pf.height ?? null,
             });
         }
         return out;
@@ -195,6 +506,9 @@ export function Composer({
         const text = body.trim();
         if ((!text && pendingFiles.length === 0) || isUploading) return;
         if (!tenantId || !user) return;
+
+        // Capture replyToId before clearing it
+        const currentReplyToId = replyToId;
 
         setIsUploading(true);
         let uploaded: ChatAttachment[] = [];
@@ -209,6 +523,7 @@ export function Composer({
                 mentions,
                 attachments: uploaded,
                 clientMsgId: crypto.randomUUID(),
+                replyToId: currentReplyToId,
             });
             // Success: clear previews before dropping the list (effect cleanup also guards).
             for (const pf of pendingFiles) {
@@ -220,6 +535,12 @@ export function Composer({
             setPendingFiles([]);
             setRefQuery(null);
             setMentionQuery(null);
+            setSlashQuery(null);
+            setReplyTo(null);
+            // Clear the persisted draft on successful send
+            clearDraft(conversationId);
+            // Cancel any pending draft write
+            if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
         } catch {
             // Roll back orphaned storage objects from this failed attempt and keep the
             // user's input so they can retry.
@@ -234,13 +555,48 @@ export function Composer({
 
     const showRefDropdown = refQuery !== null && refResults.length > 0;
     const showMentionDropdown = mentionQuery !== null && mentionResults.length > 0;
+
+    // Slash menu: filter available commands by typed prefix and conversation kind.
+    const slashResults = useMemo(() => {
+        if (slashQuery === null) return [];
+        const q = slashQuery.toLowerCase();
+        return slashCommandsFor(convKind).filter((cmd) => cmd.name.startsWith(q));
+    }, [slashQuery, convKind]);
+    const showSlashDropdown = slashQuery !== null && (slashResults.length > 0 || slashAssignOpen || slashStatusOpen);
+
     const canSend = (body.trim().length > 0 || pendingFiles.length > 0) && !isUploading;
 
     return (
         <div
-            className="relative border-t border-[var(--card-border,rgba(0,0,0,0.08))] bg-[var(--card-bg)] p-2"
+            className="relative border-t border-(--card-border) bg-(--card-bg) p-2"
             style={{ paddingBottom: "calc(0.5rem + var(--safe-area-bottom, 0px))" }}
         >
+            {/* Reply-to chip: shown when the user has clicked "Reply" on a message */}
+            {replyToId && (
+                <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mb-2 flex items-center gap-2 rounded-lg border-l-2 border-indigo-400 bg-indigo-50/60 px-2.5 py-1.5"
+                >
+                    <CornerUpLeft className="h-3.5 w-3.5 shrink-0 text-indigo-400" />
+                    <span className="min-w-0 flex-1 truncate text-[12px] text-indigo-700">
+                        <span className="font-semibold">{t("chat.replyingTo", "Replying to")}</span>{" "}
+                        {replyParent
+                            ? `${memberMap.get(replyParent.sender_id ?? "") ?? t("chat.teammate", "Teammate")}: ${replyParent.body}`
+                            : ""}
+                    </span>
+                    <button
+                        type="button"
+                        aria-label={t("chat.cancelReply", "Cancel reply")}
+                        onClick={() => setReplyTo(null)}
+                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-indigo-500 transition-colors hover:bg-indigo-100 hover:text-indigo-700"
+                    >
+                        <X className="h-3.5 w-3.5" />
+                    </button>
+                </motion.div>
+            )}
+
             {/* Selected reference + mention chips */}
             {(refs.length > 0 || mentions.length > 0) && (
                 <div className="mb-2 flex flex-wrap gap-1.5">
@@ -294,33 +650,99 @@ export function Composer({
                             key={`file-${i}-${pf.file.name}`}
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="flex items-center gap-2 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] py-1 pl-1 pr-1.5 shadow-sm"
+                            className="flex items-center gap-2 rounded-xl border border-(--card-border) bg-(--card-bg) py-1 pl-1 pr-1.5 shadow-sm"
                         >
-                            {pf.previewUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element -- local object-URL preview, not a remote asset
-                                <img
-                                    src={pf.previewUrl}
-                                    alt={pf.file.name}
-                                    className="h-9 w-9 rounded-lg object-cover"
-                                />
-                            ) : (
-                                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--background)] text-muted-foreground">
-                                    <FileText className="h-4 w-4" />
-                                </span>
+                            {/* Thumbnail or file icon — overlaid with spinner while uploading */}
+                            <span className="relative flex h-9 w-9 shrink-0 items-center justify-center">
+                                {pf.previewUrl ? (
+                                    // eslint-disable-next-line @next/next/no-img-element -- local object-URL preview, not a remote asset
+                                    <img
+                                        src={pf.previewUrl}
+                                        alt={pf.file.name}
+                                        className="h-9 w-9 rounded-lg object-cover"
+                                    />
+                                ) : (
+                                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-background text-muted-foreground">
+                                        <FileText className="h-4 w-4" />
+                                    </span>
+                                )}
+                                {/* Indeterminate upload-in-progress overlay */}
+                                {pf.uploading && (
+                                    <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/40">
+                                        <svg
+                                            className="h-4 w-4 animate-spin text-white"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            aria-label={t("chat.uploading", "Uploading…")}
+                                        >
+                                            <circle
+                                                className="opacity-25"
+                                                cx="12"
+                                                cy="12"
+                                                r="10"
+                                                stroke="currentColor"
+                                                strokeWidth="4"
+                                            />
+                                            <path
+                                                className="opacity-75"
+                                                fill="currentColor"
+                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                            />
+                                        </svg>
+                                    </span>
+                                )}
+                            </span>
+                            <span className="max-w-[160px] truncate text-xs font-medium text-foreground">
+                                {pf.uploading
+                                    ? t("chat.uploading", "Uploading…")
+                                    : pf.file.name}
+                            </span>
+                            {/* Hide remove button while the file is uploading */}
+                            {!pf.uploading && (
+                                <button
+                                    type="button"
+                                    aria-label={t("chat.composer.removeAttachment", "Remove attachment")}
+                                    className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+                                    onClick={() => removeFile(i)}
+                                >
+                                    <X className="h-3.5 w-3.5" />
+                                </button>
                             )}
-                            <span className="max-w-[160px] truncate text-xs font-medium text-foreground">{pf.file.name}</span>
-                            <button
-                                type="button"
-                                aria-label={t("chat.composer.removeAttachment", "Remove attachment")}
-                                className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
-                                onClick={() => removeFile(i)}
-                            >
-                                <X className="h-3.5 w-3.5" />
-                            </button>
                         </motion.div>
                     ))}
                 </div>
             )}
+
+            {/* Format toolbar: bold, italic, link */}
+            <div className="mb-1.5 flex items-center gap-0.5">
+                <button
+                    type="button"
+                    title={t("chat.composer.bold", "Bold")}
+                    aria-label={t("chat.composer.bold", "Bold")}
+                    onClick={() => wrapSelection("bold")}
+                    className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+                >
+                    <Bold className="h-3.5 w-3.5" />
+                </button>
+                <button
+                    type="button"
+                    title={t("chat.composer.italic", "Italic")}
+                    aria-label={t("chat.composer.italic", "Italic")}
+                    onClick={() => wrapSelection("italic")}
+                    className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+                >
+                    <Italic className="h-3.5 w-3.5" />
+                </button>
+                <button
+                    type="button"
+                    title={t("chat.composer.link", "Link")}
+                    aria-label={t("chat.composer.link", "Link")}
+                    onClick={() => wrapSelection("link")}
+                    className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+                >
+                    <Link2 className="h-3.5 w-3.5" />
+                </button>
+            </div>
 
             <div className="flex items-end gap-2">
                 <div className="relative flex-1">
@@ -336,6 +758,7 @@ export function Composer({
                                 void submit();
                             }
                         }}
+                        onPaste={handlePaste}
                         placeholder={t("chat.composer.placeholder", "Message… use # to reference an order, @ to mention")}
                         rows={1}
                         className="min-h-[44px] max-h-40 resize-none rounded-xl"
@@ -349,7 +772,7 @@ export function Composer({
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: 6 }}
                                 transition={{ duration: 0.14 }}
-                                className="absolute bottom-full left-0 z-10 mb-1.5 max-h-64 w-full overflow-y-auto overscroll-contain rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-1 shadow-xl"
+                                className="absolute bottom-full left-0 z-10 mb-1.5 max-h-64 w-full overflow-y-auto overscroll-contain rounded-xl border border-(--card-border) bg-(--card-bg) p-1 shadow-xl"
                             >
                                 {refResults.map((r) => (
                                     <button
@@ -374,7 +797,7 @@ export function Composer({
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: 6 }}
                                 transition={{ duration: 0.14 }}
-                                className="absolute bottom-full left-0 z-10 mb-1.5 max-h-64 w-full overflow-y-auto overscroll-contain rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-1 shadow-xl"
+                                className="absolute bottom-full left-0 z-10 mb-1.5 max-h-64 w-full overflow-y-auto overscroll-contain rounded-xl border border-(--card-border) bg-(--card-bg) p-1 shadow-xl"
                             >
                                 {mentionResults.map((m) => (
                                     <button
@@ -394,7 +817,87 @@ export function Composer({
                         )}
                     </AnimatePresence>
 
-                    {/* Emoji quick-pick menu */}
+                    {/* Slash-command menu */}
+                    <AnimatePresence>
+                        {showSlashDropdown && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 6 }}
+                                transition={{ duration: 0.14 }}
+                                className="absolute bottom-full left-0 z-10 mb-1.5 w-full overflow-hidden rounded-xl border border-(--card-border) bg-(--card-bg) p-1 shadow-xl"
+                            >
+                                {/* Command list — hidden when a sub-menu is active */}
+                                {!slashAssignOpen && !slashStatusOpen && slashResults.map((cmd) => (
+                                    <button
+                                        key={cmd.name}
+                                        type="button"
+                                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-foreground/5"
+                                        onClick={() => selectSlashCommand(cmd.name)}
+                                    >
+                                        <span className="font-semibold text-foreground">/{cmd.name}</span>
+                                        <span className="text-muted-foreground">{t(cmd.descriptionKey, cmd.name)}</span>
+                                        {(cmd.name === "assign" || cmd.name === "status") && (
+                                            <ChevronDown className="ml-auto h-3 w-3 shrink-0 text-muted-foreground" />
+                                        )}
+                                    </button>
+                                ))}
+
+                                {/* /assign sub-menu */}
+                                {slashAssignOpen && (
+                                    <>
+                                        <p className="px-2 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                            {t("chat.assignTo", "Assign to…")}
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleSlashAssign(null)}
+                                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[12px] text-muted-foreground hover:bg-foreground/5"
+                                        >
+                                            <UserPlus className="h-3.5 w-3.5 shrink-0" />
+                                            {t("chat.unassigned", "Unassigned")}
+                                        </button>
+                                        {members.map((m) => (
+                                            <button
+                                                key={m.user_id}
+                                                type="button"
+                                                onClick={() => handleSlashAssign(m.user_id)}
+                                                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[12px] text-foreground hover:bg-foreground/5"
+                                            >
+                                                <ChatAvatar userId={m.user_id} name={m.display_name} avatarUrl={m.avatar_url} size="sm" />
+                                                <span className="min-w-0 flex-1 truncate">{m.display_name}</span>
+                                            </button>
+                                        ))}
+                                    </>
+                                )}
+
+                                {/* /status sub-menu */}
+                                {slashStatusOpen && (
+                                    <>
+                                        <p className="px-2 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                            {t("chat.changeStatus", "Change status")}
+                                        </p>
+                                        {PIPELINE_STAGE_IDS.map((s) => {
+                                            const meta = PIPELINE_STAGE_REGISTRY[s as PipelineStageId];
+                                            return (
+                                                <button
+                                                    key={s}
+                                                    type="button"
+                                                    onClick={() => handleSlashStatus(s as OrderStatus)}
+                                                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[12px] text-foreground hover:bg-foreground/5"
+                                                >
+                                                    <Check className="h-3.5 w-3.5 shrink-0 opacity-0" />
+                                                    {meta?.fallback ?? s}
+                                                </button>
+                                            );
+                                        })}
+                                    </>
+                                )}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Full emoji picker */}
                     <AnimatePresence>
                         {emojiOpen && (
                             <motion.div
@@ -402,19 +905,12 @@ export function Composer({
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.92, y: 6 }}
                                 transition={{ duration: 0.14 }}
-                                className="absolute bottom-full right-0 z-10 mb-1.5 flex gap-0.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-1.5 shadow-xl"
+                                className="absolute bottom-full right-0 z-20 mb-1.5"
                             >
-                                {QUICK_EMOJIS.map((emoji) => (
-                                    <button
-                                        key={emoji}
-                                        type="button"
-                                        aria-label={`${t("chat.composer.insertEmoji", "Insert")} ${emoji}`}
-                                        className="rounded-lg px-1.5 py-1 text-lg leading-none transition-transform hover:scale-125 hover:bg-foreground/5"
-                                        onClick={() => appendEmoji(emoji)}
-                                    >
-                                        {emoji}
-                                    </button>
-                                ))}
+                                <EmojiPicker
+                                    onPick={insertEmoji}
+                                    onClose={() => setEmojiOpen(false)}
+                                />
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -449,6 +945,10 @@ export function Composer({
                 >
                     <Paperclip className="h-5 w-5" />
                 </Button>
+                <VoiceRecorder
+                    onRecorded={addVoiceFile}
+                    disabled={isUploading}
+                />
                 <Button
                     type="button"
                     size="md"

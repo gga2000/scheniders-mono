@@ -3,17 +3,20 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 import type { ChatConversation, ChatMember } from "@/types/chat";
+import { useCallback } from "react";
 
 export const chatKeys = {
     all: ["chat"] as const,
     conversations: () => [...chatKeys.all, "conversations"] as const,
+    archivedConversations: () => [...chatKeys.all, "conversations", "archived"] as const,
     messages: (conversationId: string) => [...chatKeys.all, "messages", conversationId] as const,
     mentions: () => [...chatKeys.all, "mentions"] as const,
 };
 
 export interface ConversationWithMeta extends ChatConversation {
-    members: Pick<ChatMember, "user_id" | "last_read_at" | "role">[];
+    members: Pick<ChatMember, "user_id" | "last_read_at" | "role" | "muted">[];
     my_last_read_at: string | null;
+    my_muted: boolean;
     unread: number;
 }
 
@@ -26,13 +29,13 @@ export function useConversations() {
         queryFn: async (): Promise<ConversationWithMeta[]> => {
             const { data: convs, error } = await supabase
                 .from("chat_conversations")
-                .select("*, members:chat_members(user_id,last_read_at,role)")
+                .select("*, members:chat_members(user_id,last_read_at,role,muted)")
                 .is("archived_at", null)
                 .order("last_message_at", { ascending: false, nullsFirst: false });
             if (error) throw error;
 
             const rows = (convs ?? []) as unknown as (ChatConversation & {
-                members: Pick<ChatMember, "user_id" | "last_read_at" | "role">[];
+                members: Pick<ChatMember, "user_id" | "last_read_at" | "role" | "muted">[];
             })[];
 
             // unread counts come from the chat_unread_counts RPC (accurate, server-side)
@@ -46,7 +49,43 @@ export function useConversations() {
 
             return rows.map((r) => {
                 const mine = r.members.find((m) => m.user_id === user!.id);
-                return { ...r, my_last_read_at: mine?.last_read_at ?? null, unread: unreadByConv.get(r.id) ?? 0 };
+                return {
+                    ...r,
+                    my_last_read_at: mine?.last_read_at ?? null,
+                    my_muted: mine?.muted ?? false,
+                    unread: unreadByConv.get(r.id) ?? 0,
+                };
+            });
+        },
+    });
+}
+
+export function useArchivedConversations() {
+    const { user } = useAuth();
+    return useQuery({
+        queryKey: chatKeys.archivedConversations(),
+        enabled: !!user?.id,
+        staleTime: 30_000,
+        queryFn: async (): Promise<ConversationWithMeta[]> => {
+            const { data: convs, error } = await supabase
+                .from("chat_conversations")
+                .select("*, members:chat_members(user_id,last_read_at,role,muted)")
+                .not("archived_at", "is", null)
+                .order("archived_at", { ascending: false });
+            if (error) throw error;
+
+            const rows = (convs ?? []) as unknown as (ChatConversation & {
+                members: Pick<ChatMember, "user_id" | "last_read_at" | "role" | "muted">[];
+            })[];
+
+            return rows.map((r) => {
+                const mine = r.members.find((m) => m.user_id === user!.id);
+                return {
+                    ...r,
+                    my_last_read_at: mine?.last_read_at ?? null,
+                    my_muted: mine?.muted ?? false,
+                    unread: 0,
+                };
             });
         },
     });
@@ -74,4 +113,106 @@ export function useStartOrderConversation() {
         },
         onSuccess: () => qc.invalidateQueries({ queryKey: chatKeys.conversations() }),
     });
+}
+
+export function useCreateChannel() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (args: { name: string; isPrivate: boolean; topic?: string | null }): Promise<string> => {
+            const { data, error } = await supabase.rpc("chat_create_channel", {
+                p_name: args.name, p_is_private: args.isPrivate, p_topic: args.topic ?? null,
+            });
+            if (error) throw error;
+            return data as string;
+        },
+        onSuccess: () => qc.invalidateQueries({ queryKey: chatKeys.conversations() }),
+    });
+}
+
+export function useCreateGroup() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (args: { name: string; userIds: string[] }): Promise<string> => {
+            const { data, error } = await supabase.rpc("chat_create_group", {
+                p_name: args.name, p_user_ids: args.userIds,
+            });
+            if (error) throw error;
+            return data as string;
+        },
+        onSuccess: () => qc.invalidateQueries({ queryKey: chatKeys.conversations() }),
+    });
+}
+
+export function useRenameConversation() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (args: { conversationId: string; name: string; topic?: string | null }) => {
+            const { error } = await supabase.rpc("chat_rename_conversation", {
+                p_conversation_id: args.conversationId, p_name: args.name, p_topic: args.topic ?? null,
+            });
+            if (error) throw error;
+        },
+        onSuccess: () => qc.invalidateQueries({ queryKey: chatKeys.conversations() }),
+    });
+}
+
+export function useArchiveConversation() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (args: { conversationId: string; archived: boolean }) => {
+            const { error } = await supabase.rpc("chat_archive_conversation", {
+                p_conversation_id: args.conversationId, p_archived: args.archived,
+            });
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            void qc.invalidateQueries({ queryKey: chatKeys.conversations() });
+            void qc.invalidateQueries({ queryKey: chatKeys.archivedConversations() });
+        },
+    });
+}
+
+export function useLeaveConversation() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (conversationId: string) => {
+            const { error } = await supabase.rpc("chat_leave_conversation", { p_conversation_id: conversationId });
+            if (error) throw error;
+        },
+        onSuccess: () => qc.invalidateQueries({ queryKey: chatKeys.conversations() }),
+    });
+}
+
+export function useDeleteConversation() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (conversationId: string) => {
+            const { error } = await supabase.rpc("chat_delete_conversation", { p_conversation_id: conversationId });
+            if (error) throw error;
+        },
+        onSuccess: () => qc.invalidateQueries({ queryKey: chatKeys.conversations() }),
+    });
+}
+
+export function useToggleMute() {
+    const { user } = useAuth();
+    const qc = useQueryClient();
+    const mutate = useMutation({
+        mutationFn: async ({ conversationId, muted }: { conversationId: string; muted: boolean }) => {
+            if (!user?.id) throw new Error("Not authenticated");
+            const { error } = await supabase
+                .from("chat_members")
+                .update({ muted })
+                .eq("conversation_id", conversationId)
+                .eq("user_id", user.id);
+            if (error) throw error;
+        },
+        onSuccess: () => qc.invalidateQueries({ queryKey: chatKeys.conversations() }),
+    });
+    // Stable callback so consumers don't need to stabilise the reference themselves
+    const toggle = useCallback(
+        (args: { conversationId: string; muted: boolean }) => mutate.mutate(args),
+        [mutate]
+    );
+    return { ...mutate, toggle };
 }
