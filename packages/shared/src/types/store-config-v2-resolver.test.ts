@@ -545,6 +545,20 @@ describe("resolvePage", () => {
     expect(out.footer).toBeUndefined();
     expect(out.promo_bar).toBeUndefined();
   });
+
+  it("returns {} for corrupt non-object globals instead of throwing", () => {
+    // jsonb from the DB can be null / an array on legacy or corrupt rows;
+    // Object.entries(null) would 500 the whole storefront.
+    const ctx = makeCtx();
+    for (const bad of [null, undefined, [], "x", 5] as unknown[]) {
+      expect(() =>
+        resolveGlobals(bad as Parameters<typeof resolveGlobals>[0], ctx),
+      ).not.toThrow();
+      expect(
+        resolveGlobals(bad as Parameters<typeof resolveGlobals>[0], ctx),
+      ).toEqual({});
+    }
+  });
 });
 
 /* ─────────────────────────────────────────────────────────────────── */
