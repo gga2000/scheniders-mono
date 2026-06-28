@@ -65,6 +65,12 @@ const VERTICAL_ICON: Record<string, LucideIcon> = {
 
 type Step = 0 | 1 | 2;
 
+/** Parse a money input to a positive integer, or undefined when blank/invalid. */
+function parsePositiveInt(value: string): number | undefined {
+    const n = Number(value.replace(/[,\s]/g, ""));
+    return Number.isFinite(n) && n > 0 ? Math.round(n) : undefined;
+}
+
 export function OnboardingWizard({
     tenantId,
     defaultBusinessName,
@@ -80,6 +86,8 @@ export function OnboardingWizard({
     const [businessName, setBusinessName] = useState(defaultBusinessName);
     const [whatsapp, setWhatsapp] = useState(defaultWhatsapp ?? "");
     const [brandColor, setBrandColor] = useState<string>(COLOR_PRESETS[0].hex);
+    const [deliveryFee, setDeliveryFee] = useState("");
+    const [freeThreshold, setFreeThreshold] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -108,6 +116,8 @@ export function OnboardingWizard({
             businessName: businessName.trim(),
             brandColor,
             whatsappNumber: whatsapp.trim() || undefined,
+            deliveryFeeIqd: parsePositiveInt(deliveryFee),
+            freeDeliveryThresholdIqd: parsePositiveInt(freeThreshold),
         });
 
         try {
@@ -166,6 +176,10 @@ export function OnboardingWizard({
                         onWhatsapp={setWhatsapp}
                         brandColor={brandColor}
                         onBrandColor={setBrandColor}
+                        deliveryFee={deliveryFee}
+                        onDeliveryFee={setDeliveryFee}
+                        freeThreshold={freeThreshold}
+                        onFreeThreshold={setFreeThreshold}
                     />
                 )}
 
@@ -347,6 +361,10 @@ function BasicsStep({
     onWhatsapp,
     brandColor,
     onBrandColor,
+    deliveryFee,
+    onDeliveryFee,
+    freeThreshold,
+    onFreeThreshold,
 }: {
     businessName: string;
     onBusinessName: (v: string) => void;
@@ -354,6 +372,10 @@ function BasicsStep({
     onWhatsapp: (v: string) => void;
     brandColor: string;
     onBrandColor: (v: string) => void;
+    deliveryFee: string;
+    onDeliveryFee: (v: string) => void;
+    freeThreshold: string;
+    onFreeThreshold: (v: string) => void;
 }) {
     const inputCls =
         "w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-foreground focus:outline-none";
@@ -382,6 +404,37 @@ function BasicsStep({
                     className={inputCls}
                 />
             </Field>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field
+                    label="Delivery fee (IQD)"
+                    hint="Standard COD delivery charge. Leave blank to set up later."
+                >
+                    <input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        value={deliveryFee}
+                        onChange={(e) => onDeliveryFee(e.target.value)}
+                        placeholder="5000"
+                        className={inputCls}
+                    />
+                </Field>
+                <Field
+                    label="Free delivery over (IQD)"
+                    hint="Optional. Orders at/above this ship free."
+                >
+                    <input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        value={freeThreshold}
+                        onChange={(e) => onFreeThreshold(e.target.value)}
+                        placeholder="50000"
+                        className={inputCls}
+                    />
+                </Field>
+            </div>
 
             <Field label="Brand colour" hint="Used across buttons and accents. Change it anytime.">
                 <div className="flex flex-wrap items-center gap-2.5">

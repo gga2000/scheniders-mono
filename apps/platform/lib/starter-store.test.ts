@@ -119,6 +119,54 @@ describe("buildStarterStoreConfigV2", () => {
         for (const id of ids) expect(id).not.toMatch(/^__template-/);
     });
 
+    it("seeds a delivery default_rate when a fee is given", () => {
+        const cfg = buildStarterStoreConfigV2({
+            templateId: FIRST.id,
+            businessName: "X",
+            deliveryFeeIqd: 5000,
+            freeDeliveryThresholdIqd: 50000,
+        });
+        expect(cfg.commerce?.shipping?.default_rate).toEqual({
+            fee_iqd: 5000,
+            free_threshold_iqd: 50000,
+        });
+    });
+
+    it("omits the free threshold when not given / ≤ 0", () => {
+        const cfg = buildStarterStoreConfigV2({
+            templateId: FIRST.id,
+            businessName: "X",
+            deliveryFeeIqd: 4000,
+            freeDeliveryThresholdIqd: 0,
+        });
+        expect(cfg.commerce?.shipping?.default_rate).toEqual({ fee_iqd: 4000 });
+    });
+
+    it("seeds no shipping when the fee is absent or non-positive", () => {
+        const none = buildStarterStoreConfigV2({
+            templateId: FIRST.id,
+            businessName: "X",
+        });
+        const zero = buildStarterStoreConfigV2({
+            templateId: FIRST.id,
+            businessName: "X",
+            deliveryFeeIqd: 0,
+        });
+        expect(none.commerce?.shipping).toBeUndefined();
+        expect(zero.commerce?.shipping).toBeUndefined();
+    });
+
+    it("keeps whatsapp + shipping together on commerce", () => {
+        const cfg = buildStarterStoreConfigV2({
+            templateId: FIRST.id,
+            businessName: "X",
+            whatsappNumber: "07701234567",
+            deliveryFeeIqd: 3000,
+        });
+        expect(cfg.commerce?.whatsapp_number).toBe("07701234567");
+        expect(cfg.commerce?.shipping?.default_rate?.fee_iqd).toBe(3000);
+    });
+
     it("stamps the business name onto the hero brand-label field", () => {
         const cfg = buildStarterStoreConfigV2({
             templateId: FIRST.id, // sale_page → includes a hero_image

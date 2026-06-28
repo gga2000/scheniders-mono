@@ -65,6 +65,14 @@ export interface StarterStoreInput {
     /** Optional WhatsApp number → enables WhatsApp ordering. */
     whatsappNumber?: string;
     /**
+     * Standard COD delivery fee (IQD). When > 0 it seeds the per-governorate
+     * shipping engine's `default_rate`; otherwise the store falls back to the
+     * legacy flat fee. The merchant sets this in the wizard — never guessed.
+     */
+    deliveryFeeIqd?: number;
+    /** Cart subtotal (IQD) at/above which delivery is free. Ignored if ≤ 0. */
+    freeDeliveryThresholdIqd?: number;
+    /**
      * Locales the store supports. First entry becomes `default_locale`.
      * Defaults to Arabic (the Iraq market default).
      */
@@ -176,6 +184,27 @@ export function buildStarterStoreConfigV2(
             ...(cfg.commerce ?? {}),
             whatsapp_number: whatsapp,
             enable_whatsapp_order: true,
+        };
+    }
+
+    // ── Delivery (per-governorate engine default_rate) ──────────────
+    const fee = input.deliveryFeeIqd;
+    if (typeof fee === "number" && Number.isFinite(fee) && fee > 0) {
+        const threshold = input.freeDeliveryThresholdIqd;
+        const hasThreshold =
+            typeof threshold === "number" &&
+            Number.isFinite(threshold) &&
+            threshold > 0;
+        cfg.commerce = {
+            ...(cfg.commerce ?? {}),
+            shipping: {
+                default_rate: {
+                    fee_iqd: Math.round(fee),
+                    ...(hasThreshold
+                        ? { free_threshold_iqd: Math.round(threshold) }
+                        : {}),
+                },
+            },
         };
     }
 
