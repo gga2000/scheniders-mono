@@ -15,8 +15,14 @@
 // =====================================================================
 
 import { emptyStoreConfigV2 } from "@scheniders/shared";
-import type { LocaleCode, StoreConfigV2 } from "@scheniders/shared";
+import type {
+    LocaleCode,
+    PageId,
+    SectionInstance,
+    StoreConfigV2,
+} from "@scheniders/shared";
 import { PAGE_TEMPLATES, applyTemplate, getPageTemplate } from "./page-templates";
+import { getManifestEntry } from "./sections-manifest";
 
 /** Templates offered in the wizard's "pick a starter" step. */
 export const STARTER_TEMPLATES = PAGE_TEMPLATES;
@@ -39,6 +45,40 @@ export interface StarterStoreInput {
 
 /** `#rrggbb` only — keep it strict so a bad value can't poison the brand kit. */
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+
+/**
+ * Baseline content seeded onto the supporting pages so a fresh store is
+ * close to launch-ready, not just a home page. The policy pages each get a
+ * `policy_content` section — that alone satisfies the ad-compliance health
+ * checks (which only require ≥1 section) and unblocks publish.
+ */
+const SUPPORTING_PAGE_SECTIONS: Partial<Record<PageId, string[]>> = {
+    about: ["about_block", "founder_note"],
+    faq: ["faq_accordion"],
+    policy_shipping: ["policy_content"],
+    policy_returns: ["policy_content"],
+    policy_privacy: ["policy_content"],
+    policy_terms: ["policy_content"],
+};
+
+function freshSectionId(): string {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+        return crypto.randomUUID();
+    }
+    return `sec_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/** Instantiate a section from its manifest defaults with a fresh id. */
+function makeSection(type: string): SectionInstance {
+    const entry = getManifestEntry(type);
+    if (!entry) throw new Error(`Missing manifest entry: ${type}`);
+    return {
+        id: freshSectionId(),
+        type,
+        enabled: true,
+        base: JSON.parse(JSON.stringify(entry.defaultProps)),
+    };
+}
 
 /**
  * Build a fully-populated `StoreConfigV2` draft from the wizard answers.
@@ -82,6 +122,12 @@ export function buildStarterStoreConfigV2(
     if (template) {
         const home = cfg.pages.find((p) => p.page_id === "home");
         if (home) home.sections = applyTemplate(template);
+    }
+
+    // ── Supporting pages (about / faq / policies) ───────────────────
+    for (const [pageId, types] of Object.entries(SUPPORTING_PAGE_SECTIONS)) {
+        const page = cfg.pages.find((p) => p.page_id === pageId);
+        if (page) page.sections = types.map(makeSection);
     }
 
     return cfg;

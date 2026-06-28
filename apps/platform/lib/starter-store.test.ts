@@ -76,6 +76,44 @@ describe("buildStarterStoreConfigV2", () => {
         expect(cfg.commerce?.enable_whatsapp_order).toBe(true);
     });
 
+    it("seeds the policy pages so ad-compliance health checks pass", () => {
+        const cfg = buildStarterStoreConfigV2({
+            templateId: FIRST.id,
+            businessName: "X",
+        });
+        for (const id of [
+            "policy_shipping",
+            "policy_returns",
+            "policy_privacy",
+            "policy_terms",
+        ] as const) {
+            const page = cfg.pages.find((p) => p.page_id === id);
+            expect(page?.sections.length).toBeGreaterThan(0);
+            expect(page?.sections[0].type).toBe("policy_content");
+        }
+    });
+
+    it("seeds about + faq pages with content", () => {
+        const cfg = buildStarterStoreConfigV2({
+            templateId: FIRST.id,
+            businessName: "X",
+        });
+        const about = cfg.pages.find((p) => p.page_id === "about");
+        const faq = cfg.pages.find((p) => p.page_id === "faq");
+        expect(about?.sections.length).toBeGreaterThan(0);
+        expect(faq?.sections.length).toBeGreaterThan(0);
+    });
+
+    it("gives every seeded section a fresh non-placeholder id", () => {
+        const cfg = buildStarterStoreConfigV2({
+            templateId: FIRST.id,
+            businessName: "X",
+        });
+        const ids = cfg.pages.flatMap((p) => p.sections.map((s) => s.id));
+        expect(new Set(ids).size).toBe(ids.length); // all unique
+        for (const id of ids) expect(id).not.toMatch(/^__template-/);
+    });
+
     it("leaves the home page empty for an unknown template id", () => {
         const cfg = buildStarterStoreConfigV2({
             templateId: "does-not-exist",
