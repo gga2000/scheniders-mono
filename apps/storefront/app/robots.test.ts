@@ -19,4 +19,11 @@ describe("robots", () => {
         expect(disallow).toContain("/s/*/cart");
         expect(disallow).toContain("/s/*/checkout");
     });
+
+    it("blocks the funnel on subdomain/custom-domain stores (root-relative paths)", () => {
+        // The proxy rewrites a custom-domain "/cart" → "/s/<tenant>/cart", so
+        // crawlers see "/cart" — "/s/*/cart" alone didn't cover them.
+        expect(disallow).toContain("/cart");
+        expect(disallow).toContain("/checkout");
+    });
 });
