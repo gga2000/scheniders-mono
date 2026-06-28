@@ -137,8 +137,13 @@ export async function submitCheckout(
     const pausedUntil = restrictions?.paused_until
       ? Date.parse(restrictions.paused_until)
       : null;
+    // Lift the pause ONLY for a valid timestamp that is in the past. A missing
+    // OR unparseable (NaN) end date fails CLOSED — the store stays paused —
+    // rather than letting a malformed `paused_until` silently accept orders.
     const stillPaused =
-      pausedUntil === null || (pausedUntil !== null && pausedUntil > Date.now());
+      pausedUntil === null ||
+      Number.isNaN(pausedUntil) ||
+      pausedUntil > Date.now();
     if (stillPaused && restrictions?.blocks?.new_orders) {
       return {
         success: false,
