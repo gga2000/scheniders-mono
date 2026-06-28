@@ -21,6 +21,7 @@ import { z } from "zod";
 import {
   resolveI18n,
   IRAQ_GOVERNORATES,
+  governorateLabel,
   computeDeliveryFee,
   computeDiscount,
   computeBundleDiscounts,
@@ -533,7 +534,7 @@ function CheckoutFormRender({
                 >
                   {IRAQ_GOVERNORATES.map((g) => (
                     <option key={g.code} value={g.code}>
-                      {g.name}
+                      {governorateLabel(g.code, locale)}
                     </option>
                   ))}
                 </select>

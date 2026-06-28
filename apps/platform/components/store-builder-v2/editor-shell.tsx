@@ -154,6 +154,13 @@ export interface EditorShellProps {
      */
     initialPageId?: PageId | null;
     initialSectionId?: string | null;
+    /**
+     * Deep-link the Inspector rail to a specific tab on mount (e.g. the
+     * Command Center "SEO" tile opens the per-page SEO tab). Defaults to
+     * "blocks". SEO/Health are inspector tabs, not full-screen system
+     * screens, so they travel via this prop rather than `?screen=`.
+     */
+    initialInspectorTab?: InspectorTab | null;
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -180,13 +187,17 @@ function buildPreviewUrl(
     } catch {
         // Treat as already-an-origin.
     }
+    // The page id is a PATH segment — the storefront route is
+    // `/_preview/[tenant]/[page_id]`. A `?page=` query is only a
+    // lower-priority alias there, so emitting the page as a query alone
+    // (with no path segment) 404s the iframe. Keep token/breakpoint/locale
+    // in the query.
     const params = new URLSearchParams({
         token,
-        page,
         breakpoint,
         locale,
     });
-    return `${origin}/_preview/${tenantSlug}?${params.toString()}`;
+    return `${origin}/_preview/${tenantSlug}/${encodeURIComponent(page)}?${params.toString()}`;
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -211,6 +222,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         initialSystemScreen,
         initialPageId,
         initialSectionId,
+        initialInspectorTab,
     } = props;
 
     const activePreviewToken = previewToken ?? DEV_PREVIEW_TOKEN;
@@ -244,8 +256,11 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         initialSystemScreen !== undefined ? initialSystemScreen : null,
     );
 
-    // Inspector rail tab (Blocks / Style / Health).
-    const [inspector_tab, set_inspector_tab] = useState<InspectorTab>("blocks");
+    // Inspector rail tab (Blocks / Style / SEO / Health). A Command Center
+    // deep-link (?tab=) can preselect a tab on mount.
+    const [inspector_tab, set_inspector_tab] = useState<InspectorTab>(
+        initialInspectorTab ?? "blocks",
+    );
 
     // Publish confirm sheet state.
     const [publish_sheet_open, set_publish_sheet_open] = useState<boolean>(false);
@@ -997,17 +1012,33 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         return s?.spacing?.bottom_px ?? 0;
     }, [activeSections, selected_section_id]);
 
+    // `storefrontUrl` (from useStorefrontUrl) is window-dependent: it resolves
+    // to the prod subdomain during SSR (no window) but to localhost:3001 on the
+    // client in dev. Emitting it directly makes the iframe `src` (and the Open
+    // link) hydrate-mismatch — React keeps the SSR (prod) value and "won't
+    // patch it up", so the local-dev preview loads prod + the bridge origin
+    // never matches. Gate every storefront URL behind a client-mount flag so
+    // SSR and the first client render agree on a placeholder, then swap in the
+    // real (client-resolved) URL post-mount.
+    const [client_mounted, set_client_mounted] = useState<boolean>(false);
+    useEffect(() => {
+        set_client_mounted(true);
+    }, []);
+
     const previewUrl = useMemo(
         () =>
-            buildPreviewUrl(
-                storefrontUrl,
-                tenant.slug,
-                builder.active_page,
-                builder.active_breakpoint,
-                builder.active_locale,
-                activePreviewToken,
-            ),
+            client_mounted
+                ? buildPreviewUrl(
+                      storefrontUrl,
+                      tenant.slug,
+                      builder.active_page,
+                      builder.active_breakpoint,
+                      builder.active_locale,
+                      activePreviewToken,
+                  )
+                : "",
         [
+            client_mounted,
             storefrontUrl,
             tenant.slug,
             builder.active_page,
@@ -1027,15 +1058,17 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     const iframe_initial_locale = useRef<LocaleCode>(builder.active_locale);
     const iframePreviewUrl = useMemo(
         () =>
-            buildPreviewUrl(
-                storefrontUrl,
-                tenant.slug,
-                iframe_initial_page.current,
-                iframe_initial_bp.current,
-                iframe_initial_locale.current,
-                activePreviewToken,
-            ),
-        [storefrontUrl, tenant.slug, activePreviewToken],
+            client_mounted
+                ? buildPreviewUrl(
+                      storefrontUrl,
+                      tenant.slug,
+                      iframe_initial_page.current,
+                      iframe_initial_bp.current,
+                      iframe_initial_locale.current,
+                      activePreviewToken,
+                  )
+                : "about:blank",
+        [client_mounted, storefrontUrl, tenant.slug, activePreviewToken],
     );
 
     // Build the `_preview` URL for any device — the PreviewModal swaps the
@@ -1139,9 +1172,12 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         set_publish_sheet_open(true);
     }, []);
 
-    const handlePublishAnyway = useCallback((): void => {
-        set_publish_sheet_open(false);
-        void builder.publish();
+    const handlePublishAnyway = useCallback(async (): Promise<void> => {
+        // Keep the sheet open until we know the publish landed — on failure it
+        // stays open so the Publish button doubles as Retry (the sheet surfaces
+        // the error via builder.save_state).
+        const ok = await builder.publish();
+        if (ok) set_publish_sheet_open(false);
     }, [builder]);
 
     const handlePublishJumpToFix = useCallback(
@@ -1353,6 +1389,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                     onPublishAnyway={handlePublishAnyway}
                     onJumpToFix={handlePublishJumpToFix}
                     busy={publishBusy}
+                    error={builder.save_state === "error"}
                     config={builder.config}
                     publishedConfig={publishedConfig ?? null}
                 />
@@ -1800,6 +1837,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                 onPublishAnyway={handlePublishAnyway}
                 onJumpToFix={handlePublishJumpToFix}
                 busy={publishBusy}
+                error={builder.save_state === "error"}
                 config={builder.config}
                 publishedConfig={publishedConfig ?? null}
             />

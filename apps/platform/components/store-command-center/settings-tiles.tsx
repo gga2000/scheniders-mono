@@ -64,7 +64,7 @@ export function SettingsTiles({ storefrontUrl, businessName, tenantId, slug }: S
                         description="Arabic, English, Kurdish"
                     />
                     <Tile
-                        href="/store/edit?screen=brand_kit"
+                        href="/store/edit?page=home&tab=seo"
                         icon={<Search className="w-4 h-4" />}
                         label="SEO"
                         description="Page titles & meta descriptions"

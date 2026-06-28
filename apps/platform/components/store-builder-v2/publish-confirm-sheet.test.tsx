@@ -225,4 +225,40 @@ describe("PublishConfirmSheet — diff section", () => {
         fireEvent.click(screen.getByTestId("publish-confirm-sheet-publish-anyway"));
         expect(onPublishAnyway).toHaveBeenCalledTimes(1);
     });
+
+    it("shows an error line + 'Retry' label when error (publish failed)", () => {
+        render(
+            <PublishConfirmSheet
+                open
+                blockingChecks={[]}
+                onClose={() => {}}
+                onPublishAnyway={() => {}}
+                onJumpToFix={() => {}}
+                error
+                config={makeConfig({})}
+                publishedConfig={null}
+            />,
+        );
+        expect(screen.getByTestId("publish-confirm-sheet-error")).toBeTruthy();
+        expect(
+            screen.getByTestId("publish-confirm-sheet-publish-anyway").textContent,
+        ).toMatch(/retry/i);
+    });
+
+    it("hides the error line while busy (a retry is in flight)", () => {
+        render(
+            <PublishConfirmSheet
+                open
+                blockingChecks={[]}
+                onClose={() => {}}
+                onPublishAnyway={() => {}}
+                onJumpToFix={() => {}}
+                error
+                busy
+                config={makeConfig({})}
+                publishedConfig={null}
+            />,
+        );
+        expect(screen.queryByTestId("publish-confirm-sheet-error")).toBeNull();
+    });
 });

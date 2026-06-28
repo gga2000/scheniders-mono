@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -9,6 +11,7 @@ import type { StoreConfigV2 } from "@scheniders/shared";
 
 export default function StoreBuilderPage() {
     const { tenantId } = useAuth();
+    const router = useRouter();
 
     const { data: tenant, isLoading } = useQuery({
         queryKey: ["tenant-store", tenantId],
@@ -32,7 +35,17 @@ export default function StoreBuilderPage() {
         enabled: !!tenantId,
     });
 
-    if (isLoading) {
+    // A genuinely fresh store (no published config AND no draft) hasn't been
+    // built yet — send the merchant through the onboarding wizard instead of
+    // an empty Command Center. Mirrors the wizard's own seed guard.
+    const isFreshStore =
+        !!tenant && !tenant.store_config_v2 && !tenant.store_config_v2_draft;
+
+    useEffect(() => {
+        if (isFreshStore) router.replace("/store/onboarding");
+    }, [isFreshStore, router]);
+
+    if (isLoading || isFreshStore) {
         return (
             <div className="flex items-center justify-center py-20 text-muted-foreground">
                 <Loader2 className="w-5 h-5 animate-spin mr-2" />

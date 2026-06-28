@@ -134,7 +134,7 @@ function makeBuilder(overrides: Partial<UseStoreBuilderV2Return> = {}): UseStore
         has_unpublished_changes: false,
         save_draft: asyncNoop,
         publish_conflict: false,
-        publish: asyncNoop,
+        publish: async () => true,
         revert_to_published: asyncNoop,
         undo: noop,
         redo: noop,
@@ -622,8 +622,9 @@ describe("EditorShell", () => {
 
         expect(spies.postPageIdChange).toHaveBeenCalledTimes(1);
         const url = spies.postPageIdChange.mock.calls[0][0];
-        expect(url).toContain("/_preview/test-store");
-        expect(url).toContain("page=cart");
+        // The page id is a PATH segment (storefront route is
+        // /_preview/[tenant]/[page_id]), not a `?page=` query.
+        expect(url).toContain("/_preview/test-store/cart");
     });
 
     it("navigates a page switched BEFORE the bridge was ready, once ready flips (step 8)", async () => {
@@ -686,7 +687,9 @@ describe("EditorShell", () => {
 
         const spies = getBridgeSpies();
         expect(spies.postPageIdChange).toHaveBeenCalledTimes(1);
-        expect(spies.postPageIdChange.mock.calls[0][0]).toContain("page=cart");
+        expect(spies.postPageIdChange.mock.calls[0][0]).toContain(
+            "/_preview/test-store/cart",
+        );
     });
 
     /* ── Phase 2d: responsive layout switch ─────────────────────── */

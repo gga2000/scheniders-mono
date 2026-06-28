@@ -413,6 +413,8 @@ export const STRINGS = {
         cancel: { en: "Cancel", ar: "إلغاء", ku: "پاشگەزبوەوە" },
         blocks_chip: { en: "Blocks", ar: "يحظر", ku: "ڕێگری دەکات" },
         disabled_no_changes: { en: "Nothing to publish — make a change first.", ar: "لا شيء للنشر — قم بإجراء تغيير أولاً.", ku: "هیچ شت بۆ بڵاوکردنەوە نییە — سەرەتا گۆڕانکارییەک بکە." },
+        failed: { en: "Publish failed — please try again.", ar: "فشل النشر — يرجى المحاولة مرة أخرى.", ku: "بڵاوکردنەوە سەرنەکەوت — تکایە دووبارە هەوڵبدەرەوە." },
+        retry: { en: "Retry publish", ar: "إعادة المحاولة", ku: "دووبارە هەوڵبدەرەوە" },
     },
 
     /* ── Save state pill / toolbar status ──────────────────────── */
