@@ -12,6 +12,9 @@ interface HeaderBarProps {
     businessName: string;
     status: StoreStatus;
     storefrontUrl: string;
+    /** When the store is not yet published the public URL 404s, so the
+     * "Visit store" control is rendered disabled instead of navigating. */
+    published: boolean;
 }
 
 function StatusPill({ status }: { status: StoreStatus }) {
@@ -39,7 +42,7 @@ function StatusPill({ status }: { status: StoreStatus }) {
     );
 }
 
-export function HeaderBar({ businessName, status, storefrontUrl }: HeaderBarProps) {
+export function HeaderBar({ businessName, status, storefrontUrl, published }: HeaderBarProps) {
     return (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
             <div className="flex items-center gap-3 min-w-0">
@@ -47,15 +50,26 @@ export function HeaderBar({ businessName, status, storefrontUrl }: HeaderBarProp
                 <StatusPill status={status} />
             </div>
             <div className="flex items-center gap-2 shrink-0">
-                <a
-                    href={storefrontUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-(--card-bg) px-3 py-2 text-sm font-medium text-muted-foreground shadow-(--card-shadow) transition-colors hover:border-(--border-hover) hover:text-foreground"
-                >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    Visit store
-                </a>
+                {published ? (
+                    <a
+                        href={storefrontUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-(--card-bg) px-3 py-2 text-sm font-medium text-muted-foreground shadow-(--card-shadow) transition-colors hover:border-(--border-hover) hover:text-foreground"
+                    >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        Visit store
+                    </a>
+                ) : (
+                    <span
+                        aria-disabled="true"
+                        title="Publish your store first"
+                        className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-xl border border-border bg-(--card-bg) px-3 py-2 text-sm font-medium text-muted-foreground/50 shadow-(--card-shadow) opacity-60"
+                    >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        Visit store
+                    </span>
+                )}
                 <Link
                     href="/store/edit"
                     className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-4 py-2 text-sm font-semibold text-background shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)"

@@ -44,12 +44,21 @@ export function CommandCenter({ tenant, tenantId }: CommandCenterProps) {
     const resolvedConfig =
         tenant.store_config_v2_draft ?? tenant.store_config_v2;
 
+    // A brand-new store has nothing built yet: not published AND the home page
+    // has no sections. Showing the red failing-health label here is alarming and
+    // wrong — surface a neutral onboarding state until something exists.
+    const homeSectionCount =
+        resolvedConfig?.pages.find((p) => p.page_id === "home")?.sections
+            .length ?? 0;
+    const isBrandNew = !storeStatus.published && homeSectionCount === 0;
+
     return (
         <div className="px-4 sm:px-6 py-6 max-w-[1400px] mx-auto space-y-6">
             <HeaderBar
                 businessName={tenant.business_name}
                 status={storeStatus}
                 storefrontUrl={storefrontUrl}
+                published={storeStatus.published}
             />
 
             {/* 2-column desktop layout, stacked on mobile */}
@@ -65,7 +74,7 @@ export function CommandCenter({ tenant, tenantId }: CommandCenterProps) {
 
                 {/* Right column */}
                 <div className="space-y-6">
-                    <HealthCard config={resolvedConfig} />
+                    <HealthCard config={resolvedConfig} isBrandNew={isBrandNew} />
                     <PagesCard config={resolvedConfig} />
                     <SettingsTiles
                         storefrontUrl={storefrontUrl}

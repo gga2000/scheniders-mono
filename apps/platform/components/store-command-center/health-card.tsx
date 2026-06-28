@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { HeartPulse, AlertTriangle, CheckCircle2, ArrowRight } from "lucide-react";
+import { HeartPulse, AlertTriangle, CheckCircle2, ArrowRight, Rocket } from "lucide-react";
 import { runHealthChecks, emptyStoreConfigV2 } from "@scheniders/shared";
 import type { StoreConfigV2, FixAction } from "@scheniders/shared";
 
 interface HealthCardProps {
     config: StoreConfigV2 | null;
+    /** A brand-new store (not published, nothing built) has no meaningful health
+     * to score — show a neutral onboarding prompt instead of a red "failing" label. */
+    isBrandNew?: boolean;
 }
 
 /**
@@ -77,7 +80,31 @@ function ScoreRing({ score }: { score: number }) {
     );
 }
 
-export function HealthCard({ config }: HealthCardProps) {
+export function HealthCard({ config, isBrandNew = false }: HealthCardProps) {
+    if (isBrandNew) {
+        return (
+            <div className="rounded-2xl border border-border bg-(--card-bg) shadow-(--card-shadow) p-6">
+                <div className="flex items-center gap-2.5 mb-4">
+                    <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
+                        <Rocket className="w-4 h-4 text-violet-700" />
+                    </div>
+                    <h3 className="text-base font-semibold text-foreground">Finish setting up your store</h3>
+                </div>
+                <p className="text-sm text-muted-foreground mb-5">
+                    Your store doesn&apos;t have any content yet. Open the editor to
+                    add sections and build out your home page — your store health
+                    score will appear once you&apos;ve started.
+                </p>
+                <Link
+                    href="/store/edit"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-4 py-2 text-sm font-semibold text-background shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)"
+                >
+                    Get started <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+            </div>
+        );
+    }
+
     const report = runHealthChecks(config ?? emptyStoreConfigV2());
     const { score, checks } = report;
 
