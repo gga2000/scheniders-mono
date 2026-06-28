@@ -1139,9 +1139,12 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         set_publish_sheet_open(true);
     }, []);
 
-    const handlePublishAnyway = useCallback((): void => {
-        set_publish_sheet_open(false);
-        void builder.publish();
+    const handlePublishAnyway = useCallback(async (): Promise<void> => {
+        // Keep the sheet open until we know the publish landed — on failure it
+        // stays open so the Publish button doubles as Retry (the sheet surfaces
+        // the error via builder.save_state).
+        const ok = await builder.publish();
+        if (ok) set_publish_sheet_open(false);
     }, [builder]);
 
     const handlePublishJumpToFix = useCallback(
@@ -1353,6 +1356,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                     onPublishAnyway={handlePublishAnyway}
                     onJumpToFix={handlePublishJumpToFix}
                     busy={publishBusy}
+                    error={builder.save_state === "error"}
                     config={builder.config}
                     publishedConfig={publishedConfig ?? null}
                 />
@@ -1800,6 +1804,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                 onPublishAnyway={handlePublishAnyway}
                 onJumpToFix={handlePublishJumpToFix}
                 busy={publishBusy}
+                error={builder.save_state === "error"}
                 config={builder.config}
                 publishedConfig={publishedConfig ?? null}
             />

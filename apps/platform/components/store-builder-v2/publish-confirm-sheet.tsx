@@ -50,6 +50,9 @@ export interface PublishConfirmSheetProps {
     onPublishAnyway: () => void;
     onJumpToFix: (fix: NonNullable<CheckResult["fix_action"]>) => void;
     busy?: boolean;
+    /** True when the last publish attempt failed — the sheet stays open and the
+     *  action button becomes a Retry, with an inline error line. */
+    error?: boolean;
     /** Required for the diff section. */
     config?: StoreConfigV2;
     /**
@@ -66,6 +69,7 @@ export function PublishConfirmSheet({
     onPublishAnyway,
     onJumpToFix,
     busy,
+    error,
     config,
     publishedConfig,
 }: PublishConfirmSheetProps): React.ReactElement | null {
@@ -211,6 +215,15 @@ export function PublishConfirmSheet({
                 </div>
 
                 <footer className="flex shrink-0 items-center justify-end gap-2 border-t border-(--card-border) px-4 py-3">
+                    {error && !busy ? (
+                        <span
+                            data-testid="publish-confirm-sheet-error"
+                            role="alert"
+                            className="mr-auto text-sm font-medium text-rose-600"
+                        >
+                            {t(STRINGS.publish.failed, locale)}
+                        </span>
+                    ) : null}
                     <button
                         type="button"
                         onClick={onClose}
@@ -227,7 +240,11 @@ export function PublishConfirmSheet({
                         className="sb-publish inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
                     >
                         <Rocket className="h-3.5 w-3.5" aria-hidden="true" />
-                        {busy ? t(STRINGS.publish.publishing, locale) : t(STRINGS.publish.publish_anyway, locale)}
+                        {busy
+                            ? t(STRINGS.publish.publishing, locale)
+                            : error
+                              ? t(STRINGS.publish.retry, locale)
+                              : t(STRINGS.publish.publish_anyway, locale)}
                     </button>
                 </footer>
             </div>

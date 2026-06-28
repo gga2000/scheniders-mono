@@ -128,7 +128,9 @@ export interface UseStoreBuilderV2Return {
 
     /** Actions. */
     save_draft: () => Promise<void>;
-    publish: () => Promise<void>;
+    /** Publish the draft. Resolves true on success, false on conflict/error
+     *  (so the caller can keep the confirm sheet open + offer a retry). */
+    publish: () => Promise<boolean>;
     revert_to_published: () => Promise<void>;
 
     /** Undo/redo (50-step in-memory ring buffer). */
@@ -567,7 +569,7 @@ export function useStoreBuilderV2(
         await performSaveDraft(config);
     }, [config, performSaveDraft]);
 
-    const publish = useCallback(async (): Promise<void> => {
+    const publish = useCallback(async (): Promise<boolean> => {
         if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
         set_save_state("saving");
         // EC8: let any in-flight field PATCH land BEFORE this publish nulls the
@@ -603,7 +605,7 @@ export function useStoreBuilderV2(
                 ) {
                     set_publish_conflict(true);
                     set_save_state("error");
-                    return;
+                    return false;
                 }
                 throw error;
             }
@@ -628,9 +630,11 @@ export function useStoreBuilderV2(
             setTimeout(() => {
                 set_save_state((prev) => (prev === "saved" ? "idle" : prev));
             }, 3000);
+            return true;
         } catch (err) {
             console.error("[store-builder-v2] publish failed:", err);
             set_save_state("error");
+            return false;
         }
     }, [config, tenantId]);
 

@@ -55,7 +55,7 @@ function makeBuilder(
         has_unpublished_changes: false,
         save_draft: asyncNoop,
         publish_conflict: false,
-        publish: asyncNoop,
+        publish: async () => true,
         revert_to_published: asyncNoop,
         undo: noop,
         redo: noop,
