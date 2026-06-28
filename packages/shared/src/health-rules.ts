@@ -788,6 +788,18 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         }
         return { status: "pass" };
     }),
+    check("default_locale_enabled", "content", 1, (cfg) => {
+        // The default locale is the source every other locale falls back to. If
+        // it isn't itself in the enabled list, the storefront can never serve
+        // the source language and visitors get unpredictable fallbacks.
+        const enabled = cfg.enabled_locales ?? [];
+        if (enabled.length === 0) return { status: "pass" };
+        if (enabled.includes(cfg.default_locale)) return { status: "pass" };
+        return {
+            status: "warn",
+            message: `Default language (${LOCALE_LABEL[cfg.default_locale]}) isn't in your enabled languages — add it or pick an enabled default.`,
+        };
+    }),
 ];
 
 /* ─────────────────────────────────────────────────────────────────── */
