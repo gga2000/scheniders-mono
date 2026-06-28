@@ -4,7 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 import type { StoreConfigV2 } from "@scheniders/shared";
 import { env } from "@/lib/env";
 import { OnboardingWizard } from "@/components/store-onboarding/onboarding-wizard";
-import { FALLBACK_INDUSTRIES, type WizardIndustry } from "@/lib/starter-store";
+import { FALLBACK_INDUSTRIES, type WizardIndustry } from "@/lib/wizard-industry-types";
 
 /**
  * Post-signup onboarding. Only a genuinely fresh store reaches the wizard:
