@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildStarterStoreConfigV2, STARTER_TEMPLATES } from "./starter-store";
+import {
+    buildStarterStoreConfigV2,
+    recommendedTemplateForVertical,
+    STARTER_TEMPLATES,
+    STARTER_VERTICALS,
+} from "./starter-store";
 
 const FIRST = STARTER_TEMPLATES[0];
 
@@ -112,6 +117,18 @@ describe("buildStarterStoreConfigV2", () => {
         const ids = cfg.pages.flatMap((p) => p.sections.map((s) => s.id));
         expect(new Set(ids).size).toBe(ids.length); // all unique
         for (const id of ids) expect(id).not.toMatch(/^__template-/);
+    });
+
+    it("every vertical recommends a real template", () => {
+        const ids = new Set(STARTER_TEMPLATES.map((t) => t.id));
+        for (const v of STARTER_VERTICALS) {
+            expect(ids.has(v.recommendedTemplateId)).toBe(true);
+        }
+    });
+
+    it("recommendedTemplateForVertical falls back for an unknown vertical", () => {
+        expect(recommendedTemplateForVertical("nope")).toBe(STARTER_TEMPLATES[0].id);
+        expect(recommendedTemplateForVertical("food")).toBe("iraqi_market_landing");
     });
 
     it("leaves the home page empty for an unknown template id", () => {

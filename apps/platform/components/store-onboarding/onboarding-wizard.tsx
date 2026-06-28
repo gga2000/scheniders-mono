@@ -1,14 +1,15 @@
 "use client";
 
 // =====================================================================
-// OnboardingWizard — store-creation Phase 1
+// OnboardingWizard — store-creation
 // =====================================================================
 // Post-signup guided setup so a first-time merchant lands in the editor
 // on a real, branded store instead of 16 empty pages.
 //
 // Steps:
-//   1. Business basics — name, WhatsApp, brand colour.
-//   2. Pick a starter template (home-page section pack).
+//   1. What you sell — picks a vertical, which recommends a template.
+//   2. Pick a starter template (recommended one highlighted).
+//   3. Business basics — name, WhatsApp, brand colour.
 //   → "Create my store" seeds `store_config_v2_draft` and opens the editor.
 // =====================================================================
 
@@ -20,10 +21,20 @@ import {
     Check,
     Loader2,
     LayoutTemplate,
+    Shirt,
     Sparkles,
+    Smartphone,
+    Apple,
+    Sofa,
     Store,
+    type LucideIcon,
 } from "lucide-react";
-import { buildStarterStoreConfigV2, STARTER_TEMPLATES } from "@/lib/starter-store";
+import {
+    buildStarterStoreConfigV2,
+    recommendedTemplateForVertical,
+    STARTER_TEMPLATES,
+    STARTER_VERTICALS,
+} from "@/lib/starter-store";
 import { cn } from "@/lib/utils";
 
 interface OnboardingWizardProps {
@@ -42,7 +53,17 @@ const COLOR_PRESETS: { label: string; hex: string }[] = [
     { label: "Rose", hex: "#e11d48" },
 ];
 
-type Step = 0 | 1;
+/** Icon per vertical id (kept here so the lib stays free of UI deps). */
+const VERTICAL_ICON: Record<string, LucideIcon> = {
+    fashion: Shirt,
+    beauty: Sparkles,
+    electronics: Smartphone,
+    food: Apple,
+    home_goods: Sofa,
+    general: Store,
+};
+
+type Step = 0 | 1 | 2;
 
 export function OnboardingWizard({
     tenantId,
@@ -52,17 +73,30 @@ export function OnboardingWizard({
     const router = useRouter();
 
     const [step, setStep] = useState<Step>(0);
-    const [businessName, setBusinessName] = useState(defaultBusinessName);
-    const [whatsapp, setWhatsapp] = useState(defaultWhatsapp ?? "");
-    const [brandColor, setBrandColor] = useState<string>(COLOR_PRESETS[0].hex);
+    const [vertical, setVertical] = useState<string | null>(null);
     const [templateId, setTemplateId] = useState<string>(
         STARTER_TEMPLATES[0]?.id ?? "",
     );
+    const [businessName, setBusinessName] = useState(defaultBusinessName);
+    const [whatsapp, setWhatsapp] = useState(defaultWhatsapp ?? "");
+    const [brandColor, setBrandColor] = useState<string>(COLOR_PRESETS[0].hex);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // The template recommended by the chosen vertical (badged in step 2).
+    const recommendedId = useMemo(
+        () => (vertical ? recommendedTemplateForVertical(vertical) : null),
+        [vertical],
+    );
+
     const basicsValid = businessName.trim().length > 0;
     const canCreate = basicsValid && templateId.length > 0;
+
+    const handlePickVertical = (id: string) => {
+        setVertical(id);
+        setTemplateId(recommendedTemplateForVertical(id));
+        setStep(1);
+    };
 
     const handleCreate = async () => {
         if (!canCreate || submitting) return;
@@ -90,7 +124,6 @@ export function OnboardingWizard({
                 setSubmitting(false);
                 return;
             }
-            // Seeded (or already existed) → the editor now has a draft to load.
             router.push("/store/edit");
         } catch {
             setError("Network error. Please check your connection and try again.");
@@ -109,16 +142,23 @@ export function OnboardingWizard({
                     Let&apos;s build your store
                 </h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                    Two quick steps and you&apos;ll be in the editor with a real
+                    A few quick steps and you&apos;ll be in the editor with a real
                     storefront — not a blank page.
                 </p>
             </div>
 
-            {/* Progress */}
             <StepHeader step={step} />
 
             <div className="rounded-2xl border border-border bg-(--card-bg) p-6 shadow-(--card-shadow)">
                 {step === 0 ? (
+                    <IntentStep selected={vertical} onSelect={handlePickVertical} />
+                ) : step === 1 ? (
+                    <TemplateStep
+                        templateId={templateId}
+                        recommendedId={recommendedId}
+                        onSelect={setTemplateId}
+                    />
+                ) : (
                     <BasicsStep
                         businessName={businessName}
                         onBusinessName={setBusinessName}
@@ -126,11 +166,6 @@ export function OnboardingWizard({
                         onWhatsapp={setWhatsapp}
                         brandColor={brandColor}
                         onBrandColor={setBrandColor}
-                    />
-                ) : (
-                    <TemplateStep
-                        templateId={templateId}
-                        onSelect={setTemplateId}
                     />
                 )}
 
@@ -143,53 +178,51 @@ export function OnboardingWizard({
                     </p>
                 )}
 
-                {/* Footer nav */}
-                <div className="mt-6 flex items-center justify-between gap-3">
-                    {step === 1 ? (
+                {/* Footer nav (step 0 advances on selection → no Continue) */}
+                {step > 0 && (
+                    <div className="mt-6 flex items-center justify-between gap-3">
                         <button
                             type="button"
-                            onClick={() => setStep(0)}
+                            onClick={() => setStep((s) => (s - 1) as Step)}
                             disabled={submitting}
                             className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
                         >
                             <ArrowLeft className="h-4 w-4" />
                             Back
                         </button>
-                    ) : (
-                        <span />
-                    )}
 
-                    {step === 0 ? (
-                        <button
-                            type="button"
-                            onClick={() => setStep(1)}
-                            disabled={!basicsValid}
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-5 py-2.5 text-sm font-semibold text-background shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover) disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            Continue
-                            <ArrowRight className="h-4 w-4" />
-                        </button>
-                    ) : (
-                        <button
-                            type="button"
-                            onClick={handleCreate}
-                            disabled={!canCreate || submitting}
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-5 py-2.5 text-sm font-semibold text-background shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover) disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            {submitting ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                    Creating…
-                                </>
-                            ) : (
-                                <>
-                                    <Sparkles className="h-4 w-4" />
-                                    Create my store
-                                </>
-                            )}
-                        </button>
-                    )}
-                </div>
+                        {step === 1 ? (
+                            <button
+                                type="button"
+                                onClick={() => setStep(2)}
+                                disabled={!templateId}
+                                className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-5 py-2.5 text-sm font-semibold text-background shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover) disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Continue
+                                <ArrowRight className="h-4 w-4" />
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={handleCreate}
+                                disabled={!canCreate || submitting}
+                                className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-5 py-2.5 text-sm font-semibold text-background shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover) disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {submitting ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Creating…
+                                    </>
+                                ) : (
+                                    <>
+                                        <Sparkles className="h-4 w-4" />
+                                        Create my store
+                                    </>
+                                )}
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
 
             <p className="mt-4 text-center text-xs text-muted-foreground">
@@ -200,7 +233,7 @@ export function OnboardingWizard({
 }
 
 function StepHeader({ step }: { step: Step }) {
-    const steps = ["Business basics", "Pick a starter"];
+    const steps = ["What you sell", "Pick a starter", "Business basics"];
     return (
         <ol className="mb-5 flex items-center justify-center gap-3">
             {steps.map((label, i) => {
@@ -222,19 +255,68 @@ function StepHeader({ step }: { step: Step }) {
                         </span>
                         <span
                             className={cn(
-                                "text-xs font-medium",
+                                "hidden text-xs font-medium sm:inline",
                                 active ? "text-foreground" : "text-muted-foreground",
                             )}
                         >
                             {label}
                         </span>
                         {i < steps.length - 1 && (
-                            <span className="ml-1 h-px w-6 bg-border" />
+                            <span className="ml-1 h-px w-5 bg-border" />
                         )}
                     </li>
                 );
             })}
         </ol>
+    );
+}
+
+function IntentStep({
+    selected,
+    onSelect,
+}: {
+    selected: string | null;
+    onSelect: (id: string) => void;
+}) {
+    return (
+        <div>
+            <div className="mb-4">
+                <h2 className="text-sm font-semibold text-foreground">
+                    What do you sell?
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                    We&apos;ll recommend a starting layout. You can change it next.
+                </p>
+            </div>
+            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {STARTER_VERTICALS.map((v) => {
+                    const Icon = VERTICAL_ICON[v.id] ?? Store;
+                    const active = v.id === selected;
+                    return (
+                        <li key={v.id}>
+                            <button
+                                type="button"
+                                aria-pressed={active}
+                                onClick={() => onSelect(v.id)}
+                                className={cn(
+                                    "flex h-full w-full flex-col items-start gap-2 rounded-xl border bg-(--card-bg) p-3.5 text-left transition-all duration-150",
+                                    active
+                                        ? "border-foreground ring-1 ring-foreground"
+                                        : "border-border shadow-(--card-shadow) hover:-translate-y-0.5 hover:border-(--border-hover)",
+                                )}
+                            >
+                                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                                    <Icon className="h-4.5 w-4.5" />
+                                </span>
+                                <span className="text-sm font-semibold text-foreground">
+                                    {v.label}
+                                </span>
+                            </button>
+                        </li>
+                    );
+                })}
+            </ul>
+        </div>
     );
 }
 
@@ -344,12 +426,24 @@ function BasicsStep({
 
 function TemplateStep({
     templateId,
+    recommendedId,
     onSelect,
 }: {
     templateId: string;
+    recommendedId: string | null;
     onSelect: (id: string) => void;
 }) {
-    const templates = useMemo(() => STARTER_TEMPLATES, []);
+    // Recommended template first.
+    const templates = useMemo(() => {
+        const list = [...STARTER_TEMPLATES];
+        if (recommendedId) {
+            list.sort((a, b) =>
+                a.id === recommendedId ? -1 : b.id === recommendedId ? 1 : 0,
+            );
+        }
+        return list;
+    }, [recommendedId]);
+
     return (
         <div>
             <div className="mb-4 flex items-center gap-2.5">
@@ -370,6 +464,7 @@ function TemplateStep({
             <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {templates.map((tpl) => {
                     const selected = tpl.id === templateId;
+                    const recommended = tpl.id === recommendedId;
                     const name = tpl.name_i18n.en ?? tpl.id;
                     const desc = tpl.description_i18n.en ?? "";
                     return (
@@ -393,9 +488,15 @@ function TemplateStep({
                                     <span className="truncate text-sm font-semibold text-foreground">
                                         {name}
                                     </span>
-                                    <span className="inline-flex h-5 items-center rounded-full bg-muted/60 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground tabular-nums">
-                                        {tpl.sections.length} sections
-                                    </span>
+                                    {recommended ? (
+                                        <span className="inline-flex h-5 items-center rounded-full bg-emerald-100 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                                            Recommended
+                                        </span>
+                                    ) : (
+                                        <span className="inline-flex h-5 items-center rounded-full bg-muted/60 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground tabular-nums">
+                                            {tpl.sections.length} sections
+                                        </span>
+                                    )}
                                 </div>
                                 <p className="line-clamp-2 text-xs text-muted-foreground">
                                     {desc}
@@ -420,10 +521,10 @@ function TemplateThumbnail({
     return (
         <div
             className={cn(
-                "flex aspect-[16/9] w-full flex-col justify-center gap-1.5 rounded px-3 py-2 transition-colors",
+                "flex aspect-video w-full flex-col justify-center gap-1.5 rounded px-3 py-2 transition-colors",
                 selected
                     ? "bg-foreground/10"
-                    : "bg-gradient-to-br from-muted/40 to-muted/10",
+                    : "bg-linear-to-br from-muted/40 to-muted/10",
             )}
         >
             {bars.map((i) => (

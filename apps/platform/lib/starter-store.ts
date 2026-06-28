@@ -27,6 +27,34 @@ import { getManifestEntry } from "./sections-manifest";
 /** Templates offered in the wizard's "pick a starter" step. */
 export const STARTER_TEMPLATES = PAGE_TEMPLATES;
 
+/**
+ * Business verticals shown in the wizard's first "what do you sell?" step.
+ * Each maps to the home template we recommend for that kind of store — the
+ * merchant can still pick any template afterwards. `recommendedTemplateId`
+ * must match a `STARTER_TEMPLATES` id (enforced by a unit test).
+ */
+export interface StarterVertical {
+    id: string;
+    label: string;
+    /** Recommended `PageTemplate.id` for this vertical. */
+    recommendedTemplateId: string;
+}
+
+export const STARTER_VERTICALS: StarterVertical[] = [
+    { id: "fashion", label: "Fashion & apparel", recommendedTemplateId: "brand_story" },
+    { id: "beauty", label: "Beauty & cosmetics", recommendedTemplateId: "product_launch" },
+    { id: "electronics", label: "Electronics & gadgets", recommendedTemplateId: "minimal_catalog" },
+    { id: "food", label: "Food & grocery", recommendedTemplateId: "iraqi_market_landing" },
+    { id: "home_goods", label: "Home & furniture", recommendedTemplateId: "brand_story" },
+    { id: "general", label: "Something else", recommendedTemplateId: "iraqi_market_landing" },
+];
+
+/** Recommended template id for a vertical, falling back to the first template. */
+export function recommendedTemplateForVertical(verticalId: string): string {
+    const v = STARTER_VERTICALS.find((x) => x.id === verticalId);
+    return v?.recommendedTemplateId ?? STARTER_TEMPLATES[0]?.id ?? "";
+}
+
 export interface StarterStoreInput {
     /** Chosen `PageTemplate.id` (home starter pack). */
     templateId: string;
