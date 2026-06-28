@@ -342,10 +342,6 @@ function IntentStep({
                         (industry.icon ? ICON_REGISTRY[industry.icon] : null) ?? Store;
                     const active = industry.id === selected;
                     const label = industry.name_ar ?? industry.name;
-                    const sublabel =
-                        industry.name_ar && industry.name_ar !== industry.name
-                            ? industry.name
-                            : null;
                     const color = industry.color ?? "#6B7280";
                     return (
                         <li key={industry.id}>
@@ -369,11 +365,6 @@ function IntentStep({
                                 <span className="text-sm font-semibold text-foreground">
                                     {label}
                                 </span>
-                                {sublabel && (
-                                    <span className="text-[11px] text-muted-foreground leading-tight">
-                                        {sublabel}
-                                    </span>
-                                )}
                             </button>
                         </li>
                     );
