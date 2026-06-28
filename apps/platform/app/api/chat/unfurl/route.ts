@@ -11,12 +11,15 @@
 //                  resolved with dns.lookup({ all: true }) and rejected if ANY
 //                  resolved address is private / loopback / link-local /
 //                  unique-local (v4, v6, IPv4-mapped, 6to4, NAT64).
-//                  `localhost` is rejected outright. This pre-check is
-//                  defence-in-depth; the AUTHORITATIVE guard is the connect-time
-//                  re-validation below (closes the DNS-rebind TOCTOU): the fetch
-//                  uses an undici Agent whose `connect.lookup` resolves the host
-//                  AND rejects any private address at the moment the socket is
-//                  opened, so the address validated is the exact address dialled.
+//                  `localhost` is rejected outright.
+//                  KNOWN LIMITATION (fast-follow): the validated address is NOT
+//                  pinned for the actual fetch — Node's fetch re-resolves the
+//                  hostname, so a low-TTL attacker-controlled resolver could
+//                  rebind public→private between validate and fetch (DNS
+//                  rebinding TOCTOU). This endpoint is authenticated-only, which
+//                  bounds the risk. Proper fix: pin the resolved IP via an
+//                  undici Agent whose `connect.lookup` re-checks isPrivateAddress
+//                  at connection time (needs runtime verification before shipping).
 //   4. Redirects — fetch(..., { redirect: "manual" }); 3xx responses are NOT
 //                  auto-followed. Each redirect target is re-validated through
 //                  the SAME scheme + host + DNS checks before following, capped
@@ -33,54 +36,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import dns from "node:dns";
 import net from "node:net";
-import { Agent } from "undici";
 import { verifyAccessToken } from "@/lib/supabase-server";
 import { isPrivateAddress } from "@/lib/chat/ssrf";
 import type { UnfurlResult } from "@/types/chat";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SSRF-pinned dispatcher. undici calls this `lookup` at the moment it opens the
-// socket; resolving + rejecting private addresses HERE (not only in the earlier
-// validateUrl pre-check) closes the DNS-rebinding TOCTOU — a low-TTL resolver
-// can't flip public→private between validation and connection, because the
-// address validated is the address actually dialled. SNI/cert validation are
-// preserved (undici still connects under the original hostname).
-// ─────────────────────────────────────────────────────────────────────────────
-function guardedLookup(
-    hostname: string,
-    options: dns.LookupOptions,
-    callback: (
-        err: NodeJS.ErrnoException | null,
-        address: string | dns.LookupAddress[],
-        family?: number,
-    ) => void,
-): void {
-    dns.lookup(hostname, { ...options, all: true }, (err, addresses) => {
-        if (err) {
-            callback(err, "", undefined);
-            return;
-        }
-        for (const a of addresses) {
-            if (isPrivateAddress(a.address)) {
-                const blocked: NodeJS.ErrnoException = new Error("blocked private address");
-                blocked.code = "ESSRFBLOCKED";
-                callback(blocked, "", undefined);
-                return;
-            }
-        }
-        if (options.all) {
-            callback(null, addresses);
-        } else {
-            const first = addresses[0];
-            callback(null, first.address, first.family);
-        }
-    });
-}
-
-const ssrfAgent = new Agent({ connect: { lookup: guardedLookup } });
 
 const FETCH_TIMEOUT_MS = 4_000;
 const MAX_BYTES = 512 * 1024; // 512 KB
@@ -153,19 +114,15 @@ async function safeFetchHtml(
         const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
         let res: Response;
         try {
-            // `dispatcher` is an undici-only RequestInit extension Node's global
-            // fetch honours at runtime; the DOM RequestInit type omits it, so widen.
-            const init: RequestInit & { dispatcher?: Agent } = {
+            res = await fetch(current, {
                 redirect: "manual",
                 signal: controller.signal,
-                dispatcher: ssrfAgent,
                 headers: {
                     // A neutral UA + accept; some sites 403 an empty UA.
                     "user-agent": "Mozilla/5.0 (compatible; SchenidersChatUnfurl/1.0)",
                     accept: "text/html,application/xhtml+xml",
                 },
-            };
-            res = await fetch(current, init);
+            });
         } catch {
             clearTimeout(timer);
             return null;
