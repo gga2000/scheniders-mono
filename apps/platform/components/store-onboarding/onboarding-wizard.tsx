@@ -346,20 +346,25 @@ function IntentStep({
                         industry.name_ar && industry.name_ar !== industry.name
                             ? industry.name
                             : null;
+                    const color = industry.color ?? "#6B7280";
                     return (
                         <li key={industry.id}>
                             <button
                                 type="button"
                                 aria-pressed={active}
                                 onClick={() => onSelect(industry)}
+                                style={active ? { borderColor: color, boxShadow: `0 0 0 1px ${color}` } : undefined}
                                 className={cn(
                                     "flex h-full w-full flex-col items-start gap-2 rounded-xl border bg-(--card-bg) p-3.5 text-left transition-all duration-150",
                                     active
-                                        ? "border-foreground ring-1 ring-foreground"
+                                        ? "border-current"
                                         : "border-border shadow-(--card-shadow) hover:-translate-y-0.5 hover:border-(--border-hover)",
                                 )}
                             >
-                                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                                <span
+                                    className="flex h-9 w-9 items-center justify-center rounded-lg text-white"
+                                    style={{ backgroundColor: color }}
+                                >
                                     <Icon className="h-4.5 w-4.5" />
                                 </span>
                                 <span className="text-sm font-semibold text-foreground">

@@ -14,6 +14,7 @@ export interface WizardIndustry {
     name: string;
     name_ar: string | null;
     icon: string | null;
+    color: string | null;
     recommended_template_id: string | null;
 }
 
@@ -23,10 +24,10 @@ export interface WizardIndustry {
  * the seeded DB rows and STARTER_VERTICALS if those change.
  */
 export const FALLBACK_INDUSTRIES: WizardIndustry[] = [
-    { id: "fashion",     name: "Fashion & apparel",     name_ar: null, icon: "Shirt",    recommended_template_id: "brand_story" },
-    { id: "beauty",      name: "Beauty & cosmetics",    name_ar: null, icon: "Sparkles", recommended_template_id: "product_launch" },
-    { id: "electronics", name: "Electronics & gadgets", name_ar: null, icon: "Smartphone", recommended_template_id: "minimal_catalog" },
-    { id: "food",        name: "Food & grocery",        name_ar: null, icon: "UtensilsCrossed", recommended_template_id: "iraqi_market_landing" },
-    { id: "home_goods",  name: "Home & furniture",      name_ar: null, icon: "Sofa",     recommended_template_id: "brand_story" },
-    { id: "general",     name: "Something else",        name_ar: null, icon: "Package",  recommended_template_id: "iraqi_market_landing" },
+    { id: "fashion",     name: "Fashion & apparel",     name_ar: null, icon: "Shirt",          color: "#FF8899", recommended_template_id: "brand_story" },
+    { id: "beauty",      name: "Beauty & cosmetics",    name_ar: null, icon: "Sparkles",        color: "#FF69B4", recommended_template_id: "product_launch" },
+    { id: "electronics", name: "Electronics & gadgets", name_ar: null, icon: "Smartphone",      color: "#60A5FA", recommended_template_id: "minimal_catalog" },
+    { id: "food",        name: "Food & grocery",        name_ar: null, icon: "UtensilsCrossed", color: "#F59E0B", recommended_template_id: "iraqi_market_landing" },
+    { id: "home_goods",  name: "Home & furniture",      name_ar: null, icon: "Sofa",            color: "#8B5CF6", recommended_template_id: "brand_story" },
+    { id: "general",     name: "Something else",        name_ar: null, icon: "Package",         color: "#6B7280", recommended_template_id: "iraqi_market_landing" },
 ];

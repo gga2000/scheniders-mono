@@ -67,7 +67,7 @@ export default async function StoreOnboardingPage() {
 
     const { data: industriesData } = await supabase
         .from("industries")
-        .select("id, name, name_ar, icon, recommended_template_id")
+        .select("id, name, name_ar, icon, color, recommended_template_id")
         .eq("is_active", true)
         .order("sort_order", { ascending: true });
 
