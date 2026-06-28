@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import robots from "./robots";
 
 describe("robots", () => {
-    const rule = Array.isArray(robots().rules) ? robots().rules[0] : robots().rules;
+    const rules = robots().rules;
+    const rule = Array.isArray(rules) ? rules[0] : rules;
     const disallow = (rule as { disallow?: string[] }).disallow ?? [];
 
     it("blocks the editor draft preview at its real path", () => {
