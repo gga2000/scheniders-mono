@@ -19,25 +19,32 @@ import { useRouter } from "next/navigation";
 import {
     ArrowLeft,
     ArrowRight,
+    Baby,
+    BookOpen,
+    Car,
     Check,
+    Dumbbell,
+    Gem,
+    Heart,
     ImagePlus,
     Loader2,
     LayoutTemplate,
+    Package,
     Shirt,
-    Sparkles,
+    ShoppingBasket,
     Smartphone,
-    Apple,
     Sofa,
+    Sparkles,
     Store,
+    UtensilsCrossed,
     X,
     type LucideIcon,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import {
     buildStarterStoreConfigV2,
-    recommendedTemplateForVertical,
     STARTER_TEMPLATES,
-    STARTER_VERTICALS,
+    type WizardIndustry,
 } from "@/lib/starter-store";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +52,7 @@ interface OnboardingWizardProps {
     tenantId: string;
     defaultBusinessName: string;
     defaultWhatsapp?: string;
+    industries: WizardIndustry[];
 }
 
 /** Curated brand-colour presets — covers the common storefront palettes. */
@@ -57,14 +65,25 @@ const COLOR_PRESETS: { label: string; hex: string }[] = [
     { label: "Rose", hex: "#e11d48" },
 ];
 
-/** Icon per vertical id (kept here so the lib stays free of UI deps). */
-const VERTICAL_ICON: Record<string, LucideIcon> = {
-    fashion: Shirt,
-    beauty: Sparkles,
-    electronics: Smartphone,
-    food: Apple,
-    home_goods: Sofa,
-    general: Store,
+/**
+ * Lucide icon registry keyed on the icon name stored in the `industries` DB
+ * table. Covers all 13 seeded rows plus common extras for newly-added rows.
+ */
+const ICON_REGISTRY: Record<string, LucideIcon> = {
+    Baby,
+    BookOpen,
+    Car,
+    Dumbbell,
+    Gem,
+    Heart,
+    Package,
+    Shirt,
+    ShoppingBasket,
+    Smartphone,
+    Sofa,
+    Sparkles,
+    Store,
+    UtensilsCrossed,
 };
 
 type Step = 0 | 1 | 2;
@@ -79,11 +98,14 @@ export function OnboardingWizard({
     tenantId,
     defaultBusinessName,
     defaultWhatsapp,
+    industries,
 }: OnboardingWizardProps) {
     const router = useRouter();
 
     const [step, setStep] = useState<Step>(0);
     const [vertical, setVertical] = useState<string | null>(null);
+    // Tracks the recommended template from the chosen industry (shown as badge).
+    const [recommendedId, setRecommendedId] = useState<string | null>(null);
     const [templateId, setTemplateId] = useState<string>(
         STARTER_TEMPLATES[0]?.id ?? "",
     );
@@ -96,18 +118,15 @@ export function OnboardingWizard({
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // The template recommended by the chosen vertical (badged in step 2).
-    const recommendedId = useMemo(
-        () => (vertical ? recommendedTemplateForVertical(vertical) : null),
-        [vertical],
-    );
-
     const basicsValid = businessName.trim().length > 0;
     const canCreate = basicsValid && templateId.length > 0;
 
-    const handlePickVertical = (id: string) => {
-        setVertical(id);
-        setTemplateId(recommendedTemplateForVertical(id));
+    const handlePickVertical = (industry: WizardIndustry) => {
+        const rec =
+            industry.recommended_template_id ?? STARTER_TEMPLATES[0]?.id ?? "";
+        setVertical(industry.id);
+        setRecommendedId(rec);
+        setTemplateId(rec);
         setStep(1);
     };
 
@@ -167,7 +186,11 @@ export function OnboardingWizard({
 
             <div className="rounded-2xl border border-border bg-(--card-bg) p-6 shadow-(--card-shadow)">
                 {step === 0 ? (
-                    <IntentStep selected={vertical} onSelect={handlePickVertical} />
+                    <IntentStep
+                        industries={industries}
+                        selected={vertical}
+                        onSelect={handlePickVertical}
+                    />
                 ) : step === 1 ? (
                     <TemplateStep
                         templateId={templateId}
@@ -295,11 +318,13 @@ function StepHeader({ step }: { step: Step }) {
 }
 
 function IntentStep({
+    industries,
     selected,
     onSelect,
 }: {
+    industries: WizardIndustry[];
     selected: string | null;
-    onSelect: (id: string) => void;
+    onSelect: (industry: WizardIndustry) => void;
 }) {
     return (
         <div>
@@ -312,15 +337,21 @@ function IntentStep({
                 </p>
             </div>
             <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {STARTER_VERTICALS.map((v) => {
-                    const Icon = VERTICAL_ICON[v.id] ?? Store;
-                    const active = v.id === selected;
+                {industries.map((industry) => {
+                    const Icon =
+                        (industry.icon ? ICON_REGISTRY[industry.icon] : null) ?? Store;
+                    const active = industry.id === selected;
+                    const label = industry.name_ar ?? industry.name;
+                    const sublabel =
+                        industry.name_ar && industry.name_ar !== industry.name
+                            ? industry.name
+                            : null;
                     return (
-                        <li key={v.id}>
+                        <li key={industry.id}>
                             <button
                                 type="button"
                                 aria-pressed={active}
-                                onClick={() => onSelect(v.id)}
+                                onClick={() => onSelect(industry)}
                                 className={cn(
                                     "flex h-full w-full flex-col items-start gap-2 rounded-xl border bg-(--card-bg) p-3.5 text-left transition-all duration-150",
                                     active
@@ -332,8 +363,13 @@ function IntentStep({
                                     <Icon className="h-4.5 w-4.5" />
                                 </span>
                                 <span className="text-sm font-semibold text-foreground">
-                                    {v.label}
+                                    {label}
                                 </span>
+                                {sublabel && (
+                                    <span className="text-[11px] text-muted-foreground leading-tight">
+                                        {sublabel}
+                                    </span>
+                                )}
                             </button>
                         </li>
                     );

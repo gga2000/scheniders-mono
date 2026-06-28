@@ -55,6 +55,30 @@ export function recommendedTemplateForVertical(verticalId: string): string {
     return v?.recommendedTemplateId ?? STARTER_TEMPLATES[0]?.id ?? "";
 }
 
+/**
+ * Industry row shape fetched from the `industries` DB table and passed to the
+ * onboarding wizard. Subset of the full row — only what the wizard needs.
+ */
+export interface WizardIndustry {
+    id: string;
+    name: string;
+    name_ar: string | null;
+    icon: string | null;
+    recommended_template_id: string | null;
+}
+
+/**
+ * Static fallback industries used when the DB fetch fails or returns empty.
+ * Mirrors `STARTER_VERTICALS` so the wizard is never left with no options.
+ */
+export const FALLBACK_INDUSTRIES: WizardIndustry[] = STARTER_VERTICALS.map((v) => ({
+    id: v.id,
+    name: v.label,
+    name_ar: null,
+    icon: null,
+    recommended_template_id: v.recommendedTemplateId,
+}));
+
 export interface StarterStoreInput {
     /** Chosen `PageTemplate.id` (home starter pack). */
     templateId: string;

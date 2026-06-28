@@ -4,6 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 import type { StoreConfigV2 } from "@scheniders/shared";
 import { env } from "@/lib/env";
 import { OnboardingWizard } from "@/components/store-onboarding/onboarding-wizard";
+import { FALLBACK_INDUSTRIES, type WizardIndustry } from "@/lib/starter-store";
 
 /**
  * Post-signup onboarding. Only a genuinely fresh store reaches the wizard:
@@ -64,11 +65,23 @@ export default async function StoreOnboardingPage() {
         redirect("/store/edit");
     }
 
+    const { data: industriesData } = await supabase
+        .from("industries")
+        .select("id, name, name_ar, icon, recommended_template_id")
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true });
+
+    const industries: WizardIndustry[] =
+        industriesData && industriesData.length > 0
+            ? (industriesData as WizardIndustry[])
+            : FALLBACK_INDUSTRIES;
+
     return (
         <OnboardingWizard
             tenantId={t.id}
             defaultBusinessName={t.business_name}
             defaultWhatsapp={t.contact_phone ?? undefined}
+            industries={industries}
         />
     );
 }
