@@ -1012,17 +1012,33 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         return s?.spacing?.bottom_px ?? 0;
     }, [activeSections, selected_section_id]);
 
+    // `storefrontUrl` (from useStorefrontUrl) is window-dependent: it resolves
+    // to the prod subdomain during SSR (no window) but to localhost:3001 on the
+    // client in dev. Emitting it directly makes the iframe `src` (and the Open
+    // link) hydrate-mismatch — React keeps the SSR (prod) value and "won't
+    // patch it up", so the local-dev preview loads prod + the bridge origin
+    // never matches. Gate every storefront URL behind a client-mount flag so
+    // SSR and the first client render agree on a placeholder, then swap in the
+    // real (client-resolved) URL post-mount.
+    const [client_mounted, set_client_mounted] = useState<boolean>(false);
+    useEffect(() => {
+        set_client_mounted(true);
+    }, []);
+
     const previewUrl = useMemo(
         () =>
-            buildPreviewUrl(
-                storefrontUrl,
-                tenant.slug,
-                builder.active_page,
-                builder.active_breakpoint,
-                builder.active_locale,
-                activePreviewToken,
-            ),
+            client_mounted
+                ? buildPreviewUrl(
+                      storefrontUrl,
+                      tenant.slug,
+                      builder.active_page,
+                      builder.active_breakpoint,
+                      builder.active_locale,
+                      activePreviewToken,
+                  )
+                : "",
         [
+            client_mounted,
             storefrontUrl,
             tenant.slug,
             builder.active_page,
@@ -1042,15 +1058,17 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     const iframe_initial_locale = useRef<LocaleCode>(builder.active_locale);
     const iframePreviewUrl = useMemo(
         () =>
-            buildPreviewUrl(
-                storefrontUrl,
-                tenant.slug,
-                iframe_initial_page.current,
-                iframe_initial_bp.current,
-                iframe_initial_locale.current,
-                activePreviewToken,
-            ),
-        [storefrontUrl, tenant.slug, activePreviewToken],
+            client_mounted
+                ? buildPreviewUrl(
+                      storefrontUrl,
+                      tenant.slug,
+                      iframe_initial_page.current,
+                      iframe_initial_bp.current,
+                      iframe_initial_locale.current,
+                      activePreviewToken,
+                  )
+                : "about:blank",
+        [client_mounted, storefrontUrl, tenant.slug, activePreviewToken],
     );
 
     // Build the `_preview` URL for any device — the PreviewModal swaps the
