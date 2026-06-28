@@ -353,17 +353,16 @@ function IntentStep({
                                 type="button"
                                 aria-pressed={active}
                                 onClick={() => onSelect(industry)}
-                                style={active ? { borderColor: color, boxShadow: `0 0 0 1px ${color}` } : undefined}
                                 className={cn(
                                     "flex h-full w-full flex-col items-start gap-2 rounded-xl border bg-(--card-bg) p-3.5 text-left transition-all duration-150",
                                     active
-                                        ? "border-current"
+                                        ? "border-foreground ring-1 ring-foreground"
                                         : "border-border shadow-(--card-shadow) hover:-translate-y-0.5 hover:border-(--border-hover)",
                                 )}
                             >
                                 <span
-                                    className="flex h-9 w-9 items-center justify-center rounded-lg text-white"
-                                    style={{ backgroundColor: color }}
+                                    className="flex h-9 w-9 items-center justify-center rounded-lg"
+                                    style={{ backgroundColor: `${color}18`, color }}
                                 >
                                     <Icon className="h-4.5 w-4.5" />
                                 </span>
