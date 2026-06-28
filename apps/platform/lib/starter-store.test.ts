@@ -119,6 +119,19 @@ describe("buildStarterStoreConfigV2", () => {
         for (const id of ids) expect(id).not.toMatch(/^__template-/);
     });
 
+    it("stamps the business name onto the hero brand-label field", () => {
+        const cfg = buildStarterStoreConfigV2({
+            templateId: FIRST.id, // sale_page → includes a hero_image
+            businessName: "Audit Test Store",
+        });
+        const home = cfg.pages.find((p) => p.page_id === "home");
+        const hero = home?.sections.find((s) => s.type === "hero_image");
+        expect(hero).toBeDefined();
+        const eyebrow = (hero!.base as Record<string, unknown>)
+            .eyebrow_i18n as Record<string, string>;
+        expect(eyebrow.ar).toBe("Audit Test Store");
+    });
+
     it("every vertical recommends a real template", () => {
         const ids = new Set(STARTER_TEMPLATES.map((t) => t.id));
         for (const v of STARTER_VERTICALS) {

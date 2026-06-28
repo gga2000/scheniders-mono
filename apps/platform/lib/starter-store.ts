@@ -89,6 +89,42 @@ const SUPPORTING_PAGE_SECTIONS: Partial<Record<PageId, string[]>> = {
     policy_terms: ["policy_content"],
 };
 
+/**
+ * Per-section field that should carry the merchant's business name, so the
+ * seeded store reads like *their* store, not template filler. Keep this to
+ * fields that are genuinely a brand label (the hero eyebrow), never the
+ * curated marketing headline/body — that copy is a better starting point
+ * than a bare store name.
+ */
+const BRAND_NAME_FIELD: Record<string, string> = {
+    hero_image: "eyebrow_i18n",
+};
+
+/** Build an I18nString carrying the same name across the enabled locales. */
+function nameI18n(name: string, locales: LocaleCode[]): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const locale of locales) out[locale] = name;
+    return out;
+}
+
+/** Stamp the business name onto the brand-label field of matching sections. */
+function personalizeSections(
+    sections: SectionInstance[],
+    name: string,
+    locales: LocaleCode[],
+): void {
+    for (const section of sections) {
+        const field = BRAND_NAME_FIELD[section.type];
+        if (!field) continue;
+        if (section.base && typeof section.base === "object") {
+            (section.base as Record<string, unknown>)[field] = nameI18n(
+                name,
+                locales,
+            );
+        }
+    }
+}
+
 function freshSectionId(): string {
     if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
         return crypto.randomUUID();
@@ -156,6 +192,13 @@ export function buildStarterStoreConfigV2(
     for (const [pageId, types] of Object.entries(SUPPORTING_PAGE_SECTIONS)) {
         const page = cfg.pages.find((p) => p.page_id === pageId);
         if (page) page.sections = types.map(makeSection);
+    }
+
+    // ── Personalize: stamp the business name onto brand-label fields ─
+    if (name) {
+        for (const page of cfg.pages) {
+            personalizeSections(page.sections, name, cfg.enabled_locales);
+        }
     }
 
     return cfg;
