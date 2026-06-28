@@ -13,12 +13,14 @@
 //   → "Create my store" seeds `store_config_v2_draft` and opens the editor.
 // =====================================================================
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
     ArrowLeft,
     ArrowRight,
     Check,
+    ImagePlus,
     Loader2,
     LayoutTemplate,
     Shirt,
@@ -27,8 +29,10 @@ import {
     Apple,
     Sofa,
     Store,
+    X,
     type LucideIcon,
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import {
     buildStarterStoreConfigV2,
     recommendedTemplateForVertical,
@@ -86,6 +90,7 @@ export function OnboardingWizard({
     const [businessName, setBusinessName] = useState(defaultBusinessName);
     const [whatsapp, setWhatsapp] = useState(defaultWhatsapp ?? "");
     const [brandColor, setBrandColor] = useState<string>(COLOR_PRESETS[0].hex);
+    const [logoUrl, setLogoUrl] = useState<string | null>(null);
     const [deliveryFee, setDeliveryFee] = useState("");
     const [freeThreshold, setFreeThreshold] = useState("");
     const [submitting, setSubmitting] = useState(false);
@@ -115,6 +120,7 @@ export function OnboardingWizard({
             templateId,
             businessName: businessName.trim(),
             brandColor,
+            logoUrl: logoUrl ?? undefined,
             whatsappNumber: whatsapp.trim() || undefined,
             deliveryFeeIqd: parsePositiveInt(deliveryFee),
             freeDeliveryThresholdIqd: parsePositiveInt(freeThreshold),
@@ -170,8 +176,11 @@ export function OnboardingWizard({
                     />
                 ) : (
                     <BasicsStep
+                        tenantId={tenantId}
                         businessName={businessName}
                         onBusinessName={setBusinessName}
+                        logoUrl={logoUrl}
+                        onLogoUrl={setLogoUrl}
                         whatsapp={whatsapp}
                         onWhatsapp={setWhatsapp}
                         brandColor={brandColor}
@@ -355,8 +364,11 @@ function Field({
 }
 
 function BasicsStep({
+    tenantId,
     businessName,
     onBusinessName,
+    logoUrl,
+    onLogoUrl,
     whatsapp,
     onWhatsapp,
     brandColor,
@@ -366,8 +378,11 @@ function BasicsStep({
     freeThreshold,
     onFreeThreshold,
 }: {
+    tenantId: string;
     businessName: string;
     onBusinessName: (v: string) => void;
+    logoUrl: string | null;
+    onLogoUrl: (v: string | null) => void;
     whatsapp: string;
     onWhatsapp: (v: string) => void;
     brandColor: string;
@@ -389,6 +404,14 @@ function BasicsStep({
                     onChange={(e) => onBusinessName(e.target.value)}
                     placeholder="Your store name"
                     className={inputCls}
+                />
+            </Field>
+
+            <Field label="Logo" hint="Shown in your store header. Optional — PNG or SVG, under 2MB.">
+                <LogoField
+                    tenantId={tenantId}
+                    logoUrl={logoUrl}
+                    onChange={onLogoUrl}
                 />
             </Field>
 
@@ -473,6 +496,112 @@ function BasicsStep({
                     </label>
                 </div>
             </Field>
+        </div>
+    );
+}
+
+const LOGO_MAX_BYTES = 2 * 1024 * 1024;
+
+function LogoField({
+    tenantId,
+    logoUrl,
+    onChange,
+}: {
+    tenantId: string;
+    logoUrl: string | null;
+    onChange: (url: string | null) => void;
+}) {
+    const [uploading, setUploading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleUpload = useCallback(
+        async (e: React.ChangeEvent<HTMLInputElement>) => {
+            const file = e.target.files?.[0];
+            e.target.value = ""; // allow re-picking the same file
+            if (!file) return;
+            setError(null);
+            if (file.size > LOGO_MAX_BYTES) {
+                setError("Logo must be under 2MB.");
+                return;
+            }
+            const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+            // Mirrors the brand-kit uploader: a tenant-scoped, unique path in
+            // `tenant-assets`. The timestamp keeps every upload a fresh INSERT
+            // (the bucket policy is insert-only — an overwrite 400s).
+            const path = `${tenantId}/onboarding-logo-${Date.now()}.${ext}`;
+            setUploading(true);
+            try {
+                const { error: upErr } = await supabase.storage
+                    .from("tenant-assets")
+                    .upload(path, file, { upsert: true });
+                if (upErr) throw upErr;
+                const {
+                    data: { publicUrl },
+                } = supabase.storage.from("tenant-assets").getPublicUrl(path);
+                onChange(publicUrl);
+            } catch {
+                setError("Upload failed. Please try again.");
+            } finally {
+                setUploading(false);
+            }
+        },
+        [tenantId, onChange],
+    );
+
+    return (
+        <div className="flex items-center gap-3">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-background">
+                {logoUrl ? (
+                    <Image
+                        src={logoUrl}
+                        alt="Logo preview"
+                        width={64}
+                        height={64}
+                        unoptimized
+                        className="h-full w-full object-contain"
+                    />
+                ) : (
+                    <ImagePlus className="h-5 w-5 text-muted-foreground" />
+                )}
+            </div>
+            <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-2">
+                    <label
+                        className={cn(
+                            "inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted/50",
+                            uploading && "pointer-events-none opacity-60",
+                        )}
+                    >
+                        {uploading ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                            <ImagePlus className="h-3.5 w-3.5" />
+                        )}
+                        {uploading
+                            ? "Uploading…"
+                            : logoUrl
+                              ? "Replace"
+                              : "Upload logo"}
+                        <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleUpload}
+                            className="hidden"
+                        />
+                    </label>
+                    {logoUrl && !uploading && (
+                        <button
+                            type="button"
+                            onClick={() => onChange(null)}
+                            className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                            <X className="h-3.5 w-3.5" />
+                            Remove
+                        </button>
+                    )}
+                </div>
+                {error && <p className="text-xs text-rose-600">{error}</p>}
+            </div>
         </div>
     );
 }

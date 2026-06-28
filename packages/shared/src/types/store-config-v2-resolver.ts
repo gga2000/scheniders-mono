@@ -342,7 +342,12 @@ export function emptyStoreConfigV2(): StoreConfigV2 {
   const defaultPage = (id: PageId): PageConfig => ({ page_id: id, sections: [] });
   return {
     schema_version: 2,
-    brand_kit: EMPTY_BRAND_KIT,
+    // Deep-clone so callers that mutate the returned config (the editor, the
+    // onboarding seeder) never write through to the shared EMPTY_BRAND_KIT
+    // constant — that would leak one tenant's brand into the next.
+    brand_kit: JSON.parse(
+      JSON.stringify(EMPTY_BRAND_KIT),
+    ) as import("./store-config-v2").BrandKit,
     pages: (
       [
         "home",

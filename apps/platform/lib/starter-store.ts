@@ -62,6 +62,8 @@ export interface StarterStoreInput {
     businessName: string;
     /** Optional brand primary colour, `#rrggbb`. Invalid values are ignored. */
     brandColor?: string;
+    /** Optional uploaded logo URL → brand_kit.identity.logo_url. */
+    logoUrl?: string;
     /** Optional WhatsApp number → enables WhatsApp ordering. */
     whatsappNumber?: string;
     /**
@@ -168,6 +170,8 @@ export function buildStarterStoreConfigV2(
     if (input.brandColor && HEX_COLOR.test(input.brandColor)) {
         cfg.brand_kit.colors.primary = input.brandColor;
     }
+    const logo = input.logoUrl?.trim();
+    if (logo) cfg.brand_kit.identity.logo_url = logo;
 
     // ── Locales (Iraq → Arabic default) ─────────────────────────────
     const locales =

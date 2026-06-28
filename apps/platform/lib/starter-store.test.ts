@@ -49,6 +49,25 @@ describe("buildStarterStoreConfigV2", () => {
         expect(cfg.brand_kit.colors.primary).toBe("#1e90ff");
     });
 
+    it("sets the logo url when provided", () => {
+        const cfg = buildStarterStoreConfigV2({
+            templateId: FIRST.id,
+            businessName: "X",
+            logoUrl: "https://cdn.example.com/logo.png",
+        });
+        expect(cfg.brand_kit.identity.logo_url).toBe(
+            "https://cdn.example.com/logo.png",
+        );
+    });
+
+    it("leaves logo_url unset when no logo is given", () => {
+        const cfg = buildStarterStoreConfigV2({
+            templateId: FIRST.id,
+            businessName: "X",
+        });
+        expect(cfg.brand_kit.identity.logo_url).toBeUndefined();
+    });
+
     it("ignores an invalid brand colour", () => {
         const empty = buildStarterStoreConfigV2({
             templateId: FIRST.id,
