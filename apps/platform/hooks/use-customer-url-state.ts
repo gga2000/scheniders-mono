@@ -30,7 +30,7 @@ export function useCustomerUrlState() {
         search: searchParams.get("search") || "",
         status: (searchParams.get("status") as CustomerStatus | "all") || "all",
         city: searchParams.get("city") || "",
-        sortBy: (searchParams.get("sortBy") as any) || "last_order_date",
+        sortBy: (searchParams.get("sortBy") as any) || "total_orders",
         sortOrder: (searchParams.get("sortOrder") as "asc" | "desc") || "desc",
         customerId: searchParams.get("customer") || null,
         minLtv: searchParams.has("minLtv") ? Number(searchParams.get("minLtv")) : undefined,
@@ -79,7 +79,7 @@ export function useCustomerUrlState() {
 
     const setSort = (sortBy: CustomerUrlState["sortBy"], sortOrder: "asc" | "desc") => {
         const params = new URLSearchParams(searchParams.toString());
-        if (sortBy === "last_order_date") params.delete("sortBy");
+        if (sortBy === "total_orders") params.delete("sortBy");
         else params.set("sortBy", sortBy || "");
 
         if (sortOrder === "desc") params.delete("sortOrder");

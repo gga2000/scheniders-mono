@@ -35,7 +35,7 @@ function useCustomerProfile(phone: string) {
             const normalized = trustEngine.normalizePhone(phone);
             // PostgREST `.in()` treats a leading `+` as a special char and 400s,
             // so skip the `+964` variant — store it as `964` (unprefixed).
-            const phoneVariants = [normalized, `0${normalized}`, `964${normalized}`];
+            const phoneVariants = [normalized, `0${normalized}`, `964${normalized}`, `+964${normalized}`];
 
             const { data: trust } = await supabase
                 .from("customer_trust")
@@ -75,7 +75,7 @@ function useCustomerProfile(phone: string) {
                 .select("id, order_id, created_at, items, price, total_price:price, status, governorate_code")
                 .in("phone", phoneVariants)
                 .order("created_at", { ascending: false })
-                .limit(20);
+                .limit(200);
 
             // Prefer authoritative trust-engine totals over the aggregate mat-view
             // (the mv is per-tenant and can lag); fall back to the mv and finally

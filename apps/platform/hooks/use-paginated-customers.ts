@@ -20,6 +20,8 @@ export interface PaginatedCustomerFilters {
     trustTier?: TrustTier | "all";
     minTrustScore?: number;
     maxTrustScore?: number;
+    // Value/reliability tier filter (server-side) — 'excellent'(VIP)|'good'|'watch'|'risky'|'new'
+    reliabilityFilter?: string;
 }
 
 export interface PaginatedCustomer {
@@ -43,6 +45,13 @@ export interface PaginatedCustomer {
     trust_tier: TrustTier;
     delivery_success_rate: number;
     community_avg_rating: number;
+    // Live per-customer order-status counts (from get_paginated_customers)
+    cancelled_count: number;
+    no_response_count: number;
+    rejected_count: number;
+    returned_count: number;
+    refund_count: number;
+    completed_count: number;
 }
 
 export interface PaginatedCustomersResponse {
@@ -81,6 +90,7 @@ export function usePaginatedCustomers(
                 trust_tier_filter: filters?.trustTier === "all" ? null : (filters?.trustTier || null),
                 min_trust_score: filters?.minTrustScore ?? null,
                 max_trust_score: filters?.maxTrustScore ?? null,
+                reliability_filter: filters?.reliabilityFilter && filters.reliabilityFilter !== "all" ? filters.reliabilityFilter : null,
             });
 
             if (error) {
@@ -112,6 +122,12 @@ export function usePaginatedCustomers(
                 trust_tier: (row.trust_tier || 'new') as TrustTier,
                 delivery_success_rate: Number(row.delivery_success_rate ?? 0),
                 community_avg_rating: Number(row.community_avg_rating ?? 0),
+                cancelled_count: Number(row.cancelled_count ?? 0),
+                no_response_count: Number(row.no_response_count ?? 0),
+                rejected_count: Number(row.rejected_count ?? 0),
+                returned_count: Number(row.returned_count ?? 0),
+                refund_count: Number(row.refund_count ?? 0),
+                completed_count: Number(row.completed_count ?? 0),
             }));
 
             // Determine if there's a next page
@@ -164,6 +180,18 @@ export function useCustomerDashboardStats() {
                     blocked_count: 0,
                     new_tier_count: 0,
                     avg_trust_score: 50,
+                    critical_count: 0,
+                    repeat_customer_count: 0,
+                    new_this_month: 0,
+                    vips_quiet_count: 0,
+                    first_delivery_pending_count: 0,
+                    top_governorate: null as string | null,
+                    top_governorate_count: 0,
+                    rel_excellent: 0,
+                    rel_good: 0,
+                    rel_watch: 0,
+                    rel_risky: 0,
+                    rel_new: 0,
                 };
             }
 
@@ -183,9 +211,23 @@ export function useCustomerDashboardStats() {
                 blocked_count: Number(stats.blocked_count || 0),
                 new_tier_count: Number(stats.new_tier_count || 0),
                 avg_trust_score: Number(stats.avg_trust_score || 50),
+                critical_count: Number(stats.critical_count || 0),
+                repeat_customer_count: Number(stats.repeat_customer_count || 0),
+                new_this_month: Number(stats.new_this_month || 0),
+                vips_quiet_count: Number(stats.vips_quiet_count || 0),
+                first_delivery_pending_count: Number(stats.first_delivery_pending_count || 0),
+                top_governorate: (stats.top_governorate as string | null) ?? null,
+                top_governorate_count: Number(stats.top_governorate_count || 0),
+                rel_excellent: Number(stats.rel_excellent || 0),
+                rel_good: Number(stats.rel_good || 0),
+                rel_watch: Number(stats.rel_watch || 0),
+                rel_risky: Number(stats.rel_risky || 0),
+                rel_new: Number(stats.rel_new || 0),
             };
         },
         staleTime: CACHE_PRESETS.PAGINATION.staleTime,
         gcTime: CACHE_PRESETS.PAGINATION.gcTime,
+        // Keep the KPI/chip counts in sync with the card list (which refetches on focus).
+        refetchOnWindowFocus: true,
     });
 }
