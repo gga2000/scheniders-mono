@@ -1425,18 +1425,21 @@ export type Database = {
           edge_secret: string | null
           function_url: string | null
           id: number
+          order_function_url: string | null
           updated_at: string
         }
         Insert: {
           edge_secret?: string | null
           function_url?: string | null
           id?: number
+          order_function_url?: string | null
           updated_at?: string
         }
         Update: {
           edge_secret?: string | null
           function_url?: string | null
           id?: number
+          order_function_url?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -2524,6 +2527,7 @@ export type Database = {
           is_active: boolean
           name: string
           name_ar: string | null
+          recommended_template_id: string | null
           sort_order: number
         }
         Insert: {
@@ -2535,6 +2539,7 @@ export type Database = {
           is_active?: boolean
           name: string
           name_ar?: string | null
+          recommended_template_id?: string | null
           sort_order?: number
         }
         Update: {
@@ -2546,6 +2551,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           name_ar?: string | null
+          recommended_template_id?: string | null
           sort_order?: number
         }
         Relationships: []
@@ -6983,16 +6989,28 @@ export type Database = {
           avg_trust_score: number
           blocked_count: number
           bronze_count: number
+          critical_count: number
+          first_delivery_pending_count: number
           gold_count: number
           new_count: number
+          new_this_month: number
           new_tier_count: number
           platinum_count: number
           regular_count: number
+          rel_excellent: number
+          rel_good: number
+          rel_new: number
+          rel_risky: number
+          rel_watch: number
+          repeat_customer_count: number
           risky_count: number
           silver_count: number
+          top_governorate: string
+          top_governorate_count: number
           total_customers: number
           total_revenue: number
           vip_count: number
+          vips_quiet_count: number
           watch_count: number
         }[]
       }
@@ -7042,6 +7060,7 @@ export type Database = {
           min_trust_score?: number
           page_limit?: number
           page_offset?: number
+          reliability_filter?: string
           search_query?: string
           sort_by?: string
           sort_desc?: boolean
@@ -7052,8 +7071,10 @@ export type Database = {
         Returns: {
           address_details: string
           calculated_status: string
+          cancelled_count: number
           city: string
           community_avg_rating: number
+          completed_count: number
           delivery_success_rate: number
           first_order_date: string
           governorate: string
@@ -7062,7 +7083,11 @@ export type Database = {
           last_order_id: string
           last_order_status: string
           name: string
+          no_response_count: number
           phone: string
+          refund_count: number
+          rejected_count: number
+          returned_count: number
           secondary_phone: string
           total_count: number
           total_items: number
@@ -7146,6 +7171,10 @@ export type Database = {
         Returns: undefined
       }
       refresh_customer_aggregates: { Args: never; Returns: undefined }
+      seed_store_config_v2_draft: {
+        Args: { p_config: Json; p_tenant_id: string }
+        Returns: boolean
+      }
       split_order_atomic:
         | {
             Args: {
