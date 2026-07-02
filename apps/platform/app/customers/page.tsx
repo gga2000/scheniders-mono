@@ -3,29 +3,34 @@
 import { useState, useMemo, useCallback, Suspense } from "react";
 import { motion } from "framer-motion";
 import { Search, Upload, Download, Plus } from "lucide-react";
+import { governorateLabel } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
+import { supabase } from "@/lib/supabase";
 import { usePaginatedCustomers, useCustomerDashboardStats } from "@/hooks/use-paginated-customers";
 import { useCustomerUrlState } from "@/hooks/use-customer-url-state";
 import { useCustomerStore } from "@/store/use-customer-store";
 import { CustomerInsightStrip } from "@/components/customers/list/customer-insight-strip";
 import { CustomerActionLane, type LaneSegment } from "@/components/customers/list/customer-action-lane";
 import { CustomerToolbar } from "@/components/customers/list/customer-toolbar";
-import { ReliabilityChips, reliabilityCounts, type ReliabilityFilter } from "@/components/customers/list/reliability-chips";
+import {
+    CustomerFilterChips, valueCounts, riskCounts, type ValueFilter, type RiskFilter,
+} from "@/components/customers/list/customer-filter-chips";
 import { CustomerGrid } from "@/components/customers/list/customer-grid";
 import { CustomerListTable } from "@/components/customers/list/customer-list-table";
 import { CustomerDetailDialog } from "@/components/customers/customer-detail-dialog";
-import { reliabilityForCustomer, daysSince, firstDeliveryPending } from "@/lib/customer-reliability";
+import { daysSince, firstDeliveryPending } from "@/lib/customer-reliability";
 import { pct } from "@/lib/customer-format";
 
 const PAGE_LIMIT = 24;
 
 function CustomersPageContent() {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const { state, rawSearch, setSearch, setSort, setView } = useCustomerUrlState();
     const { viewMode, setViewMode } = useCustomerStore();
 
-    // Client-side cross-cut filters (reliability chips + action lane).
-    const [reliabilityFilter, setReliabilityFilter] = useState<ReliabilityFilter>("all");
+    // Two independent server-side axes + the client-only action-lane cohorts.
+    const [valueFilter, setValueFilter] = useState<ValueFilter>("all");
+    const [riskFilter, setRiskFilter] = useState<RiskFilter>("all");
     const [laneFilter, setLaneFilter] = useState<LaneSegment | null>(null);
     const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
 
@@ -34,8 +39,9 @@ function CustomersPageContent() {
         city: state.city,
         sortBy: state.sortBy as any,
         sortOrder: state.sortOrder,
-        reliabilityFilter: reliabilityFilter === "all" ? undefined : reliabilityFilter,
-    }), [state.search, state.city, state.sortBy, state.sortOrder, reliabilityFilter]);
+        valueFilter: valueFilter === "all" ? undefined : valueFilter,
+        riskFilter: riskFilter === "all" ? undefined : riskFilter,
+    }), [state.search, state.city, state.sortBy, state.sortOrder, valueFilter, riskFilter]);
 
     const { data, isLoading, isFetchingNextPage, fetchNextPage, hasNextPage } = usePaginatedCustomers(PAGE_LIMIT, filters);
     const { data: stats } = useCustomerDashboardStats();
@@ -44,14 +50,14 @@ function CustomersPageContent() {
     const totalCount = data?.pages[0]?.totalCount || 0;
     const effectiveView = state.view || viewMode;
 
-    // The value/reliability chip filters server-side (via `filters`); the action-lane
-    // cohorts that aren't a simple tier filter over the loaded set here.
+    // The value/risk chips filter server-side (via `filters`); the action-lane
+    // cohorts that aren't a simple tier filter run over the loaded set here.
     const displayed = useMemo(() => {
         if (!laneFilter) return allCustomers;
         return allCustomers.filter((c) => {
             switch (laneFilter) {
                 case "vipsQuiet":
-                    return (c.trust_tier === "platinum" || c.trust_tier === "gold") && (daysSince(c.last_order_date) ?? 0) > 30;
+                    return c.value_tier === "vip" && (daysSince(c.last_order_date) ?? 0) > 30;
                 case "new":
                     return (daysSince(c.first_order_date) ?? 999) <= 30;
                 case "firstDelivery":
@@ -71,33 +77,57 @@ function CustomersPageContent() {
         setSelectedPhone(phone);
     }, []);
 
-    const onReliability = useCallback((next: ReliabilityFilter) => {
-        setReliabilityFilter(next);
+    const onValue = useCallback((next: ValueFilter) => {
+        setValueFilter(next);
+        setLaneFilter(null);
+    }, []);
+
+    const onRisk = useCallback((next: RiskFilter) => {
+        setRiskFilter(next);
         setLaneFilter(null);
     }, []);
 
     const onSegment = useCallback((kind: LaneSegment) => {
-        // "Risky" maps to the server-side value filter so the whole risky cohort loads.
+        // "High COD risk" maps to the server-side risk filter so the whole cohort loads.
         if (kind === "risky") {
-            setReliabilityFilter((prev) => (prev === "risky" ? "all" : "risky"));
+            setRiskFilter((prev) => (prev === "high" ? "all" : "high"));
             setLaneFilter(null);
             return;
         }
         setLaneFilter((prev) => (prev === kind ? null : kind));
-        setReliabilityFilter("all");
+        setValueFilter("all");
+        setRiskFilter("all");
     }, []);
 
-    const exportCsv = useCallback(() => {
-        const rows = [
-            ["الاسم", "الهاتف", "المدينة", "الطلبات", "الإنفاق", "آخر طلب", "أول طلب", "الموثوقية"],
-            ...displayed.map((c) => [
-                c.name, c.phone, c.governorate || c.city || "",
-                String(c.total_orders ?? 0), String(c.total_spent ?? 0),
-                c.last_order_date || "", c.first_order_date || "",
-                reliabilityForCustomer(c),
-            ]),
+    // Export the ENTIRE filtered set (not just loaded pages), locale-aware header.
+    const exportCsv = useCallback(async () => {
+        const { data: rows, error } = await supabase.rpc("get_paginated_customers", {
+            search_query: filters.search || null,
+            city_filter: filters.city || null,
+            sort_by: (filters.sortBy as string) || "last_order_date",
+            sort_desc: filters.sortOrder !== "asc",
+            page_limit: Math.max(totalCount, 1),
+            page_offset: 0,
+            value_filter: filters.valueFilter ?? null,
+            risk_filter: filters.riskFilter ?? null,
+        });
+        if (error) { console.error("Export failed:", error); return; }
+        const list = (rows as any[]) ?? [];
+        const header = [
+            t("customers.export.name", "Name"), t("customers.export.phone", "Phone"),
+            t("customers.export.governorate", "Governorate"), t("customers.export.orders", "Orders"),
+            t("customers.export.completed", "Completed"), t("customers.export.spent", "Total spent"),
+            t("customers.export.value", "Value"), t("customers.export.risk", "COD risk"),
+            t("customers.export.lastOrder", "Last order"), t("customers.export.firstOrder", "First order"),
         ];
-        const csv = rows.map((r) => r.map((cell) => {
+        const body = list.map((c) => [
+            c.name ?? "", c.phone ?? "",
+            c.governorate ? governorateLabel(c.governorate, language) || c.governorate : "",
+            String(c.total_orders ?? 0), String(c.completed_count ?? 0), String(c.total_spent ?? 0),
+            t(`customers.value.${c.value_tier}`, c.value_tier), t(`customers.risk.${c.risk_level}`, c.risk_level),
+            c.last_order_date || "", c.first_order_date || "",
+        ]);
+        const csv = [header, ...body].map((r) => r.map((cell) => {
             const v = String(cell ?? "");
             return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
         }).join(",")).join("\n");
@@ -108,7 +138,7 @@ function CustomersPageContent() {
         a.download = `customers-${new Date().toISOString().slice(0, 10)}.csv`;
         a.click();
         URL.revokeObjectURL(url);
-    }, [displayed]);
+    }, [filters, totalCount, t, language]);
 
     const repeatPct = stats ? pct(stats.repeat_customer_count, stats.total_customers) : 0;
 
@@ -136,7 +166,7 @@ function CustomersPageContent() {
                         </button>
                         <button
                             onClick={exportCsv}
-                            disabled={displayed.length === 0}
+                            disabled={totalCount === 0}
                             className="inline-flex items-center gap-2 h-11 px-4 rounded-2xl border border-(--card-border) bg-(--card-bg) text-sm font-semibold text-foreground hover:bg-muted/30 disabled:opacity-40 transition-colors"
                         >
                             <Download className="w-4 h-4" /> {t("customers.export")}
@@ -151,9 +181,9 @@ function CustomersPageContent() {
                 {stats && <CustomerInsightStrip stats={stats} />}
 
                 {/* Action lane */}
-                {stats && <CustomerActionLane stats={stats} activeSegment={laneFilter ?? (reliabilityFilter === "risky" ? "risky" : null)} onSegment={onSegment} />}
+                {stats && <CustomerActionLane stats={stats} activeSegment={laneFilter ?? (riskFilter === "high" ? "risky" : null)} onSegment={onSegment} />}
 
-                {/* Toolbar + reliability chips */}
+                {/* Toolbar + filter chips */}
                 <CustomerToolbar
                     search={rawSearch}
                     onSearch={setSearch}
@@ -163,11 +193,14 @@ function CustomersPageContent() {
                     view={effectiveView}
                     onView={(mode) => { setViewMode(mode); setView(mode); }}
                 >
-                    <ReliabilityChips
-                        active={reliabilityFilter}
-                        counts={stats ? reliabilityCounts(stats) : {}}
+                    <CustomerFilterChips
+                        value={valueFilter}
+                        risk={riskFilter}
                         total={stats?.total_customers ?? totalCount}
-                        onChange={onReliability}
+                        vCounts={stats ? valueCounts(stats) : {}}
+                        rCounts={stats ? riskCounts(stats) : {}}
+                        onValue={onValue}
+                        onRisk={onRisk}
                     />
                 </CustomerToolbar>
 

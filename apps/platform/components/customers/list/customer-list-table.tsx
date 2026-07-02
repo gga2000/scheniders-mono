@@ -1,18 +1,17 @@
 "use client";
 
 import { MapPin, MessageCircle, Phone, ChevronRight, Star } from "lucide-react";
+import { governorateLabel } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import type { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 import {
-    reliabilityForCustomer,
-    hasRatedScore,
-    displayScore,
     recencyStatus,
     firstDeliveryPending,
-    RELIABILITY_META,
+    effectiveSuccessRate,
+    VALUE_META,
 } from "@/lib/customer-reliability";
-import { ReliabilityPill } from "@/components/customers/reliability-pill";
+import { ValuePill, RiskChip } from "@/components/customers/reliability-pill";
 import { CustomerStatusFlags } from "@/components/customers/customer-status-flags";
 import { formatCompactIQD, formatPhoneDisplay, monogram, toIraqE164 } from "@/lib/customer-format";
 
@@ -38,7 +37,7 @@ export function CustomerListTable({
     customers: PaginatedCustomer[];
     onRowClick: (phone: string) => void;
 }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
 
     return (
         <div className="bg-(--card-bg) rounded-3xl border border-(--card-border) overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.03)]">
@@ -48,28 +47,30 @@ export function CustomerListTable({
                         <tr className="bg-background border-b border-(--card-border)">
                             <Th>{t("customers.table.customer", "Customer")}</Th>
                             <Th>{t("customers.table.governorate")}</Th>
-                            <Th>{t("customers.reliability.label")}</Th>
+                            <Th>{t("customers.value.label", "Value")}</Th>
+                            <Th>{t("customers.risk.label", "COD risk")}</Th>
                             <Th right>{t("customers.orders")}</Th>
                             <Th right>{t("customers.totalSpent")}</Th>
                             <Th right>{t("customers.table.success")}</Th>
                             <Th>{t("customers.lastOrder")}</Th>
-                            <Th right>{" "}</Th>
+                            <Th right>{" "}</Th>
                         </tr>
                     </thead>
                     <tbody>
                         {customers.map((c) => {
-                            const reliability = reliabilityForCustomer(c);
-                            const meta = RELIABILITY_META[reliability];
+                            const meta = VALUE_META[c.value_tier];
                             const pending = firstDeliveryPending(c);
-                            const recency = recencyStatus(c.last_order_date, reliability);
+                            const recency = recencyStatus(c.last_order_date, c.risk_level);
+                            const success = effectiveSuccessRate(c);
                             const e164 = toIraqE164(c.phone);
+                            const gov = c.governorate ? governorateLabel(c.governorate, language) || c.governorate : null;
                             return (
                                 <tr
                                     key={c.phone}
                                     onClick={() => onRowClick(c.phone)}
                                     className="border-b border-(--card-border) last:border-0 hover:bg-background cursor-pointer transition-colors"
                                 >
-                                    {/* Customer (+ reliability rail) */}
+                                    {/* Customer (+ value rail) */}
                                     <td className="relative px-4 py-3">
                                         <span className={cn("absolute left-0 inset-y-0 w-1", meta.rail)} aria-hidden />
                                         <div className="flex items-center gap-3">
@@ -87,25 +88,29 @@ export function CustomerListTable({
                                     <td className="px-4 py-3 text-[13px] text-muted-foreground whitespace-nowrap">
                                         <span className="inline-flex items-center gap-1.5">
                                             <MapPin className="w-3.5 h-3.5 text-muted-foreground/70" />
-                                            {c.governorate || "—"}
+                                            {gov || "—"}
                                         </span>
                                     </td>
-                                    {/* Reliability */}
+                                    {/* Value */}
                                     <td className="px-4 py-3">
-                                        <ReliabilityPill reliability={reliability} score={displayScore(c.trust_score)} variant="compact" showScore={hasRatedScore(c.trust_tier)} />
+                                        <ValuePill tier={c.value_tier} variant="compact" />
+                                    </td>
+                                    {/* Risk */}
+                                    <td className="px-4 py-3">
+                                        <RiskChip risk={c.risk_level} showClean />
                                     </td>
                                     {/* Orders */}
                                     <td className="px-4 py-3 text-right font-mono text-sm tabular-nums text-foreground">
                                         <span className="inline-flex items-center justify-end gap-1">
-                                            {c.total_orders > 3 && <Star className="w-3 h-3 text-violet-500 fill-violet-500" aria-label={t("customers.loyal")} />}
+                                            {c.completed_count > 3 && <Star className="w-3 h-3 text-violet-500 fill-violet-500" aria-label={t("customers.loyal")} />}
                                             {c.total_orders.toLocaleString("en-US")}
                                         </span>
                                     </td>
                                     {/* Lifetime value */}
                                     <td className="px-4 py-3 text-right font-mono text-sm tabular-nums text-foreground">{formatCompactIQD(c.total_spent)}</td>
                                     {/* Success */}
-                                    <td className={cn("px-4 py-3 text-right font-mono text-sm tabular-nums font-semibold", pending ? "text-muted-foreground" : successTone(c.delivery_success_rate))}>
-                                        {pending ? "—" : `${Math.round(c.delivery_success_rate)}%`}
+                                    <td className={cn("px-4 py-3 text-right font-mono text-sm tabular-nums font-semibold", pending ? "text-muted-foreground" : successTone(success))}>
+                                        {pending ? "—" : `${success}%`}
                                     </td>
                                     {/* Last order */}
                                     <td className="px-4 py-3 whitespace-nowrap">
@@ -125,7 +130,7 @@ export function CustomerListTable({
                                                 <MessageCircle className="w-4 h-4" />
                                             </button>
                                             <button
-                                                onClick={(e) => { e.stopPropagation(); window.open(`tel:+${e164}`); }}
+                                                onClick={(e) => { e.stopPropagation(); window.location.href = `tel:+${e164}`; }}
                                                 className="w-8 h-8 rounded-lg border border-(--card-border) text-muted-foreground flex items-center justify-center hover:bg-muted/40 transition-colors"
                                                 aria-label="Call"
                                             >

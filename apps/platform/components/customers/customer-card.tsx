@@ -2,19 +2,17 @@
 
 import { motion } from "framer-motion";
 import { MapPin, MessageCircle, Phone, Star } from "lucide-react";
+import { governorateLabel } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import type { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 import {
-    reliabilityForCustomer,
-    hasRatedScore,
-    displayScore,
+    VALUE_META,
     recencyStatus,
     firstDeliveryPending,
-    valuePill,
-    RELIABILITY_META,
+    effectiveSuccessRate,
 } from "@/lib/customer-reliability";
-import { ReliabilityPill } from "@/components/customers/reliability-pill";
+import { ValuePill, RiskChip } from "@/components/customers/reliability-pill";
 import { CustomerStatusFlags } from "@/components/customers/customer-status-flags";
 import { formatCompactIQD, formatPhoneDisplay, monogram, toIraqE164 } from "@/lib/customer-format";
 
@@ -31,16 +29,16 @@ interface CustomerCardProps {
 }
 
 export function CustomerCard({ customer, onClick, isSelected }: CustomerCardProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
 
-    const reliability = reliabilityForCustomer(customer);
-    const score = displayScore(customer.trust_score);
-    const rated = hasRatedScore(customer.trust_tier);
-    const meta = RELIABILITY_META[reliability];
-    const vp = valuePill(customer.trust_tier);
+    const value = customer.value_tier;
+    const risk = customer.risk_level;
+    const meta = VALUE_META[value];
     const pending = firstDeliveryPending(customer);
-    const recency = recencyStatus(customer.last_order_date, reliability);
+    const recency = recencyStatus(customer.last_order_date, risk);
+    const success = effectiveSuccessRate(customer);
     const e164 = toIraqE164(customer.phone);
+    const gov = customer.governorate ? governorateLabel(customer.governorate, language) || customer.governorate : null;
 
     return (
         <motion.div
@@ -52,7 +50,7 @@ export function CustomerCard({ customer, onClick, isSelected }: CustomerCardProp
                 isSelected && "ring-2 ring-foreground",
             )}
         >
-            {/* Reliability accent rail */}
+            {/* Value accent rail */}
             <span className={cn("absolute left-0 top-0 bottom-0 w-1.5", meta.rail)} aria-hidden />
 
             {/* Identity */}
@@ -63,8 +61,7 @@ export function CustomerCard({ customer, onClick, isSelected }: CustomerCardProp
                 <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                         <h3 className="font-bold text-foreground truncate">{customer.name}</h3>
-                        {vp?.label === "VIP" && <Star className="w-3.5 h-3.5 text-purple-500 fill-purple-500 shrink-0" />}
-                        {customer.total_orders > 3 && (
+                        {customer.completed_count > 3 && (
                             <span className="shrink-0 inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700">
                                 <Star className="w-2.5 h-2.5" />{t("customers.loyal")}
                             </span>
@@ -72,25 +69,20 @@ export function CustomerCard({ customer, onClick, isSelected }: CustomerCardProp
                     </div>
                     <div className="flex items-center gap-2 mt-0.5 text-[13px] text-muted-foreground">
                         <span className="font-mono tabular-nums">{formatPhoneDisplay(customer.phone)}</span>
-                        {customer.governorate && (
+                        {gov && (
                             <span className="inline-flex items-center gap-1 min-w-0">
                                 <MapPin className="w-3 h-3 shrink-0" />
-                                <span className="truncate">{customer.governorate}</span>
+                                <span className="truncate">{gov}</span>
                             </span>
                         )}
                     </div>
                 </div>
-                {vp && (
-                    <span className={cn("shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full inline-flex items-center gap-1", vp.pillBg, vp.pillText)}>
-                        {vp.label === "VIP" && <Star className="w-3 h-3" />}
-                        {vp.label}
-                    </span>
-                )}
+                <RiskChip risk={risk} className="shrink-0" />
             </div>
 
-            {/* Hero reliability */}
+            {/* Value hero */}
             <div className="mt-4">
-                <ReliabilityPill reliability={reliability} score={score} variant="hero" showScore={rated} />
+                <ValuePill tier={value} variant="hero" />
             </div>
 
             {/* Metric line */}
@@ -101,12 +93,12 @@ export function CustomerCard({ customer, onClick, isSelected }: CustomerCardProp
                 {!pending && (
                     <>
                         <span className="text-(--card-border)">·</span>
-                        <span><span className="font-mono font-medium text-foreground tabular-nums">{Math.round(customer.delivery_success_rate)}%</span> {t("customers.card.delivered")}</span>
+                        <span><span className="font-mono font-medium text-foreground tabular-nums">{success}%</span> {t("customers.card.delivered")}</span>
                     </>
                 )}
             </div>
 
-            {/* Order-outcome flags */}
+            {/* Order-outcome flags (the human reason behind the risk level) */}
             <CustomerStatusFlags customer={customer} className="mt-2.5" />
 
             {/* Recency + actions */}
@@ -124,7 +116,7 @@ export function CustomerCard({ customer, onClick, isSelected }: CustomerCardProp
                         <MessageCircle className="w-4 h-4" />
                     </button>
                     <button
-                        onClick={(e) => { e.stopPropagation(); window.open(`tel:+${e164}`); }}
+                        onClick={(e) => { e.stopPropagation(); window.location.href = `tel:+${e164}`; }}
                         className="w-9 h-9 rounded-xl border border-(--card-border) text-muted-foreground flex items-center justify-center hover:bg-muted/40 transition-colors"
                         aria-label="Call"
                     >

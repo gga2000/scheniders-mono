@@ -33,7 +33,7 @@ export function CustomerActionLane({
     const { t } = useLanguage();
 
     const all: Seg[] = [
-        { kind: "risky", count: stats.risky_count + stats.critical_count, dot: "bg-rose-500", label: t("customers.lane.riskyCod") },
+        { kind: "risky", count: stats.risk_high, dot: "bg-rose-500", label: t("customers.lane.riskyCod") },
         { kind: "vipsQuiet", count: stats.vips_quiet_count, dot: "bg-purple-500", label: t("customers.lane.vipsQuiet") },
         { kind: "new", count: stats.new_this_month, dot: "bg-blue-500", label: t("customers.lane.newToWelcome") },
         { kind: "firstDelivery", count: stats.first_delivery_pending_count, dot: "bg-amber-500", label: t("customers.lane.firstDelivery") },
