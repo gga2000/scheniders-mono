@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, MessageCircle, Phone, ChevronRight, Star } from "lucide-react";
+import { MapPin, MessageCircle, Phone, ChevronRight, Star, Check } from "lucide-react";
 import { governorateLabel } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
@@ -33,11 +33,16 @@ function Th({ children, right }: { children: React.ReactNode; right?: boolean })
 export function CustomerListTable({
     customers,
     onRowClick,
+    selectedPhones,
+    onToggleSelect,
 }: {
     customers: PaginatedCustomer[];
     onRowClick: (phone: string) => void;
+    selectedPhones?: Set<string>;
+    onToggleSelect?: (phone: string) => void;
 }) {
     const { t, language } = useLanguage();
+    const allSelected = customers.length > 0 && customers.every((c) => selectedPhones?.has(c.phone));
 
     return (
         <div className="bg-(--card-bg) rounded-3xl border border-(--card-border) overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.03)]">
@@ -45,6 +50,21 @@ export function CustomerListTable({
                 <table className="w-full border-collapse">
                     <thead>
                         <tr className="bg-background border-b border-(--card-border)">
+                            {onToggleSelect && (
+                                <th className="px-4 py-3.5 w-10">
+                                    <button
+                                        onClick={() => customers.forEach((c) => {
+                                            const on = selectedPhones?.has(c.phone);
+                                            if (allSelected ? on : !on) onToggleSelect(c.phone);
+                                        })}
+                                        className={cn("w-5 h-5 rounded-md border flex items-center justify-center transition-colors mx-auto",
+                                            allSelected ? "bg-foreground border-foreground text-background" : "bg-(--card-bg) border-(--card-border) text-transparent hover:border-foreground/40")}
+                                        aria-label={t("customers.bulk.selectAll", "Select all")}
+                                    >
+                                        <Check className="w-3.5 h-3.5" />
+                                    </button>
+                                </th>
+                            )}
                             <Th>{t("customers.table.customer", "Customer")}</Th>
                             <Th>{t("customers.table.governorate")}</Th>
                             <Th>{t("customers.value.label", "Value")}</Th>
@@ -68,8 +88,20 @@ export function CustomerListTable({
                                 <tr
                                     key={c.phone}
                                     onClick={() => onRowClick(c.phone)}
-                                    className="border-b border-(--card-border) last:border-0 hover:bg-background cursor-pointer transition-colors"
+                                    className={cn("border-b border-(--card-border) last:border-0 hover:bg-background cursor-pointer transition-colors", selectedPhones?.has(c.phone) && "bg-foreground/3")}
                                 >
+                                    {onToggleSelect && (
+                                        <td className="px-4 py-3 w-10" onClick={(e) => e.stopPropagation()}>
+                                            <button
+                                                onClick={() => onToggleSelect(c.phone)}
+                                                className={cn("w-5 h-5 rounded-md border flex items-center justify-center transition-colors mx-auto",
+                                                    selectedPhones?.has(c.phone) ? "bg-foreground border-foreground text-background" : "bg-(--card-bg) border-(--card-border) text-transparent hover:border-foreground/40")}
+                                                aria-label={t("customers.bulk.select", "Select")}
+                                            >
+                                                <Check className="w-3.5 h-3.5" />
+                                            </button>
+                                        </td>
+                                    )}
                                     {/* Customer (+ value rail) */}
                                     <td className="relative px-4 py-3">
                                         <span className={cn("absolute left-0 inset-y-0 w-1", meta.rail)} aria-hidden />

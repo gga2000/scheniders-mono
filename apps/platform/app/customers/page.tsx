@@ -18,9 +18,13 @@ import {
 } from "@/components/customers/list/customer-filter-chips";
 import { CustomerGrid } from "@/components/customers/list/customer-grid";
 import { CustomerListTable } from "@/components/customers/list/customer-list-table";
+import { CustomerBulkBar } from "@/components/customers/list/customer-bulk-bar";
 import { CustomerDetailDialog } from "@/components/customers/customer-detail-dialog";
+import { BroadcastModal } from "@/components/customers/broadcast-modal";
+import { BulkTagModal } from "@/components/customers/bulk-tag-modal";
+import { useCustomerBulkActions } from "@/hooks/use-bulk-actions";
 import { daysSince, firstDeliveryPending } from "@/lib/customer-reliability";
-import { pct } from "@/lib/customer-format";
+import { pct, toIraqE164 } from "@/lib/customer-format";
 
 const PAGE_LIMIT = 24;
 
@@ -34,6 +38,12 @@ function CustomersPageContent() {
     const [riskFilter, setRiskFilter] = useState<RiskFilter>("all");
     const [laneFilter, setLaneFilter] = useState<LaneSegment | null>(null);
     const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
+
+    // Multi-select for bulk actions (deep-link broadcast, tag, export).
+    const [selected, setSelected] = useState<Set<string>>(new Set());
+    const [showBroadcast, setShowBroadcast] = useState(false);
+    const [showBulkTag, setShowBulkTag] = useState(false);
+    const { bulkAddTags } = useCustomerBulkActions();
 
     const filters = useMemo(() => ({
         search: state.search,
@@ -77,6 +87,46 @@ function CustomersPageContent() {
     const handleCustomerClick = useCallback((phone: string) => {
         setSelectedPhone(phone);
     }, []);
+
+    const toggleSelect = useCallback((phone: string) => {
+        setSelected((prev) => {
+            const next = new Set(prev);
+            if (next.has(phone)) next.delete(phone); else next.add(phone);
+            return next;
+        });
+    }, []);
+    const clearSelected = useCallback(() => setSelected(new Set()), []);
+    const selectedPhones = useMemo(() => Array.from(selected), [selected]);
+
+    const exportSelected = useCallback(() => {
+        const rows = allCustomers.filter((c) => selected.has(c.phone));
+        const header = [
+            t("customers.export.name", "Name"), t("customers.export.phone", "Phone"),
+            t("customers.export.governorate", "Governorate"), t("customers.export.orders", "Orders"),
+            t("customers.export.value", "Value"), t("customers.export.risk", "COD risk"),
+        ];
+        const body = rows.map((c) => [
+            c.name, c.phone, c.governorate ? governorateLabel(c.governorate, language) || c.governorate : "",
+            String(c.total_orders ?? 0), t(`customers.value.${c.value_tier}`, c.value_tier), t(`customers.risk.${c.risk_level}`, c.risk_level),
+        ]);
+        const csv = [header, ...body].map((r) => r.map((cell) => {
+            const v = String(cell ?? "");
+            return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+        }).join(",")).join("\n");
+        const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `customers-selected-${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }, [allCustomers, selected, t, language]);
+
+    const onConfirmTags = useCallback(async (tagIds: string[]) => {
+        await bulkAddTags(selectedPhones, tagIds);
+        setShowBulkTag(false);
+        clearSelected();
+    }, [bulkAddTags, selectedPhones, clearSelected]);
 
     const onValue = useCallback((next: ValueFilter) => {
         setValueFilter(next);
@@ -239,9 +289,9 @@ function CustomersPageContent() {
                 ) : (
                     <>
                         {effectiveView === "list" ? (
-                            <CustomerListTable customers={displayed} onRowClick={handleCustomerClick} />
+                            <CustomerListTable customers={displayed} onRowClick={handleCustomerClick} selectedPhones={selected} onToggleSelect={toggleSelect} />
                         ) : (
-                            <CustomerGrid customers={displayed} onCustomerClick={handleCustomerClick} />
+                            <CustomerGrid customers={displayed} onCustomerClick={handleCustomerClick} selectedPhones={selected} onToggleSelect={toggleSelect} />
                         )}
                         {hasNextPage && (
                             <div className="flex justify-center pt-2">
@@ -259,6 +309,27 @@ function CustomersPageContent() {
             </div>
 
             <CustomerDetailDialog customer={selectedCustomer} onClose={() => setSelectedPhone(null)} />
+
+            {/* Bulk actions */}
+            <CustomerBulkBar
+                selectedCount={selected.size}
+                onExport={exportSelected}
+                onAddTag={() => setShowBulkTag(true)}
+                onBroadcast={() => setShowBroadcast(true)}
+                onClear={clearSelected}
+            />
+            <BroadcastModal
+                isOpen={showBroadcast}
+                onClose={() => setShowBroadcast(false)}
+                selectedCount={selected.size}
+                selectedPhones={selectedPhones.map(toIraqE164)}
+            />
+            <BulkTagModal
+                isOpen={showBulkTag}
+                onClose={() => setShowBulkTag(false)}
+                onConfirm={onConfirmTags}
+                selectedCount={selected.size}
+            />
         </div>
     );
 }
