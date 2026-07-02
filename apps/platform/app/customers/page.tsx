@@ -11,6 +11,7 @@ import { useCustomerUrlState } from "@/hooks/use-customer-url-state";
 import { useCustomerStore } from "@/store/use-customer-store";
 import { CustomerInsightStrip } from "@/components/customers/list/customer-insight-strip";
 import { CustomerActionLane, type LaneSegment } from "@/components/customers/list/customer-action-lane";
+import { CustomerSegmentTabs, activeSegment, type SegmentState } from "@/components/customers/list/customer-segment-tabs";
 import { CustomerToolbar } from "@/components/customers/list/customer-toolbar";
 import {
     CustomerFilterChips, valueCounts, riskCounts, type ValueFilter, type RiskFilter,
@@ -86,6 +87,13 @@ function CustomersPageContent() {
         setRiskFilter(next);
         setLaneFilter(null);
     }, []);
+
+    const onSegmentSelect = useCallback((s: SegmentState) => {
+        setValueFilter(s.value);
+        setRiskFilter(s.risk);
+        setLaneFilter(s.lane);
+        if (s.sort) setSort(s.sort.by as any, s.sort.order);
+    }, [setSort]);
 
     const onSegment = useCallback((kind: LaneSegment) => {
         // "High COD risk" maps to the server-side risk filter so the whole cohort loads.
@@ -182,6 +190,15 @@ function CustomersPageContent() {
 
                 {/* Action lane */}
                 {stats && <CustomerActionLane stats={stats} activeSegment={laneFilter ?? (riskFilter === "high" ? "risky" : null)} onSegment={onSegment} />}
+
+                {/* Smart segment tabs */}
+                {stats && (
+                    <CustomerSegmentTabs
+                        stats={stats}
+                        active={activeSegment({ value: valueFilter, risk: riskFilter, lane: laneFilter })}
+                        onSelect={onSegmentSelect}
+                    />
+                )}
 
                 {/* Toolbar + filter chips */}
                 <CustomerToolbar
