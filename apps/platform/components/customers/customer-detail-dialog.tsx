@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import {
-    X, Phone, MapPin, Calendar, MessageCircle, Plus, ExternalLink, Tag, Star, Crown,
+    X, Phone, MapPin, Calendar, MessageCircle, Plus, ExternalLink, Tag, Star,
     Package, ChevronDown, User, Home, ShoppingBag, StickyNote, ShieldCheck, CreditCard, Truck,
 } from "lucide-react";
 import { cn, formatIQD } from "@/lib/utils";
@@ -15,8 +15,9 @@ import { governorateLabel } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
 import type { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 import {
-    reliabilityForCustomer, hasRatedScore, displayScore, valuePill, RELIABILITY_META,
+    hasRatedScore, displayScore, effectiveSuccessRate, codRiskKey, VALUE_META, RISK_META,
 } from "@/lib/customer-reliability";
+import { ValuePill, RiskChip } from "@/components/customers/reliability-pill";
 import { CustomerStatusFlags } from "@/components/customers/customer-status-flags";
 import { monogram, formatPhoneDisplay, toIraqE164 } from "@/lib/customer-format";
 
@@ -70,24 +71,25 @@ function monthYear(d?: string | null) {
     return Number.isNaN(dt.getTime()) ? "—" : dt.toLocaleDateString("en-US", { month: "short", year: "numeric" });
 }
 
-function useCustomerDialogData(phone: string | null) {
+function useCustomerDialogData(phone: string | null, limit = 60) {
     return useQuery({
-        queryKey: ["customer-dialog", phone],
+        queryKey: ["customer-dialog", phone, limit],
         enabled: !!phone,
         staleTime: 5 * 60 * 1000,
         queryFn: async () => {
             const normalized = trustEngine.normalizePhone(phone as string);
             const variants = [normalized, `0${normalized}`, `964${normalized}`, `+964${normalized}`];
 
-            const [ordersRes, trustRes, tagRes, noteRes] = await Promise.all([
+            const [ordersRes, trustRes, tagRes, noteRes, countRes] = await Promise.all([
                 supabase.from("orders")
                     .select("id, order_id, created_at, items, price, discount_amount, delivery_fee, notes, address_details, city, governorate_code, status, payment_status, is_return, customer_name, secondary_phone")
-                    .in("phone", variants).order("created_at", { ascending: false }).limit(60),
+                    .in("phone", variants).order("created_at", { ascending: false }).limit(limit),
                 supabase.from("customer_trust")
                     .select("avg_basket, delivered_count, community_avg_rating, community_rating_count, score_breakdown, first_order_date")
                     .eq("phone", normalized).maybeSingle(),
                 supabase.from("customer_tag_assignments").select("tag:customer_tags(name)").in("customer_phone", variants),
                 supabase.from("customer_notes").select("note, created_at").in("customer_phone", variants).order("created_at", { ascending: false }),
+                supabase.from("orders").select("id", { count: "exact", head: true }).in("phone", variants),
             ]);
 
             const orders = (ordersRes.data ?? []) as DialogOrder[];
@@ -106,6 +108,7 @@ function useCustomerDialogData(phone: string | null) {
 
             return {
                 orders,
+                totalOrders: countRes.count ?? orders.length,
                 avgBasket: Number(trustRes.data?.avg_basket ?? 0),
                 community: Number(trustRes.data?.community_avg_rating ?? 0),
                 firstOrderDate: trustRes.data?.first_order_date as string | null | undefined,
@@ -153,7 +156,7 @@ function OrderCard({ order, defaultOpen, t }: { order: DialogOrder; defaultOpen?
                 <span className="font-mono text-xs text-muted-foreground w-16 shrink-0 tabular-nums">{fmtDate(order.created_at, true)}</span>
                 <span className={cn("text-[11px] font-bold px-2.5 py-1 rounded-full shrink-0", pill.cls)}>{pill.label}</span>
                 {order.order_id && <span className="font-mono text-xs text-muted-foreground/70 hidden sm:inline">#{order.order_id}</span>}
-                <span className="text-xs text-muted-foreground ml-auto shrink-0">{itemCount} {itemCount === 1 ? "item" : "items"}</span>
+                <span className="text-xs text-muted-foreground ml-auto shrink-0">{itemCount} {t(itemCount === 1 ? "customers.dialog.item" : "customers.dialog.items", itemCount === 1 ? "item" : "items")}</span>
                 <span className="font-mono font-bold text-sm shrink-0 tabular-nums">{formatIQD(total)}</span>
                 <ChevronDown className={cn("w-4 h-4 text-muted-foreground shrink-0 transition-transform", open && "rotate-180")} />
             </button>
@@ -169,7 +172,7 @@ function OrderCard({ order, defaultOpen, t }: { order: DialogOrder; defaultOpen?
                             {/* Items */}
                             <div className="divide-y divide-(--card-border)">
                                 {items.length === 0 ? (
-                                    <div className="py-3 text-sm text-muted-foreground">No item details on this order.</div>
+                                    <div className="py-3 text-sm text-muted-foreground">{t("customers.dialog.noItems", "No item details on this order.")}</div>
                                 ) : items.map((it, i) => (
                                     <div key={i} className="flex items-center gap-3 py-2.5">
                                         <ItemThumb url={it.image_url} name={it.name} />
@@ -184,10 +187,10 @@ function OrderCard({ order, defaultOpen, t }: { order: DialogOrder; defaultOpen?
 
                             {/* Money breakdown */}
                             <div className="mt-3 pt-3 border-t border-(--card-border) space-y-1.5 text-sm">
-                                <div className="flex items-center justify-between text-muted-foreground"><span>Subtotal</span><span className="font-mono tabular-nums text-foreground">{formatIQD(subtotal)}</span></div>
-                                {discount > 0 && <div className="flex items-center justify-between text-rose-600"><span>Discount</span><span className="font-mono tabular-nums">−{formatIQD(discount)}</span></div>}
-                                {delivery > 0 && <div className="flex items-center justify-between text-muted-foreground"><span className="inline-flex items-center gap-1.5"><Truck className="w-3.5 h-3.5" />Delivery</span><span className="font-mono tabular-nums text-foreground">{formatIQD(delivery)}</span></div>}
-                                <div className="flex items-center justify-between pt-1.5 border-t border-(--card-border) font-bold"><span>Total</span><span className="font-mono tabular-nums">{formatIQD(total)}</span></div>
+                                <div className="flex items-center justify-between text-muted-foreground"><span>{t("customers.dialog.subtotal", "Subtotal")}</span><span className="font-mono tabular-nums text-foreground">{formatIQD(subtotal)}</span></div>
+                                {discount > 0 && <div className="flex items-center justify-between text-rose-600"><span>{t("customers.dialog.discount", "Discount")}</span><span className="font-mono tabular-nums">−{formatIQD(discount)}</span></div>}
+                                {delivery > 0 && <div className="flex items-center justify-between text-muted-foreground"><span className="inline-flex items-center gap-1.5"><Truck className="w-3.5 h-3.5" />{t("customers.dialog.delivery", "Delivery")}</span><span className="font-mono tabular-nums text-foreground">{formatIQD(delivery)}</span></div>}
+                                <div className="flex items-center justify-between pt-1.5 border-t border-(--card-border) font-bold"><span>{t("customers.dialog.total", "Total")}</span><span className="font-mono tabular-nums">{formatIQD(total)}</span></div>
                             </div>
 
                             {/* Meta: payment + address + notes */}
@@ -221,16 +224,20 @@ function OrderCard({ order, defaultOpen, t }: { order: DialogOrder; defaultOpen?
 export function CustomerDetailDialog({ customer, onClose }: { customer: PaginatedCustomer | null; onClose: () => void }) {
     const { t, language } = useLanguage();
     const router = useRouter();
-    const data = useCustomerDialogData(customer?.phone ?? null);
+    const [limit, setLimit] = useState(60);
+    const data = useCustomerDialogData(customer?.phone ?? null, limit);
 
     useEffect(() => {
         if (!customer) return;
+        setLimit(60); // reset paging each time a new customer opens
         const prev = document.body.style.overflow;
         document.body.style.overflow = "hidden";
         const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
         window.addEventListener("keydown", onKey);
         return () => { document.body.style.overflow = prev; window.removeEventListener("keydown", onKey); };
     }, [customer, onClose]);
+
+    const loadedAll = !data.data || data.data.orders.length >= (data.data.totalOrders ?? 0);
 
     return (
         <AnimatePresence>
@@ -240,6 +247,9 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
                     customer={customer}
                     data={data.data}
                     loading={data.isLoading}
+                    fetchingMore={data.isFetching && !data.isLoading}
+                    canLoadMore={!loadedAll}
+                    onLoadMore={() => setLimit((l) => l + 60)}
                     onClose={onClose}
                     onOpenFull={() => router.push(`/customers/${encodeURIComponent(customer.phone)}`)}
                     t={t}
@@ -251,37 +261,35 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
 }
 
 function Body({
-    customer, data, loading, onClose, onOpenFull, t, locale,
+    customer, data, loading, fetchingMore, canLoadMore, onLoadMore, onClose, onOpenFull, t, locale,
 }: {
     customer: PaginatedCustomer;
     data: ReturnType<typeof useCustomerDialogData>["data"];
     loading: boolean;
+    fetchingMore: boolean;
+    canLoadMore: boolean;
+    onLoadMore: () => void;
     onClose: () => void;
     onOpenFull: () => void;
     t: (k: string, f?: string) => string;
     locale: string;
 }) {
-    const reliability = reliabilityForCustomer(customer);
+    const value = customer.value_tier;
+    const risk = customer.risk_level;
     const rated = hasRatedScore(customer.trust_tier);
-    const meta = RELIABILITY_META[reliability];
-    const vp = valuePill(customer.trust_tier);
+    const meta = VALUE_META[value];
     const e164 = toIraqE164(customer.phone);
     const gov = customer.governorate ? governorateLabel(customer.governorate, locale) || customer.governorate : null;
     const avgBasket = data?.avgBasket || (customer.total_orders ? Math.round(customer.total_spent / customer.total_orders) : 0);
-    const codKey =
-        reliability === "excellent" ? "customers.codRisk.low"
-            : reliability === "good" ? "customers.codRisk.lowGood"
-                : reliability === "watch" ? "customers.codRisk.watch"
-                    : reliability === "risky" ? "customers.codRisk.high"
-                        : reliability === "blocked" ? "customers.codRisk.blocked"
-                            : "customers.codRisk.new";
+    const codKey = codRiskKey(risk);
+    const totalOrders = data?.totalOrders ?? customer.total_orders;
 
     const stats: { v: string; k: string }[] = [
-        { v: customer.total_orders.toLocaleString("en-US"), k: t("customers.orders") },
+        { v: totalOrders.toLocaleString("en-US"), k: t("customers.orders") },
         { v: customer.completed_count.toLocaleString("en-US"), k: t("customers.card.delivered") },
         { v: formatIQD(customer.total_spent), k: t("customers.drawer.lifetime") },
         { v: formatIQD(avgBasket), k: t("customers.drawer.avgBasket") },
-        { v: `${Math.round(customer.delivery_success_rate)}%`, k: t("customers.table.success", "Success") },
+        { v: `${effectiveSuccessRate(customer)}%`, k: t("customers.table.success", "Success") },
     ];
 
     return (
@@ -303,11 +311,8 @@ function Body({
                     <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2.5 flex-wrap">
                             <h2 className="text-xl font-extrabold tracking-tight truncate">{customer.name}</h2>
-                            {vp && (
-                                <span className={cn("shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full inline-flex items-center gap-1", vp.pillBg, vp.pillText)}>
-                                    {vp.label === "VIP" ? <Crown className="w-3 h-3" /> : <Star className="w-3 h-3" />} {vp.label}
-                                </span>
-                            )}
+                            <ValuePill tier={value} variant="compact" />
+                            <RiskChip risk={risk} showClean />
                             {customer.completed_count > 3 && (
                                 <span className="shrink-0 inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700">
                                     <Star className="w-2.5 h-2.5" />{t("customers.loyal")}
@@ -327,22 +332,25 @@ function Body({
 
                 {/* Scroll body */}
                 <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-                    {/* Value band */}
-                    <div className="grid md:grid-cols-[1fr_auto] gap-3 items-center">
+                    {/* Value + COD-risk band */}
+                    <div className="grid md:grid-cols-[1fr_auto] gap-3 items-stretch">
                         <div className={cn("rounded-2xl p-4 flex items-center justify-between gap-3", meta.pillBg)}>
                             <div className="flex items-center gap-3 min-w-0">
                                 <span className="w-9 h-9 rounded-xl bg-white/60 flex items-center justify-center shrink-0">
                                     <ShieldCheck className={cn("w-5 h-5", meta.pillText)} />
                                 </span>
                                 <div className={cn("min-w-0", meta.pillText)}>
-                                    <div className="text-[10px] font-bold uppercase tracking-wider opacity-70">{t("customers.reliability.label")}</div>
-                                    <div className="text-lg font-extrabold leading-tight">{t(`customers.reliability.${reliability}`)}</div>
+                                    <div className="text-[10px] font-bold uppercase tracking-wider opacity-70">{t("customers.value.label", "Value")}</div>
+                                    <div className="text-lg font-extrabold leading-tight">{t(`customers.value.${value}`, meta.label)}</div>
                                     <div className="text-[12px] font-medium opacity-80 truncate">{t(codKey)}</div>
                                 </div>
                             </div>
                             {rated && <div className={cn("font-mono text-3xl font-semibold tabular-nums shrink-0", meta.pillText)}>{displayScore(customer.trust_score)}<span className="text-sm opacity-60">/100</span></div>}
                         </div>
-                        <CustomerStatusFlags customer={customer} />
+                        <div className="rounded-2xl border border-(--card-border) bg-background p-3 flex flex-col justify-center gap-2 min-w-[150px]">
+                            <RiskChip risk={risk} showClean />
+                            <CustomerStatusFlags customer={customer} max={4} />
+                        </div>
                     </div>
 
                     {/* Stat strip */}
@@ -364,7 +372,7 @@ function Body({
                                 <div className="rounded-2xl border border-(--card-border) p-3 space-y-3">
                                     {/* Phones */}
                                     <div className="text-[13px]">
-                                        <div className="text-muted-foreground text-xs mb-1">Phone</div>
+                                        <div className="text-muted-foreground text-xs mb-1">{t("customers.dialog.phone", "Phone")}</div>
                                         <div className="font-mono tabular-nums">{formatPhoneDisplay(customer.phone)}</div>
                                         {customer.secondary_phone && <div className="font-mono tabular-nums text-muted-foreground">{formatPhoneDisplay(customer.secondary_phone)}</div>}
                                     </div>
@@ -378,7 +386,7 @@ function Body({
                                                     <div key={i} className="flex items-start gap-2.5">
                                                         <span className={cn("w-6 h-6 rounded-lg flex items-center justify-center shrink-0", im.cls)}><Icon className="w-3.5 h-3.5" /></span>
                                                         <div className="min-w-0 flex-1">
-                                                            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{im.label} · {fmtDate(ev.at, true)}</div>
+                                                            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{t(`customers.dialog.field.${ev.type}`, im.label)} · {fmtDate(ev.at, true)}</div>
                                                             <div className="text-[13px] truncate">{ev.value}</div>
                                                         </div>
                                                     </div>
@@ -387,7 +395,7 @@ function Body({
                                         </div>
                                     )}
                                     {(!data || data.identity.length === 0) && !loading && (
-                                        <div className="text-xs text-muted-foreground pt-2 border-t border-(--card-border)">No recorded changes.</div>
+                                        <div className="text-xs text-muted-foreground pt-2 border-t border-(--card-border)">{t("customers.dialog.noChanges", "No recorded changes.")}</div>
                                     )}
                                 </div>
                             </section>
@@ -411,7 +419,7 @@ function Body({
                         <section>
                             <h3 className="text-[15px] font-bold flex items-center gap-2 mb-2.5">
                                 <ShoppingBag className="w-4 h-4 text-muted-foreground" />{t("customers.drawer.recentOrders", "Order history")}
-                                {data && <span className="text-xs font-normal text-muted-foreground">({data.orders.length})</span>}
+                                {data && <span className="text-xs font-normal text-muted-foreground">({data.totalOrders.toLocaleString("en-US")})</span>}
                             </h3>
                             {loading ? (
                                 <div className="space-y-2.5">
@@ -420,9 +428,18 @@ function Body({
                             ) : data && data.orders.length > 0 ? (
                                 <div className="space-y-2.5">
                                     {data.orders.map((o, i) => <OrderCard key={o.id} order={o} defaultOpen={i === 0} t={t} />)}
+                                    {canLoadMore && (
+                                        <button
+                                            onClick={onLoadMore}
+                                            disabled={fetchingMore}
+                                            className="w-full h-11 rounded-2xl border border-(--card-border) bg-background text-sm font-semibold text-foreground hover:bg-muted/30 disabled:opacity-50 transition-colors"
+                                        >
+                                            {fetchingMore ? "…" : t("common.loadMore", "Load more")}
+                                        </button>
+                                    )}
                                 </div>
                             ) : (
-                                <div className="rounded-2xl border border-(--card-border) p-8 text-center text-sm text-muted-foreground">No orders found.</div>
+                                <div className="rounded-2xl border border-(--card-border) p-8 text-center text-sm text-muted-foreground">{t("customers.dialog.noOrders", "No orders found.")}</div>
                             )}
                         </section>
                     </div>

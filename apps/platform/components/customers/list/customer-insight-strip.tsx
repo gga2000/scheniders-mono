@@ -33,7 +33,7 @@ const item = {
 export function CustomerInsightStrip({ stats }: { stats: Stats }) {
     const { t, language } = useLanguage();
 
-    const atRisk = stats.rel_risky;
+    const atRisk = stats.risk_high;
     const repeatPct = pct(stats.repeat_customer_count, stats.total_customers);
     const govName = stats.top_governorate ? governorateLabel(stats.top_governorate, language) || stats.top_governorate : "—";
     const govPct = pct(stats.top_governorate_count, stats.total_customers);
