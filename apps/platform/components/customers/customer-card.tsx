@@ -1,7 +1,8 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { MapPin, MessageCircle, Phone, Star } from "lucide-react";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { MapPin, MessageCircle, Phone, Star, Tag, X } from "lucide-react";
 import { governorateLabel } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
@@ -14,6 +15,7 @@ import {
 } from "@/lib/customer-reliability";
 import { ValuePill, RiskChip } from "@/components/customers/reliability-pill";
 import { CustomerStatusFlags } from "@/components/customers/customer-status-flags";
+import { CustomerQuickActions } from "@/components/customers/customer-quick-actions";
 import { formatCompactIQD, formatPhoneDisplay, monogram, toIraqE164 } from "@/lib/customer-format";
 
 interface CustomerCardProps {
@@ -30,6 +32,7 @@ interface CustomerCardProps {
 
 export function CustomerCard({ customer, onClick, isSelected }: CustomerCardProps) {
     const { t, language } = useLanguage();
+    const [quickOpen, setQuickOpen] = useState(false);
 
     const value = customer.value_tier;
     const risk = customer.risk_level;
@@ -109,6 +112,13 @@ export function CustomerCard({ customer, onClick, isSelected }: CustomerCardProp
                 </span>
                 <span className="flex items-center gap-2 shrink-0">
                     <button
+                        onClick={(e) => { e.stopPropagation(); setQuickOpen(true); }}
+                        className="w-9 h-9 rounded-xl border border-(--card-border) text-muted-foreground flex items-center justify-center hover:bg-muted/40 transition-colors"
+                        aria-label={t("customers.quick.title", "Tag or note")}
+                    >
+                        <Tag className="w-4 h-4" />
+                    </button>
+                    <button
                         onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${e164}`, "_blank"); }}
                         className="w-9 h-9 rounded-xl bg-lime-50 text-lime-700 flex items-center justify-center hover:bg-lime-100 transition-colors"
                         aria-label="WhatsApp"
@@ -124,6 +134,26 @@ export function CustomerCard({ customer, onClick, isSelected }: CustomerCardProp
                     </button>
                 </span>
             </div>
+
+            {/* Quick tag/note overlay */}
+            <AnimatePresence>
+                {quickOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute inset-0 z-20 bg-(--card-bg) rounded-3xl border border-(--card-border) p-4 overflow-y-auto"
+                    >
+                        <div className="flex items-center justify-between mb-2.5">
+                            <span className="text-sm font-bold inline-flex items-center gap-2"><Tag className="w-4 h-4 text-muted-foreground" />{t("customers.quick.title", "Quick actions")}</span>
+                            <button onClick={() => setQuickOpen(false)} className="w-7 h-7 rounded-lg border border-(--card-border) flex items-center justify-center text-muted-foreground hover:bg-muted/40" aria-label={t("common.close", "Close")}>
+                                <X className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                        <CustomerQuickActions phone={customer.phone} />
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </motion.div>
     );
 }
