@@ -7064,6 +7064,9 @@ export type Database = {
       get_paginated_customers: {
         Args: {
           city_filter?: string
+          first_delivery_pending?: boolean
+          first_order_within_days?: number
+          last_order_before_days?: number
           last_order_within_days?: number
           max_ltv?: number
           max_trust_score?: number
