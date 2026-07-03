@@ -1386,8 +1386,12 @@ export default function OrdersPage() {
                                                     {/* Old Actions Location Removed */}
                                                 </div>
 
-                                                {/* Row 2: Control Groups - Premium Glass Cards */}
-                                                <div className="flex items-start justify-between gap-3 pb-6 md:mx-0 md:px-0 pt-2 w-full overflow-x-auto scrollbar-hide flex-nowrap">
+                                                {/* Row 2: Control Groups - Premium Glass Cards.
+                                                    Scrollable groups and the pinned Actions card are separate flex
+                                                    siblings: the Actions card must never sit inside the scroller,
+                                                    or it overlaps the groups scrolling beneath it. */}
+                                                <div className="flex items-start gap-3 w-full md:mx-0 md:px-0">
+                                                    <div className="flex flex-1 min-w-0 items-start justify-between gap-3 pt-2 pb-6 overflow-x-auto scrollbar-hide flex-nowrap">
 
                                                     {/* View Group */}
                                                     <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0 min-w-min">
@@ -1812,9 +1816,10 @@ export default function OrdersPage() {
                                                             </button>
                                                         </div>
                                                     </div>
+                                                    </div>
 
-                                                    {/* Action Group — pinned to the right edge via sticky */}
-                                                    <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0 min-w-min sticky right-0 z-10">
+                                                    {/* Action Group — pinned outside the scroller so it can never overlap */}
+                                                    <div className="flex flex-col gap-2 p-2 mt-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
                                                         <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.actions")}</span>
                                                         <div className="flex items-center gap-2">
                                                             <button
