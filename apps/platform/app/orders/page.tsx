@@ -1409,14 +1409,14 @@ export default function OrdersPage() {
                                                 </div>
 
                                                 {/* Row 2: Control Groups - Premium Glass Cards.
-                                                    Scrollable groups and the pinned Actions card are separate flex
-                                                    siblings: the Actions card must never sit inside the scroller,
-                                                    or it overlaps the groups scrolling beneath it. */}
-                                                <div className="flex items-start gap-3 w-full md:mx-0 md:px-0">
+                                                    One flex container so justify-between spreads free space
+                                                    evenly between ALL cards. Never position:sticky a card in
+                                                    here — it paints over the cards scrolling beneath it; the
+                                                    edge fades below signal overflow instead. */}
                                                     <div
                                                         ref={toolbarScrollRef}
                                                         className={cn(
-                                                            "flex flex-1 min-w-0 items-start justify-between gap-3 pt-2 pb-6 overflow-x-auto scrollbar-hide flex-nowrap",
+                                                            "flex items-start justify-between gap-3 pt-2 pb-6 w-full md:mx-0 md:px-0 overflow-x-auto scrollbar-hide flex-nowrap",
                                                             toolbarFade.left && toolbarFade.right && "[mask-image:linear-gradient(to_right,transparent,black_32px,black_calc(100%-32px),transparent)]",
                                                             toolbarFade.left && !toolbarFade.right && "[mask-image:linear-gradient(to_right,transparent,black_32px)]",
                                                             !toolbarFade.left && toolbarFade.right && "[mask-image:linear-gradient(to_right,black_calc(100%-32px),transparent)]"
@@ -1846,10 +1846,9 @@ export default function OrdersPage() {
                                                             </button>
                                                         </div>
                                                     </div>
-                                                    </div>
 
-                                                    {/* Action Group — pinned outside the scroller so it can never overlap */}
-                                                    <div className="flex flex-col gap-2 p-2 mt-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
+                                                    {/* Action Group */}
+                                                    <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
                                                         <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.actions")}</span>
                                                         <div className="flex items-center gap-1.5">
                                                             <button
