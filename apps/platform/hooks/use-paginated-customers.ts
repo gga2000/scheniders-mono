@@ -24,6 +24,10 @@ export interface PaginatedCustomerFilters {
     // Two-axis server-side filters
     valueFilter?: ValueTier | "all";   // vip | good | newcomer
     riskFilter?: RiskLevel | "all";    // clean | caution | high | blocked
+    // Server-side cohort filters (smart segments)
+    lastOrderBeforeDays?: number;      // dormant: last order older than N days
+    firstOrderWithinDays?: number;     // recently acquired: first order within N days
+    firstDeliveryPending?: boolean;    // ordered but nothing delivered yet
 }
 
 export interface PaginatedCustomer {
@@ -101,6 +105,9 @@ export function usePaginatedCustomers(
                 max_trust_score: filters?.maxTrustScore ?? null,
                 value_filter: filters?.valueFilter && filters.valueFilter !== "all" ? filters.valueFilter : null,
                 risk_filter: filters?.riskFilter && filters.riskFilter !== "all" ? filters.riskFilter : null,
+                last_order_before_days: filters?.lastOrderBeforeDays ?? null,
+                first_order_within_days: filters?.firstOrderWithinDays ?? null,
+                first_delivery_pending: filters?.firstDeliveryPending ?? null,
             });
 
             if (error) {

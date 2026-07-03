@@ -6,7 +6,7 @@ import { Search, Upload, Download, Plus } from "lucide-react";
 import { governorateLabel } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
 import { supabase } from "@/lib/supabase";
-import { usePaginatedCustomers, useCustomerDashboardStats } from "@/hooks/use-paginated-customers";
+import { usePaginatedCustomers, useCustomerDashboardStats, type PaginatedCustomerFilters } from "@/hooks/use-paginated-customers";
 import { useCustomerUrlState } from "@/hooks/use-customer-url-state";
 import { useCustomerStore } from "@/store/use-customer-store";
 import { CustomerInsightStrip } from "@/components/customers/list/customer-insight-strip";
@@ -23,7 +23,6 @@ import { CustomerDetailDialog } from "@/components/customers/customer-detail-dia
 import { BroadcastModal } from "@/components/customers/broadcast-modal";
 import { BulkTagModal } from "@/components/customers/bulk-tag-modal";
 import { useCustomerBulkActions } from "@/hooks/use-bulk-actions";
-import { daysSince, firstDeliveryPending } from "@/lib/customer-reliability";
 import { pct, toIraqE164 } from "@/lib/customer-format";
 
 const PAGE_LIMIT = 24;
@@ -45,14 +44,21 @@ function CustomersPageContent() {
     const [showBulkTag, setShowBulkTag] = useState(false);
     const { bulkAddTags } = useCustomerBulkActions();
 
-    const filters = useMemo(() => ({
-        search: state.search,
-        city: state.city,
-        sortBy: state.sortBy as any,
-        sortOrder: state.sortOrder,
-        valueFilter: valueFilter === "all" ? undefined : valueFilter,
-        riskFilter: riskFilter === "all" ? undefined : riskFilter,
-    }), [state.search, state.city, state.sortBy, state.sortOrder, valueFilter, riskFilter]);
+    const filters = useMemo(() => {
+        const f: PaginatedCustomerFilters = {
+            search: state.search,
+            city: state.city,
+            sortBy: state.sortBy as any,
+            sortOrder: state.sortOrder,
+            valueFilter: valueFilter === "all" ? undefined : valueFilter,
+            riskFilter: riskFilter === "all" ? undefined : riskFilter,
+        };
+        // Action-lane cohorts now filter server-side (exact across the whole cohort).
+        if (laneFilter === "vipsQuiet") { f.valueFilter = "vip"; f.lastOrderBeforeDays = 30; }
+        else if (laneFilter === "new") { f.firstOrderWithinDays = 30; }
+        else if (laneFilter === "firstDelivery") { f.firstDeliveryPending = true; }
+        return f;
+    }, [state.search, state.city, state.sortBy, state.sortOrder, valueFilter, riskFilter, laneFilter]);
 
     const { data, isLoading, isFetchingNextPage, fetchNextPage, hasNextPage } = usePaginatedCustomers(PAGE_LIMIT, filters);
     const { data: stats } = useCustomerDashboardStats();
@@ -61,23 +67,8 @@ function CustomersPageContent() {
     const totalCount = data?.pages[0]?.totalCount || 0;
     const effectiveView = state.view || viewMode;
 
-    // The value/risk chips filter server-side (via `filters`); the action-lane
-    // cohorts that aren't a simple tier filter run over the loaded set here.
-    const displayed = useMemo(() => {
-        if (!laneFilter) return allCustomers;
-        return allCustomers.filter((c) => {
-            switch (laneFilter) {
-                case "vipsQuiet":
-                    return c.value_tier === "vip" && (daysSince(c.last_order_date) ?? 0) > 30;
-                case "new":
-                    return (daysSince(c.first_order_date) ?? 999) <= 30;
-                case "firstDelivery":
-                    return firstDeliveryPending(c);
-                default:
-                    return true;
-            }
-        });
-    }, [allCustomers, laneFilter]);
+    // Everything (value/risk chips + action-lane cohorts) now filters server-side.
+    const displayed = allCustomers;
 
     const selectedCustomer = useMemo(
         () => allCustomers.find((c) => c.phone === selectedPhone) ?? null,
