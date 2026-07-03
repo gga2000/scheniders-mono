@@ -597,6 +597,28 @@ export default function OrdersPage() {
     const dateButtonRef = useRef<HTMLButtonElement>(null);
     const datePickerRef = useRef<HTMLDivElement>(null);
 
+    // Toolbar scroller edge fades — only shown while content actually
+    // overflows on that side, so nothing ever hard-clips at the seam.
+    const toolbarScrollRef = useRef<HTMLDivElement>(null);
+    const [toolbarFade, setToolbarFade] = useState({ left: false, right: false });
+    useEffect(() => {
+        const el = toolbarScrollRef.current;
+        if (!el) return;
+        const update = () => {
+            const left = el.scrollLeft > 4;
+            const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 4;
+            setToolbarFade(prev => (prev.left === left && prev.right === right) ? prev : { left, right });
+        };
+        update();
+        el.addEventListener("scroll", update, { passive: true });
+        const ro = new ResizeObserver(update);
+        ro.observe(el);
+        return () => {
+            el.removeEventListener("scroll", update);
+            ro.disconnect();
+        };
+    }, []);
+
     // Update date picker position when opened
     useEffect(() => {
         if (showDatePicker && dateButtonRef.current) {
@@ -1391,7 +1413,15 @@ export default function OrdersPage() {
                                                     siblings: the Actions card must never sit inside the scroller,
                                                     or it overlaps the groups scrolling beneath it. */}
                                                 <div className="flex items-start gap-3 w-full md:mx-0 md:px-0">
-                                                    <div className="flex flex-1 min-w-0 items-start justify-between gap-3 pt-2 pb-6 overflow-x-auto scrollbar-hide flex-nowrap">
+                                                    <div
+                                                        ref={toolbarScrollRef}
+                                                        className={cn(
+                                                            "flex flex-1 min-w-0 items-start gap-3 pt-2 pb-6 overflow-x-auto scrollbar-hide flex-nowrap",
+                                                            toolbarFade.left && toolbarFade.right && "[mask-image:linear-gradient(to_right,transparent,black_40px,black_calc(100%-40px),transparent)]",
+                                                            toolbarFade.left && !toolbarFade.right && "[mask-image:linear-gradient(to_right,transparent,black_40px)]",
+                                                            !toolbarFade.left && toolbarFade.right && "[mask-image:linear-gradient(to_right,black_calc(100%-40px),transparent)]"
+                                                        )}
+                                                    >
 
                                                     {/* View Group */}
                                                     <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0 min-w-min">
@@ -1824,11 +1854,10 @@ export default function OrdersPage() {
                                                         <div className="flex items-center gap-2">
                                                             <button
                                                                 onClick={() => setIsReturnsOpen(true)}
-                                                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-orange-500 text-white hover:bg-orange-600 hover:-translate-y-0.5 transition-all duration-300 font-bold text-sm"
+                                                                className="p-2.5 rounded-xl bg-orange-500 text-white hover:bg-orange-600 hover:-translate-y-0.5 transition-all duration-300"
                                                                 title="Returns cockpit (scan returned packages)"
                                                             >
                                                                 <PackageX className="w-4 h-4" />
-                                                                <span className="whitespace-nowrap hidden lg:inline">Returns</span>
                                                             </button>
                                                             <button
                                                                 onClick={() => setIsCreateModalOpen(true)}
