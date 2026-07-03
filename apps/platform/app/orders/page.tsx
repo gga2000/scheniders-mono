@@ -1854,10 +1854,11 @@ export default function OrdersPage() {
                                                         <div className="flex items-center gap-1.5">
                                                             <button
                                                                 onClick={() => setIsReturnsOpen(true)}
-                                                                className="p-2.5 rounded-xl bg-orange-500 text-white hover:bg-orange-600 hover:-translate-y-0.5 transition-all duration-300"
+                                                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-orange-500 text-white hover:bg-orange-600 hover:-translate-y-0.5 transition-all duration-300 font-bold text-sm"
                                                                 title="Returns cockpit (scan returned packages)"
                                                             >
                                                                 <PackageX className="w-4 h-4" />
+                                                                <span className="whitespace-nowrap hidden lg:inline">Returns</span>
                                                             </button>
                                                             <button
                                                                 onClick={() => setIsCreateModalOpen(true)}
