@@ -1416,17 +1416,17 @@ export default function OrdersPage() {
                                                     <div
                                                         ref={toolbarScrollRef}
                                                         className={cn(
-                                                            "flex flex-1 min-w-0 items-start gap-3 pt-2 pb-6 overflow-x-auto scrollbar-hide flex-nowrap",
-                                                            toolbarFade.left && toolbarFade.right && "[mask-image:linear-gradient(to_right,transparent,black_40px,black_calc(100%-40px),transparent)]",
-                                                            toolbarFade.left && !toolbarFade.right && "[mask-image:linear-gradient(to_right,transparent,black_40px)]",
-                                                            !toolbarFade.left && toolbarFade.right && "[mask-image:linear-gradient(to_right,black_calc(100%-40px),transparent)]"
+                                                            "flex flex-1 min-w-0 items-start justify-between gap-3 pt-2 pb-6 overflow-x-auto scrollbar-hide flex-nowrap",
+                                                            toolbarFade.left && toolbarFade.right && "[mask-image:linear-gradient(to_right,transparent,black_32px,black_calc(100%-32px),transparent)]",
+                                                            toolbarFade.left && !toolbarFade.right && "[mask-image:linear-gradient(to_right,transparent,black_32px)]",
+                                                            !toolbarFade.left && toolbarFade.right && "[mask-image:linear-gradient(to_right,black_calc(100%-32px),transparent)]"
                                                         )}
                                                     >
 
                                                     {/* View Group */}
                                                     <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0 min-w-min">
                                                         <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.view")}</span>
-                                                        <div className="flex items-center gap-2">
+                                                        <div className="flex items-center gap-1.5">
                                                             {/* Saved Views Dropdown */}
                                                             <SavedViewsTabs
                                                                 presets={filterPresets}
@@ -1452,7 +1452,7 @@ export default function OrdersPage() {
                                                                 }}
                                                             />
 
-                                                            <div className="w-px h-8 bg-black/5 mx-1 orders-toolbar-divider" />
+                                                            <div className="w-px h-8 bg-black/5 mx-0.5 orders-toolbar-divider" />
                                                             {/* Workflow Toggle */}
                                                             <div className="flex items-center bg-black/5 rounded-xl p-1 gap-1">
                                                                 <button
@@ -1479,7 +1479,7 @@ export default function OrdersPage() {
                                                                 </button>
                                                             </div>
 
-                                                            <div className="w-px h-8 bg-black/5 mx-1 orders-toolbar-divider" />
+                                                            <div className="w-px h-8 bg-black/5 mx-0.5 orders-toolbar-divider" />
 
                                                             {/* Layout Toggles */}
                                                             {!workflowMode && [
@@ -1546,7 +1546,7 @@ export default function OrdersPage() {
                                                                 </button>
                                                             )}
 
-                                                            <div className="w-px h-8 bg-black/5 mx-1 orders-toolbar-divider" />
+                                                            <div className="w-px h-8 bg-black/5 mx-0.5 orders-toolbar-divider" />
 
                                                             {/* Collapse Toolbar */}
                                                             <button
@@ -1562,7 +1562,7 @@ export default function OrdersPage() {
                                                     {/* Filter Group */}
                                                     <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
                                                         <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.filter")}</span>
-                                                        <div className="flex items-center gap-2">
+                                                        <div className="flex items-center gap-1.5">
                                                             {/* Date Picker */}
                                                             <div>
                                                                 <button
@@ -1700,7 +1700,7 @@ export default function OrdersPage() {
                                                                 <GitBranch className="w-4 h-4" />
                                                             </button>
 
-                                                            <div className="w-px h-8 bg-black/5 mx-1 orders-toolbar-divider" />
+                                                            <div className="w-px h-8 bg-black/5 mx-0.5 orders-toolbar-divider" />
 
                                                             {/* Archive Toggle */}
                                                             <button
@@ -1738,7 +1738,7 @@ export default function OrdersPage() {
                                                     {/* Tools Group - NEW */}
                                                     <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
                                                         <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.tools")}</span>
-                                                        <div className="flex items-center gap-2">
+                                                        <div className="flex items-center gap-1.5">
                                                             {/* Notifications */}
                                                             <button
                                                                 onClick={async () => {
@@ -1824,7 +1824,7 @@ export default function OrdersPage() {
                                                     {/* Export Group */}
                                                     <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
                                                         <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.export")}</span>
-                                                        <div className="flex items-center gap-2">
+                                                        <div className="flex items-center gap-1.5">
 
                                                             <button
                                                                 onClick={() => setIsExportModalOpen(true)}
@@ -1851,7 +1851,7 @@ export default function OrdersPage() {
                                                     {/* Action Group — pinned outside the scroller so it can never overlap */}
                                                     <div className="flex flex-col gap-2 p-2 mt-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
                                                         <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.actions")}</span>
-                                                        <div className="flex items-center gap-2">
+                                                        <div className="flex items-center gap-1.5">
                                                             <button
                                                                 onClick={() => setIsReturnsOpen(true)}
                                                                 className="p-2.5 rounded-xl bg-orange-500 text-white hover:bg-orange-600 hover:-translate-y-0.5 transition-all duration-300"
